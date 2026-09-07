@@ -33,12 +33,6 @@ const LOGO_DOMAINS = {
 
 // Per-type config field definitions (same fields used once the integration is active)
 const CONFIG_FIELDS = {
-  facebook: [
-    { key: 'accessToken', label: 'User Access Token', placeholder: 'EAAxxxxxxxx', hint: 'Long-lived user token from Meta App Dashboard' },
-    { key: 'pageId', label: 'Facebook Page ID', placeholder: '123456789' },
-    { key: 'pageAccessToken', label: 'Page Access Token', placeholder: 'EAAxxxxxxxx', hint: 'Token scoped to your Page' },
-    { key: 'formId', label: 'Lead Form ID (optional)', placeholder: 'Leave blank to capture all forms' },
-  ],
   whatsapp_cloud: [
     { key: 'accessToken', label: 'Permanent Access Token', placeholder: 'EAAxxxxxxxx', hint: 'From Meta Business App > WhatsApp > API Setup' },
     { key: 'phoneNumberId', label: 'Phone Number ID', placeholder: '123456789', hint: 'From Meta Business App > WhatsApp > API Setup' },
@@ -49,11 +43,6 @@ const CONFIG_FIELDS = {
     { key: 'apiKey', label: 'API Key', placeholder: 'Enter your WhatsApp API key' },
     { key: 'webhookVerifyToken', label: 'Webhook Verify Token', placeholder: 'your_verify_token' },
   ],
-  google_sheets: [
-    { key: 'sheetId', label: 'Google Sheet ID', placeholder: '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms', hint: 'From the sheet URL: /spreadsheets/d/{SHEET_ID}/' },
-    { key: 'sheetRange', label: 'Sheet Range', placeholder: 'Sheet1!A1:Z1000', hint: 'Range to read/write leads' },
-  ],
-  google_meet: [],
   knowlarity: [
     { key: 'apiKey', label: 'API Key', placeholder: 'Your Knowlarity x-api-key', hint: 'From Knowlarity Developer Portal' },
     { key: 'accessToken', label: 'Access Token / Authorization', placeholder: 'Bearer xxxxxxxx' },
@@ -70,7 +59,7 @@ const CONFIG_FIELDS = {
   ],
 };
 
-const OAUTH_TYPES = ['facebook', 'google_sheets', 'google_meet'];
+const OAUTH_TYPES = [];
 const GENERIC_WEBHOOK_TYPES = ['justdial', '99acres', 'housing', 'indiamart', 'magicbricks', 'sulekha', 'tradeindia', 'webhook'];
 
 const s = {

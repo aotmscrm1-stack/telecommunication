@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-let baseURL = import.meta.env.VITE_API_URL || '/api';
+let baseURL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000/api' : '/api');
 if (baseURL.startsWith('http') && !baseURL.endsWith('/api') && !baseURL.endsWith('/api/')) {
   baseURL = baseURL.replace(/\/$/, '') + '/api';
 }
@@ -89,13 +89,6 @@ export const reportsAPI = {
   leadViewFilters: () => api.get('/reports/lead-view-filters'),
 };
 
-// ====================== NEW (AI Call Reports extension) ======================
-export const aiCallReportsAPI = {
-  getAll: (params) => api.get('/ai-call-reports', { params }),
-  dashboard: () => api.get('/ai-call-reports/dashboard'),
-  analytics: (params) => api.get('/ai-call-reports/analytics', { params }),
-  getOne: (id) => api.get(`/ai-call-reports/${id}`),
-};
 
 export const usersAPI = {
   getAll: () => api.get('/users'),
@@ -105,7 +98,7 @@ export const usersAPI = {
   update: (id, data) => api.put(`/users/${id}`, data),
   delete: (id) => api.delete(`/users/${id}`),
   getLeaderboard: (params) => api.get('/reports/leaderboard', { params }),
-  saveFcmToken: (token) => api.post('/users/fcm-token', { fcmToken: token }),
+  saveFcmToken: () => Promise.resolve({ data: { message: 'FCM disabled' } }),
 };
 
 export const coursesAPI = {
@@ -157,30 +150,12 @@ export const integrationsAPI = {
   getLeads: (id, params) => api.get(`/integrations/${id}/leads`, { params }),
   testWebhook: (id) => api.post(`/integrations/${id}/test-webhook`),
 
-  // Facebook
-  getFacebookPages: (id) => api.get(`/integrations/${id}/facebook/pages`),
-  getFacebookForms: (id) => api.get(`/integrations/${id}/facebook/forms`),
-  facebookSubscribe: (id) => api.post(`/integrations/${id}/facebook/subscribe`),
-  facebookSync: (id) => api.post(`/integrations/${id}/facebook/sync`),
-  getFacebookOAuthUrl: () => api.get('/integrations/facebook/oauth/url'),
 
   // WhatsApp
   sendWhatsApp: (id, data) => api.post(`/integrations/${id}/whatsapp/send`, data),
   sendWhatsAppTemplate: (id, data) => api.post(`/integrations/${id}/whatsapp/send-template`, data),
   getWhatsAppTemplates: (id) => api.get(`/integrations/${id}/whatsapp/templates`),
 
-  // Google OAuth
-  getGoogleOAuthUrl: (type, integrationId) => api.get(`/integrations/google/oauth/url?type=${type}&integrationId=${integrationId}`),
-
-  // Google Sheets
-  importFromSheet: (id) => api.post(`/integrations/${id}/sheets/import`),
-  listSheets: (id) => api.get(`/integrations/${id}/sheets/list`),
-  getSheetColumns: (id, sheetId, sheetRange) => api.get(`/integrations/${id}/sheets/columns`, { params: { sheetId, sheetRange } }),
-
-  // Google Meet
-  createMeeting: (id, data) => api.post(`/integrations/${id}/meet/create`, data),
-  listMeetings: (id) => api.get(`/integrations/${id}/meet/list`),
-  deleteMeeting: (id, eventId) => api.delete(`/integrations/${id}/meet/${eventId}`),
 
   // Knowlarity / CallerDesk / Maqsam
   getAgents: (id, type) => api.get(`/integrations/${id}/${type}/agents`),
@@ -326,16 +301,7 @@ export const permissionTemplatesAPI = {
   delete: (id) => api.delete(`/permission-templates/${id}`),
 };
 
-export const n8nAPI = {
-  getConfig: () => api.get('/n8n/config'),
-  saveConfig: (data) => api.post('/n8n/config', data),
-  test: () => api.post('/n8n/test'),
-  listWorkflows: () => api.get('/n8n/workflows'),
-  cachedWorkflows: () => api.get('/n8n/workflows/cached'),
-  getWorkflow: (id) => api.get(`/n8n/workflows/${id}`),
-  trigger: (id, payload) => api.post(`/n8n/workflows/${id}/trigger`, { payload }),
-  getExecutions: (id, limit) => api.get(`/n8n/workflows/${id}/executions`, { params: { limit } }),
-};
+
 
 export const recordingsAPI = {
   getMy: () => api.get('/recordings/my'),

@@ -76,7 +76,7 @@ export default function Sidebar() {
     return location.pathname.startsWith(path);
   };
 
-  const automationPaths = ['/workflows', '/schedules', '/salesforms', '/api-templates', '/webhooks', '/n8n-settings'];
+  const automationPaths = ['/workflows', '/schedules', '/api-templates'];
   const isAutomationActive = automationPaths.some(p => location.pathname.startsWith(p));
   const addLeadPaths = ['/leads/new', '/bulk-import'];
   const isAddLeadsActive = addLeadPaths.some(p => location.pathname.startsWith(p));
@@ -225,8 +225,6 @@ export default function Sidebar() {
       }}>
         <div style={{ flex: 1, paddingTop: 6 }}>
           <NavItem to="/dashboard"     icon={Icons.dashboard}   label="Dashboard" />
-          <NavItem to="/my-calls"      icon={Icons.calls}       label="My Calls" />
-          <NavItem to="/call-recordings" icon={Icons.recordings} label="Call Recordings" />
           <NavItem to="/tasks"         icon={Icons.tasks}       label="Tasks" />
 
           <SectionLabel text="Leads" />
@@ -251,7 +249,6 @@ export default function Sidebar() {
             <>
               <SectionLabel text="Management" />
               <NavItem to="/team-operations" icon={Icons.teamOps}    label="Team Operations" />
-              <NavItem to="/ai-call-reports" icon={Icons.aiCallReports} label="AI Call Reports" />
               <NavItem to="/stale-leads"     icon={Icons.staleLeads} label="Idle Leads" />
               <NavItem to="/blocklist"       icon={Icons.blocklist}  label="Blocklist" />
               <NavItem to="/users"           icon={Icons.users}      label="Users" />
@@ -263,17 +260,12 @@ export default function Sidebar() {
               >
                 <SubItem to="/workflows"    icon={Icons.workflows}    label="Workflows" />
                 <SubItem to="/schedules"    icon={Icons.schedules}    label="Schedules" />
-                <SubItem to="/salesforms"   icon={Icons.salesform}    label="Salesform" />
                 <SubItem to="/api-templates" icon={Icons.apiTemplates} label="API Templates" />
-                <SubItem to="/webhooks"     icon={Icons.webhooks}     label="Webhooks" />
-                <SubItem to="/n8n-settings" icon={Icons.n8n}          label="n8n" />
               </ExpandGroup>
 
               <SectionLabel text="Developer" />
-              <NavItem to="/call-iq-agents" icon={Icons.callIq}       label="Call-IQ Agents" />
               <NavItem to="/access-tokens"  icon={Icons.accessTokens} label="Access Tokens" />
               <NavItem to="/integrations"   icon={Icons.integrations} label="Integrations" />
-              <NavItem to="/mcp"            icon={Icons.mcp}          label="MCP" />
             </>
           )}
         </div>

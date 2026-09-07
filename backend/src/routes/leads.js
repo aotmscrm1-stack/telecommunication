@@ -1,7 +1,6 @@
 const express = require('express');
 const Lead = require('../models/Lead');
 const User = require('../models/User');
-const { sendCallNotification } = require('../services/fcm');
 const FollowUp = require('../models/FollowUp');
 const { protect, authorize } = require('../middleware/auth');
 const {
@@ -489,41 +488,33 @@ router.delete('/:id', protect, authorize('caller', 'manager', 'admin'), async (r
 
 router.post('/:id/initiate-call', protect, async (req, res) => {
   try {
-    const lead = await Lead.findById(req.params.id).populate('assignedTo', 'name email fcmToken');
+    const lead = await Lead.findById(req.params.id).populate('assignedTo', 'name email');
     if (!lead) return res.status(404).json({ message: 'Lead not found' });
 
     let caller;
     if (req.user.role === 'caller') {
-      caller = await User.findById(req.user._id).select('name email fcmToken');
+      caller = await User.findById(req.user._id).select('name email');
     } else {
       if (req.body.callerId && req.body.callerId !== lead.assignedTo?._id?.toString()) {
-        caller = await User.findById(req.body.callerId).select('name email fcmToken');
+        caller = await User.findById(req.body.callerId).select('name email');
       } else {
         caller = lead.assignedTo;
       }
     }
 
     if (!caller) return res.status(400).json({ message: 'No caller assigned. Please assign a caller first.' });
-    if (!caller.fcmToken) return res.status(400).json({
-      message: `Caller ${caller.name} has not logged in to the mobile app yet. Please open the app and login first.`,
-      callerName: caller.name,
-      hasToken: false,
-    });
 
-    const sent = await sendCallNotification(caller.fcmToken, lead, req.user.name);
     lead.activities.unshift({
       type: 'note',
-      description: `📞 Call initiated by ${req.user.name} → notification sent to ${caller.name}`,
+      description: `📞 Call initiated by ${req.user.name} for ${caller.name}`,
       performedBy: req.user._id,
     });
     await lead.save();
     notifyCallInitiated({ lead, callerId: caller._id, performedByUser: req.user }).catch(() => {});
 
     res.json({
-      success: sent,
-      message: sent
-        ? `✅ Call notification sent to ${caller.name}'s phone`
-        : `⚠️ Notification failed. ${caller.name} can call manually from the app`,
+      success: true,
+      message: `✅ Call initiated for ${caller.name}`,
       callerName: caller.name,
       leadName: lead.name,
       leadPhone: lead.phone,

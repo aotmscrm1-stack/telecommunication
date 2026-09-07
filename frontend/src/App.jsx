@@ -2,10 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Layout from './components/Layout/Layout';
 import Login from './pages/Login';
-import ForgotPassword from './pages/ForgotPassword';
-import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
-import MyCalls from './pages/MyCalls';
 import Leads from './pages/Leads';
 import AddLead from './pages/AddLead';
 import Campaigns from './pages/Campaigns';
@@ -28,22 +25,14 @@ import IntegrationSetup from './pages/IntegrationSetup';
 import IntegrationDetail from './pages/IntegrationDetail';
 import Workflows from './pages/Workflows';
 import Schedules from './pages/Schedules';
-import Salesforms from './pages/Salesforms';
 import ApiTemplates from './pages/ApiTemplates';
-import Webhooks from './pages/Webhooks';
 import AccessTokens from './pages/AccessTokens';
-import CallIqAgents from './pages/CallIqAgents';
-import Mcp from './pages/Mcp';
 import LeadStage from './pages/LeadStage';
 import Fields from './pages/Fields';
-import CallFeedback from './pages/CallFeedback';
 import CustomActions from './pages/CustomActions';
 import WorkspacePreferences from './pages/WorkspacePreferences';
 import PermissionTemplates from './pages/PermissionTemplates';
-import N8nSettings from './pages/N8nSettings';
-import CallRecordings from './pages/CallRecordings';
 import Billing from './pages/Billing';
-import AiCallReports from './pages/AiCallReports';
 import Landing from './pages/Landing';
 
 const ProtectedRoute = ({ children }) => {
@@ -72,12 +61,8 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-          <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
-          <Route path="/reset-password/:token" element={<PublicRoute><ResetPassword /></PublicRoute>} />
           <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
             <Route path="dashboard" element={<Dashboard />} />
-            <Route path="my-calls" element={<MyCalls />} />
-            <Route path="call-recordings" element={<CallRecordings />} />
             <Route path="billing" element={<Billing />} />
             <Route path="leads" element={<Leads />} />
             <Route path="leads/new" element={<AddLead />} />
@@ -97,25 +82,18 @@ export default function App() {
             <Route path="stale-leads" element={<StaleLeads />} />
             <Route path="bulk-import" element={<BulkImport />} />
             <Route path="team-operations" element={<TeamOperations />} />
-            <Route path="ai-call-reports" element={<AiCallReports />} />
             <Route path="integrations" element={<Integrations />} />
             <Route path="integrations/setup/:type" element={<IntegrationSetup />} />
             <Route path="integrations/:id" element={<IntegrationDetail />} />
             <Route path="workflows" element={<Workflows />} />
             <Route path="schedules" element={<Schedules />} />
-            <Route path="salesforms" element={<Salesforms />} />
             <Route path="api-templates" element={<ApiTemplates />} />
-            <Route path="webhooks" element={<Webhooks />} />
             <Route path="access-tokens" element={<AccessTokens />} />
-            <Route path="call-iq-agents" element={<CallIqAgents />} />
-            <Route path="mcp" element={<Mcp />} />
             <Route path="lead-stage" element={<LeadStage />} />
             <Route path="fields" element={<Fields />} />
-            <Route path="call-feedback" element={<CallFeedback />} />
             <Route path="custom-actions" element={<CustomActions />} />
             <Route path="workspace-preferences" element={<WorkspacePreferences />} />
             <Route path="permission-templates" element={<PermissionTemplates />} />
-            <Route path="n8n-settings" element={<N8nSettings />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

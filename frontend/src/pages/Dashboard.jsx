@@ -4,6 +4,9 @@ import { leadsAPI, followupsAPI, reportsAPI, usersAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import StatusBadge from '../components/common/StatusBadge';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis } from 'recharts';
+import StatCard from '../components/dashboard/StatCard';
+import AnalyticsCharts from '../components/dashboard/AnalyticsCharts';
+import UserAnalysisModal from '../components/dashboard/UserAnalysisModal';
 
 const PURPLE = '#5b3fc7';
 const PURPLE_LIGHT = '#f0ecff';
@@ -36,19 +39,6 @@ function fmtDuration(sec) {
   if (m > 0) return `${m}m ${s}s`;
   return `${s}s`;
 }
-
-const StatCard = ({ icon, label, value, sub, bg, iconColor }) => (
-  <div className="stat-card" style={{ background: '#fff', border: '1px solid #e5e2f5', borderRadius: 12, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 16, boxSizing: 'border-box', width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
-    <div style={{ width: 48, height: 48, borderRadius: 12, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-      <span style={{ color: iconColor, display: 'flex' }}>{icon}</span>
-    </div>
-    <div style={{ flex: 1, minWidth: 0 }}>
-      <div style={{ fontSize: 13, color: TEXT_MUTED, wordBreak: 'break-word' }}>{label}</div>
-      <div style={{ fontSize: 24, fontWeight: 800, color: TEXT_MAIN, lineHeight: 1.1, marginTop: 4, wordBreak: 'break-word' }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 2, wordBreak: 'break-word' }}>{sub}</div>}
-    </div>
-  </div>
-);
 
 const SortIcon = () => (
   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">

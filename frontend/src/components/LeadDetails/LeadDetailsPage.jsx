@@ -4,7 +4,6 @@ import { ArrowLeft, Phone, PhoneOff, Mail, MapPin, Award, IndianRupee, Globe, Us
 import { leadsAPI, campaignsAPI, usersAPI, coursesAPI, followupsAPI, blocklistAPI, leadStagesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import StatusBadge from '../common/StatusBadge';
-import RunCallIqModal from '../RunCallIqModal';
 import { formatDistanceToNow, format } from 'date-fns';
 
 const FALLBACK_STATUSES = ['Fresh', 'Connected', 'Call Not Responding', 'Call Back Later', 'Not interested', 'Demo Scheduled', 'Demo Done', 'Won', 'Lost'];
@@ -1258,13 +1257,6 @@ export default function LeadDetailsPage({
       {/* Modals */}
       {showNoteModal && <AddNoteModal onClose={() => setShowNoteModal(false)} onSubmit={handleAddNote} />}
       {showLogCallModal && <LogCallModal lead={lead} onClose={() => setShowLogCallModal(false)} onSubmit={handleLogManualCall} />}
-      {runCallIqActivityId && (
-        <RunCallIqModal
-          leadId={lead._id}
-          activityId={runCallIqActivityId}
-          onClose={() => setRunCallIqActivityId(null)}
-        />
-      )}
       {showCallbackModal && lead && <CallbackTimeModal lead={lead} currentUser={user} onClose={() => setShowCallbackModal(false)} onScheduled={handleCallbackScheduled} />}
       {showDemoModal && lead && <ScheduleDemoModal lead={lead} onClose={() => setShowDemoModal(false)} onSave={handleScheduleDemo} />}
       {showInitiateCallModal && (

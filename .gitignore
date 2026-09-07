@@ -1,7 +1,0 @@
-.env
-.env.*
-backend/.env
-node_modules/
-dist/
-build/.env
-backend/.env

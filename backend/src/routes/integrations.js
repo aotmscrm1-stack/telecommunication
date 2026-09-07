@@ -4,9 +4,6 @@ const Integration = require('../models/Integration');
 const Lead = require('../models/Lead');
 const { protect, authorize } = require('../middleware/auth');
 
-const googleSheets = require('../services/integrations/googleSheets');
-const googleMeet = require('../services/integrations/googleMeet');
-const facebook = require('../services/integrations/facebook');
 const whatsapp = require('../services/integrations/whatsapp');
 const knowlarity = require('../services/integrations/knowlarity');
 const callerdesk = require('../services/integrations/callerdesk');
@@ -18,23 +15,8 @@ const CALL_SERVICES = { knowlarity, callerdesk, maqsam };
 
 const CATALOG = [
   { type: 'whatsapp_cloud', name: 'Whatsapp Cloud API', category: 'webhook', description: 'Integrate WhatsApp Cloud API in your AOTMS account' },
-  { type: 'facebook', name: 'Facebook', category: 'oauth', description: 'Auto-import leads from Facebook Lead Ads' },
   { type: 'justdial', name: 'JustDial', category: 'generic_webhook', description: 'Auto-import leads from JustDial' },
-  { type: 'google_sheets', name: 'Google Sheets', category: 'oauth', description: 'Sync leads to/from Google Sheets automatically' },
-  { type: 'google_meet', name: 'Google Meet', category: 'oauth', description: 'Schedule and manage Google Meet calls from leads' },
 ];
-
-function frontendBase() {
-  return process.env.FRONTEND_URL || 'http://localhost:5173';
-}
-
-function encodeState(obj) {
-  return Buffer.from(JSON.stringify(obj)).toString('base64url');
-}
-function decodeState(state) {
-  try { return JSON.parse(Buffer.from(state, 'base64url').toString('utf8')); }
-  catch { return {}; }
-}
 
 // ---------- Base CRUD ----------
 
@@ -60,74 +42,6 @@ router.get('/', protect, async (req, res) => {
     res.json({ active, pending, available });
   } catch (err) {
     res.status(500).json({ message: err.message });
-  }
-});
-
-// ---------- Google OAuth (must be before /:id) ----------
-
-router.get('/google/oauth/url', protect, async (req, res) => {
-  try {
-    const { type, integrationId } = req.query;
-    if (!integrationId) return res.status(400).json({ message: 'integrationId is required' });
-    const state = encodeState({ integrationId, type, userId: String(req.user._id) });
-    const svc = type === 'google_meet' ? googleMeet : googleSheets;
-    const url = svc.getAuthUrl(state);
-    res.json({ url });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-router.get('/google/oauth/callback', async (req, res) => {
-  const { code, state, error } = req.query;
-  const base = frontendBase();
-  if (error) {
-    return res.redirect(`${base}/integrations?google_oauth=error&message=${encodeURIComponent(error)}`);
-  }
-  try {
-    const { integrationId, type } = decodeState(state);
-    if (!integrationId) throw new Error('Missing integration reference in OAuth state');
-
-    const svc = type === 'google_meet' ? googleMeet : googleSheets;
-    const tokens = await svc.exchangeCode(code);
-
-    const update = {
-      'config.accessToken': tokens.access_token || '',
-      status: 'active',
-      needsReconnect: false,
-      lastAutoSyncError: null,
-    };
-    if (tokens.refresh_token) update['config.refreshToken'] = tokens.refresh_token;
-    if (tokens.expiry_date) update['config.tokenExpiryDate'] = tokens.expiry_date;
-
-    await Integration.findByIdAndUpdate(integrationId, { $set: update });
-
-    return res.redirect(`${base}/integrations/${integrationId}?google_oauth=success&type=${type || ''}`);
-  } catch (err) {
-    return res.redirect(`${base}/integrations?google_oauth=error&message=${encodeURIComponent(err.message)}`);
-  }
-});
-
-// ---------- Facebook OAuth ----------
-
-router.get('/facebook/oauth/url', protect, (req, res) => {
-  const redirectUri = process.env.FACEBOOK_REDIRECT_URI || `${process.env.BACKEND_URL || ''}/api/integrations/facebook/oauth/callback`;
-  const state = encodeState({ userId: String(req.user._id) });
-  const url = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${process.env.FACEBOOK_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=leads_retrieval,pages_show_list,pages_manage_ads,pages_read_engagement`;
-  res.json({ url });
-});
-
-router.get('/facebook/oauth/callback', async (req, res) => {
-  const base = frontendBase();
-  const { code, error } = req.query;
-  if (error) return res.redirect(`${base}/integrations?google_oauth=error&type=facebook&message=${encodeURIComponent(error)}`);
-  try {
-    const redirectUri = process.env.FACEBOOK_REDIRECT_URI || `${process.env.BACKEND_URL || ''}/api/integrations/facebook/oauth/callback`;
-    const shortToken = await facebook.exchangeCodeForToken(code, redirectUri);
-    const longToken = await facebook.getLongLivedToken(shortToken, process.env.FACEBOOK_APP_ID, process.env.FACEBOOK_APP_SECRET);
-    return res.redirect(`${base}/integrations?google_oauth=success&type=facebook&fb_token=${encodeURIComponent(longToken || '')}`);
-  } catch (err) {
-    return res.redirect(`${base}/integrations?google_oauth=error&type=facebook&message=${encodeURIComponent(err.message)}`);
   }
 });
 
@@ -274,48 +188,6 @@ router.post('/:id/test-webhook', protect, async (req, res) => {
   }
 });
 
-// ---------- Facebook actions ----------
-
-router.get('/:id/facebook/pages', protect, async (req, res) => {
-  try {
-    const integration = await Integration.findById(req.params.id);
-    const pages = await facebook.getUserPages(integration.config.accessToken);
-    res.json(pages);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-router.get('/:id/facebook/forms', protect, async (req, res) => {
-  try {
-    const integration = await Integration.findById(req.params.id);
-    const forms = await facebook.getPageForms(integration.config.pageId, integration.config.pageAccessToken);
-    res.json(forms);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-router.post('/:id/facebook/subscribe', protect, async (req, res) => {
-  try {
-    const integration = await Integration.findById(req.params.id);
-    const result = await facebook.subscribePage(integration.config.pageId, integration.config.pageAccessToken);
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-router.post('/:id/facebook/sync', protect, async (req, res) => {
-  try {
-    const integration = await Integration.findById(req.params.id);
-    const result = await facebook.pullLeadsFromForm(integration.config.formId, integration.config.pageAccessToken, integration);
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
 // ---------- WhatsApp actions ----------
 
 router.post('/:id/whatsapp/send', protect, async (req, res) => {
@@ -438,8 +310,50 @@ router.post('/:id/whatsapp/templates/sync', protect, async (req, res) => {
 
 // ── Meta Cloud API webhook (public — verified by hub.verify_token / no CRM auth) ─
 // Configure this URL in Meta App Dashboard > WhatsApp > Configuration:
-//   Callback URL: {BACKEND_URL}/api/integrations/:id/whatsapp/webhook
-//   Verify Token: whatever you set in integration.config.webhookVerifyToken
+//   Callback URL: {BACKEND_URL}/api/integrations/whatsapp/webhook
+//   Verify Token: zest_eat_meta_verify_8f9q2a
+router.get('/whatsapp/webhook', async (req, res) => {
+  try {
+    const mode = req.query['hub.mode'];
+    const token = req.query['hub.verify_token'];
+    const challenge = req.query['hub.challenge'];
+
+    const verifyToken = process.env.META_WA_VERIFY_TOKEN || 'zest_eat_meta_verify_8f9q2a';
+    const result = whatsapp.verifyWebhookToken(mode, token, challenge, verifyToken);
+    if (result.valid) return res.status(200).send(result.challenge);
+
+    const integration = await Integration.findOne({ type: 'whatsapp_cloud' });
+    if (integration && integration.config?.webhookVerifyToken) {
+      const match = whatsapp.verifyWebhookToken(mode, token, challenge, integration.config.webhookVerifyToken);
+      if (match.valid) return res.status(200).send(match.challenge);
+    }
+    return res.sendStatus(403);
+  } catch (err) {
+    res.sendStatus(500);
+  }
+});
+
+router.post('/whatsapp/webhook', async (req, res) => {
+  res.sendStatus(200);
+  try {
+    let integration = await Integration.findOne({ type: 'whatsapp_cloud' });
+    if (!integration) {
+      integration = {
+        _id: 'default',
+        type: 'whatsapp_cloud',
+        name: 'Whatsapp Cloud API',
+        config: {
+          accessToken: process.env.META_WA_ACCESS_TOKEN,
+          phoneNumberId: process.env.META_WA_PHONE_NUMBER_ID,
+        }
+      };
+    }
+    await whatsapp.handleWhatsAppWebhookEvent(req.body, integration);
+  } catch (err) {
+    console.error('WhatsApp global webhook error:', err.message);
+  }
+});
+
 router.get('/:id/whatsapp/webhook', async (req, res) => {
   try {
     const integration = await Integration.findById(req.params.id);
@@ -449,7 +363,7 @@ router.get('/:id/whatsapp/webhook', async (req, res) => {
     const token = req.query['hub.verify_token'];
     const challenge = req.query['hub.challenge'];
 
-    const result = whatsapp.verifyWebhookToken(mode, token, challenge, integration.config.webhookVerifyToken);
+    const result = whatsapp.verifyWebhookToken(mode, token, challenge, integration.config.webhookVerifyToken || process.env.META_WA_VERIFY_TOKEN);
     if (result.valid) return res.status(200).send(result.challenge);
     return res.sendStatus(403);
   } catch (err) {
@@ -458,7 +372,6 @@ router.get('/:id/whatsapp/webhook', async (req, res) => {
 });
 
 router.post('/:id/whatsapp/webhook', async (req, res) => {
-  // Ack immediately — Meta retries aggressively on non-200 responses.
   res.sendStatus(200);
   try {
     const integration = await Integration.findById(req.params.id);
@@ -466,84 +379,6 @@ router.post('/:id/whatsapp/webhook', async (req, res) => {
     await whatsapp.handleWhatsAppWebhookEvent(req.body, integration);
   } catch (err) {
     console.error('WhatsApp webhook processing error:', err.message);
-  }
-});
-
-// ---------- Google Sheets actions ----------
-
-router.post('/:id/sheets/import', protect, async (req, res) => {
-  try {
-    const integration = await Integration.findById(req.params.id);
-    if (!integration) return res.status(404).json({ message: 'Integration not found' });
-    const result = await googleSheets.importLeadsFromSheet(integration, req.body?.sheetId || req.query?.sheetId);
-    res.json(result);
-  } catch (err) {
-    res.status(err.code === 'GOOGLE_NOT_CONNECTED' || err.code === 'SHEET_ID_MISSING' ? 400 : 500).json({ message: err.message });
-  }
-});
-
-router.get('/:id/sheets/columns', protect, async (req, res) => {
-  try {
-    const integration = await Integration.findById(req.params.id);
-    if (!integration) return res.status(404).json({ message: 'Integration not found' });
-    const { sheetId, sheetRange } = req.query;
-    const columns = await googleSheets.getColumns(integration, sheetId, sheetRange);
-    res.json({ columns });
-  } catch (err) {
-    const isClientErr = ['GOOGLE_NOT_CONNECTED', 'SHEET_ID_MISSING', 'SHEET_TAB_NOT_FOUND'].includes(err.code);
-    res.status(isClientErr ? 400 : 500).json({ message: err.message, availableTabs: err.availableTabs || [] });
-  }
-});
-
-router.get('/:id/sheets/list', protect, async (req, res) => {
-  try {
-    const integration = await Integration.findById(req.params.id);
-    if (!integration) return res.status(404).json({ message: 'Integration not found' });
-    const sheets = await googleSheets.listSheets(integration);
-    res.json(sheets);
-  } catch (err) {
-    res.status(err.code === 'GOOGLE_NOT_CONNECTED' || err.code === 'SHEET_ID_MISSING' ? 400 : 500).json({ message: err.message });
-  }
-});
-
-// ---------- Google Meet actions ----------
-
-router.post('/:id/meet/create', protect, async (req, res) => {
-  try {
-    const integration = await Integration.findById(req.params.id);
-    if (!integration) return res.status(404).json({ message: 'Integration not found' });
-    const { summary, description, startTime, endTime, attendeeEmails } = req.body;
-    const attendees = typeof attendeeEmails === 'string'
-      ? attendeeEmails.split(',').map(e => e.trim()).filter(Boolean)
-      : (attendeeEmails || []);
-    const meeting = await googleMeet.createMeeting({
-      config: integration.config, summary, description, startTime, endTime, attendeeEmails: attendees,
-    });
-    res.json(meeting);
-  } catch (err) {
-    res.status(err.code === 'GOOGLE_NOT_CONNECTED' ? 400 : 500).json({ message: err.message });
-  }
-});
-
-router.get('/:id/meet/list', protect, async (req, res) => {
-  try {
-    const integration = await Integration.findById(req.params.id);
-    if (!integration) return res.status(404).json({ message: 'Integration not found' });
-    const meetings = await googleMeet.listMeetings(integration.config);
-    res.json(meetings);
-  } catch (err) {
-    res.status(err.code === 'GOOGLE_NOT_CONNECTED' ? 400 : 500).json({ message: err.message });
-  }
-});
-
-router.delete('/:id/meet/:eventId', protect, async (req, res) => {
-  try {
-    const integration = await Integration.findById(req.params.id);
-    if (!integration) return res.status(404).json({ message: 'Integration not found' });
-    await googleMeet.deleteMeeting(integration.config, req.params.eventId);
-    res.json({ message: 'Meeting deleted' });
-  } catch (err) {
-    res.status(err.code === 'GOOGLE_NOT_CONNECTED' ? 400 : 500).json({ message: err.message });
   }
 });
 

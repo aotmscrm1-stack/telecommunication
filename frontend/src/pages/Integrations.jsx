@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { integrationsAPI } from '../services/api';
 
 const LOGO_COLORS = {
-  facebook: '#1877F2', justdial: '#E87722', whatsapp: '#25D366',
+  justdial: '#E87722', whatsapp: '#25D366',
   whatsapp_cloud: '#25D366', '99acres': '#E01E1E', callerdesk: '#FF5722',
-  google_meet: '#00BCD4', google_sheets: '#34A853', housing: '#F26522',
+  housing: '#F26522',
   indiamart: '#E31E25', knowlarity: '#6C3483', magicbricks: '#E74C3C',
   maqsam: '#C0392B',
   sulekha: '#FF6B35', tradeindia: '#0066CC', webhook: 'var(--theme-primary-alt)',
@@ -14,14 +14,11 @@ const LOGO_COLORS = {
 // Official brand logos, fetched live from each company's real domain.
 // Falls back to colored initials if the logo can't be loaded.
 const LOGO_DOMAINS = {
-  facebook: 'facebook.com',
   justdial: 'justdial.com',
   whatsapp: 'whatsapp.com',
   whatsapp_cloud: 'whatsapp.com',
   '99acres': '99acres.com',
   callerdesk: 'callerdesk.io',
-  google_meet: 'meet.google.com',
-  google_sheets: 'google.com',
   housing: 'housing.com',
   indiamart: 'indiamart.com',
   knowlarity: 'knowlarity.com',

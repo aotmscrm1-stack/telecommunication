@@ -7,25 +7,16 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
 const connectDB = require('./config/db');
-const { initFCM } = require('./services/fcm');
 const http = require('node:http');
 require('./models/ImportHistory');
 require('./models/Payment');
-const { WebSocketServer } = require('ws');
-const { handleCall } = require('./services/aiCaller/orchestrator'); // NEW: in-process AI call orchestrator
 const { startSchedulePoller } = require('./services/workflowEngine');
 const { startOverdueTaskChecker } = require('./services/taskOverdueChecker');
 const { startTaskReminderChecker } = require('./services/taskReminderChecker');
-const campaignEngine = require('./services/aiCaller/campaignEngine');
-const callbackEngine = require('./services/aiCaller/callbackEngine');
-const { startSheetsAutoSyncPoller } = require('./services/sheetsAutoSync');
 const dns = require('node:dns');
-dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 const app = express();
 connectDB();
-
-initFCM();
 
 // ── Security ─────────────────────────────────────────────────────────────────
 // A single exact-string origin match (the old approach) silently breaks CORS
@@ -91,62 +82,24 @@ app.use('/api/broadcasts', apiLimiter, require('./routes/broadcasts'));
 app.use('/api/whatsapp-inbox', apiLimiter, require('./routes/whatsappInbox'));
 app.use('/api/whatsapp-lists', apiLimiter, require('./routes/whatsappLists'));
 app.use('/api/bulk-import', apiLimiter, require('./routes/bulkImport'));
-app.use('/api/ai-caller', require('./routes/aiCaller'));
-app.use('/api/ai-call-reports', apiLimiter, require('./routes/aiCallReports')); // NEW: AI Call Reports extension
 app.use('/api/integrations', require('./routes/integrations'));
 app.use('/api/notifications', apiLimiter, require('./routes/notifications'));
-app.use('/api/recordings', apiLimiter, require('./routes/recordings'));
 
-// ── Audio streaming with proper Range support and CORS headers ────────────────
-const RECORDINGS_DIR = process.env.RECORDINGS_DIR
-  || (process.env.NODE_ENV === 'production'
-    ? path.join('/var/data', 'recordings')
-    : path.join(__dirname, 'uploads', 'recordings'));
-
-app.use('/uploads/recordings', (req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', isAllowedOrigin(req.headers.origin) ? (req.headers.origin || '*') : 'null');
-  res.setHeader('Access-Control-Allow-Headers', 'Range');
-  res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Accept-Ranges, Content-Length');
-  if (req.method === 'OPTIONS') return res.sendStatus(200);
-  next();
-}, express.static(RECORDINGS_DIR, {
-  setHeaders: (res, filePath) => {
-    if (/\.(m4a|mp3|wav|amr|3gp|3gpp|aac|ogg)$/i.test(filePath)) {
-      res.setHeader('Accept-Ranges', 'bytes');
-      res.setHeader('Cache-Control', 'no-cache');
-    }
-  },
-}));
-
-// Any other (non-recording) uploads still served from the local repo path
+// ── Uploads static folder ───────────────────────────────────────────────────
 app.use('/uploads', (req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', isAllowedOrigin(req.headers.origin) ? (req.headers.origin || '*') : 'null');
   res.setHeader('Access-Control-Allow-Headers', 'Range');
   res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Accept-Ranges, Content-Length');
   if (req.method === 'OPTIONS') return res.sendStatus(200);
   next();
-}, express.static(path.join(__dirname, 'uploads'), {
-  setHeaders: (res, filePath) => {
-    if (/\.(m4a|mp3|wav|amr|3gp|3gpp|aac|ogg)$/i.test(filePath)) {
-      res.setHeader('Accept-Ranges', 'bytes');
-      res.setHeader('Cache-Control', 'no-cache');
-    }
-  },
-}));
+}, express.static(path.join(__dirname, 'uploads')));
 
 app.use('/api/workflows', apiLimiter, require('./routes/workflows'));
-app.use('/api/salesforms', apiLimiter, require('./routes/salesforms'));
 app.use('/api/api-templates', apiLimiter, require('./routes/apiTemplates'));
-app.use('/api/webhooks', apiLimiter, require('./routes/webhooks'));
 app.use('/api/access-tokens', apiLimiter, require('./routes/accessTokens'));
-app.use('/api/call-iq-agents', apiLimiter, require('./routes/callIqAgents'));
-app.use('/api/mcp', apiLimiter, require('./routes/mcp'));
-app.use('/mcp', apiLimiter, require('./routes/mcpServer'));
-app.use('/api/n8n', apiLimiter, require('./routes/n8n'));
 app.use('/api/email-campaigns', apiLimiter, require('./routes/emailCampaigns'));
 app.use('/api/lead-stages', apiLimiter, require('./routes/leadStages'));
 app.use('/api/lead-fields', apiLimiter, require('./routes/leadFields'));
-app.use('/api/call-feedback', apiLimiter, require('./routes/callFeedback'));
 app.use('/api/custom-actions', apiLimiter, require('./routes/customActions'));
 app.use('/api/workspace-preferences', apiLimiter, require('./routes/workspacePreferences'));
 app.use('/api/permission-templates', apiLimiter, require('./routes/permissionTemplates'));
@@ -166,29 +119,11 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
 
-// ── AI Call Orchestrator WebSocket ────────────────────────────────────────────
-// Replaces the external RunPod/Python orchestrator entirely.
-// Exotel's AgentStream connects here (wss://your-render-url/ai-caller/stream)
-// for each outbound call. Each connection gets its own handleCall() instance
-// running Sarvam STT → GPT-4.1-mini → Sarvam TTS in-process.
-// No GPU, no Docker, no RunPod — just this Node.js process on Render.
-const wss = new WebSocketServer({ server, path: '/ai-caller/stream' });
-wss.on('connection', (ws, req) => {
-  handleCall(ws, req).catch((err) =>
-    console.error('[orchestrator] unhandled error in handleCall:', err.message)
-  );
-});
-console.log('[server] AI orchestrator WS mounted at /ai-caller/stream');
-
 server.listen(PORT, () => {
   console.log(`🚀 AOTMS Server running on port ${PORT}`);
   startSchedulePoller(60 * 1000);
   startOverdueTaskChecker(5 * 60 * 1000);
   startTaskReminderChecker(5 * 60 * 1000);
-  campaignEngine.startPoller();
-  callbackEngine.startPoller();
-  startSheetsAutoSyncPoller(2 * 60 * 1000); // auto-import new Google Sheet rows every 2 minutes
-  console.log('[server] AI campaign engine and callback engine started');
 });
 
 // Keep-alive self-ping every 10 minutes (Render free tier spin-down prevention)

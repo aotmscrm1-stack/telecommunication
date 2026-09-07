@@ -71,6 +71,22 @@ router.delete('/:id', protect, async (req, res) => {
     if (template.createdBy.toString() !== req.user._id.toString() && req.user.role === 'caller') {
       return res.status(403).json({ message: 'Cannot delete another user\'s template' });
     }
+
+    // If linked to Meta WABA, delete from Meta Graph API as well
+    if (template.type === 'whatsapp' && (template.metaTemplateName || template.shortcut)) {
+      const whatsappService = require('../services/integrations/whatsapp');
+      const Integration = require('../models/Integration');
+      const integration = await Integration.findOne({ type: 'whatsapp_cloud', status: 'active' });
+      const wabaId = integration?.config?.wabaId || process.env.META_WA_PHONE_NUMBER_ID;
+      const token = integration?.config?.accessToken || process.env.META_WA_ACCESS_TOKEN;
+      const tName = template.metaTemplateName || template.shortcut;
+      try {
+        await whatsappService.deleteTemplate(wabaId, token, tName);
+      } catch (metaErr) {
+        console.warn('[Meta Template Delete] Could not delete from Meta Graph API:', metaErr.message);
+      }
+    }
+
     await MessageTemplate.findByIdAndDelete(req.params.id);
     res.json({ message: 'Template deleted' });
   } catch (err) {

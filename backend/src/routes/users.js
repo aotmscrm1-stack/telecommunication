@@ -193,21 +193,9 @@ router.delete('/:id', protect, authorize('admin'), async (req, res) => {
   }
 });
 
-// POST /api/users/fcm-token — save FCM device token after mobile app login
-// Called automatically by mobile app when user logs in
+// POST /api/users/fcm-token — deprecated (FCM removed)
 router.post('/fcm-token', protect, async (req, res) => {
-  try {
-    const { fcmToken } = req.body;
-    if (!fcmToken) return res.status(400).json({ message: 'FCM token required' });
-    await User.findByIdAndUpdate(req.user._id, {
-      fcmToken,
-      fcmTokenUpdatedAt: new Date(),
-    });
-    console.log(`✅ FCM token saved for user: ${req.user.name}`);
-    res.json({ message: 'FCM token saved successfully' });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
+  res.json({ message: 'FCM token route deprecated' });
 });
 
 module.exports = router;

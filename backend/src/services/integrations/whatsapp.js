@@ -17,23 +17,27 @@ function verifyWebhookToken(mode, token, challenge, verifyToken) {
 
 // ── Send a plain text message ───────────────────────────────────────────────────
 async function sendTextMessage(phoneNumberId, accessToken, to, message) {
+  const pId = phoneNumberId || process.env.META_WA_PHONE_NUMBER_ID;
+  const token = accessToken || process.env.META_WA_ACCESS_TOKEN;
   const res = await axios.post(
-    `${WA_API}/${phoneNumberId}/messages`,
+    `${WA_API}/${pId}/messages`,
     {
       messaging_product: 'whatsapp',
       to,
       type: 'text',
       text: { body: message },
     },
-    { headers: { Authorization: `Bearer ${accessToken}` } }
+    { headers: { Authorization: `Bearer ${token}` } }
   );
   return res.data;
 }
 
 // ── Send a pre-approved template message ────────────────────────────────────────
 async function sendTemplateMessage(phoneNumberId, accessToken, to, templateName, languageCode, components) {
+  const pId = phoneNumberId || process.env.META_WA_PHONE_NUMBER_ID;
+  const token = accessToken || process.env.META_WA_ACCESS_TOKEN;
   const res = await axios.post(
-    `${WA_API}/${phoneNumberId}/messages`,
+    `${WA_API}/${pId}/messages`,
     {
       messaging_product: 'whatsapp',
       to,
@@ -44,17 +48,15 @@ async function sendTemplateMessage(phoneNumberId, accessToken, to, templateName,
         components: components || [],
       },
     },
-    { headers: { Authorization: `Bearer ${accessToken}` } }
+    { headers: { Authorization: `Bearer ${token}` } }
   );
   return res.data;
 }
 
 // ── Send an interactive List message ────────────────────────────────────────────
-// list = { header, body, footer, buttonLabel, sections: [{ title, rows: [{ title, description }] }] }
-// Meta interactive "list" messages are only deliverable within the 24h customer
-// service window (i.e. after the lead has messaged in). Outside that window use
-// an approved template instead.
 async function sendListMessage(phoneNumberId, accessToken, to, list) {
+  const pId = phoneNumberId || process.env.META_WA_PHONE_NUMBER_ID;
+  const token = accessToken || process.env.META_WA_ACCESS_TOKEN;
   const interactive = {
     type: 'list',
     body: { text: list.body },
@@ -74,39 +76,51 @@ async function sendListMessage(phoneNumberId, accessToken, to, list) {
   if (list.footer) interactive.footer = { text: list.footer };
 
   const res = await axios.post(
-    `${WA_API}/${phoneNumberId}/messages`,
+    `${WA_API}/${pId}/messages`,
     {
       messaging_product: 'whatsapp',
       to,
       type: 'interactive',
       interactive,
     },
-    { headers: { Authorization: `Bearer ${accessToken}` } }
+    { headers: { Authorization: `Bearer ${token}` } }
   );
   return res.data;
 }
 
 // ── List approved message templates for a WABA ─────────────────────────────────
 async function getTemplates(wabaId, accessToken) {
-  const res = await axios.get(`${WA_API}/${wabaId}/message_templates`, {
-    params: { access_token: accessToken, limit: 100 },
+  const token = accessToken || process.env.META_WA_ACCESS_TOKEN;
+  const targetId = wabaId || process.env.META_WA_PHONE_NUMBER_ID;
+  const res = await axios.get(`${WA_API}/${targetId}/message_templates`, {
+    params: { access_token: token, limit: 100 },
   });
   return res.data.data || [];
 }
 
 // ── Submit a new template to Meta for approval ──────────────────────────────────
-// components follows Meta's shape, e.g.:
-// [{ type: 'HEADER', format: 'TEXT', text: '...' },
-//  { type: 'BODY', text: '...' },
-//  { type: 'FOOTER', text: '...' },
-//  { type: 'BUTTONS', buttons: [{ type: 'QUICK_REPLY', text: '...' }] }]
 async function submitTemplate(wabaId, accessToken, { name, category, language, components }) {
+  const token = accessToken || process.env.META_WA_ACCESS_TOKEN;
+  const targetId = wabaId || process.env.META_WA_PHONE_NUMBER_ID;
   const res = await axios.post(
-    `${WA_API}/${wabaId}/message_templates`,
+    `${WA_API}/${targetId}/message_templates`,
     { name, category, language, components },
-    { headers: { Authorization: `Bearer ${accessToken}` } }
+    { headers: { Authorization: `Bearer ${token}` } }
   );
   return res.data; // { id, status: 'PENDING', category }
+}
+
+// ── Delete a template from Meta WABA ───────────────────────────────────────────
+async function deleteTemplate(wabaId, accessToken, templateName) {
+  const token = accessToken || process.env.META_WA_ACCESS_TOKEN;
+  const targetId = wabaId || process.env.META_WA_PHONE_NUMBER_ID;
+  const res = await axios.delete(
+    `${WA_API}/${targetId}/message_templates`,
+    {
+      params: { name: templateName, access_token: token },
+    }
+  );
+  return res.data;
 }
 
 // ── Handle incoming WhatsApp Cloud webhook events ───────────────────────────────
@@ -212,5 +226,6 @@ module.exports = {
   sendListMessage,
   getTemplates,
   submitTemplate,
+  deleteTemplate,
   handleWhatsAppWebhookEvent,
 };

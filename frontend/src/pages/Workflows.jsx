@@ -9,7 +9,7 @@ import {
   AlertCircle, AlertTriangle, GitBranch, Copy, ChevronUp,
 } from 'lucide-react';
 import {
-  workflowsAPI, usersAPI, apiTemplatesAPI, webhooksAPI, n8nAPI,
+  workflowsAPI, usersAPI, apiTemplatesAPI, webhooksAPI,
   customActionsAPI, messageTemplatesAPI,
 } from '../services/api';
 

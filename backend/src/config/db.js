@@ -29,6 +29,7 @@ const connectDB = async () => {
     }
 
     await syncBlockedLeads();
+    await syncWhatsAppIntegration();
     return mongoose.connection;
   } catch (error) {
     console.error(`MongoDB Error: ${error.message}`);
@@ -77,6 +78,36 @@ async function syncBlockedLeads() {
     }
   } catch (syncErr) {
     console.error('[DB SYNC] Sync error:', syncErr.message);
+  }
+}
+
+async function syncWhatsAppIntegration() {
+  try {
+    const Integration = require('../models/Integration');
+    const token = process.env.META_WA_ACCESS_TOKEN;
+    const phoneId = process.env.META_WA_PHONE_NUMBER_ID;
+    const verifyToken = process.env.META_WA_VERIFY_TOKEN;
+
+    if (token && phoneId) {
+      await Integration.findOneAndUpdate(
+        { type: 'whatsapp_cloud' },
+        {
+          $set: {
+            name: 'WhatsApp Cloud API',
+            category: 'webhook',
+            status: 'active',
+            'config.accessToken': token,
+            'config.phoneNumberId': phoneId,
+            'config.webhookVerifyToken': verifyToken || 'zest_eat_meta_verify_8f9q2a',
+            'config.wabaId': phoneId,
+          },
+        },
+        { upsert: true, new: true }
+      );
+      console.log('✅ [DB SYNC] Meta WhatsApp Cloud API integration active and synced');
+    }
+  } catch (err) {
+    console.error('❌ [DB SYNC] WhatsApp integration sync error:', err.message);
   }
 }
 
