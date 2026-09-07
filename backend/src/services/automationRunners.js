@@ -1,6 +1,5 @@
 const axios = require('axios');
 const ApiTemplate = require('../models/ApiTemplate');
-const Webhook = require('../models/Webhook');
 const crypto = require('crypto');
 
 // Resolve {{lead.name}} / {{lead.phone}} style tokens against the runtime context.
@@ -112,40 +111,17 @@ async function runApiTemplate(apiTemplateId, context) {
 }
 
 /**
- * Dispatch an outbound webhook with an HMAC signature header.
+ * Dispatch an outbound webhook (disabled).
  */
 async function triggerWebhook(webhookId, eventName, payload) {
-  try {
-    const hook = await Webhook.findById(webhookId);
-    if (!hook) return { ok: false, message: 'Webhook not found' };
-    if (hook.status !== 'active') return { ok: false, message: 'Webhook inactive' };
-
-    const body = JSON.stringify({ event: eventName, timestamp: Date.now(), ...payload });
-    const signature = crypto.createHmac('sha256', hook.secret).update(body).digest('hex');
-
-    const res = await axios.post(hook.url, body, {
-      headers: { 'Content-Type': 'application/json', 'X-AOTMS-Signature': signature, 'X-AOTMS-Event': eventName },
-      timeout: 15000,
-      validateStatus: () => true,
-    });
-
-    const ok = res.status < 400;
-    hook.lastTriggeredAt = new Date();
-    if (ok) hook.successCount += 1; else { hook.failCount += 1; hook.lastError = `HTTP ${res.status}`; }
-    await hook.save();
-    return { ok, message: `Webhook → HTTP ${res.status}` };
-  } catch (err) {
-    return { ok: false, message: err.message };
-  }
+  return { ok: false, message: 'Webhooks disabled' };
 }
 
 /**
- * Fan out an event to every active webhook subscribed to it. Called directly from
- * fireEvent's callers when they want all subscribers notified (not just one action).
+ * Fan out an event to active webhooks (disabled).
  */
 async function broadcastWebhooks(eventName, payload) {
-  const hooks = await Webhook.find({ status: 'active', events: eventName });
-  await Promise.all(hooks.map((h) => triggerWebhook(h._id, eventName, payload)));
+  return [];
 }
 
 module.exports = { runApiTemplate, triggerWebhook, broadcastWebhooks, interpolate, getByPath };

@@ -14,8 +14,8 @@ const express = require('express');
 const Campaign = require('../models/Campaign');
 const Lead = require('../models/Lead');
 const { protect, authorize } = require('../middleware/auth');
-const { hangupCall } = require('../services/aiCaller/dialer');
-const { releaseLock } = require('../services/aiCaller/leadLock');
+const hangupCall = async () => {};
+const releaseLock = async () => {};
 const router = express.Router();
 
 // GET /api/campaigns
