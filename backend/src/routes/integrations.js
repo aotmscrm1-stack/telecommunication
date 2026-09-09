@@ -231,7 +231,8 @@ router.post('/whatsapp/templates', protect, async (req, res) => {
 
     const accessToken = integration?.config?.accessToken || process.env.META_WA_ACCESS_TOKEN;
     const phoneId = integration?.config?.phoneNumberId || process.env.META_WA_PHONE_NUMBER_ID;
-    const wabaId = integration?.config?.wabaId || process.env.META_WA_WABA_ID || phoneId;
+    const dbWabaId = integration?.config?.wabaId;
+    const wabaId = (dbWabaId && dbWabaId !== phoneId) ? dbWabaId : (process.env.META_WA_WABA_ID || dbWabaId || phoneId);
 
     if (!accessToken || !wabaId) {
       return res.status(400).json({ message: 'WhatsApp Cloud API credentials (access token & phone number/WABA ID) missing in backend configuration.' });
@@ -300,7 +301,8 @@ router.post('/whatsapp/templates/sync', protect, async (req, res) => {
 
     const accessToken = integration?.config?.accessToken || process.env.META_WA_ACCESS_TOKEN;
     const phoneId = integration?.config?.phoneNumberId || process.env.META_WA_PHONE_NUMBER_ID;
-    const wabaId = integration?.config?.wabaId || process.env.META_WA_WABA_ID || phoneId;
+    const dbWabaId = integration?.config?.wabaId;
+    const wabaId = (dbWabaId && dbWabaId !== phoneId) ? dbWabaId : (process.env.META_WA_WABA_ID || dbWabaId || phoneId);
 
     if (!accessToken || !wabaId) {
       return res.status(400).json({ message: 'WhatsApp API credentials missing' });
