@@ -61,17 +61,26 @@ async function sendTextMessage(phoneNumberId, accessToken, to, message) {
 async function sendTemplateMessage(phoneNumberId, accessToken, to, templateName, languageCode, components) {
   const pId = phoneNumberId || process.env.META_WA_PHONE_NUMBER_ID;
   const token = accessToken || process.env.META_WA_ACCESS_TOKEN;
+
+  const templatePayload = {
+    name: templateName,
+    language: { code: languageCode || 'en_US' },
+  };
+
+  if (Array.isArray(components) && components.length > 0) {
+    const validComponents = components.filter(c => c && c.type && Array.isArray(c.parameters) && c.parameters.length > 0);
+    if (validComponents.length > 0) {
+      templatePayload.components = validComponents;
+    }
+  }
+
   const res = await axios.post(
     `${WA_API}/${pId}/messages`,
     {
       messaging_product: 'whatsapp',
       to,
       type: 'template',
-      template: {
-        name: templateName,
-        language: { code: languageCode || 'en_US' },
-        components: components || [],
-      },
+      template: templatePayload,
     },
     { headers: { Authorization: `Bearer ${token}` } }
   );

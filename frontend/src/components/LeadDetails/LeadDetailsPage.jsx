@@ -435,12 +435,14 @@ function SendWhatsAppTemplateModal({ lead, onClose, onSuccess }) {
       let bodyText = selectedTemplate.message || selectedTemplate.content || '';
       bodyText = bodyText.replace(/\{\{\s*name\s*\}\}/gi, lead.name || 'Student');
 
+      const headerImageUrl = selectedTemplate.mediaUrl || selectedTemplate.imageUrl || null;
+
       await api.post('/integrations/whatsapp/send-template-direct', {
         leadId: lead._id,
         to: lead.phone,
         templateName,
         languageCode,
-        components: selectedTemplate.components || [],
+        headerImageUrl,
         messageText: bodyText,
       });
 
@@ -448,7 +450,8 @@ function SendWhatsAppTemplateModal({ lead, onClose, onSuccess }) {
       if (onSuccess) onSuccess();
       setTimeout(() => onClose(), 1800);
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to send template message');
+      const serverErrorMsg = err.response?.data?.message || err.message || 'Failed to send template message';
+      setError(serverErrorMsg);
     } finally {
       setSending(false);
     }

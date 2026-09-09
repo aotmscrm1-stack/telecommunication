@@ -226,7 +226,7 @@ router.get('/:id/whatsapp/templates', protect, async (req, res) => {
 // ── Send a template message directly to a lead/phone (Global / .env fallback) ──
 router.post('/whatsapp/send-template-direct', protect, async (req, res) => {
   try {
-    const { leadId, to, templateName, languageCode, components, messageText } = req.body;
+    const { leadId, to, templateName, languageCode, components, messageText, headerImageUrl } = req.body;
     let integration = await Integration.findOne({ type: 'whatsapp_cloud', status: 'active' });
     if (!integration) integration = await Integration.findOne({ type: 'whatsapp_cloud' });
 
@@ -240,7 +240,23 @@ router.post('/whatsapp/send-template-direct', protect, async (req, res) => {
     const recipient = toIndiaE164(to);
     if (!recipient) return res.status(400).json({ message: 'Valid phone number is required.' });
 
-    const result = await whatsapp.sendTemplateMessage(phoneId, accessToken, recipient, templateName, languageCode || 'en_US', components || []);
+    // Construct valid send-time components array
+    const sendComponents = [];
+    if (headerImageUrl) {
+      sendComponents.push({
+        type: 'header',
+        parameters: [{ type: 'image', image: { link: headerImageUrl } }],
+      });
+    }
+    if (Array.isArray(components)) {
+      for (const comp of components) {
+        if (comp && comp.type && Array.isArray(comp.parameters) && comp.parameters.length > 0) {
+          sendComponents.push(comp);
+        }
+      }
+    }
+
+    const result = await whatsapp.sendTemplateMessage(phoneId, accessToken, recipient, templateName, languageCode || 'en_US', sendComponents);
 
     if (leadId) {
       const Lead = require('../models/Lead');
@@ -263,8 +279,11 @@ router.post('/whatsapp/send-template-direct', protect, async (req, res) => {
 
     res.json({ success: true, result });
   } catch (err) {
-    const msg = err.response?.data?.error?.message || err.message;
-    res.status(500).json({ message: msg });
+    console.error('send-template-direct error:', err.response?.data || err.message);
+    const metaError = err.response?.data?.error;
+    const msg = metaError?.message || metaError?.error_user_title || err.message;
+    const statusCode = err.response?.status || 500;
+    res.status(statusCode).json({ message: msg, error: metaError });
   }
 });
 
