@@ -223,23 +223,35 @@ export default function MessageTemplates() {
                 No templates yet.<br />
                 <span style={{ color: 'var(--theme-primary)', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => activeTab === 'EMAIL' ? setShowEmailTemplateModal(true) : setShowNewModal(true)}>Create one →</span>
               </div>
-            ) : filteredTemplates.map(t => (
-              <div key={t._id}
-                onClick={() => setSelected(t)}
-                style={{
-                  padding: '12px 14px', cursor: 'pointer',
-                  borderBottom: '1px solid var(--theme-surface-faint)',
-                  background: selected?._id === t._id ? 'var(--theme-surface-tint)' : 'transparent',
-                  borderLeft: selected?._id === t._id ? '3px solid var(--theme-primary)' : '3px solid transparent',
-                  transition: 'all 0.12s'
-                }}>
-                <div className="template-name-list">/{t.shortcut}</div>
-                <div className="template-message-list">
-                  {t.bodyFormat === 'html' ? (t.subject || 'Rich email template') : t.message}
+            ) : filteredTemplates.map(t => {
+              const status = t.waStatus || (t.type === 'whatsapp' ? 'APPROVED' : null);
+              const statusBg = status === 'APPROVED' ? '#f0fdf4' : status === 'PENDING' ? '#fffbeb' : '#fef2f2';
+              const statusColor = status === 'APPROVED' ? '#16a34a' : status === 'PENDING' ? '#d97706' : '#e53e3e';
+              return (
+                <div key={t._id}
+                  onClick={() => setSelected(t)}
+                  style={{
+                    padding: '12px 14px', cursor: 'pointer',
+                    borderBottom: '1px solid var(--theme-surface-faint)',
+                    background: selected?._id === t._id ? 'var(--theme-surface-tint)' : 'transparent',
+                    borderLeft: selected?._id === t._id ? '3px solid var(--theme-primary)' : '3px solid transparent',
+                    transition: 'all 0.12s'
+                  }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                    <div className="template-name-list">/{t.shortcut}</div>
+                    {status && t.type === 'whatsapp' && (
+                      <span style={{ fontSize: 9.5, fontWeight: 700, background: statusBg, color: statusColor, padding: '1px 6px', borderRadius: 4 }}>
+                        {status}
+                      </span>
+                    )}
+                  </div>
+                  <div className="template-message-list">
+                    {t.bodyFormat === 'html' ? (t.subject || 'Rich email template') : t.message}
+                  </div>
+                  {t.isShared && <div style={{ fontSize: 10, color: 'var(--theme-primary)', marginTop: 3, fontWeight: 600 }}>Shared</div>}
                 </div>
-                {t.isShared && <div style={{ fontSize: 10, color: 'var(--theme-primary)', marginTop: 3, fontWeight: 600 }}>Shared</div>}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -253,7 +265,14 @@ export default function MessageTemplates() {
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
                 <div>
-                  <div className="template-name-detail">/{selected.shortcut}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div className="template-name-detail">/{selected.shortcut}</div>
+                    {selected.waStatus && selected.type === 'whatsapp' && (
+                      <span style={{ fontSize: 11, fontWeight: 700, borderRadius: 5, padding: '2px 8px', background: selected.waStatus === 'APPROVED' ? '#f0fdf4' : selected.waStatus === 'PENDING' ? '#fffbeb' : '#fef2f2', color: selected.waStatus === 'APPROVED' ? '#16a34a' : selected.waStatus === 'PENDING' ? '#d97706' : '#e53e3e' }}>
+                        {selected.waStatus}
+                      </span>
+                    )}
+                  </div>
                   <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
                     Created by {selected.createdBy?.name || 'You'} · {selected.isShared ? 'Shared with team' : 'Private'}
                   </div>
@@ -280,6 +299,56 @@ export default function MessageTemplates() {
                     style={{ flex: 1, padding: 18, fontSize: 13.5, color: '#333', lineHeight: 1.7, overflowY: 'auto' }}
                     dangerouslySetInnerHTML={{ __html: selected.message }}
                   />
+                </div>
+              ) : selected.type === 'whatsapp' ? (
+                /* WhatsApp realistic bubble render with Image Banner */
+                <div style={{ background: '#ece5dd', borderRadius: 16, padding: 24, maxWidth: 420 }}>
+                  <div style={{ background: '#fff', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.12)' }}>
+                    {/* Header Image Banner */}
+                    {(selected.headerFormat === 'IMAGE' || selected.headerImage || (selected.components || []).some(c => c.type === 'HEADER' && (c.format === 'IMAGE' || c.example?.header_handle?.length))) && (
+                      <div style={{ width: '100%', height: 180, background: '#e0e0e0', overflow: 'hidden', borderBottom: '1px solid #f0f0f0' }}>
+                        <img
+                          src={selected.headerImage || (selected.components || []).find(c => c.type === 'HEADER')?.example?.header_handle?.[0] || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80'}
+                          alt="Header Banner"
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80';
+                          }}
+                        />
+                      </div>
+                    )}
+                    {/* Header Text */}
+                    {(selected.headerText || (selected.components || []).find(c => c.type === 'HEADER')?.text) && (
+                      <div style={{ padding: '12px 14px 4px', fontSize: 14, fontWeight: 700, color: '#111' }}>
+                        {selected.headerText || (selected.components || []).find(c => c.type === 'HEADER')?.text}
+                      </div>
+                    )}
+                    {/* Message Body */}
+                    <div style={{ padding: '10px 14px', fontSize: 13, color: '#333', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                      {selected.message}
+                    </div>
+                    {/* Footer */}
+                    {(selected.footer || (selected.components || []).find(c => c.type === 'FOOTER')?.text) && (
+                      <div style={{ padding: '2px 14px 8px', fontSize: 11.5, color: '#888' }}>
+                        {selected.footer || (selected.components || []).find(c => c.type === 'FOOTER')?.text}
+                      </div>
+                    )}
+                    {/* Timestamp */}
+                    <div style={{ padding: '0 12px 8px', textAlign: 'right', fontSize: 10.5, color: '#999' }}>
+                      {new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })} ✓✓
+                    </div>
+                    {/* Buttons */}
+                    {((selected.buttons?.length > 0) || (selected.components || []).find(c => c.type === 'BUTTONS')?.buttons?.length > 0) && (
+                      <div style={{ borderTop: '1px solid #f0f0f0' }}>
+                        {(selected.buttons?.length ? selected.buttons : (selected.components || []).find(c => c.type === 'BUTTONS')?.buttons || []).map((b, i) => (
+                          <div key={i} style={{ padding: '10px 14px', textAlign: 'center', fontSize: 13, color: '#0a8dff', fontWeight: 600, borderBottom: i < ((selected.buttons?.length || (selected.components || []).find(c => c.type === 'BUTTONS')?.buttons?.length) - 1) ? '1px solid #f0f0f0' : 'none' }}>
+                            {b.text || b.type}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="template-message-detail">
