@@ -57,6 +57,12 @@ const INITIAL_FORM = {
   tds: 200,
 };
 
+function formatPayslipFilename(employeeName, payslipMonth) {
+  const cleanName = (employeeName || 'Employee').trim().replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  const cleanMonth = (payslipMonth || 'Month').trim().replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  return `AOTMS_Payslip_${cleanName}_${cleanMonth}.pdf`;
+}
+
 export default function Payslip() {
   const [form, setForm] = useState(INITIAL_FORM);
   const [history, setHistory] = useState([]);
@@ -70,6 +76,7 @@ export default function Payslip() {
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [activeExportSlip, setActiveExportSlip] = useState(null);
 
   const printRef = useRef(null);
 
@@ -148,8 +155,38 @@ export default function Payslip() {
     fetchHistory();
   }, [search, monthFilter]);
 
-  // ── Handle Form Submit ───────────────────────────────────────────────────
-  const handleGenerate = async (e) => {
+  // ── PDF Export Helper ────────────────────────────────────────────────────
+  const triggerPdfDownload = async (slip) => {
+    if (!slip) return;
+    setActiveExportSlip(slip);
+    // Allow React state to render the export DOM node
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
+    const element = document.getElementById('payslip-direct-export-node');
+    const filename = formatPayslipFilename(slip.employee_name, slip.payslip_month);
+
+    try {
+      const html2pdfModule = (await import('html2pdf.js')).default;
+      if (html2pdfModule && element) {
+        const opt = {
+          margin: [6, 6, 6, 6],
+          filename,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        };
+        await html2pdfModule().set(opt).from(element).save();
+      } else {
+        window.print();
+      }
+    } catch (err) {
+      console.error('PDF generation error:', err);
+      throw err;
+    }
+  };
+
+  // ── Handle Download Payslip (Save to DB & Download PDF) ───────────────────
+  const handleDownloadPayslip = async (e) => {
     e.preventDefault();
     setErrorMessage('');
     setSuccessMessage('');
@@ -224,7 +261,7 @@ export default function Payslip() {
       return;
     }
     if (Number(form.tds) < 0) {
-      setErrorMessage('TDS / Professional Tax cannot be negative');
+      setErrorMessage('Professional Tax cannot be negative');
       return;
     }
     if (specialAllowance < 0) {
@@ -234,6 +271,7 @@ export default function Payslip() {
 
     setSaving(true);
     try {
+      // 1. Save payslip record to database
       const res = await payslipsAPI.create({
         ...form,
         effective_work_days: Number(form.effective_work_days),
@@ -243,15 +281,19 @@ export default function Payslip() {
         tds,
       });
 
-      const newSlip = res.data?.payslip;
-      setSuccessMessage(`Payslip for ${form.employee_name} (${form.payslip_month}) generated successfully!`);
-      setSelectedPayslip(newSlip);
-      setShowPreviewModal(true);
+      const newSlip = res.data?.payslip || draftPayslip;
+
+      // 2. Generate and download PDF immediately
+      await triggerPdfDownload(newSlip);
+
+      // 3. Update history and show success message
+      setSuccessMessage('Payslip downloaded successfully and saved to database.');
       fetchHistory();
       // Reset form to empty
       setForm(INITIAL_FORM);
     } catch (err) {
-      setErrorMessage(err.response?.data?.message || 'Failed to generate payslip');
+      console.error('Download payslip error:', err);
+      setErrorMessage(err.response?.data?.message || err.message || 'Failed to save payslip or generate PDF');
     } finally {
       setSaving(false);
     }
@@ -269,43 +311,6 @@ export default function Payslip() {
       }
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to delete payslip');
-    }
-  };
-
-  // ── PDF Download Handler ─────────────────────────────────────────────────
-  const handleDownloadPDF = async (payslipToDownload) => {
-    const slip = payslipToDownload || selectedPayslip;
-    if (!slip) return;
-
-    setDownloadingPdf(true);
-    try {
-      let html2pdfModule;
-      try {
-        html2pdfModule = (await import('html2pdf.js')).default;
-      } catch (e) {
-        console.warn('html2pdf import fallback:', e);
-      }
-
-      const element = document.getElementById('payslip-printable-document');
-      const filename = `Payslip_${(slip.payslip_month || 'Month').replace(/\s+/g, '_')}_${(slip.employee_name || 'Employee').replace(/\s+/g, '_')}.pdf`;
-
-      if (html2pdfModule && element) {
-        const opt = {
-          margin: [8, 8, 8, 8],
-          filename,
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        };
-        await html2pdfModule().set(opt).from(element).save();
-      } else {
-        window.print();
-      }
-    } catch (err) {
-      console.error('PDF generation error:', err);
-      window.print();
-    } finally {
-      setDownloadingPdf(false);
     }
   };
 
@@ -423,7 +428,7 @@ export default function Payslip() {
               </div>
             </div>
 
-            <form onSubmit={handleGenerate} className="space-y-5">
+            <form onSubmit={handleDownloadPayslip} className="space-y-5">
               {/* ── Section: Employee Details ── */}
               <div>
                 <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">
@@ -716,11 +721,11 @@ export default function Payslip() {
                 >
                   {saving ? (
                     <>
-                      <RefreshCw className="w-5 h-5 animate-spin" /> Generating Payslip...
+                      <RefreshCw className="w-5 h-5 animate-spin" /> Downloading...
                     </>
                   ) : (
                     <>
-                      <Sparkles className="w-5 h-5" /> Generate Payslip
+                      <Download className="w-5 h-5" /> Download Payslip
                     </>
                   )}
                 </button>
@@ -907,10 +912,12 @@ export default function Payslip() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => {
-                              setSelectedPayslip(slip);
-                              setShowPreviewModal(true);
-                              setTimeout(() => handleDownloadPDF(slip), 300);
+                            onClick={async () => {
+                              try {
+                                await triggerPdfDownload(slip);
+                              } catch (err) {
+                                alert('Failed to download PDF');
+                              }
                             }}
                             className="p-1.5 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
                             title="Download PDF"
@@ -965,11 +972,20 @@ export default function Payslip() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleDownloadPDF(selectedPayslip)}
+                  onClick={async () => {
+                    try {
+                      setDownloadingPdf(true);
+                      await triggerPdfDownload(selectedPayslip);
+                    } catch (err) {
+                      alert('Failed to download PDF');
+                    } finally {
+                      setDownloadingPdf(false);
+                    }
+                  }}
                   disabled={downloadingPdf}
                   className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
                 >
-                  <Download className="w-4 h-4" /> {downloadingPdf ? 'Generating PDF...' : 'Download PDF'}
+                  <Download className="w-4 h-4" /> {downloadingPdf ? 'Downloading...' : 'Download PDF'}
                 </button>
                 <button
                   type="button"
@@ -990,6 +1006,24 @@ export default function Payslip() {
           </div>
         </div>
       )}
+
+      {/* Hidden dedicated export container for pristine A4 PDF downloads */}
+      <div
+        style={{
+          position: 'fixed',
+          left: '-9999px',
+          top: '-9999px',
+          width: '750px',
+          backgroundColor: '#ffffff',
+          zIndex: -999,
+          pointerEvents: 'none',
+        }}
+        aria-hidden="true"
+      >
+        <div id="payslip-direct-export-node">
+          <PayslipDocument payslip={activeExportSlip || draftPayslip} isPreview={false} />
+        </div>
+      </div>
     </div>
   );
 }
