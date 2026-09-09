@@ -314,17 +314,21 @@ router.post('/:id/whatsapp/templates/sync', protect, async (req, res) => {
 //   Verify Token: zest_eat_meta_verify_8f9q2a
 router.get('/whatsapp/webhook', async (req, res) => {
   try {
-    const mode = req.query['hub.mode'];
-    const token = req.query['hub.verify_token'];
-    const challenge = req.query['hub.challenge'];
+    const q = req.query || {};
+    const mode = q['hub.mode'] || q.hub?.mode || q.mode;
+    const token = q['hub.verify_token'] || q.hub?.verify_token || q.verify_token;
+    const challenge = q['hub.challenge'] || q.hub?.challenge || q.challenge;
 
-    if (mode === 'subscribe' && challenge) {
-      console.log(`[WhatsApp Webhook] Handshake verified with token: "${token}"`);
+    console.log('[WhatsApp Webhook Handshake]', { query: req.query, mode, token, challenge });
+
+    if (challenge) {
+      console.log(`[WhatsApp Webhook] Success! Responding challenge: ${challenge}`);
       return res.set('Content-Type', 'text/plain').status(200).send(String(challenge));
     }
 
     return res.sendStatus(403);
   } catch (err) {
+    console.error('[WhatsApp Webhook GET error]:', err);
     res.sendStatus(500);
   }
 });
@@ -352,11 +356,9 @@ router.post('/whatsapp/webhook', async (req, res) => {
 
 router.get('/:id/whatsapp/webhook', async (req, res) => {
   try {
-    const mode = req.query['hub.mode'];
-    const token = req.query['hub.verify_token'];
-    const challenge = req.query['hub.challenge'];
-
-    if (mode === 'subscribe' && challenge) {
+    const q = req.query || {};
+    const challenge = q['hub.challenge'] || q.hub?.challenge || q.challenge;
+    if (challenge) {
       return res.set('Content-Type', 'text/plain').status(200).send(String(challenge));
     }
     return res.sendStatus(403);
