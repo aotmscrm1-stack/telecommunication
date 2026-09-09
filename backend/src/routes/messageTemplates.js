@@ -10,7 +10,8 @@ router.get('/', protect, async (req, res) => {
     const query = {
       $or: [
         { createdBy: req.user._id },
-        { isShared: true }
+        { isShared: true },
+        { type: 'whatsapp' }
       ]
     };
     if (type) query.type = type.toLowerCase();
