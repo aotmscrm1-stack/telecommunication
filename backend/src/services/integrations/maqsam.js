@@ -1,7 +1,6 @@
 const axios = require('axios');
 const Lead = require('../../models/Lead');
 const Integration = require('../../models/Integration');
-const { fireEvent } = require('../workflowEngine');
 
 const MQ_API = 'https://api.maqsam.com/v2';
 
@@ -75,7 +74,6 @@ async function handleMaqsamWebhook(body, integration) {
       $set: { lastLeadAt: new Date() },
     });
 
-    fireEvent('lead.created', { lead, user: null, changes: { source: 'maqsam' } }).catch(() => {});
     return { created: true, leadId: lead._id };
   }
 

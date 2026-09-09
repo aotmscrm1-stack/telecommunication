@@ -2,8 +2,6 @@ const axios = require('axios');
 const Lead = require('../../models/Lead');
 const Integration = require('../../models/Integration');
 const MessageTemplate = require('../../models/MessageTemplate');
-const { fireEvent } = require('../workflowEngine');
-const { broadcastWebhooks } = require('../automationRunners');
 
 const WA_API = 'https://graph.facebook.com/v19.0';
 
@@ -183,15 +181,6 @@ async function handleWhatsAppWebhookEvent(body, integration) {
         lead.lastWaMessageAt = new Date();
         lead.lastWaMessagePreview = text;
         await lead.save();
-
-        const ctx = { lead, user: null, changes: { source: 'whatsapp', message: text } };
-        fireEvent('lead.created', ctx).catch(() => {});
-        fireEvent('lead.whatsapp_lead', ctx).catch(() => {});
-        fireEvent('lead.whatsapp_reply', ctx).catch(() => {});
-        broadcastWebhooks('lead.whatsapp_message', {
-          lead: { id: lead._id, name: lead.name, phone: lead.phone, source: 'whatsapp' },
-          message: text,
-        }).catch(() => {});
 
         processed++;
       }

@@ -15,7 +15,7 @@ export const HeroSection = ({ scrollTo }) => {
           Manage Leads, Calls & Campaigns <br /> with <span style={{ background: 'linear-gradient(90deg, #fff 0%, #ffe8d6 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>AOTMS CRM</span>
         </h1>
         <p className="lp-hero-sub" style={{ fontSize: 16, color: 'rgba(255,255,255,0.75)', lineHeight: 1.7, marginBottom: 34 }}>
-          One dashboard for leads, dialer, call recordings, WhatsApp, automations and real integrations with the tools your telecom sales team already uses.
+          One dashboard for leads, dialer, call recordings, WhatsApp and real integrations with the tools your telecom sales team already uses.
         </p>
         <div className="lp-cta-buttons" style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
           <button onClick={() => navigate('/login')} style={{ background: '#fff', color: '#e8672a', border: 'none', padding: '14px 30px', borderRadius: 10, fontWeight: 800, fontSize: 15, cursor: 'pointer' }}>

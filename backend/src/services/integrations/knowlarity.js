@@ -1,7 +1,6 @@
 const axios = require('axios');
 const Lead = require('../../models/Lead');
 const Integration = require('../../models/Integration');
-const { fireEvent } = require('../workflowEngine');
 
 const KL_API = 'https://kpi.knowlarity.com/Basic/v1/account';
 
@@ -75,7 +74,6 @@ async function handleKnowlarityWebhook(body, integration) {
       $set: { lastLeadAt: new Date() },
     });
 
-    fireEvent('lead.created', { lead, user: null, changes: { source: 'knowlarity' } }).catch(() => {});
     return { created: true, leadId: lead._id };
   }
 

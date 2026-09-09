@@ -10,7 +10,6 @@ const connectDB = require('./config/db');
 const http = require('node:http');
 require('./models/ImportHistory');
 require('./models/Payment');
-const { startSchedulePoller } = require('./services/workflowEngine');
 const { startOverdueTaskChecker } = require('./services/taskOverdueChecker');
 const { startTaskReminderChecker } = require('./services/taskReminderChecker');
 const dns = require('node:dns');
@@ -94,8 +93,6 @@ app.use('/uploads', (req, res, next) => {
   next();
 }, express.static(path.join(__dirname, 'uploads')));
 
-app.use('/api/workflows', apiLimiter, require('./routes/workflows'));
-app.use('/api/api-templates', apiLimiter, require('./routes/apiTemplates'));
 app.use('/api/access-tokens', apiLimiter, require('./routes/accessTokens'));
 app.use('/api/email-campaigns', apiLimiter, require('./routes/emailCampaigns'));
 app.use('/api/lead-stages', apiLimiter, require('./routes/leadStages'));
@@ -103,6 +100,7 @@ app.use('/api/lead-fields', apiLimiter, require('./routes/leadFields'));
 app.use('/api/custom-actions', apiLimiter, require('./routes/customActions'));
 app.use('/api/workspace-preferences', apiLimiter, require('./routes/workspacePreferences'));
 app.use('/api/permission-templates', apiLimiter, require('./routes/permissionTemplates'));
+app.use('/api/payslips', apiLimiter, require('./routes/payslips'));
 app.use('/api/billing', apiLimiter, require('./routes/billing'));
 app.use('/api/public', apiLimiter, require('./routes/publicApi'));
 
@@ -121,7 +119,6 @@ const server = http.createServer(app);
 
 server.listen(PORT, () => {
   console.log(`🚀 AOTMS Server running on port ${PORT}`);
-  startSchedulePoller(60 * 1000);
   startOverdueTaskChecker(5 * 60 * 1000);
   startTaskReminderChecker(5 * 60 * 1000);
 });

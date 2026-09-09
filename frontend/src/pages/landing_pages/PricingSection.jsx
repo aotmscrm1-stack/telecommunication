@@ -12,7 +12,7 @@ const PLANS = [
 
 const CORE_FEATURES = [
   'Excel upload & bulk import', '1-click dialer, call recording', 'Follow-ups & tasks',
-  'Reports & leaderboard', 'Workflow automations', 'WhatsApp messaging', 'Integrations (Facebook, JustDial, 99acres...)',
+  'Reports & leaderboard', 'WhatsApp messaging', 'Integrations (Facebook, JustDial, 99acres...)',
   'Role-based access & permission templates',
 ];
 

@@ -10,8 +10,6 @@ const {
   notifyNewLeadCreated,
   notifyCallInitiated,
 } = require('../services/notificationService');
-const { fireEvent } = require('../services/workflowEngine');
-const { broadcastWebhooks } = require('../services/automationRunners');
 
 const router = express.Router();
 
@@ -275,9 +273,6 @@ router.post('/', protect, async (req, res) => {
       { path: 'courseInterest' }
     ]);
     notifyNewLeadCreated({ lead, assignedToId, performedByUser: req.user }).catch(() => {});
-    fireEvent('lead.created', { lead, user: req.user, changes: { source: 'manual' } }).catch(() => {});
-    fireEvent('lead.manual_created', { lead, user: req.user, changes: { source: 'manual' } }).catch(() => {});
-    broadcastWebhooks('lead.created', { lead: { id: lead._id, name: lead.name, phone: lead.phone, source: 'manual' } }).catch(() => {});
     res.status(201).json({ lead });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -324,33 +319,6 @@ router.put('/:id', protect, async (req, res) => {
       .populate('assignedTo', 'name email avatar')
       .populate('campaign', 'name')
       .populate('courseInterest');
-
-    const newAssigneeId = updated.assignedTo?._id?.toString();
-    if ('assignedTo' in body && newAssigneeId !== before.assignedTo) {
-      fireEvent('lead.assignee_changed', {
-        lead: updated, user: req.user,
-        changes: { field: 'assignedTo', from: before.assignedTo, to: newAssigneeId },
-      }).catch(() => {});
-      broadcastWebhooks('lead.assignee_changed', {
-        lead: { id: updated._id, name: updated.name, phone: updated.phone },
-        changes: { from: before.assignedTo, to: newAssigneeId },
-      }).catch(() => {});
-    }
-    if ('rating' in body && Number(body.rating) !== Number(before.rating)) {
-      fireEvent('lead.rating_changed', {
-        lead: updated, user: req.user,
-        changes: { field: 'rating', from: before.rating, to: updated.rating },
-      }).catch(() => {});
-    }
-
-    const SPECIFIC_FIELD_EVENTS = ['name','phone','email','alternatePhone','courseInterest','location','budget','nextFollowUpDate','demoScheduledDate'];
-    const otherFields = Object.keys(body).filter(k => !['assignedTo', 'rating', 'status'].includes(k));
-    for (const field of otherFields) {
-      fireEvent('lead.field_changed', { lead: updated, user: req.user, changes: { field, to: body[field] } }).catch(() => {});
-      if (SPECIFIC_FIELD_EVENTS.includes(field)) {
-        fireEvent(`lead.field_changed.${field}`, { lead: updated, user: req.user, changes: { field, to: body[field] } }).catch(() => {});
-      }
-    }
 
     const prevAssignedTo = lead.assignedTo?.toString();
     const newAssignedTo = req.body.assignedTo;
@@ -399,18 +367,6 @@ router.post('/:id/call', protect, async (req, res) => {
     await lead.save();
     await lead.populate('activities.performedBy', 'name avatar');
 
-    const ctx = { lead, user: req.user, changes: { duration: duration || 0, callStatus } };
-    if (callStatus === 'connected' || callStatus === 'answered') {
-      fireEvent('lead.call_outgoing_ended', ctx).catch(() => {});
-      broadcastWebhooks('lead.call_outgoing_ended', { lead: { id: lead._id, name: lead.name, phone: lead.phone }, changes: { duration, callStatus } }).catch(() => {});
-    } else if (callStatus === 'no_answer' || callStatus === 'missed') {
-      fireEvent('lead.call_missed', ctx).catch(() => {});
-      broadcastWebhooks('lead.call_missed', { lead: { id: lead._id, name: lead.name, phone: lead.phone } }).catch(() => {});
-    }
-    if (duration > 0) {
-      fireEvent('lead.call_recording_completed', ctx).catch(() => {});
-    }
-
     res.json({ lead });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -426,12 +382,6 @@ router.post('/:id/note', protect, async (req, res) => {
     lead.activities.unshift({ type: noteType, description: note, performedBy: req.user._id });
     await lead.save();
     await lead.populate('activities.performedBy', 'name avatar');
-
-    const noteCtx = { lead, user: req.user, changes: { type: noteType, note } };
-    fireEvent('lead.note_added', noteCtx).catch(() => {});
-    if (noteType === 'note') fireEvent('lead.user_note', noteCtx).catch(() => {});
-    else if (noteType === 'system') fireEvent('lead.system_note', noteCtx).catch(() => {});
-    broadcastWebhooks('lead.note_added', { lead: { id: lead._id, name: lead.name }, changes: { type: noteType } }).catch(() => {});
 
     res.json({ lead });
   } catch (err) {
@@ -461,10 +411,6 @@ router.put('/:id/status', protect, async (req, res) => {
 
     if (lead.assignedTo) {
       notifyLeadStatusChanged({ lead, prevStatus, newStatus: status, assignedToId: lead.assignedTo._id, performedByUser: req.user }).catch(() => {});
-    }
-    if (prevStatus !== status) {
-      fireEvent('lead.status_changed', { lead, user: req.user, changes: { field: 'status', from: prevStatus, to: status } }).catch(() => {});
-      broadcastWebhooks('lead.status_changed', { lead: { id: lead._id, name: lead.name, phone: lead.phone, status }, changes: { from: prevStatus, to: status } }).catch(() => {});
     }
     res.json({ lead });
   } catch (err) {

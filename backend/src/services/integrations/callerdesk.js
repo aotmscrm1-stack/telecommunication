@@ -1,7 +1,6 @@
 const axios = require('axios');
 const Lead = require('../../models/Lead');
 const Integration = require('../../models/Integration');
-const { fireEvent } = require('../workflowEngine');
 
 const CD_API = 'https://api.callerdesk.io/api/v2';
 
@@ -65,7 +64,6 @@ async function handleCallerDeskWebhook(body, integration) {
       $set: { lastLeadAt: new Date() },
     });
 
-    fireEvent('lead.created', { lead, user: null, changes: { source: 'callerdesk' } }).catch(() => {});
     return { created: true, leadId: lead._id };
   }
 

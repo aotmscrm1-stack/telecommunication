@@ -23,9 +23,6 @@ import LeadProfile from './pages/LeadProfile';
 import Integrations from './pages/Integrations';
 import IntegrationSetup from './pages/IntegrationSetup';
 import IntegrationDetail from './pages/IntegrationDetail';
-import Workflows from './pages/Workflows';
-import Schedules from './pages/Schedules';
-import ApiTemplates from './pages/ApiTemplates';
 import AccessTokens from './pages/AccessTokens';
 import LeadStage from './pages/LeadStage';
 import Fields from './pages/Fields';
@@ -33,6 +30,7 @@ import CustomActions from './pages/CustomActions';
 import WorkspacePreferences from './pages/WorkspacePreferences';
 import PermissionTemplates from './pages/PermissionTemplates';
 import Billing from './pages/Billing';
+import Payslip from './pages/Payslip';
 import Landing from './pages/Landing';
 
 const ProtectedRoute = ({ children }) => {
@@ -78,6 +76,8 @@ export default function App() {
             <Route path="blocklist" element={<Blocklist />} />
             <Route path="my-preferences" element={<MyPreferences />} />
             <Route path="whatsapp" element={<WhatsApp />} />
+            <Route path="payslips" element={<Payslip />} />
+            <Route path="payslip" element={<Navigate to="/payslips" replace />} />
             <Route path="users" element={<Users />} />
             <Route path="stale-leads" element={<StaleLeads />} />
             <Route path="bulk-import" element={<BulkImport />} />
@@ -85,9 +85,6 @@ export default function App() {
             <Route path="integrations" element={<Integrations />} />
             <Route path="integrations/setup/:type" element={<IntegrationSetup />} />
             <Route path="integrations/:id" element={<IntegrationDetail />} />
-            <Route path="workflows" element={<Workflows />} />
-            <Route path="schedules" element={<Schedules />} />
-            <Route path="api-templates" element={<ApiTemplates />} />
             <Route path="access-tokens" element={<AccessTokens />} />
             <Route path="lead-stage" element={<LeadStage />} />
             <Route path="fields" element={<Fields />} />

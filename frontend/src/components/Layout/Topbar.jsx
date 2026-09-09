@@ -262,7 +262,7 @@ export default function Topbar() {
       return n.leadId ? `/leads/${n.leadId}` : '/tasks?tab=Call Followups';
     }
     if (n.type === 'workflow_action') {
-      return n.leadId ? `/leads/${n.leadId}` : '/workflows';
+      return n.leadId ? `/leads/${n.leadId}` : '/dashboard';
     }
     if (n.leadId) {
       // lead_assigned, lead_status_changed, lead_updated, new_lead, call_initiated, etc.

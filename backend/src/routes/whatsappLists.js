@@ -4,7 +4,6 @@ const Lead = require('../models/Lead');
 const Integration = require('../models/Integration');
 const whatsappService = require('../services/integrations/whatsapp');
 const { protect } = require('../middleware/auth');
-const { fireEvent } = require('../services/workflowEngine');
 
 const router = express.Router();
 
@@ -133,8 +132,6 @@ router.post('/:id/send', protect, async (req, res) => {
     lead.lastWaMessageAt = new Date();
     lead.lastWaMessagePreview = description;
     await lead.save();
-
-    fireEvent('lead.whatsapp_agent_reply', { lead, user: req.user, changes: { message: description } }).catch(() => {});
 
     res.json({
       lead: { id: lead._id, name: lead.name, phone: lead.phone, waStatus: lead.waStatus },

@@ -20,7 +20,6 @@ function TemplateModal({ template, onClose, onSaved }) {
       reports: { view: true },
       users: { view: false, manage: false },
       settings: { manage: false },
-      workflows: { manage: false },
     },
   });
   const [saving, setSaving] = useState(false);
@@ -97,9 +96,8 @@ function TemplateModal({ template, onClose, onSaved }) {
             <Bool group="users" k="view" label="View" />
             <Bool group="users" k="manage" label="Manage" />
 
-            <h4 style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--theme-text-strongest2)', margin: '14px 0 6px' }}>Settings & Workflows</h4>
+            <h4 style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--theme-text-strongest2)', margin: '14px 0 6px' }}>Settings</h4>
             <Bool group="settings" k="manage" label="Manage settings" />
-            <Bool group="workflows" k="manage" label="Manage workflows" />
           </div>
         </div>
 

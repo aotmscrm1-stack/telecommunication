@@ -2,8 +2,6 @@ const express = require('express');
 const router = express.Router();
 const Lead = require('../models/Lead');
 const { protectWithAccessToken } = require('../middleware/accessTokenAuth');
-const { fireEvent } = require('../services/workflowEngine');
-const { broadcastWebhooks } = require('../services/automationRunners');
 
 /**
  * POST /api/public/leads
@@ -61,12 +59,6 @@ router.post('/leads', protectWithAccessToken, async (req, res) => {
 
     const apiType = token.apiType;
     const lead = await Lead.create(leadData);
-
-    // Fire workflow events
-    const eventCtx = { lead, user: null, changes: { source: 'api', apiType, tokenId: token._id } };
-    fireEvent('lead.created', eventCtx).catch(() => {});
-    fireEvent('lead.web_created', eventCtx).catch(() => {});
-    broadcastWebhooks('lead.created', { lead: { id: lead._id, name: lead.name, phone: lead.phone, source: 'api' } }).catch(() => {});
 
     if (apiType === 'async') {
       // Fire-and-forget
