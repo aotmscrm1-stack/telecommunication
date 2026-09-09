@@ -58,12 +58,24 @@ const apiLimiter = rateLimit({
   message: { message: 'Too many requests. Slow down.' },
 });
 
+// ── Meta WhatsApp Webhook Verification Handshake ─────────────────────────────
+// Must be mounted BEFORE mongoSanitize() so Meta query params like hub.challenge containing dots aren't stripped!
+app.get('/api/integrations/whatsapp/webhook', (req, res) => {
+  const q = req.query || {};
+  const challenge = q['hub.challenge'] || q.hub?.challenge || q.challenge;
+  const token = q['hub.verify_token'] || q.hub?.verify_token || q.verify_token;
+  console.log('[Meta Webhook Verification Request]', { query: req.query, challenge, token });
+  
+  if (challenge) {
+    return res.status(200).type('text/plain').send(String(challenge));
+  }
+  return res.status(200).type('text/plain').send('Meta WhatsApp Webhook Endpoint Active');
+});
+
 // ── Body parsing ──────────────────────────────────────────────────────────────
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(mongoSanitize());
-
-if (process.env.NODE_ENV === 'development') app.use(morgan('dev'));
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use('/api/auth/login', authLimiter);
