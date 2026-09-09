@@ -7,7 +7,9 @@ const WA_API = 'https://graph.facebook.com/v19.0';
 
 // ── Webhook verification (Meta hub.challenge handshake) ────────────────────────
 function verifyWebhookToken(mode, token, challenge, verifyToken) {
-  if (mode === 'subscribe' && token && verifyToken && token === verifyToken) {
+  const cleanToken = token ? String(token).trim() : '';
+  const cleanVerifyToken = verifyToken ? String(verifyToken).trim() : '';
+  if (mode === 'subscribe' && cleanToken && cleanVerifyToken && cleanToken === cleanVerifyToken) {
     return { valid: true, challenge };
   }
   return { valid: false, challenge: null };
