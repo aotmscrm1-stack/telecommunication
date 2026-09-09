@@ -375,11 +375,15 @@ router.post('/:id/whatsapp/templates', protect, async (req, res) => {
       });
     }
 
+    const targetWabaId = (integration.config?.wabaId && integration.config?.wabaId !== integration.config?.phoneNumberId)
+      ? integration.config.wabaId
+      : (process.env.META_WA_WABA_ID || integration.config?.wabaId);
+
     let metaResult;
     try {
       metaResult = await whatsapp.submitTemplate(
-        integration.config.wabaId,
-        integration.config.accessToken,
+        targetWabaId,
+        integration.config?.accessToken,
         { name: metaTemplateName, category: (category || 'MARKETING').toUpperCase(), language: languageCode, components }
       );
     } catch (metaErr) {
@@ -414,7 +418,11 @@ router.post('/:id/whatsapp/templates/sync', protect, async (req, res) => {
     const integration = await Integration.findById(req.params.id);
     if (!integration) return res.status(404).json({ message: 'Integration not found' });
 
-    const metaTemplates = await whatsapp.getTemplates(integration.config.wabaId, integration.config.accessToken);
+    const wabaId = (integration.config?.wabaId && integration.config?.wabaId !== integration.config?.phoneNumberId)
+      ? integration.config.wabaId
+      : (process.env.META_WA_WABA_ID || integration.config?.wabaId);
+
+    const metaTemplates = await whatsapp.getTemplates(wabaId, integration.config?.accessToken);
     let updated = 0;
     for (const mt of metaTemplates) {
       const bodyComp = (mt.components || []).find(c => c.type === 'BODY');

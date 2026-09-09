@@ -77,7 +77,9 @@ router.delete('/:id', protect, async (req, res) => {
       const whatsappService = require('../services/integrations/whatsapp');
       const Integration = require('../models/Integration');
       const integration = await Integration.findOne({ type: 'whatsapp_cloud', status: 'active' });
-      const wabaId = integration?.config?.wabaId || process.env.META_WA_PHONE_NUMBER_ID;
+      const dbWabaId = integration?.config?.wabaId;
+      const phoneId = integration?.config?.phoneNumberId || process.env.META_WA_PHONE_NUMBER_ID;
+      const wabaId = (dbWabaId && dbWabaId !== phoneId) ? dbWabaId : (process.env.META_WA_WABA_ID || dbWabaId || phoneId);
       const token = integration?.config?.accessToken || process.env.META_WA_ACCESS_TOKEN;
       const tName = template.metaTemplateName || template.shortcut;
       try {
