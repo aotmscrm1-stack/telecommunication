@@ -28,15 +28,14 @@ export const PayslipDocument = forwardRef(({ payslip, isPreview = false }, ref) 
       className="payslip-print-container"
       style={{
         width: '100%',
-        minWidth: '650px',
-        maxWidth: '740px',
+        maxWidth: isPreview ? '100%' : '740px',
         margin: '0 auto',
         backgroundColor: '#ffffff',
         color: '#000000',
         fontFamily: 'Arial, Helvetica, sans-serif',
-        fontSize: '11px',
-        lineHeight: 1.4,
-        padding: isPreview ? '12px 10px' : '16px 16px',
+        fontSize: isPreview ? '10px' : '11px',
+        lineHeight: 1.35,
+        padding: isPreview ? '10px 8px' : '16px 16px',
         boxSizing: 'border-box',
       }}
     >
@@ -45,6 +44,7 @@ export const PayslipDocument = forwardRef(({ payslip, isPreview = false }, ref) 
         style={{
           border: '1.5px solid #000000',
           backgroundColor: '#ffffff',
+          overflow: 'hidden',
         }}
       >
         {/* ── 1. Company Header ────────────────────────────────────────── */}
@@ -52,19 +52,19 @@ export const PayslipDocument = forwardRef(({ payslip, isPreview = false }, ref) 
           style={{
             display: 'flex',
             alignItems: 'center',
-            padding: '12px 16px 10px 16px',
+            padding: isPreview ? '8px 10px 6px 10px' : '12px 16px 10px 16px',
             position: 'relative',
           }}
         >
           {/* Logo on top-left */}
-          <div style={{ flexShrink: 0, width: '165px' }}>
+          <div style={{ flexShrink: 0, width: isPreview ? '135px' : '165px' }}>
             <img
               src={logoImg}
               alt="AOTMS Logo"
               style={{
-                height: '46px',
+                height: isPreview ? '38px' : '46px',
                 width: 'auto',
-                maxWidth: '160px',
+                maxWidth: isPreview ? '130px' : '160px',
                 objectFit: 'contain',
                 display: 'block',
               }}
@@ -72,15 +72,15 @@ export const PayslipDocument = forwardRef(({ payslip, isPreview = false }, ref) 
           </div>
 
           {/* Centered Company Name & Address */}
-          <div style={{ flex: 1, textAlign: 'center', paddingRight: '25px' }}>
+          <div style={{ flex: 1, textAlign: 'center', paddingRight: isPreview ? '10px' : '25px' }}>
             <div
               style={{
                 fontFamily: "Georgia, 'Times New Roman', serif",
-                fontSize: '17px',
+                fontSize: isPreview ? '15px' : '17px',
                 fontWeight: 'bold',
                 letterSpacing: '0.2px',
                 color: '#000000',
-                marginBottom: '5px',
+                marginBottom: '3px',
               }}
             >
               Academy Of Tech Masters
@@ -88,10 +88,10 @@ export const PayslipDocument = forwardRef(({ payslip, isPreview = false }, ref) 
             <div
               style={{
                 fontFamily: 'Arial, Helvetica, sans-serif',
-                fontSize: '11px',
+                fontSize: isPreview ? '9.5px' : '11px',
                 fontWeight: 'bold',
                 color: '#111111',
-                lineHeight: 1.4,
+                lineHeight: 1.35,
               }}
             >
               2nd Floor, Sri Pothuri Towers, MG Road, Near DV Manor,
@@ -101,15 +101,15 @@ export const PayslipDocument = forwardRef(({ payslip, isPreview = false }, ref) 
           </div>
         </div>
 
-        {/* ── 2. Payslip Month Subheader (Spacious vertical padding so text never touches lines) ─ */}
+        {/* ── 2. Payslip Month Subheader ───────────────────────────────── */}
         <div
           style={{
             borderTop: '1.5px solid #000000',
             borderBottom: '1.5px solid #000000',
             textAlign: 'center',
-            padding: '9px 10px',
+            padding: isPreview ? '7px 8px' : '9px 10px',
             fontWeight: 'bold',
-            fontSize: '12px',
+            fontSize: isPreview ? '11px' : '12px',
             lineHeight: '1.2',
             letterSpacing: '0.2px',
             fontFamily: 'Arial, Helvetica, sans-serif',
@@ -123,23 +123,25 @@ export const PayslipDocument = forwardRef(({ payslip, isPreview = false }, ref) 
           style={{
             display: 'grid',
             gridTemplateColumns: '52% 48%',
-            fontSize: '10.5px',
+            fontSize: isPreview ? '9.5px' : '10.5px',
             fontFamily: 'Arial, Helvetica, sans-serif',
-            lineHeight: 1.4,
+            lineHeight: 1.35,
           }}
         >
           {/* Left Column: Employee Details */}
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: '135px 1fr',
-              rowGap: '4px',
-              padding: '8px 12px',
+              gridTemplateColumns: isPreview ? '115px 1fr' : '135px 1fr',
+              rowGap: isPreview ? '3px' : '4px',
+              padding: isPreview ? '6px 8px' : '8px 12px',
               borderRight: '1.5px solid #000000',
             }}
           >
             <span style={{ fontWeight: 'normal', whiteSpace: 'nowrap' }}>Name:</span>
-            <span style={{ fontWeight: '600', whiteSpace: 'nowrap' }}>{valOrBlank(payslip.employee_name)}</span>
+            <span style={{ fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {valOrBlank(payslip.employee_name)}
+            </span>
 
             <span style={{ fontWeight: 'normal', whiteSpace: 'nowrap' }}>Joining Date:</span>
             <span style={{ whiteSpace: 'nowrap' }}>{valOrBlank(payslip.joining_date)}</span>
@@ -164,9 +166,9 @@ export const PayslipDocument = forwardRef(({ payslip, isPreview = false }, ref) 
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: '125px 1fr',
-              rowGap: '4px',
-              padding: '8px 12px',
+              gridTemplateColumns: isPreview ? '105px 1fr' : '125px 1fr',
+              rowGap: isPreview ? '3px' : '4px',
+              padding: isPreview ? '6px 8px' : '8px 12px',
             }}
           >
             <span style={{ fontWeight: 'normal', whiteSpace: 'nowrap' }}>Employee No:</span>
@@ -191,17 +193,17 @@ export const PayslipDocument = forwardRef(({ payslip, isPreview = false }, ref) 
 
         {/* ── 4. Earnings & Deductions Table ───────────────────────────── */}
         <div style={{ borderTop: '1.5px solid #000000' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '52% 48%' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '54% 46%' }}>
             {/* ── Left side: Earnings ────────────────── */}
             <div style={{ borderRight: '1.5px solid #000000' }}>
               {/* Header */}
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '1fr 56px 56px',
-                  padding: '7px 10px',
+                  gridTemplateColumns: isPreview ? '1fr 48px 48px' : '1fr 56px 56px',
+                  padding: isPreview ? '5px 8px' : '7px 10px',
                   fontWeight: 'bold',
-                  fontSize: '11px',
+                  fontSize: isPreview ? '10px' : '11px',
                   lineHeight: '1.2',
                   borderBottom: '1.5px solid #000000',
                   textAlign: 'left',
@@ -212,39 +214,39 @@ export const PayslipDocument = forwardRef(({ payslip, isPreview = false }, ref) 
                 <span style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Actual</span>
               </div>
 
-              {/* Rows (All labels forced single line with whiteSpace: nowrap) */}
-              <div style={{ padding: '8px 10px 10px 10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 56px 56px', padding: '1px 0', alignItems: 'center' }}>
+              {/* Rows */}
+              <div style={{ padding: isPreview ? '6px 8px 8px 8px' : '8px 10px 10px 10px', display: 'flex', flexDirection: 'column', gap: isPreview ? '3px' : '4px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isPreview ? '1fr 48px 48px' : '1fr 56px 56px', padding: '1px 0', alignItems: 'center' }}>
                   <span style={{ whiteSpace: 'nowrap' }}>BASIC</span>
                   <span style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{hasGross ? fmt(payslip.basic_salary) : '__________'}</span>
                   <span style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{hasGross ? fmt(payslip.basic_salary) : '__________'}</span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 56px 56px', padding: '1px 0', alignItems: 'center' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isPreview ? '1fr 48px 48px' : '1fr 56px 56px', padding: '1px 0', alignItems: 'center' }}>
                   <span style={{ whiteSpace: 'nowrap' }}>HRA</span>
                   <span style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{hasGross ? fmt(payslip.hra) : '__________'}</span>
                   <span style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{hasGross ? fmt(payslip.hra) : '__________'}</span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 56px 56px', padding: '1px 0', alignItems: 'center' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isPreview ? '1fr 48px 48px' : '1fr 56px 56px', padding: '1px 0', alignItems: 'center' }}>
                   <span style={{ whiteSpace: 'nowrap' }}>CONVEYANCE</span>
                   <span style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{hasGross ? fmt(payslip.conveyance) : '__________'}</span>
                   <span style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{hasGross ? fmt(payslip.conveyance) : '__________'}</span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 56px 56px', padding: '1px 0', alignItems: 'center' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isPreview ? '1fr 48px 48px' : '1fr 56px 56px', padding: '1px 0', alignItems: 'center' }}>
                   <span style={{ whiteSpace: 'nowrap' }}>MEDICAL ALLOWANCE</span>
                   <span style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{hasGross ? fmt(payslip.medical_allowance) : '__________'}</span>
                   <span style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{hasGross ? fmt(payslip.medical_allowance) : '__________'}</span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 56px 56px', padding: '1px 0', alignItems: 'center' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isPreview ? '1fr 48px 48px' : '1fr 56px 56px', padding: '1px 0', alignItems: 'center' }}>
                   <span style={{ whiteSpace: 'nowrap' }}>SPECIAL ALLOWANCE</span>
                   <span style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{hasGross ? fmt(payslip.special_allowance) : '__________'}</span>
                   <span style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{hasGross ? fmt(payslip.special_allowance) : '__________'}</span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 56px 56px', padding: '1px 0', alignItems: 'center' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isPreview ? '1fr 48px 48px' : '1fr 56px 56px', padding: '1px 0', alignItems: 'center' }}>
                   <span style={{ whiteSpace: 'nowrap' }}>INCENTIVE</span>
                   <span style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{hasGross ? fmt(payslip.incentive !== undefined && payslip.incentive !== '' ? payslip.incentive : 0) : '__________'}</span>
                   <span style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{hasGross ? fmt(payslip.incentive !== undefined && payslip.incentive !== '' ? payslip.incentive : 0) : '__________'}</span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 56px 56px', padding: '1px 0', alignItems: 'center' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isPreview ? '1fr 48px 48px' : '1fr 56px 56px', padding: '1px 0', alignItems: 'center' }}>
                   <span style={{ whiteSpace: 'nowrap' }}>FOOD ALLOWANCE</span>
                   <span style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{hasGross ? fmt(payslip.food_allowance) : '__________'}</span>
                   <span style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{hasGross ? fmt(payslip.food_allowance) : '__________'}</span>
@@ -258,29 +260,29 @@ export const PayslipDocument = forwardRef(({ payslip, isPreview = false }, ref) 
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '1fr 56px',
-                  padding: '7px 10px',
+                  gridTemplateColumns: isPreview ? '1fr 48px' : '1fr 56px',
+                  padding: isPreview ? '5px 8px' : '7px 10px',
                   fontWeight: 'bold',
-                  fontSize: '11px',
+                  fontSize: isPreview ? '10px' : '11px',
                   lineHeight: '1.2',
                   borderBottom: '1.5px solid #000000',
                 }}
               >
-                <span style={{ paddingLeft: '15px', whiteSpace: 'nowrap' }}>Deductions</span>
+                <span style={{ paddingLeft: '10px', whiteSpace: 'nowrap' }}>Deductions</span>
                 <span style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Actual</span>
               </div>
 
               {/* Rows */}
-              <div style={{ padding: '8px 10px 10px 10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div style={{ padding: isPreview ? '6px 8px 8px 8px' : '8px 10px 10px 10px', display: 'flex', flexDirection: 'column', gap: isPreview ? '3px' : '4px' }}>
                 {Number(payslip.lop_deduction) > 0 && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 56px', padding: '1px 0', alignItems: 'center' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: isPreview ? '1fr 48px' : '1fr 56px', padding: '1px 0', alignItems: 'center' }}>
                     <span style={{ whiteSpace: 'nowrap' }}>LOP DEDUCTION</span>
                     <span style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                       {hasGross ? fmt(payslip.lop_deduction) : '__________'}
                     </span>
                   </div>
                 )}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 56px', padding: '1px 0', alignItems: 'center' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isPreview ? '1fr 48px' : '1fr 56px', padding: '1px 0', alignItems: 'center' }}>
                   <span style={{ whiteSpace: 'nowrap' }}>PROF TAX</span>
                   <span style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{hasGross ? fmt(payslip.tds !== undefined && payslip.tds !== '' ? payslip.tds : 200) : '__________'}</span>
                 </div>
@@ -292,17 +294,17 @@ export const PayslipDocument = forwardRef(({ payslip, isPreview = false }, ref) 
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: '52% 48%',
+              gridTemplateColumns: '54% 46%',
               borderTop: '1.5px solid #000000',
               fontWeight: 'bold',
-              fontSize: '11px',
+              fontSize: isPreview ? '10px' : '11px',
             }}
           >
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: '1fr 56px 56px',
-                padding: '7px 10px',
+                gridTemplateColumns: isPreview ? '1fr 48px 48px' : '1fr 56px 56px',
+                padding: isPreview ? '5px 8px' : '7px 10px',
                 lineHeight: '1.2',
                 borderRight: '1.5px solid #000000',
               }}
@@ -314,8 +316,8 @@ export const PayslipDocument = forwardRef(({ payslip, isPreview = false }, ref) 
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: '1fr 56px',
-                padding: '7px 10px',
+                gridTemplateColumns: isPreview ? '1fr 48px' : '1fr 56px',
+                padding: isPreview ? '5px 8px' : '7px 10px',
                 lineHeight: '1.2',
               }}
             >
@@ -328,16 +330,16 @@ export const PayslipDocument = forwardRef(({ payslip, isPreview = false }, ref) 
           <div
             style={{
               borderTop: '1.5px solid #000000',
-              padding: '8px 12px 10px 12px',
+              padding: isPreview ? '6px 10px 8px 10px' : '8px 12px 10px 12px',
             }}
           >
-            <div style={{ fontSize: '11px', marginBottom: '4px', lineHeight: '1.3' }}>
+            <div style={{ fontSize: isPreview ? '10px' : '11px', marginBottom: '3px', lineHeight: '1.3' }}>
               <span style={{ fontWeight: 'normal' }}>Net Pay for the month ( Total Earnings - Total Deductions): </span>
-              <span style={{ fontWeight: 'bold', fontSize: '12px', marginLeft: '12px' }}>
+              <span style={{ fontWeight: 'bold', fontSize: isPreview ? '11px' : '12px', marginLeft: '8px' }}>
                 {hasGross ? fmt(payslip.net_salary) : '__________'}
               </span>
             </div>
-            <div style={{ fontStyle: 'italic', fontSize: '11px', color: '#000000', lineHeight: '1.3' }}>
+            <div style={{ fontStyle: 'italic', fontSize: isPreview ? '10px' : '11px', color: '#000000', lineHeight: '1.3' }}>
               {hasGross && words ? `(${words})` : '(__________________________________________________)'}
             </div>
           </div>

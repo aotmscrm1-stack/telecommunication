@@ -755,7 +755,7 @@ export default function Payslip() {
               </div>
 
               {/* Realistic Payslip Document Paper Rendering */}
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                 <PayslipDocument payslip={draftPayslip} isPreview={true} />
               </div>
 
