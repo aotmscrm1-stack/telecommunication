@@ -3,7 +3,15 @@ const Lead = require('../../models/Lead');
 const Integration = require('../../models/Integration');
 const MessageTemplate = require('../../models/MessageTemplate');
 
-const WA_API = 'https://graph.facebook.com/v19.0';
+// ── Webhook verification (Meta hub.challenge handshake) ────────────────────────
+function verifyWebhookToken(mode, token, challenge, verifyToken) {
+  const cleanToken = token ? String(token).trim() : '';
+  const cleanVerifyToken = verifyToken ? String(verifyToken).trim() : '';
+  if (mode === 'subscribe' && cleanToken && cleanVerifyToken && cleanToken === cleanVerifyToken) {
+    return { valid: true, challenge };
+  }
+  return { valid: false, challenge: null };
+}
 
 // ── Upload media to Meta Resumable Upload API to get header_handle ───────────────
 async function uploadMediaToMeta(fileBuffer, mimeType, accessToken) {

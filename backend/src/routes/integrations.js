@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const Integration = require('../models/Integration');
 const Lead = require('../models/Lead');
 const { protect, authorize } = require('../middleware/auth');
+const { toIndiaE164 } = require('../utils/phone');
 
 const whatsapp = require('../services/integrations/whatsapp');
 const knowlarity = require('../services/integrations/knowlarity');
@@ -219,6 +220,51 @@ router.get('/:id/whatsapp/templates', protect, async (req, res) => {
     res.json(templates);
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+});
+
+// ── Send a template message directly to a lead/phone (Global / .env fallback) ──
+router.post('/whatsapp/send-template-direct', protect, async (req, res) => {
+  try {
+    const { leadId, to, templateName, languageCode, components, messageText } = req.body;
+    let integration = await Integration.findOne({ type: 'whatsapp_cloud', status: 'active' });
+    if (!integration) integration = await Integration.findOne({ type: 'whatsapp_cloud' });
+
+    const phoneId = integration?.config?.phoneNumberId || process.env.META_WA_PHONE_NUMBER_ID;
+    const accessToken = integration?.config?.accessToken || process.env.META_WA_ACCESS_TOKEN;
+
+    if (!phoneId || !accessToken) {
+      return res.status(400).json({ message: 'WhatsApp Cloud API credentials (phone number ID / access token) missing.' });
+    }
+
+    const recipient = toIndiaE164(to);
+    if (!recipient) return res.status(400).json({ message: 'Valid phone number is required.' });
+
+    const result = await whatsapp.sendTemplateMessage(phoneId, accessToken, recipient, templateName, languageCode || 'en_US', components || []);
+
+    if (leadId) {
+      const Lead = require('../models/Lead');
+      await Lead.findByIdAndUpdate(leadId, {
+        $push: {
+          activities: {
+            type: 'whatsapp',
+            description: messageText || `Sent WhatsApp template: ${templateName}`,
+            direction: 'outbound',
+            performedBy: req.user._id,
+            metaMessageId: result?.messages?.[0]?.id || '',
+          },
+        },
+        $set: {
+          lastWaMessageAt: new Date(),
+          lastWaMessagePreview: messageText || `Sent template: ${templateName}`,
+        },
+      });
+    }
+
+    res.json({ success: true, result });
+  } catch (err) {
+    const msg = err.response?.data?.error?.message || err.message;
+    res.status(500).json({ message: msg });
   }
 });
 

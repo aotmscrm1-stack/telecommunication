@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Phone, PhoneOff, Mail, MapPin, Award, IndianRupee, Globe, User, Calendar, Tag, Star, Edit3, Save, X, Plus, Clock, MessageCircle, Copy, Check, Trash2, BookOpen, Zap, Sparkles } from 'lucide-react';
-import { leadsAPI, campaignsAPI, usersAPI, coursesAPI, followupsAPI, blocklistAPI, leadStagesAPI } from '../../services/api';
+import api, { leadsAPI, campaignsAPI, usersAPI, coursesAPI, followupsAPI, blocklistAPI, leadStagesAPI, messageTemplatesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import StatusBadge from '../common/StatusBadge';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -397,6 +397,194 @@ function ScheduleDemoModal({ lead, onClose, onSave }) {
   );
 }
 
+// ── Send WhatsApp Template Modal ─────────────────────────────────────────────
+function SendWhatsAppTemplateModal({ lead, onClose, onSuccess }) {
+  const [templates, setTemplates] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+  const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    const loadTemplates = async () => {
+      try {
+        const res = await messageTemplatesAPI.getAll();
+        const waTemplates = (res.data?.templates || res.data || []).filter(t => t.type === 'whatsapp' || t.category || t.components);
+        setTemplates(waTemplates);
+        if (waTemplates.length > 0) setSelectedTemplate(waTemplates[0]);
+      } catch (err) {
+        console.error('Failed to load templates', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadTemplates();
+  }, []);
+
+  const handleSend = async () => {
+    if (!selectedTemplate) return;
+    setSending(true);
+    setError('');
+    setSuccessMsg('');
+    try {
+      const templateName = selectedTemplate.name || selectedTemplate.shortcut?.replace(/[^a-z0-9_]+/g, '_').toLowerCase();
+      const languageCode = selectedTemplate.language || selectedTemplate.languageCode || 'en_US';
+
+      let bodyText = selectedTemplate.message || selectedTemplate.content || '';
+      bodyText = bodyText.replace(/\{\{\s*name\s*\}\}/gi, lead.name || 'Student');
+
+      await api.post('/integrations/whatsapp/send-template-direct', {
+        leadId: lead._id,
+        to: lead.phone,
+        templateName,
+        languageCode,
+        components: selectedTemplate.components || [],
+        messageText: bodyText,
+      });
+
+      setSuccessMsg(`Successfully sent WhatsApp template "${selectedTemplate.name || selectedTemplate.shortcut}" to ${lead.name}!`);
+      if (onSuccess) onSuccess();
+      setTimeout(() => onClose(), 1800);
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Failed to send template message');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const filteredTemplates = templates.filter(t => {
+    const name = (t.name || t.shortcut || '').toLowerCase();
+    const msg = (t.message || t.content || '').toLowerCase();
+    const q = search.toLowerCase();
+    return name.includes(q) || msg.includes(q);
+  });
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-gray-100 flex flex-col max-h-[90vh]">
+        {/* Header */}
+        <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-emerald-50/50">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center shadow-xs">
+              <MessageCircle className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900 text-base">Send WhatsApp Template</h3>
+              <p className="text-xs text-emerald-700">To: <span className="font-semibold">{lead.name}</span> ({lead.phone})</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-200/60 flex items-center justify-center text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+        </div>
+
+        {/* Content */}
+        <div className="p-5 space-y-4 overflow-y-auto flex-1">
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3.5 text-xs text-red-700 font-semibold">
+              ⚠️ {error}
+            </div>
+          )}
+          {successMsg && (
+            <div className="bg-green-50 border border-green-200 rounded-xl p-3.5 text-xs text-green-700 font-semibold">
+              ✅ {successMsg}
+            </div>
+          )}
+
+          <div>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Search Template</label>
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search by template name or content..."
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+
+          {loading ? (
+            <div className="py-10 text-center text-xs text-gray-400">
+              <div className="w-6 h-6 spinner-gradient mx-auto mb-2" />
+              Loading templates...
+            </div>
+          ) : filteredTemplates.length === 0 ? (
+            <div className="py-8 text-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
+              <MessageCircle className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+              <p className="text-xs text-gray-500 font-medium">No WhatsApp templates available.</p>
+              <p className="text-[11px] text-gray-400 mt-0.5">Create templates in Message Templates module.</p>
+            </div>
+          ) : (
+            <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+              {filteredTemplates.map(t => {
+                const isSelected = selectedTemplate?._id === t._id || selectedTemplate?.name === t.name;
+                const isMediaHeader = t.headerType === 'Media' || t.components?.some(c => c.type === 'HEADER' && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(c.format));
+                const imageUrl = t.mediaUrl || t.imageUrl;
+                return (
+                  <div
+                    key={t._id || t.name}
+                    onClick={() => setSelectedTemplate(t)}
+                    className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-emerald-50/60 border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs'
+                        : 'bg-white border-gray-200 hover:border-emerald-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="font-bold text-xs text-gray-900 flex items-center gap-1.5">
+                        {t.name || t.shortcut}
+                        {t.status && (
+                          <span className={`text-[10px] px-2 py-0.2 rounded-full font-extrabold uppercase ${
+                            t.status === 'APPROVED' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                          }`}>
+                            {t.status}
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-[10px] font-semibold text-gray-400 uppercase">{t.category || t.language || 'Utility'}</span>
+                    </div>
+
+                    {isMediaHeader && (
+                      <div className="mb-2 rounded-lg overflow-hidden border border-emerald-200 bg-gray-900 max-h-28 flex items-center justify-center">
+                        {imageUrl ? (
+                          <img src={imageUrl} alt="Header" className="w-full object-cover h-24" />
+                        ) : (
+                          <div className="text-[10px] text-white/70 py-3">📷 Media Header Attached</div>
+                        )}
+                      </div>
+                    )}
+
+                    <p className="text-xs text-gray-600 line-clamp-2 leading-relaxed bg-gray-50/70 p-2 rounded-lg border border-gray-100">
+                      {t.message || t.content || 'Template message content'}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-5 border-t border-gray-100 flex gap-3 bg-gray-50/50">
+          <button onClick={onClose} className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-100 font-semibold text-xs">
+            Cancel
+          </button>
+          <button
+            onClick={handleSend}
+            disabled={sending || !selectedTemplate}
+            className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors"
+          >
+            {sending ? (
+              <><div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />Sending...</>
+            ) : (
+              <><MessageCircle className="w-4 h-4" />Send Template Now</>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── AI State Banner ───────────────────────────────────────────────────────────
 // Shows a non-intrusive info strip when the lead is currently being handled
 // by the AI engine (locked = actively calling; queued = waiting for a slot).
@@ -478,6 +666,7 @@ export default function LeadDetailsPage({
   const [showLogCallModal, setShowLogCallModal] = useState(false);
   const [runCallIqActivityId, setRunCallIqActivityId] = useState(null);
   const [showInitiateCallModal, setShowInitiateCallModal] = useState(false);
+  const [showSendTemplateModal, setShowSendTemplateModal] = useState(false);
   const [showCallbackModal, setShowCallbackModal] = useState(false);
   const [showDemoModal, setShowDemoModal] = useState(false);
   const [copiedText, setCopiedText] = useState('');
@@ -774,6 +963,16 @@ export default function LeadDetailsPage({
             <span className="hidden sm:inline">Initiate Call</span>
           </button>
 
+          {/* Send WhatsApp Template Button */}
+          <button
+            onClick={() => setShowSendTemplateModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors shadow-sm"
+            title="Send WhatsApp Template to student"
+          >
+            <MessageCircle className="w-4 h-4" />
+            <span className="hidden sm:inline">Send Template</span>
+          </button>
+
           <select
             value={lead.status}
             onChange={e => handleStatusChange(e.target.value)}
@@ -1050,9 +1249,10 @@ export default function LeadDetailsPage({
                 )}
               </button>
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
                 { icon: Phone, label: 'CALL NOW', action: () => setShowInitiateCallModal(true), color: 'bg-green-500 hover:bg-green-600 text-white shadow-sm hover:shadow', disabled: isBlocked },
+                { icon: MessageCircle, label: 'SEND TEMPLATE', action: () => setShowSendTemplateModal(true), color: 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm hover:shadow', disabled: isBlocked },
                 { icon: Clock, label: 'CALLBACK LATER', action: () => setShowCallbackModal(true), color: 'bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200', disabled: isBlocked },
                 { icon: Plus, label: 'ADD NOTE', action: () => setShowNoteModal(true), color: 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200', disabled: isBlocked },
               ].map(({ icon: Icon, label, action, color, disabled }) => (
@@ -1265,6 +1465,13 @@ export default function LeadDetailsPage({
           callers={callers}
           currentUser={user}
           onClose={() => setShowInitiateCallModal(false)}
+          onSuccess={fetchLeadDetails}
+        />
+      )}
+      {showSendTemplateModal && (
+        <SendWhatsAppTemplateModal
+          lead={lead}
+          onClose={() => setShowSendTemplateModal(false)}
           onSuccess={fetchLeadDetails}
         />
       )}
