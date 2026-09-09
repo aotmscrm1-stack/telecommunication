@@ -184,10 +184,7 @@ function AddTemplateForm({ onCancel, onSave, integrationId }) {
         {/* Header content */}
         {headerType === 'Text' && (
           <div style={{ marginBottom: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <label style={{ ...labelStyle, marginBottom: 0 }}>Header Text <span style={{ color: '#e53e3e' }}>*</span></label>
-              <button onClick={() => addVariable(setHeaderText)} style={varBtnStyle}>+ Add variable</button>
-            </div>
+            <label style={labelStyle}>Header Text <span style={{ color: '#e53e3e' }}>*</span></label>
             <input value={headerText} onChange={e => setHeaderText(e.target.value)} placeholder="Enter header text"
               style={inputStyle} maxLength={60} />
             <div style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 3 }}>{headerText.length}/60</div>
@@ -240,10 +237,7 @@ function AddTemplateForm({ onCancel, onSave, integrationId }) {
 
         {/* Message */}
         <div style={{ marginBottom: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-            <label style={{ ...labelStyle, marginBottom: 0 }}>Message <span style={{ color: '#e53e3e' }}>*</span></label>
-            <button onClick={() => addVariable(setMessage)} style={varBtnStyle}>+ Add variable</button>
-          </div>
+          <label style={labelStyle}>Message <span style={{ color: '#e53e3e' }}>*</span></label>
           <textarea value={message} onChange={e => setMessage(e.target.value)}
             placeholder="Enter body text" rows={5}
             style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.6 }} />
@@ -695,6 +689,9 @@ function TemplatesTab() {
             body: t.message,
             rejectedReason: t.rejectedReason,
             headerText: header?.text || '',
+            headerFormat: header?.format || '',
+            headerImage: header?.example?.header_handle?.[0] || '',
+            components: comps,
             footer: footerComp?.text || '',
             buttons: buttonsComp?.buttons || [],
           };
@@ -952,6 +949,19 @@ function TemplatePreviewPanel({ template, sentCount, onDelete }) {
         {/* WhatsApp bubble render */}
         <div style={{ width: 340, flexShrink: 0, background: '#ece5dd', borderRadius: 16, padding: 20 }}>
           <div style={{ background: '#fff', borderRadius: 10, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.12)' }}>
+            {(t.headerFormat === 'IMAGE' || t.headerImage || (t.components || []).some(c => c.type === 'HEADER' && (c.format === 'IMAGE' || c.example?.header_handle?.length))) && (
+              <div style={{ width: '100%', height: 160, background: '#e0e0e0', overflow: 'hidden', borderBottom: '1px solid #f0f0f0' }}>
+                <img
+                  src={t.headerImage || (t.components || []).find(c => c.type === 'HEADER')?.example?.header_handle?.[0] || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80'}
+                  alt="Header Banner"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80';
+                  }}
+                />
+              </div>
+            )}
             {t.headerText && (
               <div style={{ padding: '10px 12px 4px', fontSize: 13, fontWeight: 700, color: '#111' }}>{t.headerText}</div>
             )}

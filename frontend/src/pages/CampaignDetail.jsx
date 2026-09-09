@@ -265,11 +265,20 @@ function AICallingPanel({ campaignId, campaign, onStatusChange }) {
 
 // ─── Add Leads Modal ─────────────────────────────────────────────────────────
 function AddLeadsModal({ campaignId, onClose, onSuccess }) {
+  const [activeTab, setActiveTab] = useState('select'); // 'select' | 'create'
   const [allLeads, setAllLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(new Set());
   const [search, setSearch] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // New Student Form state
+  const [newName, setNewName] = useState('');
+  const [newPhone, setNewPhone] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [newLocation, setNewLocation] = useState('');
+  const [newStatus, setNewStatus] = useState('Fresh');
+  const [createError, setCreateError] = useState('');
 
   useEffect(() => {
     leadsAPI.getAll({ limit: 200 })
@@ -312,64 +321,155 @@ function AddLeadsModal({ campaignId, onClose, onSuccess }) {
     } finally { setSaving(false); }
   };
 
+  const handleCreateStudent = async (e) => {
+    e.preventDefault();
+    if (!newName.trim() || !newPhone.trim()) {
+      setCreateError('Name and Phone are required');
+      return;
+    }
+    setCreateError('');
+    setSaving(true);
+    try {
+      await leadsAPI.create({
+        name: newName.trim(),
+        phone: newPhone.trim(),
+        email: newEmail.trim(),
+        location: newLocation.trim(),
+        status: newStatus,
+        campaign: campaignId
+      });
+      onSuccess();
+      onClose();
+    } catch (err) {
+      setCreateError(err.response?.data?.message || 'Failed to create student');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 540, maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 16px 48px rgba(var(--theme-primary-rgb), 0.18)' }}>
+      <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 540, maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 16px 48px rgba(var(--theme-primary-rgb), 0.18)' }}>
         {/* Header */}
-        <div style={{ padding: '18px 20px', borderBottom: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ padding: '18px 20px 12px', borderBottom: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: TEXT }}>Add Students to Campaign</div>
-            <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>Select students from your lead list to assign to this campaign</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: TEXT }}>Add Students to Campaign</div>
+            <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>Select existing students or create a new student record</div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#aaa', lineHeight: 1 }}>✕</button>
         </div>
 
-        {/* Search */}
-        <div style={{ padding: '12px 20px', borderBottom: `1px solid ${BORDER}` }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--theme-surface-faint6)', border: `1px solid ${BORDER}`, borderRadius: 8, padding: '7px 12px' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or phone..." style={{ background: 'none', border: 'none', outline: 'none', fontSize: 13, color: TEXT, width: '100%' }} />
-          </div>
+        {/* Sub-tabs */}
+        <div style={{ display: 'flex', borderBottom: `1px solid ${BORDER}`, background: 'var(--theme-surface-faint)' }}>
+          <button onClick={() => setActiveTab('select')}
+            style={{ flex: 1, padding: '10px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, fontWeight: activeTab === 'select' ? 700 : 500, color: activeTab === 'select' ? P : MUTED, borderBottom: `2px solid ${activeTab === 'select' ? P : 'transparent'}` }}>
+            Existing Students ({filtered.length})
+          </button>
+          <button onClick={() => setActiveTab('create')}
+            style={{ flex: 1, padding: '10px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, fontWeight: activeTab === 'create' ? 700 : 500, color: activeTab === 'create' ? P : MUTED, borderBottom: `2px solid ${activeTab === 'create' ? P : 'transparent'}` }}>
+            + Create New Student
+          </button>
         </div>
 
-        {/* List */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px' }}>
-          {loading ? <Spinner /> : filtered.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '32px 0', color: MUTED, fontSize: 13 }}>No available students found</div>
-          ) : (
-            <>
-              <div onClick={toggleAll} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', cursor: 'pointer', borderBottom: `1px solid ${BORDER}` }}>
-                <input type="checkbox" readOnly checked={selected.size === filtered.length && filtered.length > 0} style={{ accentColor: P, width: 15, height: 15 }} />
-                <span style={{ fontSize: 12, fontWeight: 600, color: P }}>Select All ({filtered.length})</span>
+        {activeTab === 'select' ? (
+          <>
+            {/* Search */}
+            <div style={{ padding: '12px 20px', borderBottom: `1px solid ${BORDER}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--theme-surface-faint6)', border: `1px solid ${BORDER}`, borderRadius: 8, padding: '7px 12px' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or phone..." style={{ background: 'none', border: 'none', outline: 'none', fontSize: 13, color: TEXT, width: '100%' }} />
               </div>
-              {filtered.map(lead => (
-                <div key={lead._id} onClick={() => toggle(lead._id)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', cursor: 'pointer', borderBottom: `1px solid var(--theme-surface-faint2)` }}>
-                  <input type="checkbox" readOnly checked={selected.has(lead._id)} style={{ accentColor: P, width: 15, height: 15, flexShrink: 0 }} />
-                  <Avatar name={lead.name} size={32} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: TEXT }}>{lead.name}</div>
-                    <div style={{ fontSize: 11, color: MUTED }}>{lead.phone}</div>
-                  </div>
-                  <MiniStatus status={lead.status} />
-                  <div style={{ fontSize: 11, color: MUTED, flexShrink: 0 }}>{lead.location || ''}</div>
-                </div>
-              ))}
-            </>
-          )}
-        </div>
+            </div>
 
-        {/* Footer */}
-        <div style={{ padding: '14px 20px', borderTop: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 12, color: MUTED }}>{selected.size} student{selected.size !== 1 ? 's' : ''} selected</span>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={onClose} style={{ padding: '8px 16px', border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, cursor: 'pointer', background: '#fff', color: TEXT }}>Cancel</button>
-            <button onClick={handleAdd} disabled={saving || selected.size === 0}
-              style={{ padding: '8px 16px', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: selected.size === 0 ? 'not-allowed' : 'pointer', background: selected.size === 0 ? 'var(--theme-primary-pale)' : P, color: '#fff' }}>
-              {saving ? 'Adding...' : `Add ${selected.size > 0 ? selected.size : ''} Student${selected.size !== 1 ? 's' : ''}`}
-            </button>
-          </div>
-        </div>
+            {/* List */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px' }}>
+              {loading ? <Spinner /> : filtered.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '32px 0', color: MUTED, fontSize: 13 }}>No available students found</div>
+              ) : (
+                <>
+                  <div onClick={toggleAll} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', cursor: 'pointer', borderBottom: `1px solid ${BORDER}` }}>
+                    <input type="checkbox" readOnly checked={selected.size === filtered.length && filtered.length > 0} style={{ accentColor: P, width: 15, height: 15 }} />
+                    <span style={{ fontSize: 12, fontWeight: 600, color: P }}>Select All ({filtered.length})</span>
+                  </div>
+                  {filtered.map(lead => (
+                    <div key={lead._id} onClick={() => toggle(lead._id)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', cursor: 'pointer', borderBottom: `1px solid var(--theme-surface-faint2)` }}>
+                      <input type="checkbox" readOnly checked={selected.has(lead._id)} style={{ accentColor: P, width: 15, height: 15, flexShrink: 0 }} />
+                      <Avatar name={lead.name} size={32} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: TEXT }}>{lead.name}</div>
+                        <div style={{ fontSize: 11, color: MUTED }}>{lead.phone}</div>
+                      </div>
+                      <MiniStatus status={lead.status} />
+                      <div style={{ fontSize: 11, color: MUTED, flexShrink: 0 }}>{lead.location || ''}</div>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div style={{ padding: '14px 20px', borderTop: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 12, color: MUTED }}>{selected.size} student{selected.size !== 1 ? 's' : ''} selected</span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={onClose} style={{ padding: '8px 16px', border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, cursor: 'pointer', background: '#fff', color: TEXT }}>Cancel</button>
+                <button onClick={handleAdd} disabled={saving || selected.size === 0}
+                  style={{ padding: '8px 16px', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: selected.size === 0 ? 'not-allowed' : 'pointer', background: selected.size === 0 ? 'var(--theme-primary-pale)' : P, color: '#fff' }}>
+                  {saving ? 'Adding...' : `Add ${selected.size > 0 ? selected.size : ''} Student${selected.size !== 1 ? 's' : ''}`}
+                </button>
+              </div>
+            </div>
+          </>
+        ) : (
+          /* Create New Student Form */
+          <form onSubmit={handleCreateStudent} style={{ padding: 20, overflowY: 'auto', flex: 1 }}>
+            {createError && (
+              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '8px 12px', marginBottom: 12, fontSize: 12, color: '#e53e3e' }}>
+                ⚠️ {createError}
+              </div>
+            )}
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: TEXT, display: 'block', marginBottom: 4 }}>Student Name <span style={{ color: '#e53e3e' }}>*</span></label>
+              <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g. Rahul Sharma"
+                style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: TEXT, display: 'block', marginBottom: 4 }}>Phone Number <span style={{ color: '#e53e3e' }}>*</span></label>
+              <input value={newPhone} onChange={e => setNewPhone(e.target.value)} placeholder="e.g. +919876543210"
+                style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: TEXT, display: 'block', marginBottom: 4 }}>Email</label>
+                <input value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="rahul@example.com"
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: TEXT, display: 'block', marginBottom: 4 }}>Location / City</label>
+                <input value={newLocation} onChange={e => setNewLocation(e.target.value)} placeholder="Hyderabad"
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+              </div>
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: TEXT, display: 'block', marginBottom: 4 }}>Status</label>
+              <select value={newStatus} onChange={e => setNewStatus(e.target.value)}
+                style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 13, outline: 'none', background: '#fff' }}>
+                <option value="Fresh">Fresh</option>
+                <option value="Interested">Interested</option>
+                <option value="Connected">Connected</option>
+                <option value="Call Back Later">Call Back Later</option>
+                <option value="Enrolled">Enrolled</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 10, borderTop: `1px solid ${BORDER}` }}>
+              <button type="button" onClick={onClose} style={{ padding: '8px 16px', border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, cursor: 'pointer', background: '#fff', color: TEXT }}>Cancel</button>
+              <button type="submit" disabled={saving}
+                style={{ padding: '8px 20px', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', background: P, color: '#fff' }}>
+                {saving ? 'Creating...' : 'Create & Add Student'}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
