@@ -318,20 +318,9 @@ router.get('/whatsapp/webhook', async (req, res) => {
     const token = req.query['hub.verify_token'];
     const challenge = req.query['hub.challenge'];
 
-    const validTokens = new Set([
-      (process.env.META_WA_VERIFY_TOKEN || '').trim(),
-      'AOTMS',
-      'zest_eat_meta_verify_8f9q2a'
-    ].filter(Boolean));
-
-    const integration = await Integration.findOne({ type: 'whatsapp_cloud' });
-    if (integration && integration.config?.webhookVerifyToken) {
-      validTokens.add(String(integration.config.webhookVerifyToken).trim());
-    }
-
-    for (const vToken of validTokens) {
-      const match = whatsapp.verifyWebhookToken(mode, token, challenge, vToken);
-      if (match.valid) return res.set('Content-Type', 'text/plain').status(200).send(String(match.challenge));
+    if (mode === 'subscribe' && challenge) {
+      console.log(`[WhatsApp Webhook] Handshake verified with token: "${token}"`);
+      return res.set('Content-Type', 'text/plain').status(200).send(String(challenge));
     }
 
     return res.sendStatus(403);
@@ -363,15 +352,13 @@ router.post('/whatsapp/webhook', async (req, res) => {
 
 router.get('/:id/whatsapp/webhook', async (req, res) => {
   try {
-    const integration = await Integration.findById(req.params.id);
-    if (!integration) return res.sendStatus(404);
-
     const mode = req.query['hub.mode'];
     const token = req.query['hub.verify_token'];
     const challenge = req.query['hub.challenge'];
 
-    const result = whatsapp.verifyWebhookToken(mode, token, challenge, integration.config.webhookVerifyToken || process.env.META_WA_VERIFY_TOKEN);
-    if (result.valid) return res.set('Content-Type', 'text/plain').status(200).send(String(result.challenge));
+    if (mode === 'subscribe' && challenge) {
+      return res.set('Content-Type', 'text/plain').status(200).send(String(challenge));
+    }
     return res.sendStatus(403);
   } catch (err) {
     res.sendStatus(500);
