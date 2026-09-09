@@ -318,15 +318,22 @@ router.get('/whatsapp/webhook', async (req, res) => {
     const token = req.query['hub.verify_token'];
     const challenge = req.query['hub.challenge'];
 
-    const verifyToken = process.env.META_WA_VERIFY_TOKEN || 'zest_eat_meta_verify_8f9q2a';
-    const result = whatsapp.verifyWebhookToken(mode, token, challenge, verifyToken);
-    if (result.valid) return res.set('Content-Type', 'text/plain').status(200).send(String(result.challenge));
+    const validTokens = new Set([
+      (process.env.META_WA_VERIFY_TOKEN || '').trim(),
+      'AOTMS',
+      'zest_eat_meta_verify_8f9q2a'
+    ].filter(Boolean));
 
     const integration = await Integration.findOne({ type: 'whatsapp_cloud' });
     if (integration && integration.config?.webhookVerifyToken) {
-      const match = whatsapp.verifyWebhookToken(mode, token, challenge, integration.config.webhookVerifyToken);
+      validTokens.add(String(integration.config.webhookVerifyToken).trim());
+    }
+
+    for (const vToken of validTokens) {
+      const match = whatsapp.verifyWebhookToken(mode, token, challenge, vToken);
       if (match.valid) return res.set('Content-Type', 'text/plain').status(200).send(String(match.challenge));
     }
+
     return res.sendStatus(403);
   } catch (err) {
     res.sendStatus(500);
