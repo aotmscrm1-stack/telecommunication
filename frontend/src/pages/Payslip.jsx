@@ -160,7 +160,7 @@ export default function Payslip() {
     if (!slip) return;
     setActiveExportSlip(slip);
     // Allow React state to render the export DOM node
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    await new Promise((resolve) => setTimeout(resolve, 200));
 
     const element = document.getElementById('payslip-direct-export-node');
     const filename = formatPayslipFilename(slip.employee_name, slip.payslip_month);
@@ -169,10 +169,18 @@ export default function Payslip() {
       const html2pdfModule = (await import('html2pdf.js')).default;
       if (html2pdfModule && element) {
         const opt = {
-          margin: [6, 6, 6, 6],
+          margin: [8, 8, 8, 8],
           filename,
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+          image: { type: 'jpeg', quality: 1.0 },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            letterRendering: true,
+            scrollY: 0,
+            scrollX: 0,
+            windowWidth: 780,
+            logging: false,
+          },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
         };
         await html2pdfModule().set(opt).from(element).save();
@@ -1007,20 +1015,20 @@ export default function Payslip() {
         </div>
       )}
 
-      {/* Hidden dedicated export container for pristine A4 PDF downloads */}
+      {/* Dedicated export container for pristine A4 PDF downloads */}
       <div
         style={{
-          position: 'fixed',
-          left: '-9999px',
-          top: '-9999px',
-          width: '750px',
-          backgroundColor: '#ffffff',
-          zIndex: -999,
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '740px',
+          opacity: 0,
           pointerEvents: 'none',
+          zIndex: -9999,
         }}
         aria-hidden="true"
       >
-        <div id="payslip-direct-export-node">
+        <div id="payslip-direct-export-node" style={{ width: '740px', backgroundColor: '#ffffff' }}>
           <PayslipDocument payslip={activeExportSlip || draftPayslip} isPreview={false} />
         </div>
       </div>

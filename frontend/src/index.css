@@ -223,3 +223,47 @@ input, select, textarea { font-size: 16px; }
   div[style*="display: flex"] { flex-wrap: wrap; row-gap: 6px; }
   div[style*="display: flex"] > * { min-width: 0; }
 }
+
+/* ================= PAYSLIP PRINT & PDF EXPORT ISOLATION ================= */
+.payslip-print-container,
+.payslip-print-container * {
+  box-sizing: border-box;
+}
+.payslip-print-container div[style*="display: flex"] {
+  flex-wrap: nowrap !important;
+}
+@media (max-width: 1024px), (max-width: 640px) {
+  .payslip-print-container [style*="grid-template-columns: 50% 50%"] {
+    grid-template-columns: 50% 50% !important;
+  }
+  .payslip-print-container [style*="grid-template-columns: 52% 48%"] {
+    grid-template-columns: 52% 48% !important;
+  }
+  .payslip-print-container [style*="grid-template-columns: 54% 46%"] {
+    grid-template-columns: 54% 46% !important;
+  }
+  .payslip-print-container [style*="grid-template-columns: 135px 1fr"] {
+    grid-template-columns: 135px 1fr !important;
+  }
+  .payslip-print-container [style*="grid-template-columns: 115px 1fr"] {
+    grid-template-columns: 115px 1fr !important;
+  }
+  .payslip-print-container [style*="grid-template-columns: 125px 1fr"] {
+    grid-template-columns: 125px 1fr !important;
+  }
+  .payslip-print-container [style*="grid-template-columns: 105px 1fr"] {
+    grid-template-columns: 105px 1fr !important;
+  }
+  .payslip-print-container [style*="grid-template-columns: 1fr 65px 65px"] {
+    grid-template-columns: 1fr 65px 65px !important;
+  }
+  .payslip-print-container [style*="grid-template-columns: 1fr 48px 48px"] {
+    grid-template-columns: 1fr 48px 48px !important;
+  }
+  .payslip-print-container [style*="grid-template-columns: 1fr 65px"] {
+    grid-template-columns: 1fr 65px !important;
+  }
+  .payslip-print-container [style*="grid-template-columns: 1fr 48px"] {
+    grid-template-columns: 1fr 48px !important;
+  }
+}
