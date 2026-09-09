@@ -25,14 +25,6 @@ const NAV_ITEMS = [
     icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 8.5c0 2.5-1.5 4.5-3.5 5.5L22 21H16l-1.5-3h-5L8 21H2l3.5-7C3.5 13 2 11 2 8.5 2 5.5 4.5 3 8 3h8c3.5 0 6 2.5 6 5.5z"/></svg> },
   { key: 'templates',  label: 'Templates',
     icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg> },
-  { key: 'lists',      label: 'Lists',
-    icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1" fill="currentColor"/><circle cx="3" cy="12" r="1" fill="currentColor"/><circle cx="3" cy="18" r="1" fill="currentColor"/></svg> },
-  { key: 'interactive',label: 'Interactive',
-    icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="9" y1="10" x2="15" y2="10"/></svg> },
-  { key: 'analytics',  label: 'Analytics',
-    icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> },
-  { key: 'setup',      label: 'Setup',
-    icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> },
 ];
 
 // ── Hamburger Menu (TeleCRM-style dropdown) ───────────────────────────────────
@@ -331,18 +323,12 @@ function AddTemplateForm({ onCancel, onSave, integrationId }) {
               setSubmitSuccess('');
               setSubmitting(true);
               try {
-                if (integrationId) {
-                  // Submit to Meta via backend
-                  const res = await api.post(`/integrations/${integrationId}/whatsapp/templates`, {
-                    name, category: type, language, headerType, headerText, message, footer, buttons,
-                  });
-                  setSubmitSuccess(`Template submitted! Status: ${res.data.status || 'PENDING'}. Meta will review within a few minutes.`);
-                  onSave({ name, type, language, headerType, headerText, mediaFile, message, footer, buttons, metaId: res.data.metaTemplateId, status: res.data.status || 'PENDING' });
-                } else {
-                  // No integration yet — save locally only
-                  setSubmitSuccess('Template saved locally. Connect your WhatsApp integration in Setup to submit to Meta.');
-                  onSave({ name, type, language, headerType, headerText, mediaFile, message, footer, buttons, status: 'LOCAL' });
-                }
+                const endpoint = integrationId ? `/integrations/${integrationId}/whatsapp/templates` : '/integrations/whatsapp/templates';
+                const res = await api.post(endpoint, {
+                  name, category: type, language, headerType, headerText, message, footer, buttons,
+                });
+                setSubmitSuccess(`Template submitted to Meta Account! Status: ${res.data.status || 'PENDING'}. Meta will review within a few minutes.`);
+                onSave({ name, type, language, headerType, headerText, mediaFile, message, footer, buttons, metaId: res.data.metaTemplateId, status: res.data.status || 'PENDING' });
               } catch (err) {
                 const msg = err.response?.data?.message || err.message || 'Submission failed';
                 setSubmitError(msg);
@@ -729,10 +715,10 @@ function TemplatesTab() {
   }, []);
 
   const syncWithMeta = async () => {
-    if (!integrationId) return;
     setSyncing(true);
     try {
-      await api.post(`/integrations/${integrationId}/whatsapp/templates/sync`);
+      const endpoint = integrationId ? `/integrations/${integrationId}/whatsapp/templates/sync` : '/integrations/whatsapp/templates/sync';
+      await api.post(endpoint);
       loadTemplates();
     } catch {
       // non-fatal — statuses will still update via the approval webhook
@@ -842,22 +828,15 @@ function TemplatesTab() {
           <div style={{ fontSize: 12, color: TEXT_MUTED, marginTop: 2 }}>Pre-approved WhatsApp Business templates</div>
         </div>
         <div style={{ padding: '0 16px 12px', display: 'flex', gap: 8 }}>
-          {integrationId && (
-            <button onClick={syncWithMeta} disabled={syncing}
-              style={{ flex: 1, padding: '8px 10px', background: '#fff', color: PURPLE, border: `1.5px solid ${PURPLE}`, borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: syncing ? 'not-allowed' : 'pointer' }}>
-              {syncing ? 'Syncing…' : '↻ Sync'}
-            </button>
-          )}
+          <button onClick={syncWithMeta} disabled={syncing}
+            style={{ flex: 1, padding: '8px 10px', background: '#fff', color: PURPLE, border: `1.5px solid ${PURPLE}`, borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: syncing ? 'not-allowed' : 'pointer' }}>
+            {syncing ? 'Syncing…' : '↻ Sync Meta'}
+          </button>
           <button onClick={() => setCreating(true)}
             style={{ flex: 1, padding: '8px 10px', background: GREEN, color: '#fff', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
             + Create
           </button>
         </div>
-        {!integrationId && (
-          <div style={{ margin: '0 16px 12px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '8px 10px', fontSize: 11.5, color: '#92400e' }}>
-            No active WhatsApp Cloud integration — templates save locally until you connect one in Setup.
-          </div>
-        )}
         <div style={{ padding: '0 16px 12px' }}>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search template(s) by name or description"
             style={{ ...inputStyle, fontSize: 12, padding: '8px 10px' }} />
@@ -1179,140 +1158,6 @@ function BroadcastsTab() {
   );
 }
 
-// ── Lists Tab ──────────────────────────────────────────────────────────────────
-function ListsTab() {
-  return (
-    <div style={{ padding: 28 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div>
-          <div style={{ fontSize: 17, fontWeight: 700, color: TEXT_MAIN }}>Contact Lists</div>
-          <div style={{ fontSize: 12, color: TEXT_MUTED, marginTop: 2 }}>Organise your leads into broadcast-ready WhatsApp lists</div>
-        </div>
-        <button style={{ padding: '9px 18px', background: GREEN, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>+ New List</button>
-      </div>
-      <div style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 12, padding: '60px 24px', textAlign: 'center' }}>
-        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="1.5" style={{ marginBottom: 14 }}>
-          <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
-          <circle cx="3" cy="6" r="1" fill={GREEN}/><circle cx="3" cy="12" r="1" fill={GREEN}/><circle cx="3" cy="18" r="1" fill={GREEN}/>
-        </svg>
-        <div style={{ fontSize: 15, fontWeight: 700, color: TEXT_MAIN, marginBottom: 6 }}>No Lists Yet</div>
-        <div style={{ fontSize: 12, color: TEXT_MUTED, marginBottom: 18 }}>Create contact lists to send targeted broadcasts.</div>
-        <button style={{ padding: '9px 22px', background: GREEN, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>+ New List</button>
-      </div>
-    </div>
-  );
-}
-
-// ── Interactive Tab ────────────────────────────────────────────────────────────
-function InteractiveTab() {
-  const types = [
-    { icon: '🔘', title: 'Button Messages', desc: 'Add quick-reply buttons to your messages for easy responses.' },
-    { icon: '📋', title: 'List Messages', desc: 'Show a menu of up to 10 options for leads to choose from.' },
-    { icon: '⭐', title: 'Star Ratings', desc: 'Collect customer satisfaction scores via star rating prompts.' },
-    { icon: '📝', title: 'Form Messages', desc: 'Gather information through multi-step interactive forms.' },
-  ];
-  return (
-    <div style={{ padding: 28 }}>
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 17, fontWeight: 700, color: TEXT_MAIN }}>Interactive Messages</div>
-        <div style={{ fontSize: 12, color: TEXT_MUTED, marginTop: 2 }}>Build engaging two-way conversations with interactive elements</div>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
-        {types.map(t => (
-          <div key={t.title} style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 12, padding: '22px 20px', cursor: 'pointer', transition: 'box-shadow 0.15s' }}
-            onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(91,63,199,0.10)'}
-            onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
-            <div style={{ fontSize: 28, marginBottom: 10 }}>{t.icon}</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: TEXT_MAIN, marginBottom: 6 }}>{t.title}</div>
-            <div style={{ fontSize: 12, color: TEXT_MUTED, lineHeight: 1.5 }}>{t.desc}</div>
-            <button style={{ marginTop: 14, padding: '7px 16px', background: BG, color: PURPLE, border: `1px solid ${BORDER}`, borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Create</button>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── Analytics Tab ──────────────────────────────────────────────────────────────
-function AnalyticsTab() {
-  return (
-    <div style={{ padding: 28 }}>
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 17, fontWeight: 700, color: TEXT_MAIN }}>WhatsApp Analytics</div>
-        <div style={{ fontSize: 12, color: TEXT_MUTED, marginTop: 2 }}>Track message delivery, read rates, and engagement</div>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
-        {[{ label: 'Messages Sent', value: '0', color: PURPLE }, { label: 'Delivered', value: '0%', color: GREEN }, { label: 'Read Rate', value: '0%', color: DARK_GREEN }, { label: 'Replied', value: '0%', color: '#f59e0b' }].map(s => (
-          <div key={s.label} style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 10, padding: '14px 16px' }}>
-            <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.value}</div>
-            <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 3 }}>{s.label}</div>
-          </div>
-        ))}
-      </div>
-      <div style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 12, padding: '60px 24px', textAlign: 'center' }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: TEXT_MUTED }}>No data yet</div>
-        <div style={{ fontSize: 12, color: '#aaa', marginTop: 4 }}>Send your first broadcast to see analytics here.</div>
-      </div>
-    </div>
-  );
-}
-
-// ── Setup Tab ──────────────────────────────────────────────────────────────────
-function SetupTab() {
-  const steps = [
-    { num: 1, title: 'Connect WhatsApp Business Account', desc: 'Link your WhatsApp Business API account via Meta Business Manager.', done: false, action: 'Connect Account' },
-    { num: 2, title: 'Verify Phone Number', desc: 'Verify your business phone number to start sending messages.', done: false, action: 'Verify Number' },
-    { num: 3, title: 'Set Display Name', desc: 'Set your business display name that appears in WhatsApp chats.', done: false, action: 'Set Name' },
-    { num: 4, title: 'Upload Business Profile', desc: 'Add your logo, description, address and business category.', done: false, action: 'Edit Profile' },
-    { num: 5, title: 'Configure Webhook', desc: 'Set up webhooks to receive incoming messages and status updates.', done: false, action: 'Configure' },
-    { num: 6, title: 'Create First Template', desc: 'Create and submit a message template for Meta approval.', done: false, action: 'Create Template' },
-  ];
-  const [apiKey, setApiKey] = useState('');
-  const [phoneId, setPhoneId] = useState('');
-  const [accountId, setAccountId] = useState('');
-  return (
-    <div style={{ padding: 28 }}>
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 17, fontWeight: 700, color: TEXT_MAIN }}>WhatsApp Setup</div>
-        <div style={{ fontSize: 12, color: TEXT_MUTED, marginTop: 2 }}>Configure your WhatsApp Business API connection</div>
-      </div>
-      <div style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 12, padding: '6px 0', marginBottom: 24 }}>
-        {steps.map((s, i) => (
-          <div key={s.num} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px', borderBottom: i < steps.length - 1 ? `1px solid ${BORDER}` : 'none' }}>
-            <div style={{ width: 32, height: 32, borderRadius: '50%', background: s.done ? '#f0fdf4' : BG, border: `2px solid ${s.done ? GREEN : BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              {s.done ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                      : <span style={{ fontSize: 11, fontWeight: 700, color: TEXT_MUTED }}>{s.num}</span>}
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: TEXT_MAIN }}>{s.title}</div>
-              <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 2 }}>{s.desc}</div>
-            </div>
-            <button style={{ padding: '7px 16px', background: s.done ? BG : GREEN, color: s.done ? TEXT_MUTED : '#fff', border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-              {s.done ? '✓ Done' : s.action}
-            </button>
-          </div>
-        ))}
-      </div>
-      <div style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 12, padding: 20 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: TEXT_MAIN, marginBottom: 16 }}>API Configuration</div>
-        {[{ label: 'WhatsApp API Token', value: apiKey, setter: setApiKey, placeholder: 'EAAxxxxxxxxxxxxx...', type: 'password' },
-          { label: 'Phone Number ID', value: phoneId, setter: setPhoneId, placeholder: '1234567890', type: 'text' },
-          { label: 'WhatsApp Business Account ID', value: accountId, setter: setAccountId, placeholder: '9876543210', type: 'text' }
-        ].map(f => (
-          <div key={f.label} style={{ marginBottom: 14 }}>
-            <label style={labelStyle}>{f.label}</label>
-            <input type={f.type} value={f.value} onChange={e => f.setter(e.target.value)} placeholder={f.placeholder}
-              style={{ ...inputStyle, fontFamily: f.type === 'password' ? 'monospace' : 'inherit' }} />
-          </div>
-        ))}
-        <button style={{ padding: '10px 24px', background: PURPLE, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-          Save Configuration
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // ── Main Page ──────────────────────────────────────────────────────────────────
 export default function WhatsApp() {
   const [activeTab, setActiveTab] = useState('inbox');
@@ -1323,11 +1168,7 @@ export default function WhatsApp() {
       case 'inbox':       return <InboxTab onSendTemplate={() => setActiveTab('templates')} />;
       case 'broadcasts':  return <BroadcastsTab />;
       case 'templates':   return <TemplatesTab />;
-      case 'lists':       return <ListsTab />;
-      case 'interactive': return <InteractiveTab />;
-      case 'analytics':   return <AnalyticsTab />;
-      case 'setup':       return <SetupTab />;
-      default:            return null;
+      default:            return <InboxTab onSendTemplate={() => setActiveTab('templates')} />;
     }
   };
 

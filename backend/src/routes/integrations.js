@@ -222,6 +222,105 @@ router.get('/:id/whatsapp/templates', protect, async (req, res) => {
   }
 });
 
+// ── Submit a new template to Meta for approval (Global / .env fallback) ────────
+router.post('/whatsapp/templates', protect, async (req, res) => {
+  try {
+    const MessageTemplate = require('../models/MessageTemplate');
+    let integration = await Integration.findOne({ type: 'whatsapp_cloud', status: 'active' });
+    if (!integration) integration = await Integration.findOne({ type: 'whatsapp_cloud' });
+
+    const accessToken = integration?.config?.accessToken || process.env.META_WA_ACCESS_TOKEN;
+    const phoneId = integration?.config?.phoneNumberId || process.env.META_WA_PHONE_NUMBER_ID;
+    const wabaId = integration?.config?.wabaId || process.env.META_WA_WABA_ID || phoneId;
+
+    if (!accessToken || !wabaId) {
+      return res.status(400).json({ message: 'WhatsApp Cloud API credentials (access token & phone number/WABA ID) missing in backend configuration.' });
+    }
+
+    const { name, category, language, headerType, headerText, message, footer, buttons } = req.body;
+    if (!name || !message) return res.status(400).json({ message: 'name and message are required' });
+
+    const metaTemplateName = String(name).trim().toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '');
+    const languageCode = { English: 'en_US', Hindi: 'hi', Telugu: 'te', Tamil: 'ta' }[language] || language || 'en_US';
+
+    const components = [];
+    if (headerType === 'Text' && headerText) {
+      components.push({ type: 'HEADER', format: 'TEXT', text: headerText });
+    }
+    components.push({ type: 'BODY', text: message });
+    if (footer) components.push({ type: 'FOOTER', text: footer });
+    if (Array.isArray(buttons) && buttons.length) {
+      components.push({
+        type: 'BUTTONS',
+        buttons: buttons.map(b => {
+          if (b.type === 'URL') return { type: 'URL', text: b.text, url: b.value };
+          if (b.type === 'Phone Number') return { type: 'PHONE_NUMBER', text: b.text, phone_number: b.value };
+          return { type: 'QUICK_REPLY', text: b.text };
+        }),
+      });
+    }
+
+    let metaResult;
+    try {
+      metaResult = await whatsapp.submitTemplate(
+        wabaId,
+        accessToken,
+        { name: metaTemplateName, category: (category || 'MARKETING').toUpperCase(), language: languageCode, components }
+      );
+    } catch (metaErr) {
+      return res.status(400).json({ message: metaErr.response?.data?.error?.message || metaErr.message });
+    }
+
+    const template = await MessageTemplate.create({
+      type: 'whatsapp',
+      shortcut: name,
+      message,
+      metaTemplateId: metaResult.id,
+      metaTemplateName,
+      category: (category || 'MARKETING').toUpperCase(),
+      language: languageCode,
+      components,
+      waStatus: metaResult.status || 'PENDING',
+      integration: integration?._id || undefined,
+      createdBy: req.user._id,
+    });
+
+    res.status(201).json({ metaTemplateId: metaResult.id, status: metaResult.status || 'PENDING', template });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ── Pull latest approval status for all templates from Meta (Global / .env fallback) ─
+router.post('/whatsapp/templates/sync', protect, async (req, res) => {
+  try {
+    const MessageTemplate = require('../models/MessageTemplate');
+    let integration = await Integration.findOne({ type: 'whatsapp_cloud', status: 'active' });
+    if (!integration) integration = await Integration.findOne({ type: 'whatsapp_cloud' });
+
+    const accessToken = integration?.config?.accessToken || process.env.META_WA_ACCESS_TOKEN;
+    const phoneId = integration?.config?.phoneNumberId || process.env.META_WA_PHONE_NUMBER_ID;
+    const wabaId = integration?.config?.wabaId || process.env.META_WA_WABA_ID || phoneId;
+
+    if (!accessToken || !wabaId) {
+      return res.status(400).json({ message: 'WhatsApp API credentials missing' });
+    }
+
+    const metaTemplates = await whatsapp.getTemplates(wabaId, accessToken);
+    let updated = 0;
+    for (const mt of metaTemplates) {
+      const result = await MessageTemplate.findOneAndUpdate(
+        { $or: [{ metaTemplateId: String(mt.id) }, { metaTemplateName: String(mt.name) }] },
+        { $set: { waStatus: mt.status, category: mt.category, rejectedReason: mt.rejected_reason || '' } }
+      );
+      if (result) updated++;
+    }
+    res.json({ updated, total: metaTemplates.length });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // ── Submit a new template to Meta for approval ─────────────────────────────────
 // Called by AddTemplateForm on the WhatsApp > Templates tab.
 router.post('/:id/whatsapp/templates', protect, async (req, res) => {
