@@ -238,7 +238,7 @@ router.post('/whatsapp/templates', protect, async (req, res) => {
       return res.status(400).json({ message: 'WhatsApp Cloud API credentials (access token & phone number/WABA ID) missing in backend configuration.' });
     }
 
-    const { name, category, language, headerType, headerText, message, footer, buttons } = req.body;
+    const { name, category, language, headerType, headerText, mediaBase64, mediaMimeType, message, footer, buttons } = req.body;
     if (!name || !message) return res.status(400).json({ message: 'name and message are required' });
 
     const metaTemplateName = String(name).trim().toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '');
@@ -247,6 +247,30 @@ router.post('/whatsapp/templates', protect, async (req, res) => {
     const components = [];
     if (headerType === 'Text' && headerText) {
       components.push({ type: 'HEADER', format: 'TEXT', text: headerText });
+    } else if (headerType === 'Media') {
+      let headerHandle = null;
+      if (mediaBase64) {
+        const base64Data = mediaBase64.replace(/^data:[^;]+;base64,/, '');
+        const buffer = Buffer.from(base64Data, 'base64');
+        try {
+          headerHandle = await whatsapp.uploadMediaToMeta(buffer, mediaMimeType || 'image/png', accessToken);
+        } catch (uploadErr) {
+          console.warn('Meta media upload failed:', uploadErr.message);
+        }
+      }
+      if (!headerHandle) {
+        const defaultPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+        try {
+          headerHandle = await whatsapp.uploadMediaToMeta(defaultPng, 'image/png', accessToken);
+        } catch (e) {
+          console.warn('Default media upload failed:', e.message);
+        }
+      }
+      const headerComp = { type: 'HEADER', format: 'IMAGE' };
+      if (headerHandle) {
+        headerComp.example = { header_handle: [headerHandle] };
+      }
+      components.push(headerComp);
     }
     components.push({ type: 'BODY', text: message });
     if (footer) components.push({ type: 'FOOTER', text: footer });
@@ -352,7 +376,7 @@ router.post('/:id/whatsapp/templates', protect, async (req, res) => {
     const integration = await Integration.findById(req.params.id);
     if (!integration) return res.status(404).json({ message: 'Integration not found' });
 
-    const { name, category, language, headerType, headerText, message, footer, buttons } = req.body;
+    const { name, category, language, headerType, headerText, mediaBase64, mediaMimeType, message, footer, buttons } = req.body;
     if (!name || !message) return res.status(400).json({ message: 'name and message are required' });
 
     // Meta requires lowercase_snake_case, unique template names
@@ -362,6 +386,30 @@ router.post('/:id/whatsapp/templates', protect, async (req, res) => {
     const components = [];
     if (headerType === 'Text' && headerText) {
       components.push({ type: 'HEADER', format: 'TEXT', text: headerText });
+    } else if (headerType === 'Media') {
+      let headerHandle = null;
+      if (mediaBase64) {
+        const base64Data = mediaBase64.replace(/^data:[^;]+;base64,/, '');
+        const buffer = Buffer.from(base64Data, 'base64');
+        try {
+          headerHandle = await whatsapp.uploadMediaToMeta(buffer, mediaMimeType || 'image/png', integration.config?.accessToken);
+        } catch (uploadErr) {
+          console.warn('Meta media upload failed:', uploadErr.message);
+        }
+      }
+      if (!headerHandle) {
+        const defaultPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+        try {
+          headerHandle = await whatsapp.uploadMediaToMeta(defaultPng, 'image/png', integration.config?.accessToken);
+        } catch (e) {
+          console.warn('Default media upload failed:', e.message);
+        }
+      }
+      const headerComp = { type: 'HEADER', format: 'IMAGE' };
+      if (headerHandle) {
+        headerComp.example = { header_handle: [headerHandle] };
+      }
+      components.push(headerComp);
     }
     components.push({ type: 'BODY', text: message });
     if (footer) components.push({ type: 'FOOTER', text: footer });

@@ -5,14 +5,31 @@ const MessageTemplate = require('../../models/MessageTemplate');
 
 const WA_API = 'https://graph.facebook.com/v19.0';
 
-// ── Webhook verification (Meta hub.challenge handshake) ────────────────────────
-function verifyWebhookToken(mode, token, challenge, verifyToken) {
-  const cleanToken = token ? String(token).trim() : '';
-  const cleanVerifyToken = verifyToken ? String(verifyToken).trim() : '';
-  if (mode === 'subscribe' && cleanToken && cleanVerifyToken && cleanToken === cleanVerifyToken) {
-    return { valid: true, challenge };
-  }
-  return { valid: false, challenge: null };
+// ── Upload media to Meta Resumable Upload API to get header_handle ───────────────
+async function uploadMediaToMeta(fileBuffer, mimeType, accessToken) {
+  const token = accessToken || process.env.META_WA_ACCESS_TOKEN;
+  const appId = process.env.META_APP_ID || '1207473174896357';
+
+  const sessionRes = await axios.post(`${WA_API}/${appId}/uploads`, null, {
+    params: {
+      file_length: fileBuffer.length,
+      file_type: mimeType || 'image/png',
+      access_token: token
+    }
+  });
+
+  const uploadSessionId = sessionRes.data?.id;
+  if (!uploadSessionId) throw new Error('Could not create Meta upload session');
+
+  const uploadRes = await axios.post(`${WA_API}/${uploadSessionId}`, fileBuffer, {
+    headers: {
+      'Authorization': `OAuth ${token}`,
+      'file_offset': 0,
+      'Content-Type': mimeType || 'image/png'
+    }
+  });
+
+  return uploadRes.data?.h; // header_handle
 }
 
 // ── Send a plain text message ───────────────────────────────────────────────────
@@ -227,5 +244,6 @@ module.exports = {
   getTemplates,
   submitTemplate,
   deleteTemplate,
+  uploadMediaToMeta,
   handleWhatsAppWebhookEvent,
 };

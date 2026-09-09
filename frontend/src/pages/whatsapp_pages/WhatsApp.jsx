@@ -318,7 +318,9 @@ function AddTemplateForm({ onCancel, onSave, integrationId }) {
               try {
                 const endpoint = integrationId ? `/integrations/${integrationId}/whatsapp/templates` : '/integrations/whatsapp/templates';
                 const res = await api.post(endpoint, {
-                  name, category: type, language, headerType, headerText, message, footer, buttons,
+                  name, category: type, language, headerType, headerText,
+                  mediaBase64: mediaPreview, mediaMimeType: mediaFile?.type || 'image/png',
+                  message, footer, buttons,
                 });
                 setSubmitSuccess(`Template submitted to Meta Account! Status: ${res.data.status || 'PENDING'}. Meta will review within a few minutes.`);
                 onSave({ name, type, language, headerType, headerText, mediaFile, message, footer, buttons, metaId: res.data.metaTemplateId, status: res.data.status || 'PENDING' });
