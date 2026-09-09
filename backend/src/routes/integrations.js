@@ -382,17 +382,37 @@ router.post('/whatsapp/templates', protect, async (req, res) => {
     }
 
     let metaResult;
+    let finalMetaName = metaTemplateName;
     try {
       metaResult = await whatsapp.submitTemplate(
         wabaId,
         accessToken,
-        { name: metaTemplateName, category: (category || 'MARKETING').toUpperCase(), language: languageCode, components }
+        { name: finalMetaName, category: (category || 'MARKETING').toUpperCase(), language: languageCode, components }
       );
     } catch (metaErr) {
-      console.error('Meta submitTemplate error:', metaErr.response?.data || metaErr.message);
       const metaErrData = metaErr.response?.data?.error;
-      const errorMsg = metaErrData?.error_user_msg || metaErrData?.error_user_title || metaErrData?.message || metaErr.message;
-      return res.status(400).json({ message: errorMsg, details: metaErrData });
+      const rawMsg = (metaErrData?.error_user_msg || metaErrData?.message || '').toLowerCase();
+
+      // If template name is undergoing deletion or locked by Meta, retry with unique suffix
+      if (rawMsg.includes('deleted') || rawMsg.includes('exists') || rawMsg.includes('delete') || metaErrData?.code === 100) {
+        finalMetaName = `${metaTemplateName}_${Date.now().toString().slice(-4)}`;
+        try {
+          metaResult = await whatsapp.submitTemplate(
+            wabaId,
+            accessToken,
+            { name: finalMetaName, category: (category || 'MARKETING').toUpperCase(), language: languageCode, components }
+          );
+        } catch (retryErr) {
+          console.error('Meta submitTemplate retry error:', retryErr.response?.data || retryErr.message);
+          const retryErrData = retryErr.response?.data?.error;
+          const errorMsg = retryErrData?.error_user_msg || retryErrData?.error_user_title || retryErrData?.message || retryErr.message;
+          return res.status(400).json({ message: errorMsg, details: retryErrData });
+        }
+      } else {
+        console.error('Meta submitTemplate error:', metaErr.response?.data || metaErr.message);
+        const errorMsg = metaErrData?.error_user_msg || metaErrData?.error_user_title || metaErrData?.message || metaErr.message;
+        return res.status(400).json({ message: errorMsg, details: metaErrData });
+      }
     }
 
     const template = await MessageTemplate.create({
@@ -400,7 +420,7 @@ router.post('/whatsapp/templates', protect, async (req, res) => {
       shortcut: name,
       message,
       metaTemplateId: metaResult.id,
-      metaTemplateName,
+      metaTemplateName: finalMetaName,
       category: (category || 'MARKETING').toUpperCase(),
       language: languageCode,
       components,
