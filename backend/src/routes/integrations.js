@@ -291,7 +291,7 @@ router.post('/whatsapp/templates', protect, async (req, res) => {
   }
 });
 
-// ── Pull latest approval status for all templates from Meta (Global / .env fallback) ─
+// ── Pull latest approval status & import all existing templates from Meta ───
 router.post('/whatsapp/templates/sync', protect, async (req, res) => {
   try {
     const MessageTemplate = require('../models/MessageTemplate');
@@ -309,9 +309,29 @@ router.post('/whatsapp/templates/sync', protect, async (req, res) => {
     const metaTemplates = await whatsapp.getTemplates(wabaId, accessToken);
     let updated = 0;
     for (const mt of metaTemplates) {
+      const bodyComp = (mt.components || []).find(c => c.type === 'BODY');
+      const message = bodyComp?.text || mt.name;
+
       const result = await MessageTemplate.findOneAndUpdate(
-        { $or: [{ metaTemplateId: String(mt.id) }, { metaTemplateName: String(mt.name) }] },
-        { $set: { waStatus: mt.status, category: mt.category, rejectedReason: mt.rejected_reason || '' } }
+        { $or: [{ metaTemplateId: String(mt.id) }, { metaTemplateName: String(mt.name) }, { shortcut: String(mt.name) }] },
+        {
+          $set: {
+            type: 'whatsapp',
+            shortcut: mt.name,
+            message,
+            metaTemplateId: String(mt.id),
+            metaTemplateName: mt.name,
+            category: mt.category || 'MARKETING',
+            language: mt.language || 'en_US',
+            components: mt.components || [],
+            waStatus: mt.status || 'APPROVED',
+            rejectedReason: mt.rejected_reason || '',
+          },
+          $setOnInsert: {
+            createdBy: req.user._id,
+          }
+        },
+        { upsert: true, new: true }
       );
       if (result) updated++;
     }
@@ -395,9 +415,29 @@ router.post('/:id/whatsapp/templates/sync', protect, async (req, res) => {
     const metaTemplates = await whatsapp.getTemplates(integration.config.wabaId, integration.config.accessToken);
     let updated = 0;
     for (const mt of metaTemplates) {
+      const bodyComp = (mt.components || []).find(c => c.type === 'BODY');
+      const message = bodyComp?.text || mt.name;
+
       const result = await MessageTemplate.findOneAndUpdate(
-        { metaTemplateId: String(mt.id) },
-        { $set: { waStatus: mt.status, category: mt.category, rejectedReason: mt.rejected_reason || '' } }
+        { $or: [{ metaTemplateId: String(mt.id) }, { metaTemplateName: String(mt.name) }, { shortcut: String(mt.name) }] },
+        {
+          $set: {
+            type: 'whatsapp',
+            shortcut: mt.name,
+            message,
+            metaTemplateId: String(mt.id),
+            metaTemplateName: mt.name,
+            category: mt.category || 'MARKETING',
+            language: mt.language || 'en_US',
+            components: mt.components || [],
+            waStatus: mt.status || 'APPROVED',
+            rejectedReason: mt.rejected_reason || '',
+          },
+          $setOnInsert: {
+            createdBy: req.user._id,
+          }
+        },
+        { upsert: true, new: true }
       );
       if (result) updated++;
     }

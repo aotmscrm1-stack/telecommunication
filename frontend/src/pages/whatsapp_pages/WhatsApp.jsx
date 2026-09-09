@@ -889,6 +889,10 @@ function TemplatesTab() {
           <TemplatePreviewPanel
             template={templates.find(t => t.id === previewId)}
             sentCount={broadcastStats[previewId] || 0}
+            onDelete={(deletedId) => {
+              setPreviewId(null);
+              loadTemplates();
+            }}
           />
         )}
       </div>
@@ -897,22 +901,51 @@ function TemplatesTab() {
 }
 
 // ── Template preview panel (right-hand side, matches the reference detail view) ──
-function TemplatePreviewPanel({ template, sentCount }) {
+function TemplatePreviewPanel({ template, sentCount, onDelete }) {
+  const [deleting, setDeleting] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   if (!template) return null;
   const t = template;
 
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await api.delete(`/message-templates/${t.id}`);
+      setShowConfirm(false);
+      if (onDelete) onDelete(t.id);
+    } catch (err) {
+      alert(err.response?.data?.message || err.message || 'Failed to delete template');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <div style={{ padding: 28 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-        <div style={{ width: 40, height: 40, borderRadius: 8, background: '#fff', border: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={PURPLE} strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 8, background: '#fff', border: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={PURPLE} strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          </div>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: TEXT_MAIN, display: 'flex', alignItems: 'center', gap: 10 }}>
+              {t.name}
+              <span style={{ fontSize: 11, fontWeight: 700, borderRadius: 5, padding: '2px 8px', background: t.status === 'APPROVED' ? '#f0fdf4' : t.status === 'PENDING' ? '#fffbeb' : '#fef2f2', color: t.status === 'APPROVED' ? '#16a34a' : t.status === 'PENDING' ? '#d97706' : '#e53e3e' }}>
+                {t.status}
+              </span>
+            </div>
+            <span style={{ fontSize: 10.5, background: '#f0ecff', color: PURPLE, borderRadius: 5, padding: '2px 8px', fontWeight: 700, marginTop: 4, display: 'inline-block' }}>
+              {t.category} ({t.language?.split('_')[0] || 'en'})
+            </span>
+          </div>
         </div>
-        <div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: TEXT_MAIN }}>{t.name}</div>
-          <span style={{ fontSize: 10.5, background: '#f0ecff', color: PURPLE, borderRadius: 5, padding: '2px 8px', fontWeight: 700 }}>
-            {t.category}-({t.language?.split('_')[0] || 'en'})
-          </span>
-        </div>
+
+        <button
+          onClick={() => setShowConfirm(true)}
+          style={{ padding: '7px 14px', background: '#fef2f2', color: '#ef4444', border: '1px solid #fecaca', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          Delete Template
+        </button>
       </div>
 
       <div style={{ display: 'flex', gap: 24, marginTop: 24, alignItems: 'flex-start' }}>
@@ -946,7 +979,7 @@ function TemplatePreviewPanel({ template, sentCount }) {
           )}
         </div>
 
-        {/* Performance */}
+        {/* Performance & Details */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: TEXT_MAIN, marginBottom: 14 }}>Performance</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 12, marginBottom: 16 }}>
@@ -968,7 +1001,7 @@ function TemplatePreviewPanel({ template, sentCount }) {
             </div>
           </div>
           <div style={{ fontSize: 11.5, color: TEXT_MUTED, marginBottom: 20 }}>
-            Sent count is totaled from broadcasts using this template. Delivered / Read / Replied require Meta's delivery-status webhooks, which aren't wired up yet.
+            Sent count is totaled from broadcasts using this template.
           </div>
           {t.headerText && (
             <div style={{ marginBottom: 10, fontSize: 12.5 }}><strong style={{ color: TEXT_MAIN }}>Header:</strong> <span style={{ color: TEXT_MUTED }}>{t.headerText}</span></div>
@@ -976,9 +1009,29 @@ function TemplatePreviewPanel({ template, sentCount }) {
           {t.footer && (
             <div style={{ marginBottom: 10, fontSize: 12.5 }}><strong style={{ color: TEXT_MAIN }}>Footer:</strong> <span style={{ color: TEXT_MUTED }}>{t.footer}</span></div>
           )}
-          <div style={{ fontSize: 12.5, color: TEXT_MUTED }}>Language: {t.language}</div>
+          <div style={{ fontSize: 12.5, color: TEXT_MUTED, marginBottom: 6 }}>Language: {t.language}</div>
+          {t.id && (
+            <div style={{ fontSize: 11, color: '#aaa', fontFamily: 'monospace' }}>ID: {t.id}</div>
+          )}
         </div>
       </div>
+
+      {showConfirm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,15,25,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: '28px 32px', width: 400, maxWidth: '90vw', textAlign: 'center' }}>
+            <div style={{ fontSize: 17, fontWeight: 800, color: TEXT_MAIN, marginBottom: 8 }}>Delete Template "{t.name}"?</div>
+            <div style={{ fontSize: 13, color: TEXT_MUTED, marginBottom: 20 }}>
+              This will remove the template from your CRM and delete it from your Meta WhatsApp Account. This action cannot be undone.
+            </div>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+              <button onClick={() => setShowConfirm(false)} style={{ padding: '9px 20px', background: '#fff', color: TEXT_MAIN, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={handleDelete} disabled={deleting} style={{ padding: '9px 20px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: deleting ? 'not-allowed' : 'pointer' }}>
+                {deleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
