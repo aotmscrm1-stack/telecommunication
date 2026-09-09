@@ -258,8 +258,9 @@ function AddTemplateForm({ onCancel, onSave, integrationId }) {
             <span style={{ fontSize: 12, color: TEXT_MUTED, alignSelf: 'center', marginRight: 4 }}>Add:</span>
             {[
               { type: 'Quick Reply',  icon: '🔘' },
-              { type: 'Coupon Code', icon: '🏷️' },
+              { type: 'Phone Number', icon: '📞' },
               { type: 'URL',         icon: '🔗' },
+              { type: 'Coupon Code', icon: '🏷️' },
             ].map(b => (
               <button key={b.type} onClick={() => addButton(b.type)}
                 disabled={buttons.length >= 3}

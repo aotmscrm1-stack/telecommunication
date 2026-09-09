@@ -343,9 +343,20 @@ router.post('/whatsapp/templates', protect, async (req, res) => {
       components.push({
         type: 'BUTTONS',
         buttons: buttons.map(b => {
-          if (b.type === 'URL') return { type: 'URL', text: b.text, url: b.value };
-          if (b.type === 'Phone Number') return { type: 'PHONE_NUMBER', text: b.text, phone_number: b.value };
-          return { type: 'QUICK_REPLY', text: b.text };
+          if (b.type === 'URL') return { type: 'URL', text: b.text || 'Visit Link', url: b.value };
+          if (b.type === 'Phone Number' || b.type === 'PHONE_NUMBER') {
+            let phoneVal = String(b.value || '').trim();
+            const digits = phoneVal.replace(/\D/g, '');
+            if (digits.length === 10) {
+              phoneVal = `+91${digits}`;
+            } else if (digits.length === 12 && digits.startsWith('91')) {
+              phoneVal = `+${digits}`;
+            } else if (!phoneVal.startsWith('+')) {
+              phoneVal = `+${digits}`;
+            }
+            return { type: 'PHONE_NUMBER', text: b.text || 'Call Us', phone_number: phoneVal };
+          }
+          return { type: 'QUICK_REPLY', text: b.text || 'Quick Reply' };
         }),
       });
     }
