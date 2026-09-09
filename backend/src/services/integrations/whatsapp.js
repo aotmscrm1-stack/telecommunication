@@ -91,7 +91,7 @@ async function sendListMessage(phoneNumberId, accessToken, to, list) {
 // ── List approved message templates for a WABA ─────────────────────────────────
 async function getTemplates(wabaId, accessToken) {
   const token = accessToken || process.env.META_WA_ACCESS_TOKEN;
-  const targetId = wabaId || process.env.META_WA_PHONE_NUMBER_ID;
+  const targetId = wabaId || process.env.META_WA_WABA_ID || process.env.META_WA_PHONE_NUMBER_ID;
   const res = await axios.get(`${WA_API}/${targetId}/message_templates`, {
     params: { access_token: token, limit: 100 },
   });
@@ -101,7 +101,7 @@ async function getTemplates(wabaId, accessToken) {
 // ── Submit a new template to Meta for approval ──────────────────────────────────
 async function submitTemplate(wabaId, accessToken, { name, category, language, components }) {
   const token = accessToken || process.env.META_WA_ACCESS_TOKEN;
-  const targetId = wabaId || process.env.META_WA_PHONE_NUMBER_ID;
+  const targetId = wabaId || process.env.META_WA_WABA_ID || process.env.META_WA_PHONE_NUMBER_ID;
   const res = await axios.post(
     `${WA_API}/${targetId}/message_templates`,
     { name, category, language, components },
@@ -113,7 +113,7 @@ async function submitTemplate(wabaId, accessToken, { name, category, language, c
 // ── Delete a template from Meta WABA ───────────────────────────────────────────
 async function deleteTemplate(wabaId, accessToken, templateName) {
   const token = accessToken || process.env.META_WA_ACCESS_TOKEN;
-  const targetId = wabaId || process.env.META_WA_PHONE_NUMBER_ID;
+  const targetId = wabaId || process.env.META_WA_WABA_ID || process.env.META_WA_PHONE_NUMBER_ID;
   const res = await axios.delete(
     `${WA_API}/${targetId}/message_templates`,
     {
