@@ -311,7 +311,12 @@ router.post('/whatsapp/templates', protect, async (req, res) => {
 
     const components = [];
     if (headerType === 'Text' && headerText) {
-      components.push({ type: 'HEADER', format: 'TEXT', text: headerText });
+      const headerComp = { type: 'HEADER', format: 'TEXT', text: headerText };
+      const headerVars = headerText.match(/\{\{(\d+|\w+)\}\}/g);
+      if (headerVars && headerVars.length > 0) {
+        headerComp.example = { header_text: ['HeaderSample'] };
+      }
+      components.push(headerComp);
     } else if (headerType === 'Media') {
       let headerHandle = null;
       if (mediaBase64) {
@@ -337,13 +342,28 @@ router.post('/whatsapp/templates', protect, async (req, res) => {
       }
       components.push(headerComp);
     }
-    components.push({ type: 'BODY', text: message });
+
+    // BODY component with auto-generated example for variables
+    const bodyComp = { type: 'BODY', text: message };
+    const bodyVars = message.match(/\{\{(\d+|\w+)\}\}/g);
+    if (bodyVars && bodyVars.length > 0) {
+      bodyComp.example = { body_text: [bodyVars.map((_, i) => `Sample${i + 1}`)] };
+    }
+    components.push(bodyComp);
+
     if (footer) components.push({ type: 'FOOTER', text: footer });
+
     if (Array.isArray(buttons) && buttons.length) {
       components.push({
         type: 'BUTTONS',
         buttons: buttons.map(b => {
-          if (b.type === 'URL') return { type: 'URL', text: b.text || 'Visit Link', url: b.value };
+          if (b.type === 'URL') {
+            const urlObj = { type: 'URL', text: b.text || 'Visit Link', url: b.value || 'https://example.com' };
+            if (urlObj.url.includes('{{1}}')) {
+              urlObj.example = ['sample'];
+            }
+            return urlObj;
+          }
           if (b.type === 'Phone Number' || b.type === 'PHONE_NUMBER') {
             let phoneVal = String(b.value || '').trim();
             const digits = phoneVal.replace(/\D/g, '');
@@ -352,7 +372,7 @@ router.post('/whatsapp/templates', protect, async (req, res) => {
             } else if (digits.length === 12 && digits.startsWith('91')) {
               phoneVal = `+${digits}`;
             } else if (!phoneVal.startsWith('+')) {
-              phoneVal = `+${digits}`;
+              phoneVal = `+${phoneVal}`;
             }
             return { type: 'PHONE_NUMBER', text: b.text || 'Call Us', phone_number: phoneVal };
           }
@@ -369,7 +389,10 @@ router.post('/whatsapp/templates', protect, async (req, res) => {
         { name: metaTemplateName, category: (category || 'MARKETING').toUpperCase(), language: languageCode, components }
       );
     } catch (metaErr) {
-      return res.status(400).json({ message: metaErr.response?.data?.error?.message || metaErr.message });
+      console.error('Meta submitTemplate error:', metaErr.response?.data || metaErr.message);
+      const metaErrData = metaErr.response?.data?.error;
+      const errorMsg = metaErrData?.error_user_msg || metaErrData?.error_user_title || metaErrData?.message || metaErr.message;
+      return res.status(400).json({ message: errorMsg, details: metaErrData });
     }
 
     const template = await MessageTemplate.create({
