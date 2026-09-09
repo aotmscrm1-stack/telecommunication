@@ -3,6 +3,8 @@ const Lead = require('../../models/Lead');
 const Integration = require('../../models/Integration');
 const MessageTemplate = require('../../models/MessageTemplate');
 
+const WA_API = 'https://graph.facebook.com/v22.0';
+
 // ── Webhook verification (Meta hub.challenge handshake) ────────────────────────
 function verifyWebhookToken(mode, token, challenge, verifyToken) {
   const cleanToken = token ? String(token).trim() : '';
