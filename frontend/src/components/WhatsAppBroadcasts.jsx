@@ -233,28 +233,11 @@ function CreateBroadcastWizard({ waIntegrationId, workspaceLabel, onClose, onDon
   const handleSend = async () => {
     setSending(true);
     try {
+      const tName = selectedTemplate?.metaTemplateName || selectedTemplate?.shortcut || selectedTemplate?.name;
       const res = await broadcastsAPI.create({
-        name, filters, templateId: selectedTemplate._id, templateName: selectedTemplate.shortcut,
+        name, filters, templateId: selectedTemplate._id || selectedTemplate.id, templateName: tName,
         contactField: 'phone', retryOnFail,
       });
-      const { broadcast, leads } = res.data;
-      setProgress({ sent: 0, total: leads.length });
-
-      let sent = 0, failed = 0;
-      for (const lead of leads) {
-        try {
-          if (waIntegrationId) {
-            await integrationsAPI.sendWhatsAppTemplate(waIntegrationId, { to: lead.phone, templateName: selectedTemplate.shortcut, languageCode: 'en_US' });
-          }
-          await leadsAPI.addNote(lead._id, { note: `You: ${selectedTemplate.message}`, type: 'whatsapp' });
-          sent += 1;
-        } catch (err) {
-          failed += 1;
-        }
-        setProgress({ sent: sent + failed, total: leads.length });
-      }
-
-      await broadcastsAPI.update(broadcast._id, { sentCount: sent, failedCount: failed, status: 'completed' });
       onDone();
     } catch (err) {
       alert(err.response?.data?.message || 'Could not create broadcast.');

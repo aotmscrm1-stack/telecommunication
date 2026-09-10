@@ -429,7 +429,7 @@ function SendWhatsAppTemplateModal({ lead, onClose, onSuccess }) {
     setError('');
     setSuccessMsg('');
     try {
-      const templateName = selectedTemplate.name || selectedTemplate.shortcut?.replace(/[^a-z0-9_]+/g, '_').toLowerCase();
+      const templateName = selectedTemplate.metaTemplateName || selectedTemplate.shortcut || selectedTemplate.name;
       const languageCode = selectedTemplate.language || selectedTemplate.languageCode || 'en_US';
 
       let bodyText = selectedTemplate.message || selectedTemplate.content || '';
@@ -519,7 +519,7 @@ function SendWhatsAppTemplateModal({ lead, onClose, onSuccess }) {
           ) : (
             <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
               {filteredTemplates.map(t => {
-                const isSelected = selectedTemplate?._id === t._id || selectedTemplate?.name === t.name;
+                const isSelected = (selectedTemplate?._id && selectedTemplate?._id === t._id) || (selectedTemplate?.shortcut && selectedTemplate?.shortcut === t.shortcut);
                 const isMediaHeader = t.headerType === 'Media' || t.components?.some(c => c.type === 'HEADER' && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(c.format));
                 const imageUrl = t.mediaUrl || t.imageUrl;
                 return (
