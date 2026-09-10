@@ -59,6 +59,62 @@ async function sendTextMessage(phoneNumberId, accessToken, to, message) {
   return res.data;
 }
 
+// ── Robust Template Lookup with Auto-Sync Fallback ────────────────────────────
+async function findOrFetchTemplate(templateName, wabaId, accessToken) {
+  if (!templateName) return null;
+  const MessageTemplate = require('../../models/MessageTemplate');
+
+  const rawName = String(templateName).trim();
+  const normalized = rawName.toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '');
+
+  let template = await MessageTemplate.findOne({
+    $or: [
+      { metaTemplateName: normalized },
+      { shortcut: normalized },
+      { metaTemplateName: rawName },
+      { shortcut: rawName },
+      { metaTemplateName: new RegExp('^' + normalized + '$', 'i') },
+      { shortcut: new RegExp('^' + normalized + '$', 'i') },
+    ]
+  });
+
+  if (!template || !Array.isArray(template.components) || template.components.length === 0) {
+    try {
+      const metaTemplates = await getTemplates(wabaId, accessToken);
+      const mt = metaTemplates.find(t =>
+        t.name.toLowerCase() === normalized ||
+        t.name.toLowerCase() === rawName.toLowerCase()
+      );
+      if (mt) {
+        const bodyComp = (mt.components || []).find(c => c.type === 'BODY');
+        const message = bodyComp?.text || mt.name;
+        template = await MessageTemplate.findOneAndUpdate(
+          { $or: [{ metaTemplateId: String(mt.id) }, { metaTemplateName: String(mt.name) }, { shortcut: String(mt.name) }] },
+          {
+            $set: {
+              type: 'whatsapp',
+              shortcut: mt.name,
+              message,
+              isShared: true,
+              metaTemplateId: String(mt.id),
+              metaTemplateName: mt.name,
+              category: mt.category || 'MARKETING',
+              language: mt.language || 'en_US',
+              components: mt.components || [],
+              waStatus: mt.status || 'APPROVED',
+            }
+          },
+          { upsert: true, new: true }
+        );
+      }
+    } catch (err) {
+      console.warn('[Template Lookup] Auto-sync fallback error:', err.message);
+    }
+  }
+
+  return template;
+}
+
 // ── Build send-time components matching template specs ────────────────────────
 function buildTemplateComponents(template, lead = {}, customComponents = null, customHeaderImageUrl = null) {
   if (Array.isArray(customComponents) && customComponents.length > 0) {
@@ -348,6 +404,7 @@ module.exports = {
   sendTextMessage,
   sendTemplateMessage,
   buildTemplateComponents,
+  findOrFetchTemplate,
   sendListMessage,
   getTemplates,
   submitTemplate,

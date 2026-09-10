@@ -84,13 +84,21 @@ router.post('/', protect, async (req, res) => {
       return res.status(400).json({ message: 'name and templateId are required' });
     }
 
-    const template = await MessageTemplate.findById(templateId);
+    let template = await MessageTemplate.findById(templateId);
     if (!template) return res.status(404).json({ message: 'Template not found' });
 
     const integration = await Integration.findOne({ type: 'whatsapp_cloud', status: 'active' });
     if (!integration) {
       return res.status(400).json({ message: 'No active WhatsApp integration found. Connect WhatsApp Cloud API first.' });
     }
+
+    const phoneId = integration.config?.phoneNumberId || process.env.META_WA_PHONE_NUMBER_ID;
+    const dbWabaId = integration.config?.wabaId;
+    const wabaId = (dbWabaId && dbWabaId !== phoneId) ? dbWabaId : (process.env.META_WA_WABA_ID || dbWabaId || phoneId);
+    const token = integration.config?.accessToken || process.env.META_WA_ACCESS_TOKEN;
+
+    const fullTemplate = await whatsappService.findOrFetchTemplate(template.metaTemplateName || template.shortcut, wabaId, token);
+    if (fullTemplate) template = fullTemplate;
 
     const query = buildLeadQuery(filters);
     const leads = await Lead.find(query).select('name phone');
