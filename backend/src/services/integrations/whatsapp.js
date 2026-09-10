@@ -376,6 +376,35 @@ async function handleWhatsAppWebhookEvent(body, integration) {
         processed++;
       }
 
+      // ── Message delivery / failure status updates from Meta ──────────────────
+      const statuses = value.statuses || [];
+      for (const st of statuses) {
+        const messageId = st.id;
+        const statusStr = st.status; // sent | delivered | read | failed
+        const recipientPhone = st.recipient_id;
+        const errors = st.errors || [];
+
+        console.log(`[Meta WA Delivery Status] Msg ${messageId} to ${recipientPhone} -> ${statusStr?.toUpperCase()}`, errors.length ? errors : '');
+
+        if (recipientPhone) {
+          try {
+            const lead = await Lead.findOne({ phone: recipientPhone });
+            if (lead && Array.isArray(lead.activities)) {
+              const act = lead.activities.find(a => a.metaMessageId === messageId);
+              if (act) {
+                act.deliveryStatus = statusStr;
+                if (errors.length > 0) {
+                  act.errorReason = errors.map(e => `${e.title || e.message} (code ${e.code})`).join('; ');
+                }
+                await lead.save();
+              }
+            }
+          } catch (e) {
+            console.warn('[Webhook Status Update] Lead activity update error:', e.message);
+          }
+        }
+      }
+
       // ── Template approval/rejection status updates ──────────────────────────
       // Meta sends these on the "message_template_status_update" webhook field.
       if (value.event && value.message_template_id !== undefined) {
