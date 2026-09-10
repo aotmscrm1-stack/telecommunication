@@ -114,17 +114,35 @@ router.post('/', protect, async (req, res) => {
     let sentCount = 0;
     const errors = [];
 
+    const templateName = template.metaTemplateName || template.shortcut;
+    const languageCode = template.language || 'en_US';
+
     for (const lead of leads) {
       try {
         const personalized = template.message
           .replace(/\{\{\s*name\s*\}\}/gi, lead.name || '')
           .replace(/\{\{\s*first_name\s*\}\}/gi, (lead.name || '').split(' ')[0] || '');
-        const sendResult = await whatsappService.sendTextMessage(
-          integration.config.phoneNumberId,
-          integration.config.accessToken,
-          toIndiaE164(lead.phone),
-          personalized
-        );
+
+        const sendComponents = whatsappService.buildTemplateComponents(template, lead);
+
+        let sendResult;
+        if (templateName) {
+          sendResult = await whatsappService.sendTemplateMessage(
+            integration.config.phoneNumberId,
+            integration.config.accessToken,
+            toIndiaE164(lead.phone),
+            templateName,
+            languageCode,
+            sendComponents
+          );
+        } else {
+          sendResult = await whatsappService.sendTextMessage(
+            integration.config.phoneNumberId,
+            integration.config.accessToken,
+            toIndiaE164(lead.phone),
+            personalized
+          );
+        }
         sentCount += 1;
 
         // Record on the lead so it shows up in the WhatsApp inbox ("All" tab).

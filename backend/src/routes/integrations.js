@@ -205,8 +205,13 @@ router.post('/:id/whatsapp/send', protect, async (req, res) => {
 router.post('/:id/whatsapp/send-template', protect, async (req, res) => {
   try {
     const integration = await Integration.findById(req.params.id);
+    const MessageTemplate = require('../models/MessageTemplate');
     const { to, templateName, languageCode, components } = req.body;
-    const result = await whatsapp.sendTemplateMessage(integration.config.phoneNumberId, integration.config.accessToken, to, templateName, languageCode, components);
+    const template = await MessageTemplate.findOne({
+      $or: [{ metaTemplateName: templateName }, { shortcut: templateName }]
+    });
+    const sendComponents = whatsapp.buildTemplateComponents(template, { phone: to }, components);
+    const result = await whatsapp.sendTemplateMessage(integration.config.phoneNumberId, integration.config.accessToken, to, templateName, languageCode || template?.language || 'en_US', sendComponents);
     res.json(result);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -240,23 +245,21 @@ router.post('/whatsapp/send-template-direct', protect, async (req, res) => {
     const recipient = toIndiaE164(to);
     if (!recipient) return res.status(400).json({ message: 'Valid phone number is required.' });
 
-    // Construct valid send-time components array
-    const sendComponents = [];
-    if (headerImageUrl) {
-      sendComponents.push({
-        type: 'header',
-        parameters: [{ type: 'image', image: { link: headerImageUrl } }],
-      });
-    }
-    if (Array.isArray(components)) {
-      for (const comp of components) {
-        if (comp && comp.type && Array.isArray(comp.parameters) && comp.parameters.length > 0) {
-          sendComponents.push(comp);
-        }
-      }
+    const MessageTemplate = require('../models/MessageTemplate');
+    const Lead = require('../models/Lead');
+
+    let leadObj = null;
+    if (leadId) {
+      leadObj = await Lead.findById(leadId);
     }
 
-    const result = await whatsapp.sendTemplateMessage(phoneId, accessToken, recipient, templateName, languageCode || 'en_US', sendComponents);
+    const template = await MessageTemplate.findOne({
+      $or: [{ metaTemplateName: templateName }, { shortcut: templateName }]
+    });
+
+    const sendComponents = whatsapp.buildTemplateComponents(template, leadObj || { phone: recipient }, components, headerImageUrl);
+
+    const result = await whatsapp.sendTemplateMessage(phoneId, accessToken, recipient, templateName, languageCode || template?.language || 'en_US', sendComponents);
 
     if (leadId) {
       const Lead = require('../models/Lead');

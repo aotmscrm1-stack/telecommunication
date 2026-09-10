@@ -59,6 +59,94 @@ async function sendTextMessage(phoneNumberId, accessToken, to, message) {
   return res.data;
 }
 
+// ── Build send-time components matching template specs ────────────────────────
+function buildTemplateComponents(template, lead = {}, customComponents = null, customHeaderImageUrl = null) {
+  if (Array.isArray(customComponents) && customComponents.length > 0) {
+    const valid = customComponents.filter(c => c && c.type && Array.isArray(c.parameters) && c.parameters.length > 0);
+    if (valid.length > 0) return valid;
+  }
+
+  const sendComponents = [];
+  const metaComps = Array.isArray(template?.components) ? template.components : [];
+
+  const headerMetaComp = metaComps.find(c => String(c.type).toUpperCase() === 'HEADER');
+  const headerFormat = String(headerMetaComp?.format || template?.headerType || '').toUpperCase();
+
+  if (headerFormat === 'IMAGE' || headerFormat === 'MEDIA' || customHeaderImageUrl || template?.mediaUrl) {
+    let imageUrl = customHeaderImageUrl || template?.mediaUrl || template?.imageUrl;
+    
+    if (!imageUrl && headerMetaComp?.example?.header_handle?.[0]) {
+      const handle = headerMetaComp.example.header_handle[0];
+      if (typeof handle === 'string' && handle.startsWith('http')) {
+        imageUrl = handle;
+      }
+    }
+
+    if (!imageUrl) {
+      imageUrl = 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&auto=format&fit=crop&q=60';
+    }
+
+    sendComponents.push({
+      type: 'header',
+      parameters: [
+        {
+          type: 'image',
+          image: { link: imageUrl },
+        },
+      ],
+    });
+  } else if (headerFormat === 'TEXT') {
+    const headerText = headerMetaComp?.text || template?.headerText || '';
+    const matches = headerText.match(/\{\{([^}]+)\}\}/g);
+    if (matches && matches.length > 0) {
+      const params = matches.map((m, idx) => {
+        let val = lead.name || 'Notice';
+        if (idx === 1 && lead.company) val = lead.company;
+        return { type: 'text', text: String(val) };
+      });
+      sendComponents.push({
+        type: 'header',
+        parameters: params,
+      });
+    }
+  }
+
+  const bodyMetaComp = metaComps.find(c => String(c.type).toUpperCase() === 'BODY');
+  const bodyText = bodyMetaComp?.text || template?.message || template?.content || '';
+  const bodyMatches = bodyText.match(/\{\{([^}]+)\}\}/g);
+
+  if (bodyMatches && bodyMatches.length > 0) {
+    const bodyParams = bodyMatches.map((token, idx) => {
+      const cleanToken = token.replace(/[\{\}\s]/g, '').toLowerCase();
+      let val = '';
+      if (cleanToken === '1' || cleanToken === 'name' || cleanToken === 'student_name' || cleanToken === 'lead_name') {
+        val = lead.name || 'Student';
+      } else if (cleanToken === '2' || cleanToken === 'first_name') {
+        val = (lead.name || '').split(' ')[0] || 'Student';
+      } else if (cleanToken === '3' || cleanToken === 'phone' || cleanToken === 'mobile') {
+        val = lead.phone || '';
+      } else if (cleanToken === '4' || cleanToken === 'email') {
+        val = lead.email || '';
+      } else if (cleanToken === 'company' || cleanToken === 'course') {
+        val = lead.company || lead.course || 'Program';
+      } else {
+        if (idx === 0) val = lead.name || 'Student';
+        else if (idx === 1) val = (lead.name || '').split(' ')[0] || 'Student';
+        else if (idx === 2) val = lead.phone || 'Contact';
+        else val = 'Val';
+      }
+      return { type: 'text', text: String(val || 'Val') };
+    });
+
+    sendComponents.push({
+      type: 'body',
+      parameters: bodyParams,
+    });
+  }
+
+  return sendComponents;
+}
+
 // ── Send a pre-approved template message ────────────────────────────────────────
 async function sendTemplateMessage(phoneNumberId, accessToken, to, templateName, languageCode, components) {
   const pId = phoneNumberId || process.env.META_WA_PHONE_NUMBER_ID;
@@ -259,6 +347,7 @@ module.exports = {
   verifyWebhookToken,
   sendTextMessage,
   sendTemplateMessage,
+  buildTemplateComponents,
   sendListMessage,
   getTemplates,
   submitTemplate,

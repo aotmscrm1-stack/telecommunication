@@ -102,9 +102,16 @@ router.post('/:leadId/reply', protect, async (req, res) => {
     let description;
     if (templateName) {
       // Used once the 24h window has passed — same banner/flow as broadcasts.
+      const MessageTemplate = require('../models/MessageTemplate');
+      const template = await MessageTemplate.findOne({
+        $or: [{ metaTemplateName: templateName }, { shortcut: templateName }]
+      });
+      const sendComponents = whatsappService.buildTemplateComponents(template, lead, components);
+      const lang = languageCode || template?.language || 'en_US';
+
       sendResult = await whatsappService.sendTemplateMessage(
         integration.config.phoneNumberId, integration.config.accessToken,
-        lead.phone, templateName, languageCode, components
+        lead.phone, templateName, lang, sendComponents
       );
       description = `[Template: ${templateName}]`;
     } else {
