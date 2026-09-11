@@ -97,6 +97,10 @@ export default function EmailCRM() {
     const lId = e.target.value;
     setSelectedLeadId(lId);
     if (!lId) return;
+    if (lId === 'hr@aotms.com') {
+      setRecipientEmail('hr@aotms.com');
+      return;
+    }
     const l = leads.find(item => item._id === lId);
     if (l) {
       if (l.email) setRecipientEmail(l.email);
@@ -215,20 +219,34 @@ export default function EmailCRM() {
           </div>
 
           <div style={{ fontSize: 12, fontWeight: 800, color: TEXT_MUTED, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 10 }}>
-            2. PICK FROM LEADS (OPTIONAL)
+            2. PICK RECIPIENT / LEADS
           </div>
           <select
             value={selectedLeadId}
             onChange={handleLeadSelect}
             style={inputStyle}
           >
-            <option value="">Select a Lead from CRM...</option>
+            <option value="">Select a Recipient...</option>
+            <option value="hr@aotms.com">🏢 HR Team (hr@aotms.com)</option>
             {leads.map(l => (
               <option key={l._id} value={l._id}>
                 {l.name} ({l.email || l.phone || 'No email'})
               </option>
             ))}
           </select>
+
+          <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => { setRecipientEmail('hr@aotms.com'); setSelectedLeadId('hr@aotms.com'); }}
+              style={{
+                fontSize: 11, fontWeight: 700, color: RED_ACCENT, background: '#fef2f2',
+                border: '1px solid #fecaca', borderRadius: 6, padding: '4px 10px', cursor: 'pointer'
+              }}
+            >
+              🏢 Set TO: hr@aotms.com
+            </button>
+          </div>
 
           <div style={{ fontSize: 12, fontWeight: 800, color: TEXT_MUTED, letterSpacing: 0.5, textTransform: 'uppercase', marginTop: 20, marginBottom: 10 }}>
             3. CUSTOMIZABLE VARIABLES
