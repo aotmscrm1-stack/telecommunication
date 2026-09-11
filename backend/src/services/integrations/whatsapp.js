@@ -444,6 +444,8 @@ async function handleWhatsAppWebhookEvent(body, integration) {
           created++;
         }
 
+        const { broadcastWebSocketEvent } = require('../websocket');
+
         lead.activities = lead.activities || [];
         lead.activities.push({
           type: 'whatsapp',
@@ -458,6 +460,16 @@ async function handleWhatsAppWebhookEvent(body, integration) {
         lead.lastWaMessagePreview = text;
         await lead.save();
 
+        broadcastWebSocketEvent('whatsapp:incoming_message', {
+          leadId: lead._id,
+          phone,
+          name: lead.name,
+          text,
+          messageId: msg.id || '',
+          waStatus: 'pending',
+          timestamp: new Date()
+        });
+
         processed++;
       }
 
@@ -471,23 +483,37 @@ async function handleWhatsAppWebhookEvent(body, integration) {
 
         console.log(`[Meta WA Delivery Status] Msg ${messageId} to ${recipientPhone} -> ${statusStr?.toUpperCase()}`, errors.length ? errors : '');
 
+        let targetLeadId = null;
         if (recipientPhone) {
           try {
             const lead = await Lead.findOne({ phone: recipientPhone });
-            if (lead && Array.isArray(lead.activities)) {
-              const act = lead.activities.find(a => a.metaMessageId === messageId);
-              if (act) {
-                act.deliveryStatus = statusStr;
-                if (errors.length > 0) {
-                  act.errorReason = errors.map(e => `${e.title || e.message} (code ${e.code})`).join('; ');
+            if (lead) {
+              targetLeadId = lead._id;
+              if (Array.isArray(lead.activities)) {
+                const act = lead.activities.find(a => a.metaMessageId === messageId);
+                if (act) {
+                  act.deliveryStatus = statusStr;
+                  if (errors.length > 0) {
+                    act.errorReason = errors.map(e => `${e.title || e.message} (code ${e.code})`).join('; ');
+                  }
+                  await lead.save();
                 }
-                await lead.save();
               }
             }
           } catch (e) {
             console.warn('[Webhook Status Update] Lead activity update error:', e.message);
           }
         }
+
+        const { broadcastWebSocketEvent } = require('../websocket');
+        broadcastWebSocketEvent('whatsapp:status_update', {
+          leadId: targetLeadId,
+          recipientPhone,
+          messageId,
+          status: statusStr,
+          errors: errors.length ? errors : undefined,
+          timestamp: new Date()
+        });
       }
 
       // ── Template approval/rejection status updates ──────────────────────────

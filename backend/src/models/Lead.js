@@ -12,6 +12,8 @@ const activitySchema = new mongoose.Schema({
   // 'inbound'            -> received from the lead via the Meta webhook
   direction: { type: String, enum: ['outbound', 'outbound_broadcast', 'outbound_agent', 'inbound', ''], default: '' },
   metaMessageId: { type: String, default: '' },
+  deliveryStatus: { type: String, default: 'sent' },
+  errorReason: { type: String, default: '' },
   performedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   createdAt: { type: Date, default: Date.now }
 });

@@ -440,11 +440,125 @@ const labelStyle = { fontSize: 12, fontWeight: 600, color: TEXT_MAIN, display: '
 const inputStyle = { width: '100%', padding: '9px 12px', border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, outline: 'none', boxSizing: 'border-box', background: '#fff', color: TEXT_MAIN };
 const varBtnStyle = { fontSize: 11, color: PURPLE, background: '#f0ecff', border: `1px solid #d6ccff`, borderRadius: 5, padding: '3px 10px', cursor: 'pointer', fontWeight: 600 };
 
+// ── Live Delivery Ticks (Single Tick / Double Gray Tick / Double Blue Tick) ────
+function MessageTicks({ status }) {
+  if (status === 'read') {
+    return (
+      <span title="Read (Double Blue Tick)" style={{ color: '#3b82f6', marginLeft: 4, display: 'inline-flex', alignItems: 'center' }}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="18 6 7 17 2 12"/>
+          <polyline points="22 10 13 19 11 17"/>
+        </svg>
+      </span>
+    );
+  }
+  if (status === 'delivered') {
+    return (
+      <span title="Delivered (Double Gray Tick)" style={{ color: '#888', marginLeft: 4, display: 'inline-flex', alignItems: 'center' }}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="18 6 7 17 2 12"/>
+          <polyline points="22 10 13 19 11 17"/>
+        </svg>
+      </span>
+    );
+  }
+  if (status === 'failed') {
+    return (
+      <span title="Delivery Failed" style={{ color: '#ef4444', marginLeft: 4, fontSize: 11, fontWeight: 700 }}>
+        ⚠️
+      </span>
+    );
+  }
+  // Default 'sent' or unknown -> Single gray tick
+  return (
+    <span title="Sent (Single Tick)" style={{ color: '#888', marginLeft: 4, display: 'inline-flex', alignItems: 'center' }}>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+    </span>
+  );
+}
+
+// ── Date Grouping Label ("Today", "Yesterday", "11 Sep 2026") ─────────────────
+function getDateLabel(dateInput) {
+  if (!dateInput) return '';
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return '';
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  const targetDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+  if (targetDate.getTime() === today.getTime()) return 'Today';
+  if (targetDate.getTime() === yesterday.getTime()) return 'Yesterday';
+
+  return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+// ── Rich Template Message Card Component ──────────────────────────────────────
+function RichTemplateMessageCard({ message, templates = [] }) {
+  const text = message.description || '';
+  
+  const matchedTemplate = templates.find(t => {
+    if (!t) return false;
+    const tName = (t.shortcut || t.name || '').toLowerCase();
+    return tName && text.toLowerCase().includes(tName);
+  });
+
+  const category = matchedTemplate?.category || (text.toLowerCase().includes('marketing') ? 'MARKETING' : 'UTILITY');
+  const imageUrl = matchedTemplate?.headerImage || matchedTemplate?.mediaUrl || matchedTemplate?.imageUrl || message.mediaUrl || message.headerImageUrl;
+  const footerText = matchedTemplate?.footer || message.footer;
+  const buttons = matchedTemplate?.buttons || message.buttons || [];
+
+  return (
+    <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #d1fae5', background: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+      {/* Category / Template Badge */}
+      <div style={{ background: category === 'MARKETING' ? '#ecfdf5' : '#f0f9ff', padding: '5px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #e5e7eb' }}>
+        <span style={{ fontSize: 10, fontWeight: 800, color: category === 'MARKETING' ? '#047857' : '#0369a1', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          {category === 'MARKETING' ? '📢 MARKETING TEMPLATE' : '⚙️ UTILITY TEMPLATE'}
+        </span>
+        {matchedTemplate?.name && (
+          <span style={{ fontSize: 10, fontWeight: 700, color: '#6b7280' }}>@{matchedTemplate.name}</span>
+        )}
+      </div>
+
+      {/* Header Image if present */}
+      {imageUrl && (
+        <div style={{ maxHeight: 160, overflow: 'hidden', background: '#111827', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <img src={imageUrl} alt="Header" style={{ width: '100%', height: 150, objectFit: 'cover' }} />
+        </div>
+      )}
+
+      {/* Body Message */}
+      <div style={{ padding: '10px 12px', fontSize: 13, color: '#111827', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+        {text}
+      </div>
+
+      {/* Footer if present */}
+      {footerText && (
+        <div style={{ padding: '0 12px 6px', fontSize: 11, color: '#9ca3af', fontStyle: 'italic' }}>
+          {footerText}
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      {Array.isArray(buttons) && buttons.length > 0 && (
+        <div style={{ borderTop: '1px solid #f3f4f6', background: '#fafafa', display: 'flex', flexDirection: 'column' }}>
+          {buttons.map((btn, bIdx) => (
+            <div key={bIdx} style={{ padding: '8px 12px', borderTop: bIdx > 0 ? '1px solid #f3f4f6' : 'none', textAlign: 'center', fontSize: 12, fontWeight: 700, color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              {btn.type === 'URL' || btn.type === 'url' ? '🔗 ' : btn.type === 'PHONE_NUMBER' || btn.type === 'Phone Number' ? '📞 ' : '🔘 '}
+              {btn.text || btn.value || 'Action Button'}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Inbox Tab ──────────────────────────────────────────────────────────────────
-// Matches the All / Pending / Intervened lead-inbox reference UI.
-//   All         -> every lead that's ever been part of a broadcast or WhatsApp conversation
-//   Pending     -> lead replied, no agent response yet
-//   Intervened  -> an agent has replied
 function InboxTab({ onSendTemplate }) {
   const TABS = [
     { key: 'all', label: 'All' },
@@ -463,7 +577,15 @@ function InboxTab({ onSendTemplate }) {
   const [loadingThread, setLoadingThread] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [sending, setSending] = useState(false);
+  const [templates, setTemplates] = useState([]);
   const scrollRef = useRef(null);
+
+  // Fetch Templates for Rich Cards
+  useEffect(() => {
+    api.get('/message-templates', { params: { type: 'whatsapp' } })
+      .then(res => setTemplates(res.data?.templates || res.data || []))
+      .catch(() => {});
+  }, []);
 
   const fetchLeads = async () => {
     setLoadingList(true);
@@ -493,6 +615,91 @@ function InboxTab({ onSendTemplate }) {
     }
   };
 
+  // WebSocket Live Integration & Browser Notifications
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    let wsHost = window.location.host;
+    if (import.meta.env.VITE_API_URL) {
+      try {
+        const u = new URL(import.meta.env.VITE_API_URL);
+        wsHost = u.host;
+      } catch (e) {}
+    }
+    const wsUrl = `${wsProtocol}//${wsHost}/ws`;
+    
+    let socket;
+    try {
+      socket = new WebSocket(wsUrl);
+
+      socket.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          
+          // 1. Delivery Ticks Realtime Status Update (sent -> delivered -> read / failed)
+          if (payload.type === 'whatsapp:status_update') {
+            const { leadId, messageId, status } = payload.data;
+            setThread(prev => {
+              if (!prev || !prev.thread) return prev;
+              if (leadId && String(prev.lead?.id || prev.lead?._id) !== String(leadId)) return prev;
+              const updatedThread = prev.thread.map(m => {
+                if (m.metaMessageId === messageId || m._id === messageId) {
+                  return { ...m, deliveryStatus: status, status };
+                }
+                return m;
+              });
+              return { ...prev, thread: updatedThread };
+            });
+          }
+
+          // 2. Incoming WhatsApp Customer Message Realtime Update
+          if (payload.type === 'whatsapp:incoming_message') {
+            const { leadId, name, phone, text, messageId, timestamp } = payload.data;
+            
+            // Trigger Desktop Notification
+            if ('Notification' in window && Notification.permission === 'granted') {
+              new Notification(`WhatsApp from ${name || phone}`, {
+                body: text,
+              });
+            }
+
+            // Refresh leads list & pending counter
+            fetchLeads();
+
+            // Append live to current open chat thread if matches open lead
+            setThread(prev => {
+              if (!prev || String(prev.lead?.id || prev.lead?._id) !== String(leadId)) return prev;
+              const newMsg = {
+                _id: messageId || String(Date.now()),
+                type: 'whatsapp',
+                direction: 'inbound',
+                description: text,
+                metaMessageId: messageId,
+                createdAt: timestamp || new Date().toISOString()
+              };
+              return {
+                ...prev,
+                withinWindow: true,
+                thread: [...(prev.thread || []), newMsg]
+              };
+            });
+          }
+        } catch (err) {
+          console.error('WS parse error:', err);
+        }
+      };
+    } catch (err) {
+      console.warn('WS socket init error:', err);
+    }
+
+    return () => {
+      if (socket) socket.close();
+    };
+  }, [selectedId]);
+
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [thread]);
@@ -513,6 +720,9 @@ function InboxTab({ onSendTemplate }) {
   };
 
   const waStatusDot = (s) => s === 'pending' ? '#f59e0b' : s === 'intervened' ? GREEN : '#ccc';
+
+  // Helper variable for tracking date headers across rendered messages
+  let lastDateLabel = '';
 
   return (
     <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
@@ -557,7 +767,7 @@ function InboxTab({ onSendTemplate }) {
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
                 <span style={{ fontSize: 13, fontWeight: 700, color: TEXT_MAIN }}>{lead.name || lead.phone}</span>
-                <span style={{ width: 7, height: 7, borderRadius: '50%', background: waStatusDot(lead.waStatus), flexShrink: 0 }} />
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: waStatusDot(lead.waStatus), flexShrink: 0 }} />
               </div>
               <div style={{ fontSize: 11.5, color: TEXT_MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {lead.lastWaMessagePreview || 'No messages yet'}
@@ -586,9 +796,16 @@ function InboxTab({ onSendTemplate }) {
 
         {selectedId && !loadingThread && thread && (
           <>
-            <div style={{ background: '#fff', borderBottom: `1px solid ${BORDER}`, padding: '12px 20px' }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: TEXT_MAIN }}>{thread.lead.name || thread.lead.phone}</div>
-              <div style={{ fontSize: 11.5, color: TEXT_MUTED }}>{thread.lead.phone}</div>
+            <div style={{ background: '#fff', borderBottom: `1px solid ${BORDER}`, padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: TEXT_MAIN }}>{thread.lead.name || thread.lead.phone}</div>
+                <div style={{ fontSize: 11.5, color: TEXT_MUTED }}>{thread.lead.phone}</div>
+              </div>
+              {thread.lead.waStatus === 'pending' && (
+                <span style={{ fontSize: 11, fontWeight: 700, background: '#fef3c7', color: '#d97706', borderRadius: 12, padding: '3px 10px', border: '1px solid #fde68a' }}>
+                  ⏳ Pending Agent Reply
+                </span>
+              )}
             </div>
 
             <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '18px 24px', display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -597,19 +814,52 @@ function InboxTab({ onSendTemplate }) {
               )}
               {thread.thread.map((m, i) => {
                 const isInbound = m.direction === 'inbound';
+                const currentDateLabel = getDateLabel(m.createdAt);
+                const showDateHeader = currentDateLabel && currentDateLabel !== lastDateLabel;
+                if (showDateHeader) {
+                  lastDateLabel = currentDateLabel;
+                }
+
+                const isTemplate = m.description?.startsWith('[Template:') || m.description?.startsWith('@') || m.isTemplate || (m.direction && m.direction.includes('broadcast'));
+
                 return (
-                  <div key={i} style={{ display: 'flex', justifyContent: isInbound ? 'flex-start' : 'flex-end' }}>
-                    <div style={{
-                      maxWidth: '65%', padding: '8px 12px', borderRadius: 10,
-                      background: isInbound ? '#fff' : '#d9fdd3',
-                      boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
-                      fontSize: 13, color: '#111', lineHeight: 1.5,
-                    }}>
-                      {m.description}
-                      <div style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 4, textAlign: 'right' }}>
-                        {new Date(m.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                        {m.direction === 'outbound_broadcast' && '  · broadcast'}
-                        {m.direction === 'outbound_agent' && '  · agent'}
+                  <div key={i} style={{ display: 'flex', flexDirection: 'column' }}>
+                    {/* Date Header: Today / Yesterday / 11 Sep 2026 */}
+                    {showDateHeader && (
+                      <div style={{ display: 'flex', justifyContent: 'center', margin: '14px 0 6px' }}>
+                        <span style={{
+                          fontSize: 11, fontWeight: 700, color: '#4b5563', background: '#ffffff',
+                          border: '1px solid #e5e7eb', padding: '3px 12px', borderRadius: 12,
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.05)', letterSpacing: '0.2px'
+                        }}>
+                          {currentDateLabel}
+                        </span>
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', justifyContent: isInbound ? 'flex-start' : 'flex-end', margin: '2px 0' }}>
+                      <div style={{
+                        maxWidth: '70%', padding: '8px 12px', borderRadius: 10,
+                        background: isInbound ? '#fff' : '#d9fdd3',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
+                        fontSize: 13, color: '#111', lineHeight: 1.5,
+                      }}>
+                        {/* Rich Template Card or Plain Message */}
+                        {isTemplate ? (
+                          <RichTemplateMessageCard message={m} templates={templates} />
+                        ) : (
+                          <div>{m.description}</div>
+                        )}
+
+                        {/* Timestamp + Live Delivery Tick Status */}
+                        <div style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 4, textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2 }}>
+                          <span>{new Date(m.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+                          {m.direction === 'outbound_broadcast' && <span style={{ marginLeft: 3 }}>· broadcast</span>}
+                          {m.direction === 'outbound_agent' && <span style={{ marginLeft: 3 }}>· agent</span>}
+                          {!isInbound && (
+                            <MessageTicks status={m.deliveryStatus || m.status || 'sent'} />
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>

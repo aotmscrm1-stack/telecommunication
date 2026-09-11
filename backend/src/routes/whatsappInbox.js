@@ -131,6 +131,7 @@ router.post('/:leadId/reply', protect, async (req, res) => {
       description,
       direction: 'outbound_agent',
       metaMessageId: sendResult?.messages?.[0]?.id || '',
+      deliveryStatus: 'sent',
       performedBy: req.user._id,
     });
     // THIS IS THE KEY TRANSITION: an agent reply moves the lead to "Intervened".

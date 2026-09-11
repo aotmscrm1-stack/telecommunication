@@ -126,8 +126,13 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: err.message || 'Server error' });
 });
 
+const { initWebSocketServer } = require('./services/websocket');
+
 const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
+
+// Attach WebSocket server on /ws
+initWebSocketServer(server);
 
 server.listen(PORT, () => {
   console.log(`🚀 AOTMS Server running on port ${PORT}`);
