@@ -32,6 +32,7 @@ import WorkspacePreferences from './pages/WorkspacePreferences';
 import PermissionTemplates from './pages/PermissionTemplates';
 import Billing from './pages/Billing';
 import Payslip from './pages/Payslip';
+import Invoice from './pages/Invoice';
 import Landing from './pages/Landing';
 
 const ProtectedRoute = ({ children }) => {
@@ -80,6 +81,8 @@ export default function App() {
             <Route path="email" element={<EmailCRM />} />
             <Route path="payslips" element={<Payslip />} />
             <Route path="payslip" element={<Navigate to="/payslips" replace />} />
+            <Route path="invoice" element={<Invoice />} />
+            <Route path="invoices" element={<Navigate to="/invoice" replace />} />
             <Route path="users" element={<Users />} />
             <Route path="stale-leads" element={<StaleLeads />} />
             <Route path="bulk-import" element={<BulkImport />} />

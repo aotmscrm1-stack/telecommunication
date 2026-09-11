@@ -287,4 +287,11 @@ export const payslipsAPI = {
   delete: (id) => api.delete(`/payslips/${id}`),
 };
 
+export const invoicesAPI = {
+  getAll: (params) => api.get('/invoices', { params }),
+  getOne: (id) => api.get(`/invoices/${id}`),
+  create: (data) => api.post('/invoices', data),
+  delete: (id) => api.delete(`/invoices/${id}`),
+};
+
 export default api;

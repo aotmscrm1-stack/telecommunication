@@ -114,6 +114,7 @@ app.use('/api/custom-actions', apiLimiter, require('./routes/customActions'));
 app.use('/api/workspace-preferences', apiLimiter, require('./routes/workspacePreferences'));
 app.use('/api/permission-templates', apiLimiter, require('./routes/permissionTemplates'));
 app.use('/api/payslips', apiLimiter, require('./routes/payslips'));
+app.use('/api/invoices', apiLimiter, require('./routes/invoices'));
 app.use('/api/billing', apiLimiter, require('./routes/billing'));
 app.use('/api/public', apiLimiter, require('./routes/publicApi'));
 
