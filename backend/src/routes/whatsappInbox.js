@@ -63,8 +63,14 @@ router.get('/', protect, async (req, res) => {
 // ── GET /api/whatsapp-inbox/:leadId — full whatsapp thread for the chat panel ──
 router.get('/:leadId', protect, async (req, res) => {
   try {
-    const lead = await Lead.findById(req.params.leadId).select('name phone status waStatus activities');
+    const lead = await Lead.findById(req.params.leadId);
     if (!lead) return res.status(404).json({ message: 'Lead not found' });
+
+    // Automatically transition lead from Pending -> Intervened when agent reads thread
+    if (lead.waStatus === 'pending') {
+      lead.waStatus = 'intervened';
+      await lead.save();
+    }
 
     const thread = (lead.activities || [])
       .filter(a => a.type === 'whatsapp')

@@ -497,6 +497,49 @@ function getDateLabel(dateInput) {
   return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+function playWhatsAppRingtone() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.08);
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.15);
+  } catch (e) {}
+}
+
+function parseTemplateDoc(t) {
+  if (!t) return null;
+  const comps = Array.isArray(t.components) ? t.components : [];
+  const header = comps.find(c => String(c.type).toUpperCase() === 'HEADER');
+  const body = comps.find(c => String(c.type).toUpperCase() === 'BODY');
+  const footerComp = comps.find(c => String(c.type).toUpperCase() === 'FOOTER');
+  const buttonsComp = comps.find(c => String(c.type).toUpperCase() === 'BUTTONS');
+
+  return {
+    id: t._id,
+    name: t.shortcut || t.metaTemplateName || t.name,
+    shortcut: t.shortcut || t.metaTemplateName,
+    metaTemplateName: t.metaTemplateName || t.shortcut,
+    category: t.category || 'MARKETING',
+    status: t.waStatus || 'APPROVED',
+    language: t.language || 'en_US',
+    body: body?.text || t.message || t.body || '',
+    headerText: header?.text || t.headerText || '',
+    headerFormat: header?.format || t.headerType || '',
+    headerImage: header?.example?.header_handle?.[0] || header?.example?.header_url?.[0] || t.headerImage || t.mediaUrl || t.imageUrl || '',
+    footer: footerComp?.text || t.footer || '',
+    buttons: buttonsComp?.buttons || t.buttons || [],
+    components: comps,
+  };
+}
+
 // ── Rich Template Message Card Component ──────────────────────────────────────
 function RichTemplateMessageCard({ message, templates = [] }) {
   const text = message.description || '';
@@ -507,34 +550,34 @@ function RichTemplateMessageCard({ message, templates = [] }) {
     const tShortcut = (t.shortcut || '').toLowerCase();
     const tName = (t.metaTemplateName || t.name || '').toLowerCase();
     const cleanText = text.toLowerCase();
-    return (t._id && message.templateId === t._id) ||
+    return (t.id && message.templateId === t.id) ||
            (tShortcut && cleanText.includes(tShortcut)) ||
            (tName && cleanText.includes(tName));
   });
 
   const category = matchedTemplate?.category || (text.toLowerCase().includes('marketing') ? 'MARKETING' : 'UTILITY');
 
-  // Extract components from matchedTemplate
-  const comps = Array.isArray(matchedTemplate?.components) ? matchedTemplate.components : [];
-  const headerComp = comps.find(c => String(c.type).toUpperCase() === 'HEADER');
-  const bodyComp = comps.find(c => String(c.type).toUpperCase() === 'BODY');
-  const footerComp = comps.find(c => String(c.type).toUpperCase() === 'FOOTER');
-  const buttonsComp = comps.find(c => String(c.type).toUpperCase() === 'BUTTONS');
-
   // Header Image extraction
   let imageUrl = matchedTemplate?.headerImage || matchedTemplate?.mediaUrl || matchedTemplate?.imageUrl || message.mediaUrl || message.headerImageUrl;
-  if (!imageUrl && headerComp) {
-    if (headerComp.format === 'IMAGE' || headerComp.example?.header_handle?.length || headerComp.example?.header_url?.length) {
+  if (!imageUrl && matchedTemplate?.components) {
+    const headerComp = matchedTemplate.components.find(c => String(c.type).toUpperCase() === 'HEADER');
+    if (headerComp && (headerComp.format === 'IMAGE' || headerComp.example?.header_handle?.length || headerComp.example?.header_url?.length)) {
       imageUrl = headerComp.example?.header_handle?.[0] || headerComp.example?.header_url?.[0];
     }
   }
 
-  const headerText = headerComp?.text || matchedTemplate?.headerText || message.headerText;
-  const bodyDisplay = bodyComp?.text || (text.startsWith('[Template:') ? (matchedTemplate?.message || matchedTemplate?.body || text) : text);
-  const footerText = footerComp?.text || matchedTemplate?.footer || message.footer;
+  const headerText = matchedTemplate?.headerText || message.headerText;
   
-  // Action Buttons extraction
-  let buttons = buttonsComp?.buttons || matchedTemplate?.buttons || message.buttons || [];
+  let bodyDisplay = matchedTemplate?.body || matchedTemplate?.message || text;
+  if (text.startsWith('[Template:') && matchedTemplate?.body) {
+    bodyDisplay = matchedTemplate.body;
+  } else if (text.startsWith('[Template:') && !matchedTemplate) {
+    const extractedName = text.replace(/^\[Template:\s*/i, '').replace(/\]$/, '').trim();
+    bodyDisplay = `📋 Template: ${extractedName}`;
+  }
+
+  const footerText = matchedTemplate?.footer || message.footer;
+  let buttons = matchedTemplate?.buttons || message.buttons || [];
   if (!Array.isArray(buttons)) buttons = [];
 
   return (
@@ -647,7 +690,10 @@ function InboxTab({ onSendTemplate }) {
   // Fetch Templates for Rich Cards
   useEffect(() => {
     api.get('/message-templates', { params: { type: 'whatsapp' } })
-      .then(res => setTemplates(res.data?.templates || res.data || []))
+      .then(res => {
+        const raw = res.data?.templates || res.data || [];
+        setTemplates(raw.map(t => parseTemplateDoc(t)));
+      })
       .catch(() => {});
   }, []);
 
@@ -672,12 +718,21 @@ function InboxTab({ onSendTemplate }) {
     try {
       const res = await api.get(`/whatsapp-inbox/${leadId}`);
       setThread(res.data);
+      // Immediately refresh lead list & pending counts as pending status was cleared on read!
+      fetchLeads();
     } catch {
       setThread(null);
     } finally {
       setLoadingThread(false);
     }
   };
+
+  // Smooth scroll animation when thread changes or new message arrives
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+    }
+  }, [thread]);
 
   // WebSocket Live Integration & Browser Notifications
   useEffect(() => {
@@ -725,6 +780,9 @@ function InboxTab({ onSendTemplate }) {
           if (eventName === 'whatsapp:incoming_message') {
             const { leadId, name, phone, text, messageId, timestamp } = payloadData;
             
+            // Play WhatsApp ringtone pop sound!
+            playWhatsAppRingtone();
+
             // Trigger Desktop Notification
             if ('Notification' in window && Notification.permission === 'granted') {
               new Notification(`WhatsApp from ${name || phone}`, {
