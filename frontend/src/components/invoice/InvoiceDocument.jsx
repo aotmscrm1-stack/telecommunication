@@ -10,12 +10,14 @@ export const InvoiceDocument = forwardRef(({ invoiceData, isPreview = false }, r
     return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
-  const clientName = invoiceData.client_name || 'R. Jayaveer';
-  const firstName = clientName.split(' ')[0] || clientName;
+  const clientName = invoiceData.client_name || 'Ramanadham jayaveer';
+  const shortName = invoiceData.short_name || clientName.split(' ').pop() || clientName;
   const designation = invoiceData.designation || 'Developer';
   const offerDate = invoiceData.offer_date || '20th July 2026';
   const annualCtc = Number(invoiceData.annual_ctc) || 240000;
   const monthlyCtc = Number(invoiceData.monthly_ctc) || (annualCtc / 12);
+  const probationPeriod = invoiceData.probation_period || '01 FEB 2026 To 01 MAY 2026';
+  const workTimings = invoiceData.work_timings || '9:30am to 06:30pm';
 
   const annualWords = invoiceData.net_earnings_in_words || numberToWords(annualCtc);
 
@@ -59,249 +61,386 @@ export const InvoiceDocument = forwardRef(({ invoiceData, isPreview = false }, r
   const netMonthly = monthlyCtc - totalDeductionsMonthly;
   const netAnnual = annualCtc - totalDeductionsAnnual;
 
+  const pageContainerStyle = {
+    backgroundColor: '#ffffff',
+    color: '#000000',
+    fontFamily: "'Calibri', Arial, Helvetica, sans-serif",
+    fontSize: '13px',
+    lineHeight: '1.45',
+    padding: isPreview ? '24px 28px' : '36px 40px',
+    boxSizing: 'border-box',
+    border: '1px solid #d1d5db',
+    borderRadius: isPreview ? '8px' : '0',
+    marginBottom: '28px',
+    pageBreakAfter: 'always',
+    position: 'relative',
+    background: '#fff',
+    boxShadow: isPreview ? '0 4px 14px rgba(0,0,0,0.06)' : 'none',
+  };
+
+  const headerStyle = {
+    display: 'flex',
+    justify: 'space-between',
+    alignItems: 'center',
+    borderBottom: '1.5px solid #d1d5db',
+    paddingBottom: '10px',
+    marginBottom: '20px',
+  };
+
   return (
-    <div
-      ref={ref}
-      className="invoice-print-container"
-      style={{
-        width: '100%',
-        maxWidth: isPreview ? '100%' : '800px',
-        margin: '0 auto',
-        backgroundColor: '#ffffff',
-        color: '#111827',
-        fontFamily: "'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-        fontSize: '12px',
-        lineHeight: 1.5,
-        padding: isPreview ? '16px 20px' : '24px 28px',
-        boxSizing: 'border-box',
-      }}
-    >
-      {/* ── Page 1: Header + Letter + Compensation Table ─────────────────── */}
-      <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: '24px', backgroundColor: '#fff', marginBottom: 24, boxShadow: isPreview ? 'none' : '0 4px 12px rgba(0,0,0,0.05)' }}>
+    <div ref={ref} className="pdf-5page-container" style={{ width: '100%', maxWidth: '820px', margin: '0 auto' }}>
+      
+      {/* =================================================================== */}
+      {/* ── PAGE 1 OF 5 ────────────────────────────────────────────────── */}
+      {/* =================================================================== */}
+      <div style={pageContainerStyle}>
+        <div style={{ position: 'absolute', top: 12, right: 16, fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>Page 1 of 5</div>
         
-        {/* Top Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #ea580c', paddingBottom: 12, marginBottom: 20 }}>
+        {/* Header Logo & Contact */}
+        <div style={headerStyle}>
           <img src={logoImg} alt="AOTMS Logo" style={{ height: 48, objectFit: 'contain' }} />
-          <div style={{ textAlign: 'right', fontSize: 12, color: '#374151' }}>
+          <div style={{ textAlign: 'right', fontSize: 13, color: '#111827' }}>
             <div><strong>Phone:</strong> +91 80199-42233</div>
-            <div><strong>Email:</strong> hr@aotms.com</div>
+            <div><strong>Email:</strong> <a href="mailto:hr@aotms.com" style={{ color: '#2563eb', textDecoration: 'underline' }}>hr@aotms.com</a></div>
           </div>
         </div>
 
-        {/* Salutation & Offer Summary */}
-        <div style={{ marginBottom: 18 }}>
-          <div style={{ fontWeight: 600, color: '#4b5563' }}>To,</div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>{clientName}</div>
+        {/* Candidate Offer Details */}
+        <div style={{ marginBottom: 18, marginTop: 10 }}>
+          <div style={{ fontSize: 13, color: '#111' }}>To,</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#000' }}>{clientName}</div>
         </div>
 
-        <div style={{ marginBottom: 18 }}>
-          <div style={{ fontWeight: 700, marginBottom: 8, color: '#1f2937' }}>Dear {firstName},</div>
-          <p style={{ margin: '0 0 10px 0', textIndent: 0, color: '#374151' }}>
-            We are pleased to offer you the position of <strong>"{designation}"</strong> from <strong>{offerDate}</strong> on the following terms and conditions. Subject to the terms and conditions hereinafter provided, <strong>Academy Of Tech Masters</strong> hereby hires you for the purpose of rendering Professional Services to the company. Your salary will commence as of the first day you begin actual work at the Company.
+        <div style={{ marginBottom: 20, textAlign: 'justify' }}>
+          <div style={{ fontWeight: 700, marginBottom: 10, fontSize: 14 }}>Dear {shortName},</div>
+          <p style={{ margin: '0 0 12px 0' }}>
+            We are pleased to offer you the position of <strong>"{designation}"</strong> From <strong>{offerDate}</strong> on the following terms and conditions. Subject to the terms and conditions hereinafter provided, <strong>Academy Of Tech Masters</strong> hereby hires you for the purpose of rendering Professional Services to the company. Your salary will commence as of the first day you begin actual work at the Company, which will be considered the first day of employment with the Company.
           </p>
-          <p style={{ margin: '0 0 10px 0', color: '#374151' }}>
+          <p style={{ margin: '0 0 12px 0' }}>
             This offer of employment is made based upon your representations of proficiency and technical skills and your ability to handle an assignment/ job independently.
           </p>
-          <p style={{ margin: 0, color: '#374151' }}>
-            Your gross compensation (C2C) shall be <strong>Rs {fmtCurrency(annualCtc)} ({annualWords})</strong> per Annum. Annual Gross Compensation includes employer's contribution to Provident Fund and any other benefits, as applicable. All compensation will be paid to you after deduction of tax at source, in accordance with applicable law.
+          <p style={{ margin: '0 0 16px 0' }}>
+            Your gross compensation (C2C) shall be <strong>Rs {fmtCurrency(annualCtc)} ({annualWords})</strong> per Annum. Annual Gross Compensation includes employer's contribution to Provident Fund and any other benefits, as applicable. All compensation will be paid to you after deduction of tax at source, in accordance with applicable law. You will be solely liable for your personal tax liabilities, as per applicable law, both in India and abroad.
           </p>
         </div>
 
-        {/* ── Compensation Plan Table ─────────────────────────────────────── */}
-        <div style={{ marginTop: 20, marginBottom: 20 }}>
-          <div style={{ textAlign: 'center', fontWeight: 800, fontSize: 14, textTransform: 'uppercase', letterSpacing: '0.5px', background: '#1e293b', color: '#ffffff', padding: '8px', borderRadius: '6px 6px 0 0' }}>
+        {/* COMPENSATION PLAN Table - Part 1 */}
+        <div style={{ border: '1px solid #000', marginTop: 10 }}>
+          <div style={{ textAlign: 'center', fontWeight: 800, fontSize: 13.5, textTransform: 'uppercase', padding: '6px', borderBottom: '1px solid #000', background: '#f3f4f6' }}>
             COMPENSATION PLAN
           </div>
-          
-          <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #cbd5e1', fontSize: 12 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
             <tbody>
-              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
-                <td style={{ padding: '8px 12px', fontWeight: 700, width: '40%', borderRight: '1px solid #cbd5e1' }}>Name</td>
-                <td colSpan={2} style={{ padding: '8px 12px', fontWeight: 700 }}>{clientName}</td>
+              <tr style={{ borderBottom: '1px solid #000' }}>
+                <td style={{ padding: '7px 12px', fontWeight: 700, width: '40%', borderRight: '1px solid #000' }}>Name</td>
+                <td colSpan={2} style={{ padding: '7px 12px', fontWeight: 700 }}>{clientName}</td>
               </tr>
-              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
-                <td style={{ padding: '8px 12px', fontWeight: 700, borderRight: '1px solid #cbd5e1' }}>Designation</td>
-                <td colSpan={2} style={{ padding: '8px 12px' }}>{designation}</td>
+              <tr style={{ borderBottom: '1px solid #000' }}>
+                <td style={{ padding: '7px 12px', fontWeight: 700, borderRight: '1px solid #000' }}>Designation</td>
+                <td colSpan={2} style={{ padding: '7px 12px' }}>{designation}</td>
               </tr>
-              <tr style={{ background: '#0f172a', color: '#ffffff', fontWeight: 700, borderBottom: '1px solid #cbd5e1' }}>
-                <td style={{ padding: '8px 12px', borderRight: '1px solid #334155' }}>Components Category</td>
-                <td style={{ padding: '8px 12px', textAlign: 'right', borderRight: '1px solid #334155', width: '30%' }}>Monthly (₹)</td>
-                <td style={{ padding: '8px 12px', textAlign: 'right', width: '30%' }}>Annual (₹)</td>
+              <tr style={{ fontWeight: 700, borderBottom: '1px solid #000', background: '#e5e7eb' }}>
+                <td style={{ padding: '7px 12px', borderRight: '1px solid #000' }}>Components Category</td>
+                <td style={{ padding: '7px 12px', textAlign: 'right', borderRight: '1px solid #000', width: '30%' }}>Monthly</td>
+                <td style={{ padding: '7px 12px', textAlign: 'right', width: '30%' }}>Annual</td>
               </tr>
-
-              {/* Total Gross CTC Row */}
-              <tr style={{ background: '#f1f5f9', fontWeight: 800, borderBottom: '2px solid #94a3b8' }}>
-                <td style={{ padding: '8px 12px', borderRight: '1px solid #cbd5e1' }}>Total Gross CTC</td>
-                <td style={{ padding: '8px 12px', textAlign: 'right', borderRight: '1px solid #cbd5e1' }}>{fmtCurrency(monthlyCtc)}</td>
-                <td style={{ padding: '8px 12px', textAlign: 'right' }}>{fmtCurrency(annualCtc)}</td>
+              <tr style={{ fontWeight: 700, borderBottom: '1px solid #000' }}>
+                <td style={{ padding: '7px 12px', borderRight: '1px solid #000' }}>Total Gross CTC</td>
+                <td style={{ padding: '7px 12px', textAlign: 'right', borderRight: '1px solid #000' }}>{fmtCurrency(monthlyCtc)}</td>
+                <td style={{ padding: '7px 12px', textAlign: 'right' }}>{fmtCurrency(annualCtc)}</td>
               </tr>
-
-              {/* Earnings Breakdown */}
-              <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                <td style={{ padding: '6px 12px', borderRight: '1px solid #cbd5e1' }}>Basic Salary</td>
-                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #cbd5e1' }}>{fmtCurrency(basicMonthly)}</td>
+              <tr style={{ borderBottom: '1px solid #000' }}>
+                <td style={{ padding: '6px 12px', borderRight: '1px solid #000' }}>Basic Salary</td>
+                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #000' }}>{fmtCurrency(basicMonthly)}</td>
                 <td style={{ padding: '6px 12px', textAlign: 'right' }}>{fmtCurrency(basicAnnual)}</td>
               </tr>
-              <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                <td style={{ padding: '6px 12px', borderRight: '1px solid #cbd5e1' }}>HRA</td>
-                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #cbd5e1' }}>{fmtCurrency(hraMonthly)}</td>
-                <td style={{ padding: '6px 12px', textAlign: 'right' }}>{fmtCurrency(hraAnnual)}</td>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* =================================================================== */}
+      {/* ── PAGE 2 OF 5 ────────────────────────────────────────────────── */}
+      {/* =================================================================== */}
+      <div style={pageContainerStyle}>
+        <div style={{ position: 'absolute', top: 12, right: 16, fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>Page 2 of 5</div>
+        
+        <div style={{ border: '1px solid #000', marginBottom: 24 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+            <tbody>
+              <tr style={{ borderBottom: '1px solid #000' }}>
+                <td style={{ padding: '6px 12px', width: '40%', borderRight: '1px solid #000' }}>HRA</td>
+                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #000', width: '30%' }}>{fmtCurrency(hraMonthly)}</td>
+                <td style={{ padding: '6px 12px', textAlign: 'right', width: '30%' }}>{fmtCurrency(hraAnnual)}</td>
               </tr>
-              <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                <td style={{ padding: '6px 12px', borderRight: '1px solid #cbd5e1' }}>Medical Allowance</td>
-                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #cbd5e1' }}>{fmtCurrency(medicalMonthly)}</td>
+              <tr style={{ borderBottom: '1px solid #000' }}>
+                <td style={{ padding: '6px 12px', borderRight: '1px solid #000' }}>Medical</td>
+                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #000' }}>{fmtCurrency(medicalMonthly)}</td>
                 <td style={{ padding: '6px 12px', textAlign: 'right' }}>{fmtCurrency(medicalAnnual)}</td>
               </tr>
-              <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                <td style={{ padding: '6px 12px', borderRight: '1px solid #cbd5e1' }}>Conveyance</td>
-                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #cbd5e1' }}>{fmtCurrency(conveyanceMonthly)}</td>
+              <tr style={{ borderBottom: '1px solid #000' }}>
+                <td style={{ padding: '6px 12px', borderRight: '1px solid #000' }}>Conveyance</td>
+                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #000' }}>{fmtCurrency(conveyanceMonthly)}</td>
                 <td style={{ padding: '6px 12px', textAlign: 'right' }}>{fmtCurrency(conveyanceAnnual)}</td>
               </tr>
-              <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                <td style={{ padding: '6px 12px', borderRight: '1px solid #cbd5e1' }}>Food Transport Allowance</td>
-                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #cbd5e1' }}>{fmtCurrency(foodMonthly)}</td>
+              <tr style={{ borderBottom: '1px solid #000' }}>
+                <td style={{ padding: '6px 12px', borderRight: '1px solid #000' }}>Food Transport Allowance</td>
+                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #000' }}>{fmtCurrency(foodMonthly)}</td>
                 <td style={{ padding: '6px 12px', textAlign: 'right' }}>{fmtCurrency(foodAnnual)}</td>
               </tr>
-              <tr style={{ borderBottom: '1px solid #cbd5e1' }}>
-                <td style={{ padding: '6px 12px', borderRight: '1px solid #cbd5e1' }}>Dearness Allowance</td>
-                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #cbd5e1' }}>{fmtCurrency(daMonthly)}</td>
+              <tr style={{ borderBottom: '1px solid #000' }}>
+                <td style={{ padding: '6px 12px', borderRight: '1px solid #000' }}>Dearness Allowance</td>
+                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #000' }}>{fmtCurrency(daMonthly)}</td>
                 <td style={{ padding: '6px 12px', textAlign: 'right' }}>{fmtCurrency(daAnnual)}</td>
               </tr>
 
               {/* Custom Earnings */}
               {customEarnings.map((earn, idx) => (
-                <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0', background: '#f0fdf4' }}>
-                  <td style={{ padding: '6px 12px', borderRight: '1px solid #cbd5e1' }}>{earn.name}</td>
-                  <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #cbd5e1' }}>{fmtCurrency(earn.monthly)}</td>
+                <tr key={idx} style={{ borderBottom: '1px solid #000' }}>
+                  <td style={{ padding: '6px 12px', borderRight: '1px solid #000' }}>{earn.name}</td>
+                  <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #000' }}>{fmtCurrency(earn.monthly)}</td>
                   <td style={{ padding: '6px 12px', textAlign: 'right' }}>{fmtCurrency(earn.annual || earn.monthly * 12)}</td>
                 </tr>
               ))}
 
-              {/* Deductions Sub-header */}
-              <tr style={{ background: '#fef2f2', fontWeight: 700, borderBottom: '1px solid #fca5a5' }}>
-                <td colSpan={3} style={{ padding: '6px 12px', color: '#991b1b' }}>Deductions</td>
+              {/* Deductions Header */}
+              <tr style={{ fontWeight: 700, borderBottom: '1px solid #000', background: '#f3f4f6' }}>
+                <td colSpan={3} style={{ padding: '6px 12px' }}>Deductions</td>
               </tr>
-              <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                <td style={{ padding: '6px 12px', borderRight: '1px solid #cbd5e1' }}>ESI (Employee's Contribution)</td>
-                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #cbd5e1' }}>{fmtCurrency(esiEmpMonthly)}</td>
+              <tr style={{ borderBottom: '1px solid #000' }}>
+                <td style={{ padding: '6px 12px', borderRight: '1px solid #000' }}>ESI (Employee's Contribution)</td>
+                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #000' }}>{fmtCurrency(esiEmpMonthly)}</td>
                 <td style={{ padding: '6px 12px', textAlign: 'right' }}>{fmtCurrency(esiEmpAnnual)}</td>
               </tr>
-              <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                <td style={{ padding: '6px 12px', borderRight: '1px solid #cbd5e1' }}>Provident Fund (Employee's Contribution)</td>
-                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #cbd5e1' }}>{fmtCurrency(pfEmpMonthly)}</td>
+              <tr style={{ borderBottom: '1px solid #000' }}>
+                <td style={{ padding: '6px 12px', borderRight: '1px solid #000' }}>Provident Fund (Employee's Contribution)</td>
+                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #000' }}>{fmtCurrency(pfEmpMonthly)}</td>
                 <td style={{ padding: '6px 12px', textAlign: 'right' }}>{fmtCurrency(pfEmpAnnual)}</td>
               </tr>
-              <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                <td style={{ padding: '6px 12px', borderRight: '1px solid #cbd5e1' }}>Professional Tax</td>
-                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #cbd5e1' }}>{fmtCurrency(ptMonthly)}</td>
+              <tr style={{ borderBottom: '1px solid #000' }}>
+                <td style={{ padding: '6px 12px', borderRight: '1px solid #000' }}>Professional tax</td>
+                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #000' }}>{fmtCurrency(ptMonthly)}</td>
                 <td style={{ padding: '6px 12px', textAlign: 'right' }}>{fmtCurrency(ptAnnual)}</td>
               </tr>
-              <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                <td style={{ padding: '6px 12px', borderRight: '1px solid #cbd5e1' }}>TDS</td>
-                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #cbd5e1' }}>{fmtCurrency(tdsMonthly)}</td>
+              <tr style={{ borderBottom: '1px solid #000' }}>
+                <td style={{ padding: '6px 12px', borderRight: '1px solid #000' }}>TDS</td>
+                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #000' }}>{fmtCurrency(tdsMonthly)}</td>
                 <td style={{ padding: '6px 12px', textAlign: 'right' }}>{fmtCurrency(tdsAnnual)}</td>
               </tr>
 
               {/* Custom Deductions */}
               {customDeductions.map((ded, idx) => (
-                <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0', background: '#fff1f2' }}>
-                  <td style={{ padding: '6px 12px', borderRight: '1px solid #cbd5e1' }}>{ded.name}</td>
-                  <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #cbd5e1' }}>{fmtCurrency(ded.monthly)}</td>
+                <tr key={idx} style={{ borderBottom: '1px solid #000' }}>
+                  <td style={{ padding: '6px 12px', borderRight: '1px solid #000' }}>{ded.name}</td>
+                  <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #000' }}>{fmtCurrency(ded.monthly)}</td>
                   <td style={{ padding: '6px 12px', textAlign: 'right' }}>{fmtCurrency(ded.annual || ded.monthly * 12)}</td>
                 </tr>
               ))}
 
-              <tr style={{ background: '#fef2f2', fontWeight: 800, borderBottom: '2px solid #f87171' }}>
-                <td style={{ padding: '7px 12px', borderRight: '1px solid #cbd5e1', color: '#991b1b' }}>Total Deductions</td>
-                <td style={{ padding: '7px 12px', textAlign: 'right', borderRight: '1px solid #cbd5e1', color: '#991b1b' }}>{fmtCurrency(totalDeductionsMonthly)}</td>
-                <td style={{ padding: '7px 12px', textAlign: 'right', color: '#991b1b' }}>{fmtCurrency(totalDeductionsAnnual)}</td>
+              <tr style={{ fontWeight: 700, borderBottom: '1px solid #000' }}>
+                <td style={{ padding: '6px 12px', borderRight: '1px solid #000' }}>Total Deductions</td>
+                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #000' }}>{fmtCurrency(totalDeductionsMonthly)}</td>
+                <td style={{ padding: '6px 12px', textAlign: 'right' }}>{fmtCurrency(totalDeductionsAnnual)}</td>
               </tr>
 
-              {/* Employer Benefits */}
-              <tr style={{ background: '#f0f9ff', fontWeight: 700, borderBottom: '1px solid #7dd3fc' }}>
-                <td colSpan={3} style={{ padding: '6px 12px', color: '#0369a1' }}>Benefits (Employer Contribution)</td>
+              {/* Benefits Header */}
+              <tr style={{ fontWeight: 700, borderBottom: '1px solid #000', background: '#f3f4f6' }}>
+                <td colSpan={3} style={{ padding: '6px 12px' }}>Benefits</td>
               </tr>
-              <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                <td style={{ padding: '6px 12px', borderRight: '1px solid #cbd5e1' }}>ESI (Employer's Contribution)</td>
-                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #cbd5e1' }}>{fmtCurrency(invoiceData.esi_employer || 0)}</td>
+              <tr style={{ borderBottom: '1px solid #000' }}>
+                <td style={{ padding: '6px 12px', borderRight: '1px solid #000' }}>ESI (Employer's Contribution)</td>
+                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #000' }}>{fmtCurrency(invoiceData.esi_employer || 0)}</td>
                 <td style={{ padding: '6px 12px', textAlign: 'right' }}>{fmtCurrency((invoiceData.esi_employer || 0) * 12)}</td>
               </tr>
-              <tr style={{ borderBottom: '1px solid #cbd5e1' }}>
-                <td style={{ padding: '6px 12px', borderRight: '1px solid #cbd5e1' }}>Provident Fund (Employer's Contribution)</td>
-                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #cbd5e1' }}>{fmtCurrency(invoiceData.pf_employer || 0)}</td>
+              <tr style={{ borderBottom: '1px solid #000' }}>
+                <td style={{ padding: '6px 12px', borderRight: '1px solid #000' }}>Provident Fund (Employer's Contribution)</td>
+                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #000' }}>{fmtCurrency(invoiceData.pf_employer || 0)}</td>
                 <td style={{ padding: '6px 12px', textAlign: 'right' }}>{fmtCurrency((invoiceData.pf_employer || 0) * 12)}</td>
               </tr>
 
-              {/* Net Earnings Row */}
-              <tr style={{ background: '#ecfdf5', fontWeight: 800, fontSize: 13, borderTop: '2px solid #059669' }}>
-                <td style={{ padding: '10px 12px', borderRight: '1px solid #cbd5e1', color: '#047857' }}>Net Earnings</td>
-                <td style={{ padding: '10px 12px', textAlign: 'right', borderRight: '1px solid #cbd5e1', color: '#047857' }}>{fmtCurrency(netMonthly)}</td>
-                <td style={{ padding: '10px 12px', textAlign: 'right', color: '#047857' }}>{fmtCurrency(netAnnual)}</td>
+              {/* Net Earnings */}
+              <tr style={{ fontWeight: 800 }}>
+                <td style={{ padding: '8px 12px', borderRight: '1px solid #000' }}>Net Earnings</td>
+                <td style={{ padding: '8px 12px', textAlign: 'right', borderRight: '1px solid #000' }}>{fmtCurrency(netMonthly)}</td>
+                <td style={{ padding: '8px 12px', textAlign: 'right' }}>{fmtCurrency(netAnnual)}</td>
               </tr>
             </tbody>
           </table>
         </div>
 
-        {/* ── Terms & Clauses (Exact text from PDF) ─────────────────────────── */}
-        <div style={{ marginTop: 24, fontSize: 11.5, color: '#374151', lineHeight: 1.6 }}>
-          <div style={{ fontWeight: 800, fontSize: 13, color: '#111827', marginBottom: 8, borderBottom: '1px solid #cbd5e1', paddingBottom: 4 }}>
-            TERMS & CONDITIONS OF EMPLOYMENT
-          </div>
-
-          <ol style={{ paddingLeft: 18, margin: 0 }}>
-            <li style={{ marginBottom: 6 }}>
+        {/* Clauses 1 to 4 */}
+        <div style={{ textAlign: 'justify', lineHeight: 1.5 }}>
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>As</div>
+          <ol style={{ paddingLeft: 20, margin: 0 }}>
+            <li style={{ marginBottom: 10 }}>
               Mentioned to you during your interview, you are assigned to <strong>Academy Of Tech Masters Groups</strong>. This offer shall be effective from the date you join the organization and fulfill the joining formalities.
             </li>
-            <li style={{ marginBottom: 6 }}>
+            <li style={{ marginBottom: 10 }}>
               The company expects you to work with a high standard of initiative, efficiency and economy.
             </li>
-            <li style={{ marginBottom: 6 }}>
-              During the employment with the company, you may be liable to be transferred or deputed to any of the office/ divisions/ departments/ units of the company/ associates/ subsidiary group of companies.
+            <li style={{ marginBottom: 10 }}>
+              During the employment with the company, you may be liable to be transferred or deputed to any of the office/ divisions/ departments/ units of the company/ associates/ subsidiary group of companies whether existing or to be setup, whether in the same town/ city or to any other town/ city where in India or abroad on the same or similar terms and conditions of the employment.
             </li>
-            <li style={{ marginBottom: 6 }}>
-              During your employment with the company, you will be governed by the service rules and regulations of the company in force or as introduced or amended from time to time.
-            </li>
-            <li style={{ marginBottom: 6 }}>
-              <strong>TERMINATION OF EMPLOYMENT:</strong> During Probation period either the Company or you may at any time terminate your employment with 2 (two) months notice. In the event you choose to leave the Company before completion of 24 months, an amount equivalent to THREE (3) months gross pay will be construed as debt due and payable.
-            </li>
-            <li style={{ marginBottom: 6 }}>
-              <strong>Probation Period:</strong> From 01 FEB 2026 To 01 MAY 2026 (3 months). Your Standard Timings Will be 9:30am to 06:30pm.
-            </li>
-            <li style={{ marginBottom: 6 }}>
-              <strong>Non-Compete & Non-Solicitation:</strong> You shall not during the term of your employment and for 12 months post termination engage in non-compete or non-solicitation activities.
-            </li>
-            <li style={{ marginBottom: 6 }}>
-              <strong>Confidential Information:</strong> The employee shall keep all company information, source code, client information, credentials, and internal documents strictly confidential.
+            <li style={{ marginBottom: 10 }}>
+              During your employment with the company, you will be governed by the service rules and regulations of the company in force or as introduced or amended from time to time. You will also be governed by the company's policies and rules regarding leave, indiscipline, misconduct or/ and any other matters.
             </li>
           </ol>
+        </div>
+      </div>
 
-          {/* List of Documents Required Before Joining */}
-          <div style={{ marginTop: 14, background: '#f8fafc', padding: '12px 16px', borderRadius: 6, border: '1px solid #e2e8f0' }}>
-            <div style={{ fontWeight: 700, color: '#1e293b', marginBottom: 6 }}>List of Documents Required Before Joining:</div>
-            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 11 }}>
-              <li>Two passport size copies of recent photograph</li>
-              <li>Original 10th standard or degree certificates</li>
-              <li>Relieving or Experience Letter from previous employer</li>
-              <li>Address Proof (Driver License / Passport / Aadhar Card)</li>
-              <li>Copy of PAN card & Aadhaar Card</li>
-              <li>Last 3 months Pay Stubs & Bank Statement</li>
-            </ul>
+      {/* =================================================================== */}
+      {/* ── PAGE 3 OF 5 ────────────────────────────────────────────────── */}
+      {/* =================================================================== */}
+      <div style={pageContainerStyle}>
+        <div style={{ position: 'absolute', top: 12, right: 16, fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>Page 3 of 5</div>
+        
+        <div style={{ textAlign: 'justify', lineHeight: 1.55 }}>
+          <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 8 }}>5) TERMINATION OF EMPLOYMENT</div>
+          
+          <p style={{ margin: '0 0 10px 0' }}>
+            During Probation period either the Company or you may at any time terminate your employment with the Company, without cause, by giving in writing to the other party, 2 (two) months notice or in lieu thereof a sum equal to the amount or prorated amount of salary which would have accrued to you during the period or remaining period of notice, except for when you are working for the company. In such cases you are required to follow the notice period of the company. You shall not be entitled to any notice pay if your employment is terminated in accordance with condition set forth in Section 5.6 below.
+          </p>
+
+          <p style={{ margin: '0 0 10px 0' }}>
+            After completion of the Probation period, either the Company or you may at any time terminate your employment with the Company, without cause, by giving in writing to the other party, notice of 2 months or in lieu thereof a sum equal to the amount or prorated amount of salary which would have accrued to you during the period or remaining period of notice.
+          </p>
+
+          <p style={{ margin: '0 0 10px 0' }}>
+            After notice of termination, you shall co-operate with the Company, as reasonably requested by the Company, to effect a transition of your responsibilities and ensure that the Company is aware of all matters being handled by you.
+          </p>
+
+          <p style={{ margin: '0 0 10px 0' }}>
+            Upon termination of your employment with the Company for any reason, you shall promptly return to the Company any keys, credit cards, Laptop, Mobile phones, SIM cards, passes, confidential documents or material, or other property belonging to the Company, and return all writings, files, records, correspondence, notebooks, notes and other documents and things (including any copies thereof) containing Confidential Information or relating to the business or proposed business of the Company or its subsidiaries or affiliates. The Company reserves the right not to relieve you of your employment or pay you the previous month's salary in the event that all the Company's documents/ property / Confidential Information/belongings in your custody have not been properly handed over by you to an authorized representative of the Company.
+          </p>
+
+          <p style={{ margin: '0 0 10px 0' }}>
+            The Company reserves the right during any period of notice to exclude you from the premises of the Company, carry out no duties, and to instruct you not to communicate with clients, employees, agents or representatives of the Company.
+          </p>
+
+          <p style={{ margin: '0 0 8px 0' }}>
+            In addition to all the rights of the Company provided for in this agreement or in any other policies/regulations of the Company or under law,
+          </p>
+
+          <div style={{ fontWeight: 600, marginBottom: 6 }}>The Company may terminate your employment forthwith in any of the following circumstances:</div>
+          <ol type="i" style={{ paddingLeft: 24, margin: '0 0 10px 0' }}>
+            <li>Breach by you of any of the terms of this letter of appointment ; Breach of any clauses of the Company's regulations/policies.</li>
+            <li>Unauthorized absence beyond a period of three consecutive days;</li>
+            <li>Inability to perform your duties beyond a period of fifteen (15) days, whether on medical grounds or on any other grounds;</li>
+            <li>Physical or mental incapacitation to perform your duties;</li>
+            <li>Any misrepresentation by you to the Company, whether made orally or in writing and whether expressly or by conduct, and whether at the time of appointment or prior or subsequent thereto;</li>
+            <li>Commission of any act detrimental to the interests of the Company;</li>
+            <li>Commission of any act of moral turpitude;</li>
+            <li>Misconduct;</li>
+            <li>Commission of an act of insolvency;</li>
+            <li>Conviction in any court of law for the commission of any crime; or</li>
+            <li>Your performance is continuously measured as below expectation:</li>
+          </ol>
+
+          <p style={{ margin: '0 0 12px 0', fontWeight: 600 }}>
+            In the event you choose to leave the Company, before the completion of 24 months from the date of joining the Company, an amount equivalent to THREE (3) months gross pay- will be construed as debt due and payable by you to the Company. This clause will not be applicable in cases where the Company may, in its sole discretion, elect to terminate your employment.
+          </p>
+
+          <div style={{ marginTop: 10 }}>
+            <strong>6)</strong> If you are assigned to work at Company's client or Academy Of Tech Masters affiliate companies, you are required to follow the rules and regulations of the company till
           </div>
         </div>
+      </div>
 
-        {/* ── Official Signature & CEO Stamp Block ───────────────────────────── */}
-        <div style={{ marginTop: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>Congratulations, we look forward to you joining our team.</div>
-            <div style={{ marginTop: 16, fontSize: 12, color: '#4b5563' }}>Sincerely,</div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>For Academy Of Tech Masters,</div>
+      {/* =================================================================== */}
+      {/* ── PAGE 4 OF 5 ────────────────────────────────────────────────── */}
+      {/* =================================================================== */}
+      <div style={pageContainerStyle}>
+        <div style={{ position: 'absolute', top: 12, right: 16, fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>Page 4 of 5</div>
+        
+        <div style={{ textAlign: 'justify', lineHeight: 1.55 }}>
+          <p style={{ margin: '0 0 12px 0' }}>
+            your assignment ends. While you work at the company's place, you are required to maintain absolute professionalism and conduct.
+          </p>
+
+          <p style={{ margin: '0 0 12px 0' }}>
+            <strong>7)</strong> You are required to strictly maintain the secrecy of the Company and not to divulge or communicate in any matter, any information regarding the company, your remuneration/ terms of employment to any outsider or another employee of the company except your superior. Any such disclosure is a serious case of in-discipline and would attract serious disciplinary action.
+          </p>
+
+          <p style={{ margin: '0 0 12px 0' }}>
+            <strong>8)</strong> You are required to deal with the company's money, material and documents with utmost honesty and professional ethics. If you were found guilty at any point of time of moral turpitude or of dishonesty in dealing with the company's money or material or documents, or of theft, or of misappropriation, regardless of the value involved, your services would attract serious disciplinary and appropriate legal action.
+          </p>
+
+          <p style={{ margin: '0 0 12px 0' }}>
+            <strong>9)</strong> You are required not to engage yourself in any other gainful or commercial employment or business, part time or full time directly or indirectly, simultaneously as long as you are employed with Company or engage yourself directly or indirectly in any other profitable business connected with the dealings or activities of the company in any way. Any action to the contrary would render your services liable for termination.
+          </p>
+
+          <p style={{ margin: '0 0 12px 0' }}>
+            <strong>10)</strong> Any work carried out by you during your period of employment at Company either party or whole of a project shall be the property of the Company. Similarly any new business developed directly or indirectly through you during your tenure with the company will be considered as the company's property.
+          </p>
+
+          <p style={{ margin: '0 0 12px 0' }}>
+            <strong>11) Under probation period:</strong> from <strong>{probationPeriod}</strong> (3 months) after successfully completing your probation period your services will be regularized and you are entitled to avail yourself of the benefits provided by the company. Your Standard Timings Will be <strong>{workTimings}</strong>.
+          </p>
+
+          <p style={{ margin: '0 0 12px 0' }}>
+            <strong>12) Non-Compete & Non Solicitation:</strong> You shall not during the term of your employment and for a period of twelve (12) months immediately following any termination of such employment either voluntary or involuntary, directly or indirectly, individually or on behalf of any person, firm, corporation or entity (a) interfere with company's continuing relationships with its other employees, customers, suppliers or clients, (b) influence existing or potential employees to leave employment with the company, (c) disparage the company with other employees, outsiders or firms.
+          </p>
+
+          <p style={{ margin: '0 0 12px 0' }}>
+            <strong>13)</strong> You agree to indemnify and defend Academy Of Tech Masters, its Affiliates, and their respective officers, directors, employees, agents and customers from and against all damages arising out of a third-party claim resulting from or alleged to have resulted from any of your acts during or after the work hours. You agree not to involve Academy Of Tech Masters, its Affiliates, and their respective officers, directors, employees, agents and customers in any problems arising due to your personal acts at all times. Any violation of the above terms will result in immediate termination of your employment with no notice.
+          </p>
+
+          <div style={{ margin: '0 0 12px 0' }}>
+            <strong>14) List of Documents Required Before Joining:</strong>
+            <ul style={{ paddingLeft: 20, margin: '6px 0 0 0', listStyleType: 'disc' }}>
+              <li>Two passport size copies of your recent photograph</li>
+              <li>Original X standard or degree certificates.</li>
+              <li>Relieving or Experience Letter from previous employer(Not required for Freshers)</li>
+              <li>Appointment letter from Previous employer(Not required for Freshers)</li>
+              <li>Address Proof (Driver License/Passport Copy etc)</li>
+              <li>Copy of PAN card</li>
+              <li>Copy of Aadhaar Card</li>
+              <li>Last 3 months Pay Stubs & Bank Statement with previous company(Not required for Freshers)</li>
+            </ul>
+          </div>
+
+          <p style={{ margin: '0 0 12px 0' }}>
+            <strong>15)</strong> In the event a government body/authority exercising its jurisdiction and statutory power/authority seeks information pertaining to any aspect of your employment, the Company shall provide such information to the government body/authority without any notification to you. The foregoing shall be applicable to information pertaining to your employment being shared in pursuance of statutory requirements/compliance. You may belong to this category and your details will be disclosed to these authorities.
+          </p>
+        </div>
+      </div>
+
+      {/* =================================================================== */}
+      {/* ── PAGE 5 OF 5 ────────────────────────────────────────────────── */}
+      {/* =================================================================== */}
+      <div style={pageContainerStyle}>
+        <div style={{ position: 'absolute', top: 12, right: 16, fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>Page 5 of 5</div>
+        
+        <div style={{ textAlign: 'justify', lineHeight: 1.55 }}>
+          <p style={{ margin: '0 0 12px 0' }}>
+            <strong>16)</strong> You are required to carefully read and understand these Terms of Employment as a part of accepting this offer. As further detailed in the Terms of Employment, this offer and your employment with Academy Of Tech Masters is subject to satisfactory completion of verification and/or background or reference checks, which may occur at any time prior to or after your effective start date.
+          </p>
+
+          <p style={{ margin: '0 0 12px 0' }}>
+            <strong>17)</strong> This <strong>"Letter of Appointment"</strong> is valid ONLY upon you signing it and providing all the documents mentioned above. The terms of this letter and this offer are valid for <strong>THREE (3) days</strong> from the date of this letter. This letter supersedes any previous communication, including but not limited to written or verbal communications, by Company or its representatives.
+          </p>
+
+          <div style={{ margin: '0 0 20px 0' }}>
+            <strong>18) Confidential Information</strong>
+            <p style={{ margin: '6px 0 0 0' }}>
+              The employee shall keep all company information, including source code, client information, projectdetails, business strategies, financial data, credentials, and internal documents, strictly confidential during and after employment. Any software, code, applications, documents, designs, databases, or other work created during employment shall be the exclusive property of the company. Source code, repositories, APIs, credentials, and project files must not be copied, shared, or uploaded to personal devices or public platforms without authorization.
+            </p>
+          </div>
+
+          <div style={{ marginBottom: 24, fontSize: 13 }}>
+            Congratulations, we look forward to you joining our team.
+          </div>
+
+          <div style={{ marginBottom: 30 }}>
+            <div>Sincerely,</div>
+            <div style={{ fontWeight: 700, marginTop: 4 }}>For Academy Of Tech Masters,</div>
             
-            {/* CEO Stamp Graphic */}
-            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+            {/* CEO Stamp Seal & Signature Block */}
+            <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 16 }}>
               <div style={{
-                width: 68, height: 68, borderRadius: '50%', border: '2px dashed #0369a1',
+                width: 72, height: 72, borderRadius: '50%', border: '2px dashed #0369a1',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                color: '#0369a1', fontSize: 8, fontWeight: 800, textAlign: 'center', padding: 4,
+                color: '#0369a1', fontSize: 8.5, fontWeight: 800, textAlign: 'center', padding: 4,
                 background: '#f0f9ff'
               }}>
                 <span>AOTMS</span>
@@ -309,23 +448,30 @@ export const InvoiceDocument = forwardRef(({ invoiceData, isPreview = false }, r
                 <span>APPROVED</span>
               </div>
               <div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', fontFamily: 'serif', fontStyle: 'italic' }}>Ameenuddin Sayyed</div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#475569' }}>CEO, Academy Of Tech Masters</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', fontFamily: 'serif', fontStyle: 'italic' }}>Ameenuddin Sayyed</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#334155' }}>Ameenuddin Sayyed</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#475569' }}>CEO</div>
               </div>
             </div>
           </div>
 
-          {/* Acceptance Box */}
-          <div style={{ border: '1px solid #cbd5e1', borderRadius: 6, padding: '12px 16px', width: 260, fontSize: 11, background: '#f8fafc' }}>
-            <div style={{ fontWeight: 700, marginBottom: 8, color: '#1e293b' }}>Candidate Acceptance</div>
-            <div style={{ marginBottom: 6 }}>Signature: ______________________</div>
-            <div style={{ marginBottom: 6 }}>Name: {clientName}</div>
-            <div style={{ marginBottom: 6 }}>Place: _________________________</div>
-            <div>Date: __________________________</div>
-          </div>
-        </div>
+          {/* Candidate Acceptance Section */}
+          <div style={{ borderTop: '1px solid #000', paddingTop: 16, marginTop: 40 }}>
+            <p style={{ margin: '0 0 16px 0' }}>
+              I have read and understood the terms and conditions of my letter. I hereby accept this offer with the terms and conditions mentioned in it.
+            </p>
 
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, fontSize: 13 }}>
+              <div><strong>Signature:</strong> ___________________________</div>
+              <div><strong>Name:</strong> {clientName}</div>
+              <div><strong>Place:</strong> ___________________________</div>
+              <div><strong>Date:</strong> ___________________________</div>
+            </div>
+          </div>
+
+        </div>
       </div>
+
     </div>
   );
 });

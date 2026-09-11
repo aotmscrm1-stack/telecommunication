@@ -381,6 +381,29 @@ export default function Invoice() {
                       />
                     </div>
                   </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Probation Period</label>
+                      <input
+                        type="text"
+                        value={form.probation_period || '01 FEB 2026 To 01 MAY 2026'}
+                        onChange={e => setForm({ ...form, probation_period: e.target.value })}
+                        placeholder="01 FEB 2026 To 01 MAY 2026"
+                        style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Standard Work Timings</label>
+                      <input
+                        type="text"
+                        value={form.work_timings || '9:30am to 06:30pm'}
+                        onChange={e => setForm({ ...form, work_timings: e.target.value })}
+                        placeholder="9:30am to 06:30pm"
+                        style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 
