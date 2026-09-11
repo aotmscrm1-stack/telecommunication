@@ -427,41 +427,64 @@ export const InvoiceDocument = forwardRef(({ invoiceData, isPreview = false }, r
             </p>
           </div>
 
-          <div style={{ marginBottom: 24, fontSize: 13 }}>
+          <div style={{ marginBottom: 20, fontSize: 13, color: '#111827' }}>
             Congratulations, we look forward to you joining our team.
           </div>
 
-          <div style={{ marginBottom: 30 }}>
-            <div>Sincerely,</div>
-            <div style={{ fontWeight: 700, marginTop: 4 }}>For Academy Of Tech Masters,</div>
+          <div style={{ marginBottom: 36 }}>
+            <div style={{ fontSize: 13, color: '#111827' }}>Sincerely,</div>
+            <div style={{ fontWeight: 700, fontSize: 13.5, color: '#000000', marginTop: 4 }}>For Academy Of Tech Masters,</div>
             
-            {/* CEO Stamp Seal & Signature Block */}
-            <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 16 }}>
-              <div style={{
-                width: 72, height: 72, borderRadius: '50%', border: '2px dashed #0369a1',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                color: '#0369a1', fontSize: 8.5, fontWeight: 800, textAlign: 'center', padding: 4,
-                background: '#f0f9ff'
-              }}>
-                <span>AOTMS</span>
-                <span style={{ fontSize: 7, color: '#0284c7' }}>★ GLOBAL ★</span>
-                <span>APPROVED</span>
+            {/* CEO Official Seal & Handwritten Signature Overlay */}
+            <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 20, position: 'relative' }}>
+              <div style={{ position: 'relative', width: 90, height: 90, flexShrink: 0 }}>
+                {/* Outer Circular Seal Badge */}
+                <svg width="90" height="90" viewBox="0 0 100 100" style={{ transform: 'rotate(-5deg)' }}>
+                  <circle cx="50" cy="50" r="46" fill="#f0f9ff" stroke="#0369a1" strokeWidth="2.5" strokeDasharray="6,2" />
+                  <circle cx="50" cy="50" r="38" fill="none" stroke="#0284c7" strokeWidth="1.5" />
+                  <path id="circlePath" fill="none" d="M 18,50 A 32,32 0 1,1 82,50 A 32,32 0 1,1 18,50" />
+                  <text fontSize="7.5" fontWeight="bold" fill="#0369a1" letterSpacing="0.8">
+                    <textPath href="#circlePath" startOffset="50%" textAnchor="middle">
+                      ACADEMY OF TECH MASTERS
+                    </textPath>
+                  </text>
+                  <text x="50" y="52" textAnchor="middle" fontSize="11" fontWeight="900" fill="#0f172a" letterSpacing="1">
+                    AOTMS
+                  </text>
+                  <text x="50" y="64" textAnchor="middle" fontSize="6.5" fontWeight="bold" fill="#0284c7">
+                    ★ OFFICIAL SEAL ★
+                  </text>
+                </svg>
+
+                {/* Handwritten Overlay Signature */}
+                <div style={{
+                  position: 'absolute', top: 18, left: -10, width: 120,
+                  fontFamily: "'Dancing Script', 'Brush Script MT', 'Caveat', cursive",
+                  fontSize: 22, fontWeight: 700, color: '#1e3a8a',
+                  transform: 'rotate(-12deg)', opacity: 0.9, pointerEvents: 'none',
+                  textShadow: '0 0 1px rgba(30,58,138,0.5)'
+                }}>
+                  SD Ameenuddin
+                </div>
               </div>
+
               <div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', fontFamily: 'serif', fontStyle: 'italic' }}>Ameenuddin Sayyed</div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#334155' }}>Ameenuddin Sayyed</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', fontFamily: "'Georgia', serif", fontStyle: 'italic', letterSpacing: '0.3px' }}>
+                  Ameenuddin Sayyed
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>Ameenuddin Sayyed</div>
                 <div style={{ fontSize: 12, fontWeight: 700, color: '#475569' }}>CEO</div>
               </div>
             </div>
           </div>
 
           {/* Candidate Acceptance Section */}
-          <div style={{ borderTop: '1px solid #000', paddingTop: 16, marginTop: 40 }}>
-            <p style={{ margin: '0 0 16px 0' }}>
+          <div style={{ borderTop: '1.5px solid #000000', paddingTop: 18, marginTop: 24 }}>
+            <p style={{ margin: '0 0 18px 0', fontSize: 13, color: '#111827', lineHeight: 1.5 }}>
               I have read and understood the terms and conditions of my letter. I hereby accept this offer with the terms and conditions mentioned in it.
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, fontSize: 13 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, fontSize: 13, color: '#000000' }}>
               <div><strong>Signature:</strong> ___________________________</div>
               <div><strong>Name:</strong> {clientName}</div>
               <div><strong>Place:</strong> ___________________________</div>
