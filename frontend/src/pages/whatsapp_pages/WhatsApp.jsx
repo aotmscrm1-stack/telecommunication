@@ -501,42 +501,82 @@ function getDateLabel(dateInput) {
 function RichTemplateMessageCard({ message, templates = [] }) {
   const text = message.description || '';
   
+  // Find matched template by shortcut / name / metaTemplateName / _id
   const matchedTemplate = templates.find(t => {
     if (!t) return false;
-    const tName = (t.shortcut || t.name || '').toLowerCase();
-    return tName && text.toLowerCase().includes(tName);
+    const tShortcut = (t.shortcut || '').toLowerCase();
+    const tName = (t.metaTemplateName || t.name || '').toLowerCase();
+    const cleanText = text.toLowerCase();
+    return (t._id && message.templateId === t._id) ||
+           (tShortcut && cleanText.includes(tShortcut)) ||
+           (tName && cleanText.includes(tName));
   });
 
   const category = matchedTemplate?.category || (text.toLowerCase().includes('marketing') ? 'MARKETING' : 'UTILITY');
-  const imageUrl = matchedTemplate?.headerImage || matchedTemplate?.mediaUrl || matchedTemplate?.imageUrl || message.mediaUrl || message.headerImageUrl;
-  const footerText = matchedTemplate?.footer || message.footer;
-  const buttons = matchedTemplate?.buttons || message.buttons || [];
+
+  // Extract components from matchedTemplate
+  const comps = Array.isArray(matchedTemplate?.components) ? matchedTemplate.components : [];
+  const headerComp = comps.find(c => String(c.type).toUpperCase() === 'HEADER');
+  const bodyComp = comps.find(c => String(c.type).toUpperCase() === 'BODY');
+  const footerComp = comps.find(c => String(c.type).toUpperCase() === 'FOOTER');
+  const buttonsComp = comps.find(c => String(c.type).toUpperCase() === 'BUTTONS');
+
+  // Header Image extraction
+  let imageUrl = matchedTemplate?.headerImage || matchedTemplate?.mediaUrl || matchedTemplate?.imageUrl || message.mediaUrl || message.headerImageUrl;
+  if (!imageUrl && headerComp) {
+    if (headerComp.format === 'IMAGE' || headerComp.example?.header_handle?.length || headerComp.example?.header_url?.length) {
+      imageUrl = headerComp.example?.header_handle?.[0] || headerComp.example?.header_url?.[0];
+    }
+  }
+
+  const headerText = headerComp?.text || matchedTemplate?.headerText || message.headerText;
+  const bodyDisplay = bodyComp?.text || (text.startsWith('[Template:') ? (matchedTemplate?.message || matchedTemplate?.body || text) : text);
+  const footerText = footerComp?.text || matchedTemplate?.footer || message.footer;
+  
+  // Action Buttons extraction
+  let buttons = buttonsComp?.buttons || matchedTemplate?.buttons || message.buttons || [];
+  if (!Array.isArray(buttons)) buttons = [];
 
   return (
-    <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #d1fae5', background: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+    <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #d1fae5', background: '#ffffff', boxShadow: '0 2px 6px rgba(0,0,0,0.06)', minWidth: 240 }}>
       {/* Category / Template Badge */}
-      <div style={{ background: category === 'MARKETING' ? '#ecfdf5' : '#f0f9ff', padding: '5px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #e5e7eb' }}>
+      <div style={{ background: category === 'MARKETING' ? '#ecfdf5' : '#f0f9ff', padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #e5e7eb' }}>
         <span style={{ fontSize: 10, fontWeight: 800, color: category === 'MARKETING' ? '#047857' : '#0369a1', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           {category === 'MARKETING' ? '📢 MARKETING TEMPLATE' : '⚙️ UTILITY TEMPLATE'}
         </span>
-        {matchedTemplate?.name && (
-          <span style={{ fontSize: 10, fontWeight: 700, color: '#6b7280' }}>@{matchedTemplate.name}</span>
+        {(matchedTemplate?.shortcut || matchedTemplate?.name) && (
+          <span style={{ fontSize: 10, fontWeight: 700, color: '#6b7280' }}>@{matchedTemplate.shortcut || matchedTemplate.name}</span>
         )}
       </div>
 
-      {/* Header Image if present */}
+      {/* Header Image */}
       {imageUrl && (
-        <div style={{ maxHeight: 160, overflow: 'hidden', background: '#111827', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <img src={imageUrl} alt="Header" style={{ width: '100%', height: 150, objectFit: 'cover' }} />
+        <div style={{ maxHeight: 180, overflow: 'hidden', background: '#111827', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <img
+            src={imageUrl}
+            alt="Template Header"
+            style={{ width: '100%', height: 160, objectFit: 'cover' }}
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.src = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80';
+            }}
+          />
+        </div>
+      )}
+
+      {/* Header Text */}
+      {headerText && (
+        <div style={{ padding: '8px 12px 2px', fontSize: 13, fontWeight: 700, color: '#111827' }}>
+          {headerText}
         </div>
       )}
 
       {/* Body Message */}
-      <div style={{ padding: '10px 12px', fontSize: 13, color: '#111827', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
-        {text}
+      <div style={{ padding: '8px 12px', fontSize: 12.5, color: '#1f2937', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+        {bodyDisplay}
       </div>
 
-      {/* Footer if present */}
+      {/* Footer */}
       {footerText && (
         <div style={{ padding: '0 12px 6px', fontSize: 11, color: '#9ca3af', fontStyle: 'italic' }}>
           {footerText}
@@ -544,14 +584,38 @@ function RichTemplateMessageCard({ message, templates = [] }) {
       )}
 
       {/* Action Buttons */}
-      {Array.isArray(buttons) && buttons.length > 0 && (
+      {buttons.length > 0 && (
         <div style={{ borderTop: '1px solid #f3f4f6', background: '#fafafa', display: 'flex', flexDirection: 'column' }}>
-          {buttons.map((btn, bIdx) => (
-            <div key={bIdx} style={{ padding: '8px 12px', borderTop: bIdx > 0 ? '1px solid #f3f4f6' : 'none', textAlign: 'center', fontSize: 12, fontWeight: 700, color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-              {btn.type === 'URL' || btn.type === 'url' ? '🔗 ' : btn.type === 'PHONE_NUMBER' || btn.type === 'Phone Number' ? '📞 ' : '🔘 '}
-              {btn.text || btn.value || 'Action Button'}
-            </div>
-          ))}
+          {buttons.map((btn, bIdx) => {
+            const btnText = typeof btn === 'string' ? btn : (btn.text || btn.value || 'Action Button');
+            const btnType = typeof btn === 'object' ? (btn.type || '').toUpperCase() : 'QUICK_REPLY';
+            const btnUrl = btn.url || btn.value;
+            const btnPhone = btn.phone_number || btn.value;
+
+            return (
+              <button
+                key={bIdx}
+                onClick={() => {
+                  if (btnType.includes('URL') && btnUrl) {
+                    window.open(btnUrl.startsWith('http') ? btnUrl : `https://${btnUrl}`, '_blank');
+                  } else if (btnType.includes('PHONE') && btnPhone) {
+                    window.location.href = `tel:${btnPhone}`;
+                  }
+                }}
+                style={{
+                  padding: '9px 12px', border: 'none', borderTop: bIdx > 0 ? '1px solid #f3f4f6' : 'none',
+                  background: 'transparent', textAlign: 'center', fontSize: 12, fontWeight: 700,
+                  color: '#059669', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  transition: 'background 0.15s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = '#f0fdf4'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                {btnType.includes('URL') ? '🔗 ' : btnType.includes('PHONE') ? '📞 ' : '🔘 '}
+                {btnText}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
@@ -621,7 +685,7 @@ function InboxTab({ onSendTemplate }) {
       Notification.requestPermission();
     }
 
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsProtocol = (import.meta.env.VITE_API_URL?.startsWith('https') || window.location.protocol === 'https:') ? 'wss:' : 'ws:';
     let wsHost = window.location.host;
     if (import.meta.env.VITE_API_URL) {
       try {
@@ -637,14 +701,16 @@ function InboxTab({ onSendTemplate }) {
 
       socket.onmessage = (event) => {
         try {
-          const payload = JSON.parse(event.data);
-          
+          const raw = JSON.parse(event.data);
+          const eventName = raw.event || raw.type;
+          const payloadData = raw.payload || raw.data || {};
+
           // 1. Delivery Ticks Realtime Status Update (sent -> delivered -> read / failed)
-          if (payload.type === 'whatsapp:status_update') {
-            const { leadId, messageId, status } = payload.data;
+          if (eventName === 'whatsapp:status_update') {
+            const { leadId, messageId, status } = payloadData;
             setThread(prev => {
               if (!prev || !prev.thread) return prev;
-              if (leadId && String(prev.lead?.id || prev.lead?._id) !== String(leadId)) return prev;
+              if (leadId && String(prev.lead?.id || prev.lead?._id || selectedId) !== String(leadId)) return prev;
               const updatedThread = prev.thread.map(m => {
                 if (m.metaMessageId === messageId || m._id === messageId) {
                   return { ...m, deliveryStatus: status, status };
@@ -656,8 +722,8 @@ function InboxTab({ onSendTemplate }) {
           }
 
           // 2. Incoming WhatsApp Customer Message Realtime Update
-          if (payload.type === 'whatsapp:incoming_message') {
-            const { leadId, name, phone, text, messageId, timestamp } = payload.data;
+          if (eventName === 'whatsapp:incoming_message') {
+            const { leadId, name, phone, text, messageId, timestamp } = payloadData;
             
             // Trigger Desktop Notification
             if ('Notification' in window && Notification.permission === 'granted') {
@@ -671,7 +737,10 @@ function InboxTab({ onSendTemplate }) {
 
             // Append live to current open chat thread if matches open lead
             setThread(prev => {
-              if (!prev || String(prev.lead?.id || prev.lead?._id) !== String(leadId)) return prev;
+              if (!prev) return prev;
+              const activeId = String(prev.lead?.id || prev.lead?._id || selectedId);
+              if (activeId !== String(leadId)) return prev;
+
               const newMsg = {
                 _id: messageId || String(Date.now()),
                 type: 'whatsapp',
