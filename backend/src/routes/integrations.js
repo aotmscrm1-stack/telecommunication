@@ -272,6 +272,10 @@ router.post('/whatsapp/send-template-direct', protect, async (req, res) => {
             direction: 'outbound',
             performedBy: req.user._id,
             metaMessageId: result?.messages?.[0]?.id || '',
+            isTemplate: true,
+            templateId: template?._id,
+            templateName: templateName || template?.shortcut || template?.metaTemplateName,
+            headerImageUrl: headerImageUrl || template?.headerImage || '',
           },
         },
         $set: {

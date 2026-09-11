@@ -544,15 +544,22 @@ function parseTemplateDoc(t) {
 function RichTemplateMessageCard({ message, templates = [] }) {
   const text = message.description || '';
   
-  // Find matched template by shortcut / name / metaTemplateName / _id
+  // Find matched template by ID / shortcut / name / metaTemplateName / body text snippet
   const matchedTemplate = templates.find(t => {
     if (!t) return false;
-    const tShortcut = (t.shortcut || '').toLowerCase();
-    const tName = (t.metaTemplateName || t.name || '').toLowerCase();
-    const cleanText = text.toLowerCase();
-    return (t.id && message.templateId === t.id) ||
-           (tShortcut && cleanText.includes(tShortcut)) ||
-           (tName && cleanText.includes(tName));
+    const tShortcut = (t.shortcut || '').toLowerCase().trim();
+    const tName = (t.metaTemplateName || t.name || '').toLowerCase().trim();
+    const cleanText = text.toLowerCase().trim();
+
+    if (t.id && message.templateId === t.id) return true;
+    if (message.templateName && (tShortcut === message.templateName.toLowerCase() || tName === message.templateName.toLowerCase())) return true;
+    if (tShortcut && cleanText.includes(tShortcut)) return true;
+    if (tName && cleanText.includes(tName)) return true;
+    
+    // Match body text snippet (ignoring variable placeholders {{1}}, {{2}})
+    const tBody = (t.body || t.message || '').toLowerCase().trim().replace(/\{\{\d+\}\}/g, '').trim();
+    if (tBody && tBody.length >= 4 && (cleanText.includes(tBody.slice(0, 15)) || tBody.includes(cleanText.slice(0, 15)))) return true;
+    return false;
   });
 
   const category = matchedTemplate?.category || (text.toLowerCase().includes('marketing') ? 'MARKETING' : 'UTILITY');
@@ -566,10 +573,17 @@ function RichTemplateMessageCard({ message, templates = [] }) {
     }
   }
 
+  // If template has IMAGE/Media header format but no explicit URL, fallback to default visual image
+  const isImageHeader = (matchedTemplate?.headerFormat || matchedTemplate?.headerType || '').toUpperCase() === 'IMAGE' ||
+                        (matchedTemplate?.headerFormat || matchedTemplate?.headerType || '').toUpperCase() === 'MEDIA';
+  if (!imageUrl && isImageHeader) {
+    imageUrl = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80';
+  }
+
   const headerText = matchedTemplate?.headerText || message.headerText;
   
-  let bodyDisplay = matchedTemplate?.body || matchedTemplate?.message || text;
-  if (text.startsWith('[Template:') && matchedTemplate?.body) {
+  let bodyDisplay = text;
+  if (matchedTemplate?.body && text.startsWith('[Template:')) {
     bodyDisplay = matchedTemplate.body;
   } else if (text.startsWith('[Template:') && !matchedTemplate) {
     const extractedName = text.replace(/^\[Template:\s*/i, '').replace(/\]$/, '').trim();
@@ -947,7 +961,21 @@ function InboxTab({ onSendTemplate }) {
                   lastDateLabel = currentDateLabel;
                 }
 
-                const isTemplate = m.description?.startsWith('[Template:') || m.description?.startsWith('@') || m.isTemplate || (m.direction && m.direction.includes('broadcast'));
+                const matchedTmpl = templates.find(t => {
+                  if (!t || !m.description) return false;
+                  const cleanText = m.description.toLowerCase().trim();
+                  const tShortcut = (t.shortcut || '').toLowerCase().trim();
+                  const tName = (t.metaTemplateName || t.name || '').toLowerCase().trim();
+                  if (m.templateId && t.id === m.templateId) return true;
+                  if (m.templateName && (tShortcut === m.templateName.toLowerCase() || tName === m.templateName.toLowerCase())) return true;
+                  if (tShortcut && cleanText.includes(tShortcut)) return true;
+                  if (tName && cleanText.includes(tName)) return true;
+                  const tBody = (t.body || t.message || '').toLowerCase().trim().replace(/\{\{\d+\}\}/g, '').trim();
+                  if (tBody && tBody.length >= 4 && (cleanText.includes(tBody.slice(0, 15)) || tBody.includes(cleanText.slice(0, 15)))) return true;
+                  return false;
+                });
+
+                const isTemplate = !!matchedTmpl || m.description?.startsWith('[Template:') || m.description?.startsWith('@') || m.isTemplate || (m.direction && (m.direction.includes('broadcast') || m.direction.includes('campaign') || m.direction === 'outbound'));
 
                 return (
                   <div key={i} style={{ display: 'flex', flexDirection: 'column' }}>

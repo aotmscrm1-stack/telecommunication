@@ -163,6 +163,8 @@ router.post('/', protect, async (req, res) => {
               description: personalized,
               direction: 'outbound_broadcast',
               metaMessageId: sendResult?.messages?.[0]?.id || '',
+              isTemplate: true,
+              templateId: broadcast.template?._id || broadcast.template,
             },
           },
           $set: {
