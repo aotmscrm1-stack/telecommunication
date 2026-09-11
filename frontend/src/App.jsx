@@ -15,6 +15,7 @@ import MessageTemplates from './pages/MessageTemplates';
 import Blocklist from './pages/Blocklist';
 import MyPreferences from './pages/MyPreferences';
 import WhatsApp from './pages/WhatsApp';
+import EmailCRM from './pages/EmailCRM';
 import Users from './pages/Users';
 import StaleLeads from './pages/StaleLeads';
 import BulkImport from './pages/BulkImport';
@@ -76,6 +77,7 @@ export default function App() {
             <Route path="blocklist" element={<Blocklist />} />
             <Route path="my-preferences" element={<MyPreferences />} />
             <Route path="whatsapp" element={<WhatsApp />} />
+            <Route path="email" element={<EmailCRM />} />
             <Route path="payslips" element={<Payslip />} />
             <Route path="payslip" element={<Navigate to="/payslips" replace />} />
             <Route path="users" element={<Users />} />

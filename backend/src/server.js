@@ -95,6 +95,7 @@ app.use('/api/whatsapp-lists', apiLimiter, require('./routes/whatsappLists'));
 app.use('/api/bulk-import', apiLimiter, require('./routes/bulkImport'));
 app.use('/api/integrations', require('./routes/integrations'));
 app.use('/api/notifications', apiLimiter, require('./routes/notifications'));
+app.use('/api/email', apiLimiter, require('./routes/email'));
 
 // ── Uploads static folder ───────────────────────────────────────────────────
 app.use('/uploads', (req, res, next) => {
