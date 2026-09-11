@@ -27,8 +27,8 @@ export default function EmailCRM() {
   const [leads, setLeads] = useState([]);
 
   // Form State
-  const [fromEmail, setFromEmail] = useState('hr@aotms.com');
-  const [recipientEmail, setRecipientEmail] = useState('');
+  const [fromEmail, setFromEmail] = useState('customer@domain.com');
+  const [recipientEmail, setRecipientEmail] = useState('hr@aotms.com');
   const [selectedLeadId, setSelectedLeadId] = useState('');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
@@ -63,14 +63,21 @@ export default function EmailCRM() {
     // Load Leads for Dropdown Selection
     api.get('/leads', { params: { limit: 100 } })
       .then(res => {
-        setLeads(res.data?.leads || res.data || []);
+        const lList = res.data?.leads || res.data || [];
+        setLeads(lList);
+        if (lList.length > 0 && lList[0].email) {
+          setFromEmail(lList[0].email);
+          setSelectedLeadId(lList[0]._id);
+          if (lList[0].name) setEmployeeName(lList[0].name);
+          if (lList[0].phone) setPhone(lList[0].phone);
+        }
       })
       .catch(() => {});
   }, []);
 
   const applyTemplate = (tmpl) => {
     setSelectedTemplateId(tmpl.id);
-    if (tmpl.fromEmail) setFromEmail(tmpl.fromEmail);
+    if (!recipientEmail) setRecipientEmail('hr@aotms.com');
 
     let subText = tmpl.subject || '';
     let bodyText = tmpl.body || '';
@@ -97,21 +104,21 @@ export default function EmailCRM() {
     const lId = e.target.value;
     setSelectedLeadId(lId);
     if (!lId) return;
-    if (lId === 'hr@aotms.com') {
-      setRecipientEmail('hr@aotms.com');
-      return;
-    }
     const l = leads.find(item => item._id === lId);
     if (l) {
-      if (l.email) setRecipientEmail(l.email);
+      if (l.email) setFromEmail(l.email); // Set From Email to Customer Email!
       if (l.name) setEmployeeName(l.name);
       if (l.phone) setPhone(l.phone);
     }
   };
 
   const handleSendEmail = async () => {
+    if (!fromEmail.trim()) {
+      setSentError('Please enter a valid Customer / From email address.');
+      return;
+    }
     if (!recipientEmail.trim()) {
-      setSentError('Please enter a valid recipient email address.');
+      setSentError('Please enter a valid TO email address.');
       return;
     }
     if (!subject.trim() || !body.trim()) {
@@ -125,7 +132,7 @@ export default function EmailCRM() {
 
     try {
       const res = await api.post('/email/send', {
-        fromEmail,
+        fromEmail: fromEmail.trim(),
         recipientEmail: recipientEmail.trim(),
         subject: subject.trim(),
         body: body.trim(),
@@ -133,7 +140,7 @@ export default function EmailCRM() {
         templateId: selectedTemplateId,
       });
 
-      const succMsg = res.data.message || `Email dispatched to ${recipientEmail}`;
+      const succMsg = res.data.message || `Email sent from ${fromEmail} to ${recipientEmail}`;
       setSentSuccess(succMsg);
 
       // Add to sent log history
@@ -169,13 +176,13 @@ export default function EmailCRM() {
           </div>
           <div>
             <div style={{ fontSize: 17, fontWeight: 800, color: TEXT_MAIN }}>Email CRM & Template Center</div>
-            <div style={{ fontSize: 12, color: TEXT_MUTED }}>Send automated emails from <strong style={{ color: RED_ACCENT }}>hr@aotms.com</strong> via n8n & SMTP</div>
+            <div style={{ fontSize: 12, color: TEXT_MUTED }}>Send emails to default target <strong style={{ color: RED_ACCENT }}>hr@aotms.com</strong> via n8n</div>
           </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 11, fontWeight: 700, color: '#047857', background: '#ecfdf5', padding: '4px 12px', borderRadius: 12, border: '1px solid #a7f3d0' }}>
-            ● Inbuilt Sender: hr@aotms.com
+            ● Default Target TO: hr@aotms.com
           </span>
           <span style={{ fontSize: 11, fontWeight: 700, color: '#0369a1', background: '#f0f9ff', padding: '4px 12px', borderRadius: 12, border: '1px solid #bae6fd' }}>
             ⚡ n8n Webhook Connected
@@ -219,34 +226,20 @@ export default function EmailCRM() {
           </div>
 
           <div style={{ fontSize: 12, fontWeight: 800, color: TEXT_MUTED, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 10 }}>
-            2. PICK RECIPIENT / LEADS
+            2. PICK CUSTOMER / SENDER (FROM)
           </div>
           <select
             value={selectedLeadId}
             onChange={handleLeadSelect}
             style={inputStyle}
           >
-            <option value="">Select a Recipient...</option>
-            <option value="hr@aotms.com">🏢 HR Team (hr@aotms.com)</option>
+            <option value="">Select a Customer from CRM...</option>
             {leads.map(l => (
               <option key={l._id} value={l._id}>
-                {l.name} ({l.email || l.phone || 'No email'})
+                {l.name} ({l.email || 'No email'})
               </option>
             ))}
           </select>
-
-          <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              onClick={() => { setRecipientEmail('hr@aotms.com'); setSelectedLeadId('hr@aotms.com'); }}
-              style={{
-                fontSize: 11, fontWeight: 700, color: RED_ACCENT, background: '#fef2f2',
-                border: '1px solid #fecaca', borderRadius: 6, padding: '4px 10px', cursor: 'pointer'
-              }}
-            >
-              🏢 Set TO: hr@aotms.com
-            </button>
-          </div>
 
           <div style={{ fontSize: 12, fontWeight: 800, color: TEXT_MUTED, letterSpacing: 0.5, textTransform: 'uppercase', marginTop: 20, marginBottom: 10 }}>
             3. CUSTOMIZABLE VARIABLES
@@ -298,22 +291,22 @@ export default function EmailCRM() {
             {/* From & To inputs */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
               <div>
-                <label style={labelStyle}>From Email (Inbuilt HR Account) <span style={{ color: '#ef4444' }}>*</span></label>
+                <label style={labelStyle}>From Email (Customer / Employee Email) <span style={{ color: '#ef4444' }}>*</span></label>
                 <input
                   value={fromEmail}
                   onChange={e => setFromEmail(e.target.value)}
-                  placeholder="hr@aotms.com"
-                  style={{ ...inputStyle, background: '#fef2f2', fontWeight: 600, color: RED_ACCENT }}
+                  placeholder="e.g. customer@gmail.com"
+                  style={inputStyle}
                 />
               </div>
 
               <div>
-                <label style={labelStyle}>Recipient To Email <span style={{ color: '#ef4444' }}>*</span></label>
+                <label style={labelStyle}>To Email (Default HR Target) <span style={{ color: '#ef4444' }}>*</span></label>
                 <input
                   value={recipientEmail}
                   onChange={e => setRecipientEmail(e.target.value)}
-                  placeholder="e.g. employee@domain.com or student@gmail.com"
-                  style={inputStyle}
+                  placeholder="hr@aotms.com"
+                  style={{ ...inputStyle, background: '#fef2f2', fontWeight: 600, color: RED_ACCENT }}
                 />
               </div>
             </div>
