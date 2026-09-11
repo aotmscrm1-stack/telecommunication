@@ -42,6 +42,57 @@ async function uploadMediaToMeta(fileBuffer, mimeType, accessToken) {
   return uploadRes.data?.h; // header_handle
 }
 
+const FormData = require('form-data');
+const { uploadToCloudinary } = require('../../utils/cloudinary');
+
+// ── Upload media directly to Meta's WhatsApp Media API ({phone_id}/media) ─────
+async function uploadWhatsAppMedia(phoneNumberId, accessToken, fileInput, mimeType = 'image/png') {
+  try {
+    const pId = phoneNumberId || process.env.META_WA_PHONE_NUMBER_ID;
+    const token = accessToken || process.env.META_WA_ACCESS_TOKEN;
+
+    let buffer = fileInput;
+    let type = mimeType;
+
+    if (typeof fileInput === 'string') {
+      if (fileInput.startsWith('data:')) {
+        const base64Data = fileInput.replace(/^data:[^;]+;base64,/, '');
+        buffer = Buffer.from(base64Data, 'base64');
+        const match = fileInput.match(/^data:([^;]+);/);
+        if (match) type = match[1];
+      } else if (fileInput.startsWith('http')) {
+        const imgRes = await axios.get(fileInput, { responseType: 'arraybuffer' });
+        buffer = Buffer.from(imgRes.data);
+        if (imgRes.headers['content-type']) type = imgRes.headers['content-type'];
+      }
+    }
+
+    if (!Buffer.isBuffer(buffer)) return null;
+
+    const ext = type.includes('jpeg') || type.includes('jpg') ? 'jpg' : 'png';
+    const form = new FormData();
+    form.append('file', buffer, { filename: `header_media.${ext}`, contentType: type });
+    form.append('messaging_product', 'whatsapp');
+    form.append('type', type);
+
+    const res = await axios.post(
+      `${WA_API}/${pId}/media`,
+      form,
+      {
+        headers: {
+          ...form.getHeaders(),
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+
+    return res.data?.id || null;
+  } catch (err) {
+    console.warn('[WhatsApp Media ID Upload Warning]:', err.response?.data || err.message);
+    return null;
+  }
+}
+
 // ── Send a plain text message ───────────────────────────────────────────────────
 async function sendTextMessage(phoneNumberId, accessToken, to, message) {
   const pId = phoneNumberId || process.env.META_WA_PHONE_NUMBER_ID;
@@ -116,7 +167,7 @@ async function findOrFetchTemplate(templateName, wabaId, accessToken) {
 }
 
 // ── Build send-time components matching template specs ────────────────────────
-function buildTemplateComponents(template, lead = {}, customComponents = null, customHeaderImageUrl = null) {
+async function buildTemplateComponents(template, lead = {}, customComponents = null, customHeaderImageUrl = null, phoneNumberId = null, accessToken = null) {
   if (Array.isArray(customComponents) && customComponents.length > 0) {
     const valid = customComponents.filter(c => c && c.type && Array.isArray(c.parameters) && c.parameters.length > 0);
     if (valid.length > 0) return valid;
@@ -142,15 +193,49 @@ function buildTemplateComponents(template, lead = {}, customComponents = null, c
       imageUrl = 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&auto=format&fit=crop&q=60';
     }
 
-    sendComponents.push({
-      type: 'header',
-      parameters: [
-        {
-          type: 'image',
-          image: { link: imageUrl },
-        },
-      ],
-    });
+    let mediaId = null;
+    let cloudinaryUrl = null;
+
+    // 1. Upload to Meta WhatsApp Media Endpoint ({phone_id}/media) to get Meta Media ID (prevents 403 Forbidden downloading)
+    if (imageUrl) {
+      try {
+        mediaId = await uploadWhatsAppMedia(phoneNumberId, accessToken, imageUrl);
+      } catch (e) {
+        console.warn('Meta WhatsApp media upload warning:', e.message);
+      }
+    }
+
+    // 2. Upload to Cloudinary as CDN URL fallback
+    if (!mediaId && imageUrl) {
+      try {
+        cloudinaryUrl = await uploadToCloudinary(imageUrl);
+      } catch (e) {
+        console.warn('Cloudinary upload warning:', e.message);
+      }
+    }
+
+    if (mediaId) {
+      sendComponents.push({
+        type: 'header',
+        parameters: [
+          {
+            type: 'image',
+            image: { id: mediaId },
+          },
+        ],
+      });
+    } else {
+      const finalLink = cloudinaryUrl || imageUrl;
+      sendComponents.push({
+        type: 'header',
+        parameters: [
+          {
+            type: 'image',
+            image: { link: finalLink },
+          },
+        ],
+      });
+    }
   } else if (headerFormat === 'TEXT') {
     const headerText = headerMetaComp?.text || template?.headerText || '';
     const matches = headerText.match(/\{\{([^}]+)\}\}/g);

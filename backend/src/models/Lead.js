@@ -10,7 +10,7 @@ const activitySchema = new mongoose.Schema({
   // 'outbound_broadcast' -> sent as part of a Broadcast
   // 'outbound_agent'     -> sent by an agent replying from the WhatsApp inbox
   // 'inbound'            -> received from the lead via the Meta webhook
-  direction: { type: String, enum: ['outbound_broadcast', 'outbound_agent', 'inbound', ''], default: '' },
+  direction: { type: String, enum: ['outbound', 'outbound_broadcast', 'outbound_agent', 'inbound', ''], default: '' },
   metaMessageId: { type: String, default: '' },
   performedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   createdAt: { type: Date, default: Date.now }

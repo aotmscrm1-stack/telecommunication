@@ -258,7 +258,7 @@ router.post('/whatsapp/send-template-direct', protect, async (req, res) => {
 
     const template = await whatsapp.findOrFetchTemplate(templateName, wabaId, accessToken);
     const metaTemplateName = template?.metaTemplateName || String(templateName).trim().toLowerCase().replace(/[^a-z0-9_]+/g, '_');
-    const sendComponents = whatsapp.buildTemplateComponents(template, leadObj || { phone: recipient }, components, headerImageUrl);
+    const sendComponents = await whatsapp.buildTemplateComponents(template, leadObj || { phone: recipient }, components, headerImageUrl, phoneId, accessToken);
 
     const result = await whatsapp.sendTemplateMessage(phoneId, accessToken, recipient, metaTemplateName, languageCode || template?.language || 'en_US', sendComponents);
 
