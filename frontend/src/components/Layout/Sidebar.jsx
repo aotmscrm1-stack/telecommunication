@@ -235,13 +235,15 @@ export default function Sidebar() {
           <NavItem to="/message-templates" icon={Icons.templates}  label="Message Templates" />
           <NavItem to="/whatsapp"         icon={Icons.whatsapp}    label="WhatsApp" iconColor="#25D366" />
           <NavItem to="/email"            icon={Icons.email}       label="Email CRM" iconColor="#ea4335" />
-          <NavItem to="/payslips"         icon={Icons.payslip}     label="Payslip"  iconColor="#6366f1" />
-          <NavItem to="/invoice"          icon={Icons.invoice}     label="Invoice"  iconColor="#059669" />
           <NavItem to="/leaderboard"      icon={Icons.leaderboard} label="Leaderboard" />
           <NavItem to="/reports"          icon={Icons.reports}     label="Reports" />
 
           {isAdmin && (
             <>
+              <SectionLabel text="Finance" />
+              <NavItem to="/payslips"         icon={Icons.payslip}     label="Payslip"  iconColor="#6366f1" />
+              <NavItem to="/invoice"          icon={Icons.invoice}     label="Invoice"  iconColor="#059669" />
+
               <SectionLabel text="Management" />
               <NavItem to="/team-operations" icon={Icons.teamOps}    label="Team Operations" />
               <NavItem to="/stale-leads"     icon={Icons.staleLeads} label="Idle Leads" />
