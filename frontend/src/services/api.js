@@ -294,4 +294,15 @@ export const invoicesAPI = {
   delete: (id) => api.delete(`/invoices/${id}`),
 };
 
+export const trackingAPI = {
+  getConfig: () => api.get('/tracking/config'),
+  getEmployees: () => api.get('/tracking/employees'),
+  getHistory: (employeeId, params) => api.get(`/tracking/employees/${employeeId}/history`, { params }),
+  getStatus: () => api.get('/tracking/status'),
+  startTracking: (data) => api.post('/tracking/start', data),
+  stopTracking: () => api.post('/tracking/stop'),
+  pingLocation: (data) => api.post('/tracking/ping', data),
+  devSimulate: (data) => api.post('/tracking/dev-simulate', data),
+};
+
 export default api;

@@ -13,10 +13,12 @@
     "date-fns": "^3.0.6",
     "html2pdf.js": "^0.14.0",
     "lucide-react": "^0.303.0",
+    "maplibre-gl": "^6.9.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.21.1",
     "recharts": "^2.10.3",
+    "socket.io-client": "^4.8.3",
     "three": "^0.160.1"
   },
   "devDependencies": {

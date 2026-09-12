@@ -117,6 +117,7 @@ app.use('/api/payslips', apiLimiter, require('./routes/payslips'));
 app.use('/api/invoices', apiLimiter, require('./routes/invoices'));
 app.use('/api/billing', apiLimiter, require('./routes/billing'));
 app.use('/api/public', apiLimiter, require('./routes/publicApi'));
+app.use('/api/tracking', apiLimiter, require('./routes/tracking'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', app: 'AOTMS Backend' }));
 
@@ -129,12 +130,14 @@ app.use((err, req, res, next) => {
 });
 
 const { initWebSocketServer } = require('./services/websocket');
+const { initTrackingSocketServer } = require('./services/trackingSocket');
 
 const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
 
-// Attach WebSocket server on /ws
+// Attach WebSocket server on /ws and Socket.IO for Live Tracking
 initWebSocketServer(server);
+initTrackingSocketServer(server);
 
 server.listen(PORT, () => {
   console.log(`🚀 AOTMS Server running on port ${PORT}`);

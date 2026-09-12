@@ -34,6 +34,7 @@ import Billing from './pages/Billing';
 import Payslip from './pages/Payslip';
 import Invoice from './pages/Invoice';
 import Landing from './pages/Landing';
+import LiveEmployeeTracking from './pages/LiveEmployeeTracking';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -96,6 +97,8 @@ export default function App() {
             <Route path="custom-actions" element={<CustomActions />} />
             <Route path="workspace-preferences" element={<WorkspacePreferences />} />
             <Route path="permission-templates" element={<PermissionTemplates />} />
+            <Route path="admin/employee-tracking" element={<LiveEmployeeTracking />} />
+            <Route path="employee-tracking" element={<LiveEmployeeTracking />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

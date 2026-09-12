@@ -7,6 +7,7 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis
 import StatCard from '../components/dashboard/StatCard';
 import AnalyticsCharts from '../components/dashboard/AnalyticsCharts';
 import UserAnalysisModal from '../components/dashboard/UserAnalysisModal';
+import EmployeeTrackingCard from '../components/tracking/EmployeeTrackingCard';
 
 const PURPLE = '#5b3fc7';
 const PURPLE_LIGHT = '#f0ecff';
@@ -527,6 +528,9 @@ export default function Dashboard() {
             )}
           </div>
         )}
+
+        {/* Live Employee Location Sharing Widget */}
+        <EmployeeTrackingCard />
 
         {/* Action shortcut panel */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
