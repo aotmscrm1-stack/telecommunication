@@ -60,17 +60,29 @@ export default function LiveMap({
   const mapRef = useRef(null);
   const [selectedPopupEmployee, setSelectedPopupEmployee] = useState(null);
 
-  // Determine Google Maps API Key from officeConfig or environment
-  const apiKey =
-    officeConfig?.googleMapsApiKey ||
+  // Determine Google Maps API Key from environment or officeConfig
+  const rawApiKey =
     import.meta.env.VITE_GOOGLE_MAPS_API_KEY ||
+    officeConfig?.googleMapsApiKey ||
     '';
 
-  const { isLoaded, loadError } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: apiKey,
-    libraries: LIBRARIES,
-  });
+  // Google Maps API keys strictly start with "AIza"
+  const isValidGoogleKey =
+    typeof rawApiKey === 'string' &&
+    rawApiKey.trim().length > 10 &&
+    rawApiKey.trim().startsWith('AIza');
+
+  // Stabilize loader options so useJsApiLoader is never re-invoked with changed options
+  const loaderOptions = useMemo(
+    () => ({
+      id: 'google-map-script',
+      googleMapsApiKey: isValidGoogleKey ? rawApiKey.trim() : '',
+      libraries: LIBRARIES,
+    }),
+    [isValidGoogleKey, rawApiKey]
+  );
+
+  const { isLoaded, loadError } = useJsApiLoader(loaderOptions);
 
   // Office Coordinates & Radius (Single source of truth)
   const officeCenter = useMemo(() => {
@@ -151,6 +163,39 @@ export default function LiveMap({
       .filter((p) => isValidCoordinates(p.latitude, p.longitude))
       .map((p) => ({ lat: Number(p.latitude), lng: Number(p.longitude) }));
   }, [isHistoryMode, historyPoints]);
+
+  if (!isValidGoogleKey) {
+    return (
+      <div
+        style={{
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: '#f8fafc',
+          padding: 24,
+          textAlign: 'center',
+        }}
+      >
+        <div style={{ fontSize: 44, marginBottom: 12 }}>🗺️</div>
+        <h3 style={{ margin: '0 0 6px 0', fontSize: 16, color: '#0f172a', fontWeight: 800 }}>
+          Google Maps API Key Required
+        </h3>
+        <p style={{ margin: '0 0 14px 0', fontSize: 13, color: '#64748b', maxWidth: 460, lineHeight: 1.5 }}>
+          Google Maps requires a valid Google Cloud API Key starting with <code style={{ background: '#e2e8f0', padding: '2px 6px', borderRadius: 4, color: '#0f172a', fontWeight: 700 }}>AIzaSy...</code>.
+        </p>
+        <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', padding: '12px 16px', borderRadius: 8, fontSize: 12, color: '#334155', textAlign: 'left', maxWidth: 440 }}>
+          <div style={{ fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>How to resolve:</div>
+          <ol style={{ margin: 0, paddingLeft: 18, lineHeight: 1.6 }}>
+            <li>Go to <b>console.cloud.google.com</b> & enable <b>Maps JavaScript API</b></li>
+            <li>Create an API Key starting with <b>AIza...</b></li>
+            <li>Set <code style={{ fontWeight: 700, color: '#0284c7' }}>VITE_GOOGLE_MAPS_API_KEY=AIzaSy...</code> in <code style={{ fontWeight: 700 }}>.env</code> file</li>
+          </ol>
+        </div>
+      </div>
+    );
+  }
 
   if (loadError) {
     return (
