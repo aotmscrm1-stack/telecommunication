@@ -87,6 +87,7 @@ function getOfficeConfig() {
     city: OFFICE_CITY,
     state: OFFICE_STATE,
     pincode: OFFICE_PINCODE,
+    googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY || '',
   };
 }
 
