@@ -113,24 +113,20 @@ export default function LiveEmployeeTracking() {
     const unsubLocation = trackingSocket.on('admin:employee:location', (locPacket) => {
       setLastSyncTime(Date.now());
       setEmployees((prev) => {
-        const index = prev.findIndex((e) => (e._id || e.employeeId) === locPacket.employeeId);
+        const pEmpId = String(locPacket.employeeId || locPacket._id || locPacket.id || '');
+        const index = prev.findIndex((e) => String(e._id || e.employeeId || e.id || '') === pEmpId);
         if (index === -1) {
-          return [
-            ...prev,
-            {
-              _id: locPacket.employeeId,
-              name: locPacket.name,
-              email: locPacket.email,
-              role: locPacket.role,
-              avatar: locPacket.avatar,
-              phone: locPacket.phone,
-              location: locPacket,
-            },
-          ];
+          // Strictly ignore any non-database / unrecognized IDs
+          return prev;
         }
         const updated = [...prev];
         updated[index] = {
           ...updated[index],
+          name: locPacket.name || updated[index].name,
+          email: locPacket.email || updated[index].email,
+          role: locPacket.role || updated[index].role,
+          avatar: locPacket.avatar || updated[index].avatar,
+          phone: locPacket.phone || updated[index].phone,
           location: {
             ...updated[index].location,
             ...locPacket,
@@ -144,10 +140,12 @@ export default function LiveEmployeeTracking() {
     const unsubStatus = trackingSocket.on('admin:employee:status', (statusPacket) => {
       setLastSyncTime(Date.now());
       setEmployees((prev) => {
+        const pEmpId = String(statusPacket.employeeId || statusPacket._id || statusPacket.id || '');
         return prev.map((emp) => {
-          if ((emp._id || emp.employeeId) === statusPacket.employeeId) {
+          if (String(emp._id || emp.employeeId || emp.id || '') === pEmpId) {
             return {
               ...emp,
+              name: statusPacket.name || emp.name,
               location: {
                 ...(emp.location || {}),
                 trackingStatus: statusPacket.trackingStatus,
@@ -253,7 +251,8 @@ export default function LiveEmployeeTracking() {
   }, [employees]);
 
   const selectedEmployee = useMemo(() => {
-    return employees.find((e) => (e._id || e.employeeId) === selectedEmployeeId);
+    if (!selectedEmployeeId) return null;
+    return employees.find((e) => String(e._id || e.employeeId || e.id || '') === String(selectedEmployeeId));
   }, [employees, selectedEmployeeId]);
 
   const formatRelativeTime = (dateStr) => {

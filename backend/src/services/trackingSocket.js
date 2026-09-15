@@ -610,12 +610,11 @@ async function handleStopTracking(user) {
 }
 
 /**
- * Broadcast event to authorized admin and manager rooms
+ * Broadcast event to authorized admin and manager rooms (deduplicated across rooms)
  */
 function broadcastToAdmins(event, payload) {
   if (!ioInstance) return;
-  ioInstance.to('super_admin_room').emit(event, payload);
-  ioInstance.to('manager_room').emit(event, payload);
+  ioInstance.to(['super_admin_room', 'manager_room']).emit(event, payload);
 }
 
 /**
@@ -624,15 +623,19 @@ function broadcastToAdmins(event, payload) {
 async function getLiveEmployeesForUser(requestingUser) {
   let userQuery = {};
 
-  if (requestingUser.role === 'admin') {
-    // Super Admin can see ALL employees (callers and managers)
-    userQuery = { _id: { $ne: requestingUser._id }, isActive: true };
-  } else if (requestingUser.role === 'manager') {
-    // Admin (manager) sees all Callers
-    userQuery = { role: 'caller', isActive: true };
+  if (requestingUser.role === 'admin' || requestingUser.role === 'manager') {
+    // Admins and Managers can see all active organization members (including themselves)
+    userQuery = { isActive: true };
   } else {
-    // Caller cannot see others
+    // Callers cannot view other employees
     return [];
+  }
+
+  // Purge any temporary mock/test IDs from memory cache so only real database members exist
+  for (const [key] of liveLocations.entries()) {
+    if (!require('mongoose').Types.ObjectId.isValid(key)) {
+      liveLocations.delete(key);
+    }
   }
 
   const users = await User.find(userQuery).select('name email role phone avatar isActive createdAt').lean();
@@ -704,7 +707,8 @@ async function getLiveEmployeesForUser(requestingUser) {
       }
 
       return {
-        _id: u._id,
+        _id: u._id.toString(),
+        employeeId: uId,
         name: u.name,
         email: u.email,
         role: u.role,

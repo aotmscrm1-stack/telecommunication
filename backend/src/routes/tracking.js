@@ -177,18 +177,32 @@ router.post('/dev-simulate', protect, async (req, res) => {
     const simEmpId = targetUserId || employeeId;
 
     let targetUser = req.user;
-    if (simEmpId === 'TEST-EMP-001') {
-      targetUser = {
-        _id: 'TEST-EMP-001',
-        name: employeeName || 'Test Employee',
-        email: 'test.employee@aotms.com',
-        role: 'caller',
-        phone: '+91 98765 43210',
-        avatar: '',
-      };
-    } else if (simEmpId && req.user.role === 'admin') {
-      targetUser = await User.findById(simEmpId);
-      if (!targetUser) return res.status(404).json({ message: 'Target user not found' });
+    if (simEmpId) {
+      const isObjectId = require('mongoose').Types.ObjectId.isValid(simEmpId);
+      if (isObjectId) {
+        const found = await User.findById(simEmpId);
+        if (found) targetUser = found;
+        else {
+          targetUser = {
+            _id: simEmpId,
+            name: employeeName || `Employee ${simEmpId}`,
+            email: `${simEmpId}@aotms.com`,
+            role: 'caller',
+            phone: '',
+            avatar: '',
+          };
+        }
+      } else {
+        // Custom test employee identifier (e.g. TEST-EMP-001, TEST-EMP-002, etc.)
+        targetUser = {
+          _id: simEmpId,
+          name: employeeName || `Test Employee (${simEmpId})`,
+          email: `${simEmpId.toLowerCase()}@aotms.com`,
+          role: 'caller',
+          phone: '+91 98765 43210',
+          avatar: '',
+        };
+      }
     }
 
     const payload = {

@@ -704,7 +704,7 @@ export default function LiveMap({
     const currentEmployeeIds = new Set();
 
     employees.forEach((emp) => {
-      const uId = emp._id || emp.employeeId;
+      const uId = String(emp._id || emp.employeeId || emp.id || '');
       if (!uId) return;
 
       const loc = emp.location || emp;
@@ -724,7 +724,7 @@ export default function LiveMap({
       }
 
       currentEmployeeIds.add(uId);
-      const isSelected = selectedEmployeeId === uId;
+      const isSelected = String(selectedEmployeeId || '') === uId;
       let markerEntry = markersRef.current.get(uId);
 
       const statusTheme = STATUS_THEME[loc.trackingStatus] || STATUS_THEME.STOPPED;
@@ -735,7 +735,7 @@ export default function LiveMap({
       const popupHtml = `
         <div style="font-family: system-ui, -apple-system, sans-serif; padding: 4px 6px; min-width: 170px;">
           <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px;">
-            <div style="font-weight: 800; font-size: 13px; color: #0f172a;">${emp.name}</div>
+            <div style="font-weight: 800; font-size: 13px; color: #0f172a;">${emp.name || 'Employee'}</div>
             <span style="background: ${statusTheme.bg}; color: ${statusTheme.text}; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 800;">
               ${statusTheme.label}
             </span>
@@ -778,7 +778,7 @@ export default function LiveMap({
 
     // Clean up markers for removed employees
     markersRef.current.forEach(({ marker, animFrame }, id) => {
-      if (!currentEmployeeIds.has(id)) {
+      if (!currentEmployeeIds.has(String(id))) {
         if (animFrame) cancelAnimationFrame(animFrame);
         marker.remove();
         markersRef.current.delete(id);
@@ -893,7 +893,7 @@ export default function LiveMap({
   useEffect(() => {
     if (!mapLoaded || !mapRef.current || !selectedEmployeeId || isHistoryMode) return;
 
-    const emp = employees.find((e) => (e._id || e.employeeId) === selectedEmployeeId);
+    const emp = employees.find((e) => String(e._id || e.employeeId || e.id || '') === String(selectedEmployeeId));
     const loc = emp?.location || emp;
 
     if (isValidCoordinates(loc?.latitude, loc?.longitude)) {
@@ -913,7 +913,7 @@ export default function LiveMap({
         });
       }
 
-      const entry = markersRef.current.get(selectedEmployeeId);
+      const entry = markersRef.current.get(String(selectedEmployeeId));
       if (entry?.marker && !entry.marker.getPopup().isOpen()) {
         entry.marker.togglePopup();
       }
@@ -1054,8 +1054,8 @@ export default function LiveMap({
     if (!mapRef.current) return;
 
     const validEmployeeCoords = employees
-      .filter((e) => isValidCoordinates(e.location?.latitude, e.location?.longitude))
-      .map((e) => [e.location.longitude, e.location.latitude]);
+      .filter((e) => isValidCoordinates(e.location?.latitude ?? e.latitude, e.location?.longitude ?? e.longitude))
+      .map((e) => [Number(e.location?.longitude ?? e.longitude), Number(e.location?.latitude ?? e.latitude)]);
 
     if (validEmployeeCoords.length === 0) {
       // If only office exists, center on office and display notice
@@ -1083,10 +1083,12 @@ export default function LiveMap({
 
   const handleCenterSelected = useCallback(() => {
     if (!mapRef.current || !selectedEmployeeId) return;
-    const emp = employees.find((e) => (e._id || e.employeeId) === selectedEmployeeId);
+    const emp = employees.find((e) => String(e._id || e.employeeId || e.id || '') === String(selectedEmployeeId));
     const loc = emp?.location || emp;
-    if (isValidCoordinates(loc?.latitude, loc?.longitude)) {
-      mapRef.current.flyTo({ center: [loc.longitude, loc.latitude], zoom: 16, duration: 800 });
+    const lat = loc?.latitude ?? emp?.latitude;
+    const lng = loc?.longitude ?? emp?.longitude;
+    if (isValidCoordinates(lat, lng)) {
+      mapRef.current.flyTo({ center: [Number(lng), Number(lat)], zoom: 16, duration: 800 });
     }
   }, [employees, selectedEmployeeId]);
 
