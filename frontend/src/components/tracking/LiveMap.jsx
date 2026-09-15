@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-
-// ── Verified Real-World AOTMS Office Coordinates (Pothuri Towers, MG Road, Vijayawada) ──
-const DEFAULT_OFFICE_COORDS = [80.648500, 16.499614]; // [lng, lat]
-const DEFAULT_GEOFENCE_RADIUS = 100; // meters
+import {
+  OFFICE_LOCATION,
+  OFFICE_COORDS_LNG_LAT,
+  STATUS_THEME,
+  isValidCoordinates,
+  calculateDistanceMeters,
+} from '../../config/trackingConfig';
 
 const DEFAULT_MAP_STYLE = {
   version: 8,
@@ -32,56 +35,8 @@ const DEFAULT_MAP_STYLE = {
 
 const MAP_STYLE = import.meta.env.VITE_MAP_STYLE_URL || DEFAULT_MAP_STYLE;
 
-const STATUS_THEME = {
-  AT_OFFICE: {
-    primary: '#0284c7',
-    pulse: 'rgba(2, 132, 199, 0.35)',
-    bg: '#e0f2fe',
-    text: '#0369a1',
-    border: '#7dd3fc',
-    label: 'At Office',
-    iconBg: '#0284c7',
-  },
-  LEAVING_OFFICE: {
-    primary: '#8b5cf6',
-    pulse: 'rgba(139, 92, 246, 0.35)',
-    bg: '#f3e8ff',
-    text: '#6d28d9',
-    border: '#c4b5fd',
-    label: 'Leaving Office',
-    iconBg: '#8b5cf6',
-  },
-  MOVING: {
-    primary: '#10b981',
-    pulse: 'rgba(16, 185, 129, 0.45)',
-    bg: '#ecfdf5',
-    text: '#065f46',
-    border: '#6ee7b7',
-    label: 'Moving',
-    iconBg: '#10b981',
-  },
-  STOPPED: {
-    primary: '#f59e0b',
-    pulse: 'rgba(245, 158, 11, 0.35)',
-    bg: '#fffbeb',
-    text: '#92400e',
-    border: '#fcd34d',
-    label: 'Stopped',
-    iconBg: '#f59e0b',
-  },
-  OFFLINE: {
-    primary: '#94a3b8',
-    pulse: 'transparent',
-    bg: '#f1f5f9',
-    text: '#475569',
-    border: '#cbd5e1',
-    label: 'Offline',
-    iconBg: '#94a3b8',
-  },
-};
-
 /**
- * Generate a GeoJSON Polygon circle for the geofence
+ * Generate a GeoJSON Polygon circle for the office geofence boundary
  */
 function createGeoJsonCircle(centerLngLat, radiusInMeters, points = 64) {
   const coords = {
@@ -129,160 +84,191 @@ export default function LiveMap({
   const markersRef = useRef(new Map()); // employeeId -> { marker, el, popup, currentLngLat, animFrame }
   const historyMarkersRef = useRef([]);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [fleetNotice, setFleetNotice] = useState('');
 
-  // One source of truth for office coordinates
-  const officeLngLat = officeConfig?.longitude && officeConfig?.latitude
-    ? [Number(officeConfig.longitude), Number(officeConfig.latitude)]
-    : DEFAULT_OFFICE_COORDS;
-  const geofenceRadius = officeConfig?.radiusMeters || DEFAULT_GEOFENCE_RADIUS;
+  // Office Coordinates & Geofence (Single source of truth with config override support)
+  const officeLngLat =
+    officeConfig?.longitude && officeConfig?.latitude
+      ? [Number(officeConfig.longitude), Number(officeConfig.latitude)]
+      : OFFICE_COORDS_LNG_LAT;
+  const geofenceRadius = officeConfig?.radiusMeters || OFFICE_LOCATION.radiusMeters;
 
-  // ── 1. Initialize MapLibre GL ──────────────────────────────────────────────
+  // ── 1. MapLibre GL Initialization (Once on Mount) ─────────────────────────
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
-    // Center map around real AOTMS Office at Pothuri Towers, MG Road, Vijayawada
-    const map = new maplibregl.Map({
-      container: mapContainerRef.current,
-      style: MAP_STYLE,
-      center: officeLngLat,
-      zoom: 15.5,
-      attributionControl: false,
+    let map = null;
+    try {
+      map = new maplibregl.Map({
+        container: mapContainerRef.current,
+        style: MAP_STYLE,
+        center: officeLngLat,
+        zoom: 15.5,
+        attributionControl: false,
+      });
+
+      map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'bottom-right');
+      map.addControl(
+        new maplibregl.AttributionControl({ compact: true, customAttribution: 'AOTMS Field Logistics • OpenStreetMap' }),
+        'bottom-right'
+      );
+
+      // Safe error logger to prevent map crash on tile network error
+      map.on('error', (e) => {
+        console.warn('[MapLibre Warning]:', e.error?.message || e);
+      });
+
+      map.on('load', () => {
+        // Geofence Circle GeoJSON source
+        const circleGeoJson = createGeoJsonCircle(officeLngLat, geofenceRadius);
+
+        map.addSource('office-geofence-source', {
+          type: 'geojson',
+          data: circleGeoJson,
+        });
+
+        // Geofence Fill Layer
+        map.addLayer({
+          id: 'office-geofence-fill',
+          type: 'fill',
+          source: 'office-geofence-source',
+          paint: {
+            'fill-color': '#0284c7',
+            'fill-opacity': 0.14,
+          },
+        });
+
+        // Geofence Dashed Outline
+        map.addLayer({
+          id: 'office-geofence-line',
+          type: 'line',
+          source: 'office-geofence-source',
+          paint: {
+            'line-color': '#0284c7',
+            'line-width': 2.5,
+            'line-dasharray': [3, 2],
+            'line-opacity': 0.85,
+          },
+        });
+
+        // 🏢 AOTMS OFFICE Marker (Pothuri Towers, MG Road, Vijayawada)
+        const officeEl = document.createElement('div');
+        officeEl.className = 'aotms-office-marker';
+        officeEl.innerHTML = `
+          <div style="
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            filter: drop-shadow(0 4px 12px rgba(2, 132, 199, 0.45));
+            z-index: 40;
+          ">
+            <div style="
+              background: #0284c7;
+              color: #ffffff;
+              width: 44px;
+              height: 44px;
+              border-radius: 12px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 22px;
+              border: 3px solid #ffffff;
+              box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+            ">
+              🏢
+            </div>
+            <div style="
+              margin-top: 4px;
+              background: rgba(15, 23, 42, 0.94);
+              color: #ffffff;
+              font-size: 10.5px;
+              font-weight: 800;
+              padding: 3px 8px;
+              border-radius: 6px;
+              white-space: nowrap;
+              letter-spacing: 0.02em;
+              border: 1px solid rgba(255,255,255,0.25);
+              display: flex;
+              align-items: center;
+              gap: 4px;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+            ">
+              <span>🏢 AOTMS OFFICE</span>
+            </div>
+          </div>
+        `;
+
+        const officePopup = new maplibregl.Popup({ offset: 28, closeButton: false }).setHTML(`
+          <div style="font-family: system-ui, -apple-system, sans-serif; padding: 6px 8px; max-width: 280px;">
+            <div style="font-weight: 800; font-size: 14px; color: #0284c7; margin-bottom: 3px; display: flex; align-items: center; gap: 4px;">
+              🏢 AOTMS Global Pvt Ltd
+            </div>
+            <div style="font-size: 12px; font-weight: 700; color: #0f172a;">
+              Pothuri Towers, 2nd Floor
+            </div>
+            <div style="font-size: 11px; color: #334155; margin-top: 2px;">
+              MG Road, Vijayawada
+            </div>
+            <div style="font-size: 10.5px; color: #0284c7; font-weight: 600; margin-top: 1px;">
+              Near DV Manor Hotel, Chandra Mouli Puram / Sriram Nagar
+            </div>
+            <div style="font-size: 10.5px; color: #64748b; margin-top: 1px;">
+              Opposite Lucky Shopping Mall, Vijayawada - 520010
+            </div>
+            <div style="margin-top: 6px; font-size: 10px; background: #e0f2fe; color: #0369a1; padding: 2px 7px; border-radius: 4px; font-weight: 700; display: inline-block;">
+              Geofence Radius: ${geofenceRadius}m
+            </div>
+          </div>
+        `);
+
+        officeMarkerRef.current = new maplibregl.Marker({ element: officeEl })
+          .setLngLat(officeLngLat)
+          .setPopup(officePopup)
+          .addTo(map);
+
+        setMapLoaded(true);
+        map.resize();
+      });
+
+      mapRef.current = map;
+    } catch (initErr) {
+      console.error('[MapLibre Init Error]:', initErr);
+    }
+
+    // ── ResizeObserver for Seamless Container / Sidebar Resize Handling ────
+    const resizeObserver = new ResizeObserver(() => {
+      if (mapRef.current) {
+        mapRef.current.resize();
+      }
     });
 
-    map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'bottom-right');
-    map.addControl(
-      new maplibregl.AttributionControl({ compact: true, customAttribution: 'AOTMS Field Logistics • OpenStreetMap' }),
-      'bottom-right'
-    );
+    if (mapContainerRef.current) {
+      resizeObserver.observe(mapContainerRef.current);
+    }
 
-    map.on('load', () => {
-      // Add Geofence Circle Layers centered around real AOTMS Office
-      const circleGeoJson = createGeoJsonCircle(officeLngLat, geofenceRadius);
-
-      map.addSource('office-geofence-source', {
-        type: 'geojson',
-        data: circleGeoJson,
-      });
-
-      // Semi-transparent Fill
-      map.addLayer({
-        id: 'office-geofence-fill',
-        type: 'fill',
-        source: 'office-geofence-source',
-        paint: {
-          'fill-color': '#0284c7',
-          'fill-opacity': 0.14,
-        },
-      });
-
-      // Dashed Border Outline
-      map.addLayer({
-        id: 'office-geofence-line',
-        type: 'line',
-        source: 'office-geofence-source',
-        paint: {
-          'line-color': '#0284c7',
-          'line-width': 2.5,
-          'line-dasharray': [3, 2],
-          'line-opacity': 0.85,
-        },
-      });
-
-      // Add Real-World AOTMS Office Building Marker (Pothuri Towers)
-      const officeEl = document.createElement('div');
-      officeEl.className = 'aotms-office-marker';
-      officeEl.innerHTML = `
-        <div style="
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          cursor: pointer;
-          filter: drop-shadow(0 4px 12px rgba(2, 132, 199, 0.45));
-          z-index: 40;
-        ">
-          <div style="
-            background: #0284c7;
-            color: #ffffff;
-            width: 42px;
-            height: 42px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 21px;
-            border: 3px solid #ffffff;
-            box-shadow: 0 4px 14px rgba(0,0,0,0.3);
-          ">
-            🏢
-          </div>
-          <div style="
-            margin-top: 4px;
-            background: rgba(15, 23, 42, 0.94);
-            color: #ffffff;
-            font-size: 10px;
-            font-weight: 800;
-            padding: 3px 8px;
-            border-radius: 6px;
-            white-space: nowrap;
-            letter-spacing: 0.02em;
-            border: 1px solid rgba(255,255,255,0.25);
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-          ">
-            <span>AOTMS</span>
-            <span style="color: #38bdf8;">• Pothuri Towers</span>
-          </div>
-        </div>
-      `;
-
-      const officePopup = new maplibregl.Popup({ offset: 28, closeButton: false }).setHTML(`
-        <div style="font-family: system-ui, -apple-system, sans-serif; padding: 6px 8px; max-width: 270px;">
-          <div style="font-weight: 800; font-size: 13.5px; color: #0284c7; margin-bottom: 3px;">
-            🏢 Academy Of Tech Masters
-          </div>
-          <div style="font-size: 11.5px; font-weight: 700; color: #0f172a;">
-            2nd Floor, Pothuri Towers
-          </div>
-          <div style="font-size: 11px; color: #475569; margin-top: 2px;">
-            MG Road, Near DV Manor
-          </div>
-          <div style="font-size: 11px; color: #0284c7; font-weight: 600; margin-top: 1px;">
-            Opposite Lucky Shopping Mall
-          </div>
-          <div style="font-size: 11px; color: #64748b; margin-top: 1px;">
-            Vijayawada, Andhra Pradesh - 520010
-          </div>
-          <div style="margin-top: 6px; font-size: 10px; background: #e0f2fe; color: #0369a1; padding: 2px 7px; border-radius: 4px; font-weight: 700; display: inline-block;">
-            Geofence Boundary: ${geofenceRadius}m
-          </div>
-        </div>
-      `);
-
-      officeMarkerRef.current = new maplibregl.Marker({ element: officeEl })
-        .setLngLat(officeLngLat)
-        .setPopup(officePopup)
-        .addTo(map);
-
-      setMapLoaded(true);
-    });
-
-    mapRef.current = map;
+    const handleWindowResize = () => {
+      if (mapRef.current) mapRef.current.resize();
+    };
+    window.addEventListener('resize', handleWindowResize);
 
     return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', handleWindowResize);
       if (officeMarkerRef.current) officeMarkerRef.current.remove();
       markersRef.current.forEach(({ marker, animFrame }) => {
         if (animFrame) cancelAnimationFrame(animFrame);
         marker.remove();
       });
       markersRef.current.clear();
-      map.remove();
-      mapRef.current = null;
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
     };
   }, []);
 
-  // Update office marker & geofence circle if officeConfig updates
+  // Update office marker & geofence if config updates dynamically
   useEffect(() => {
     if (!mapLoaded || !mapRef.current) return;
     const map = mapRef.current;
@@ -297,7 +283,7 @@ export default function LiveMap({
     }
   }, [officeLngLat, geofenceRadius, mapLoaded]);
 
-  // ── 2. Helper to Build Realistic Blinkit Motorcycle / Field Delivery Marker ──
+  // ── 2. Helper to Build Realistic Blinkit Motorcycle / Status Marker ────────
   const buildMarkerHtml = (emp, loc, isSelected) => {
     const status = loc.trackingStatus || 'OFFLINE';
     const theme = STATUS_THEME[status] || STATUS_THEME.STOPPED;
@@ -306,7 +292,7 @@ export default function LiveMap({
     const road = loc.road || '';
     const initial = (emp.name || 'E').charAt(0).toUpperCase();
 
-    // ── CASE A: Active Moving Employee (Motorcycle / Delivery Bike Marker) ────
+    // ── MOVING STATUS (Motorcycle / Delivery Courier Marker) ─────────────────
     if (status === 'MOVING' || status === 'LEAVING_OFFICE') {
       return `
         <div class="delivery-bike-wrapper ${isSelected ? 'is-selected' : ''}" style="
@@ -384,7 +370,7 @@ export default function LiveMap({
                 <rect x="12" y="21" width="2" height="6" rx="1" fill="#64748b"/>
                 <!-- Bike Chassis -->
                 <path d="M14 8 H20 L19.5 25 H14.5 L14 8 Z" fill="#059669"/>
-                <!-- Tank / Green Fairing -->
+                <!-- Fairing -->
                 <path d="M14.5 11 C14.5 9 19.5 9 19.5 11 L20 18 C20 20 14 20 14 18 Z" fill="#10b981"/>
                 <!-- Rider Helmet -->
                 <circle cx="17" cy="16" r="4" fill="#0f172a"/>
@@ -393,12 +379,12 @@ export default function LiveMap({
                 <path d="M9 9 L25 9" stroke="#334155" stroke-width="2.5" stroke-linecap="round"/>
                 <circle cx="9" cy="9" r="1.5" fill="#0f172a"/>
                 <circle cx="25" cy="9" r="1.5" fill="#0f172a"/>
-                <!-- Delivery Box Carrier -->
+                <!-- Delivery Carrier Box -->
                 <rect x="13.5" y="21" width="7" height="6" rx="1.5" fill="#0284c7" stroke="#ffffff" stroke-width="0.8"/>
               </svg>
             </div>
 
-            <!-- Tiny Speed Dot -->
+            <!-- Tiny Speed Status Dot -->
             <div style="
               position: absolute;
               bottom: -2px;
@@ -412,7 +398,7 @@ export default function LiveMap({
             "></div>
           </div>
 
-          <!-- Name & Road / Speed Info Pill (Blinkit Style) -->
+          <!-- Name & Road / Speed Info Pill -->
           <div class="marker-tag-pill" style="
             margin-top: 4px;
             display: flex;
@@ -457,7 +443,7 @@ export default function LiveMap({
                     border-radius: 8px;
                     box-shadow: 0 1px 4px rgba(0,0,0,0.15);
                     border: 1px solid #e2e8f0;
-                    max-width: 120px;
+                    max-width: 130px;
                     overflow: hidden;
                     text-overflow: ellipsis;
                     white-space: nowrap;
@@ -469,7 +455,7 @@ export default function LiveMap({
       `;
     }
 
-    // ── CASE B: At Office Status ──────────────────────────────────────────────
+    // ── AT OFFICE STATUS ────────────────────────────────────────────────────
     if (status === 'AT_OFFICE') {
       return `
         <div class="office-emp-wrapper ${isSelected ? 'is-selected' : ''}" style="
@@ -534,7 +520,7 @@ export default function LiveMap({
       `;
     }
 
-    // ── CASE C: Stopped Outside Office ────────────────────────────────────────
+    // ── STOPPED STATUS ──────────────────────────────────────────────────────
     if (status === 'STOPPED') {
       return `
         <div class="stopped-marker-wrapper ${isSelected ? 'is-selected' : ''}" style="
@@ -608,7 +594,7 @@ export default function LiveMap({
                     border-radius: 8px;
                     box-shadow: 0 1px 4px rgba(0,0,0,0.15);
                     border: 1px solid #e2e8f0;
-                    max-width: 120px;
+                    max-width: 130px;
                     overflow: hidden;
                     text-overflow: ellipsis;
                     white-space: nowrap;
@@ -620,7 +606,7 @@ export default function LiveMap({
       `;
     }
 
-    // ── CASE D: Offline (Default) ─────────────────────────────────────────────
+    // ── OFFLINE STATUS ──────────────────────────────────────────────────────
     return `
       <div class="offline-marker-wrapper ${isSelected ? 'is-selected' : ''}" style="
         display: flex;
@@ -664,7 +650,7 @@ export default function LiveMap({
     `;
   };
 
-  // ── 3. Smooth Marker Transition Helper (requestAnimationFrame) ──────────────
+  // ── 3. Smooth Marker Interpolation (requestAnimationFrame) ─────────────────
   const animateMarkerMovement = (markerEntry, targetLngLat) => {
     const startLng = markerEntry.currentLngLat[0];
     const startLat = markerEntry.currentLngLat[1];
@@ -677,7 +663,15 @@ export default function LiveMap({
       cancelAnimationFrame(markerEntry.animFrame);
     }
 
-    const duration = 300; // ms
+    // If jump is unrealistic (> 50km), update immediately without animation
+    const distanceMeters = calculateDistanceMeters(startLat, startLng, endLat, endLng);
+    if (distanceMeters > 50000) {
+      markerEntry.marker.setLngLat(targetLngLat);
+      markerEntry.currentLngLat = targetLngLat;
+      return;
+    }
+
+    const duration = 320; // ms
     const startTime = performance.now();
 
     const step = (currentTime) => {
@@ -702,7 +696,7 @@ export default function LiveMap({
     markerEntry.animFrame = requestAnimationFrame(step);
   };
 
-  // ── 4. Real-Time Marker Synchronization ─────────────────────────────────────
+  // ── 4. Incremental Marker Synchronization (No Re-Creation) ────────────────
   useEffect(() => {
     if (!mapLoaded || !mapRef.current || isHistoryMode) return;
 
@@ -712,14 +706,14 @@ export default function LiveMap({
     employees.forEach((emp) => {
       const uId = emp._id || emp.employeeId;
       if (!uId) return;
-      currentEmployeeIds.add(uId);
 
       const loc = emp.location || emp;
       const lat = loc?.latitude;
       const lng = loc?.longitude;
-      const isValid = lat != null && lng != null && !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
+      const isValid = isValidCoordinates(lat, lng);
 
       if (!isValid) {
+        // If employee location is not available / offline, clean up marker if it previously existed
         if (markersRef.current.has(uId)) {
           const entry = markersRef.current.get(uId);
           if (entry.animFrame) cancelAnimationFrame(entry.animFrame);
@@ -729,12 +723,17 @@ export default function LiveMap({
         return;
       }
 
+      currentEmployeeIds.add(uId);
       const isSelected = selectedEmployeeId === uId;
       let markerEntry = markersRef.current.get(uId);
 
       const statusTheme = STATUS_THEME[loc.trackingStatus] || STATUS_THEME.STOPPED;
+      const timeFormatted = loc.lastUpdated
+        ? new Date(loc.lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : 'Recently';
+
       const popupHtml = `
-        <div style="font-family: system-ui, -apple-system, sans-serif; padding: 4px 6px;">
+        <div style="font-family: system-ui, -apple-system, sans-serif; padding: 4px 6px; min-width: 170px;">
           <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px;">
             <div style="font-weight: 800; font-size: 13px; color: #0f172a;">${emp.name}</div>
             <span style="background: ${statusTheme.bg}; color: ${statusTheme.text}; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 800;">
@@ -743,16 +742,15 @@ export default function LiveMap({
           </div>
           ${loc.road ? `<div style="font-size: 11px; font-weight: 700; color: #0284c7; margin-bottom: 2px;">🛣️ ${loc.road}</div>` : ''}
           ${loc.area || loc.city ? `<div style="font-size: 10.5px; color: #64748b; margin-bottom: 4px;">📍 ${[loc.area, loc.city].filter(Boolean).join(', ')}</div>` : ''}
-          <div style="display: flex; align-items: center; gap: 6px; font-size: 11px; margin-top: 4px;">
-            ${loc.speed > 0 ? `<span style="background: #ecfdf5; color: #059669; padding: 1px 6px; border-radius: 4px; font-weight: 700;">🏍️ ${loc.speed} km/h</span>` : ''}
-            ${loc.heading > 0 ? `<span style="background: #f1f5f9; color: #475569; padding: 1px 6px; border-radius: 4px; font-weight: 600;">🧭 ${loc.heading}°</span>` : ''}
-            ${loc.accuracy ? `<span style="background: #f8fafc; color: #64748b; padding: 1px 5px; border-radius: 4px; font-size: 10px;">±${Math.round(loc.accuracy)}m</span>` : ''}
+          <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10.5px; color: #64748b; margin-top: 4px; border-top: 1px solid #f1f5f9; padding-top: 3px;">
+            <span>${loc.speed > 0 ? `🏍️ ${loc.speed} km/h` : '⏱️ Stationary'}</span>
+            <span>🕒 ${timeFormatted}</span>
           </div>
         </div>
       `;
 
       if (!markerEntry) {
-        // Create new MapLibre DOM Marker
+        // Create new DOM Marker once
         const el = document.createElement('div');
         el.innerHTML = buildMarkerHtml(emp, loc, isSelected);
 
@@ -761,8 +759,7 @@ export default function LiveMap({
           onSelectEmployee(uId);
         });
 
-        const popup = new maplibregl.Popup({ offset: 25, closeButton: false, closeOnClick: false })
-          .setHTML(popupHtml);
+        const popup = new maplibregl.Popup({ offset: 25, closeButton: false, closeOnClick: false }).setHTML(popupHtml);
 
         const marker = new maplibregl.Marker({ element: el })
           .setLngLat([lng, lat])
@@ -772,14 +769,14 @@ export default function LiveMap({
         markerEntry = { marker, el, popup, currentLngLat: [lng, lat], animFrame: null };
         markersRef.current.set(uId, markerEntry);
       } else {
-        // Smooth position transition
+        // Smoothly animate existing marker to new coordinates
         animateMarkerMovement(markerEntry, [lng, lat]);
         markerEntry.el.innerHTML = buildMarkerHtml(emp, loc, isSelected);
         markerEntry.popup.setHTML(popupHtml);
       }
     });
 
-    // Clean up removed employees
+    // Clean up markers for removed employees
     markersRef.current.forEach(({ marker, animFrame }, id) => {
       if (!currentEmployeeIds.has(id)) {
         if (animFrame) cancelAnimationFrame(animFrame);
@@ -789,7 +786,7 @@ export default function LiveMap({
     });
   }, [employees, mapLoaded, selectedEmployeeId, isHistoryMode]);
 
-  // ── 5. Selected Employee Route Polyline & GPS Accuracy Circle ────────────────
+  // ── 5. Selected Employee Route Polyline & GPS Accuracy Circle ──────────────
   useEffect(() => {
     if (!mapLoaded || !mapRef.current || isHistoryMode) return;
     const map = mapRef.current;
@@ -811,12 +808,16 @@ export default function LiveMap({
     const emp = employees.find((e) => (e._id || e.employeeId) === selectedEmployeeId);
     const loc = emp?.location || emp;
 
-    if (loc?.latitude && loc?.longitude) {
+    if (isValidCoordinates(loc?.latitude, loc?.longitude)) {
       // 1. Live Route Polyline from Breadcrumbs or Office -> Current Position
       const rawBreadcrumbs = Array.isArray(loc.breadcrumbs) && loc.breadcrumbs.length > 0 ? loc.breadcrumbs : [];
+      const validBreadcrumbs = rawBreadcrumbs.filter(
+        (pt) => pt && pt.length === 2 && isValidCoordinates(pt[1], pt[0])
+      );
+
       const routeCoords = [
         officeLngLat,
-        ...rawBreadcrumbs.filter((pt) => pt && pt.length === 2 && pt[0] !== 0 && pt[1] !== 0),
+        ...validBreadcrumbs,
         [loc.longitude, loc.latitude],
       ];
 
@@ -888,23 +889,21 @@ export default function LiveMap({
     }
   }, [selectedEmployeeId, employees, mapLoaded, isHistoryMode, officeLngLat, showRouteTrail]);
 
-  // ── 6. Follow Employee Mode / Camera Pan ─────────────────────────────────────
+  // ── 6. Follow Employee Mode / Camera Pan ───────────────────────────────────
   useEffect(() => {
     if (!mapLoaded || !mapRef.current || !selectedEmployeeId || isHistoryMode) return;
 
     const emp = employees.find((e) => (e._id || e.employeeId) === selectedEmployeeId);
     const loc = emp?.location || emp;
 
-    if (loc?.latitude && loc?.longitude && loc.latitude !== 0 && loc.longitude !== 0) {
+    if (isValidCoordinates(loc?.latitude, loc?.longitude)) {
       if (followEmployee) {
-        // Continuous smooth ease to keep courier centered
         mapRef.current.easeTo({
           center: [loc.longitude, loc.latitude],
           zoom: Math.max(mapRef.current.getZoom(), 16),
           duration: 400,
         });
       } else {
-        // Initial center on select
         mapRef.current.flyTo({
           center: [loc.longitude, loc.latitude],
           zoom: Math.max(mapRef.current.getZoom(), 16),
@@ -921,7 +920,7 @@ export default function LiveMap({
     }
   }, [selectedEmployeeId, followEmployee, mapLoaded]);
 
-  // ── 7. Historical Route Trail Overlay ───────────────────────────────────────
+  // ── 7. Historical Route Trail Overlay ─────────────────────────────────────
   useEffect(() => {
     if (!mapLoaded || !mapRef.current) return;
     const map = mapRef.current;
@@ -938,7 +937,7 @@ export default function LiveMap({
       if (map.getLayer(casingLayerId)) map.removeLayer(casingLayerId);
       if (map.getSource(sourceId)) map.removeSource(sourceId);
 
-      // Restore live markers
+      // Restore live markers visibility
       markersRef.current.forEach(({ el }) => {
         el.style.display = 'flex';
       });
@@ -951,7 +950,7 @@ export default function LiveMap({
     });
 
     const coordinates = historyPoints
-      .filter((p) => p.latitude && p.longitude && p.latitude !== 0 && p.longitude !== 0)
+      .filter((p) => isValidCoordinates(p.latitude, p.longitude))
       .map((p) => [p.longitude, p.latitude]);
 
     if (coordinates.length === 0) return;
@@ -973,7 +972,6 @@ export default function LiveMap({
         data: geojson,
       });
 
-      // Outer glowing casing
       map.addLayer({
         id: casingLayerId,
         type: 'line',
@@ -986,7 +984,6 @@ export default function LiveMap({
         },
       });
 
-      // Main route line
       map.addLayer({
         id: layerId,
         type: 'line',
@@ -1000,7 +997,7 @@ export default function LiveMap({
       });
     }
 
-    // 🚩 Start Point Pin
+    // 🚩 Start Pin
     const startCoord = coordinates[0];
     const startEl = document.createElement('div');
     startEl.innerHTML = `
@@ -1020,7 +1017,7 @@ export default function LiveMap({
     const startMarker = new maplibregl.Marker({ element: startEl }).setLngLat(startCoord).addTo(map);
     historyMarkersRef.current.push(startMarker);
 
-    // 🏁 Destination Point Pin
+    // 🏁 End Pin
     const endCoord = coordinates[coordinates.length - 1];
     const endEl = document.createElement('div');
     endEl.innerHTML = `
@@ -1047,27 +1044,33 @@ export default function LiveMap({
           [historyBounds.minLng, historyBounds.minLat],
           [historyBounds.maxLng, historyBounds.maxLat],
         ],
-        { padding: 80, maxZoom: 16, duration: 1200 }
+        { padding: 80, maxZoom: 16, duration: 1000 }
       );
     }
   }, [isHistoryMode, historyPoints, historyBounds, mapLoaded]);
 
-  // ── 8. Control Actions ──────────────────────────────────────────────────────
+  // ── 8. Map Action Handlers ────────────────────────────────────────────────
   const handleFitAll = useCallback(() => {
     if (!mapRef.current) return;
-    const coords = employees
-      .filter((e) => e.location?.latitude && e.location?.longitude)
+
+    const validEmployeeCoords = employees
+      .filter((e) => isValidCoordinates(e.location?.latitude, e.location?.longitude))
       .map((e) => [e.location.longitude, e.location.latitude]);
 
-    coords.push(officeLngLat);
-
-    if (coords.length > 0) {
-      const bounds = coords.reduce(
-        (b, c) => b.extend(c),
-        new maplibregl.LngLatBounds(coords[0], coords[0])
-      );
-      mapRef.current.fitBounds(bounds, { padding: 80, maxZoom: 16, duration: 800 });
+    if (validEmployeeCoords.length === 0) {
+      // If only office exists, center on office and display notice
+      mapRef.current.flyTo({ center: officeLngLat, zoom: 15.5, duration: 800 });
+      setFleetNotice('No active employee locations available — centered on AOTMS Office.');
+      setTimeout(() => setFleetNotice(''), 3500);
+      return;
     }
+
+    const allCoords = [officeLngLat, ...validEmployeeCoords];
+    const bounds = allCoords.reduce(
+      (b, c) => b.extend(c),
+      new maplibregl.LngLatBounds(allCoords[0], allCoords[0])
+    );
+    mapRef.current.fitBounds(bounds, { padding: 80, maxZoom: 16, duration: 800 });
   }, [employees, officeLngLat]);
 
   const handleCenterOffice = useCallback(() => {
@@ -1082,7 +1085,7 @@ export default function LiveMap({
     if (!mapRef.current || !selectedEmployeeId) return;
     const emp = employees.find((e) => (e._id || e.employeeId) === selectedEmployeeId);
     const loc = emp?.location || emp;
-    if (loc?.latitude && loc?.longitude) {
+    if (isValidCoordinates(loc?.latitude, loc?.longitude)) {
       mapRef.current.flyTo({ center: [loc.longitude, loc.latitude], zoom: 16, duration: 800 });
     }
   }, [employees, selectedEmployeeId]);
@@ -1090,6 +1093,33 @@ export default function LiveMap({
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
       <div ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
+
+      {/* Floating Fleet Notice Banner */}
+      {fleetNotice && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 20,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'rgba(15, 23, 42, 0.92)',
+            backdropFilter: 'blur(6px)',
+            color: '#ffffff',
+            padding: '8px 16px',
+            borderRadius: 20,
+            fontSize: 12,
+            fontWeight: 700,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+            zIndex: 50,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
+          <span>ℹ️</span>
+          <span>{fleetNotice}</span>
+        </div>
+      )}
 
       {/* Floating Map Controls Toolbar */}
       <div
@@ -1105,7 +1135,7 @@ export default function LiveMap({
       >
         {selectedEmployeeId && (
           <>
-            {/* Follow Employee Mode Button */}
+            {/* Follow Courier Toggle */}
             <button
               onClick={onToggleFollow}
               title={followEmployee ? 'Disable Follow Mode' : 'Enable Follow Mode (Camera auto-tracks courier)'}
@@ -1129,7 +1159,7 @@ export default function LiveMap({
               Follow Courier: {followEmployee ? 'ON' : 'OFF'}
             </button>
 
-            {/* Toggle Route Trail Button */}
+            {/* Route Trail Toggle */}
             <button
               onClick={onToggleRouteTrail}
               title={showRouteTrail ? 'Hide Route Polyline' : 'Show Route Polyline'}
@@ -1153,6 +1183,7 @@ export default function LiveMap({
               Route Trail: {showRouteTrail ? 'ON' : 'OFF'}
             </button>
 
+            {/* Focus Courier Button */}
             <button
               onClick={handleCenterSelected}
               title="Center on Selected Employee"
@@ -1181,9 +1212,10 @@ export default function LiveMap({
           </>
         )}
 
+        {/* Center Office Button */}
         <button
           onClick={handleCenterOffice}
-          title="Center on AOTMS Office (Pothuri Towers)"
+          title="Center on AOTMS Office (Pothuri Towers, MG Road)"
           style={{
             background: '#ffffff',
             color: '#0284c7',
@@ -1204,6 +1236,7 @@ export default function LiveMap({
           AOTMS Office
         </button>
 
+        {/* Fit All Fleet Button */}
         <button
           onClick={handleFitAll}
           title="Show All Active Employees + AOTMS Office"
@@ -1233,7 +1266,7 @@ export default function LiveMap({
         </button>
       </div>
 
-      {/* Radar Pulse Animation Keyframes */}
+      {/* Pulse Animations */}
       <style>{`
         @keyframes pulse-radar {
           0% {

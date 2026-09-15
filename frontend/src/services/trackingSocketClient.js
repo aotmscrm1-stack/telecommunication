@@ -1,10 +1,19 @@
 import { io } from 'socket.io-client';
 
+export const ConnectionState = {
+  DISCONNECTED: 'DISCONNECTED',
+  CONNECTING: 'CONNECTING',
+  CONNECTED: 'CONNECTED',
+  RECONNECTING: 'RECONNECTING',
+};
+
 class TrackingSocketClient {
   constructor() {
     this.socket = null;
-    this.connected = false;
+    this.connectionState = ConnectionState.DISCONNECTED;
+    this.reconnectAttempts = 0;
     this.listeners = new Map();
+    this.isAdminSubscribed = false;
   }
 
   getSocketUrl() {
@@ -17,15 +26,40 @@ class TrackingSocketClient {
     return window.location.origin;
   }
 
+  getConnectionState() {
+    return this.connectionState;
+  }
+
+  isConnected() {
+    return this.connectionState === ConnectionState.CONNECTED && this.socket?.connected === true;
+  }
+
+  setConnectionState(state, payload = {}) {
+    if (this.connectionState !== state) {
+      this.connectionState = state;
+      this.emitInternal('connectionStateChange', { state, ...payload });
+    }
+  }
+
   connect() {
     const token = localStorage.getItem('aotms_token');
-    if (!token) return null;
+    if (!token) {
+      this.setConnectionState(ConnectionState.DISCONNECTED, { reason: 'No auth token found' });
+      return null;
+    }
 
-    if (this.socket && this.socket.connected) {
+    if (this.socket && (this.socket.connected || this.connectionState === ConnectionState.CONNECTING)) {
       return this.socket;
     }
 
+    if (this.socket) {
+      this.socket.removeAllListeners();
+      this.socket.disconnect();
+      this.socket = null;
+    }
+
     const socketUrl = this.getSocketUrl();
+    this.setConnectionState(ConnectionState.CONNECTING);
 
     this.socket = io(socketUrl, {
       auth: { token },
@@ -33,28 +67,54 @@ class TrackingSocketClient {
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
+      reconnectionDelayMax: 8000,
+      randomizationFactor: 0.2,
       timeout: 20000,
     });
 
+    // ── Connection lifecycle events ─────────────────────────────────────────
     this.socket.on('connect', () => {
-      this.connected = true;
-      console.log('[TrackingSocket] Connected as', this.socket.id);
+      this.reconnectAttempts = 0;
+      this.setConnectionState(ConnectionState.CONNECTED, { socketId: this.socket.id });
       this.emitInternal('connect', true);
+
+      // Auto re-subscribe as admin if previously subscribed
+      if (this.isAdminSubscribed) {
+        this.subscribeAdmin().catch(() => {});
+      }
     });
 
     this.socket.on('disconnect', (reason) => {
-      this.connected = false;
-      console.warn('[TrackingSocket] Disconnected:', reason);
+      if (reason === 'io server disconnect') {
+        // Disconnected by server -> manual reconnect needed
+        this.setConnectionState(ConnectionState.DISCONNECTED, { reason });
+        this.socket.connect();
+      } else {
+        this.setConnectionState(ConnectionState.RECONNECTING, { reason });
+      }
       this.emitInternal('disconnect', reason);
     });
 
     this.socket.on('connect_error', (err) => {
-      console.warn('[TrackingSocket Auth/Conn Error]:', err.message);
+      this.reconnectAttempts += 1;
+      this.setConnectionState(ConnectionState.RECONNECTING, {
+        error: err.message,
+        attempt: this.reconnectAttempts,
+      });
       this.emitInternal('error', err);
     });
 
-    // Handle incoming telemetry events from server
+    this.socket.io.on('reconnect_attempt', (attempt) => {
+      this.reconnectAttempts = attempt;
+      this.setConnectionState(ConnectionState.RECONNECTING, { attempt });
+    });
+
+    this.socket.io.on('reconnect', (attempt) => {
+      this.reconnectAttempts = 0;
+      this.setConnectionState(ConnectionState.CONNECTED, { attempt });
+    });
+
+    // ── Telemetry events from server ─────────────────────────────────────────
     this.socket.on('admin:employee:location', (data) => {
       this.emitInternal('admin:employee:location', data);
     });
@@ -72,9 +132,11 @@ class TrackingSocketClient {
 
   disconnect() {
     if (this.socket) {
+      this.socket.removeAllListeners();
       this.socket.disconnect();
       this.socket = null;
-      this.connected = false;
+      this.isAdminSubscribed = false;
+      this.setConnectionState(ConnectionState.DISCONNECTED);
     }
   }
 
@@ -98,7 +160,7 @@ class TrackingSocketClient {
   }
 
   sendLocationUpdate(data = {}) {
-    if (!this.socket || !this.connected) {
+    if (!this.socket || !this.isConnected()) {
       this.connect();
     }
     return new Promise((resolve) => {
@@ -135,6 +197,7 @@ class TrackingSocketClient {
   }
 
   subscribeAdmin() {
+    this.isAdminSubscribed = true;
     this.connect();
     return new Promise((resolve) => {
       if (!this.socket) return resolve([]);
@@ -145,7 +208,7 @@ class TrackingSocketClient {
 
       this.socket.emit('admin:subscribe', (response) => {
         clearTimeout(timeout);
-        if (response?.success) resolve(response.employees);
+        if (response?.success) resolve(response.employees || []);
         else resolve([]);
       });
     });

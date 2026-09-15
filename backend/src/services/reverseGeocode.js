@@ -90,7 +90,7 @@ async function reverseGeocode(lat, lng) {
       road: 'MG Road',
       area: OFFICE_AREA,
       city: OFFICE_CITY,
-      formattedAddress: `${OFFICE_NAME}, 2nd Floor, Pothuri Towers, MG Road, Near DV Manor, Opposite Lucky Shopping Mall, Vijayawada - 520010`,
+      formattedAddress: `${OFFICE_NAME}, ${OFFICE_BUILDING}, MG Road, Near DV Manor Hotel, Vijayawada - 520010`,
       building: OFFICE_BUILDING,
       isOffice: true,
     };

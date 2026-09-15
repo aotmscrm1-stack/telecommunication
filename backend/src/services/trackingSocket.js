@@ -25,7 +25,7 @@ const OFFLINE_TIMEOUT_MS = Number(process.env.LOCATION_OFFLINE_TIMEOUT_MS) || 3 
 const MIN_DISTANCE_FOR_HISTORY_METERS = Number(process.env.MIN_DISTANCE_FOR_HISTORY_METERS) || 8; // Save history only if moved >= 8m
 const MAX_TIME_FOR_HISTORY_MS = Number(process.env.MAX_TIME_FOR_HISTORY_MS) || 30 * 1000; // Or at least once every 30s while active
 const SPEED_THRESHOLD_KMH = 1.5; // Below 1.5 km/h is treated as STOPPED
-const MAX_REALISTIC_SPEED_KMH = 120; // 120 km/h max for road travel in city
+const MAX_REALISTIC_SPEED_KMH = Number(process.env.MAX_REALISTIC_SPEED_KMH) || 160; // 160 km/h max threshold for highway/city GPS jumps
 
 /**
  * Validates GPS latitude and longitude ranges
@@ -66,10 +66,11 @@ function calculateBearing(lat1, lon1, lat2, lon2) {
 function determineTrackingState(lat, lng, speedKmh, distanceMovedMeters, deltaSeconds, prevLoc) {
   const now = new Date();
   const wasAtOffice = prevLoc?.trackingStatus === 'AT_OFFICE';
-  const insideOffice = isInsideOfficeGeofence(lat, lng, wasAtOffice);
+  const isMovingFast = speedKmh >= 10;
+  const insideOffice = isInsideOfficeGeofence(lat, lng, wasAtOffice && !isMovingFast);
   const distToOffice = getDistanceToOffice(lat, lng);
 
-  // 1. Employee is inside AOTMS Office Geofence (75m radius with 125m exit hysteresis)
+  // 1. Employee is inside AOTMS Office Geofence (100m radius)
   if (insideOffice) {
     return {
       trackingStatus: 'AT_OFFICE',
@@ -385,9 +386,13 @@ async function handleGpsUpdate(user, payload = {}) {
   }
 
   const accuracy = Number(payload.accuracy) || 0;
-  let rawSpeed = Number(payload.speed); // m/s from browser Geolocation API
-  let speedKmh = isNaN(rawSpeed) || rawSpeed < 0 ? 0 : rawSpeed * 3.6; // Convert m/s to km/h
-  if (payload.speedKmh != null) speedKmh = Number(payload.speedKmh);
+  let speedKmh = 0;
+  if (payload.speedKmh != null) {
+    speedKmh = Number(payload.speedKmh);
+  } else if (payload.speed != null) {
+    speedKmh = Number(payload.speed);
+  }
+  if (isNaN(speedKmh) || speedKmh < 0) speedKmh = 0;
 
   let heading = Number(payload.heading) || 0;
   const battery = payload.battery != null ? Number(payload.battery) : null;
@@ -408,8 +413,8 @@ async function handleGpsUpdate(user, payload = {}) {
       return prev;
     }
 
-    // If browser didn't supply speed, calculate from distance delta
-    if (speedKmh === 0 && distanceMoved >= 2 && deltaSeconds > 0) {
+    // If device didn't supply speed, calculate from distance delta
+    if (payload.speed == null && payload.speedKmh == null && distanceMoved >= 2 && deltaSeconds > 0) {
       speedKmh = calculatedSpeedKmh;
     }
 
@@ -497,27 +502,29 @@ async function handleGpsUpdate(user, payload = {}) {
     updatedLive.lastDbLocation = { latitude: lat, longitude: lng };
     liveLocations.set(employeeId, updatedLive);
 
-    EmployeeLocation.create({
-      employeeId,
-      latitude: lat,
-      longitude: lng,
-      accuracy,
-      speed: updatedLive.speed,
-      heading,
-      battery,
-      trackingStatus,
-      road: addressInfo.road,
-      area: addressInfo.area,
-      city: addressInfo.city,
-      formattedAddress: addressInfo.formattedAddress,
-      officeDistanceMeters,
-      stoppedAt,
-      sinceOfficeAt,
-      isLive: true,
-      timestamp: now,
-    }).catch((dbErr) => {
-      console.warn('[EmployeeLocation Save Error]:', dbErr.message);
-    });
+    if (require('mongoose').Types.ObjectId.isValid(employeeId)) {
+      EmployeeLocation.create({
+        employeeId,
+        latitude: lat,
+        longitude: lng,
+        accuracy,
+        speed: updatedLive.speed,
+        heading,
+        battery,
+        trackingStatus,
+        road: addressInfo.road,
+        area: addressInfo.area,
+        city: addressInfo.city,
+        formattedAddress: addressInfo.formattedAddress,
+        officeDistanceMeters,
+        stoppedAt,
+        sinceOfficeAt,
+        isLive: true,
+        timestamp: now,
+      }).catch((dbErr) => {
+        console.warn('[EmployeeLocation Save Error]:', dbErr.message);
+      });
+    }
   }
 
   // Real-time broadcast to all authorized Admin/Manager clients (No page refresh needed!)

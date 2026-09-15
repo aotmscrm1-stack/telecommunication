@@ -173,20 +173,29 @@ router.post('/ping', protect, async (req, res) => {
 // ── POST /api/tracking/dev-simulate (Development GPS simulation tool) ────────────
 router.post('/dev-simulate', protect, async (req, res) => {
   try {
-    const { targetUserId, latitude, longitude, speed = 25, heading = 45 } = req.body;
+    const { targetUserId, employeeId, employeeName, latitude, longitude, speed = 25, heading = 45 } = req.body;
+    const simEmpId = targetUserId || employeeId;
 
-    // Only Admin can simulate for others; employees can simulate for themselves
     let targetUser = req.user;
-    if (targetUserId && req.user.role === 'admin') {
-      targetUser = await User.findById(targetUserId);
+    if (simEmpId === 'TEST-EMP-001') {
+      targetUser = {
+        _id: 'TEST-EMP-001',
+        name: employeeName || 'Test Employee',
+        email: 'test.employee@aotms.com',
+        role: 'caller',
+        phone: '+91 98765 43210',
+        avatar: '',
+      };
+    } else if (simEmpId && req.user.role === 'admin') {
+      targetUser = await User.findById(simEmpId);
       if (!targetUser) return res.status(404).json({ message: 'Target user not found' });
     }
 
     const payload = {
-      latitude: Number(latitude),
-      longitude: Number(longitude),
-      speedKmh: Number(speed),
-      heading: Number(heading),
+      latitude: latitude != null && !isNaN(Number(latitude)) ? Number(latitude) : latitude,
+      longitude: longitude != null && !isNaN(Number(longitude)) ? Number(longitude) : longitude,
+      speedKmh: speed != null ? Number(speed) : 0,
+      heading: heading != null ? Number(heading) : 0,
       accuracy: 5,
     };
 

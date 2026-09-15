@@ -2,8 +2,9 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { trackingAPI } from '../services/api';
-import trackingSocket from '../services/trackingSocketClient';
+import trackingSocket, { ConnectionState } from '../services/trackingSocketClient';
 import LiveMap from '../components/tracking/LiveMap';
+import { OFFICE_LOCATION, isValidCoordinates } from '../config/trackingConfig';
 
 const GRADIENT = 'var(--btn-gradient, linear-gradient(90deg, #ffb37c 0%, #38bdf8 100%))';
 
@@ -25,7 +26,7 @@ export default function LiveEmployeeTracking() {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   const [followEmployee, setFollowEmployee] = useState(false);
   const [showRouteTrail, setShowRouteTrail] = useState(true);
-  const [socketConnected, setSocketConnected] = useState(false);
+  const [connectionState, setConnectionState] = useState(trackingSocket.getConnectionState() || ConnectionState.DISCONNECTED);
   const [lastSyncTime, setLastSyncTime] = useState(Date.now());
   const [syncTimerText, setSyncTimerText] = useState('Just now');
 
@@ -90,18 +91,20 @@ export default function LiveEmployeeTracking() {
 
   // ── Real-Time Socket.IO Handlers ───────────────────────────────────────────
   useEffect(() => {
-    const socket = trackingSocket.connect();
-    if (socket) {
-      setSocketConnected(socket.connected);
-    }
+    trackingSocket.connect();
+    setConnectionState(trackingSocket.getConnectionState());
+
+    const unsubState = trackingSocket.on('connectionStateChange', ({ state }) => {
+      setConnectionState(state);
+    });
 
     const unsubConn = trackingSocket.on('connect', () => {
-      setSocketConnected(true);
+      setConnectionState(ConnectionState.CONNECTED);
       trackingSocket.subscribeAdmin().catch(() => {});
     });
 
     const unsubDisconn = () => {
-      setSocketConnected(false);
+      setConnectionState(trackingSocket.getConnectionState());
     };
     trackingSocket.on('disconnect', unsubDisconn);
     trackingSocket.on('error', unsubDisconn);
@@ -149,7 +152,10 @@ export default function LiveEmployeeTracking() {
                 ...(emp.location || {}),
                 trackingStatus: statusPacket.trackingStatus,
                 lastUpdated: statusPacket.lastUpdated,
-                speed: statusPacket.trackingStatus === 'OFFLINE' || statusPacket.trackingStatus === 'AT_OFFICE' ? 0 : emp.location?.speed || 0,
+                speed:
+                  statusPacket.trackingStatus === 'OFFLINE' || statusPacket.trackingStatus === 'AT_OFFICE'
+                    ? 0
+                    : emp.location?.speed || 0,
               },
             };
           }
@@ -159,6 +165,7 @@ export default function LiveEmployeeTracking() {
     });
 
     return () => {
+      unsubState();
       unsubConn();
       trackingSocket.off('disconnect', unsubDisconn);
       trackingSocket.off('error', unsubDisconn);
@@ -213,11 +220,16 @@ export default function LiveEmployeeTracking() {
   // ── Filter & Search Logic ──────────────────────────────────────────────────
   const filteredEmployees = useMemo(() => {
     return employees.filter((emp) => {
-      const nameMatch = (emp.name || '').toLowerCase().includes(searchQuery.toLowerCase());
-      const emailMatch = (emp.email || '').toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesSearch = nameMatch || emailMatch;
+      const query = searchQuery.toLowerCase().trim();
+      const loc = emp.location || {};
 
-      const status = emp.location?.trackingStatus || 'OFFLINE';
+      const nameMatch = (emp.name || '').toLowerCase().includes(query);
+      const emailMatch = (emp.email || '').toLowerCase().includes(query);
+      const roadMatch = (loc.road || '').toLowerCase().includes(query);
+      const areaMatch = (loc.area || '').toLowerCase().includes(query);
+      const matchesSearch = !query || nameMatch || emailMatch || roadMatch || areaMatch;
+
+      const status = loc.trackingStatus || 'OFFLINE';
       let matchesStatus = true;
       if (statusFilter !== 'ALL') {
         matchesStatus = status === statusFilter;
@@ -227,13 +239,15 @@ export default function LiveEmployeeTracking() {
     });
   }, [employees, searchQuery, statusFilter]);
 
-  // Status counts
+  // ── Status counts (Dynamically derived from real telemetry) ─────────────────
   const statusCounts = useMemo(() => {
     const counts = { ALL: employees.length, AT_OFFICE: 0, MOVING: 0, STOPPED: 0, OFFLINE: 0 };
     employees.forEach((e) => {
-      const st = e.location?.trackingStatus || 'OFFLINE';
+      const loc = e.location || {};
+      const st = loc.trackingStatus || 'OFFLINE';
       if (counts[st] !== undefined) counts[st]++;
       else if (st === 'LEAVING_OFFICE') counts.MOVING++;
+      else counts.OFFLINE++;
     });
     return counts;
   }, [employees]);
@@ -283,9 +297,52 @@ export default function LiveEmployeeTracking() {
     return 'North-West ↖';
   };
 
+  // ── Connection state styling configuration ────────────────────────────────
+  const connectionTheme = {
+    [ConnectionState.CONNECTED]: {
+      bg: '#ecfdf5',
+      border: '#a7f3d0',
+      color: '#065f46',
+      dot: '#10b981',
+      pulse: true,
+      label: 'LIVE',
+    },
+    [ConnectionState.CONNECTING]: {
+      bg: '#fffbeb',
+      border: '#fde68a',
+      color: '#92400e',
+      dot: '#f59e0b',
+      pulse: false,
+      label: 'Connecting...',
+    },
+    [ConnectionState.RECONNECTING]: {
+      bg: '#fff7ed',
+      border: '#fed7aa',
+      color: '#c2410c',
+      dot: '#f97316',
+      pulse: true,
+      label: 'Reconnecting...',
+    },
+    [ConnectionState.DISCONNECTED]: {
+      bg: '#fef2f2',
+      border: '#fecaca',
+      color: '#991b1b',
+      dot: '#ef4444',
+      pulse: false,
+      label: 'Disconnected',
+    },
+  }[connectionState] || {
+    bg: '#f1f5f9',
+    border: '#e2e8f0',
+    color: '#64748b',
+    dot: '#94a3b8',
+    pulse: false,
+    label: connectionState,
+  };
+
   return (
     <div style={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', background: '#f8fafc' }}>
-      {/* ── 1. Top Header Bar (Blinkit Style) ───────────────────────────────── */}
+      {/* ── 1. Top Header Bar ───────────────────────────────────────────────── */}
       <div
         style={{
           height: 60,
@@ -324,7 +381,7 @@ export default function LiveEmployeeTracking() {
             </div>
           </div>
 
-          {/* Real-time Socket Status Pill */}
+          {/* Real-time Socket Connection State Pill */}
           <div
             style={{
               display: 'flex',
@@ -332,9 +389,9 @@ export default function LiveEmployeeTracking() {
               gap: 6,
               padding: '3px 9px',
               borderRadius: 20,
-              background: socketConnected ? '#ecfdf5' : '#fef2f2',
-              border: `1px solid ${socketConnected ? '#a7f3d0' : '#fecaca'}`,
-              color: socketConnected ? '#065f46' : '#991b1b',
+              background: connectionTheme.bg,
+              border: `1px solid ${connectionTheme.border}`,
+              color: connectionTheme.color,
               fontSize: 11,
               fontWeight: 700,
             }}
@@ -344,14 +401,14 @@ export default function LiveEmployeeTracking() {
                 width: 7,
                 height: 7,
                 borderRadius: '50%',
-                background: socketConnected ? '#10b981' : '#ef4444',
-                boxShadow: socketConnected ? '0 0 0 2px rgba(16, 185, 129, 0.3)' : 'none',
+                background: connectionTheme.dot,
+                boxShadow: connectionTheme.pulse ? `0 0 0 2px ${connectionTheme.dot}44` : 'none',
               }}
             />
-            {socketConnected ? 'LIVE' : 'Reconnecting...'}
+            {connectionTheme.label}
           </div>
 
-          {/* KPI Summary Badges */}
+          {/* Dynamic KPI Summary Badges */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <div
               style={{
@@ -593,7 +650,9 @@ export default function LiveEmployeeTracking() {
                   </div>
                 ) : historyPoints.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '40px 10px', color: '#94a3b8', fontSize: 12 }}>
-                    No recorded movement for this time period.
+                    <div style={{ fontSize: 24, marginBottom: 6 }}>📍</div>
+                    <div style={{ fontWeight: 700, color: '#475569', marginBottom: 2 }}>Route unavailable</div>
+                    <div>Employee has no recorded movement history for this period.</div>
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -726,7 +785,7 @@ export default function LiveEmployeeTracking() {
                   <div style={{ textAlign: 'center', padding: '60px 16px', color: '#94a3b8' }}>
                     <div style={{ fontSize: 32, marginBottom: 8 }}>🏢</div>
                     <div style={{ fontWeight: 700, fontSize: 13, color: '#475569' }}>
-                      No employees are currently sharing their location.
+                      {searchQuery ? 'No employees match your search.' : 'No employees are currently sharing their location.'}
                     </div>
                     <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
                       Employees who start location sharing will appear live on the map.
@@ -736,7 +795,8 @@ export default function LiveEmployeeTracking() {
                   filteredEmployees.map((emp) => {
                     const uId = emp._id || emp.employeeId;
                     const loc = emp.location || {};
-                    const status = loc.trackingStatus || 'OFFLINE';
+                    const hasValidLocation = isValidCoordinates(loc.latitude, loc.longitude);
+                    const status = hasValidLocation ? loc.trackingStatus || 'OFFLINE' : 'OFFLINE';
                     const isSelected = selectedEmployeeId === uId;
                     const isAtOffice = status === 'AT_OFFICE';
                     const isMoving = status === 'MOVING' || status === 'LEAVING_OFFICE';
@@ -822,8 +882,8 @@ export default function LiveEmployeeTracking() {
                           </span>
                         </div>
 
-                        {/* Reverse Geocoded Location Line */}
-                        {(loc.road || isAtOffice) && (
+                        {/* Location Line */}
+                        {hasValidLocation ? (
                           <div
                             style={{
                               marginTop: 8,
@@ -838,11 +898,22 @@ export default function LiveEmployeeTracking() {
                             }}
                           >
                             <span style={{ fontWeight: 700, color: '#0369a1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220 }}>
-                              {isAtOffice ? '🏢 AOTMS - Pothuri Towers' : `🛣️ ${loc.road}`}
+                              {isAtOffice ? '🏢 AOTMS - Pothuri Towers' : `🛣️ ${loc.road || 'MG Road'}`}
                             </span>
                             <span style={{ color: '#64748b', fontSize: 10 }}>
                               {loc.city || 'Vijayawada'}
                             </span>
+                          </div>
+                        ) : (
+                          <div
+                            style={{
+                              marginTop: 6,
+                              fontSize: 10.5,
+                              color: '#94a3b8',
+                              fontStyle: 'italic',
+                            }}
+                          >
+                            Location unavailable
                           </div>
                         )}
 
@@ -860,20 +931,26 @@ export default function LiveEmployeeTracking() {
                           }}
                         >
                           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                            {isAtOffice ? (
-                              <span style={{ color: '#0369a1', fontWeight: 700 }}>
-                                Since {formatTimeOnly(loc.sinceOfficeAt || loc.lastUpdated)}
-                              </span>
-                            ) : isMoving ? (
-                              <span style={{ color: '#059669', fontWeight: 800 }}>
-                                🏍️ {loc.speed != null ? `${loc.speed} km/h` : 'Moving'}
-                              </span>
-                            ) : isStopped ? (
-                              <span style={{ color: '#d97706', fontWeight: 700 }}>
-                                ⏱️ Stopped {formatStoppedDuration(loc.stoppedAt)}
-                              </span>
+                            {hasValidLocation ? (
+                              isAtOffice ? (
+                                <span style={{ color: '#0369a1', fontWeight: 700 }}>
+                                  Since {formatTimeOnly(loc.sinceOfficeAt || loc.lastUpdated)}
+                                </span>
+                              ) : isMoving ? (
+                                <span style={{ color: '#059669', fontWeight: 800 }}>
+                                  🏍️ {loc.speed != null ? `${loc.speed} km/h` : 'Moving'}
+                                </span>
+                              ) : isStopped ? (
+                                <span style={{ color: '#d97706', fontWeight: 700 }}>
+                                  ⏱️ Stopped {formatStoppedDuration(loc.stoppedAt)}
+                                </span>
+                              ) : (
+                                <span style={{ color: '#64748b' }}>
+                                  Last seen {formatRelativeTime(loc.lastUpdated)}
+                                </span>
+                              )
                             ) : (
-                              <span style={{ color: '#64748b' }}>
+                              <span style={{ color: '#94a3b8' }}>
                                 Last seen {formatRelativeTime(loc.lastUpdated)}
                               </span>
                             )}
@@ -1032,11 +1109,10 @@ export default function LiveEmployeeTracking() {
                   <>
                     <div style={{ marginBottom: 4 }}>
                       <span style={{ color: '#64748b', fontSize: 10, fontWeight: 700 }}>OFFICE LOCATION:</span>
-                      <div style={{ fontWeight: 800, color: '#0369a1', marginTop: 1 }}>Academy Of Tech Masters</div>
-                      <div style={{ fontSize: 11, color: '#0f172a', fontWeight: 600 }}>2nd Floor, Pothuri Towers</div>
-                      <div style={{ fontSize: 10.5, color: '#475569', marginTop: 1 }}>MG Road, Near DV Manor</div>
-                      <div style={{ fontSize: 10.5, color: '#0284c7', fontWeight: 600 }}>Opposite Lucky Shopping Mall</div>
-                      <div style={{ fontSize: 10.5, color: '#64748b' }}>Vijayawada, AP - 520010</div>
+                      <div style={{ fontWeight: 800, color: '#0369a1', marginTop: 1 }}>{OFFICE_LOCATION.name}</div>
+                      <div style={{ fontSize: 11, color: '#0f172a', fontWeight: 600 }}>{OFFICE_LOCATION.building}</div>
+                      <div style={{ fontSize: 10.5, color: '#475569', marginTop: 1 }}>{OFFICE_LOCATION.road}, {OFFICE_LOCATION.landmark}</div>
+                      <div style={{ fontSize: 10.5, color: '#64748b' }}>{OFFICE_LOCATION.city}, {OFFICE_LOCATION.state} - {OFFICE_LOCATION.pincode}</div>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, paddingTop: 4, borderTop: '1px solid #e2e8f0' }}>
                       <span style={{ color: '#64748b' }}>Since:</span>
