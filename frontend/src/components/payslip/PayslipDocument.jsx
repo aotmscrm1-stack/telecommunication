@@ -2,6 +2,27 @@ import React, { forwardRef } from 'react';
 import logoImg from '../../assets/aotms-global-logo.png';
 import { numberToWords } from '../../utils/numberToWords';
 
+const MONTH_NAMES_LIST = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+function formatDisplayMonth(monthVal) {
+  if (!monthVal || String(monthVal).trim() === '') return '__________';
+  let str = String(monthVal).trim();
+  if (str.includes('T') || str.includes('GMT') || /^\d{4}-\d{2}-\d{2}/.test(str)) {
+    const parsed = new Date(str);
+    if (!isNaN(parsed.getTime())) {
+      const m = MONTH_NAMES_LIST[parsed.getMonth()] || MONTH_NAMES_LIST[parsed.getUTCMonth()];
+      const y = parsed.getFullYear() || parsed.getUTCFullYear();
+      return `${m} ${y}`;
+    }
+  }
+  // Strip any accidental time pattern like " 10:00:00" or " 12:00 AM"
+  str = str.replace(/\s+\d{1,2}:\d{2}(:\d{2})?(\s*[ap]m)?/i, '').trim();
+  return str || '__________';
+}
+
 export const PayslipDocument = forwardRef(({ payslip, isPreview = false }, ref) => {
   if (!payslip) return null;
 
@@ -51,53 +72,43 @@ export const PayslipDocument = forwardRef(({ payslip, isPreview = false }, ref) 
         <div
           style={{
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
-            padding: isPreview ? '8px 10px 6px 10px' : '12px 16px 10px 16px',
-            position: 'relative',
+            justifyContent: 'center',
+            padding: isPreview ? '8px 10px 7px 10px' : '12px 16px 10px 16px',
+            textAlign: 'center',
           }}
         >
-          {/* Logo on top-left */}
-          <div style={{ flexShrink: 0, width: isPreview ? '135px' : '165px' }}>
+          {/* Centered Logo */}
+          <div style={{ marginBottom: isPreview ? '3px' : '5px' }}>
             <img
               src={logoImg}
               alt="AOTMS Logo"
               style={{
-                height: isPreview ? '38px' : '46px',
+                height: isPreview ? '36px' : '44px',
                 width: 'auto',
-                maxWidth: isPreview ? '130px' : '160px',
+                maxWidth: isPreview ? '170px' : '210px',
                 objectFit: 'contain',
                 display: 'block',
+                margin: '0 auto',
               }}
             />
           </div>
 
-          {/* Centered Company Name & Address */}
-          <div style={{ flex: 1, textAlign: 'center', paddingRight: isPreview ? '10px' : '25px' }}>
-            <div
-              style={{
-                fontFamily: "Georgia, 'Times New Roman', serif",
-                fontSize: isPreview ? '15px' : '17px',
-                fontWeight: 'bold',
-                letterSpacing: '0.2px',
-                color: '#000000',
-                marginBottom: '3px',
-              }}
-            >
-              Academy Of Tech Masters
-            </div>
-            <div
-              style={{
-                fontFamily: 'Arial, Helvetica, sans-serif',
-                fontSize: isPreview ? '9.5px' : '11px',
-                fontWeight: 'bold',
-                color: '#111111',
-                lineHeight: 1.35,
-              }}
-            >
-              2nd Floor, Sri Pothuri Towers, MG Road, Near DV Manor,
-              <br />
-              Vijayawada – 520010
-            </div>
+          {/* Centered Address */}
+          <div
+            style={{
+              fontFamily: 'Arial, Helvetica, sans-serif',
+              fontSize: isPreview ? '9.5px' : '11px',
+              fontWeight: 'bold',
+              color: '#111111',
+              lineHeight: 1.35,
+              textAlign: 'center',
+            }}
+          >
+            2nd Floor, Sri Pothuri Towers, MG Road, Near DV Manor,
+            <br />
+            Vijayawada – 520010
           </div>
         </div>
 
@@ -115,7 +126,7 @@ export const PayslipDocument = forwardRef(({ payslip, isPreview = false }, ref) 
             fontFamily: 'Arial, Helvetica, sans-serif',
           }}
         >
-          Payslip for the month of {payslip.payslip_month?.trim() || '__________'}
+          Payslip for the month of {formatDisplayMonth(payslip.payslip_month)}
         </div>
 
         {/* ── 3. Employee & Bank Details Grid ─────────────────────────── */}

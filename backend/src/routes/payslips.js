@@ -4,6 +4,25 @@ const Payslip = require('../models/Payslip');
 const { protect } = require('../middleware/auth');
 const { numberToWords } = require('../utils/numberToWords');
 
+const MONTH_NAMES_LIST = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+function cleanPayslipMonth(val) {
+  if (!val) return '';
+  let str = String(val).trim();
+  if (str.includes('T') || str.includes('GMT') || /^\d{4}-\d{2}-\d{2}/.test(str)) {
+    const parsed = new Date(str);
+    if (!isNaN(parsed.getTime())) {
+      return `${MONTH_NAMES_LIST[parsed.getMonth()]} ${parsed.getFullYear()}`;
+    }
+  }
+  // Strip any trailing time like 10:00:00 or 12:00 AM
+  str = str.replace(/\s+\d{1,2}:\d{2}(:\d{2})?(\s*[ap]m)?/i, '').trim();
+  return str;
+}
+
 /**
  * Helper to calculate all salary components based on Gross Salary, Work Days, LOP, Incentive, and TDS
  */
@@ -226,7 +245,7 @@ router.post('/', protect, async (req, res) => {
       pan_number: pan_number.trim(),
       pf_number: pf_number.trim(),
       uan_number: uan_number.trim(),
-      payslip_month: payslip_month.trim(),
+      payslip_month: cleanPayslipMonth(payslip_month),
       ...calculated,
       createdBy: req.user._id,
     });
@@ -237,6 +256,96 @@ router.post('/', protect, async (req, res) => {
     });
   } catch (err) {
     res.status(400).json({ message: err.message });
+  }
+});
+
+// ── POST /api/payslips/bulk (Bulk create & save payslips) ──────────────────────
+router.post('/bulk', protect, async (req, res) => {
+  try {
+    const { payslips = [] } = req.body;
+    if (!Array.isArray(payslips) || payslips.length === 0) {
+      return res.status(400).json({ message: 'No payslip records provided in payload' });
+    }
+
+    const createdRecords = [];
+    const errors = [];
+
+    for (let i = 0; i < payslips.length; i++) {
+      const item = payslips[i];
+      const rowNum = i + 1;
+
+      try {
+        const {
+          employee_name,
+          employee_id,
+          joining_date = '',
+          designation = '',
+          department = '',
+          location = '',
+          effective_work_days = 30,
+          lop = 0,
+          bank_name = '',
+          bank_account_number = '',
+          pan_number = '',
+          pf_number = '',
+          uan_number = '',
+          payslip_month,
+          gross_salary,
+          incentive = 0,
+          tds = 200,
+        } = item;
+
+        if (!employee_name?.trim()) throw new Error(`Row ${rowNum}: Employee Name is required`);
+        if (!employee_id?.trim()) throw new Error(`Row ${rowNum}: Employee ID is required`);
+        if (!payslip_month?.trim()) throw new Error(`Row ${rowNum}: Payslip Month is required`);
+        if (!gross_salary || Number(gross_salary) <= 0) throw new Error(`Row ${rowNum}: Gross Salary must be greater than 0`);
+
+        const workDays = Number(effective_work_days) > 0 ? Number(effective_work_days) : 30;
+        const lopDays = Number(lop) >= 0 ? Number(lop) : 0;
+        const incentiveNum = Math.max(0, Math.round(Number(incentive) || 0));
+        const tdsNum = Number(tds) >= 0 ? Number(tds) : 200;
+
+        const calculated = calculateSalaryComponents(gross_salary, workDays, lopDays, incentiveNum, tdsNum);
+
+        const doc = await Payslip.create({
+          employee_name: employee_name.trim(),
+          employee_id: employee_id.trim(),
+          joining_date: String(joining_date || '').trim(),
+          designation: String(designation || '').trim(),
+          department: String(department || '').trim(),
+          location: String(location || '').trim(),
+          bank_name: String(bank_name || '').trim(),
+          bank_account_number: String(bank_account_number || '').trim(),
+          pan_number: String(pan_number || '').trim(),
+          pf_number: String(pf_number || '').trim(),
+          uan_number: String(uan_number || '').trim(),
+          payslip_month: cleanPayslipMonth(payslip_month),
+          ...calculated,
+          createdBy: req.user._id,
+        });
+
+        createdRecords.push(doc);
+      } catch (rowErr) {
+        errors.push({ index: i, error: rowErr.message });
+      }
+    }
+
+    if (createdRecords.length === 0 && errors.length > 0) {
+      return res.status(400).json({
+        message: 'Failed to create any payslips due to validation errors',
+        errors,
+      });
+    }
+
+    res.status(201).json({
+      message: `Successfully generated and saved ${createdRecords.length} payslip(s)${errors.length > 0 ? ` (${errors.length} skipped)` : ''}`,
+      payslips: createdRecords,
+      savedCount: createdRecords.length,
+      errorsCount: errors.length,
+      errors,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 });
 
@@ -287,7 +396,7 @@ router.put('/:id', protect, async (req, res) => {
     if (pan_number !== undefined) existing.pan_number = pan_number;
     if (pf_number !== undefined) existing.pf_number = pf_number;
     if (uan_number !== undefined) existing.uan_number = uan_number;
-    if (payslip_month !== undefined) existing.payslip_month = payslip_month;
+    if (payslip_month !== undefined) existing.payslip_month = cleanPayslipMonth(payslip_month);
     if (status !== undefined) existing.status = status;
 
     Object.assign(existing, calculated);

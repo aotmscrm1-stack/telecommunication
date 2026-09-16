@@ -283,6 +283,7 @@ export const payslipsAPI = {
   getOne: (id) => api.get(`/payslips/${id}`),
   calculate: (data) => api.post('/payslips/calculate', data),
   create: (data) => api.post('/payslips', data),
+  bulkCreate: (data) => api.post('/payslips/bulk', data),
   update: (id, data) => api.put(`/payslips/${id}`, data),
   delete: (id) => api.delete(`/payslips/${id}`),
 };
