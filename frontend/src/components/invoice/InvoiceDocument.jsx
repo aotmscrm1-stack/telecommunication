@@ -862,6 +862,14 @@ export const InvoiceDocument = forwardRef(({ invoiceData, documentType = 'invoic
       <div style={pageContainerStyle}>
         <div style={{ position: 'absolute', top: 12, right: 16, fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>Page 2 of 5</div>
         
+        <div style={headerStyle}>
+          <img src={atmLogoImg} alt="AOTMS Logo" style={{ height: 48, objectFit: 'contain' }} onError={(e) => { e.target.src = logoImg; }} />
+          <div style={{ textAlign: 'right', fontSize: 13, color: '#111827' }}>
+            <div><strong>Phone:</strong> +91 80199-42233</div>
+            <div><strong>Email:</strong> <a href="mailto:hr@aotms.com" style={{ color: '#2563eb', textDecoration: 'underline' }}>hr@aotms.com</a></div>
+          </div>
+        </div>
+
         <div style={{ border: '1px solid #000', marginBottom: 24 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
             <tbody>
@@ -891,8 +899,17 @@ export const InvoiceDocument = forwardRef(({ invoiceData, documentType = 'invoic
                 <td style={{ padding: '6px 12px', textAlign: 'right' }}>{fmtCurrency(daAnnual)}</td>
               </tr>
 
+              {/* Custom Earnings */}
+              {customEarnings.map((earn, idx) => (
+                <tr key={idx} style={{ borderBottom: '1px solid #000' }}>
+                  <td style={{ padding: '6px 12px', borderRight: '1px solid #000' }}>{earn.name}</td>
+                  <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #000' }}>{fmtCurrency(earn.monthly)}</td>
+                  <td style={{ padding: '6px 12px', textAlign: 'right' }}>{fmtCurrency(earn.annual || (earn.monthly * 12))}</td>
+                </tr>
+              ))}
+
               {/* Net Earnings */}
-              <tr style={{ fontWeight: 800 }}>
+              <tr style={{ fontWeight: 800, background: '#f3f4f6' }}>
                 <td style={{ padding: '8px 12px', borderRight: '1px solid #000' }}>Net Earnings</td>
                 <td style={{ padding: '8px 12px', textAlign: 'right', borderRight: '1px solid #000' }}>{fmtCurrency(netMonthly)}</td>
                 <td style={{ padding: '8px 12px', textAlign: 'right' }}>{fmtCurrency(netAnnual)}</td>
@@ -900,6 +917,176 @@ export const InvoiceDocument = forwardRef(({ invoiceData, documentType = 'invoic
             </tbody>
           </table>
         </div>
+
+        <div style={{ marginTop: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 8, textDecoration: 'underline' }}>Deductions Breakdown</div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, border: '1px solid #000' }}>
+            <tbody>
+              <tr style={{ borderBottom: '1px solid #000' }}>
+                <td style={{ padding: '6px 12px', width: '40%', borderRight: '1px solid #000' }}>Professional Tax (PT)</td>
+                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #000', width: '30%' }}>{fmtCurrency(ptMonthly)}</td>
+                <td style={{ padding: '6px 12px', textAlign: 'right', width: '30%' }}>{fmtCurrency(ptAnnual)}</td>
+              </tr>
+              {customDeductions.map((ded, idx) => (
+                <tr key={idx} style={{ borderBottom: '1px solid #000' }}>
+                  <td style={{ padding: '6px 12px', borderRight: '1px solid #000' }}>{ded.name}</td>
+                  <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #000' }}>{fmtCurrency(ded.monthly)}</td>
+                  <td style={{ padding: '6px 12px', textAlign: 'right' }}>{fmtCurrency(ded.annual || (ded.monthly * 12))}</td>
+                </tr>
+              ))}
+              <tr style={{ fontWeight: 800, background: '#fee2e2' }}>
+                <td style={{ padding: '7px 12px', borderRight: '1px solid #000' }}>Total Deductions</td>
+                <td style={{ padding: '7px 12px', textAlign: 'right', borderRight: '1px solid #000' }}>{fmtCurrency(totalDeductionsMonthly)}</td>
+                <td style={{ padding: '7px 12px', textAlign: 'right' }}>{fmtCurrency(totalDeductionsAnnual)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ── PAGE 3 OF 5 ────────────────────────────────────────────────── */}
+      <div style={pageContainerStyle}>
+        <div style={{ position: 'absolute', top: 12, right: 16, fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>Page 3 of 5</div>
+        
+        <div style={headerStyle}>
+          <img src={atmLogoImg} alt="AOTMS Logo" style={{ height: 48, objectFit: 'contain' }} onError={(e) => { e.target.src = logoImg; }} />
+          <div style={{ textAlign: 'right', fontSize: 13, color: '#111827' }}>
+            <div><strong>Phone:</strong> +91 80199-42233</div>
+            <div><strong>Email:</strong> <a href="mailto:hr@aotms.com" style={{ color: '#2563eb', textDecoration: 'underline' }}>hr@aotms.com</a></div>
+          </div>
+        </div>
+
+        <div style={{ textAlign: 'center', fontWeight: 800, fontSize: 15, textDecoration: 'underline', marginBottom: 20 }}>
+          TERMS & CONDITIONS OF EMPLOYMENT
+        </div>
+
+        <div style={{ lineHeight: 1.6, fontSize: 13 }}>
+          <div style={{ marginBottom: 16 }}>
+            <strong style={{ fontSize: 13.5 }}>1. Probation & Confirmation</strong>
+            <p style={{ margin: '4px 0 0 0', textAlign: 'justify' }}>
+              Your probation period will be from <strong>{probationPeriod}</strong>. During this probation period, your performance, technical proficiency, attendance, and professional conduct will be continuously evaluated by management. Upon successful completion of probation, your employment with the company will be confirmed in writing. Management reserves the right to extend the probation period if deemed necessary.
+            </p>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <strong style={{ fontSize: 13.5 }}>2. Work Timings & Hours</strong>
+            <p style={{ margin: '4px 0 0 0', textAlign: 'justify' }}>
+              Your standard work timings will be <strong>{workTimings}</strong>, Monday through Saturday. You may be required to work additional hours or shifts depending on operational, client delivery, or project milestones.
+            </p>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <strong style={{ fontSize: 13.5 }}>3. Leave Policy & Public Holidays</strong>
+            <p style={{ margin: '4px 0 0 0', textAlign: 'justify' }}>
+              You will be entitled to paid leave and public holidays in accordance with the Company HR Leave Policy. Unauthorized absence exceeding 3 consecutive working days without prior approval will be considered abandonment of employment and subject to disciplinary action.
+            </p>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <strong style={{ fontSize: 13.5 }}>4. Confidentiality & Non-Disclosure (NDA)</strong>
+            <p style={{ margin: '4px 0 0 0', textAlign: 'justify' }}>
+              You shall maintain strict confidentiality regarding all company proprietary software, source codes, database schemas, client contracts, trade secrets, financial records, and operational strategies. You shall not disclose, duplicate, or transfer any company data or intellectual property to any third party during or after your employment.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── PAGE 4 OF 5 ────────────────────────────────────────────────── */}
+      <div style={pageContainerStyle}>
+        <div style={{ position: 'absolute', top: 12, right: 16, fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>Page 4 of 5</div>
+        
+        <div style={headerStyle}>
+          <img src={atmLogoImg} alt="AOTMS Logo" style={{ height: 48, objectFit: 'contain' }} onError={(e) => { e.target.src = logoImg; }} />
+          <div style={{ textAlign: 'right', fontSize: 13, color: '#111827' }}>
+            <div><strong>Phone:</strong> +91 80199-42233</div>
+            <div><strong>Email:</strong> <a href="mailto:hr@aotms.com" style={{ color: '#2563eb', textDecoration: 'underline' }}>hr@aotms.com</a></div>
+          </div>
+        </div>
+
+        <div style={{ lineHeight: 1.6, fontSize: 13 }}>
+          <div style={{ marginBottom: 16 }}>
+            <strong style={{ fontSize: 13.5 }}>5. Professional Conduct & Conflict of Interest</strong>
+            <p style={{ margin: '4px 0 0 0', textAlign: 'justify' }}>
+              During your employment with Academy Of Tech Masters / AOTMS Global Pvt. Ltd., you shall devote your full business time, attention, and effort to company duties. You shall not engage in any secondary employment, freelancing, consulting, or business activities that conflict with the company's business interests.
+            </p>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <strong style={{ fontSize: 13.5 }}>6. Termination & Notice Period</strong>
+            <p style={{ margin: '4px 0 0 0', textAlign: 'justify' }}>
+              Post confirmation, either party may terminate employment by providing <strong>30 days written notice</strong> or gross salary in lieu thereof. During probation, the notice period required by either party shall be <strong>15 days</strong>. In case of gross misconduct, breach of confidentiality, fraud, or violation of company policies, the Company reserves the right to terminate employment immediately without notice or compensation.
+            </p>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <strong style={{ fontSize: 13.5 }}>7. Return of Company Property</strong>
+            <p style={{ margin: '4px 0 0 0', textAlign: 'justify' }}>
+              Upon termination of employment for any reason, you shall immediately surrender to the company all assigned laptops, access cards, documents, software credentials, customer databases, and physical/digital assets in your possession.
+            </p>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <strong style={{ fontSize: 13.5 }}>8. Governing Law & Jurisdiction</strong>
+            <p style={{ margin: '4px 0 0 0', textAlign: 'justify' }}>
+              This offer letter and employment contract shall be governed by and construed in accordance with the laws of India. Any disputes shall be subject to the exclusive jurisdiction of courts situated at Vijayawada, Andhra Pradesh.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── PAGE 5 OF 5 ────────────────────────────────────────────────── */}
+      <div style={pageContainerStyle}>
+        <div style={{ position: 'absolute', top: 12, right: 16, fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>Page 5 of 5</div>
+        
+        <div style={headerStyle}>
+          <img src={atmLogoImg} alt="AOTMS Logo" style={{ height: 48, objectFit: 'contain' }} onError={(e) => { e.target.src = logoImg; }} />
+          <div style={{ textAlign: 'right', fontSize: 13, color: '#111827' }}>
+            <div><strong>Phone:</strong> +91 80199-42233</div>
+            <div><strong>Email:</strong> <a href="mailto:hr@aotms.com" style={{ color: '#2563eb', textDecoration: 'underline' }}>hr@aotms.com</a></div>
+          </div>
+        </div>
+
+        <div style={{ fontWeight: 800, fontSize: 14, textDecoration: 'underline', marginBottom: 12 }}>
+          JOINING FORMALITIES & DOCUMENT CHECKLIST
+        </div>
+        <p style={{ margin: '0 0 12px 0', fontSize: 12.5 }}>
+          Please submit self-attested copies of the following documents on or before your joining date (<strong>{offerDate}</strong>):
+        </p>
+        <ul style={{ margin: '0 0 20px 20px', padding: 0, fontSize: 12.5, lineHeight: 1.7 }}>
+          <li>Educational Certificates (SSCC/10th, Intermediate/12th, Graduation Degree & Marksheets)</li>
+          <li>Previous Employer Relieving Letter & Service Certificate (if applicable)</li>
+          <li>Last 3 Months Salary Slips / Bank Statement (if applicable)</li>
+          <li>Aadhaar Card, PAN Card, and Passport (if available)</li>
+          <li>4 Recent Passport-size Photographs</li>
+          <li>Cancelled Cheque or Bank Passbook copy for salary account setup</li>
+        </ul>
+
+        <div style={{ border: '1.5px solid #000', padding: 16, background: '#f9fafb', marginBottom: 30 }}>
+          <div style={{ fontWeight: 800, fontSize: 13.5, textDecoration: 'underline', marginBottom: 8 }}>
+            ACCEPTANCE OF OFFER & DECLARATION
+          </div>
+          <p style={{ margin: '0 0 14px 0', fontSize: 12.5, lineHeight: 1.5, textAlign: 'justify' }}>
+            I, <strong>{clientName}</strong>, hereby accept the offer of employment as <strong>"{designation}"</strong> with Academy Of Tech Masters on the terms and conditions outlined in this offer letter (Pages 1 to 5). I confirm that I will join duty on <strong>{offerDate}</strong>.
+          </p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginTop: 24, paddingTop: 16, borderTop: '1px solid #d1d5db' }}>
+            <div>
+              <div style={{ fontSize: 12, color: '#4b5563', marginBottom: 28 }}>Candidate Signature: ______________________</div>
+              <div style={{ fontWeight: 700, fontSize: 13 }}>Name: {clientName}</div>
+              <div style={{ fontSize: 12, color: '#4b5563', marginTop: 4 }}>Date: ________________________</div>
+            </div>
+
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontWeight: 800, fontSize: 13, color: '#000000' }}>For ACADEMY OF TECH MASTERS</div>
+              <div style={{ fontFamily: "'Brush Script MT', cursive", fontSize: 24, color: '#0f172a', fontWeight: 'bold', margin: '8px 0' }}>
+                SD. Ameenuddin
+              </div>
+              <div style={{ fontWeight: 700, fontSize: 13, color: '#1e293b' }}>Ameenuddin Sayyed</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#475569' }}>Founder & CEO</div>
+            </div>
+          </div>
+        </div>
+
       </div>
 
     </div>
