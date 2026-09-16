@@ -26,8 +26,39 @@ import { invoicesAPI } from '../services/api';
 import { numberToWords } from '../utils/numberToWords';
 import InvoiceDocument from '../components/invoice/InvoiceDocument';
 
+const SAMPLE_URCE_INVOICE = {
+  doc_type: 'invoice',
+  invoice_number: 'AOTMS-AUGINV01',
+  invoice_date: '5/8/2026',
+  due_date: '10/8/2026',
+  payment_note: 'Terms Of Payment - 5Days',
+  client_name: 'Usharaama Educational Academy',
+  client_address: 'NH-5, Near Gannavaram, Telaprolu, Unguturu, Krishna, AP-521109',
+  client_mobile: '',
+  client_email: 'anusid.1517@gmail.com',
+  items: [
+    {
+      sno: 1,
+      particulars: 'Workshop - Intelligent AI Development\nFrom Innovation to Deployment',
+      sac: '999293',
+      rate: 7000.00,
+      per: '6Days',
+      amount: 42000.00,
+    }
+  ],
+  gst_rate: 18,
+  gst_amount: 7560.00,
+  net_earnings_in_words: 'INR Forty Nine Thousand Five Hundred Sixty Rupees Only',
+  bank_account_holder: 'AOTMS GLOBAL PRIVATE LIMITED',
+  bank_name: 'HDFC BANK',
+  bank_account_no: '50200120568031',
+  bank_ifsc: 'HDFC0009062',
+  bank_branch: 'Gurunanak Colony -520008',
+};
+
 const SAMPLE_JAYAVEER = {
-  invoice_number: 'AOTMS-INV-2026-001',
+  doc_type: 'offer',
+  invoice_number: 'AOTMS-OFF-2026-001',
   invoice_date: new Date().toISOString().split('T')[0],
   client_name: 'Ramanadham Jayaveer',
   designation: 'Developer',
@@ -56,7 +87,7 @@ const SAMPLE_JAYAVEER = {
 };
 
 export default function Invoice() {
-  const [form, setForm] = useState(SAMPLE_JAYAVEER);
+  const [form, setForm] = useState(SAMPLE_URCE_INVOICE);
   const [activeTab, setActiveTab] = useState('create'); // 'create' | 'history'
   const [previewMode, setPreviewMode] = useState('split'); // 'split' | 'fullscreen'
   const [history, setHistory] = useState([]);
@@ -259,14 +290,25 @@ export default function Invoice() {
           {activeTab === 'create' && (
             <>
               <button
+                onClick={() => setForm(SAMPLE_URCE_INVOICE)}
+                style={{
+                  padding: '9px 14px', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0',
+                  borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6
+                }}
+                title="Fill sample details from URCE Tax Invoice sample.pdf"
+              >
+                <Sparkles size={15} /> Sample URCE Invoice
+              </button>
+
+              <button
                 onClick={() => setForm(SAMPLE_JAYAVEER)}
                 style={{
                   padding: '9px 14px', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe',
                   borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6
                 }}
-                title="Fill sample details from Jayaveer O.L .pdf"
+                title="Fill sample details from Jayaveer Offer Letter .pdf"
               >
-                <Sparkles size={15} /> Fill Sample (Jayaveer)
+                <Sparkles size={15} /> Sample Offer Letter
               </button>
 
               <button
