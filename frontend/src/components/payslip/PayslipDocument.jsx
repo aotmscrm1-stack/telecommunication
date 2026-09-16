@@ -343,6 +343,23 @@ export const PayslipDocument = forwardRef(({ payslip, isPreview = false }, ref) 
               {hasGross && words ? `(${words})` : '(__________________________________________________)'}
             </div>
           </div>
+
+          {/* ── 5. System Generated Note ───────────────────────────────── */}
+          <div
+            style={{
+              borderTop: '1.5px solid #000000',
+              padding: isPreview ? '5px 10px' : '7px 12px',
+              textAlign: 'center',
+              fontSize: isPreview ? '9px' : '10px',
+              color: '#333333',
+              fontStyle: 'italic',
+              letterSpacing: '0.2px',
+              fontFamily: 'Arial, Helvetica, sans-serif',
+              backgroundColor: '#fafafa',
+            }}
+          >
+            * Note: This is a system-generated payslip and does not require a signature.
+          </div>
         </div>
       </div>
     </div>
