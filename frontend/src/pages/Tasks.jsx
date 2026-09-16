@@ -352,14 +352,10 @@ function AddTaskModal({ type, onClose, onCreated }) {
   }, [canAssign]);
 
   // Who can be picked in "Assigned To":
-  // - Super Admin (admin role) can assign to everyone
-  // - Manager can only assign to callers (and themselves)
+  // - Admin and Manager can assign to anyone
   // - Caller can only assign to themselves
   const assignableUsers = (() => {
-    if (currentUser?.role === 'admin') return users;
-    if (currentUser?.role === 'manager') {
-      return users.filter(u => u.role === 'caller' || u._id === currentUser._id);
-    }
+    if (currentUser?.role === 'admin' || currentUser?.role === 'manager') return users;
     return users.filter(u => u._id === currentUser?._id);
   })();
 
@@ -593,8 +589,8 @@ function AddTaskModal({ type, onClose, onCreated }) {
                     </option>
                   ))}
                 </select>
-                {currentUser?.role === 'manager' && (
-                  <p style={{ fontSize: 10.5, color: TEXT_MUTED, margin: '4px 0 0' }}>Managers can assign tasks to callers or themselves.</p>
+                {(currentUser?.role === 'admin' || currentUser?.role === 'manager') && (
+                  <p style={{ fontSize: 10.5, color: TEXT_MUTED, margin: '4px 0 0' }}>Admins & Managers can assign tasks to any team member.</p>
                 )}
               </div>
               <div style={{ flex: 1 }}>
@@ -669,7 +665,7 @@ export default function Tasks() {
       setActiveTab(tab);
     }
   }, [searchParams]);
-  const [forFilter, setForFilter] = useState('Me');
+  const [forFilter, setForFilter] = useState(() => (currentUser?.role === 'admin' || currentUser?.role === 'manager') ? 'Team' : 'Me');
   const [dueFilter, setDueFilter] = useState(null);
   // Completed ("done") tasks are no longer mixed into the active list — they
   // live under the History view instead (see historyMode below).

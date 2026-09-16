@@ -84,17 +84,17 @@ export default function Leads() {
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [statuses, setStatuses] = useState(FALLBACK_STATUSES);
 
-  // Load callers list for admin
+  // Load team users list for admin / manager
   useEffect(() => {
     if (isAdmin) {
       usersAPI.getAll()
         .then(res => {
-          const list = (res.data.users || []).filter(u => u.role === 'caller');
+          const list = (res.data.users || []);
           setCallers(list);
         })
         .catch(console.error);
     }
-  }, [user]);
+  }, [user, isAdmin]);
 
   // Load configurable lead stage statuses (falls back to default list on error)
   useEffect(() => {
