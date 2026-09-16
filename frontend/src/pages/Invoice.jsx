@@ -360,230 +360,577 @@ export default function Invoice() {
           {previewMode !== 'fullscreen' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               
-              {/* Card 1: Candidate / Client Details */}
-              <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <User size={18} style={{ color: '#0284c7' }} /> Candidate / Recipient Details
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <div>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Candidate / Client Name *</label>
-                    <input
-                      type="text"
-                      value={form.client_name}
-                      onChange={e => setForm({ ...form, client_name: e.target.value })}
-                      placeholder="e.g. Ramanadham Jayaveer"
-                      style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
-                    />
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    <div>
-                      <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Designation</label>
-                      <input
-                        type="text"
-                        value={form.designation}
-                        onChange={e => setForm({ ...form, designation: e.target.value })}
-                        placeholder="Developer"
-                        style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Offer / Invoice Date</label>
-                      <input
-                        type="text"
-                        value={form.offer_date}
-                        onChange={e => setForm({ ...form, offer_date: e.target.value })}
-                        placeholder="20th July 2026"
-                        style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
-                      />
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    <div>
-                      <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Email</label>
-                      <input
-                        type="email"
-                        value={form.email}
-                        onChange={e => setForm({ ...form, email: e.target.value })}
-                        placeholder="jayaveer@aotms.com"
-                        style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Invoice No.</label>
-                      <input
-                        type="text"
-                        value={form.invoice_number}
-                        onChange={e => setForm({ ...form, invoice_number: e.target.value })}
-                        placeholder="AOTMS-INV-2026-001"
-                        style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
-                      />
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    <div>
-                      <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Probation Period</label>
-                      <input
-                        type="text"
-                        value={form.probation_period || '01 FEB 2026 To 01 MAY 2026'}
-                        onChange={e => setForm({ ...form, probation_period: e.target.value })}
-                        placeholder="01 FEB 2026 To 01 MAY 2026"
-                        style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Standard Work Timings</label>
-                      <input
-                        type="text"
-                        value={form.work_timings || '9:30am to 06:30pm'}
-                        onChange={e => setForm({ ...form, work_timings: e.target.value })}
-                        placeholder="9:30am to 06:30pm"
-                        style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
-                      />
-                    </div>
-                  </div>
+              {/* Document Type Selector Card */}
+              <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 16, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 8, display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Select Document Type
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => setForm(prev => ({ ...SAMPLE_URCE_INVOICE, ...prev, doc_type: 'invoice' }))}
+                    style={{
+                      padding: '8px 10px', borderRadius: 8, border: '1px solid', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                      background: (form.doc_type || 'invoice') === 'invoice' ? '#ecfdf5' : '#ffffff',
+                      color: (form.doc_type || 'invoice') === 'invoice' ? '#047857' : '#64748b',
+                      borderColor: (form.doc_type || 'invoice') === 'invoice' ? '#6ee7b7' : '#cbd5e1',
+                      transition: 'all 0.15s'
+                    }}
+                  >
+                    🧾 Tax Invoice
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm(prev => ({ ...SAMPLE_JAYAVEER, ...prev, doc_type: 'offer' }))}
+                    style={{
+                      padding: '8px 10px', borderRadius: 8, border: '1px solid', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                      background: form.doc_type === 'offer' ? '#eff6ff' : '#ffffff',
+                      color: form.doc_type === 'offer' ? '#1d4ed8' : '#64748b',
+                      borderColor: form.doc_type === 'offer' ? '#bfdbfe' : '#cbd5e1',
+                      transition: 'all 0.15s'
+                    }}
+                  >
+                    📄 Offer Letter
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm(prev => ({ ...SAMPLE_URCE_INVOICE, ...prev, doc_type: 'quotation', invoice_number: 'AOTMS-QUO-2026-001' }))}
+                    style={{
+                      padding: '8px 10px', borderRadius: 8, border: '1px solid', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                      background: form.doc_type === 'quotation' ? '#fffbeb' : '#ffffff',
+                      color: form.doc_type === 'quotation' ? '#b45309' : '#64748b',
+                      borderColor: form.doc_type === 'quotation' ? '#fde68a' : '#cbd5e1',
+                      transition: 'all 0.15s'
+                    }}
+                  >
+                    📝 Quotation
+                  </button>
                 </div>
               </div>
 
-              {/* Card 2: Annual CTC & Salary Calculations */}
-              <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <IndianRupee size={18} style={{ color: '#059669' }} /> Annual CTC & Financial Breakdown
-                </div>
+              {/* ───────────────────────────────────────────────────────────── */}
+              {/* TAX INVOICE / QUOTATION FORM CONTROLS                         */}
+              {/* ───────────────────────────────────────────────────────────── */}
+              {(form.doc_type === 'invoice' || form.doc_type === 'quotation' || !form.doc_type) ? (
+                <>
+                  {/* Card 1: Invoice Meta & Bill To Details */}
+                  <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <FileText size={18} style={{ color: '#059669' }} /> 
+                      {form.doc_type === 'quotation' ? 'Quotation' : 'Invoice'} & Client (Bill To) Details
+                    </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <div>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Total Annual CTC (₹) *</label>
-                    <input
-                      type="number"
-                      value={form.annual_ctc}
-                      onChange={e => updateAnnualCtc(e.target.value)}
-                      placeholder="e.g. 240000"
-                      style={{ width: '100%', padding: '10px 14px', borderRadius: 6, border: '2px solid #059669', fontSize: 15, fontWeight: 700, color: '#047857' }}
-                    />
-                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
-                      Monthly CTC: ₹{Number(form.monthly_ctc || 0).toLocaleString('en-IN')}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div>
+                          <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Document No. *</label>
+                          <input
+                            type="text"
+                            value={form.invoice_number || ''}
+                            onChange={e => setForm({ ...form, invoice_number: e.target.value })}
+                            placeholder="e.g. AOTMS-AUGINV01"
+                            style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, fontWeight: 700 }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Invoice Date</label>
+                          <input
+                            type="text"
+                            value={form.invoice_date || ''}
+                            onChange={e => setForm({ ...form, invoice_date: e.target.value })}
+                            placeholder="5/8/2026"
+                            style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div>
+                          <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Due Date</label>
+                          <input
+                            type="text"
+                            value={form.due_date || ''}
+                            onChange={e => setForm({ ...form, due_date: e.target.value })}
+                            placeholder="10/8/2026"
+                            style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Payment Terms / Note</label>
+                          <input
+                            type="text"
+                            value={form.payment_note || ''}
+                            onChange={e => setForm({ ...form, payment_note: e.target.value })}
+                            placeholder="Terms Of Payment - 5Days"
+                            style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Client / Company Name (Bill TO) *</label>
+                        <input
+                          type="text"
+                          value={form.client_name || ''}
+                          onChange={e => setForm({ ...form, client_name: e.target.value })}
+                          placeholder="e.g. Usharaama Educational Academy"
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13.5, fontWeight: 700 }}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Client Full Address</label>
+                        <textarea
+                          rows={2}
+                          value={form.client_address || ''}
+                          onChange={e => setForm({ ...form, client_address: e.target.value })}
+                          placeholder="NH-5, Near Gannavaram, Telaprolu, Unguturu, Krishna, AP-521109"
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12.5 }}
+                        />
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div>
+                          <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Client Email</label>
+                          <input
+                            type="email"
+                            value={form.client_email || form.email || ''}
+                            onChange={e => setForm({ ...form, client_email: e.target.value, email: e.target.value })}
+                            placeholder="anusid.1517@gmail.com"
+                            style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Client Phone</label>
+                          <input
+                            type="text"
+                            value={form.client_mobile || form.phone || ''}
+                            onChange={e => setForm({ ...form, client_mobile: e.target.value, phone: e.target.value })}
+                            placeholder="+91 98765 43210"
+                            style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Components Grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, background: '#f8fafc', padding: 12, borderRadius: 8 }}>
-                    <div>
-                      <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Basic Salary (Monthly)</span>
-                      <strong style={{ fontSize: 13, color: '#1e293b' }}>₹{Number(form.basic_salary || 0).toLocaleString('en-IN')}</strong>
-                    </div>
-                    <div>
-                      <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>HRA (Monthly)</span>
-                      <strong style={{ fontSize: 13, color: '#1e293b' }}>₹{Number(form.hra || 0).toLocaleString('en-IN')}</strong>
-                    </div>
-                    <div>
-                      <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Medical Allowance</span>
-                      <strong style={{ fontSize: 13, color: '#1e293b' }}>₹{Number(form.medical_allowance || 0).toLocaleString('en-IN')}</strong>
-                    </div>
-                    <div>
-                      <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Conveyance</span>
-                      <strong style={{ fontSize: 13, color: '#1e293b' }}>₹{Number(form.conveyance || 0).toLocaleString('en-IN')}</strong>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Card 3: Dynamic Custom Earnings & Deductions */}
-              <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <PlusCircle size={18} style={{ color: '#6366f1' }} /> Dynamic Custom Elements
-                  </div>
-                </div>
-
-                {/* Custom Earnings List */}
-                <div style={{ marginBottom: 14 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#047857' }}>Custom Earnings / Allowances</span>
-                    <button onClick={addCustomEarning} style={{ background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', padding: '4px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-                      + Add Earning
-                    </button>
-                  </div>
-
-                  {(form.custom_earnings || []).map((earn, idx) => (
-                    <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-                      <input
-                        type="text"
-                        placeholder="Item Name"
-                        value={earn.name}
-                        onChange={e => {
-                          const updated = [...form.custom_earnings];
-                          updated[idx].name = e.target.value;
-                          setForm({ ...form, custom_earnings: updated });
+                  {/* Card 2: Line Items & Particulars */}
+                  <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <PlusCircle size={18} style={{ color: '#0284c7' }} /> Particulars & Line Items
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const currentItems = form.items || [];
+                          const newItem = {
+                            sno: currentItems.length + 1,
+                            particulars: 'New Service Particulars',
+                            sac: '999293',
+                            rate: 5000,
+                            per: '1Unit',
+                            amount: 5000,
+                          };
+                          setForm({ ...form, items: [...currentItems, newItem] });
                         }}
-                        style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
-                      />
-                      <input
-                        type="number"
-                        placeholder="Monthly ₹"
-                        value={earn.monthly}
-                        onChange={e => {
-                          const updated = [...form.custom_earnings];
-                          const m = Number(e.target.value) || 0;
-                          updated[idx].monthly = m;
-                          updated[idx].annual = m * 12;
-                          setForm({ ...form, custom_earnings: updated });
-                        }}
-                        style={{ width: 90, padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
-                      />
-                      <button onClick={() => removeCustomEarning(idx)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}>
-                        <X size={16} />
+                        style={{ background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', padding: '5px 10px', borderRadius: 6, fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}
+                      >
+                        + Add Particular Item
                       </button>
                     </div>
-                  ))}
-                </div>
 
-                {/* Custom Deductions List */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#b91c1c' }}>Custom Deductions</span>
-                    <button onClick={addCustomDeduction} style={{ background: '#fef2f2', color: '#b91c1c', border: '1px solid #fca5a5', padding: '4px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-                      + Add Deduction
-                    </button>
+                    {(form.items || []).map((item, idx) => (
+                      <div key={idx} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: '#0284c7' }}>Item #{idx + 1}</span>
+                          {(form.items || []).length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = form.items.filter((_, i) => i !== idx);
+                                setForm({ ...form, items: updated });
+                              }}
+                              style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}
+                            >
+                              <X size={16} />
+                            </button>
+                          )}
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          <div>
+                            <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 2, display: 'block' }}>Particulars Description</label>
+                            <textarea
+                              rows={2}
+                              value={item.particulars || ''}
+                              onChange={e => {
+                                const updated = [...form.items];
+                                updated[idx].particulars = e.target.value;
+                                setForm({ ...form, items: updated });
+                              }}
+                              placeholder="Workshop - Intelligent AI Development..."
+                              style={{ width: '100%', padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
+                            />
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8 }}>
+                            <div>
+                              <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 2, display: 'block' }}>SAC</label>
+                              <input
+                                type="text"
+                                value={item.sac || ''}
+                                onChange={e => {
+                                  const updated = [...form.items];
+                                  updated[idx].sac = e.target.value;
+                                  setForm({ ...form, items: updated });
+                                }}
+                                placeholder="999293"
+                                style={{ width: '100%', padding: '6px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 2, display: 'block' }}>Rate (₹)</label>
+                              <input
+                                type="number"
+                                value={item.rate || ''}
+                                onChange={e => {
+                                  const updated = [...form.items];
+                                  const r = Number(e.target.value) || 0;
+                                  updated[idx].rate = r;
+                                  updated[idx].amount = r;
+                                  setForm({ ...form, items: updated });
+                                }}
+                                placeholder="7000"
+                                style={{ width: '100%', padding: '6px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 2, display: 'block' }}>PER</label>
+                              <input
+                                type="text"
+                                value={item.per || ''}
+                                onChange={e => {
+                                  const updated = [...form.items];
+                                  updated[idx].per = e.target.value;
+                                  setForm({ ...form, items: updated });
+                                }}
+                                placeholder="6Days"
+                                style={{ width: '100%', padding: '6px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 2, display: 'block' }}>Amount (₹)</label>
+                              <input
+                                type="number"
+                                value={item.amount || ''}
+                                onChange={e => {
+                                  const updated = [...form.items];
+                                  updated[idx].amount = Number(e.target.value) || 0;
+                                  setForm({ ...form, items: updated });
+                                }}
+                                placeholder="42000"
+                                style={{ width: '100%', padding: '6px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, fontWeight: 700 }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>GST Rate (%)</label>
+                        <input
+                          type="number"
+                          value={form.gst_rate ?? 18}
+                          onChange={e => setForm({ ...form, gst_rate: Number(e.target.value) || 0 })}
+                          placeholder="18"
+                          style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                        />
+                      </div>
+                    </div>
                   </div>
 
-                  {(form.custom_deductions || []).map((ded, idx) => (
-                    <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-                      <input
-                        type="text"
-                        placeholder="Deduction Name"
-                        value={ded.name}
-                        onChange={e => {
-                          const updated = [...form.custom_deductions];
-                          updated[idx].name = e.target.value;
-                          setForm({ ...form, custom_deductions: updated });
-                        }}
-                        style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
-                      />
-                      <input
-                        type="number"
-                        placeholder="Monthly ₹"
-                        value={ded.monthly}
-                        onChange={e => {
-                          const updated = [...form.custom_deductions];
-                          const m = Number(e.target.value) || 0;
-                          updated[idx].monthly = m;
-                          updated[idx].annual = m * 12;
-                          setForm({ ...form, custom_deductions: updated });
-                        }}
-                        style={{ width: 90, padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
-                      />
-                      <button onClick={() => removeCustomDeduction(idx)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}>
-                        <X size={16} />
+                  {/* Card 3: Bank Details */}
+                  <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Building2 size={18} style={{ color: '#0284c7' }} /> Company's Bank Details
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>A/C Holder Name</label>
+                        <input
+                          type="text"
+                          value={form.bank_account_holder || 'AOTMS GLOBAL PRIVATE LIMITED'}
+                          onChange={e => setForm({ ...form, bank_account_holder: e.target.value })}
+                          style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12.5 }}
+                        />
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div>
+                          <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Bank Name</label>
+                          <input
+                            type="text"
+                            value={form.bank_name || 'HDFC BANK'}
+                            onChange={e => setForm({ ...form, bank_name: e.target.value })}
+                            style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12.5 }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>A/c No.</label>
+                          <input
+                            type="text"
+                            value={form.bank_account_no || '50200120568031'}
+                            onChange={e => setForm({ ...form, bank_account_no: e.target.value })}
+                            style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12.5 }}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div>
+                          <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>HDFC / IFSC Code</label>
+                          <input
+                            type="text"
+                            value={form.bank_ifsc || 'HDFC0009062'}
+                            onChange={e => setForm({ ...form, bank_ifsc: e.target.value })}
+                            style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12.5 }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Branch</label>
+                          <input
+                            type="text"
+                            value={form.bank_branch || 'Gurunanak Colony -520008'}
+                            onChange={e => setForm({ ...form, bank_branch: e.target.value })}
+                            style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12.5 }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                /* ───────────────────────────────────────────────────────────── */
+                /* OFFER LETTER FORM CONTROLS                                    */
+                /* ───────────────────────────────────────────────────────────── */
+                <>
+                  {/* Card 1: Candidate / Client Details */}
+                  <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <User size={18} style={{ color: '#0284c7' }} /> Candidate / Recipient Details
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Candidate Name *</label>
+                        <input
+                          type="text"
+                          value={form.client_name || ''}
+                          onChange={e => setForm({ ...form, client_name: e.target.value })}
+                          placeholder="e.g. Ramanadham Jayaveer"
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                        />
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div>
+                          <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Designation</label>
+                          <input
+                            type="text"
+                            value={form.designation || ''}
+                            onChange={e => setForm({ ...form, designation: e.target.value })}
+                            placeholder="Developer"
+                            style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Offer Date</label>
+                          <input
+                            type="text"
+                            value={form.offer_date || ''}
+                            onChange={e => setForm({ ...form, offer_date: e.target.value })}
+                            placeholder="20th July 2026"
+                            style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div>
+                          <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Email</label>
+                          <input
+                            type="email"
+                            value={form.email || ''}
+                            onChange={e => setForm({ ...form, email: e.target.value })}
+                            placeholder="jayaveer@aotms.com"
+                            style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Document No.</label>
+                          <input
+                            type="text"
+                            value={form.invoice_number || ''}
+                            onChange={e => setForm({ ...form, invoice_number: e.target.value })}
+                            placeholder="AOTMS-OFF-2026-001"
+                            style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div>
+                          <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Probation Period</label>
+                          <input
+                            type="text"
+                            value={form.probation_period || '01 FEB 2026 To 01 MAY 2026'}
+                            onChange={e => setForm({ ...form, probation_period: e.target.value })}
+                            placeholder="01 FEB 2026 To 01 MAY 2026"
+                            style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Standard Work Timings</label>
+                          <input
+                            type="text"
+                            value={form.work_timings || '9:30am to 06:30pm'}
+                            onChange={e => setForm({ ...form, work_timings: e.target.value })}
+                            placeholder="9:30am to 06:30pm"
+                            style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card 2: Annual CTC & Salary Calculations */}
+                  <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <IndianRupee size={18} style={{ color: '#059669' }} /> Annual CTC & Financial Breakdown
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Total Annual CTC (₹) *</label>
+                        <input
+                          type="number"
+                          value={form.annual_ctc || ''}
+                          onChange={e => updateAnnualCtc(e.target.value)}
+                          placeholder="e.g. 240000"
+                          style={{ width: '100%', padding: '10px 14px', borderRadius: 6, border: '2px solid #059669', fontSize: 15, fontWeight: 700, color: '#047857' }}
+                        />
+                        <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
+                          Monthly CTC: ₹{Number(form.monthly_ctc || 0).toLocaleString('en-IN')}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, background: '#f8fafc', padding: 12, borderRadius: 8 }}>
+                        <div>
+                          <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Basic Salary (Monthly)</span>
+                          <strong style={{ fontSize: 13, color: '#1e293b' }}>₹{Number(form.basic_salary || 0).toLocaleString('en-IN')}</strong>
+                        </div>
+                        <div>
+                          <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>HRA (Monthly)</span>
+                          <strong style={{ fontSize: 13, color: '#1e293b' }}>₹{Number(form.hra || 0).toLocaleString('en-IN')}</strong>
+                        </div>
+                        <div>
+                          <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Medical Allowance</span>
+                          <strong style={{ fontSize: 13, color: '#1e293b' }}>₹{Number(form.medical_allowance || 0).toLocaleString('en-IN')}</strong>
+                        </div>
+                        <div>
+                          <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Conveyance</span>
+                          <strong style={{ fontSize: 13, color: '#1e293b' }}>₹{Number(form.conveyance || 0).toLocaleString('en-IN')}</strong>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card 3: Custom Earnings & Deductions */}
+                  <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#047857' }}>Custom Earnings</span>
+                      <button onClick={addCustomEarning} style={{ background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', padding: '4px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                        + Add Earning
                       </button>
                     </div>
-                  ))}
-                </div>
-              </div>
+
+                    {(form.custom_earnings || []).map((earn, idx) => (
+                      <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                        <input
+                          type="text"
+                          placeholder="Allowance Name"
+                          value={earn.name}
+                          onChange={e => {
+                            const updated = [...form.custom_earnings];
+                            updated[idx].name = e.target.value;
+                            setForm({ ...form, custom_earnings: updated });
+                          }}
+                          style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
+                        />
+                        <input
+                          type="number"
+                          placeholder="Monthly ₹"
+                          value={earn.monthly}
+                          onChange={e => {
+                            const updated = [...form.custom_earnings];
+                            const m = Number(e.target.value) || 0;
+                            updated[idx].monthly = m;
+                            updated[idx].annual = m * 12;
+                            setForm({ ...form, custom_earnings: updated });
+                          }}
+                          style={{ width: 90, padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
+                        />
+                        <button onClick={() => removeCustomEarning(idx)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}>
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ))}
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, marginBottom: 8 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#b91c1c' }}>Custom Deductions</span>
+                      <button onClick={addCustomDeduction} style={{ background: '#fef2f2', color: '#b91c1c', border: '1px solid #fca5a5', padding: '4px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                        + Add Deduction
+                      </button>
+                    </div>
+
+                    {(form.custom_deductions || []).map((ded, idx) => (
+                      <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                        <input
+                          type="text"
+                          placeholder="Deduction Name"
+                          value={ded.name}
+                          onChange={e => {
+                            const updated = [...form.custom_deductions];
+                            updated[idx].name = e.target.value;
+                            setForm({ ...form, custom_deductions: updated });
+                          }}
+                          style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
+                        />
+                        <input
+                          type="number"
+                          placeholder="Monthly ₹"
+                          value={ded.monthly}
+                          onChange={e => {
+                            const updated = [...form.custom_deductions];
+                            const m = Number(e.target.value) || 0;
+                            updated[idx].monthly = m;
+                            updated[idx].annual = m * 12;
+                            setForm({ ...form, custom_deductions: updated });
+                          }}
+                          style={{ width: 90, padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
+                        />
+                        <button onClick={() => removeCustomDeduction(idx)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}>
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
 
             </div>
           )}
