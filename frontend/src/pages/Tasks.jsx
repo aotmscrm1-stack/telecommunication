@@ -24,6 +24,14 @@ const PRIORITY_COLORS = {
   low:    { bg: '#e8f8f0', color: '#22a163' },
 };
 
+// Check if a task is scheduled for a future day (Day-wise lock)
+function isTaskLocked(scheduledAt) {
+  if (!scheduledAt) return false;
+  const endOfToday = new Date();
+  endOfToday.setHours(23, 59, 59, 999);
+  return new Date(scheduledAt) > endOfToday;
+}
+
 // ── 12-hour Time Picker (hour / minute / AM-PM) ─────────────────────────────
 // Native <input type="time"> renders in 24h format in most locales/browsers,
 // so we build our own to guarantee an explicit AM/PM control.
@@ -1383,14 +1391,17 @@ export default function Tasks() {
                   {/* Status */}
                   <td style={{ padding: '12px 16px' }}>
                     {(() => {
-                      const isLate = task.status === 'upcoming' && new Date(task.scheduledAt) < new Date();
-                      const displayStatus = isLate ? 'late' : task.status;
-                      const displayLabel = isLate ? 'Late' : (task.status || 'upcoming');
+                      const locked = isTaskLocked(task.scheduledAt);
+                      const isLate = !locked && task.status === 'upcoming' && new Date(task.scheduledAt) < new Date();
+                      const displayStatus = locked ? 'locked' : (isLate ? 'late' : task.status);
+                      const displayLabel = locked
+                        ? `🔒 Locked (${new Date(task.scheduledAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })})`
+                        : (isLate ? 'Late' : (task.status || 'upcoming'));
                       return (
                         <span style={{
                           fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 10,
-                          background: STATUS_COLORS[displayStatus]?.bg || '#f3f4f6',
-                          color: STATUS_COLORS[displayStatus]?.color || TEXT_MUTED
+                          background: locked ? '#fef3c7' : (STATUS_COLORS[displayStatus]?.bg || '#f3f4f6'),
+                          color: locked ? '#b45309' : (STATUS_COLORS[displayStatus]?.color || TEXT_MUTED)
                         }}>
                           {displayLabel}
                         </span>
@@ -1434,21 +1445,39 @@ export default function Tasks() {
                         )}
                       </button>
 
-                      {/* Mark Complete — moves the task straight to History */}
-                      {!historyMode && (
-                        <button
-                          title="Mark as complete"
-                          onClick={() => handleMarkComplete(task._id)}
-                          disabled={markingCompleteId === task._id}
-                          style={{ background: 'none', border: '1px solid #bbf7d0', borderRadius: 6, padding: '4px 7px', cursor: 'pointer', transition: 'border-color 0.15s', opacity: markingCompleteId === task._id ? 0.5 : 1 }}
-                          onMouseEnter={e => e.currentTarget.style.borderColor = '#22a163'}
-                          onMouseLeave={e => e.currentTarget.style.borderColor = '#bbf7d0'}
-                        >
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#22a163" strokeWidth="2.5">
-                            <polyline points="3 12 9 18 21 6"/>
-                          </svg>
-                        </button>
-                      )}
+                      {/* Mark Complete — moves the task straight to History (Disabled if future locked) */}
+                      {!historyMode && (() => {
+                        const locked = isTaskLocked(task.scheduledAt);
+                        return (
+                          <button
+                            title={locked ? `Task is locked until ${new Date(task.scheduledAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}` : "Mark as complete"}
+                            onClick={() => !locked && handleMarkComplete(task._id)}
+                            disabled={locked || markingCompleteId === task._id}
+                            style={{
+                              background: 'none',
+                              border: `1px solid ${locked ? '#cbd5e1' : '#bbf7d0'}`,
+                              borderRadius: 6,
+                              padding: '4px 7px',
+                              cursor: locked ? 'not-allowed' : 'pointer',
+                              transition: 'border-color 0.15s',
+                              opacity: (locked || markingCompleteId === task._id) ? 0.45 : 1
+                            }}
+                            onMouseEnter={e => { if (!locked) e.currentTarget.style.borderColor = '#22a163'; }}
+                            onMouseLeave={e => { if (!locked) e.currentTarget.style.borderColor = '#bbf7d0'; }}
+                          >
+                            {locked ? (
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                              </svg>
+                            ) : (
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#22a163" strokeWidth="2.5">
+                                <polyline points="3 12 9 18 21 6"/>
+                              </svg>
+                            )}
+                          </button>
+                        );
+                      })()}
 
                       {/* Delete — only for admin / manager */}
                       {canDelete && (
