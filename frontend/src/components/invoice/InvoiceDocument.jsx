@@ -14,7 +14,276 @@ export const InvoiceDocument = forwardRef(({ invoiceData, documentType = 'invoic
   const docType = invoiceData.doc_type || documentType || 'invoice';
 
   // ───────────────────────────────────────────────────────────────────────────
-  // 1. OFFICIAL TAX INVOICE FORMAT (Matching URCE sample.pdf)
+  // 1. OFFICIAL AOTMS MIC QUOTATION FORMAT (Matching AOTMS_MIC_Quotation..docx.pdf)
+  // ───────────────────────────────────────────────────────────────────────────
+  if (docType === 'quotation') {
+    const quotationNo = invoiceData.invoice_number || 'AOTMS-FEB-Q07';
+    const quotationDate = invoiceData.invoice_date || '20/02/2026';
+    const validTill = invoiceData.valid_till || '02/03/2026';
+
+    const companyName = invoiceData.company_name || 'ACADEMY OF TECH MASTERS';
+    const companyAddress = invoiceData.company_address || '2nd Floor, Pothuri Towers, MG Road, Near DV Manor, Vijayawada-10';
+    const companyMobile = invoiceData.company_mobile || '+91 80199-52233';
+    const companyEmail = invoiceData.company_email || 'Info@aotms.in';
+    const companyGst = invoiceData.company_gst || 'GSAPS2603R1Z5';
+
+    const clientName = invoiceData.client_name || 'MODERN ACADEMY';
+    const clientAddress = invoiceData.client_address || '40-7-31,Moghalrajpuram, Vijayawada - 520010.';
+    const clientMobile = invoiceData.client_mobile || invoiceData.phone || '+91 95020 93357';
+    const clientEmail = invoiceData.client_email || invoiceData.email || 'info@modernacademy.in';
+
+    const defaultItems = [
+      {
+        sno: 1,
+        particulars: 'Tally Workshop',
+        to_target: 'B.com',
+        days: '45 Days',
+        price_per_day: 2000,
+        amount: 90000.00,
+      }
+    ];
+
+    const items = (invoiceData.items && invoiceData.items.length > 0) ? invoiceData.items : defaultItems;
+    const totalAmount = items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+
+    const paymentTerms1 = invoiceData.payment_terms_1 || '50% Advance on Day 1';
+    const paymentTerms2 = invoiceData.payment_terms_2 || '50% after Workshop completion';
+    const paymentNote = invoiceData.payment_note || '*Note: GST & TDS Applicable*';
+
+    const bankHolder = invoiceData.bank_account_holder || 'Academy Of Tech Masters';
+    const bankName = invoiceData.bank_name || 'HDFC';
+    const bankNo = invoiceData.bank_account_no || '50200113949476';
+    const bankIfsc = invoiceData.bank_ifsc || 'HDFC0003975';
+    const bankBranch = invoiceData.bank_branch || 'Enikepadu, Vijayawada-521108.';
+
+    const signatoryName = invoiceData.signatory_name || 'Ameenuddin Sayyed';
+    const signatoryRole = invoiceData.signatory_role || 'Founder & CEO';
+    const signatoryCompany = invoiceData.signatory_company || 'Academy Of Tech Masters';
+
+    return (
+      <div ref={ref} className="pdf-quotation-container" style={{ width: '100%', maxWidth: '820px', margin: '0 auto' }}>
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            color: '#000000',
+            fontFamily: "'Calibri', 'Segoe UI', Arial, sans-serif",
+            fontSize: '13px',
+            lineHeight: '1.45',
+            padding: isPreview ? '20px 24px' : '28px 32px',
+            boxSizing: 'border-box',
+            border: '1px solid #cbd5e1',
+            background: '#ffffff',
+            boxShadow: isPreview ? '0 4px 14px rgba(0,0,0,0.08)' : 'none',
+            position: 'relative',
+          }}
+        >
+          {/* Top Branding Header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <img
+                src={atmLogoImg}
+                alt="Academy Of Tech Masters Logo"
+                style={{ height: '56px', objectFit: 'contain' }}
+                onError={(e) => { e.target.src = logoImg; }}
+              />
+              <div>
+                <div style={{ fontSize: '18px', fontWeight: '800', color: '#1e3a8a', letterSpacing: '0.3px' }}>
+                  ACADEMY OF TECH MASTERS
+                </div>
+                <div style={{ fontSize: '11px', fontWeight: '800', color: '#dc2626', letterSpacing: '1px' }}>
+                  LEARN TODAY, LEAD TOMORROW
+                </div>
+              </div>
+            </div>
+
+            <div style={{ textAlign: 'right', fontSize: '12px', color: '#0284c7', fontWeight: '700' }}>
+              <div>📞 +91 80199 42233</div>
+              <div>📞 +91 80199 52233</div>
+            </div>
+          </div>
+
+          {/* Header Accent Bar */}
+          <div style={{ height: '4px', background: '#ea580c', width: '100%', marginBottom: '2px' }} />
+          <div style={{ height: '3px', background: '#0284c7', width: '100%', marginBottom: '16px' }} />
+
+          {/* Title: Quotation */}
+          <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+            <span style={{ fontSize: '22px', fontWeight: '800', textDecoration: 'underline', color: '#000000', letterSpacing: '0.5px' }}>
+              Quotation
+            </span>
+          </div>
+
+          {/* Quotation Meta */}
+          <div style={{ marginBottom: '16px', lineHeight: '1.6', fontSize: '13px', fontWeight: '700' }}>
+            <div>Quotation No: <span style={{ fontFamily: 'monospace', fontSize: '13.5px' }}>{quotationNo}</span></div>
+            <div>Date: {quotationDate}</div>
+            <div>Valid Till : {validTill}</div>
+          </div>
+
+          {/* Quotation From & Quotation To Grid Table */}
+          <table style={{ width: '100%', borderCollapse: 'collapse', border: '1.5px solid #000000', marginBottom: '20px' }}>
+            <thead>
+              <tr style={{ background: '#f8fafc', borderBottom: '1.5px solid #000000' }}>
+                <th style={{ width: '50%', padding: '8px 12px', textAlign: 'left', fontWeight: '800', fontSize: '13.5px', borderRight: '1.5px solid #000000' }}>
+                  Quotation From
+                </th>
+                <th style={{ width: '50%', padding: '8px 12px', textAlign: 'left', fontWeight: '800', fontSize: '13.5px' }}>
+                  Quotation To
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                {/* Quotation From Cell */}
+                <td style={{ padding: '10px 12px', verticalAlign: 'top', borderRight: '1.5px solid #000000', lineHeight: '1.5' }}>
+                  <div style={{ fontWeight: '800', fontSize: '13.5px' }}>{companyName}</div>
+                  <div>{companyAddress}</div>
+                  <div>Mobile: {companyMobile}</div>
+                  <div>Email : {companyEmail}</div>
+                  <div style={{ fontWeight: '700' }}>GST: {companyGst}</div>
+                </td>
+
+                {/* Quotation To Cell */}
+                <td style={{ padding: '10px 12px', verticalAlign: 'top', lineHeight: '1.5' }}>
+                  <div style={{ fontWeight: '800', fontSize: '13.5px' }}>{clientName}</div>
+                  <div>{clientAddress}</div>
+                  <div>Mobile: {clientMobile}</div>
+                  <div>Email:{clientEmail}</div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          {/* Section Heading: Description & Pricing */}
+          <div style={{ textAlign: 'center', marginBottom: '14px' }}>
+            <span style={{ fontSize: '15px', fontWeight: '800', textDecoration: 'underline', color: '#000000' }}>
+              Description & Pricing
+            </span>
+          </div>
+
+          {/* Description & Pricing Table */}
+          <table style={{ width: '100%', borderCollapse: 'collapse', border: '1.5px solid #000000', marginBottom: '24px', fontSize: '12.5px' }}>
+            <thead>
+              <tr style={{ borderBottom: '1.5px solid #000000', background: '#f8fafc', textAlign: 'center', fontWeight: '800' }}>
+                <th style={{ padding: '8px 6px', borderRight: '1px solid #000000', width: '7%' }}>S.No</th>
+                <th style={{ padding: '8px 10px', borderRight: '1px solid #000000', width: '38%', textAlign: 'left' }}>Particulars</th>
+                <th style={{ padding: '8px 6px', borderRight: '1px solid #000000', width: '13%' }}>To</th>
+                <th style={{ padding: '8px 6px', borderRight: '1px solid #000000', width: '13%' }}>Days</th>
+                <th style={{ padding: '8px 8px', borderRight: '1px solid #000000', width: '14%', textAlign: 'right' }}>Price Per Day</th>
+                <th style={{ padding: '8px 10px', width: '15%', textAlign: 'right' }}>Final Price</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item, idx) => (
+                <tr key={idx} style={{ verticalAlign: 'top' }}>
+                  <td style={{ padding: '8px 6px', textAlign: 'center', borderRight: '1px solid #000000', fontWeight: '700' }}>
+                    {item.sno || idx + 1}
+                  </td>
+                  <td style={{ padding: '8px 10px', borderRight: '1px solid #000000', fontWeight: '700' }}>
+                    {item.particulars}
+                  </td>
+                  <td style={{ padding: '8px 6px', textAlign: 'center', borderRight: '1px solid #000000' }}>
+                    {item.to_target || item.to || 'B.com'}
+                  </td>
+                  <td style={{ padding: '8px 6px', textAlign: 'center', borderRight: '1px solid #000000' }}>
+                    {item.days || '45 Days'}
+                  </td>
+                  <td style={{ padding: '8px 8px', textAlign: 'right', borderRight: '1px solid #000000' }}>
+                    {fmtCurrency(item.price_per_day || item.rate || 2000)}
+                  </td>
+                  <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '700' }}>
+                    {fmtCurrency(item.amount)}
+                  </td>
+                </tr>
+              ))}
+
+              {/* Empty Spacer Row for clean vertical layout */}
+              <tr style={{ height: '35px' }}>
+                <td style={{ borderRight: '1px solid #000000' }}></td>
+                <td style={{ borderRight: '1px solid #000000' }}></td>
+                <td style={{ borderRight: '1px solid #000000' }}></td>
+                <td style={{ borderRight: '1px solid #000000' }}></td>
+                <td style={{ borderRight: '1px solid #000000' }}></td>
+                <td></td>
+              </tr>
+
+              {/* Total Row */}
+              <tr style={{ borderTop: '1.5px solid #000000', fontWeight: '800', background: '#f8fafc' }}>
+                <td colSpan={5} style={{ padding: '8px 12px', textAlign: 'right', borderRight: '1px solid #000000', fontSize: '13px' }}>
+                  Total
+                </td>
+                <td style={{ padding: '8px 10px', textAlign: 'right', fontSize: '13.5px' }}>
+                  {fmtCurrency(totalAmount)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          {/* Payment Terms Section */}
+          <div style={{ marginBottom: '24px', lineHeight: '1.6' }}>
+            <div style={{ fontWeight: '800', fontSize: '13.5px', marginBottom: '4px' }}>
+              Payment Terms :
+            </div>
+            <ul style={{ margin: '0 0 4px 20px', padding: 0, fontSize: '13px', fontWeight: '700' }}>
+              <li>{paymentTerms1}</li>
+              <li>{paymentTerms2}</li>
+            </ul>
+            <div style={{ fontWeight: '700', fontSize: '12px', color: '#1e293b', fontStyle: 'italic', marginLeft: '4px' }}>
+              {paymentNote}
+            </div>
+          </div>
+
+          {/* ACCOUNT DETAILS & Authorized Signatory Block */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '20px', marginBottom: '30px' }}>
+            {/* Account Details */}
+            <div style={{ lineHeight: '1.5' }}>
+              <div style={{ fontWeight: '800', fontSize: '13.5px', textDecoration: 'underline', marginBottom: '6px' }}>
+                ACCOUNT DETAILS
+              </div>
+              <div style={{ fontWeight: '700' }}>Name: {bankHolder}</div>
+              <div style={{ fontWeight: '700' }}>Bank: {bankName}</div>
+              <div style={{ fontWeight: '700' }}>A/c Number: <span style={{ fontFamily: 'monospace' }}>{bankNo}</span></div>
+              <div style={{ fontWeight: '700' }}>IFSC :{bankIfsc}</div>
+              <div style={{ fontWeight: '700' }}>{bankBranch}</div>
+            </div>
+
+            {/* Authorized Signatory */}
+            <div style={{ textAlign: 'center', minWidth: '220px' }}>
+              <div style={{ fontWeight: '800', fontSize: '13px', marginBottom: '12px' }}>
+                Authorized Signatory
+              </div>
+              
+              {/* Ameenuddin Stylized Signature Graphic */}
+              <div style={{ fontFamily: "'Brush Script MT', 'cursive', cursive", fontSize: '26px', color: '#0f172a', fontWeight: 'bold', margin: '8px 0', transform: 'rotate(-4deg)' }}>
+                SD. Ameenuddin
+              </div>
+
+              <div style={{ fontWeight: '800', fontSize: '13.5px', color: '#000000' }}>
+                {signatoryName}
+              </div>
+              <div style={{ fontSize: '12px', fontWeight: '700', color: '#334155' }}>
+                {signatoryRole}
+              </div>
+              <div style={{ fontSize: '11.5px', fontWeight: '700', color: '#000000' }}>
+                {signatoryCompany}
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Footer Accent Bar */}
+          <div style={{ marginTop: '20px', borderTop: '2px solid #dc2626', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: '700', color: '#475569' }}>
+            <div>WWW.AOTMS.IN | 80199 52233</div>
+            <div>2nd Floor, Pothuri Towers, MG Road, near DV Manor Hotel, VJA -10</div>
+          </div>
+          <div style={{ height: '5px', background: '#ea580c', width: '100%', marginTop: '4px' }} />
+
+        </div>
+      </div>
+    );
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 2. OFFICIAL TAX INVOICE FORMAT (Matching URCE sample.pdf)
   // ───────────────────────────────────────────────────────────────────────────
   if (docType === 'invoice' || docType === 'quotation') {
     const isQuotation = docType === 'quotation';

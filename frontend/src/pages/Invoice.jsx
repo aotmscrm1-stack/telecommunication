@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   FileText,
   Plus,
@@ -25,6 +26,49 @@ import html2pdf from 'html2pdf.js';
 import { invoicesAPI } from '../services/api';
 import { numberToWords } from '../utils/numberToWords';
 import InvoiceDocument from '../components/invoice/InvoiceDocument';
+
+const SAMPLE_AOTMS_QUOTATION = {
+  doc_type: 'quotation',
+  invoice_number: 'AOTMS-FEB-Q07',
+  invoice_date: '20/02/2026',
+  valid_till: '02/03/2026',
+  
+  company_name: 'ACADEMY OF TECH MASTERS',
+  company_address: '2nd Floor, Pothuri Towers, MG Road, Near DV Manor, Vijayawada-10',
+  company_mobile: '+91 80199-52233',
+  company_email: 'Info@aotms.in',
+  company_gst: 'GSAPS2603R1Z5',
+
+  client_name: 'MODERN ACADEMY',
+  client_address: '40-7-31,Moghalrajpuram, Vijayawada - 520010.',
+  client_mobile: '+91 95020 93357',
+  client_email: 'info@modernacademy.in',
+
+  items: [
+    {
+      sno: 1,
+      particulars: 'Tally Workshop',
+      to_target: 'B.com',
+      days: '45 Days',
+      price_per_day: 2000,
+      amount: 90000.00,
+    }
+  ],
+
+  payment_terms_1: '50% Advance on Day 1',
+  payment_terms_2: '50% after Workshop completion',
+  payment_note: '*Note: GST & TDS Applicable*',
+
+  bank_account_holder: 'Academy Of Tech Masters',
+  bank_name: 'HDFC',
+  bank_account_no: '50200113949476',
+  bank_ifsc: 'HDFC0003975',
+  bank_branch: 'Enikepadu, Vijayawada-521108.',
+
+  signatory_name: 'Ameenuddin Sayyed',
+  signatory_role: 'Founder & CEO',
+  signatory_company: 'Academy Of Tech Masters',
+};
 
 const SAMPLE_URCE_INVOICE = {
   doc_type: 'invoice',
@@ -87,7 +131,20 @@ const SAMPLE_JAYAVEER = {
 };
 
 export default function Invoice() {
-  const [form, setForm] = useState(SAMPLE_URCE_INVOICE);
+  const location = useLocation();
+  const path = location.pathname.toLowerCase();
+
+  const getInitialForm = () => {
+    if (path.includes('quotation')) return SAMPLE_AOTMS_QUOTATION;
+    if (path.includes('offer')) return SAMPLE_JAYAVEER;
+    return SAMPLE_URCE_INVOICE;
+  };
+
+  const [form, setForm] = useState(getInitialForm);
+
+  useEffect(() => {
+    setForm(getInitialForm());
+  }, [location.pathname]);
   const [activeTab, setActiveTab] = useState('create'); // 'create' | 'history'
   const [previewMode, setPreviewMode] = useState('split'); // 'split' | 'fullscreen'
   const [history, setHistory] = useState([]);
@@ -360,64 +417,322 @@ export default function Invoice() {
           {previewMode !== 'fullscreen' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               
-              {/* Document Type Selector Card */}
-              <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 16, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 8, display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Select Document Type
-                </label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-                  <button
-                    type="button"
-                    onClick={() => setForm(prev => ({ ...SAMPLE_URCE_INVOICE, ...prev, doc_type: 'invoice' }))}
-                    style={{
-                      padding: '8px 10px', borderRadius: 8, border: '1px solid', fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                      background: (form.doc_type || 'invoice') === 'invoice' ? '#ecfdf5' : '#ffffff',
-                      color: (form.doc_type || 'invoice') === 'invoice' ? '#047857' : '#64748b',
-                      borderColor: (form.doc_type || 'invoice') === 'invoice' ? '#6ee7b7' : '#cbd5e1',
-                      transition: 'all 0.15s'
-                    }}
-                  >
-                    🧾 Tax Invoice
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setForm(prev => ({ ...SAMPLE_JAYAVEER, ...prev, doc_type: 'offer' }))}
-                    style={{
-                      padding: '8px 10px', borderRadius: 8, border: '1px solid', fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                      background: form.doc_type === 'offer' ? '#eff6ff' : '#ffffff',
-                      color: form.doc_type === 'offer' ? '#1d4ed8' : '#64748b',
-                      borderColor: form.doc_type === 'offer' ? '#bfdbfe' : '#cbd5e1',
-                      transition: 'all 0.15s'
-                    }}
-                  >
-                    📄 Offer Letter
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setForm(prev => ({ ...SAMPLE_URCE_INVOICE, ...prev, doc_type: 'quotation', invoice_number: 'AOTMS-QUO-2026-001' }))}
-                    style={{
-                      padding: '8px 10px', borderRadius: 8, border: '1px solid', fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                      background: form.doc_type === 'quotation' ? '#fffbeb' : '#ffffff',
-                      color: form.doc_type === 'quotation' ? '#b45309' : '#64748b',
-                      borderColor: form.doc_type === 'quotation' ? '#fde68a' : '#cbd5e1',
-                      transition: 'all 0.15s'
-                    }}
-                  >
-                    📝 Quotation
-                  </button>
-                </div>
-              </div>
+              {/* ───────────────────────────────────────────────────────────── */}
+              {/* 1. QUOTATION FORM CONTROLS                                    */}
+              {/* ───────────────────────────────────────────────────────────── */}
+              {form.doc_type === 'quotation' && (
+                <>
+                  {/* Card 1: Quotation Meta & Quotation To (Client) */}
+                  <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <FileText size={18} style={{ color: '#b45309' }} /> Quotation & Client (Quotation To) Details
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                        <div>
+                          <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Quotation No. *</label>
+                          <input
+                            type="text"
+                            value={form.invoice_number || ''}
+                            onChange={e => setForm({ ...form, invoice_number: e.target.value })}
+                            placeholder="e.g. AOTMS-FEB-Q07"
+                            style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, fontWeight: 700 }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Quotation Date</label>
+                          <input
+                            type="text"
+                            value={form.invoice_date || ''}
+                            onChange={e => setForm({ ...form, invoice_date: e.target.value })}
+                            placeholder="20/02/2026"
+                            style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Valid Till Date</label>
+                          <input
+                            type="text"
+                            value={form.valid_till || ''}
+                            onChange={e => setForm({ ...form, valid_till: e.target.value })}
+                            placeholder="02/03/2026"
+                            style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Quotation To (Client / Academy Name) *</label>
+                        <input
+                          type="text"
+                          value={form.client_name || ''}
+                          onChange={e => setForm({ ...form, client_name: e.target.value })}
+                          placeholder="e.g. MODERN ACADEMY"
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13.5, fontWeight: 700 }}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Client Full Address</label>
+                        <textarea
+                          rows={2}
+                          value={form.client_address || ''}
+                          onChange={e => setForm({ ...form, client_address: e.target.value })}
+                          placeholder="40-7-31,Moghalrajpuram, Vijayawada - 520010."
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12.5 }}
+                        />
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div>
+                          <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Client Email</label>
+                          <input
+                            type="email"
+                            value={form.client_email || ''}
+                            onChange={e => setForm({ ...form, client_email: e.target.value })}
+                            placeholder="info@modernacademy.in"
+                            style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Client Mobile</label>
+                          <input
+                            type="text"
+                            value={form.client_mobile || ''}
+                            onChange={e => setForm({ ...form, client_mobile: e.target.value })}
+                            placeholder="+91 95020 93357"
+                            style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card 2: Description & Pricing Items */}
+                  <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <PlusCircle size={18} style={{ color: '#b45309' }} /> Description & Pricing Items
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const currentItems = form.items || [];
+                          const newItem = {
+                            sno: currentItems.length + 1,
+                            particulars: 'Workshop Particulars',
+                            to_target: 'B.com',
+                            days: '30 Days',
+                            price_per_day: 2000,
+                            amount: 60000.00,
+                          };
+                          setForm({ ...form, items: [...currentItems, newItem] });
+                        }}
+                        style={{ background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a', padding: '5px 10px', borderRadius: 6, fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}
+                      >
+                        + Add Particular Item
+                      </button>
+                    </div>
+
+                    {(form.items || []).map((item, idx) => (
+                      <div key={idx} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: '#b45309' }}>Item #{idx + 1}</span>
+                          {(form.items || []).length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = form.items.filter((_, i) => i !== idx);
+                                setForm({ ...form, items: updated });
+                              }}
+                              style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}
+                            >
+                              <X size={16} />
+                            </button>
+                          )}
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          <div>
+                            <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 2, display: 'block' }}>Particulars Title</label>
+                            <input
+                              type="text"
+                              value={item.particulars || ''}
+                              onChange={e => {
+                                const updated = [...form.items];
+                                updated[idx].particulars = e.target.value;
+                                setForm({ ...form, items: updated });
+                              }}
+                              placeholder="e.g. Tally Workshop"
+                              style={{ width: '100%', padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12.5, fontWeight: 700 }}
+                            />
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8 }}>
+                            <div>
+                              <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 2, display: 'block' }}>To (Target)</label>
+                              <input
+                                type="text"
+                                value={item.to_target || item.to || ''}
+                                onChange={e => {
+                                  const updated = [...form.items];
+                                  updated[idx].to_target = e.target.value;
+                                  setForm({ ...form, items: updated });
+                                }}
+                                placeholder="B.com"
+                                style={{ width: '100%', padding: '6px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 2, display: 'block' }}>Days</label>
+                              <input
+                                type="text"
+                                value={item.days || ''}
+                                onChange={e => {
+                                  const updated = [...form.items];
+                                  updated[idx].days = e.target.value;
+                                  setForm({ ...form, items: updated });
+                                }}
+                                placeholder="45 Days"
+                                style={{ width: '100%', padding: '6px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 2, display: 'block' }}>Price/Day (₹)</label>
+                              <input
+                                type="number"
+                                value={item.price_per_day || item.rate || ''}
+                                onChange={e => {
+                                  const updated = [...form.items];
+                                  const ppd = Number(e.target.value) || 0;
+                                  updated[idx].price_per_day = ppd;
+                                  setForm({ ...form, items: updated });
+                                }}
+                                placeholder="2000"
+                                style={{ width: '100%', padding: '6px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 2, display: 'block' }}>Final Price (₹)</label>
+                              <input
+                                type="number"
+                                value={item.amount || ''}
+                                onChange={e => {
+                                  const updated = [...form.items];
+                                  updated[idx].amount = Number(e.target.value) || 0;
+                                  setForm({ ...form, items: updated });
+                                }}
+                                placeholder="90000"
+                                style={{ width: '100%', padding: '6px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, fontWeight: 700 }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Card 3: Payment Terms & Account Details */}
+                  <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Building2 size={18} style={{ color: '#b45309' }} /> Payment Terms & Bank Details
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Payment Terms Line 1</label>
+                        <input
+                          type="text"
+                          value={form.payment_terms_1 || '50% Advance on Day 1'}
+                          onChange={e => setForm({ ...form, payment_terms_1: e.target.value })}
+                          style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12.5 }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Payment Terms Line 2</label>
+                        <input
+                          type="text"
+                          value={form.payment_terms_2 || '50% after Workshop completion'}
+                          onChange={e => setForm({ ...form, payment_terms_2: e.target.value })}
+                          style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12.5 }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Payment Note</label>
+                        <input
+                          type="text"
+                          value={form.payment_note || '*Note: GST & TDS Applicable*'}
+                          onChange={e => setForm({ ...form, payment_note: e.target.value })}
+                          style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12.5 }}
+                        />
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div>
+                          <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Bank Name</label>
+                          <input
+                            type="text"
+                            value={form.bank_name || 'HDFC'}
+                            onChange={e => setForm({ ...form, bank_name: e.target.value })}
+                            style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12.5 }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>A/c Holder Name</label>
+                          <input
+                            type="text"
+                            value={form.bank_account_holder || 'Academy Of Tech Masters'}
+                            onChange={e => setForm({ ...form, bank_account_holder: e.target.value })}
+                            style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12.5 }}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div>
+                          <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>A/c Number</label>
+                          <input
+                            type="text"
+                            value={form.bank_account_no || '50200113949476'}
+                            onChange={e => setForm({ ...form, bank_account_no: e.target.value })}
+                            style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12.5 }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>IFSC Code</label>
+                          <input
+                            type="text"
+                            value={form.bank_ifsc || 'HDFC0003975'}
+                            onChange={e => setForm({ ...form, bank_ifsc: e.target.value })}
+                            style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12.5 }}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Authorized Signatory Name</label>
+                        <input
+                          type="text"
+                          value={form.signatory_name || 'Ameenuddin Sayyed'}
+                          onChange={e => setForm({ ...form, signatory_name: e.target.value })}
+                          style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12.5 }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
 
               {/* ───────────────────────────────────────────────────────────── */}
-              {/* TAX INVOICE / QUOTATION FORM CONTROLS                         */}
+              {/* 2. TAX INVOICE FORM CONTROLS                                  */}
               {/* ───────────────────────────────────────────────────────────── */}
-              {(form.doc_type === 'invoice' || form.doc_type === 'quotation' || !form.doc_type) ? (
+              {form.doc_type === 'invoice' && (
                 <>
                   {/* Card 1: Invoice Meta & Bill To Details */}
                   <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
                     <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <FileText size={18} style={{ color: '#059669' }} /> 
-                      {form.doc_type === 'quotation' ? 'Quotation' : 'Invoice'} & Client (Bill To) Details
+                      <FileText size={18} style={{ color: '#059669' }} /> Invoice & Client (Bill To) Details
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -713,10 +1028,12 @@ export default function Invoice() {
                     </div>
                   </div>
                 </>
-              ) : (
-                /* ───────────────────────────────────────────────────────────── */
-                /* OFFER LETTER FORM CONTROLS                                    */
-                /* ───────────────────────────────────────────────────────────── */
+              )}
+
+              {/* ───────────────────────────────────────────────────────────── */}
+              {/* 3. OFFER LETTER FORM CONTROLS                                 */}
+              {/* ───────────────────────────────────────────────────────────── */}
+              {form.doc_type === 'offer' && (
                 <>
                   {/* Card 1: Candidate / Client Details */}
                   <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
