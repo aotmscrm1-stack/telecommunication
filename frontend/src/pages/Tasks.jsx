@@ -651,6 +651,7 @@ function downloadCSV(tasks, tab) {
 }
 
 export default function Tasks() {
+  const { user: currentUser } = useAuth();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(() => {
@@ -686,7 +687,6 @@ export default function Tasks() {
   const [teamMemberFilter, setTeamMemberFilter] = useState('');
   const [showTeamDrop, setShowTeamDrop] = useState(false);
   const teamDropRef = useRef(null);
-  const { user: currentUser } = useAuth();
   const canDelete = currentUser?.role === 'manager' || currentUser?.role === 'admin';
   const [markingCompleteId, setMarkingCompleteId] = useState(null);
 
