@@ -136,18 +136,12 @@ router.get('/', protect, async (req, res) => {
 });
 
 // Enforce who a given user is allowed to assign a task to:
-// - admin (super admin): anyone
-// - manager: callers, or themselves
+// - admin & manager: anyone
 // - caller: themselves only
 async function canAssignTo(actor, assigneeId) {
   if (!assigneeId) return true; // falls back to actor as assignee
-  if (actor.role === 'admin') return true;
+  if (actor.role === 'admin' || actor.role === 'manager') return true;
   if (assigneeId.toString() === actor._id.toString()) return true;
-  if (actor.role === 'manager') {
-    const User = require('../models/User');
-    const assignee = await User.findById(assigneeId).select('role');
-    return assignee?.role === 'caller';
-  }
   return false; // callers can only assign to themselves
 }
 

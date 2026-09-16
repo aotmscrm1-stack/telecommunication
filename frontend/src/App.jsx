@@ -87,8 +87,10 @@ export default function App() {
             <Route path="my-preferences" element={<MyPreferences />} />
             <Route path="whatsapp" element={<WhatsApp />} />
             <Route path="email" element={<EmailCRM />} />
+            <Route path="offer-letter" element={<AdminRoute><Invoice /></AdminRoute>} />
             <Route path="payslips" element={<AdminRoute><Payslip /></AdminRoute>} />
             <Route path="payslip" element={<Navigate to="/payslips" replace />} />
+            <Route path="quotation" element={<AdminRoute><Invoice /></AdminRoute>} />
             <Route path="invoice" element={<AdminRoute><Invoice /></AdminRoute>} />
             <Route path="invoices" element={<Navigate to="/invoice" replace />} />
             <Route path="users" element={<AdminRoute><Users /></AdminRoute>} />
