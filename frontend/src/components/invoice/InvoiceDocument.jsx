@@ -81,10 +81,10 @@ export const InvoiceDocument = forwardRef(({ invoiceData, documentType = 'invoic
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <img
-                src={atmLogoImg}
+                src={logoImg}
                 alt="Academy Of Tech Masters Logo"
                 style={{ height: '56px', objectFit: 'contain' }}
-                onError={(e) => { e.target.src = logoImg; }}
+                onError={(e) => { e.target.src = atmLogoImg; }}
               />
               <div>
                 <div style={{ fontSize: '18px', fontWeight: '800', color: '#1e3a8a', letterSpacing: '0.3px' }}>
@@ -414,10 +414,10 @@ export const InvoiceDocument = forwardRef(({ invoiceData, documentType = 'invoic
                     }}
                   >
                     <img
-                      src={atmLogoImg}
+                      src={logoImg}
                       alt="AOTMS Global Pvt Ltd Logo"
                       style={{ height: '54px', maxWidth: '100%', objectFit: 'contain' }}
-                      onError={(e) => { e.target.src = logoImg; }}
+                      onError={(e) => { e.target.src = atmLogoImg; }}
                     />
                   </div>
 

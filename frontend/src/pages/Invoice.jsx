@@ -305,13 +305,13 @@ export default function Invoice() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
         <div>
           <div style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ padding: 8, borderRadius: 10, background: '#ecfdf5', color: '#059669', display: 'flex' }}>
+            <span style={{ padding: 8, borderRadius: 10, background: form.doc_type === 'quotation' ? '#fffbeb' : form.doc_type === 'offer' ? '#eff6ff' : '#ecfdf5', color: form.doc_type === 'quotation' ? '#b45309' : form.doc_type === 'offer' ? '#1d4ed8' : '#059669', display: 'flex' }}>
               <FileText size={24} />
             </span>
-            Invoice & Compensation Generator
+            {form.doc_type === 'quotation' ? 'Quotation Generator' : form.doc_type === 'offer' ? 'Offer Letter Generator' : 'Tax Invoice Generator'}
           </div>
           <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>
-            Create custom salary invoices, compensation letters, real-time calculations & download vector PDFs.
+            {form.doc_type === 'quotation' ? 'Create custom workshop & service quotations and download vector PDFs.' : form.doc_type === 'offer' ? 'Create custom salary offer letters & compensation plans.' : 'Create GST tax invoices & client billing documents.'}
           </div>
         </div>
 
@@ -346,27 +346,44 @@ export default function Invoice() {
 
           {activeTab === 'create' && (
             <>
-              <button
-                onClick={() => setForm(SAMPLE_URCE_INVOICE)}
-                style={{
-                  padding: '9px 14px', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0',
-                  borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6
-                }}
-                title="Fill sample details from URCE Tax Invoice sample.pdf"
-              >
-                <Sparkles size={15} /> Sample URCE Invoice
-              </button>
+              {form.doc_type === 'quotation' && (
+                <button
+                  onClick={() => setForm(SAMPLE_AOTMS_QUOTATION)}
+                  style={{
+                    padding: '9px 14px', background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a',
+                    borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6
+                  }}
+                  title="Fill sample details from AOTMS MIC Quotation"
+                >
+                  <Sparkles size={15} /> Sample Quotation
+                </button>
+              )}
 
-              <button
-                onClick={() => setForm(SAMPLE_JAYAVEER)}
-                style={{
-                  padding: '9px 14px', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe',
-                  borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6
-                }}
-                title="Fill sample details from Jayaveer Offer Letter .pdf"
-              >
-                <Sparkles size={15} /> Sample Offer Letter
-              </button>
+              {form.doc_type === 'invoice' && (
+                <button
+                  onClick={() => setForm(SAMPLE_URCE_INVOICE)}
+                  style={{
+                    padding: '9px 14px', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0',
+                    borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6
+                  }}
+                  title="Fill sample details from URCE Tax Invoice sample.pdf"
+                >
+                  <Sparkles size={15} /> Sample URCE Invoice
+                </button>
+              )}
+
+              {form.doc_type === 'offer' && (
+                <button
+                  onClick={() => setForm(SAMPLE_JAYAVEER)}
+                  style={{
+                    padding: '9px 14px', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe',
+                    borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6
+                  }}
+                  title="Fill sample details from Jayaveer Offer Letter .pdf"
+                >
+                  <Sparkles size={15} /> Sample Offer Letter
+                </button>
+              )}
 
               <button
                 onClick={handleSaveInvoice}
