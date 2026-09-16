@@ -65,8 +65,8 @@ const INITIAL_FORM = {
   designation: '',
   department: '',
   location: '',
-  effective_work_days: '',
-  lop: '',
+  effective_work_days: 30,
+  lop: 0,
   bank_name: '',
   bank_account_number: '',
   pan_number: '',
@@ -124,7 +124,8 @@ export default function Payslip() {
 
   const workDaysNum = Number(form.effective_work_days) > 0 ? Number(form.effective_work_days) : 30;
   const lopDaysNum = Number(form.lop) >= 0 ? Number(form.lop) : 0;
-  const perDaySalary = grossNum > 0 && workDaysNum > 0 ? grossNum / workDaysNum : 0;
+  // LOP Deduction: Calculated on standard 30 days basis -> (Gross Salary / 30) * LOP Days
+  const perDaySalary = grossNum > 0 ? grossNum / 30 : 0;
   const lopDeduction = grossNum > 0 && lopDaysNum > 0 ? Math.round(perDaySalary * lopDaysNum) : 0;
 
   const tds = Number(form.tds) >= 0 ? Number(form.tds) : 200;

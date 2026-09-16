@@ -43,7 +43,8 @@ export function calculateSalaryComponents(grossSalary, effectiveWorkDays = 30, l
   const incentive = Math.max(0, Math.round(Number(customIncentive) || 0));
   const totalEarnings = gross > 0 ? basic + hra + conveyance + medical + food + specialAllowance + incentive : 0;
 
-  const perDaySalary = gross > 0 && workDays > 0 ? gross / workDays : 0;
+  // LOP Deduction: Calculated on standard 30 days basis -> (Gross Salary / 30) * LOP Days
+  const perDaySalary = gross > 0 ? gross / 30 : 0;
   const lopDeduction = gross > 0 && lop > 0 ? Math.round(perDaySalary * lop) : 0;
   const tds = Number(customTds) >= 0 ? Number(customTds) : 200;
   const totalDeductions = gross > 0 ? lopDeduction + tds : 0;

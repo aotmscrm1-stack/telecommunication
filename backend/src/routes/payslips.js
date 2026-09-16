@@ -61,8 +61,8 @@ function calculateSalaryComponents(grossSalary, effectiveWorkDays = 30, lopDays 
   const incentive = Math.max(0, Math.round(Number(customIncentive) || 0));
   const totalEarnings = basic + hra + conveyance + medical + food + specialAllowance + incentive;
 
-  // LOP Deduction: (Gross Salary / Effective Work Days) * LOP Days
-  const perDaySalary = gross / workDays;
+  // LOP Deduction: Calculated on standard 30 days basis -> (Gross Salary / 30) * LOP Days
+  const perDaySalary = gross / 30;
   const lopDeduction = Math.round(perDaySalary * lop);
 
   const tds = Number(customTds) >= 0 ? Number(customTds) : 200;
@@ -163,8 +163,8 @@ router.post('/', protect, async (req, res) => {
       designation,
       department,
       location,
-      effective_work_days,
-      lop,
+      effective_work_days = 30,
+      lop = 0,
       bank_name,
       bank_account_number,
       pan_number,
