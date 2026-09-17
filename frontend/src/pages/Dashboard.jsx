@@ -49,7 +49,7 @@ const SortIcon = () => (
 
 const filterRows = [
   { label: 'All Leads' },
-  { label: 'Leads Assigned to Caller' },
+  { label: 'Leads Assigned to Employee' },
   { label: 'My Leads' },
 ];
 
@@ -89,7 +89,7 @@ function FiltersTable({ leadsStats }) {
     if (!leadsStats) return 0;
     const map = {
       'All Leads': { Fresh: leadsStats?.fresh || 0, Active: leadsStats?.active || 0, Won: leadsStats?.won || 0, Lost: leadsStats?.lost || 0 },
-      'Leads Assigned to Caller': { Fresh: 0, Active: 0, Won: 0, Lost: 0 },
+      'Leads Assigned to Employee': { Fresh: 0, Active: 0, Won: 0, Lost: 0 },
       'My Leads': { Fresh: leadsStats?.myFresh || 0, Active: leadsStats?.myActive || 0, Won: leadsStats?.myWon || 0, Lost: leadsStats?.myLost || 0 },
     };
     return map[filterLabel]?.[col] ?? 0;
@@ -250,12 +250,12 @@ export default function Dashboard() {
   const [fetchError, setFetchError] = useState(null);
 
   // Leaderboard tab & user modal states
-  const [leaderboardTab, setLeaderboardTab] = useState('callers');
+  const [leaderboardTab, setLeaderboardTab] = useState('employees');
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [userAnalysisData, setUserAnalysisData] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
 
-  // Caller Priorities workspace states
+  // Employee Priorities workspace states
   const [activeQueueIndex, setActiveQueueIndex] = useState(null);
   const [workspaceLead, setWorkspaceLead] = useState(null);
   const [workspaceLoading, setWorkspaceLoading] = useState(false);
@@ -271,7 +271,7 @@ export default function Dashboard() {
 
   const isSuperAdmin = user?.role === 'admin';
   const isAdmin = user?.role === 'admin' || user?.role === 'manager';
-  const isCaller = !isAdmin;
+  const isEmployee = !isAdmin;
 
   const openAnalysisModal = async (userId) => {
     setSelectedUserId(userId);
@@ -312,7 +312,7 @@ export default function Dashboard() {
 
   const sendWhatsAppTemplate = (phone, name) => {
     const cleanedPhone = phone.replace(/[^0-9]/g, '');
-    const message = `Hello ${name}, this is ${user?.name || 'your caller'} from AOTMS. Just wanted to follow up on our scheduled chat. Please let me know when you're free. Thanks!`;
+    const message = `Hello ${name}, this is ${user?.name || 'your representative'} from AOTMS. Just wanted to follow up on our scheduled chat. Please let me know when you're free. Thanks!`;
     const encodedMsg = encodeURIComponent(message);
     window.open(`https://wa.me/${cleanedPhone.length === 10 ? '91' + cleanedPhone : cleanedPhone}?text=${encodedMsg}`, '_blank');
   };
@@ -483,9 +483,9 @@ export default function Dashboard() {
   const greeting = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
 
   // -------------------------------------------------------------
-  // CALLER PORTAL DASHBOARD VIEW
+  // EMPLOYEE PORTAL DASHBOARD VIEW
   // -------------------------------------------------------------
-  const renderCallerDashboard = () => {
+  const renderEmployeeDashboard = () => {
     const callsToday = stats?.todayCalls?.count || 0;
     const quotaPercentage = Math.min(100, Math.round((callsToday / 30) * 100));
     const startMyDayQueue = stats?.startMyDayQueue || [];
@@ -498,14 +498,14 @@ export default function Dashboard() {
     const offset = circumference - (quotaPercentage / 100) * circumference;
 
     return (
-      <div className="dash-caller-shell" style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: '100%', overflowX: 'hidden' }}>
+      <div className="dash-employee-shell" style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: '100%', overflowX: 'hidden' }}>
         <style>{`
           @media (max-width: 640px) {
-            .dash-caller-shell [style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
-            .dash-caller-shell [style*="grid-column"] { grid-column: auto !important; }
-            .dash-caller-shell div[style*="display: flex"] { flex-wrap: wrap; row-gap: 6px; }
-            .dash-caller-shell div[style*="display: flex"] > * { min-width: 0; }
-            .dash-caller-shell table { min-width: 480px; }
+            .dash-employee-shell [style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
+            .dash-employee-shell [style*="grid-column"] { grid-column: auto !important; }
+            .dash-employee-shell div[style*="display: flex"] { flex-wrap: wrap; row-gap: 6px; }
+            .dash-employee-shell div[style*="display: flex"] > * { min-width: 0; }
+            .dash-employee-shell table { min-width: 480px; }
           }
         `}</style>
         {/* Banner Alert for Overdue Follow-ups */}
@@ -837,7 +837,7 @@ export default function Dashboard() {
               <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: AMBER, fontWeight: 'bold', fontSize: 18 }}>⚠️</div>
               <div>
                 <div style={{ fontWeight: 700, color: '#92400e', fontSize: 14.5 }}>Unassigned Leads Alert</div>
-                <div style={{ fontSize: 12.5, color: '#b45309', marginTop: 2 }}>There are {adminStats.unassignedCount} fresh leads currently in the system without an assigned caller.</div>
+                <div style={{ fontSize: 12.5, color: '#b45309', marginTop: 2 }}>There are {adminStats.unassignedCount} fresh leads currently in the system without an assigned employee.</div>
               </div>
             </div>
             <button 
@@ -869,26 +869,26 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* Live Callers & Follow-ups */}
+        {/* Live Employees & Follow-ups */}
         <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 16 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {/* Live Caller status */}
+            {/* Live Employee status */}
             <div style={{ background: '#fff', border: '1px solid #e5e2f5', borderRadius: 12, padding: 20, maxWidth: '100%', overflow: 'hidden', boxSizing: 'border-box' }}>
               <div style={{ fontWeight: 700, color: TEXT_MAIN, fontSize: 14.5, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={PURPLE} strokeWidth="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-                Callers Activity & Live Status
+                Employees Activity & Live Status
                 <span style={{ marginLeft: 'auto', background: PURPLE_LIGHT, color: PURPLE, fontSize: 12, fontWeight: 700, borderRadius: 20, padding: '2px 12px' }}>
-                  {liveCallers.length} Caller{liveCallers.length !== 1 ? 's' : ''} Logged In
+                  {liveCallers.length} Employee{liveCallers.length !== 1 ? 's' : ''} Logged In
                 </span>
               </div>
               {liveCallers.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '24px 0', color: TEXT_MUTED, fontSize: 13 }}>No caller accounts set up yet.</div>
+                <div style={{ textAlign: 'center', padding: '24px 0', color: TEXT_MUTED, fontSize: 13 }}>No employee accounts set up yet.</div>
               ) : (
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
                       <tr style={{ borderBottom: `1px solid ${BORDER}`, color: TEXT_MUTED, height: 28 }}>
-                        <th style={{ textAlign: 'left', fontWeight: 600, paddingBottom: 8 }}>Caller Name</th>
+                        <th style={{ textAlign: 'left', fontWeight: 600, paddingBottom: 8 }}>Employee Name</th>
                         <th style={{ textAlign: 'center', fontWeight: 600, paddingBottom: 8 }}>Status</th>
                         <th style={{ textAlign: 'center', fontWeight: 600, paddingBottom: 8 }}>Calls Logged Today</th>
                         <th style={{ textAlign: 'right', fontWeight: 600, paddingBottom: 8 }}>Last Call Date & Time</th>
@@ -948,11 +948,11 @@ export default function Dashboard() {
               )}
             </div>
 
-            {/* Per-Caller Daily Progress Bars */}
+            {/* Per-Employee Daily Progress Bars */}
             <div style={{ background: '#fff', border: '1px solid #e5e2f5', borderRadius: 12, padding: 20, maxWidth: '100%', overflow: 'hidden', boxSizing: 'border-box' }}>
               <div style={{ fontWeight: 700, color: TEXT_MAIN, fontSize: 14.5, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={PURPLE} strokeWidth="2.5"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-                Per-Caller Daily Dial Targets (Quota: 30 Calls)
+                Per-Employee Daily Dial Targets (Quota: 30 Calls)
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 {liveCallers.map(caller => {
@@ -989,7 +989,7 @@ export default function Dashboard() {
                       <tr style={{ borderBottom: `1px solid ${BORDER}`, color: TEXT_MUTED, height: 28 }}>
                         <th style={{ textAlign: 'left', fontWeight: 600, paddingBottom: 8 }}>Lead Target</th>
                         <th style={{ textAlign: 'center', fontWeight: 600, paddingBottom: 8 }}>Scheduled At</th>
-                        <th style={{ textAlign: 'right', fontWeight: 600, paddingBottom: 8 }}>Assign Caller</th>
+                        <th style={{ textAlign: 'right', fontWeight: 600, paddingBottom: 8 }}>Assign Employee</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1009,7 +1009,7 @@ export default function Dashboard() {
                               onChange={(e) => handleReassignLead(fu.lead?._id, e.target.value)}
                               style={{ border: '1px solid #e5e2f5', borderRadius: 6, padding: '3px 6px', fontSize: 12, outline: 'none', color: TEXT_MAIN }}
                             >
-                              <option value="">Select Caller...</option>
+                              <option value="">Select Employee...</option>
                               {callers.map(c => (
                                 <option key={c._id} value={c._id}>{c.name}</option>
                               ))}
@@ -1023,11 +1023,11 @@ export default function Dashboard() {
               )}
             </div>
 
-            {/* Caller workload Allocation table */}
+            {/* Employee workload Allocation table */}
             <div style={{ background: '#fff', border: '1px solid #e5e2f5', borderRadius: 12, padding: 20, maxWidth: '100%', overflow: 'hidden', boxSizing: 'border-box' }}>
               <div style={{ fontWeight: 700, color: TEXT_MAIN, fontSize: 14.5, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={AMBER} strokeWidth="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                Caller Follow-up Workload Allocation (Due Today)
+                Employee Follow-up Workload Allocation (Due Today)
               </div>
               {workload.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '24px 0', color: TEXT_MUTED, fontSize: 13 }}>No follow-up workloads assigned for today.</div>
@@ -1036,7 +1036,7 @@ export default function Dashboard() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
                       <tr style={{ borderBottom: `1px solid ${BORDER}`, color: TEXT_MUTED, height: 28 }}>
-                        <th style={{ textAlign: 'left', fontWeight: 600, paddingBottom: 8 }}>Caller Name</th>
+                        <th style={{ textAlign: 'left', fontWeight: 600, paddingBottom: 8 }}>Employee Name</th>
                         <th style={{ textAlign: 'center', fontWeight: 600, paddingBottom: 8 }}>Role</th>
                         <th style={{ textAlign: 'right', fontWeight: 600, paddingBottom: 8 }}>Scheduled Callbacks Today</th>
                       </tr>
@@ -1116,7 +1116,7 @@ export default function Dashboard() {
                         <span style={{ fontSize: 9.5, background: '#e8f8f0', color: GREEN, padding: '2px 6px', borderRadius: 8, fontWeight: 700 }}>Demo Slot</span>
                       </div>
                       <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 4 }}>Course: {demo.preferredCourses?.join(', ') || 'N/A'}</div>
-                      <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 2 }}>Assigned Caller: {demo.assignedTo?.name || 'Unassigned'}</div>
+                      <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 2 }}>Assigned Employee: {demo.assignedTo?.name || 'Unassigned'}</div>
                       <div style={{ fontSize: 11.5, color: GREEN, fontWeight: 700, marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
                         📅 {new Date(demo.demoScheduledDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                       </div>
@@ -1208,7 +1208,7 @@ export default function Dashboard() {
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ color: '#444', lineHeight: 1.4 }}>
-                          <strong style={{ color: PURPLE }}>{act.performer?.name || 'Caller'}</strong> logged a call for <strong style={{ color: TEXT_MAIN }}>{act.leadName}</strong>
+                          <strong style={{ color: PURPLE }}>{act.performer?.name || 'Employee'}</strong> logged a call for <strong style={{ color: TEXT_MAIN }}>{act.leadName}</strong>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, color: TEXT_MUTED, marginTop: 3 }}>
                           <span>Status: <strong style={{ color: act.activity.callStatus === 'connected' ? GREEN : RED }}>{act.activity.callStatus || 'no answer'}</strong></span>
@@ -1486,7 +1486,7 @@ export default function Dashboard() {
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ color: '#444', lineHeight: 1.4 }}>
-                          <strong style={{ color: PURPLE }}>{act.performer?.name || 'Caller'}</strong> logged a call for <strong style={{ color: TEXT_MAIN }}>{act.leadName}</strong>
+                          <strong style={{ color: PURPLE }}>{act.performer?.name || 'Employee'}</strong> logged a call for <strong style={{ color: TEXT_MAIN }}>{act.leadName}</strong>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, color: TEXT_MUTED, marginTop: 3 }}>
                           <span>Status: <strong style={{ color: act.activity.callStatus === 'connected' ? GREEN : RED }}>{act.activity.callStatus || 'no answer'}</strong></span>
@@ -1514,10 +1514,10 @@ export default function Dashboard() {
                 </strong>
                 <div style={{ display: 'flex', background: '#f3f1fb', padding: 2, borderRadius: 6 }}>
                   <button 
-                    onClick={() => setLeaderboardTab('callers')}
-                    style={{ border: 'none', background: leaderboardTab === 'callers' ? '#fff' : 'transparent', color: leaderboardTab === 'callers' ? PURPLE : TEXT_MUTED, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 4, cursor: 'pointer', transition: 'all 0.15s' }}
+                    onClick={() => setLeaderboardTab('employees')}
+                    style={{ border: 'none', background: leaderboardTab === 'employees' ? '#fff' : 'transparent', color: leaderboardTab === 'employees' ? PURPLE : TEXT_MUTED, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 4, cursor: 'pointer', transition: 'all 0.15s' }}
                   >
-                    Callers
+                    Employees
                   </button>
                   <button 
                     onClick={() => setLeaderboardTab('admins')}
@@ -1815,7 +1815,7 @@ export default function Dashboard() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f3f1fb', paddingBottom: 16, flexWrap: 'wrap', gap: 10 }}>
         <div>
           <div style={{ fontSize: 22, fontWeight: 800, color: TEXT_MAIN, display: 'flex', alignItems: 'center', gap: 8 }}>
-            {isSuperAdmin ? 'Admin Desk' : isAdmin ? 'Manager Desk' : 'Caller Desk'}
+            {isSuperAdmin ? 'Admin Desk' : isAdmin ? 'Manager Desk' : 'Employee Desk'}
             <button
               onClick={refresh}
               style={{
@@ -1873,7 +1873,7 @@ export default function Dashboard() {
       </div>
 
       {/* Render Role specific layout */}
-      {isSuperAdmin ? renderSuperAdminDashboard() : isAdmin ? renderAdminDashboard() : renderCallerDashboard()}
+      {isSuperAdmin ? renderSuperAdminDashboard() : isAdmin ? renderAdminDashboard() : renderEmployeeDashboard()}
 
       {/* -------------------------------------------------------------
           DISTRACTION-FREE CALL QUEUE WORKSPACE OVERLAY

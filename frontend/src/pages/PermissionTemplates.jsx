@@ -56,12 +56,12 @@ function TemplateModal({ template, onClose, onSaved }) {
         <div style={{ display: 'flex', gap: 12, marginBottom: 18 }}>
           <div style={{ flex: 1 }}>
             <label style={{ fontSize: 12.5, fontWeight: 600, color: '#444' }}>Template name</label>
-            <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Telecaller Permissions" style={{ width: '100%', marginTop: 6, padding: '9px 12px', border: '1px solid var(--theme-border-tint2)', borderRadius: 8, fontSize: 13.5, boxSizing: 'border-box' }} />
+            <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Employee Permissions" style={{ width: '100%', marginTop: 6, padding: '9px 12px', border: '1px solid var(--theme-border-tint2)', borderRadius: 8, fontSize: 13.5, boxSizing: 'border-box' }} />
           </div>
           <div style={{ width: 160 }}>
             <label style={{ fontSize: 12.5, fontWeight: 600, color: '#444' }}>Base role</label>
             <select value={form.baseRole} onChange={e => setForm(f => ({ ...f, baseRole: e.target.value }))} style={{ width: '100%', marginTop: 6, padding: '9px 8px', border: '1px solid var(--theme-border-tint2)', borderRadius: 8, fontSize: 13 }}>
-              <option value="caller">Caller</option>
+              <option value="employee">Employee</option>
               <option value="manager">Manager</option>
               <option value="admin">Admin</option>
             </select>

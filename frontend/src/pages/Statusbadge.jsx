@@ -594,7 +594,7 @@ function AddTaskModal({ type, onClose, onCreated }) {
                   ))}
                 </select>
                 {currentUser?.role === 'manager' && (
-                  <p style={{ fontSize: 10.5, color: TEXT_MUTED, margin: '4px 0 0' }}>Managers can assign tasks to callers or themselves.</p>
+                  <p style={{ fontSize: 10.5, color: TEXT_MUTED, margin: '4px 0 0' }}>Managers can assign tasks to employees or themselves.</p>
                 )}
               </div>
               <div style={{ flex: 1 }}>

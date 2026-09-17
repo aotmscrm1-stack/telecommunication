@@ -145,7 +145,7 @@ export default function StaleLeads() {
                     <th style={{ textAlign: 'left', fontWeight: 600, paddingBottom: 8 }}>Student Details</th>
                     <th style={{ textAlign: 'center', fontWeight: 600, paddingBottom: 8 }}>Current Status</th>
                     <th style={{ textAlign: 'center', fontWeight: 600, paddingBottom: 8 }}>Last Contacted</th>
-                    <th style={{ textAlign: 'center', fontWeight: 600, paddingBottom: 8 }}>Assigned Caller</th>
+                    <th style={{ textAlign: 'center', fontWeight: 600, paddingBottom: 8 }}>Assigned Employee</th>
                     <th style={{ textAlign: 'right', fontWeight: 600, paddingBottom: 8 }}>Quick Reassign</th>
                   </tr>
                 </thead>
@@ -169,7 +169,7 @@ export default function StaleLeads() {
                             {lead.lastCalledAt ? `Last call: ${new Date(lead.lastCalledAt).toLocaleDateString()}` : `Created: ${new Date(lead.createdAt).toLocaleDateString()}`}
                           </div>
                         </td>
-                        <td data-label="Assigned Caller" style={{ textAlign: 'center', color: TEXT_MAIN }}>
+                        <td data-label="Assigned Employee" style={{ textAlign: 'center', color: TEXT_MAIN }}>
                           {lead.assignedTo?.name || <span style={{ color: AMBER, fontWeight: 600 }}>Unassigned</span>}
                         </td>
                         <td data-label="Quick Reassign" style={{ textAlign: 'right', padding: '8px 0' }}>
@@ -179,7 +179,7 @@ export default function StaleLeads() {
                             onChange={(e) => handleReassign(lead._id, e.target.value)}
                             style={{ border: '1px solid var(--theme-border-tint)', borderRadius: 6, padding: '4px 8px', fontSize: 12, outline: 'none', color: TEXT_MAIN, background: '#fff' }}
                           >
-                            <option value="">Choose Caller...</option>
+                            <option value="">Choose Employee...</option>
                             {callers.map(c => (
                               <option key={c._id} value={c._id}>{c.name}</option>
                             ))}
@@ -209,7 +209,7 @@ export default function StaleLeads() {
                     <th style={{ textAlign: 'left', fontWeight: 600, paddingBottom: 8 }}>Lead Target</th>
                     <th style={{ textAlign: 'center', fontWeight: 600, paddingBottom: 8 }}>Scheduled Call Time</th>
                     <th style={{ textAlign: 'center', fontWeight: 600, paddingBottom: 8 }}>Follow-up Note</th>
-                    <th style={{ textAlign: 'center', fontWeight: 600, paddingBottom: 8 }}>Current Caller</th>
+                    <th style={{ textAlign: 'center', fontWeight: 600, paddingBottom: 8 }}>Current Employee</th>
                     <th style={{ textAlign: 'right', fontWeight: 600, paddingBottom: 8 }}>Quick Reassign</th>
                   </tr>
                 </thead>
@@ -231,7 +231,7 @@ export default function StaleLeads() {
                         <td data-label="Follow-up Note" style={{ textAlign: 'center', color: '#555', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={fu.note}>
                           {fu.note || 'No notes left.'}
                         </td>
-                        <td data-label="Current Caller" style={{ textAlign: 'center', color: TEXT_MAIN }}>
+                        <td data-label="Current Employee" style={{ textAlign: 'center', color: TEXT_MAIN }}>
                           {fu.assignedTo?.name || 'Unassigned'}
                         </td>
                         <td data-label="Quick Reassign" style={{ textAlign: 'right', padding: '8px 0' }}>
@@ -241,7 +241,7 @@ export default function StaleLeads() {
                             onChange={(e) => handleReassign(fu.lead?._id, e.target.value)}
                             style={{ border: '1px solid var(--theme-border-tint)', borderRadius: 6, padding: '4px 8px', fontSize: 12, outline: 'none', color: TEXT_MAIN, background: '#fff' }}
                           >
-                            <option value="">Choose Caller...</option>
+                            <option value="">Choose Employee...</option>
                             {callers.map(c => (
                               <option key={c._id} value={c._id}>{c.name}</option>
                             ))}

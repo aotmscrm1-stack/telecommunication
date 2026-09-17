@@ -147,7 +147,7 @@ function CallerCard({ caller, rank, metric, maxVals }) {
       {/* Name + meta */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: TEXT_MAIN }}>{caller.name}</div>
-        <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 1 }}>Caller</div>
+        <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 1 }}>Employee</div>
         {caller.lastCall && (
           <div style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 3 }}>Last call: {fmtDate(caller.lastCall)}</div>
         )}
@@ -371,7 +371,7 @@ export default function Leaderboard() {
             { icon: '📞', label: 'Total Calls', value: totalCalls, color: PURPLE },
             { icon: '⏱️', label: 'Total Duration', value: fmtDuration(totalDuration), color: '#0891b2' },
             { icon: '💰', label: 'Total Sales', value: totalSales, color: GREEN },
-            { icon: '👥', label: 'Active Callers', value: filtered.length, color: 'var(--theme-primary)' },
+            { icon: '👥', label: 'Active Employees', value: filtered.length, color: 'var(--theme-primary)' },
           ].map(s => (
             <div key={s.label} style={{ flex: '1 1 120px', background: '#fff', border: '1px solid var(--theme-border-tint)', borderRadius: 12, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, maxWidth: '100%', overflow: 'hidden', boxSizing: 'border-box' }}>
               <span style={{ fontSize: 22 }}>{s.icon}</span>

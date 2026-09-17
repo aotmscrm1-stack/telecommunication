@@ -343,7 +343,7 @@ export default function Leads() {
         {/* Admin View - separate standalone card, scrolls independently */}
         <div className="w-full md:w-52 flex-shrink-0 bg-white rounded-2xl border border-gray-100 shadow-sm p-3 space-y-1 overflow-y-auto max-h-56 md:max-h-none">
             <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-2 mb-2">
-              {isAdmin ? 'Admin View' : 'Caller View'}
+              {isAdmin ? 'Admin View' : 'Employee View'}
             </div>
             {filterOptions.map(opt => (
               <button
@@ -361,10 +361,10 @@ export default function Leads() {
               </button>
             ))}
 
-            {/* Callers list for admin */}
+            {/* Employees list for admin */}
             {isAdmin && callers.length > 0 && (
               <div className="mt-3 pt-3 border-t border-gray-100">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-2 mb-2">Callers</div>
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-2 mb-2">Employees</div>
                 <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
                   {callers.map(c => (
                     <button

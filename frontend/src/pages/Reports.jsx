@@ -104,7 +104,7 @@ function LeaderboardTab() {
         <>
           {/* Bar chart */}
           <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-            <h3 className="font-semibold text-gray-800 mb-4">Calls by Caller</h3>
+            <h3 className="font-semibold text-gray-800 mb-4">Calls by Employee</h3>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />

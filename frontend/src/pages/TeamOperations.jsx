@@ -107,7 +107,7 @@ export default function TeamOperations() {
         <div>
           <h2 style={{ fontSize: 22, fontWeight: 800, color: TEXT_MAIN }}>Team Operations Console</h2>
           <p style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 2 }}>
-            Manage daily caller activities, workload distributions, unassigned queues, and in-flight demos.
+            Manage daily employee activities, workload distributions, unassigned queues, and in-flight demos.
           </p>
         </div>
         <button
@@ -123,7 +123,7 @@ export default function TeamOperations() {
         <div style={{ background: '#fff', border: '1px solid var(--theme-border-tint)', borderRadius: 12, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14, maxWidth: '100%', overflow: 'hidden', boxSizing: 'border-box' }}>
           <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#e8f8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: GREEN, fontSize: 20 }}>🟢</div>
           <div>
-            <div style={{ fontSize: 12, color: TEXT_MUTED }}>Active Callers Now</div>
+            <div style={{ fontSize: 12, color: TEXT_MUTED }}>Active Employees Now</div>
             <div style={{ fontSize: 22, fontWeight: 800, color: TEXT_MAIN, marginTop: 2 }}>
               {liveCallers.filter(c => c.isActive).length} / {liveCallers.length}
             </div>
@@ -159,7 +159,7 @@ export default function TeamOperations() {
           {/* Active Callers & Targets */}
           <div style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 12, padding: 20 }}>
             <h3 style={{ fontSize: 15, fontWeight: 800, color: TEXT_MAIN, marginBottom: 16 }}>
-              Caller Quotas & Dial Performance Today
+              Employee Quotas & Dial Performance Today
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {liveCallers.map(caller => {
@@ -191,7 +191,7 @@ export default function TeamOperations() {
               <span>📥</span> Unassigned Lead Queue ({unassignedLeads.length} leads)
             </h3>
             {unassignedLeads.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '32px 0', color: TEXT_MUTED }}>🎉 All leads have been assigned to callers!</div>
+              <div style={{ textAlign: 'center', padding: '32px 0', color: TEXT_MUTED }}>🎉 All leads have been assigned to employees!</div>
             ) : (
               <div style={{ maxHeight: 280, overflowY: 'auto', overflowX: 'auto', border: '1px solid var(--theme-surface-tint)', borderRadius: 8 }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 560 }}>
@@ -199,7 +199,7 @@ export default function TeamOperations() {
                     <tr style={{ borderBottom: `1px solid ${BORDER}`, color: TEXT_MUTED, height: 32 }}>
                       <th style={{ textAlign: 'left', fontWeight: 600, paddingLeft: 12 }}>Name</th>
                       <th style={{ textAlign: 'center', fontWeight: 600 }}>Source</th>
-                      <th style={{ textAlign: 'right', fontWeight: 600, paddingRight: 12 }}>Assign Caller</th>
+                      <th style={{ textAlign: 'right', fontWeight: 600, paddingRight: 12 }}>Assign Employee</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -219,7 +219,7 @@ export default function TeamOperations() {
                             onChange={(e) => handleAssignUnassigned(lead._id, e.target.value)}
                             style={{ border: '1px solid var(--theme-border-tint)', borderRadius: 6, padding: '4px 8px', fontSize: 12, outline: 'none', color: TEXT_MAIN }}
                           >
-                            <option value="">Select Caller...</option>
+                            <option value="">Select Employee...</option>
                             {callers.map(c => (
                               <option key={c._id} value={c._id}>{c.name}</option>
                             ))}
@@ -247,7 +247,7 @@ export default function TeamOperations() {
                     <tr style={{ borderBottom: `1px solid ${BORDER}`, color: TEXT_MUTED, height: 32 }}>
                       <th style={{ textAlign: 'left', fontWeight: 600 }}>Lead Name</th>
                       <th style={{ textAlign: 'center', fontWeight: 600 }}>Scheduled Date</th>
-                      <th style={{ textAlign: 'center', fontWeight: 600 }}>Assigned Caller</th>
+                      <th style={{ textAlign: 'center', fontWeight: 600 }}>Assigned Employee</th>
                       <th style={{ textAlign: 'right', fontWeight: 600 }}>Reassign</th>
                     </tr>
                   </thead>
@@ -271,7 +271,7 @@ export default function TeamOperations() {
                             onChange={(e) => handleReassignLead(fu.lead?._id, e.target.value)}
                             style={{ border: '1px solid var(--theme-border-tint)', borderRadius: 6, padding: '4px 8px', fontSize: 12, outline: 'none', color: TEXT_MAIN }}
                           >
-                            <option value="">Choose Caller...</option>
+                            <option value="">Choose Employee...</option>
                             {callers.map(c => (
                               <option key={c._id} value={c._id}>{c.name}</option>
                             ))}

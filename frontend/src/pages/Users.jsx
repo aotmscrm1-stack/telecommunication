@@ -188,7 +188,7 @@ export default function Users() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
           <h2 style={{ fontSize: 20, fontWeight: 700, color: TEXT_MAIN, margin: 0 }}>User Management</h2>
-          <p style={{ fontSize: 12, color: TEXT_MUTED, margin: '4px 0 0 0' }}>Add, update, or manage caller accounts and permissions</p>
+          <p style={{ fontSize: 12, color: TEXT_MUTED, margin: '4px 0 0 0' }}>Add, update, or manage employee accounts and permissions</p>
         </div>
         <button onClick={handleOpenAdd} style={btnPrimary}>
           + Add User
