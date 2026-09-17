@@ -116,8 +116,18 @@ export default function LiveEmployeeTracking() {
         const pEmpId = String(locPacket.employeeId || locPacket._id || locPacket.id || '');
         const index = prev.findIndex((e) => String(e._id || e.employeeId || e.id || '') === pEmpId);
         if (index === -1) {
-          // Strictly ignore any non-database / unrecognized IDs
-          return prev;
+          // Dynamically append newly active employee to list
+          const newEmp = {
+            _id: pEmpId,
+            employeeId: pEmpId,
+            name: locPacket.name || 'Employee',
+            email: locPacket.email || '',
+            role: locPacket.role || 'caller',
+            avatar: locPacket.avatar || '',
+            phone: locPacket.phone || '',
+            location: { ...locPacket },
+          };
+          return [...prev, newEmp];
         }
         const updated = [...prev];
         updated[index] = {
