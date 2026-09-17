@@ -220,7 +220,7 @@ export default function Sidebar() {
       }}>
         <div style={{ flex: 1, paddingTop: 6 }}>
           <NavItem to="/dashboard"     icon={Icons.dashboard}   label="Dashboard" />
-          <NavItem to="/tasks"         icon={Icons.tasks}       label="Tasks" />
+          {isAdmin && <NavItem to="/tasks" icon={Icons.tasks} label="Tasks" />}
 
           <SectionLabel text="Leads" />
           <NavItem to="/leads"         icon={Icons.leads}       label="All Leads" />
@@ -237,7 +237,7 @@ export default function Sidebar() {
           <NavItem to="/campaigns"        icon={Icons.campaigns}   label="Campaigns" />
           <NavItem to="/message-templates" icon={Icons.templates}  label="Message Templates" />
           <NavItem to="/whatsapp"         icon={Icons.whatsapp}    label="WhatsApp" iconColor="#25D366" />
-          <NavItem to="/email"            icon={Icons.email}       label="Email CRM" iconColor="#ea4335" />
+          {isAdmin && <NavItem to="/email" icon={Icons.email} label="Email CRM" iconColor="#ea4335" />}
           <NavItem to="/leaderboard"      icon={Icons.leaderboard} label="Leaderboard" />
           <NavItem to="/reports"          icon={Icons.reports}     label="Reports" />
 
