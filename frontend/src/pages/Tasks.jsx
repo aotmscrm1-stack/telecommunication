@@ -456,58 +456,9 @@ function AddTaskModal({ type, onClose, onCreated }) {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {isCallFollowup && (
-            <div style={{ position: 'relative' }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 5 }}>Lead (optional)</label>
-              {selectedLead ? (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#e0f7ff', borderRadius: 10, padding: '9px 12px' }}>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: PURPLE }}>{selectedLead.name}</div>
-                    <div style={{ fontSize: 11, color: TEXT_MUTED }}>{selectedLead.phone}</div>
-                  </div>
-                  <span
-                    onClick={() => { setSelectedLead(null); setLeadQuery(''); }}
-                    style={{ cursor: 'pointer', color: TEXT_MUTED, fontWeight: 700, fontSize: 16 }}
-                  >×</span>
-                </div>
-              ) : (
-                <>
-                  <input
-                    value={leadQuery}
-                    onChange={e => setLeadQuery(e.target.value)}
-                    placeholder="Search lead by name or phone..."
-                    style={{ width: '100%', border: '1px solid #bae6fd', borderRadius: 10, padding: '9px 12px', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
-                  />
-                  {leadQuery.trim().length >= 2 && (
-                    <div style={{ border: '1px solid #bae6fd', borderRadius: 10, marginTop: 4, maxHeight: 160, overflowY: 'auto', background: '#fff', boxShadow: '0 4px 16px rgba(91,63,199,0.1)' }}>
-                      {searching ? (
-                        <div style={{ padding: 10, fontSize: 12, color: TEXT_MUTED }}>Searching...</div>
-                      ) : leadResults.length === 0 ? (
-                        <div style={{ padding: 10, fontSize: 12, color: TEXT_MUTED }}>No leads found</div>
-                      ) : (
-                        leadResults.map(l => (
-                          <div
-                            key={l._id}
-                            onClick={() => { setSelectedLead(l); setLeadResults([]); }}
-                            style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 13 }}
-                            onMouseEnter={e => e.currentTarget.style.background = '#f0fbff'}
-                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                          >
-                            <div style={{ fontWeight: 600, color: TEXT_MAIN }}>{l.name}</div>
-                            <div style={{ fontSize: 11, color: TEXT_MUTED }}>{l.phone}</div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-
           <div>
             <label style={{ fontSize: 11, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 5 }}>
-              {isCallFollowup ? 'Description / Note' : 'Task Title'}
+              {isCallFollowup ? 'Description / Note' : 'Task Title / Description'}
             </label>
             <textarea
               value={note}

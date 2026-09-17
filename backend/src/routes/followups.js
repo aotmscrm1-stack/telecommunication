@@ -59,25 +59,26 @@ router.get('/', protect, async (req, res) => {
       query.lead = leadId;
     }
 
-    // 1. assignedTo filtering (Me vs Team)
+    // 1. assignedTo / assignedBy filtering (Me vs Team)
     const forMe = forMeQuery === 'true';
     const forTeam = forMeQuery === 'false';
 
     if (forMe) {
-      query.assignedTo = req.user._id;
+      query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }];
     } else if (forTeam) {
-      // Team view: callers/employees only see their own; admins/managers see all
+      // Team view: callers/employees see tasks assigned to them OR assigned by them
       if (req.user.role === 'employee' || req.user.role === 'caller') {
-        query.assignedTo = req.user._id;
-      }
-      // else: no assignedTo filter → returns all tasks
-      if (callerId && callerId !== 'all') {
-        query.assignedTo = callerId;
+        query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }];
+      } else {
+        // Admin & Manager: see all tasks across the company, or filter by specific user
+        if (callerId && callerId !== 'all') {
+          query.$or = [{ assignedTo: callerId }, { assignedBy: callerId }];
+        }
       }
     } else {
       // No forMe param at all
       if (req.user.role === 'employee' || req.user.role === 'caller') {
-        query.assignedTo = req.user._id;
+        query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }];
       }
     }
 
