@@ -1815,7 +1815,7 @@ export default function Dashboard() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f3f1fb', paddingBottom: 16, flexWrap: 'wrap', gap: 10 }}>
         <div>
           <div style={{ fontSize: 22, fontWeight: 800, color: TEXT_MAIN, display: 'flex', alignItems: 'center', gap: 8 }}>
-            {isSuperAdmin ? 'Admin Desk' : isAdmin ? 'Manager Desk' : 'Employee Desk'}
+            {isSuperAdmin ? 'Admin CRM' : isAdmin ? 'Manager CRM' : 'Employee CRM'}
             <button
               onClick={refresh}
               style={{
@@ -1843,32 +1843,6 @@ export default function Dashboard() {
           <div style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 2 }}>
             Welcome back, {user?.name}!
           </div>
-        </div>
-        
-        {/* Navigation shortcuts */}
-        <div style={{ display: 'flex', gap: 10 }}>
-          {isSuperAdmin && (
-            <button
-              onClick={exportToCSV}
-              style={{ background: 'linear-gradient(90deg, #ffb37c 0%, #38bdf8 100%)', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-            >
-              📊 Export CSV Report
-            </button>
-          )}
-          {(isAdmin || isSuperAdmin) && (
-            <button
-              onClick={() => navigate('/users')}
-              style={{ background: 'linear-gradient(90deg, #ffb37c 0%, #38bdf8 100%)', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-            >
-              Manage Users
-            </button>
-          )}
-          <button
-            onClick={() => navigate('/leads/new')}
-            style={{ background: 'linear-gradient(90deg, #ffb37c 0%, #38bdf8 100%)', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-          >
-            + Add New Lead
-          </button>
         </div>
       </div>
 
