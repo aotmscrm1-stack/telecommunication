@@ -33,7 +33,7 @@ import PermissionTemplates from './pages/PermissionTemplates';
 import Billing from './pages/Billing';
 import Payslip from './pages/Payslip';
 import Invoice from './pages/Invoice';
-import Landing from './pages/Landing';
+import Landing from './pages/landing_pages/Landing';
 import LiveEmployeeTracking from './pages/LiveEmployeeTracking';
 
 const ProtectedRoute = ({ children }) => {
