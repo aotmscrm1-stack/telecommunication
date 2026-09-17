@@ -343,7 +343,7 @@ export default function Leaderboard() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {/* Date range label */}
           <div style={{ fontSize: 12, color: TEXT_MUTED, fontWeight: 600, background: '#fff', border: '1px solid var(--theme-border-tint)', borderRadius: 8, padding: '6px 12px' }}>
-            📅 {getDateRange()}
+             {getDateRange()}
           </div>
           {/* Bar chart toggle */}
           <button onClick={() => setShowBarChart(v => !v)}
@@ -396,7 +396,7 @@ export default function Leaderboard() {
               marginBottom: -2, transition: 'all 0.15s',
               display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap', flexShrink: 0,
             }}>
-            {tab === 'CUSTOM' && '📅 '}
+            {tab === 'CUSTOM' && ' '}
             {tab}
           </button>
         ))}

@@ -1344,7 +1344,7 @@ export default function LeadDetailsPage({
                         )}
                         <div className="flex items-center justify-between mt-2 pt-2 border-t border-orange-100/30 text-[10px] text-gray-400 font-semibold">
                           <span>ASSIGNED TO: {f.assignedTo?.name || 'Unassigned'}</span>
-                          {f.scheduledAt && <span>📅 {format(new Date(f.scheduledAt), 'dd MMM yyyy, hh:mm a')}</span>}
+                          {f.scheduledAt && <span> {format(new Date(f.scheduledAt), 'dd MMM yyyy, hh:mm a')}</span>}
                         </div>
                       </div>
                     </div>
@@ -1393,7 +1393,7 @@ export default function LeadDetailsPage({
                         <div className="font-bold text-sm text-gray-800">
                           {a._followup ? (
                             <span className="flex items-center gap-2">
-                              📅 Callback Scheduled
+                              Callback Scheduled
                               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${a.status === 'upcoming' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
                                 {a.status === 'upcoming' ? '⏳ Upcoming' : '✅ Done'}
                               </span>

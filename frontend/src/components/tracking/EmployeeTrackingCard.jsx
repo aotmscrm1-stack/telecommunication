@@ -163,7 +163,7 @@ export default function EmployeeTrackingCard({ compact = false }) {
               boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
             }}
           >
-            {isTracking ? '📅' : '🌴'}
+            {isTracking ? '' : ''}
           </div>
           <div>
             <h4 style={{ margin: 0, fontSize: 16.5, fontWeight: 600, color: '#1d3557', letterSpacing: '-0.2px' }}>
@@ -225,7 +225,7 @@ export default function EmployeeTrackingCard({ compact = false }) {
               </>
             ) : (
               <>
-                <span style={{ fontSize: 14 }}>📅</span> Start Attendance
+                <span style={{ fontSize: 14 }}></span> Start Attendance
               </>
             )}
           </button>
