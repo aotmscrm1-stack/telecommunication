@@ -89,10 +89,10 @@ class GeoTrackerService {
             navigator.geolocation.getCurrentPosition(
               resolve,
               (errLow) => reject(errLow || errHigh),
-              { enableHighAccuracy: false, timeout: 6000, maximumAge: 60000 }
+              { enableHighAccuracy: false, timeout: 10000, maximumAge: 0 }
             );
           },
-          { enableHighAccuracy: true, timeout: 6000, maximumAge: 10000 }
+          { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
         );
       });
 
