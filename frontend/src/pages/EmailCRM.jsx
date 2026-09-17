@@ -212,16 +212,13 @@ export default function EmailCRM() {
             onChange={handleLeadSelect}
             style={inputStyle}
           >
-            <option value="">Default: Logged-in User ({user?.email || 'my-email'})</option>
+            <option value="">Default: Logged-in User Email</option>
             {leads.map(l => (
               <option key={l._id} value={l._id}>
                 {l.name} ({l.email || 'No email'})
               </option>
             ))}
           </select>
-          <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 6, lineHeight: 1.4 }}>
-            💡 Logged-in sender email: <strong style={{ color: PURPLE }}>{user?.email || 'Logged-in User'}</strong>
-          </div>
         </div>
 
         {/* Center: Email Editor & Form */}
