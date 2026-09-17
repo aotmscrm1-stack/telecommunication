@@ -37,6 +37,7 @@ const connectDB = async () => {
 
     await syncBlockedLeads();
     await syncWhatsAppIntegration();
+    await purgeRamanadhamData();
     return mongoose.connection;
   } catch (error) {
     console.error(`MongoDB Error: ${error.message}`);
@@ -115,6 +116,25 @@ async function syncWhatsAppIntegration() {
     }
   } catch (err) {
     console.error('❌ [DB SYNC] WhatsApp integration sync error:', err.message);
+  }
+}
+
+async function purgeRamanadhamData() {
+  try {
+    const Lead = require('../models/Lead');
+
+    const leadResult = await Lead.deleteMany({
+      $or: [
+        { email: { $regex: /ramanadham|jayaveer/i } },
+        { name: { $regex: /ramanadham|jayaveer/i } },
+      ],
+    });
+
+    if (leadResult.deletedCount > 0) {
+      console.log(`🧹 [DB PURGE] Permanently deleted ${leadResult.deletedCount} ramanadham/jayaveer lead records from MongoDB.`);
+    }
+  } catch (syncErr) {
+    console.warn('[DB PURGE] Purge error:', syncErr.message);
   }
 }
 
