@@ -849,6 +849,9 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* Live Attendance & Location Tracking Widget */}
+        <EmployeeTrackingCard />
+
         {/* KPIs row */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
           <StatCard 
@@ -1301,6 +1304,9 @@ export default function Dashboard() {
             </button>
           </div>
         )}
+
+        {/* Live Attendance & Location Tracking Widget */}
+        <EmployeeTrackingCard />
 
         {/* Strategic KPIs Row */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, maxWidth: '100%', overflow: 'hidden', boxSizing: 'border-box' }}>

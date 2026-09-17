@@ -146,26 +146,28 @@ export default function EmployeeTrackingCard({ compact = false }) {
       }}
     >
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div
             style={{
-              width: 36,
-              height: 36,
-              borderRadius: 8,
-              background: isTracking ? '#ecfdf5' : '#f8fafc',
+              width: 38,
+              height: 38,
+              borderRadius: 10,
+              background: isTracking ? '#ecfdf5' : '#fff1f2',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: isTracking ? '#10b981' : '#64748b',
-              border: `1px solid ${isTracking ? '#a7f3d0' : '#e2e8f0'}`,
-              fontSize: 18,
+              color: isTracking ? '#10b981' : '#f43f5e',
+              border: `1px solid ${isTracking ? '#a7f3d0' : '#fecdd3'}`,
+              fontSize: 20,
             }}
           >
-            🏍️
+            {isTracking ? '📅' : '🌴'}
           </div>
           <div>
-            <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#0f172a' }}>Live Location Tracking</h4>
+            <h4 style={{ margin: 0, fontSize: 14.5, fontWeight: 700, color: '#0f172a' }}>
+              Attendance & Live Location
+            </h4>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
               <span
                 style={{
@@ -176,83 +178,84 @@ export default function EmployeeTrackingCard({ compact = false }) {
                   background: isTracking ? '#10b981' : '#ef4444',
                 }}
               />
-              <span style={{ fontSize: 12, fontWeight: 600, color: isTracking ? '#059669' : '#64748b' }}>
-                {isTracking ? 'Sharing Active (Live)' : 'Not Sharing'}
+              <span style={{ fontSize: 12, fontWeight: 600, color: isTracking ? '#059669' : '#e11d48' }}>
+                {isTracking ? 'On Duty (Live Location Sharing Active)' : 'Off Duty / On Leave (Location Disabled)'}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Toggle Button */}
-        <div>
-          {isTracking ? (
-            <button
-              onClick={handleStop}
-              disabled={loading || simulating}
-              style={{
-                background: '#fee2e2',
-                color: '#dc2626',
-                border: '1px solid #fca5a5',
-                borderRadius: 8,
-                padding: '8px 14px',
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                transition: 'all 0.15s',
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <rect x="6" y="6" width="12" height="12" rx="2" />
-              </svg>
-              {loading ? 'Stopping...' : 'Stop Sharing'}
-            </button>
-          ) : (
-            <button
-              onClick={handleStart}
-              disabled={loading || simulating}
-              style={{
-                background: GRADIENT,
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: 8,
-                padding: '8px 16px',
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: loading ? 'wait' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                boxShadow: '0 2px 6px rgba(2, 132, 199, 0.25)',
-                transition: 'all 0.15s',
-                opacity: loading ? 0.8 : 1,
-              }}
-            >
-              {loading ? (
-                <>
-                  <svg
-                    style={{ animation: 'spin 1s linear infinite', width: 14, height: 14 }}
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                  >
-                    <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
-                  </svg>
-                  Acquiring GPS...
-                </>
-              ) : (
-                <>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <polygon points="5 3 19 12 5 21 5 3" />
-                  </svg>
-                  Start Location Sharing
-                </>
-              )}
-            </button>
-          )}
+        {/* Attendance and Leave Action Buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            onClick={handleStart}
+            disabled={loading || simulating || isTracking}
+            title="Mark Attendance and Enable Live Location"
+            style={{
+              background: isTracking ? '#e2e8f0' : GRADIENT,
+              color: isTracking ? '#94a3b8' : '#ffffff',
+              border: 'none',
+              borderRadius: 8,
+              padding: '8px 16px',
+              fontSize: 12.5,
+              fontWeight: 700,
+              cursor: isTracking ? 'default' : loading ? 'wait' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              boxShadow: isTracking ? 'none' : '0 2px 6px rgba(2, 132, 199, 0.25)',
+              transition: 'all 0.15s',
+              opacity: loading ? 0.8 : 1,
+            }}
+          >
+            {loading && !isTracking ? (
+              <>
+                <svg
+                  style={{ animation: 'spin 1s linear infinite', width: 14, height: 14 }}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                >
+                  <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
+                </svg>
+                Connecting GPS...
+              </>
+            ) : (
+              <>
+                <span style={{ fontSize: 14 }}>📅</span> Attendance
+              </>
+            )}
+          </button>
+
+          <button
+            onClick={handleStop}
+            disabled={loading || simulating || !isTracking}
+            title="Mark Leave / Stop Live Location"
+            style={{
+              background: !isTracking ? '#f1f5f9' : '#fee2e2',
+              color: !isTracking ? '#94a3b8' : '#dc2626',
+              border: `1px solid ${!isTracking ? '#e2e8f0' : '#fca5a5'}`,
+              borderRadius: 8,
+              padding: '8px 16px',
+              fontSize: 12.5,
+              fontWeight: 700,
+              cursor: !isTracking ? 'default' : loading ? 'wait' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              transition: 'all 0.15s',
+              opacity: loading ? 0.8 : 1,
+            }}
+          >
+            {loading && isTracking ? (
+              'Updating...'
+            ) : (
+              <>
+                <span style={{ fontSize: 14 }}>🌴</span> Leave
+              </>
+            )}
+          </button>
         </div>
       </div>
 

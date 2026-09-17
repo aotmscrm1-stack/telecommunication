@@ -92,6 +92,7 @@ export default function LiveEmployeeTracking() {
   // ── Real-Time Socket.IO Handlers ───────────────────────────────────────────
   useEffect(() => {
     trackingSocket.connect();
+    trackingSocket.subscribeAdmin().catch(() => {});
     setConnectionState(trackingSocket.getConnectionState());
 
     const unsubState = trackingSocket.on('connectionStateChange', ({ state }) => {
@@ -151,24 +152,36 @@ export default function LiveEmployeeTracking() {
       setLastSyncTime(Date.now());
       setEmployees((prev) => {
         const pEmpId = String(statusPacket.employeeId || statusPacket._id || statusPacket.id || '');
-        return prev.map((emp) => {
-          if (String(emp._id || emp.employeeId || emp.id || '') === pEmpId) {
-            return {
-              ...emp,
-              name: statusPacket.name || emp.name,
-              location: {
-                ...(emp.location || {}),
-                trackingStatus: statusPacket.trackingStatus,
-                lastUpdated: statusPacket.lastUpdated,
-                speed:
-                  statusPacket.trackingStatus === 'OFFLINE' || statusPacket.trackingStatus === 'AT_OFFICE'
-                    ? 0
-                    : emp.location?.speed || 0,
-              },
-            };
-          }
-          return emp;
-        });
+        const index = prev.findIndex((e) => String(e._id || e.employeeId || e.id || '') === pEmpId);
+        if (index === -1) {
+          const newEmp = {
+            _id: pEmpId,
+            employeeId: pEmpId,
+            name: statusPacket.name || 'Employee',
+            location: {
+              trackingStatus: statusPacket.trackingStatus,
+              lastUpdated: statusPacket.lastUpdated,
+              isLive: statusPacket.trackingStatus !== 'OFFLINE',
+            },
+          };
+          return [...prev, newEmp];
+        }
+        const updated = [...prev];
+        updated[index] = {
+          ...updated[index],
+          name: statusPacket.name || updated[index].name,
+          location: {
+            ...(updated[index].location || {}),
+            trackingStatus: statusPacket.trackingStatus,
+            lastUpdated: statusPacket.lastUpdated,
+            isLive: statusPacket.trackingStatus !== 'OFFLINE',
+            speed:
+              statusPacket.trackingStatus === 'OFFLINE' || statusPacket.trackingStatus === 'AT_OFFICE'
+                ? 0
+                : updated[index].location?.speed || 0,
+          },
+        };
+        return updated;
       });
     });
 
