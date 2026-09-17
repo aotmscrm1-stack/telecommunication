@@ -26,12 +26,10 @@ export default function EmailCRM() {
   const { user } = useAuth();
   const [templates, setTemplates] = useState([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState('leave_permission');
-  const [leads, setLeads] = useState([]);
 
   // Form State - Default From Email directly to Logged-In User Email!
   const [fromEmail, setFromEmail] = useState(user?.email || 'user@aotms.com');
   const [recipientEmail, setRecipientEmail] = useState('hr@aotms.com');
-  const [selectedLeadId, setSelectedLeadId] = useState('');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
 
@@ -48,7 +46,7 @@ export default function EmailCRM() {
     }
   }, [user]);
 
-  // Load Templates & Leads on Mount
+  // Load Templates on Mount
   useEffect(() => {
     // Load Templates
     api.get('/email/templates')
@@ -60,14 +58,6 @@ export default function EmailCRM() {
         }
       })
       .catch(() => {});
-
-    // Load Leads for Dropdown Selection
-    api.get('/leads', { params: { limit: 100 } })
-      .then(res => {
-        const lList = res.data?.leads || res.data || [];
-        setLeads(lList);
-      })
-      .catch(() => {});
   }, []);
 
   const applyTemplate = (tmpl) => {
@@ -76,19 +66,6 @@ export default function EmailCRM() {
 
     setSubject(tmpl.subject || '');
     setBody(tmpl.body || '');
-  };
-
-  const handleLeadSelect = (e) => {
-    const lId = e.target.value;
-    setSelectedLeadId(lId);
-    if (!lId) {
-      if (user?.email) setFromEmail(user.email);
-      return;
-    }
-    const l = leads.find(item => item._id === lId);
-    if (l && l.email) {
-      setFromEmail(l.email);
-    }
   };
 
   const handleSendEmail = async () => {
@@ -115,7 +92,6 @@ export default function EmailCRM() {
         recipientEmail: recipientEmail.trim(),
         subject: subject.trim(),
         body: body.trim(),
-        leadId: selectedLeadId || undefined,
         templateId: selectedTemplateId,
       });
 
@@ -174,7 +150,7 @@ export default function EmailCRM() {
         {/* Left Side: Template Selector & Lead Picker */}
         <div style={{ width: 320, borderRight: `1px solid ${BORDER}`, background: '#fff', padding: 20, overflowY: 'auto', flexShrink: 0 }}>
           <div style={{ fontSize: 12, fontWeight: 800, color: TEXT_MUTED, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 14 }}>
-            1. SELECT EMAIL TEMPLATE
+            SELECT EMAIL TEMPLATE
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
@@ -203,22 +179,6 @@ export default function EmailCRM() {
               );
             })}
           </div>
-
-          <div style={{ fontSize: 12, fontWeight: 800, color: TEXT_MUTED, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 10 }}>
-            2. PICK CUSTOMER / SENDER (FROM)
-          </div>
-          <select
-            value={selectedLeadId}
-            onChange={handleLeadSelect}
-            style={inputStyle}
-          >
-            <option value="">Default: Logged-in User Email</option>
-            {leads.map(l => (
-              <option key={l._id} value={l._id}>
-                {l.name} ({l.email || 'No email'})
-              </option>
-            ))}
-          </select>
         </div>
 
         {/* Center: Email Editor & Form */}
