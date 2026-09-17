@@ -36,8 +36,8 @@ export function Navbar() {
 
         {/* Tags Pill */}
         <div className="nk-tags-pill">
-          <span>Advanced Bionics</span>
-          <span>Cognitive AI</span>
+          <span>Advanced CRM</span>
+          <span>Call Recording</span>
         </div>
       </div>
 
@@ -52,7 +52,7 @@ export function Navbar() {
               <circle cx="9" cy="9" r="1.5" fill="#FFF" />
             </svg>
           </span>
-          <span className="nk-adaptive-label">Adaptive Systems</span>
+          <span className="nk-adaptive-label">Login/Sign-in</span>
         </button>
       </div>
     </motion.nav>

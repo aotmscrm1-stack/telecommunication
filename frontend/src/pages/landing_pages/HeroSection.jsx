@@ -48,7 +48,7 @@ export function HeroSection() {
             transition={{ delay: 0.6, duration: 0.8, ease: EASE }}
           >
             <div className="nk-dot" />
-            <span className="nk-subtitle-text">Best digital banking card 2026</span>
+            <span className="nk-subtitle-text">AotMS Telecom CRM</span>
           </motion.div>
 
           {/* Heading */}
@@ -58,7 +58,7 @@ export function HeroSection() {
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.8, duration: 0.8, ease: EASE }}
           >
-            One Card, Zero <br /> Limits. Worldwide.
+            Track your <br /> Telecom Business.
           </motion.h1>
 
           {/* Buttons */}
