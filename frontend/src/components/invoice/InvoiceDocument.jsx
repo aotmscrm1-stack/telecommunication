@@ -721,7 +721,7 @@ export const InvoiceDocument = forwardRef(({ invoiceData, documentType = 'invoic
   // ───────────────────────────────────────────────────────────────────────────
   // 2. OFFICIAL OFFER LETTER FORMAT (5 Pages)
   // ───────────────────────────────────────────────────────────────────────────
-  const clientName = invoiceData.client_name || 'Ramanadham jayaveer';
+  const clientName = invoiceData.client_name || 'Candidate Name';
   const shortName = invoiceData.short_name || clientName.split(' ').pop() || clientName;
   const designation = invoiceData.designation || 'Developer';
   const offerDate = invoiceData.offer_date || '20th July 2026';

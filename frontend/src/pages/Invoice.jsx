@@ -104,7 +104,7 @@ const SAMPLE_JAYAVEER = {
   doc_type: 'offer',
   invoice_number: 'AOTMS-OFF-2026-001',
   invoice_date: new Date().toISOString().split('T')[0],
-  client_name: 'Ramanadham Jayaveer',
+  client_name: 'Candidate Name',
   designation: 'Developer',
   email: 'jayaveer@aotms.com',
   phone: '+91 80199-42233',
@@ -1065,7 +1065,7 @@ export default function Invoice() {
                           type="text"
                           value={form.client_name || ''}
                           onChange={e => setForm({ ...form, client_name: e.target.value })}
-                          placeholder="e.g. Ramanadham Jayaveer"
+                          placeholder="e.g. Candidate Name"
                           style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
                         />
                       </div>

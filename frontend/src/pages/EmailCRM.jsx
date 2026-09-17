@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 
 // Axios instance with auth token
 const api = axios.create({
@@ -22,30 +23,30 @@ const BORDER     = '#e5e7eb';
 const BG         = '#f9fafb';
 
 export default function EmailCRM() {
+  const { user } = useAuth();
   const [templates, setTemplates] = useState([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState('leave_permission');
   const [leads, setLeads] = useState([]);
 
-  // Form State
-  const [fromEmail, setFromEmail] = useState('customer@domain.com');
+  // Form State - Default From Email directly to Logged-In User Email!
+  const [fromEmail, setFromEmail] = useState(user?.email || 'user@aotms.com');
   const [recipientEmail, setRecipientEmail] = useState('hr@aotms.com');
   const [selectedLeadId, setSelectedLeadId] = useState('');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
-  
-  // Custom Variables for live preview & body insertion
-  const [employeeName, setEmployeeName] = useState('John Doe');
-  const [daysCount, setDaysCount] = useState('2');
-  const [startDate, setStartDate] = useState('2026-09-15');
-  const [endDate, setEndDate] = useState('2026-09-17');
-  const [reason, setReason] = useState('Personal Urgent Work');
-  const [phone, setPhone] = useState('9876543210');
 
   // UI & Feedback State
   const [sending, setSending] = useState(false);
   const [sentSuccess, setSentSuccess] = useState('');
   const [sentError, setSentError] = useState('');
   const [sentLogs, setSentLogs] = useState([]);
+
+  // Set logged in user email automatically when user profile loads
+  useEffect(() => {
+    if (user?.email) {
+      setFromEmail(user.email);
+    }
+  }, [user]);
 
   // Load Templates & Leads on Mount
   useEffect(() => {
@@ -65,12 +66,6 @@ export default function EmailCRM() {
       .then(res => {
         const lList = res.data?.leads || res.data || [];
         setLeads(lList);
-        if (lList.length > 0 && lList[0].email) {
-          setFromEmail(lList[0].email);
-          setSelectedLeadId(lList[0]._id);
-          if (lList[0].name) setEmployeeName(lList[0].name);
-          if (lList[0].phone) setPhone(lList[0].phone);
-        }
       })
       .catch(() => {});
   }, []);
@@ -79,36 +74,20 @@ export default function EmailCRM() {
     setSelectedTemplateId(tmpl.id);
     if (!recipientEmail) setRecipientEmail('hr@aotms.com');
 
-    let subText = tmpl.subject || '';
-    let bodyText = tmpl.body || '';
-
-    // Replace default placeholders
-    subText = subText.replace(/\{\{employee_name\}\}/g, employeeName);
-    bodyText = bodyText
-      .replace(/\{\{employee_name\}\}/g, employeeName)
-      .replace(/\{\{days\}\}/g, daysCount)
-      .replace(/\{\{start_date\}\}/g, startDate)
-      .replace(/\{\{end_date\}\}/g, endDate)
-      .replace(/\{\{reason\}\}/g, reason)
-      .replace(/\{\{health_reason\}\}/g, reason)
-      .replace(/\{\{phone\}\}/g, phone)
-      .replace(/\{\{student_name\}\}/g, employeeName)
-      .replace(/\{\{course_name\}\}/g, 'Full Stack Web Development')
-      .replace(/\{\{name\}\}/g, employeeName);
-
-    setSubject(subText);
-    setBody(bodyText);
+    setSubject(tmpl.subject || '');
+    setBody(tmpl.body || '');
   };
 
   const handleLeadSelect = (e) => {
     const lId = e.target.value;
     setSelectedLeadId(lId);
-    if (!lId) return;
+    if (!lId) {
+      if (user?.email) setFromEmail(user.email);
+      return;
+    }
     const l = leads.find(item => item._id === lId);
-    if (l) {
-      if (l.email) setFromEmail(l.email); // Set From Email to Customer Email!
-      if (l.name) setEmployeeName(l.name);
-      if (l.phone) setPhone(l.phone);
+    if (l && l.email) {
+      setFromEmail(l.email);
     }
   };
 
@@ -233,50 +212,15 @@ export default function EmailCRM() {
             onChange={handleLeadSelect}
             style={inputStyle}
           >
-            <option value="">Select a Customer from CRM...</option>
+            <option value="">Default: Logged-in User ({user?.email || 'my-email'})</option>
             {leads.map(l => (
               <option key={l._id} value={l._id}>
                 {l.name} ({l.email || 'No email'})
               </option>
             ))}
           </select>
-
-          <div style={{ fontSize: 12, fontWeight: 800, color: TEXT_MUTED, letterSpacing: 0.5, textTransform: 'uppercase', marginTop: 20, marginBottom: 10 }}>
-            3. CUSTOMIZABLE VARIABLES
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div>
-              <label style={labelStyle}>Employee / Student Name</label>
-              <input value={employeeName} onChange={e => setEmployeeName(e.target.value)} style={inputStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>Reason / Health Details</label>
-              <input value={reason} onChange={e => setReason(e.target.value)} style={inputStyle} />
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <div>
-                <label style={labelStyle}>Start Date</label>
-                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={inputStyle} />
-              </div>
-              <div>
-                <label style={labelStyle}>End Date</label>
-                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} style={inputStyle} />
-              </div>
-            </div>
-            <div>
-              <label style={labelStyle}>Contact Phone Number</label>
-              <input value={phone} onChange={e => setPhone(e.target.value)} style={inputStyle} />
-            </div>
-
-            <button
-              onClick={() => {
-                const currentTmpl = templates.find(t => t.id === selectedTemplateId);
-                if (currentTmpl) applyTemplate(currentTmpl);
-              }}
-              style={{ marginTop: 6, padding: '8px 12px', background: '#f3f4f6', border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12, fontWeight: 700, color: TEXT_MAIN, cursor: 'pointer' }}
-            >
-              🔄 Refresh Variables into Template
-            </button>
+          <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 6, lineHeight: 1.4 }}>
+            💡 Logged-in sender email: <strong style={{ color: PURPLE }}>{user?.email || 'Logged-in User'}</strong>
           </div>
         </div>
 
