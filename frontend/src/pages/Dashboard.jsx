@@ -9,29 +9,36 @@ import AnalyticsCharts from '../components/dashboard/AnalyticsCharts';
 import UserAnalysisModal from '../components/dashboard/UserAnalysisModal';
 import EmployeeTrackingCard from '../components/tracking/EmployeeTrackingCard';
 
-const PURPLE = '#5b3fc7';
-const PURPLE_LIGHT = '#f0ecff';
-const GRADIENT = 'linear-gradient(90deg, #ffb37c 0%, #38bdf8 100%)';
-const TEXT_MAIN = '#2d2d6b';
-const TEXT_MUTED = '#888';
-const GREEN = '#22a163';
-const RED = '#e53e3e';
-const AMBER = '#d97706';
-const COLORS = [PURPLE, '#8b5cf6', '#ec4899', '#f59e0b', GREEN, RED, '#3b82f6', '#a78bfa'];
+// Color Palette: Oxford Navy (#1d3557), Cerulean (#457b9d), Frosted Blue (#a8dadc), Honeydew (#f1faee), Punch Red (#e63946)
+const OXFORD_NAVY  = '#1d3557';
+const CERULEAN     = '#457b9d';
+const FROSTED_BLUE = '#a8dadc';
+const HONEYDEW      = '#f1faee';
+const PUNCH_RED     = '#e63946';
+
+const PURPLE       = OXFORD_NAVY;
+const PURPLE_LIGHT = '#dcf0f1';
+const GRADIENT     = 'linear-gradient(135deg, #1d3557 0%, #457b9d 50%, #6097b9 100%)';
+const TEXT_MAIN    = '#1d3557';
+const TEXT_MUTED   = '#457b9d';
+const GREEN        = '#22a163';
+const RED          = PUNCH_RED;
+const AMBER        = '#d97706';
+const COLORS       = [OXFORD_NAVY, CERULEAN, '#315a93', '#4e7fc4', '#6097b9', PUNCH_RED, '#3b82f6', '#a78bfa'];
 const STATUS_COLORS = {
-  'Fresh':               '#3B82F6',
-  'Connected':           '#10B981',
-  'Call Not Responding': '#EA580C',
-  'Call Back Later':     '#F59E0B',
-  'Not interested':      '#EF4444',
-  'Demo Scheduled':      '#8B5CF6',
-  'Demo Done':           '#14B8A6',
-  'Won':                 '#16A34A',
-  'Lost':                '#DC2626',
-  'Wrong Number':        '#DC2626',
-  'Blocked':             '#111827',
+  'Fresh':               '#457b9d',
+  'Connected':           '#1d3557',
+  'Call Not Responding': '#e63946',
+  'Call Back Later':     '#f59e0b',
+  'Not interested':      '#e63946',
+  'Demo Scheduled':      '#315a93',
+  'Demo Done':           '#4e7fc4',
+  'Won':                 '#1d3557',
+  'Lost':                '#e63946',
+  'Wrong Number':        '#cb1928',
+  'Blocked':             '#060b12',
 };
-const BORDER = '#e5e2f5';
+const BORDER = '#a8dadc';
 
 function fmtDuration(sec) {
   if (!sec) return '0s';
@@ -580,25 +587,25 @@ export default function Dashboard() {
         <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 16 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {/* Live Employee status */}
-            <div style={{ background: '#fff', border: '1px solid #e5e2f5', borderRadius: 12, padding: 20, maxWidth: '100%', overflow: 'hidden', boxSizing: 'border-box' }}>
-              <div style={{ fontWeight: 700, color: TEXT_MAIN, fontSize: 14.5, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={PURPLE} strokeWidth="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            <div style={{ background: 'linear-gradient(145deg, #ffffff 0%, #f1faee 100%)', border: '1.5px solid #a8dadc', borderRadius: 16, padding: '22px 24px', maxWidth: '100%', overflow: 'hidden', boxSizing: 'border-box', boxShadow: '0 4px 20px rgba(29, 53, 87, 0.05)' }}>
+              <div style={{ fontWeight: 800, color: OXFORD_NAVY, fontSize: 18.5, marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={OXFORD_NAVY} strokeWidth="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
                 Employees Activity & Live Status
-                <span style={{ marginLeft: 'auto', background: PURPLE_LIGHT, color: PURPLE, fontSize: 12, fontWeight: 700, borderRadius: 20, padding: '2px 12px' }}>
+                <span style={{ marginLeft: 'auto', background: '#dcf0f1', color: OXFORD_NAVY, fontSize: 13, fontWeight: 800, borderRadius: 20, padding: '4px 14px', border: '1.5px solid #a8dadc' }}>
                   {liveCallers.length} Employee{liveCallers.length !== 1 ? 's' : ''} Logged In
                 </span>
               </div>
               {liveCallers.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '24px 0', color: TEXT_MUTED, fontSize: 13 }}>No employee accounts set up yet.</div>
+                <div style={{ textAlign: 'center', padding: '28px 0', color: TEXT_MUTED, fontSize: 14 }}>No employee accounts set up yet.</div>
               ) : (
                 <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                     <thead>
-                      <tr style={{ borderBottom: `1px solid ${BORDER}`, color: TEXT_MUTED, height: 28 }}>
-                        <th style={{ textAlign: 'left', fontWeight: 600, paddingBottom: 8 }}>Employee Name</th>
-                        <th style={{ textAlign: 'center', fontWeight: 600, paddingBottom: 8 }}>Status</th>
-                        <th style={{ textAlign: 'center', fontWeight: 600, paddingBottom: 8 }}>Calls Logged Today</th>
-                        <th style={{ textAlign: 'right', fontWeight: 600, paddingBottom: 8 }}>Last Call Date & Time</th>
+                      <tr style={{ background: '#f1faee', borderBottom: '1.5px solid #a8dadc', color: OXFORD_NAVY, height: 36 }}>
+                        <th style={{ textAlign: 'left', fontWeight: 700, padding: '10px 12px' }}>Employee Name</th>
+                        <th style={{ textAlign: 'center', fontWeight: 700, padding: '10px 12px' }}>Status</th>
+                        <th style={{ textAlign: 'center', fontWeight: 700, padding: '10px 12px' }}>Calls Logged Today</th>
+                        <th style={{ textAlign: 'right', fontWeight: 700, padding: '10px 12px' }}>Last Call Date & Time</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -606,33 +613,33 @@ export default function Dashboard() {
                         <tr 
                           key={caller.user?._id}
                           onClick={() => openAnalysisModal(caller.user?._id)}
-                          style={{ borderBottom: '1px solid #faf9ff', height: 44, cursor: 'pointer' }}
-                          onMouseEnter={e => e.currentTarget.style.background = '#faf9ff'}
+                          style={{ borderBottom: '1px solid #edf8f8', height: 52, cursor: 'pointer', transition: 'background 0.15s' }}
+                          onMouseEnter={e => e.currentTarget.style.background = '#f1faee'}
                           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                         >
-                          <td style={{ display: 'flex', alignItems: 'center', gap: 8, height: 44 }}>
-                            <div style={{ width: 22, height: 22, borderRadius: '50%', background: PURPLE_LIGHT, color: PURPLE, fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <td style={{ display: 'flex', alignItems: 'center', gap: 10, height: 52, paddingLeft: 12 }}>
+                            <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#dcf0f1', color: OXFORD_NAVY, fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.8)' }}>
                               {caller.user?.name?.[0]?.toUpperCase()}
                             </div>
                             <div>
-                              <strong style={{ color: TEXT_MAIN }}>{caller.user?.name}</strong>
-                              <div style={{ fontSize: 10, color: TEXT_MUTED }}>{caller.user?.email}</div>
+                              <strong style={{ color: OXFORD_NAVY, fontSize: 15, fontWeight: 800 }}>{caller.user?.name}</strong>
+                              <div style={{ fontSize: 12, color: CERULEAN, fontWeight: 600 }}>{caller.user?.email}</div>
                             </div>
                           </td>
                           <td style={{ textAlign: 'center' }}>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 600, color: caller.isActive ? GREEN : TEXT_MUTED }}>
-                              <span className={caller.isActive ? 'pulse-dot' : ''} style={{ width: 8, height: 8, borderRadius: '50%', background: caller.isActive ? GREEN : '#cbd5e1' }} />
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700, color: caller.isActive ? OXFORD_NAVY : '#89aad8' }}>
+                              <span className={caller.isActive ? 'pulse-dot' : ''} style={{ width: 9, height: 9, borderRadius: '50%', background: caller.isActive ? '#457b9d' : '#cbd5e1' }} />
                               {caller.isActive ? 'Active Now' : 'Idle'}
                             </span>
                           </td>
-                          <td style={{ textAlign: 'center', fontWeight: 600, color: TEXT_MAIN }}>
+                          <td style={{ textAlign: 'center', fontWeight: 800, color: OXFORD_NAVY, fontSize: 16 }}>
                             {caller.callsToday}
                           </td>
-                          <td style={{ textAlign: 'right', color: TEXT_MUTED }}>
+                          <td style={{ textAlign: 'right', color: TEXT_MUTED, paddingRight: 12 }}>
                             {caller.lastCallTime ? (
                               <span>
-                                <span style={{ display: 'block', fontWeight: 600, color: TEXT_MAIN, fontSize: 12 }}>{new Date(caller.lastCallTime).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</span>
-                                <span style={{ fontSize: 11 }}>{new Date(caller.lastCallTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+                                <span style={{ display: 'block', fontWeight: 700, color: OXFORD_NAVY, fontSize: 13.5 }}>{new Date(caller.lastCallTime).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</span>
+                                <span style={{ fontSize: 12, fontWeight: 600, color: CERULEAN }}>{new Date(caller.lastCallTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
                               </span>
                             ) : 'Never'}
                           </td>
@@ -642,13 +649,13 @@ export default function Dashboard() {
                   </table>
                   <style>{`
                     .pulse-dot {
-                      box-shadow: 0 0 0 0 rgba(34, 161, 99, 0.4);
+                      box-shadow: 0 0 0 0 rgba(69, 123, 157, 0.4);
                       animation: pulse 1.5s infinite;
                     }
                     @keyframes pulse {
-                      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 161, 99, 0.7); }
-                      70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(34, 161, 99, 0); }
-                      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 161, 99, 0); }
+                      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(69, 123, 157, 0.7); }
+                      70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(69, 123, 157, 0); }
+                      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(69, 123, 157, 0); }
                     }
                   `}</style>
                 </div>
