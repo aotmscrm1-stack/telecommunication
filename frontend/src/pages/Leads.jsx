@@ -47,7 +47,7 @@ export default function Leads() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isAdmin = user?.role === 'manager' || user?.role === 'admin';
-  const isCaller = user?.role === 'caller';
+  const isCaller = user?.role === 'employee' || user?.role === 'caller';
 
   // Determine available filter tabs based on role
   // Admin: My Leads, All Leads, Leads Assigned To Me

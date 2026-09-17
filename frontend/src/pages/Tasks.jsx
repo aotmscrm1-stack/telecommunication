@@ -698,9 +698,9 @@ export default function Tasks() {
   const canDelete = currentUser?.role === 'manager' || currentUser?.role === 'admin';
   const [markingCompleteId, setMarkingCompleteId] = useState(null);
 
-  // Callers never get edit rights on tasks — they can only view them (and
+  // Callers/employees never get edit rights on tasks — they can only view them (and
   // mark them complete via the checkmark action). Only managers/admins edit.
-  const canEditTask = () => currentUser?.role !== 'caller';
+  const canEditTask = () => currentUser?.role !== 'caller' && currentUser?.role !== 'employee';
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);

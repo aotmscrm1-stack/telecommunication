@@ -66,7 +66,7 @@ function TransferLeadsModal({ onClose }) {
 
   useEffect(() => {
     usersAPI.getAll().then(res => {
-      setCallers((res.data.users || []).filter(u => u.role === 'caller' && u.isActive));
+      setCallers((res.data.users || []).filter(u => (u.role === 'employee' || u.role === 'caller') && u.isActive));
     }).catch(() => {}).finally(() => setLoadingCallers(false));
   }, []);
 

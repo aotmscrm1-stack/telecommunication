@@ -32,12 +32,10 @@ function calculateSalaryComponents(grossSalary, effectiveWorkDays = 30, lopDays 
     throw new Error('Gross Salary must be greater than 0');
   }
 
-  const workDays = Number(effectiveWorkDays) || 30;
-  if (workDays <= 0) {
-    throw new Error('Effective Work Days must be greater than 0');
-  }
+  // Effective Work Days is fixed at 30 days
+  const workDays = 30;
 
-  const lop = Number(lopDays) || 0;
+  const lop = Number(lopDays) >= 0 ? Number(lopDays) : 0;
   if (lop < 0) {
     throw new Error('LOP days cannot be negative');
   }
@@ -65,7 +63,8 @@ function calculateSalaryComponents(grossSalary, effectiveWorkDays = 30, lopDays 
   const perDaySalary = gross / 30;
   const lopDeduction = Math.round(perDaySalary * lop);
 
-  const tds = Number(customTds) >= 0 ? Number(customTds) : 200;
+  // Professional Tax is fixed at ₹200
+  const tds = 200;
   const totalDeductions = lopDeduction + tds;
   const netSalary = totalEarnings - totalDeductions;
   const netSalaryInWords = numberToWords(netSalary);
@@ -80,10 +79,10 @@ function calculateSalaryComponents(grossSalary, effectiveWorkDays = 30, lopDays 
     special_allowance: specialAllowance,
     incentive,
     total_earnings: totalEarnings,
-    effective_work_days: workDays,
+    effective_work_days: 30,
     lop,
     lop_deduction: lopDeduction,
-    tds,
+    tds: 200,
     total_deductions: totalDeductions,
     net_salary: netSalary,
     net_salary_in_words: netSalaryInWords,
@@ -194,14 +193,11 @@ router.post('/', protect, async (req, res) => {
     if (!location?.trim()) {
       return res.status(400).json({ message: 'Location is required' });
     }
-    if (effective_work_days === undefined || effective_work_days === null || effective_work_days === '' || Number(effective_work_days) <= 0) {
-      return res.status(400).json({ message: 'Effective Work Days must be greater than 0' });
-    }
     if (lop === undefined || lop === null || lop === '' || Number(lop) < 0) {
       return res.status(400).json({ message: 'LOP (Loss Of Pay Days) cannot be negative' });
     }
-    if (Number(lop) > Number(effective_work_days)) {
-      return res.status(400).json({ message: `LOP days (${lop}) cannot be greater than Effective Work Days (${effective_work_days})` });
+    if (Number(lop) > 30) {
+      return res.status(400).json({ message: `LOP days (${lop}) cannot be greater than standard Effective Work Days (30)` });
     }
     if (!bank_name?.trim()) {
       return res.status(400).json({ message: 'Bank Name is required' });

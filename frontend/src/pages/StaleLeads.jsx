@@ -31,7 +31,7 @@ export default function StaleLeads() {
         usersAPI.getAll()
       ]);
       setData(analysisRes.data);
-      setCallers(usersRes.data.users?.filter(u => u.role === 'caller') || []);
+      setCallers(usersRes.data.users?.filter(u => u.role === 'employee' || u.role === 'caller') || []);
     } catch (err) {
       console.error(err);
     } finally {

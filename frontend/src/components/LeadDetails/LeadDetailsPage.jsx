@@ -118,7 +118,7 @@ function InitiateCallModal({ lead, callers, currentUser, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
 
-  const isCaller = currentUser?.role === 'caller';
+  const isCaller = currentUser?.role === 'employee' || currentUser?.role === 'caller';
   const [selectedCaller, setSelectedCaller] = useState(
     isCaller ? currentUser?._id : (lead?.assignedTo?._id || '')
   );
@@ -137,7 +137,7 @@ function InitiateCallModal({ lead, callers, currentUser, onClose, onSuccess }) {
     }
   };
 
-  const callersList = callers.filter(c => c.role === 'caller');
+  const callersList = callers.filter(c => c.role === 'employee' || c.role === 'caller');
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
@@ -654,7 +654,7 @@ export default function LeadDetailsPage({
   const { user } = useAuth();
   const isSuperAdmin = user?.role === 'admin';
   const isAdmin = user?.role === 'manager' || user?.role === 'admin';
-  const isCaller = user?.role === 'caller';
+  const isCaller = user?.role === 'employee' || user?.role === 'caller';
 
   const [lead, setLead] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -721,7 +721,7 @@ export default function LeadDetailsPage({
     campaignsAPI.getAll().then(res => setCampaigns(res.data.campaigns || [])).catch(console.error);
     coursesAPI.getAll().then(res => setCourses(res.data.courses || [])).catch(console.error);
     usersAPI.getAll().then(res => {
-      setCallers((res.data.users || []).filter(u => u.role === 'caller' || u.role === 'manager' || u.role === 'admin'));
+      setCallers((res.data.users || []).filter(u => u.role === 'employee' || u.role === 'caller' || u.role === 'manager' || u.role === 'admin'));
     }).catch(console.error);
     leadStagesAPI.get().then(res => {
       const active = (res.data.config?.statuses || [])

@@ -62,6 +62,13 @@ const AdminRoute = ({ children }) => {
   return isAdmin ? children : <Navigate to="/dashboard" replace />;
 };
 
+const AdminOnlyRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  const isStrictAdmin = user?.role === 'admin';
+  return isStrictAdmin ? children : <Navigate to="/dashboard" replace />;
+};
+
 export default function App() {
   return (
     <AuthProvider>
@@ -106,8 +113,8 @@ export default function App() {
             <Route path="custom-actions" element={<AdminRoute><CustomActions /></AdminRoute>} />
             <Route path="workspace-preferences" element={<AdminRoute><WorkspacePreferences /></AdminRoute>} />
             <Route path="permission-templates" element={<AdminRoute><PermissionTemplates /></AdminRoute>} />
-            <Route path="admin/employee-tracking" element={<AdminRoute><LiveEmployeeTracking /></AdminRoute>} />
-            <Route path="employee-tracking" element={<AdminRoute><LiveEmployeeTracking /></AdminRoute>} />
+            <Route path="admin/employee-tracking" element={<AdminOnlyRoute><LiveEmployeeTracking /></AdminOnlyRoute>} />
+            <Route path="employee-tracking" element={<AdminOnlyRoute><LiveEmployeeTracking /></AdminOnlyRoute>} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

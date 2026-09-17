@@ -66,7 +66,7 @@ router.put('/:id', protect, async (req, res) => {
   try {
     const list = await WhatsAppList.findById(req.params.id);
     if (!list) return res.status(404).json({ message: 'List not found' });
-    if (list.createdBy.toString() !== req.user._id.toString() && req.user.role === 'caller') {
+    if (list.createdBy.toString() !== req.user._id.toString() && (req.user.role === 'employee' || req.user.role === 'caller')) {
       return res.status(403).json({ message: "Cannot edit another user's list" });
     }
 
@@ -88,7 +88,7 @@ router.delete('/:id', protect, async (req, res) => {
   try {
     const list = await WhatsAppList.findById(req.params.id);
     if (!list) return res.status(404).json({ message: 'List not found' });
-    if (list.createdBy.toString() !== req.user._id.toString() && req.user.role === 'caller') {
+    if (list.createdBy.toString() !== req.user._id.toString() && (req.user.role === 'employee' || req.user.role === 'caller')) {
       return res.status(403).json({ message: "Cannot delete another user's list" });
     }
     await WhatsAppList.findByIdAndDelete(req.params.id);

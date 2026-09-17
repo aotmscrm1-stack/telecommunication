@@ -37,7 +37,7 @@ export default function Users() {
     email: '',
     phone: '',
     password: '',
-    role: 'caller',
+    role: 'employee',
     isActive: true
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -71,7 +71,7 @@ export default function Users() {
       email: '',
       phone: '',
       password: '',
-      role: 'caller',
+      role: 'employee',
       isActive: true
     });
     setError('');
@@ -175,6 +175,7 @@ export default function Users() {
     let bg = '#eff6ff', color = '#1e40af';
     if (role === 'admin') { bg = '#fef2f2'; color = '#991b1b'; }
     if (role === 'manager') { bg = 'var(--theme-surface-faint8)'; color = 'var(--theme-primary)'; }
+    if (role === 'employee' || role === 'caller') { bg = '#ecfdf5'; color = '#065f46'; }
     return {
       display: 'inline-block', fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
       padding: '2px 8px', borderRadius: 20, background: bg, color
@@ -249,8 +250,8 @@ export default function Users() {
                     </td>
                     <td style={{ padding: '12px 18px', textAlign: 'right' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
-                        {/* Edit Button (Allowed for Manager on Callers, Admin on all) */}
-                        {(!isAdmin || (user.role === 'manager' && u.role === 'caller') || isSuperAdmin) && (
+                        {/* Edit Button (Allowed for Manager on Employees, Admin on all) */}
+                        {(!isAdmin || (user.role === 'manager' && (u.role === 'employee' || u.role === 'caller')) || isSuperAdmin) && (
                           <button onClick={() => handleOpenEdit(u)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', display: 'flex', padding: 4, borderRadius: 4 }}
                             onMouseEnter={e => e.currentTarget.style.color = PURPLE}
                             onMouseLeave={e => e.currentTarget.style.color = '#888'}>
@@ -310,7 +311,7 @@ export default function Users() {
               <div>
                 <label style={labelStyle}>Role</label>
                 <select style={inputStyle} disabled={!isSuperAdmin} value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value })}>
-                  <option value="caller">Caller</option>
+                  <option value="employee">Employee</option>
                   <option value="manager">Manager</option>
                 </select>
               </div>
@@ -359,7 +360,7 @@ export default function Users() {
               <div>
                 <label style={labelStyle}>Role</label>
                 <select style={inputStyle} disabled={!isSuperAdmin || currentUser?.role === 'admin'} value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value })}>
-                  <option value="caller">Caller</option>
+                  <option value="employee">Employee</option>
                   <option value="manager">Manager</option>
                   {currentUser?.role === 'admin' && <option value="admin">Admin</option>}
                 </select>

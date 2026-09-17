@@ -358,7 +358,7 @@ function AddTaskModal({ type, onClose, onCreated }) {
   const assignableUsers = (() => {
     if (currentUser?.role === 'admin') return users;
     if (currentUser?.role === 'manager') {
-      return users.filter(u => u.role === 'caller' || u._id === currentUser._id);
+      return users.filter(u => u.role === 'employee' || u.role === 'caller' || u._id === currentUser._id);
     }
     return users.filter(u => u._id === currentUser?._id);
   })();
@@ -694,9 +694,9 @@ export default function Tasks() {
   const canDelete = currentUser?.role === 'manager' || currentUser?.role === 'admin';
   const [markingCompleteId, setMarkingCompleteId] = useState(null);
 
-  // Callers never get edit rights on tasks — they can only view them (and
+  // Callers/employees never get edit rights on tasks — they can only view them (and
   // mark them complete via the checkmark action). Only managers/admins edit.
-  const canEditTask = () => currentUser?.role !== 'caller';
+  const canEditTask = () => currentUser?.role !== 'caller' && currentUser?.role !== 'employee';
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);

@@ -4,7 +4,7 @@ const { protect, authorize } = require('../middleware/auth');
 const router = express.Router();
 
 // GET /api/users
-router.get('/', protect, authorize('manager', 'admin', 'caller'), async (req, res) => {
+router.get('/', protect, authorize('manager', 'admin', 'employee', 'caller'), async (req, res) => {
   try {
     const users = await User.find({}).select('-password').sort({ name: 1 });
     res.json({ users });
@@ -19,11 +19,11 @@ router.post('/', protect, authorize('manager', 'admin'), async (req, res) => {
     const { name, email, password, role, phone } = req.body;
     const existing = await User.findOne({ email });
     if (existing) return res.status(400).json({ message: 'Email already in use' });
-    if (req.user.role === 'manager' && role !== 'caller')
-      return res.status(403).json({ message: 'Admins can only create callers' });
+    if (req.user.role === 'manager' && role !== 'employee' && role !== 'caller')
+      return res.status(403).json({ message: 'Managers can only create employees' });
     if (role === 'admin')
       return res.status(403).json({ message: 'Cannot create admin users' });
-    const user = await User.create({ name, email, password, role: role || 'caller', phone: phone || '' });
+    const user = await User.create({ name, email, password, role: role || 'employee', phone: phone || '' });
     res.status(201).json({ user: user.toJSON() });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -152,8 +152,8 @@ router.put('/:id', protect, authorize('manager', 'admin'), async (req, res) => {
     const targetUser = await User.findById(req.params.id);
     if (!targetUser) return res.status(404).json({ message: 'User not found' });
     if (req.user.role === 'manager') {
-      if (targetUser.role !== 'caller') return res.status(403).json({ message: 'Admins can only update callers' });
-      if (req.body.role && req.body.role !== 'caller') return res.status(403).json({ message: 'Admins cannot change user roles' });
+      if (targetUser.role !== 'employee' && targetUser.role !== 'caller') return res.status(403).json({ message: 'Managers can only update employees' });
+      if (req.body.role && req.body.role !== 'employee' && req.body.role !== 'caller') return res.status(403).json({ message: 'Managers cannot change user roles to non-employee' });
     }
     if (req.body.role === 'admin' && targetUser.role !== 'admin')
       return res.status(403).json({ message: 'Only admins can set roles' });

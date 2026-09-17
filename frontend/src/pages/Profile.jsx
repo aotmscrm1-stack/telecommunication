@@ -8,8 +8,8 @@ export default function Profile() {
     initials: user?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '',
     email: user?.email || '',
     state: 'Working',
-    role: user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Caller',
-    permissionTemplate: 'Default Caller Permissions',
+    role: user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Employee',
+    permissionTemplate: 'Default Employee Permissions',
     reportingTo: '',
     phone: user?.phone || '918143172233',
   });

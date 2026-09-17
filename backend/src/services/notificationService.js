@@ -139,9 +139,9 @@ async function notifyAdminsTaskCreated({ followup, performedByUser }) {
       assignedToId &&
       assignedToId.toString() !== performedByUser?._id?.toString()
     ) {
-      // Check that the assigned user is a caller (not an admin who would already be notified)
+      // Check that the assigned user is an employee/caller (not an admin who would already be notified)
       const assignedUser = await User.findById(assignedToId).select('role');
-      if (assignedUser && assignedUser.role === 'caller') {
+      if (assignedUser && (assignedUser.role === 'employee' || assignedUser.role === 'caller')) {
         notifications.push(createNotification({
           recipient: assignedToId,
           type: 'task_assigned',
@@ -166,8 +166,8 @@ async function notifyAdminsTaskCreated({ followup, performedByUser }) {
  */
 async function notifyAdminsTaskEdited({ followup, performedByUser }) {
   try {
-    // Only send this notification when the editor is a caller
-    if (!performedByUser || !['caller'].includes(performedByUser.role)) return [];
+    // Only send this notification when the editor is an employee/caller
+    if (!performedByUser || !['employee', 'caller'].includes(performedByUser.role)) return [];
 
     const admins = await User.find({ role: { $in: ['manager', 'admin'] } }).select('_id');
     const recipients = admins.map(a => a._id);

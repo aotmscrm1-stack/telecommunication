@@ -103,8 +103,8 @@
   --theme-gradient-soft: linear-gradient(135deg, #e0f7ff 0%, #f0fbff 100%);
 }
 
-/* Ocean Breeze (Caller) */
-[data-theme="caller"] {
+/* Ocean Breeze (Caller / Employee) */
+[data-theme="caller"], [data-theme="employee"] {
   --theme-primary: #0891b2;
   --theme-primary-dark: #0e7490;
   --theme-primary-light: #38bdf8;

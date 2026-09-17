@@ -170,9 +170,6 @@ function initTrackingSocketServer(httpServer) {
     // Join role-specific broadcast rooms
     if (user.role === 'admin') {
       socket.join('super_admin_room');
-      socket.join('manager_room');
-    } else if (user.role === 'manager') {
-      socket.join('manager_room');
     }
 
     // Send initial live state to employee
@@ -220,7 +217,7 @@ function initTrackingSocketServer(httpServer) {
 
     // ── EVENT: admin:subscribe (Admins requesting latest bulk live state) ─────
     socket.on('admin:subscribe', async (ackCallback) => {
-      if (user.role !== 'admin' && user.role !== 'manager') {
+      if (user.role !== 'admin') {
         if (typeof ackCallback === 'function') ackCallback({ success: false, error: 'Unauthorized' });
         return;
       }
@@ -610,11 +607,11 @@ async function handleStopTracking(user) {
 }
 
 /**
- * Broadcast event to authorized admin and manager rooms (deduplicated across rooms)
+ * Broadcast event to authorized super admin room
  */
 function broadcastToAdmins(event, payload) {
   if (!ioInstance) return;
-  ioInstance.to(['super_admin_room', 'manager_room']).emit(event, payload);
+  ioInstance.to('super_admin_room').emit(event, payload);
 }
 
 /**
@@ -623,11 +620,11 @@ function broadcastToAdmins(event, payload) {
 async function getLiveEmployeesForUser(requestingUser) {
   let userQuery = {};
 
-  if (requestingUser.role === 'admin' || requestingUser.role === 'manager') {
-    // Admins and Managers can see all active organization members (including themselves)
+  if (requestingUser.role === 'admin') {
+    // Admins can see all active organization members (including themselves)
     userQuery = { isActive: true };
   } else {
-    // Callers cannot view other employees
+    // Non-admins cannot view other employees
     return [];
   }
 

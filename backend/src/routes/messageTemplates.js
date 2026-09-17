@@ -53,7 +53,7 @@ router.put('/:id', protect, async (req, res) => {
   try {
     const template = await MessageTemplate.findById(req.params.id);
     if (!template) return res.status(404).json({ message: 'Template not found' });
-    if (template.createdBy.toString() !== req.user._id.toString() && req.user.role === 'caller') {
+    if (template.createdBy.toString() !== req.user._id.toString() && (req.user.role === 'employee' || req.user.role === 'caller')) {
       return res.status(403).json({ message: 'Cannot edit another user\'s template' });
     }
     const updated = await MessageTemplate.findByIdAndUpdate(req.params.id, req.body, { new: true })
@@ -69,7 +69,7 @@ router.delete('/:id', protect, async (req, res) => {
   try {
     const template = await MessageTemplate.findById(req.params.id);
     if (!template) return res.status(404).json({ message: 'Template not found' });
-    if (template.createdBy.toString() !== req.user._id.toString() && req.user.role === 'caller') {
+    if (template.createdBy.toString() !== req.user._id.toString() && (req.user.role === 'employee' || req.user.role === 'caller')) {
       return res.status(403).json({ message: 'Cannot delete another user\'s template' });
     }
 

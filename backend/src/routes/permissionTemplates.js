@@ -50,7 +50,7 @@ router.post('/', protect, authorize('manager', 'admin'), async (req, res) => {
     const template = await PermissionTemplate.create({
       workspace: WORKSPACE,
       name: name.trim(),
-      baseRole: baseRole || 'caller',
+      baseRole: baseRole || 'employee',
       permissions: permissions || undefined,
     });
     res.status(201).json({ template });

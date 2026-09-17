@@ -122,13 +122,15 @@ export default function Payslip() {
   const incentive = Math.max(0, Math.round(Number(form.incentive) || 0));
   const totalEarnings = grossNum > 0 ? basicSalary + hra + conveyance + medicalAllowance + foodAllowance + specialAllowance + incentive : 0;
 
-  const workDaysNum = Number(form.effective_work_days) > 0 ? Number(form.effective_work_days) : 30;
+  // Effective Work Days is fixed at standard 30 days
+  const workDaysNum = 30;
   const lopDaysNum = Number(form.lop) >= 0 ? Number(form.lop) : 0;
   // LOP Deduction: Calculated on standard 30 days basis -> (Gross Salary / 30) * LOP Days
   const perDaySalary = grossNum > 0 ? grossNum / 30 : 0;
   const lopDeduction = grossNum > 0 && lopDaysNum > 0 ? Math.round(perDaySalary * lopDaysNum) : 0;
 
-  const tds = Number(form.tds) >= 0 ? Number(form.tds) : 200;
+  // Professional Tax is fixed at ₹200
+  const tds = 200;
   const totalDeductions = grossNum > 0 ? lopDeduction + tds : 0;
   const netSalary = grossNum > 0 ? totalEarnings - totalDeductions : 0;
   const netInWords = netSalary > 0 ? numberToWords(netSalary) : '';
@@ -141,8 +143,8 @@ export default function Payslip() {
     designation: form.designation,
     department: form.department,
     location: form.location,
-    effective_work_days: form.effective_work_days,
-    lop: form.lop,
+    effective_work_days: 30,
+    lop: lopDaysNum,
     bank_name: form.bank_name,
     bank_account_number: form.bank_account_number,
     pan_number: form.pan_number,
@@ -159,7 +161,7 @@ export default function Payslip() {
     incentive: incentive,
     total_earnings: totalEarnings,
     lop_deduction: lopDeduction,
-    tds: tds,
+    tds: 200,
     total_deductions: totalDeductions,
     net_salary: netSalary,
     net_salary_in_words: netInWords,
@@ -349,16 +351,12 @@ export default function Payslip() {
       setErrorMessage('Please enter Location');
       return;
     }
-    if (form.effective_work_days === '' || form.effective_work_days === null || form.effective_work_days === undefined || Number(form.effective_work_days) <= 0) {
-      setErrorMessage('Effective Work Days must be greater than 0');
-      return;
-    }
     if (form.lop === '' || form.lop === null || form.lop === undefined || Number(form.lop) < 0) {
       setErrorMessage('LOP (Loss Of Pay Days) cannot be negative');
       return;
     }
-    if (Number(form.lop) > Number(form.effective_work_days)) {
-      setErrorMessage(`LOP days (${form.lop}) cannot be greater than Effective Work Days (${form.effective_work_days})`);
+    if (Number(form.lop) > 30) {
+      setErrorMessage(`LOP days (${form.lop}) cannot be greater than Effective Work Days (30)`);
       return;
     }
     if (!form.bank_name?.trim()) {
@@ -393,10 +391,6 @@ export default function Payslip() {
       setErrorMessage('Incentive cannot be negative');
       return;
     }
-    if (Number(form.tds) < 0) {
-      setErrorMessage('Professional Tax cannot be negative');
-      return;
-    }
     if (specialAllowance < 0) {
       setErrorMessage('Gross Salary must be at least ₹12,160 to support the standard allowance structure without negative values');
       return;
@@ -408,11 +402,11 @@ export default function Payslip() {
 
       const payload = {
         ...form,
-        effective_work_days: Number(form.effective_work_days),
-        lop: Number(form.lop),
+        effective_work_days: 30,
+        lop: Number(form.lop) || 0,
         gross_salary: grossNum,
         incentive,
-        tds,
+        tds: 200,
       };
 
       if (currentSlipId) {
@@ -466,11 +460,11 @@ export default function Payslip() {
     try {
       const payload = {
         ...form,
-        effective_work_days: Number(form.effective_work_days),
-        lop: Number(form.lop),
+        effective_work_days: 30,
+        lop: Number(form.lop) || 0,
         gross_salary: grossNum,
         incentive,
-        tds,
+        tds: 200,
       };
       const res = await payslipsAPI.update(currentSlipId, payload);
       const updated = res.data?.payslip || draftPayslip;
@@ -829,34 +823,51 @@ export default function Payslip() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        Effective Work Days <span className="text-red-500 font-bold">*</span>
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-semibold text-gray-700">
+                          Effective Work Days <span className="text-red-500 font-bold">*</span>
+                        </label>
+                        <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                          Fixed (30)
+                        </span>
+                      </div>
                       <input
                         type="number"
-                        required
-                        min="1"
-                        max="31"
-                        placeholder="30"
-                        value={form.effective_work_days}
-                        onChange={(e) => setForm({ ...form, effective_work_days: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                        readOnly
+                        disabled
+                        value={30}
+                        className="w-full px-3 py-2 rounded-xl border border-gray-200 bg-gray-100 text-gray-500 text-xs font-mono cursor-not-allowed select-none"
                       />
+                      <p className="text-[10px] text-gray-400 mt-1">Standard 30 days/month (Fixed)</p>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        LOP (Loss Of Pay Days)
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-semibold text-gray-700">
+                          LOP (Loss Of Pay Days)
+                        </label>
+                        <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                          Editable
+                        </span>
+                      </div>
                       <input
                         type="number"
                         min="0"
-                        max="31"
+                        max="30"
                         placeholder="0"
                         value={form.lop}
                         onChange={(e) => setForm({ ...form, lop: e.target.value })}
                         className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
                       />
+                      <p className="text-[10px] text-gray-400 mt-1">
+                        {lopDaysNum > 0 && grossNum > 0 ? (
+                          <span className="text-rose-600 font-medium">
+                            Deduction: ₹{lopDeduction.toLocaleString('en-IN')} (₹{(grossNum / 30).toFixed(2)}/day × {lopDaysNum}d)
+                          </span>
+                        ) : (
+                          'Deduction = (Gross / 30) × LOP'
+                        )}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -991,17 +1002,22 @@ export default function Payslip() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        Professional Tax / TDS (₹)
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-semibold text-gray-700">
+                          Professional Tax (₹)
+                        </label>
+                        <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                          Fixed (₹200)
+                        </span>
+                      </div>
                       <input
                         type="number"
-                        min="0"
-                        placeholder="200"
-                        value={form.tds}
-                        onChange={(e) => setForm({ ...form, tds: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                        readOnly
+                        disabled
+                        value={200}
+                        className="w-full px-3 py-2 rounded-xl border border-gray-200 bg-gray-100 text-gray-500 text-xs font-mono cursor-not-allowed select-none"
                       />
+                      <p className="text-[10px] text-gray-400 mt-1">Standard statutory PT (Fixed: ₹200)</p>
                     </div>
                   </div>
                 </div>

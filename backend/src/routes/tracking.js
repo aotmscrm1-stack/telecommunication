@@ -47,7 +47,7 @@ router.get('/config', (req, res) => {
 });
 
 // ── GET /api/tracking/employees (List all authorized employees + live telemetry) ──
-router.get('/employees', protect, authorize('manager', 'admin'), async (req, res) => {
+router.get('/employees', protect, authorize('admin'), async (req, res) => {
   try {
     const employees = await getLiveEmployeesForUser(req.user);
     res.json({ ok: true, employees });
@@ -57,7 +57,7 @@ router.get('/employees', protect, authorize('manager', 'admin'), async (req, res
 });
 
 // ── GET /api/tracking/employees/:employeeId/history (Historical route trail) ──────
-router.get('/employees/:employeeId/history', protect, authorize('manager', 'admin'), async (req, res) => {
+router.get('/employees/:employeeId/history', protect, authorize('admin'), async (req, res) => {
   try {
     const { employeeId } = req.params;
     const { from, to, limit = 1000 } = req.query;
@@ -65,11 +65,6 @@ router.get('/employees/:employeeId/history', protect, authorize('manager', 'admi
     const targetUser = await User.findById(employeeId).select('name email role avatar phone');
     if (!targetUser) {
       return res.status(404).json({ ok: false, message: 'Employee not found' });
-    }
-
-    // Role-based authorization check: Manager can only view Callers
-    if (req.user.role === 'manager' && targetUser.role !== 'caller') {
-      return res.status(403).json({ ok: false, message: 'Managers can only view caller location history' });
     }
 
     const query = { employeeId };
@@ -187,7 +182,7 @@ router.post('/dev-simulate', protect, async (req, res) => {
             _id: simEmpId,
             name: employeeName || `Employee ${simEmpId}`,
             email: `${simEmpId}@aotms.com`,
-            role: 'caller',
+            role: 'employee',
             phone: '',
             avatar: '',
           };
@@ -198,7 +193,7 @@ router.post('/dev-simulate', protect, async (req, res) => {
           _id: simEmpId,
           name: employeeName || `Test Employee (${simEmpId})`,
           email: `${simEmpId.toLowerCase()}@aotms.com`,
-          role: 'caller',
+          role: 'employee',
           phone: '+91 98765 43210',
           avatar: '',
         };

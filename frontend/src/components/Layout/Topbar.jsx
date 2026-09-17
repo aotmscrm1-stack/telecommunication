@@ -331,7 +331,7 @@ export default function Topbar() {
 
   const roleLabel = user?.role
     ? user.role.charAt(0).toUpperCase() + user.role.slice(1)
-    : 'Caller';
+    : 'Employee';
 
   const workspaceSettingsGroups = [
     {

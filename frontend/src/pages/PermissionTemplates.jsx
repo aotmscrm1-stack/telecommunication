@@ -13,7 +13,7 @@ function timeAgo(dateStr) {
 function TemplateModal({ template, onClose, onSaved }) {
   const isEdit = !!template;
   const [form, setForm] = useState(() => template ? { ...template } : {
-    name: '', baseRole: 'caller',
+    name: '', baseRole: 'employee',
     permissions: {
       leads: { view: 'own', edit: true, delete: false, export: false, transfer: false, bulkImport: false },
       campaigns: { view: true, manage: false },

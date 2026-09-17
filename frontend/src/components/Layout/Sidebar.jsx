@@ -250,7 +250,9 @@ export default function Sidebar() {
               <NavItem to="/invoice"          icon={Icons.invoice}     label="Invoice"      iconColor="#059669" />
 
               <SectionLabel text="Management" />
-              <NavItem to="/admin/employee-tracking" icon={Icons.liveTracking} label="Live Employee Tracking" iconColor="#0284c7" />
+              {user?.role === 'admin' && (
+                <NavItem to="/admin/employee-tracking" icon={Icons.liveTracking} label="Live Employee Tracking" iconColor="#0284c7" />
+              )}
               <NavItem to="/team-operations" icon={Icons.teamOps}    label="Team Operations" />
               <NavItem to="/stale-leads"     icon={Icons.staleLeads} label="Idle Leads" />
               <NavItem to="/blocklist"       icon={Icons.blocklist}  label="Blocklist" />

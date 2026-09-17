@@ -90,7 +90,7 @@ export default function CallButton({ lead, callers = [], onSuccess }) {
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400"
                   >
                     <option value="">-- Assigned Caller ({lead?.assignedTo?.name || 'None'}) --</option>
-                    {callers.filter(c => c.role === 'caller').map((c) => (
+                    {callers.filter(c => c.role === 'employee' || c.role === 'caller').map((c) => (
                       <option key={c._id} value={c._id}>
                         {c.name} ({c.email})
                       </option>

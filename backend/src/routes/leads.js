@@ -21,7 +21,7 @@ router.get('/export', protect, async (req, res) => {
     if (status) query.status = status;
     if (campaign) query.campaign = campaign;
 
-    if (req.user.role === 'caller') {
+    if (req.user.role === 'employee' || req.user.role === 'caller') {
       query.assignedTo = req.user._id;
     } else if (filter === 'mine' || filter === 'assigned') {
       query.assignedTo = req.user._id;
@@ -64,7 +64,7 @@ router.get('/', protect, async (req, res) => {
     const { status, source, search, campaign, page = 1, limit = 20, filter, dateFilter } = req.query;
     const query = {};
 
-    if (req.user.role === 'caller') {
+    if (req.user.role === 'employee' || req.user.role === 'caller') {
       query.assignedTo = req.user._id;
     } else {
       if (filter === 'mine' || filter === 'assigned') {
@@ -124,7 +124,8 @@ router.get('/my-calls', protect, async (req, res) => {
 
 router.get('/stats', protect, async (req, res) => {
   try {
-    const matchQuery = req.user.role === 'caller' ? { assignedTo: req.user._id } : {};
+    const isEmployee = req.user.role === 'employee' || req.user.role === 'caller';
+    const matchQuery = isEmployee ? { assignedTo: req.user._id } : {};
     const statusCounts = await Lead.aggregate([
       { $match: matchQuery },
       { $group: { _id: '$status', count: { $sum: 1 } } }
@@ -171,7 +172,7 @@ router.get('/stats', protect, async (req, res) => {
     const myCounts = myStatusStats[0] || { fresh: 0, active: 0, won: 0, lost: 0 };
 
     let extraStats = {};
-    if (req.user.role === 'caller') {
+    if (req.user.role === 'employee' || req.user.role === 'caller') {
       const overdueFollowupsCount = await FollowUp.countDocuments({
         assignedTo: req.user._id, status: 'upcoming', scheduledAt: { $lt: new Date() }
       });
@@ -297,7 +298,7 @@ router.put('/:id', protect, async (req, res) => {
   try {
     const lead = await Lead.findById(req.params.id);
     if (!lead) return res.status(404).json({ message: 'Lead not found' });
-    if (req.user.role === 'caller' && lead.assignedTo?.toString() !== req.user._id.toString()) {
+    if ((req.user.role === 'employee' || req.user.role === 'caller') && lead.assignedTo?.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: 'You can only update leads assigned to you' });
     }
 
@@ -418,11 +419,11 @@ router.put('/:id/status', protect, async (req, res) => {
   }
 });
 
-router.delete('/:id', protect, authorize('caller', 'manager', 'admin'), async (req, res) => {
+router.delete('/:id', protect, authorize('employee', 'caller', 'manager', 'admin'), async (req, res) => {
   try {
     const lead = await Lead.findById(req.params.id);
     if (!lead) return res.status(404).json({ message: 'Lead not found' });
-    if (req.user.role === 'caller' && lead.assignedTo?.toString() !== req.user._id.toString()) {
+    if ((req.user.role === 'employee' || req.user.role === 'caller') && lead.assignedTo?.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: 'You can only delete leads assigned to you' });
     }
     await Lead.findByIdAndDelete(req.params.id);
@@ -438,7 +439,7 @@ router.post('/:id/initiate-call', protect, async (req, res) => {
     if (!lead) return res.status(404).json({ message: 'Lead not found' });
 
     let caller;
-    if (req.user.role === 'caller') {
+    if (req.user.role === 'employee' || req.user.role === 'caller') {
       caller = await User.findById(req.user._id).select('name email');
     } else {
       if (req.body.callerId && req.body.callerId !== lead.assignedTo?._id?.toString()) {

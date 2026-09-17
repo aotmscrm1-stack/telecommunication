@@ -359,7 +359,7 @@ export default function Dashboard() {
         setFollowups(fuRes.data.followups || []);
         setRecentLeads((leadsRes.data.leads || []).slice(0, 8));
         if (adminRes.data) setAdminStats(adminRes.data);
-        setCallers(usersRes.data.users?.filter(u => u.role === 'caller') || []);
+        setCallers(usersRes.data.users?.filter(u => u.role === 'employee' || u.role === 'caller') || []);
       } else {
         const [statsRes, fuRes, leadsRes] = await Promise.all([
           leadsAPI.getStats().catch(e => { throw new Error(`leads/stats API: ${e.response?.data?.message || e.message}`); }),
@@ -1533,7 +1533,7 @@ export default function Dashboard() {
                   if (leaderboardTab === 'admins') {
                     return c.user?.role === 'manager' || c.user?.role === 'admin';
                   }
-                  return c.user?.role === 'caller';
+                  return c.user?.role === 'employee' || c.user?.role === 'caller';
                 }) || [];
 
                 return filteredCallers.length > 0 ? (

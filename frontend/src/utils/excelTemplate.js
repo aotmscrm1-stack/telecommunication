@@ -11,8 +11,8 @@ export const PAYSLIP_EXCEL_COLUMNS = [
   { key: 'designation', header: 'Designation *', required: true, width: 22, example: 'Software Engineer', description: 'Employee official job designation' },
   { key: 'department', header: 'Department *', required: true, width: 18, example: 'Engineering', description: 'Department name (e.g. Engineering, Sales, HR)' },
   { key: 'location', header: 'Location *', required: true, width: 16, example: 'Vijayawada', description: 'Work location / office' },
-  { key: 'effective_work_days', header: 'Effective Work Days *', required: true, width: 20, example: 30, description: 'Total working days in month (default: 30)' },
-  { key: 'lop', header: 'LOP Days', required: false, width: 14, example: 0, description: 'Loss of Pay / unpaid leave days (default: 0)' },
+  { key: 'effective_work_days', header: 'Effective Work Days *', required: true, width: 20, example: 30, description: 'Total working days in month (Fixed: 30)' },
+  { key: 'lop', header: 'LOP Days', required: false, width: 14, example: 0, description: 'Loss of Pay / unpaid leave days (Editable, default: 0)' },
   { key: 'bank_name', header: 'Bank Name *', required: true, width: 20, example: 'HDFC Bank', description: 'Bank name for salary deposit' },
   { key: 'bank_account_number', header: 'Bank Account Number *', required: true, width: 24, example: '50100456789012', description: 'Bank account number' },
   { key: 'pan_number', header: 'PAN Number *', required: true, width: 16, example: 'ABCDE1234F', description: '10-character PAN number' },
@@ -21,7 +21,7 @@ export const PAYSLIP_EXCEL_COLUMNS = [
   { key: 'payslip_month', header: 'Payslip Month *', required: true, width: 20, example: 'September 2026', description: 'Month & Year (e.g. "September 2026")' },
   { key: 'gross_salary', header: 'Gross Salary *', required: true, width: 16, example: 35000, description: 'Monthly Gross CTC in INR (Min ₹12,160)' },
   { key: 'incentive', header: 'Incentive', required: false, width: 14, example: 2000, description: 'Performance incentive / bonus in INR (default: 0)' },
-  { key: 'tds', header: 'Professional Tax / TDS', required: false, width: 22, example: 200, description: 'Professional Tax deduction in INR (default: 200)' },
+  { key: 'tds', header: 'Professional Tax', required: false, width: 20, example: 200, description: 'Professional Tax deduction in INR (Fixed: ₹200)' },
 ];
 
 /**
@@ -29,7 +29,7 @@ export const PAYSLIP_EXCEL_COLUMNS = [
  */
 export function calculateSalaryComponents(grossSalary, effectiveWorkDays = 30, lopDays = 0, customIncentive = 0, customTds = 200) {
   const gross = Math.round(Number(grossSalary) || 0);
-  const workDays = Number(effectiveWorkDays) > 0 ? Number(effectiveWorkDays) : 30;
+  const workDays = 30;
   const lop = Number(lopDays) >= 0 ? Number(lopDays) : 0;
 
   const basic = Math.round(gross * 0.40);
@@ -46,7 +46,7 @@ export function calculateSalaryComponents(grossSalary, effectiveWorkDays = 30, l
   // LOP Deduction: Calculated on standard 30 days basis -> (Gross Salary / 30) * LOP Days
   const perDaySalary = gross > 0 ? gross / 30 : 0;
   const lopDeduction = gross > 0 && lop > 0 ? Math.round(perDaySalary * lop) : 0;
-  const tds = Number(customTds) >= 0 ? Number(customTds) : 200;
+  const tds = 200;
   const totalDeductions = gross > 0 ? lopDeduction + tds : 0;
   const netSalary = gross > 0 ? totalEarnings - totalDeductions : 0;
   const netSalaryInWords = netSalary > 0 ? numberToWords(netSalary) : '';
@@ -61,10 +61,10 @@ export function calculateSalaryComponents(grossSalary, effectiveWorkDays = 30, l
     special_allowance: specialAllowance,
     incentive,
     total_earnings: totalEarnings,
-    effective_work_days: workDays,
+    effective_work_days: 30,
     lop,
     lop_deduction: lopDeduction,
-    tds,
+    tds: 200,
     total_deductions: totalDeductions,
     net_salary: netSalary,
     net_salary_in_words: netSalaryInWords,
@@ -348,16 +348,14 @@ export async function parseAndValidatePayslipExcel(file) {
             errors.push('Gross Salary must be at least ₹12,160 for standard allowances');
           }
 
-          const workDays = Number(rowObj.effective_work_days);
-          if (isNaN(workDays) || workDays <= 0) {
-            errors.push('Effective Work Days must be > 0');
-          }
+          rowObj.effective_work_days = 30;
+          rowObj.tds = 200;
 
           const lop = Number(rowObj.lop);
           if (isNaN(lop) || lop < 0) {
             errors.push('LOP cannot be negative');
-          } else if (lop > workDays) {
-            errors.push(`LOP (${lop}) exceeds Effective Work Days (${workDays})`);
+          } else if (lop > 30) {
+            errors.push(`LOP (${lop}) exceeds standard Effective Work Days (30)`);
           }
 
           // Duplicate detection in same file

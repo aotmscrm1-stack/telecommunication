@@ -34,7 +34,7 @@ export default function TeamOperations() {
         leadsAPI.getAll({ limit: 100 })
       ]);
       setData(analysisRes.data);
-      setCallers(usersRes.data.users?.filter(u => u.role === 'caller') || []);
+      setCallers(usersRes.data.users?.filter(u => u.role === 'employee' || u.role === 'caller') || []);
       setUnassignedLeads(leadsRes.data.leads?.filter(l => !l.assignedTo) || []);
     } catch (err) {
       console.error(err);

@@ -165,7 +165,7 @@ export default function BulkImport() {
 
   useEffect(() => {
     campaignsAPI.getAll().then(r => setCampaigns(r.data.campaigns || [])).catch(console.error);
-    usersAPI.getAll().then(r => { const all = r.data.users||[]; setCallers(all.filter(u=>u.role==='caller'||u.role==='admin')); }).catch(console.error);
+    usersAPI.getAll().then(r => { const all = r.data.users||[]; setCallers(all.filter(u=>u.role==='employee'||u.role==='caller'||u.role==='admin')); }).catch(console.error);
     loadHistory(1);
     api.get('/lead-fields').then(r => setSavedCustomFields((r.data.fields || []).map(f => f.name))).catch(console.error);
   }, []);

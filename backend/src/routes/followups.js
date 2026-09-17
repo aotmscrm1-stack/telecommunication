@@ -66,8 +66,8 @@ router.get('/', protect, async (req, res) => {
     if (forMe) {
       query.assignedTo = req.user._id;
     } else if (forTeam) {
-      // Team view: callers only see their own; admins/admins see all
-      if (req.user.role === 'caller') {
+      // Team view: callers/employees only see their own; admins/managers see all
+      if (req.user.role === 'employee' || req.user.role === 'caller') {
         query.assignedTo = req.user._id;
       }
       // else: no assignedTo filter → returns all tasks
@@ -76,7 +76,7 @@ router.get('/', protect, async (req, res) => {
       }
     } else {
       // No forMe param at all
-      if (req.user.role === 'caller') {
+      if (req.user.role === 'employee' || req.user.role === 'caller') {
         query.assignedTo = req.user._id;
       }
     }
@@ -217,9 +217,9 @@ router.put('/:id', protect, async (req, res) => {
     const existing = await FollowUp.findById(req.params.id);
     if (!existing) return res.status(404).json({ message: 'Follow-up not found' });
 
-    // Callers never get edit rights on a task's details — view only. The one
+    // Callers/employees never get edit rights on a task's details — view only. The one
     // exception is marking it complete, which is a status-only update.
-    if (req.user.role === 'caller') {
+    if (req.user.role === 'employee' || req.user.role === 'caller') {
       const bodyKeys = Object.keys(req.body).filter(k => k !== 'completedAt');
       const isStatusOnlyUpdate = bodyKeys.length === 1 && bodyKeys[0] === 'status' && req.body.status === 'done';
       if (!isStatusOnlyUpdate) {

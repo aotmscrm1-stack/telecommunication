@@ -89,7 +89,8 @@ router.get('/leaderboard', protect, async (req, res) => {
 // GET /api/reports/calls-summary
 router.get('/calls-summary', protect, async (req, res) => {
   try {
-    const matchQuery = req.user.role === 'caller' ? { 'activities.performedBy': req.user._id } : {};
+    const isEmployee = req.user.role === 'employee' || req.user.role === 'caller';
+    const matchQuery = isEmployee ? { 'activities.performedBy': req.user._id } : {};
     const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
     const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - 7);
 
@@ -105,7 +106,7 @@ router.get('/calls-summary', protect, async (req, res) => {
         { $group: { _id: null, count: { $sum: 1 }, duration: { $sum: '$activities.callDuration' } } }
       ]),
       Lead.aggregate([
-        { $match: req.user.role === 'caller' ? { assignedTo: req.user._id } : {} },
+        { $match: isEmployee ? { assignedTo: req.user._id } : {} },
         { $group: { _id: '$status', count: { $sum: 1 } } }
       ])
     ]);
@@ -123,7 +124,8 @@ router.get('/calls-summary', protect, async (req, res) => {
 // GET /api/reports/calls-list
 router.get('/calls-list', protect, async (req, res) => {
   try {
-    const matchQuery = req.user.role === 'caller' ? { 'activities.performedBy': new mongoose.Types.ObjectId(req.user._id) } : {};
+    const isEmployee = req.user.role === 'employee' || req.user.role === 'caller';
+    const matchQuery = isEmployee ? { 'activities.performedBy': new mongoose.Types.ObjectId(req.user._id) } : {};
     
     const calls = await Lead.aggregate([
       { $unwind: '$activities' },
@@ -196,7 +198,7 @@ router.get('/admin-analysis', protect, authorize('manager', 'admin'), async (req
       Lead.countDocuments({ $or: [{ status: { $in: ['Demo Scheduled', 'Demo Done', 'Won'] }, demoScheduledDate: { $gte: startOfMonth, $lte: endOfMonth } }, { status: { $in: ['Demo Scheduled', 'Demo Done', 'Won'] }, demoScheduledDate: null, updatedAt: { $gte: startOfMonth, $lte: endOfMonth } }] }),
       Lead.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
       Lead.aggregate([{ $group: { _id: '$campaign', totalLeads: { $sum: 1 }, called: { $sum: { $cond: [{ $gt: ['$totalCalls', 0] }, 1, 0] } }, won: { $sum: { $cond: [{ $eq: ['$status', 'Won'] }, 1, 0] } }, lost: { $sum: { $cond: [{ $eq: ['$status', 'Lost'] }, 1, 0] } } } }]),
-      User.find({ role: 'caller' }).select('name email avatar phone').lean(),
+      User.find({ role: { $in: ['employee', 'caller'] } }).select('name email avatar phone').lean(),
       Lead.aggregate([{ $unwind: '$activities' }, { $match: { 'activities.type': 'call' } }, { $group: { _id: '$activities.performedBy', lastCall: { $max: '$activities.createdAt' } } }]),
       Lead.aggregate([{ $unwind: '$activities' }, { $match: { 'activities.type': 'call', 'activities.createdAt': { $gte: todayStart } } }, { $group: { _id: '$activities.performedBy', count: { $sum: 1 } } }]),
       FollowUp.aggregate([{ $match: { scheduledAt: { $gte: todayStart, $lte: endOfToday }, status: 'upcoming' } }, { $group: { _id: '$assignedTo', count: { $sum: 1 } } }]),
@@ -347,7 +349,7 @@ router.get('/lead-view', protect, async (req, res) => {
   try {
     const { tab = 'Status', assigneeId, status, startDate, endDate } = req.query;
     const matchQuery = {};
-    if (req.user.role === 'caller') matchQuery.assignedTo = req.user._id;
+    if (req.user.role === 'employee' || req.user.role === 'caller') matchQuery.assignedTo = req.user._id;
     if (assigneeId && assigneeId !== 'all' && assigneeId !== '') matchQuery.assignedTo = new mongoose.Types.ObjectId(assigneeId);
     if (status && status !== 'all' && status !== '') matchQuery.status = status;
     if (startDate || endDate) {
