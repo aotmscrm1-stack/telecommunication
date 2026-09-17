@@ -4,15 +4,15 @@ import { useAuth } from '../../context/AuthContext';
 import useBreakpoint from '../../hooks/useBreakpoint';
 import { useSidebar } from '../../context/SidebarContext';
 
-const ACTIVE_BG = '#e0f2fe';
-const ACTIVE_COLOR = '#0369a1';
-const ACTIVE_ICON = '#0284c7';
-const HOVER_BG = '#f0f9ff';
-const TEXT = '#374151';
-const ICON_COLOR = '#6b7280';
-const SECTION_COLOR = '#94a3b8';
-const ACCENT = '#ffab5e';
-const BORDER_COLOR = '#e0f0ff';
+const ACTIVE_BG = '#edf8f8';
+const ACTIVE_COLOR = '#1d3557';
+const ACTIVE_ICON = '#457b9d';
+const HOVER_BG = '#f1faee';
+const TEXT = '#1d3557';
+const ICON_COLOR = '#457b9d';
+const SECTION_COLOR = '#88b1cb';
+const ACCENT = '#e63946';
+const BORDER_COLOR = '#a8dadc';
 const COLLAPSED_W = 48;
 const EXPANDED_W = 210;
 
