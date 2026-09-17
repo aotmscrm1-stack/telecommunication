@@ -166,21 +166,21 @@ export default function EmployeeTrackingCard({ compact = false }) {
             {isTracking ? '📅' : '🌴'}
           </div>
           <div>
-            <h4 style={{ margin: 0, fontSize: 17.5, fontWeight: 800, color: '#1d3557', letterSpacing: '-0.3px' }}>
+            <h4 style={{ margin: 0, fontSize: 16.5, fontWeight: 600, color: '#1d3557', letterSpacing: '-0.2px' }}>
               Attendance & Live Location Status
             </h4>
             <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 3 }}>
               <span
                 style={{
                   display: 'inline-block',
-                  width: 9,
-                  height: 9,
+                  width: 8,
+                  height: 8,
                   borderRadius: '50%',
                   background: isTracking ? '#457b9d' : '#e63946',
-                  boxShadow: isTracking ? '0 0 8px #457b9d' : '0 0 8px #e63946',
+                  boxShadow: isTracking ? '0 0 6px #457b9d' : '0 0 6px #e63946',
                 }}
               />
-              <span style={{ fontSize: 13.5, fontWeight: 700, color: isTracking ? '#1d3557' : '#cb1928' }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: isTracking ? '#1d3557' : '#cb1928' }}>
                 {isTracking ? 'On Duty — Live GPS Location Active' : 'Off Duty / On Leave — Location Disabled'}
               </span>
             </div>
@@ -198,14 +198,14 @@ export default function EmployeeTrackingCard({ compact = false }) {
               color: isTracking ? '#88b1cb' : '#ffffff',
               border: 'none',
               borderRadius: 10,
-              padding: '10px 20px',
-              fontSize: 13.5,
-              fontWeight: 800,
+              padding: '9px 18px',
+              fontSize: 13,
+              fontWeight: 600,
               cursor: isTracking ? 'default' : loading ? 'wait' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              boxShadow: isTracking ? 'none' : '0 4px 14px rgba(29, 53, 87, 0.28)',
+              boxShadow: isTracking ? 'none' : '0 3px 12px rgba(29, 53, 87, 0.2)',
               transition: 'all 0.15s',
               opacity: loading ? 0.8 : 1,
             }}
@@ -225,7 +225,7 @@ export default function EmployeeTrackingCard({ compact = false }) {
               </>
             ) : (
               <>
-                <span style={{ fontSize: 15 }}>📅</span> Start Attendance
+                <span style={{ fontSize: 14 }}>📅</span> Start Attendance
               </>
             )}
           </button>
@@ -237,11 +237,11 @@ export default function EmployeeTrackingCard({ compact = false }) {
             style={{
               background: !isTracking ? '#f1faee' : '#fad7da',
               color: !isTracking ? '#88b1cb' : '#e63946',
-              border: `1.5px solid ${!isTracking ? '#cae9ea' : '#f08790'}`,
+              border: `1px solid ${!isTracking ? '#cae9ea' : '#f08790'}`,
               borderRadius: 10,
-              padding: '10px 20px',
-              fontSize: 13.5,
-              fontWeight: 800,
+              padding: '9px 18px',
+              fontSize: 13,
+              fontWeight: 600,
               cursor: !isTracking ? 'default' : loading ? 'wait' : 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -254,7 +254,7 @@ export default function EmployeeTrackingCard({ compact = false }) {
               'Updating...'
             ) : (
               <>
-                <span style={{ fontSize: 15 }}>🌴</span> Stop / Leave
+                <span style={{ fontSize: 14 }}>🌴</span> Stop / Leave
               </>
             )}
           </button>
@@ -272,33 +272,33 @@ export default function EmployeeTrackingCard({ compact = false }) {
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
             gap: 12,
-            border: '1.5px solid #a8dadc',
-            boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)',
+            border: '1px solid #a8dadc',
+            boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.02)',
           }}
         >
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#457b9d', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#457b9d', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
               Current Location
             </div>
-            <div style={{ fontSize: 14.5, fontWeight: 800, color: '#1d3557', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: '#1d3557', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>
               {position.trackingStatus === 'AT_OFFICE' ? '🏢 AOTMS - Pothuri Towers' : position.road || 'MG Road, Vijayawada'}
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#457b9d', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Speed</div>
-            <div style={{ fontSize: 14.5, fontWeight: 800, color: '#1d3557', marginTop: 2 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#457b9d', textTransform: 'uppercase', letterSpacing: '0.3px' }}>Speed</div>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: '#1d3557', marginTop: 2 }}>
               {position.speed != null ? `${position.speed} km/h` : '0 km/h'}
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#457b9d', textTransform: 'uppercase', letterSpacing: '0.5px' }}>GPS Accuracy</div>
-            <div style={{ fontSize: 14.5, fontWeight: 700, color: '#1d3557', marginTop: 2 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#457b9d', textTransform: 'uppercase', letterSpacing: '0.3px' }}>GPS Accuracy</div>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: '#1d3557', marginTop: 2 }}>
               ±{Math.round(position.accuracy || 5)}m
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#457b9d', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Last Sync</div>
-            <div style={{ fontSize: 14.5, fontWeight: 700, color: '#1d3557', marginTop: 2 }}>{lastSyncText}</div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#457b9d', textTransform: 'uppercase', letterSpacing: '0.3px' }}>Last Sync</div>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: '#1d3557', marginTop: 2 }}>{lastSyncText}</div>
           </div>
         </div>
       )}
