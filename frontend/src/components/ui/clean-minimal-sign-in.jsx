@@ -149,14 +149,6 @@ export const SignIn2 = ({ onSignIn, externalError = '', loading = false }) => {
               <span>{activeError}</span>
             </div>
           )}
-
-          {/* Forgot Password */}
-          <div className="w-full flex justify-end">
-            <button type="button" className="text-xs text-blue-600 hover:underline font-semibold cursor-pointer">
-              Forgot password?
-            </button>
-          </div>
-
           {/* Submit Action Button */}
           <button
             type="submit"
