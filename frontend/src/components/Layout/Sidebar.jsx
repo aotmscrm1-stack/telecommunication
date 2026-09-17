@@ -220,29 +220,29 @@ export default function Sidebar() {
       }}>
         <div style={{ flex: 1, paddingTop: 6 }}>
           <NavItem to="/dashboard"     icon={Icons.dashboard}   label="Dashboard" />
-          {isAdmin && <NavItem to="/tasks" icon={Icons.tasks} label="Tasks" />}
-
-          <SectionLabel text="Leads" />
-          <NavItem to="/leads"         icon={Icons.leads}       label="All Leads" />
-
-          <ExpandGroup
-            icon={Icons.addLead} label="Add Leads"
-            isActiveGroup={isAddLeadsActive} open={addLeadsOpen} setOpen={setAddLeadsOpen}
-          >
-            <SubItem to="/leads/new"   icon={Icons.singleLead} label="Add Single Lead" />
-            <SubItem to="/bulk-import" icon={Icons.upload}     label="Add From Excel" />
-            <SubItem to="/integrations" icon={Icons.integration} label="Add From Integration" />
-          </ExpandGroup>
-
-          <NavItem to="/campaigns"        icon={Icons.campaigns}   label="Campaigns" />
-          <NavItem to="/message-templates" icon={Icons.templates}  label="Message Templates" />
-          <NavItem to="/whatsapp"         icon={Icons.whatsapp}    label="WhatsApp" iconColor="#25D366" />
-          {isAdmin && <NavItem to="/email" icon={Icons.email} label="Email CRM" iconColor="#ea4335" />}
-          <NavItem to="/leaderboard"      icon={Icons.leaderboard} label="Leaderboard" />
-          <NavItem to="/reports"          icon={Icons.reports}     label="Reports" />
+          <NavItem to="/tasks"         icon={Icons.tasks}       label="Tasks" />
+          <NavItem to="/email"            icon={Icons.email}       label="Email CRM" iconColor="#ea4335" />
 
           {isAdmin && (
             <>
+              <SectionLabel text="Leads" />
+              <NavItem to="/leads"         icon={Icons.leads}       label="All Leads" />
+
+              <ExpandGroup
+                icon={Icons.addLead} label="Add Leads"
+                isActiveGroup={isAddLeadsActive} open={addLeadsOpen} setOpen={setAddLeadsOpen}
+              >
+                <SubItem to="/leads/new"   icon={Icons.singleLead} label="Add Single Lead" />
+                <SubItem to="/bulk-import" icon={Icons.upload}     label="Add From Excel" />
+                <SubItem to="/integrations" icon={Icons.integration} label="Add From Integration" />
+              </ExpandGroup>
+
+              <NavItem to="/campaigns"        icon={Icons.campaigns}   label="Campaigns" />
+              <NavItem to="/message-templates" icon={Icons.templates}  label="Message Templates" />
+              <NavItem to="/whatsapp"         icon={Icons.whatsapp}    label="WhatsApp" iconColor="#25D366" />
+              <NavItem to="/leaderboard"      icon={Icons.leaderboard} label="Leaderboard" />
+              <NavItem to="/reports"          icon={Icons.reports}     label="Reports" />
+
               <SectionLabel text="Finance & Documents" />
               <NavItem to="/offer-letter"     icon={Icons.offerLetter} label="Offer letter" iconColor="#3b82f6" />
               <NavItem to="/payslips"         icon={Icons.payslip}     label="Payslip"      iconColor="#6366f1" />
