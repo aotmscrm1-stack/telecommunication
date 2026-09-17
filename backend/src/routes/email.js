@@ -84,7 +84,8 @@ hr@aotms.com`,
 // POST /api/email/send — Sends Email via n8n Webhook or direct Nodemailer/SMTP
 router.post('/send', protect, async (req, res) => {
   try {
-    const { fromEmail = 'hr@aotms.com', recipientEmail, subject, body, leadId, templateId } = req.body;
+    const senderEmail = req.body.fromEmail || req.user?.email || 'hr@aotms.com';
+    const { recipientEmail, subject, body, templateId } = req.body;
 
     if (!recipientEmail || !subject || !body) {
       return res.status(400).json({ message: 'Recipient Email, Subject, and Message Body are required.' });
@@ -99,7 +100,7 @@ router.post('/send', protect, async (req, res) => {
         await axios.post(process.env.N8N_WEBHOOK_URL, {
           event: 'email:send',
           payload: {
-            fromEmail: fromEmail || 'hr@aotms.com',
+            fromEmail: senderEmail,
             recipientEmail,
             subject,
             emailBody: body,
@@ -129,7 +130,7 @@ router.post('/send', protect, async (req, res) => {
         });
 
         await transporter.sendMail({
-          from: `"AOTMS HR" <${fromEmail || process.env.SMTP_USER}>`,
+          from: `"AOTMS HR" <${senderEmail}>`,
           to: recipientEmail,
           subject,
           text: body,
@@ -138,7 +139,7 @@ router.post('/send', protect, async (req, res) => {
               ${body.replace(/\n/g, '<br/>')}
             </div>
             <div style="margin-top: 16px; font-size: 12px; color: #6b7280; text-align: center;">
-              Sent via AOTMS Platform · ${fromEmail || 'hr@aotms.com'}
+              Sent via AOTMS Platform · ${senderEmail}
             </div>
           </div>`,
         });
@@ -152,32 +153,14 @@ router.post('/send', protect, async (req, res) => {
     // 3. Fallback mock confirmation if n8n / SMTP is still connecting
     if (!success) {
       sentVia = 'n8n Automation Dispatch (Simulated)';
-      console.log(`[Email Dispatch]: To ${recipientEmail} | Subject: ${subject}`);
-    }
-
-    // If linked to a lead, log activity
-    if (leadId) {
-      try {
-        const lead = await Lead.findById(leadId);
-        if (lead) {
-          lead.activities = lead.activities || [];
-          lead.activities.push({
-            type: 'note',
-            description: `[Email Sent from ${fromEmail || 'hr@aotms.com'} to ${recipientEmail}]: ${subject}`,
-            performedBy: req.user._id,
-          });
-          await lead.save();
-        }
-      } catch (e) {
-        console.warn('[Lead Activity Warning]:', e.message);
-      }
+      console.log(`[Email Dispatch]: From ${senderEmail} to ${recipientEmail} | Subject: ${subject}`);
     }
 
     res.json({
       success: true,
       message: `Email sent successfully to ${recipientEmail} (${sentVia})`,
       details: {
-        fromEmail: fromEmail || 'hr@aotms.com',
+        fromEmail: senderEmail,
         recipientEmail,
         subject,
         sentVia,

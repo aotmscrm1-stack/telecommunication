@@ -27,8 +27,7 @@ export default function EmailCRM() {
   const [templates, setTemplates] = useState([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState('leave_permission');
 
-  // Form State - Default From Email directly to Logged-In User Email!
-  const [fromEmail, setFromEmail] = useState(user?.email || 'user@aotms.com');
+  // Form State
   const [recipientEmail, setRecipientEmail] = useState('hr@aotms.com');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
@@ -39,12 +38,8 @@ export default function EmailCRM() {
   const [sentError, setSentError] = useState('');
   const [sentLogs, setSentLogs] = useState([]);
 
-  // Set logged in user email automatically when user profile loads
-  useEffect(() => {
-    if (user?.email) {
-      setFromEmail(user.email);
-    }
-  }, [user]);
+  // Sender email derived from logged-in user context
+  const currentUserEmail = user?.email || 'user@aotms.com';
 
   // Load Templates on Mount
   useEffect(() => {
@@ -69,10 +64,6 @@ export default function EmailCRM() {
   };
 
   const handleSendEmail = async () => {
-    if (!fromEmail.trim()) {
-      setSentError('Please enter a valid Customer / From email address.');
-      return;
-    }
     if (!recipientEmail.trim()) {
       setSentError('Please enter a valid TO email address.');
       return;
@@ -88,14 +79,14 @@ export default function EmailCRM() {
 
     try {
       const res = await api.post('/email/send', {
-        fromEmail: fromEmail.trim(),
+        fromEmail: currentUserEmail,
         recipientEmail: recipientEmail.trim(),
         subject: subject.trim(),
         body: body.trim(),
         templateId: selectedTemplateId,
       });
 
-      const succMsg = res.data.message || `Email sent from ${fromEmail} to ${recipientEmail}`;
+      const succMsg = res.data.message || `Email sent from ${currentUserEmail} to ${recipientEmail}`;
       setSentSuccess(succMsg);
 
       // Add to sent log history
@@ -103,7 +94,7 @@ export default function EmailCRM() {
         {
           id: Date.now(),
           recipient: recipientEmail,
-          from: fromEmail,
+          from: currentUserEmail,
           subject,
           via: res.data.details?.sentVia || 'n8n Automation',
           timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
@@ -137,7 +128,7 @@ export default function EmailCRM() {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 11, fontWeight: 700, color: '#047857', background: '#ecfdf5', padding: '4px 12px', borderRadius: 12, border: '1px solid #a7f3d0' }}>
-            ● Default Target TO: hr@aotms.com
+            ● Sender: {currentUserEmail}
           </span>
           <span style={{ fontSize: 11, fontWeight: 700, color: '#0369a1', background: '#f0f9ff', padding: '4px 12px', borderRadius: 12, border: '1px solid #bae6fd' }}>
             ⚡ n8n Webhook Connected
@@ -147,7 +138,7 @@ export default function EmailCRM() {
 
       {/* Main Workspace */}
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-        {/* Left Side: Template Selector & Lead Picker */}
+        {/* Left Side: Template Selector */}
         <div style={{ width: 320, borderRight: `1px solid ${BORDER}`, background: '#fff', padding: 20, overflowY: 'auto', flexShrink: 0 }}>
           <div style={{ fontSize: 12, fontWeight: 800, color: TEXT_MUTED, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 14 }}>
             SELECT EMAIL TEMPLATE
@@ -189,27 +180,15 @@ export default function EmailCRM() {
               Compose & Send Email
             </div>
 
-            {/* From & To inputs */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-              <div>
-                <label style={labelStyle}>From Email (Customer / Employee Email) <span style={{ color: '#ef4444' }}>*</span></label>
-                <input
-                  value={fromEmail}
-                  onChange={e => setFromEmail(e.target.value)}
-                  placeholder="e.g. customer@gmail.com"
-                  style={inputStyle}
-                />
-              </div>
-
-              <div>
-                <label style={labelStyle}>To Email (Default HR Target) <span style={{ color: '#ef4444' }}>*</span></label>
-                <input
-                  value={recipientEmail}
-                  onChange={e => setRecipientEmail(e.target.value)}
-                  placeholder="hr@aotms.com"
-                  style={{ ...inputStyle, background: '#fef2f2', fontWeight: 600, color: RED_ACCENT }}
-                />
-              </div>
+            {/* To input */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={labelStyle}>To Email (Default HR Target) <span style={{ color: '#ef4444' }}>*</span></label>
+              <input
+                value={recipientEmail}
+                onChange={e => setRecipientEmail(e.target.value)}
+                placeholder="hr@aotms.com"
+                style={{ ...inputStyle, background: '#fef2f2', fontWeight: 600, color: RED_ACCENT }}
+              />
             </div>
 
             {/* Subject Line */}
@@ -310,7 +289,7 @@ export default function EmailCRM() {
           <div style={{ background: '#ffffff', borderRadius: 12, overflow: 'hidden', border: `1px solid ${BORDER}`, boxShadow: '0 4px 16px rgba(0,0,0,0.08)' }}>
             {/* Fake Email Client Header */}
             <div style={{ background: '#1e293b', color: '#fff', padding: '12px 16px' }}>
-              <div style={{ fontSize: 11, color: '#94a3b8' }}>FROM: <span style={{ color: '#38bdf8', fontWeight: 600 }}>{fromEmail}</span></div>
+              <div style={{ fontSize: 11, color: '#94a3b8' }}>FROM: <span style={{ color: '#38bdf8', fontWeight: 600 }}>{currentUserEmail}</span></div>
               <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>TO: <span style={{ color: '#fff', fontWeight: 600 }}>{recipientEmail || 'recipient@domain.com'}</span></div>
               <div style={{ fontSize: 13, fontWeight: 700, marginTop: 8, color: '#ffffff' }}>
                 {subject || '(No subject line)'}
