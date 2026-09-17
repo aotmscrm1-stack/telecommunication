@@ -65,7 +65,10 @@ export default function EmailCRM() {
     api.get('/leads', { params: { limit: 100 } })
       .then(res => {
         const lList = res.data?.leads || res.data || [];
-        setLeads(lList);
+        const cleanLeads = lList.filter(l => 
+          !l.email?.toLowerCase().includes('ramanadhamjayaveer')
+        );
+        setLeads(cleanLeads);
       })
       .catch(() => {});
   }, []);
