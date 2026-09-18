@@ -10,6 +10,10 @@ const userSchema = new mongoose.Schema({
   avatar: { type: String, default: '' },
   isActive: { type: Boolean, default: true },
   phone: { type: String, default: '' },
+  designation: { type: String, default: '', trim: true },
+  department: { type: String, default: '', trim: true },
+  officeLocation: { type: String, default: '', trim: true },
+  joiningDate: { type: Date, default: null },
   preferences: {
     type: Object,
     default: {

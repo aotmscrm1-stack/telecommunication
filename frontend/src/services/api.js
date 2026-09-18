@@ -87,6 +87,8 @@ export const reportsAPI = {
   getUserAnalysis: (userId) => api.get(`/reports/user-analysis/${userId}`),
   leadView: (params) => api.get('/reports/lead-view', { params }),
   leadViewFilters: () => api.get('/reports/lead-view-filters'),
+  getEmployeesLiveActivity: () => api.get('/reports/employees-live-activity'),
+  getEmployeeCallRecords: (userId, params) => api.get(`/reports/employee-call-records/${userId}`, { params }),
 };
 
 
@@ -309,6 +311,8 @@ export const trackingAPI = {
 export const attendanceAPI = {
   start: (data) => api.post('/attendance/start', data),
   stop: (data) => api.post('/attendance/stop', data),
+  startBreak: (data) => api.post('/attendance/break/start', data),
+  resumeBreak: (data) => api.post('/attendance/break/resume', data),
   getCurrentStatus: () => api.get('/attendance/current'),
   getSummary: (params) => api.get('/attendance/summary', { params }),
   getRecords: (params) => api.get('/attendance/records', { params }),

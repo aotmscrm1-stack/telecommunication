@@ -4,8 +4,64 @@ const Lead = require('../models/Lead');
 const User = require('../models/User');
 const Campaign = require('../models/Campaign');
 const FollowUp = require('../models/FollowUp');
+const Attendance = require('../models/Attendance');
+const EmployeeLocation = require('../models/EmployeeLocation');
+const { liveLocations } = require('../services/trackingSocket');
+const { getOfficeConfig } = require('../config/officeConfig');
 const { protect, authorize } = require('../middleware/auth');
 const router = express.Router();
+
+/**
+ * Format local date YYYY-MM-DD and day name in Asia/Kolkata
+ */
+function getLocalDateAndDay(dateObj = new Date()) {
+  const options = { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' };
+  const formatter = new Intl.DateTimeFormat('en-CA', options);
+  const dateStr = formatter.format(dateObj);
+
+  const dayFormatter = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Kolkata', weekday: 'long' });
+  const dayStr = dayFormatter.format(dateObj);
+
+  return { dateStr, dayStr };
+}
+
+function getEmployeeCode(user, index = null) {
+  if (user.employeeId && user.employeeId.trim()) {
+    return user.employeeId.trim();
+  }
+  if (user._id) {
+    const idStr = user._id.toString();
+    return `EMP-${idStr.slice(-4).toUpperCase()}`;
+  }
+  return `EMP-${index != null ? String(index + 1).padStart(3, '0') : '001'}`;
+}
+
+function formatTime12h(dateObj) {
+  if (!dateObj) return '—';
+  const d = new Date(dateObj);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleTimeString('en-US', {
+    timeZone: 'Asia/Kolkata',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
+
+function formatSecToText(diffSec) {
+  if (diffSec == null || isNaN(diffSec) || diffSec <= 0) return '00m 00s';
+  const hours = Math.floor(diffSec / 3600);
+  const minutes = Math.floor((diffSec % 3600) / 60);
+  const seconds = diffSec % 60;
+
+  if (hours > 0) {
+    return `${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`;
+  } else if (minutes > 0) {
+    return `${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
+  } else {
+    return `${seconds}s`;
+  }
+}
 
 // GET /api/reports/leaderboard?period=day|week|month|year|custom&startDate=&endDate=&sortBy=calls|duration|sales
 router.get('/leaderboard', protect, async (req, res) => {
@@ -343,7 +399,6 @@ router.get('/user-analysis/:userId', protect, authorize('manager', 'admin'), asy
   }
 });
 
-module.exports = router;
 // GET /api/reports/lead-view
 router.get('/lead-view', protect, async (req, res) => {
   try {
@@ -445,3 +500,496 @@ router.get('/lead-view-filters', protect, async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
+// ── GET /api/reports/employees-live-activity ──────────────────────────────────
+router.get('/employees-live-activity', protect, authorize('manager', 'admin'), async (req, res) => {
+  try {
+    const nowUtc = new Date();
+    const todayDateObj = new Date(nowUtc.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+
+    const yesterdayDateObj = new Date(todayDateObj);
+    yesterdayDateObj.setDate(yesterdayDateObj.getDate() - 1);
+
+    const tomorrowDateObj = new Date(todayDateObj);
+    tomorrowDateObj.setDate(tomorrowDateObj.getDate() + 1);
+
+    const { dateStr: todayStr, dayStr: todayDay } = getLocalDateAndDay(todayDateObj);
+    const { dateStr: yesterdayStr, dayStr: yesterdayDay } = getLocalDateAndDay(yesterdayDateObj);
+    const { dateStr: tomorrowStr, dayStr: tomorrowDay } = getLocalDateAndDay(tomorrowDateObj);
+
+    const todayStart = new Date(`${todayStr}T00:00:00.000+05:30`);
+    const todayEnd = new Date(`${todayStr}T23:59:59.999+05:30`);
+
+    const yesterdayStart = new Date(`${yesterdayStr}T00:00:00.000+05:30`);
+    const yesterdayEnd = new Date(`${yesterdayStr}T23:59:59.999+05:30`);
+
+    const tomorrowStart = new Date(`${tomorrowStr}T00:00:00.000+05:30`);
+    const tomorrowEnd = new Date(`${tomorrowStr}T23:59:59.999+05:30`);
+
+    const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000);
+
+    // 1. Fetch all active organization members
+    const allUsers = await User.find({ isActive: true })
+      .select('-password')
+      .sort({ name: 1 })
+      .lean();
+
+    // 2. Fetch today's and yesterday's attendance records
+    const [todayAttendances, yesterdayAttendances] = await Promise.all([
+      Attendance.find({ date: todayStr }),
+      Attendance.find({ date: yesterdayStr }),
+    ]);
+
+    const todayAttMap = new Map();
+    todayAttendances.forEach((att) => {
+      att.calculateAttendanceDurations(nowUtc);
+      todayAttMap.set(att.employeeId.toString(), att);
+    });
+
+    const yesterdayAttMap = new Map();
+    yesterdayAttendances.forEach((att) => {
+      att.calculateAttendanceDurations(yesterdayEnd);
+      yesterdayAttMap.set(att.employeeId.toString(), att);
+    });
+
+    // 3. Aggregate Today's Call Activities per employee
+    const todayCallsAgg = await Lead.aggregate([
+      { $unwind: '$activities' },
+      {
+        $match: {
+          'activities.type': 'call',
+          'activities.createdAt': { $gte: todayStart, $lte: todayEnd },
+        },
+      },
+      { $sort: { 'activities.createdAt': -1 } },
+      {
+        $group: {
+          _id: '$activities.performedBy',
+          totalCalls: { $sum: 1 },
+          totalDuration: { $sum: '$activities.callDuration' },
+          lastCallTime: { $first: '$activities.createdAt' },
+          lastCallDuration: { $first: '$activities.callDuration' },
+          lastCallStatus: { $first: '$activities.callStatus' },
+          lastCallLeadName: { $first: '$name' },
+          lastCallLeadPhone: { $first: '$phone' },
+        },
+      },
+    ]);
+    const todayCallMap = new Map();
+    todayCallsAgg.forEach((c) => {
+      if (c._id) todayCallMap.set(c._id.toString(), c);
+    });
+
+    // 4. Aggregate Yesterday's Call Activities per employee
+    const yesterdayCallsAgg = await Lead.aggregate([
+      { $unwind: '$activities' },
+      {
+        $match: {
+          'activities.type': 'call',
+          'activities.createdAt': { $gte: yesterdayStart, $lte: yesterdayEnd },
+        },
+      },
+      { $sort: { 'activities.createdAt': -1 } },
+      {
+        $group: {
+          _id: '$activities.performedBy',
+          totalCalls: { $sum: 1 },
+          totalDuration: { $sum: '$activities.callDuration' },
+          lastCallTime: { $first: '$activities.createdAt' },
+          lastCallDuration: { $first: '$activities.callDuration' },
+        },
+      },
+    ]);
+    const yesterdayCallMap = new Map();
+    yesterdayCallsAgg.forEach((c) => {
+      if (c._id) yesterdayCallMap.set(c._id.toString(), c);
+    });
+
+    // 5. Aggregate Tomorrow's Scheduled Follow-ups per employee
+    const tomorrowFollowupsAgg = await FollowUp.aggregate([
+      {
+        $match: {
+          scheduledAt: { $gte: tomorrowStart, $lte: tomorrowEnd },
+          status: 'upcoming',
+        },
+      },
+      {
+        $group: {
+          _id: '$assignedTo',
+          scheduledCallsCount: { $sum: 1 },
+        },
+      },
+    ]);
+    const tomorrowFollowupMap = new Map();
+    tomorrowFollowupsAgg.forEach((f) => {
+      if (f._id) tomorrowFollowupMap.set(f._id.toString(), f.scheduledCallsCount);
+    });
+
+    // 6. Office Config
+    const officeConfig = getOfficeConfig();
+
+    // 7. Assemble Unified Employee Activity Payload
+    const employees = await Promise.all(
+      allUsers.map(async (user, idx) => {
+        const userId = user._id.toString();
+
+        // Attendance Info
+        const todayAtt = todayAttMap.get(userId) || null;
+        const yesterdayAtt = yesterdayAttMap.get(userId) || null;
+
+        // GPS Location Telemetry
+        let live = liveLocations.get(userId) || null;
+        if (!live) {
+          const latestDbLoc = await EmployeeLocation.findOne({ employeeId: user._id })
+            .sort({ timestamp: -1 })
+            .lean();
+          if (latestDbLoc) {
+            const isFresh = nowUtc.getTime() - new Date(latestDbLoc.timestamp).getTime() < 3 * 60 * 1000;
+            live = {
+              latitude: latestDbLoc.latitude,
+              longitude: latestDbLoc.longitude,
+              accuracy: latestDbLoc.accuracy,
+              speed: latestDbLoc.speed,
+              heading: latestDbLoc.heading,
+              battery: latestDbLoc.battery,
+              trackingStatus: isFresh ? latestDbLoc.trackingStatus : 'OFFLINE',
+              road: latestDbLoc.road || '',
+              area: latestDbLoc.area || '',
+              city: latestDbLoc.city || '',
+              formattedAddress: latestDbLoc.formattedAddress || '',
+              officeDistanceMeters: latestDbLoc.officeDistanceMeters || null,
+              isLive: isFresh && latestDbLoc.isLive,
+              lastUpdated: latestDbLoc.timestamp,
+            };
+          }
+        }
+
+        // Call Metrics
+        const todayCall = todayCallMap.get(userId) || null;
+        const yesterdayCall = yesterdayCallMap.get(userId) || null;
+        const tomorrowScheduledCount = tomorrowFollowupMap.get(userId) || 0;
+
+        const isCurrentlyCalling = todayCall?.lastCallTime && new Date(todayCall.lastCallTime) >= fiveMinsAgo;
+
+        // Determine Unified Live Status
+        let liveStatus = 'OFFLINE';
+        let liveStatusLabel = 'Offline';
+
+        if (todayAtt?.status === 'ON_DUTY') {
+          if (isCurrentlyCalling) {
+            liveStatus = 'ON_CALL';
+            liveStatusLabel = 'On Call';
+          } else {
+            liveStatus = 'ON_DUTY';
+            liveStatusLabel = 'On Duty (Idle)';
+          }
+        } else if (todayAtt?.status === 'ON_BREAK') {
+          liveStatus = 'ON_BREAK';
+          liveStatusLabel = 'On Break';
+        } else if (todayAtt?.status === 'COMPLETED') {
+          liveStatus = 'COMPLETED';
+          liveStatusLabel = 'Completed';
+        } else if (live?.isLive && live?.trackingStatus !== 'OFFLINE') {
+          liveStatus = 'ACTIVE';
+          liveStatusLabel = 'Active';
+        } else {
+          liveStatus = 'NOT_STARTED';
+          liveStatusLabel = 'Not Started';
+        }
+
+        return {
+          _id: userId,
+          employeeId: user.employeeId?.trim() || getEmployeeCode(user, idx),
+          name: user.name,
+          email: user.email,
+          phone: user.phone || '',
+          role: user.role || 'employee',
+          designation: user.designation || (user.role === 'admin' ? 'Administrator' : user.role === 'manager' ? 'Team Lead / Manager' : 'Telecaller / Executive'),
+          department: user.department || 'Sales & Telecommunications',
+          officeLocation: user.officeLocation || `${officeConfig.name}, ${officeConfig.area}, ${officeConfig.city}`,
+          joiningDate: user.joiningDate || user.createdAt,
+          isActive: user.isActive !== false,
+          avatar: user.avatar || '',
+          
+          // Unified Status
+          liveStatus,
+          liveStatusLabel,
+          callStatus: isCurrentlyCalling ? 'On Call' : todayCall?.totalCalls > 0 ? 'Idle' : 'No Calls Today',
+          isLiveLocationActive: !!(live && live.isLive && live.latitude != null),
+
+          // Today's Attendance Details
+          todayAttendance: {
+            hasRecord: !!todayAtt,
+            date: todayStr,
+            day: todayDay,
+            status: todayAtt?.status || 'NOT_STARTED',
+            startTime: todayAtt?.startTime || null,
+            startTimeFormatted: todayAtt ? formatTime12h(todayAtt.startTime) : 'Not Started',
+            endTime: todayAtt?.endTime || null,
+            endTimeFormatted: todayAtt?.endTime ? formatTime12h(todayAtt.endTime) : todayAtt?.status === 'ON_DUTY' || todayAtt?.status === 'ON_BREAK' ? 'In Progress' : '—',
+            durationSeconds: todayAtt?.durationSeconds || 0,
+            durationFormatted: todayAtt?.formattedDuration || '00h 00m',
+            totalBreakSeconds: todayAtt?.totalBreakSeconds || 0,
+            formattedBreakDuration: todayAtt?.formattedBreakDuration || '00h 00m',
+            actualWorkSeconds: todayAtt?.actualWorkSeconds || 0,
+            formattedActualWork: todayAtt?.formattedActualWork || '00h 00m',
+            breakCount: todayAtt?.breakCount || 0,
+            breaks: todayAtt?.breaks || [],
+          },
+
+          // Yesterday's Attendance Details
+          yesterdayAttendance: {
+            hasRecord: !!yesterdayAtt,
+            date: yesterdayStr,
+            day: yesterdayDay,
+            status: yesterdayAtt?.status || 'NO_RECORD',
+            startTime: yesterdayAtt?.startTime || null,
+            startTimeFormatted: yesterdayAtt ? formatTime12h(yesterdayAtt.startTime) : 'No Record',
+            endTime: yesterdayAtt?.endTime || null,
+            endTimeFormatted: yesterdayAtt?.endTime ? formatTime12h(yesterdayAtt.endTime) : yesterdayAtt ? 'Incomplete' : 'No Record',
+            durationSeconds: yesterdayAtt?.durationSeconds || 0,
+            durationFormatted: yesterdayAtt?.formattedDuration || '00h 00m',
+            totalBreakSeconds: yesterdayAtt?.totalBreakSeconds || 0,
+            formattedBreakDuration: yesterdayAtt?.formattedBreakDuration || '00h 00m',
+            actualWorkSeconds: yesterdayAtt?.actualWorkSeconds || 0,
+            formattedActualWork: yesterdayAtt?.formattedActualWork || '00h 00m',
+            breakCount: yesterdayAtt?.breakCount || 0,
+          },
+
+          // Live Location Details
+          location: {
+            isLive: !!(live && live.isLive),
+            trackingStatus: live?.trackingStatus || 'OFFLINE',
+            latitude: live?.latitude || null,
+            longitude: live?.longitude || null,
+            accuracy: live?.accuracy || 0,
+            speed: live?.speed || 0,
+            heading: live?.heading || 0,
+            battery: live?.battery ?? null,
+            road: live?.road || '',
+            area: live?.area || '',
+            city: live?.city || officeConfig.city,
+            formattedAddress: live?.formattedAddress || (live?.latitude ? `${live.latitude.toFixed(5)}, ${live.longitude.toFixed(5)}` : 'Location unavailable'),
+            officeDistanceMeters: live?.officeDistanceMeters || null,
+            lastUpdated: live?.lastUpdated || null,
+          },
+
+          // Call Statistics
+          calls: {
+            today: {
+              date: todayStr,
+              count: todayCall?.totalCalls || 0,
+              totalDurationSec: todayCall?.totalDuration || 0,
+              totalDurationFormatted: formatSecToText(todayCall?.totalDuration || 0),
+              lastCallTime: todayCall?.lastCallTime || null,
+              lastCallTimeFormatted: todayCall?.lastCallTime ? formatTime12h(todayCall.lastCallTime) : 'Never',
+              lastCallDurationSec: todayCall?.lastCallDuration || 0,
+              lastCallDurationFormatted: todayCall?.lastCallDuration ? formatSecToText(todayCall.lastCallDuration) : '—',
+              lastCallStatus: todayCall?.lastCallStatus || '',
+              lastCallLead: todayCall ? { name: todayCall.lastCallLeadName, phone: todayCall.lastCallLeadPhone } : null,
+            },
+            yesterday: {
+              date: yesterdayStr,
+              count: yesterdayCall?.totalCalls || 0,
+              totalDurationSec: yesterdayCall?.totalDuration || 0,
+              totalDurationFormatted: formatSecToText(yesterdayCall?.totalDuration || 0),
+              lastCallTime: yesterdayCall?.lastCallTime || null,
+              lastCallTimeFormatted: yesterdayCall?.lastCallTime ? formatTime12h(yesterdayCall.lastCallTime) : 'Never',
+              lastCallDurationSec: yesterdayCall?.lastCallDuration || 0,
+              lastCallDurationFormatted: yesterdayCall?.lastCallDuration ? formatSecToText(yesterdayCall.lastCallDuration) : '—',
+            },
+            tomorrow: {
+              date: tomorrowStr,
+              scheduledCount: tomorrowScheduledCount,
+            },
+          },
+        };
+      })
+    );
+
+    res.json({
+      ok: true,
+      dates: {
+        today: { date: todayStr, day: todayDay },
+        yesterday: { date: yesterdayStr, day: yesterdayDay },
+        tomorrow: { date: tomorrowStr, day: tomorrowDay },
+      },
+      office: officeConfig,
+      totalEmployees: employees.length,
+      activeEmployees: employees.filter((e) => e.liveStatus === 'ON_DUTY' || e.liveStatus === 'ON_CALL' || e.liveStatus === 'ON_BREAK').length,
+      employees,
+    });
+  } catch (err) {
+    console.error('[Employees Live Activity Error]:', err);
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+// ── GET /api/reports/employee-call-records/:employeeId ─────────────────────────
+router.get('/employee-call-records/:employeeId', protect, authorize('manager', 'admin'), async (req, res) => {
+  try {
+    const { employeeId } = req.params;
+    const { period = 'today', date } = req.query;
+
+    const user = await User.findById(employeeId).select('name email role phone employeeId').lean();
+    if (!user) return res.status(404).json({ ok: false, message: 'Employee not found' });
+
+    const nowUtc = new Date();
+    const todayDateObj = new Date(nowUtc.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+
+    const yesterdayDateObj = new Date(todayDateObj);
+    yesterdayDateObj.setDate(yesterdayDateObj.getDate() - 1);
+
+    const tomorrowDateObj = new Date(todayDateObj);
+    tomorrowDateObj.setDate(tomorrowDateObj.getDate() + 1);
+
+    const { dateStr: todayStr, dayStr: todayDay } = getLocalDateAndDay(todayDateObj);
+    const { dateStr: yesterdayStr, dayStr: yesterdayDay } = getLocalDateAndDay(yesterdayDateObj);
+    const { dateStr: tomorrowStr, dayStr: tomorrowDay } = getLocalDateAndDay(tomorrowDateObj);
+
+    if (period === 'tomorrow') {
+      const tomorrowStart = new Date(`${tomorrowStr}T00:00:00.000+05:30`);
+      const tomorrowEnd = new Date(`${tomorrowStr}T23:59:59.999+05:30`);
+
+      const followups = await FollowUp.find({
+        assignedTo: employeeId,
+        scheduledAt: { $gte: tomorrowStart, $lte: tomorrowEnd },
+      })
+        .populate('lead', 'name phone status location email budget courseInterest preferredCourses')
+        .sort({ scheduledAt: 1 })
+        .lean();
+
+      const scheduledList = followups.map((f) => ({
+        id: f._id.toString(),
+        callDate: tomorrowStr,
+        callTime: formatTime12h(f.scheduledAt),
+        scheduledAt: f.scheduledAt,
+        employeeName: user.name,
+        contactName: f.lead?.name || 'Unknown Contact',
+        contactNumber: f.lead?.phone || '—',
+        leadEmail: f.lead?.email || '',
+        leadStatus: f.lead?.status || 'Fresh',
+        leadLocation: f.lead?.location || '',
+        callStatus: f.status === 'upcoming' ? 'Scheduled' : f.status,
+        callDuration: 0,
+        callDurationFormatted: '00m 00s',
+        callType: f.type === 'call_followup' ? 'Scheduled Call Follow-up' : 'Planned Task',
+        priority: f.priority || 'medium',
+        notes: f.note || f.title || 'Planned follow-up call',
+      }));
+
+      return res.json({
+        ok: true,
+        employee: user,
+        period: 'tomorrow',
+        targetDate: tomorrowStr,
+        day: tomorrowDay,
+        isTomorrow: true,
+        totalCalls: scheduledList.length,
+        totalConnectedDuration: 0,
+        totalConnectedDurationFormatted: '00m 00s',
+        totalConnectedCalls: 0,
+        calls: scheduledList,
+      });
+    }
+
+    // Today, Yesterday, All Dates, or Custom Date
+    let targetDateStr = todayStr;
+    let targetDayStr = todayDay;
+    let rangeStart = new Date(`${todayStr}T00:00:00.000+05:30`);
+    let rangeEnd = new Date(`${todayStr}T23:59:59.999+05:30`);
+
+    if (period === 'yesterday') {
+      targetDateStr = yesterdayStr;
+      targetDayStr = yesterdayDay;
+      rangeStart = new Date(`${yesterdayStr}T00:00:00.000+05:30`);
+      rangeEnd = new Date(`${yesterdayStr}T23:59:59.999+05:30`);
+    } else if (period === 'all') {
+      targetDateStr = 'All Dates';
+      targetDayStr = 'Full History';
+      rangeStart = new Date(0);
+      rangeEnd = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    } else if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      targetDateStr = date;
+      const d = new Date(`${date}T00:00:00.000+05:30`);
+      targetDayStr = getLocalDateAndDay(d).dayStr;
+      rangeStart = new Date(`${date}T00:00:00.000+05:30`);
+      rangeEnd = new Date(`${date}T23:59:59.999+05:30`);
+    }
+
+    const leads = await Lead.find({
+      'activities.performedBy': employeeId,
+      'activities.type': 'call',
+      'activities.createdAt': { $gte: rangeStart, $lte: rangeEnd },
+    })
+      .select('name phone email status campaign activities')
+      .populate('campaign', 'name')
+      .lean();
+
+    const callRows = [];
+    let totalConnectedSec = 0;
+    let totalConnectedCount = 0;
+
+    leads.forEach((l) => {
+      const matchingActs = (l.activities || []).filter(
+        (a) =>
+          a.type === 'call' &&
+          a.performedBy?.toString() === employeeId &&
+          new Date(a.createdAt) >= rangeStart &&
+          new Date(a.createdAt) <= rangeEnd
+      );
+
+      matchingActs.forEach((act) => {
+        const isConnected = act.callStatus === 'connected';
+        if (isConnected) {
+          totalConnectedSec += act.callDuration || 0;
+          totalConnectedCount += 1;
+        }
+
+        const actLocalDate = getLocalDateAndDay(new Date(act.createdAt)).dateStr;
+
+        callRows.push({
+          id: act._id?.toString() || `${l._id}_${act.createdAt}`,
+          leadId: l._id.toString(),
+          callDate: actLocalDate,
+          callTime: formatTime12h(act.createdAt),
+          createdAt: act.createdAt,
+          employeeName: user.name,
+          contactName: l.name || 'Contact',
+          contactNumber: l.phone || '—',
+          contactEmail: l.email || '',
+          campaignName: l.campaign?.name || '',
+          callStatus: act.callStatus ? act.callStatus.charAt(0).toUpperCase() + act.callStatus.slice(1).replace(/_/g, ' ') : 'Logged',
+          rawCallStatus: act.callStatus || 'connected',
+          callDuration: act.callDuration || 0,
+          callDurationFormatted: formatSecToText(act.callDuration || 0),
+          callType: act.direction === 'inbound' ? 'Incoming Call' : 'Outgoing Call',
+          notes: act.description || '',
+          leadStatus: l.status,
+        });
+      });
+    });
+
+    // Sort by createdAt descending
+    callRows.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    res.json({
+      ok: true,
+      employee: user,
+      period,
+      targetDate: targetDateStr,
+      day: targetDayStr,
+      isTomorrow: false,
+      totalCalls: callRows.length,
+      totalConnectedDuration: totalConnectedSec,
+      totalConnectedDurationFormatted: formatSecToText(totalConnectedSec),
+      totalConnectedCalls: totalConnectedCount,
+      calls: callRows,
+    });
+  } catch (err) {
+    console.error('[Employee Call Records Error]:', err);
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+module.exports = router;

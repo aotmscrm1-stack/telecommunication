@@ -1,21 +1,67 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import geoTracker from '../../services/geoTracker';
 import { attendanceAPI, trackingAPI } from '../../services/api';
 
 const GRADIENT = 'var(--btn-gradient, linear-gradient(90deg, #ffb37c 0%, #38bdf8 100%))';
 
+// Format seconds into HH:MM:SS format
+function formatHms(seconds) {
+  if (seconds == null || isNaN(seconds) || seconds < 0) return '00:00:00';
+  const totalSecs = Math.floor(seconds);
+  const hrs = Math.floor(totalSecs / 3600);
+  const mins = Math.floor((totalSecs % 3600) / 60);
+  const secs = totalSecs % 60;
+  return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
+// Format 12-hour time (e.g. 09:15 AM)
+function formatTime12h(dateObj) {
+  if (!dateObj) return '—';
+  const d = new Date(dateObj);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
+
+function formatDurationText(diffSec) {
+  if (diffSec == null || isNaN(diffSec) || diffSec <= 0) return '0m';
+  const hours = Math.floor(diffSec / 3600);
+  const minutes = Math.floor((diffSec % 3600) / 60);
+  const seconds = diffSec % 60;
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  } else if (minutes > 0) {
+    return `${minutes}m`;
+  } else {
+    return `${seconds}s`;
+  }
+}
+
 export default function EmployeeTrackingCard({ compact = false }) {
   const { user } = useAuth();
-  const [isTracking, setIsTracking] = useState(false);
   const [attendanceRecord, setAttendanceRecord] = useState(null);
   const [position, setPosition] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [lastSyncText, setLastSyncText] = useState('');
   const [showSimModal, setShowSimModal] = useState(false);
   const [simulating, setSimulating] = useState(false);
+
+  // Live timer states (in seconds)
+  const [liveWorkSeconds, setLiveWorkSeconds] = useState(0);
+  const [liveBreakSeconds, setLiveBreakSeconds] = useState(0);
+
+  const status = attendanceRecord?.status || 'NOT_STARTED';
+  const isTracking = status === 'ON_DUTY';
+  const isOnBreak = status === 'ON_BREAK';
+  const isCompletedToday = status === 'COMPLETED';
 
   // 1. Fetch current attendance state from backend on mount & restore active session
   useEffect(() => {
@@ -25,21 +71,19 @@ export default function EmployeeTrackingCard({ compact = false }) {
       .getCurrentStatus()
       .then((res) => {
         if (!isMounted) return;
-        if (res.data?.active && res.data?.attendance) {
-          setIsTracking(true);
-          setAttendanceRecord(res.data.attendance);
-          if (res.data.attendance.latestLocation?.latitude) {
-            setPosition(res.data.attendance.latestLocation);
+        if (res.data?.attendance) {
+          const att = res.data.attendance;
+          setAttendanceRecord(att);
+          if (att.latestLocation?.latitude) {
+            setPosition(att.latestLocation);
+          } else if (att.endLocation?.latitude) {
+            setPosition(att.endLocation);
           }
-          // Resume active live GPS tracking watcher
-          geoTracker.startTracking().catch((gErr) => {
-            console.warn('[EmployeeTrackingCard] Auto-resume GPS watcher notice:', gErr.message);
-          });
-        } else if (res.data?.attendance) {
-          setIsTracking(false);
-          setAttendanceRecord(res.data.attendance);
-          if (res.data.attendance.endLocation?.latitude || res.data.attendance.latestLocation?.latitude) {
-            setPosition(res.data.attendance.endLocation || res.data.attendance.latestLocation);
+
+          if (att.status === 'ON_DUTY') {
+            geoTracker.startTracking().catch((gErr) => {
+              console.warn('[EmployeeTrackingCard] Auto-resume GPS watcher notice:', gErr.message);
+            });
           }
         }
       })
@@ -61,9 +105,61 @@ export default function EmployeeTrackingCard({ compact = false }) {
       isMounted = false;
       unsubscribe();
     };
-  }, []);
+  }, [isTracking]);
 
-  // 2. Relative last updated timer
+  // 2. High-precision live working & break timers calculation every second
+  useEffect(() => {
+    if (!attendanceRecord || (!isTracking && !isOnBreak)) {
+      if (isCompletedToday && attendanceRecord) {
+        setLiveWorkSeconds(attendanceRecord.actualWorkSeconds || 0);
+        setLiveBreakSeconds(0);
+      }
+      return;
+    }
+
+    const updateTimers = () => {
+      const now = Date.now();
+      const startTimeMs = new Date(attendanceRecord.startTime).getTime();
+      const breaks = Array.isArray(attendanceRecord.breaks) ? attendanceRecord.breaks : [];
+
+      // Calculate total completed breaks duration
+      let completedBreaksSec = 0;
+      let activeBreakObj = null;
+
+      breaks.forEach((b) => {
+        if (b.status === 'COMPLETED' && b.endTime) {
+          const bStart = new Date(b.startTime).getTime();
+          const bEnd = new Date(b.endTime).getTime();
+          completedBreaksSec += Math.max(0, Math.floor((bEnd - bStart) / 1000));
+        } else if (b.status === 'ACTIVE') {
+          activeBreakObj = b;
+        }
+      });
+
+      if (isOnBreak && activeBreakObj) {
+        // Break is ongoing: calculate active break duration
+        const activeBreakStartMs = new Date(activeBreakObj.startTime).getTime();
+        const curBreakSec = Math.max(0, Math.floor((now - activeBreakStartMs) / 1000));
+        setLiveBreakSeconds(curBreakSec);
+
+        // Working time is frozen at the moment break started
+        const workSecAtBreakStart = Math.max(0, Math.floor((activeBreakStartMs - startTimeMs) / 1000) - completedBreaksSec);
+        setLiveWorkSeconds(workSecAtBreakStart);
+      } else if (isTracking) {
+        // On duty: total time elapsed since start minus completed breaks
+        const totalElapsedSec = Math.max(0, Math.floor((now - startTimeMs) / 1000));
+        const netWorkSec = Math.max(0, totalElapsedSec - completedBreaksSec);
+        setLiveWorkSeconds(netWorkSec);
+        setLiveBreakSeconds(0);
+      }
+    };
+
+    updateTimers();
+    const interval = setInterval(updateTimers, 1000);
+    return () => clearInterval(interval);
+  }, [attendanceRecord, isTracking, isOnBreak, isCompletedToday]);
+
+  // 3. Relative last updated timer for GPS
   useEffect(() => {
     if (!isTracking) {
       setLastSyncText('Not syncing');
@@ -105,7 +201,6 @@ export default function EmployeeTrackingCard({ compact = false }) {
       navigator.geolocation.getCurrentPosition(
         resolve,
         (err) => {
-          // Retry with standard accuracy if high accuracy timed out
           if (err.code === 1) return reject(err); // Denied
           navigator.geolocation.getCurrentPosition(resolve, reject, {
             enableHighAccuracy: false,
@@ -117,10 +212,10 @@ export default function EmployeeTrackingCard({ compact = false }) {
       );
     });
 
-  // 3. Start Attendance Handler
+  // 4. Start Attendance Handler
   const handleStartAttendance = async () => {
     setError('');
-    setLoading(true);
+    setActionLoading(true);
 
     try {
       let lat = null;
@@ -129,7 +224,6 @@ export default function EmployeeTrackingCard({ compact = false }) {
       let speed = 0;
       let heading = 0;
 
-      // Request GPS location
       try {
         const pos = await getGpsFix();
         lat = pos.coords.latitude;
@@ -147,7 +241,6 @@ export default function EmployeeTrackingCard({ compact = false }) {
 
       const battery = await getBatteryLevel();
 
-      // Create attendance session on the backend
       const res = await attendanceAPI.start({
         latitude: lat,
         longitude: lng,
@@ -160,13 +253,11 @@ export default function EmployeeTrackingCard({ compact = false }) {
 
       const att = res.data?.attendance;
       setAttendanceRecord(att);
-      setIsTracking(true);
 
       if (att?.latestLocation) {
         setPosition(att.latestLocation);
       }
 
-      // Start real-time background GPS tracking
       try {
         await geoTracker.startTracking();
       } catch (trackErr) {
@@ -175,19 +266,50 @@ export default function EmployeeTrackingCard({ compact = false }) {
     } catch (err) {
       setError(err.message || 'Failed to start attendance. Please try again.');
     } finally {
-      setLoading(false);
+      setActionLoading(false);
     }
   };
 
-  // 4. Stop / Leave Handler
+  // 5. Start Break Handler
+  const handleStartBreak = async () => {
+    setError('');
+    setActionLoading(true);
+
+    try {
+      const res = await attendanceAPI.startBreak({});
+      const att = res.data?.attendance;
+      setAttendanceRecord(att);
+    } catch (err) {
+      setError(err.message || 'Failed to start break. Please try again.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // 6. Resume Work Handler
+  const handleResumeWork = async () => {
+    setError('');
+    setActionLoading(true);
+
+    try {
+      const res = await attendanceAPI.resumeBreak({});
+      const att = res.data?.attendance;
+      setAttendanceRecord(att);
+    } catch (err) {
+      setError(err.message || 'Failed to resume work. Please try again.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // 7. Stop / Leave Handler
   const handleStopAttendance = async () => {
     setError('');
-    setLoading(true);
+    setActionLoading(true);
 
     try {
       const curPos = geoTracker.lastPosition || position || {};
 
-      // Mark attendance as completed in the backend
       const res = await attendanceAPI.stop({
         latitude: curPos.latitude,
         longitude: curPos.longitude,
@@ -196,14 +318,12 @@ export default function EmployeeTrackingCard({ compact = false }) {
 
       const att = res.data?.attendance;
       setAttendanceRecord(att);
-      setIsTracking(false);
 
-      // Stop real-time GPS tracking watcher
       await geoTracker.stopTracking().catch(() => {});
     } catch (err) {
       setError(err.message || 'Failed to stop attendance session. Please try again.');
     } finally {
-      setLoading(false);
+      setActionLoading(false);
     }
   };
 
@@ -212,7 +332,6 @@ export default function EmployeeTrackingCard({ compact = false }) {
     setSimulating(true);
     setError('');
     try {
-      // Real AOTMS Office: Pothuri Towers, 2nd Floor, MG Road, Opposite Lucky Mall
       const officeLat = 16.499614;
       const officeLng = 80.648500;
 
@@ -246,9 +365,7 @@ export default function EmployeeTrackingCard({ compact = false }) {
           road: loc.road,
           trackingStatus: loc.trackingStatus,
         });
-        setIsTracking(true);
 
-        // Wait 3 seconds between steps
         await new Promise((r) => setTimeout(r, 3000));
       }
     } catch (err) {
@@ -259,7 +376,8 @@ export default function EmployeeTrackingCard({ compact = false }) {
     }
   };
 
-  const isCompletedToday = !isTracking && attendanceRecord?.status === 'COMPLETED';
+  const completedBreaksCount = (attendanceRecord?.breaks || []).filter((b) => b.status === 'COMPLETED').length;
+  const activeBreakNum = (attendanceRecord?.breaks || []).find((b) => b.status === 'ACTIVE')?.breakNumber || (completedBreaksCount + 1);
 
   return (
     <div
@@ -273,25 +391,25 @@ export default function EmployeeTrackingCard({ compact = false }) {
         overflow: 'hidden',
       }}
     >
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+      {/* Top Header Bar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div
             style={{
-              width: 44,
-              height: 44,
+              width: 46,
+              height: 46,
               borderRadius: 12,
-              background: isTracking ? '#edf8f8' : isCompletedToday ? '#eff6ff' : '#fad7da',
+              background: isTracking ? '#edf8f8' : isOnBreak ? '#fffbeb' : isCompletedToday ? '#eff6ff' : '#fad7da',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: isTracking ? '#1d3557' : isCompletedToday ? '#2563eb' : '#e63946',
-              border: `1.5px solid ${isTracking ? '#a8dadc' : isCompletedToday ? '#bfdbfe' : '#f08790'}`,
-              fontSize: 22,
+              color: isTracking ? '#1d3557' : isOnBreak ? '#d97706' : isCompletedToday ? '#2563eb' : '#e63946',
+              border: `1.5px solid ${isTracking ? '#a8dadc' : isOnBreak ? '#fde68a' : isCompletedToday ? '#bfdbfe' : '#f08790'}`,
+              fontSize: 24,
               boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
             }}
           >
-            {isTracking ? '📅' : isCompletedToday ? '✅' : '🌴'}
+            {isTracking ? '📅' : isOnBreak ? '☕' : isCompletedToday ? '✅' : '🌴'}
           </div>
           <div>
             <h4 style={{ margin: 0, fontSize: 16.5, fontWeight: 700, color: '#1d3557', letterSpacing: '-0.2px' }}>
@@ -304,53 +422,61 @@ export default function EmployeeTrackingCard({ compact = false }) {
                   width: 8,
                   height: 8,
                   borderRadius: '50%',
-                  background: isTracking ? '#10b981' : isCompletedToday ? '#3b82f6' : '#ef4444',
-                  boxShadow: isTracking ? '0 0 6px #10b981' : isCompletedToday ? '0 0 6px #3b82f6' : '0 0 6px #ef4444',
+                  background: isTracking ? '#10b981' : isOnBreak ? '#f59e0b' : isCompletedToday ? '#3b82f6' : '#ef4444',
+                  boxShadow: isTracking
+                    ? '0 0 6px #10b981'
+                    : isOnBreak
+                    ? '0 0 6px #f59e0b'
+                    : isCompletedToday
+                    ? '0 0 6px #3b82f6'
+                    : '0 0 6px #ef4444',
                 }}
               />
               <span
                 style={{
                   fontSize: 13,
                   fontWeight: 600,
-                  color: isTracking ? '#059669' : isCompletedToday ? '#2563eb' : '#cb1928',
+                  color: isTracking ? '#059669' : isOnBreak ? '#d97706' : isCompletedToday ? '#2563eb' : '#cb1928',
                 }}
               >
                 {isTracking
                   ? 'On Duty — Live GPS Location Active'
+                  : isOnBreak
+                  ? `On Break (Break #${activeBreakNum}) — Work Timer Paused`
                   : isCompletedToday
-                  ? `Completed — Attendance Recorded (${attendanceRecord?.formattedDuration || 'Logged'})`
+                  ? `Completed — Attendance Recorded (${attendanceRecord?.formattedActualWork || attendanceRecord?.formattedDuration || 'Logged'})`
                   : 'Off Duty — Attendance Not Started'}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Attendance and Leave Action Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {/* Start Attendance Button */}
+        {/* 3 Attendance Action Buttons: Start, Break/Resume, Stop */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          {/* Button 1: Start Attendance */}
           <button
             id="start-attendance-btn"
             onClick={handleStartAttendance}
-            disabled={loading || initialLoading || simulating || isTracking}
-            title={isTracking ? 'Attendance is currently active' : 'Click to start attendance and enable live GPS location'}
+            disabled={actionLoading || initialLoading || simulating || isTracking || isOnBreak}
+            title={isTracking || isOnBreak ? 'Attendance is currently active' : 'Click to start attendance and enable live GPS location'}
             style={{
-              background: isTracking ? '#dcf0f1' : 'linear-gradient(135deg, #1d3557 0%, #457b9d 100%)',
-              color: isTracking ? '#88b1cb' : '#ffffff',
+              background: isTracking || isOnBreak ? '#dcf0f1' : 'linear-gradient(135deg, #1d3557 0%, #457b9d 100%)',
+              color: isTracking || isOnBreak ? '#88b1cb' : '#ffffff',
               border: 'none',
               borderRadius: 10,
               padding: '9px 18px',
               fontSize: 13,
               fontWeight: 700,
-              cursor: isTracking || loading || initialLoading ? 'not-allowed' : 'pointer',
+              cursor: isTracking || isOnBreak || actionLoading || initialLoading ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              boxShadow: isTracking ? 'none' : '0 3px 12px rgba(29, 53, 87, 0.2)',
+              boxShadow: isTracking || isOnBreak ? 'none' : '0 3px 12px rgba(29, 53, 87, 0.2)',
               transition: 'all 0.15s',
-              opacity: loading && !isTracking ? 0.8 : 1,
+              opacity: actionLoading && !isTracking && !isOnBreak ? 0.8 : 1,
             }}
           >
-            {loading && !isTracking ? (
+            {actionLoading && !isTracking && !isOnBreak ? (
               <>
                 <svg
                   style={{ animation: 'spin 1s linear infinite', width: 16, height: 16 }}
@@ -361,7 +487,7 @@ export default function EmployeeTrackingCard({ compact = false }) {
                 >
                   <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
                 </svg>
-                Starting Attendance...
+                Starting...
               </>
             ) : (
               <>
@@ -370,29 +496,95 @@ export default function EmployeeTrackingCard({ compact = false }) {
             )}
           </button>
 
-          {/* Stop / Leave Button */}
+          {/* Button 2: Break / Resume Work Button */}
+          {isOnBreak ? (
+            /* Resume Work Button */
+            <button
+              id="resume-work-btn"
+              onClick={handleResumeWork}
+              disabled={actionLoading || initialLoading || simulating}
+              title="Click to end break and resume actual working hours"
+              style={{
+                background: GRADIENT,
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: 10,
+                padding: '9px 18px',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: actionLoading ? 'wait' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                boxShadow: '0 3px 12px rgba(2, 132, 199, 0.25)',
+                transition: 'all 0.15s',
+                animation: 'pulse-glow 2s infinite',
+              }}
+            >
+              {actionLoading ? (
+                'Resuming...'
+              ) : (
+                <>
+                  <span style={{ fontSize: 14 }}>▶️</span> Resume Work
+                </>
+              )}
+            </button>
+          ) : (
+            /* Take Break Button */
+            <button
+              id="take-break-btn"
+              onClick={handleStartBreak}
+              disabled={actionLoading || initialLoading || simulating || !isTracking}
+              title={!isTracking ? 'Start attendance first to take a break' : 'Click to take a break and pause working hours'}
+              style={{
+                background: !isTracking ? '#f1faee' : '#fffbeb',
+                color: !isTracking ? '#88b1cb' : '#b45309',
+                border: `1px solid ${!isTracking ? '#cae9ea' : '#fde68a'}`,
+                borderRadius: 10,
+                padding: '9px 18px',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: !isTracking || actionLoading || initialLoading ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                transition: 'all 0.15s',
+                opacity: actionLoading && isTracking ? 0.8 : 1,
+              }}
+            >
+              {actionLoading && isTracking ? (
+                'Pausing...'
+              ) : (
+                <>
+                  <span style={{ fontSize: 14 }}>☕</span> Take Break
+                </>
+              )}
+            </button>
+          )}
+
+          {/* Button 3: Stop / Leave Button */}
           <button
             id="stop-attendance-btn"
             onClick={handleStopAttendance}
-            disabled={loading || initialLoading || simulating || !isTracking}
-            title={!isTracking ? 'Attendance is not active' : 'Click to stop attendance and disable live location sharing'}
+            disabled={actionLoading || initialLoading || simulating || (!isTracking && !isOnBreak)}
+            title={!isTracking && !isOnBreak ? 'Attendance is not active' : 'Click to finish attendance session and calculate final working hours'}
             style={{
-              background: !isTracking ? '#f1faee' : '#fad7da',
-              color: !isTracking ? '#88b1cb' : '#e63946',
-              border: `1px solid ${!isTracking ? '#cae9ea' : '#f08790'}`,
+              background: !isTracking && !isOnBreak ? '#f1faee' : '#fad7da',
+              color: !isTracking && !isOnBreak ? '#88b1cb' : '#e63946',
+              border: `1px solid ${!isTracking && !isOnBreak ? '#cae9ea' : '#f08790'}`,
               borderRadius: 10,
               padding: '9px 18px',
               fontSize: 13,
               fontWeight: 700,
-              cursor: !isTracking || loading || initialLoading ? 'not-allowed' : 'pointer',
+              cursor: !isTracking && !isOnBreak || actionLoading || initialLoading ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: 8,
               transition: 'all 0.15s',
-              opacity: loading && isTracking ? 0.8 : 1,
+              opacity: actionLoading && (isTracking || isOnBreak) ? 0.8 : 1,
             }}
           >
-            {loading && isTracking ? (
+            {actionLoading && (isTracking || isOnBreak) ? (
               'Stopping...'
             ) : (
               <>
@@ -403,8 +595,160 @@ export default function EmployeeTrackingCard({ compact = false }) {
         </div>
       </div>
 
-      {/* Telemetry Stats Grid */}
-      {(isTracking || (position && position.latitude)) && (
+      {/* ── 2. Live Working Timer & Break Timer Display Card ────────────────── */}
+      {(isTracking || isOnBreak || isCompletedToday) && (
+        <div
+          style={{
+            background: '#ffffff',
+            borderRadius: 14,
+            padding: '16px 20px',
+            marginBottom: 14,
+            border: `1.5px solid ${isOnBreak ? '#fde68a' : isTracking ? '#a7f3d0' : '#bfdbfe'}`,
+            boxShadow: '0 4px 14px rgba(0,0,0,0.03)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 16,
+          }}
+        >
+          {/* Left: Active Working Timer */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 12,
+                background: isTracking ? '#ecfdf5' : isOnBreak ? '#fffbeb' : '#eff6ff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 24,
+                border: `1px solid ${isTracking ? '#a7f3d0' : isOnBreak ? '#fde68a' : '#bfdbfe'}`,
+              }}
+            >
+              ⏱️
+            </div>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                {isOnBreak ? 'Actual Working Time (Paused)' : isCompletedToday ? 'Total Actual Working Hours' : 'Live Actual Working Time'}
+              </div>
+              <div
+                style={{
+                  fontSize: 28,
+                  fontWeight: 900,
+                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                  color: isOnBreak ? '#b45309' : isTracking ? '#059669' : '#1e40af',
+                  letterSpacing: '0.02em',
+                  lineHeight: 1.1,
+                  marginTop: 2,
+                }}
+              >
+                {formatHms(liveWorkSeconds)}
+              </div>
+              <div style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>
+                Started at <b style={{ color: '#0f172a' }}>{formatTime12h(attendanceRecord?.startTime)}</b>
+                {completedBreaksCount > 0 && ` • ${completedBreaksCount} break${completedBreaksCount > 1 ? 's' : ''} deducted`}
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Break Status / Current Break Live Timer */}
+          {isOnBreak ? (
+            <div
+              style={{
+                background: '#fffbeb',
+                border: '1.5px solid #fde68a',
+                borderRadius: 12,
+                padding: '10px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 14,
+              }}
+            >
+              <div style={{ fontSize: 24 }}>☕</div>
+              <div>
+                <div style={{ fontSize: 10.5, fontWeight: 700, color: '#b45309', textTransform: 'uppercase' }}>
+                  Current Break #{activeBreakNum} Timer
+                </div>
+                <div
+                  style={{
+                    fontSize: 22,
+                    fontWeight: 900,
+                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                    color: '#d97706',
+                    marginTop: 1,
+                  }}
+                >
+                  {formatHms(liveBreakSeconds)}
+                </div>
+                <div style={{ fontSize: 11, color: '#b45309', fontWeight: 600 }}>
+                  Click &ldquo;Resume Work&rdquo; when ready
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                  Breaks Taken Today
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: '#1d3557', marginTop: 2 }}>
+                  {attendanceRecord?.breaks?.length || 0} ({attendanceRecord?.formattedBreakDuration || '0m'})
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── 3. Break Details History Chips (if breaks have been taken) ──────── */}
+      {Array.isArray(attendanceRecord?.breaks) && attendanceRecord.breaks.length > 0 && (
+        <div
+          style={{
+            background: 'rgba(255,255,255,0.7)',
+            borderRadius: 10,
+            padding: '10px 14px',
+            marginBottom: 12,
+            border: '1px solid #cae9ea',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            flexWrap: 'wrap',
+          }}
+        >
+          <span style={{ fontSize: 11.5, fontWeight: 700, color: '#457b9d', textTransform: 'uppercase' }}>
+            ☕ Breaks Today:
+          </span>
+          {attendanceRecord.breaks.map((b, idx) => (
+            <div
+              key={idx}
+              style={{
+                background: b.status === 'ACTIVE' ? '#fffbeb' : '#ffffff',
+                border: `1px solid ${b.status === 'ACTIVE' ? '#fde68a' : '#cbd5e1'}`,
+                borderRadius: 6,
+                padding: '3px 8px',
+                fontSize: 11.5,
+                fontWeight: 600,
+                color: b.status === 'ACTIVE' ? '#b45309' : '#334155',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+              }}
+            >
+              <span>{b.status === 'ACTIVE' ? '🟡' : '✅'}</span>
+              <b>Break #{b.breakNumber}:</b>
+              <span>{formatTime12h(b.startTime)} - {b.endTime ? formatTime12h(b.endTime) : 'Active'}</span>
+              <span style={{ color: b.status === 'ACTIVE' ? '#d97706' : '#059669', fontWeight: 700 }}>
+                ({b.formattedDuration || formatDurationText(b.durationSeconds)})
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── 4. Telemetry Stats Grid (Location, Speed, GPS Accuracy, Last Sync) ─ */}
+      {(isTracking || isOnBreak || (position && position.latitude)) && (
         <div
           style={{
             background: '#ffffff',
@@ -503,6 +847,10 @@ export default function EmployeeTrackingCard({ compact = false }) {
       <style>{`
         @keyframes spin {
           100% { transform: rotate(360deg); }
+        }
+        @keyframes pulse-glow {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(2, 132, 199, 0.4); }
+          50% { box-shadow: 0 0 0 6px rgba(2, 132, 199, 0.15); }
         }
       `}</style>
 

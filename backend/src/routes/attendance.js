@@ -55,6 +55,21 @@ function formatTime12h(dateObj) {
   });
 }
 
+function formatSecToText(diffSec) {
+  if (diffSec == null || isNaN(diffSec) || diffSec <= 0) return '0m';
+  const hours = Math.floor(diffSec / 3600);
+  const minutes = Math.floor((diffSec % 3600) / 60);
+  const seconds = diffSec % 60;
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  } else if (minutes > 0) {
+    return `${minutes}m`;
+  } else {
+    return `${seconds}s`;
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. POST /api/attendance/start — Employee Clock-in & Start Live Location
 // ─────────────────────────────────────────────────────────────────────────────
@@ -64,14 +79,15 @@ router.post('/start', protect, async (req, res) => {
     const { dateStr, dayStr } = getLocalDateAndDay();
     const now = new Date();
 
-    // Check if employee already has an active ON_DUTY attendance session
+    // Check if employee already has an active ON_DUTY or ON_BREAK session
     let existingActive = await Attendance.findOne({
       employeeId: userId,
-      status: 'ON_DUTY',
+      status: { $in: ['ON_DUTY', 'ON_BREAK'] },
     }).sort({ startTime: -1 });
 
     if (existingActive) {
-      // If already on duty, ensure live tracking is running and return existing session
+      existingActive.calculateAttendanceDurations(now);
+      await existingActive.save();
       handleStartTracking(req.user, req.body).catch(() => {});
       return res.json({
         ok: true,
@@ -122,8 +138,14 @@ router.post('/start', protect, async (req, res) => {
       startTime: now,
       endTime: null,
       durationSeconds: 0,
-      formattedDuration: 'Active',
+      formattedDuration: '0s',
       status: 'ON_DUTY',
+      breaks: [],
+      breakCount: 0,
+      totalBreakSeconds: 0,
+      formattedBreakDuration: '0m',
+      actualWorkSeconds: 0,
+      formattedActualWork: '0s',
       startLocation: locationData,
       latestLocation: locationData,
       lastLocationUpdate: now,
@@ -150,7 +172,7 @@ router.post('/start', protect, async (req, res) => {
 
     res.status(201).json({
       ok: true,
-      message: 'Attendance started successfully. You are now On Duty.',
+      message: 'Attendance started successfully. Live working timer active.',
       attendance: attendanceRecord,
     });
   } catch (err) {
@@ -160,7 +182,115 @@ router.post('/start', protect, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 2. POST /api/attendance/stop — Employee Clock-out / Stop Leave
+// 2. POST /api/attendance/break/start — Employee Starts a Break
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/break/start', protect, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const now = new Date();
+
+    const attendance = await Attendance.findOne({
+      employeeId: userId,
+      status: { $in: ['ON_DUTY', 'ON_BREAK'] },
+    }).sort({ startTime: -1 });
+
+    if (!attendance) {
+      return res.status(400).json({ ok: false, message: 'No active attendance session found to take a break' });
+    }
+
+    if (attendance.status === 'ON_BREAK') {
+      return res.json({
+        ok: true,
+        message: 'Employee is already on break',
+        attendance,
+      });
+    }
+
+    const breakNumber = (attendance.breaks?.length || 0) + 1;
+    const newBreak = {
+      breakNumber,
+      startTime: now,
+      endTime: null,
+      durationSeconds: 0,
+      formattedDuration: '0s',
+      status: 'ACTIVE',
+      notes: req.body.notes || '',
+    };
+
+    if (!Array.isArray(attendance.breaks)) {
+      attendance.breaks = [];
+    }
+    attendance.breaks.push(newBreak);
+    attendance.status = 'ON_BREAK';
+    attendance.calculateAttendanceDurations(now);
+    await attendance.save();
+
+    res.json({
+      ok: true,
+      message: `Break #${breakNumber} started. Working timer paused.`,
+      attendance,
+      activeBreak: newBreak,
+    });
+  } catch (err) {
+    console.error('[Attendance Break Start Error]:', err);
+    res.status(500).json({ ok: false, message: err.message || 'Failed to start break' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. POST /api/attendance/break/resume — Employee Resumes Work After Break
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/break/resume', protect, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const now = new Date();
+
+    const attendance = await Attendance.findOne({
+      employeeId: userId,
+      status: { $in: ['ON_DUTY', 'ON_BREAK'] },
+    }).sort({ startTime: -1 });
+
+    if (!attendance) {
+      return res.status(400).json({ ok: false, message: 'No active attendance session found' });
+    }
+
+    if (attendance.status !== 'ON_BREAK') {
+      return res.json({
+        ok: true,
+        message: 'Employee is already on duty',
+        attendance,
+      });
+    }
+
+    // Find the active break
+    const activeBreakIndex = attendance.breaks.findIndex((b) => b.status === 'ACTIVE');
+    if (activeBreakIndex !== -1) {
+      const b = attendance.breaks[activeBreakIndex];
+      b.endTime = now;
+      b.status = 'COMPLETED';
+      const bStart = new Date(b.startTime).getTime();
+      const diffSec = Math.max(0, Math.floor((now.getTime() - bStart) / 1000));
+      b.durationSeconds = diffSec;
+      b.formattedDuration = formatSecToText(diffSec);
+    }
+
+    attendance.status = 'ON_DUTY';
+    attendance.calculateAttendanceDurations(now);
+    await attendance.save();
+
+    res.json({
+      ok: true,
+      message: 'Work resumed successfully. Working timer active.',
+      attendance,
+    });
+  } catch (err) {
+    console.error('[Attendance Break Resume Error]:', err);
+    res.status(500).json({ ok: false, message: err.message || 'Failed to resume work' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. POST /api/attendance/stop — Employee Clock-out / Stop Leave
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/stop', protect, async (req, res) => {
   try {
@@ -170,11 +300,10 @@ router.post('/stop', protect, async (req, res) => {
     // Find the active session for this employee
     let attendance = await Attendance.findOne({
       employeeId: userId,
-      status: 'ON_DUTY',
+      status: { $in: ['ON_DUTY', 'ON_BREAK'] },
     }).sort({ startTime: -1 });
 
     if (!attendance) {
-      // Check if there is a recent session for today already completed
       const latestToday = await Attendance.findOne({ employeeId: userId }).sort({ createdAt: -1 });
       if (latestToday && latestToday.status === 'COMPLETED') {
         return res.json({
@@ -184,6 +313,20 @@ router.post('/stop', protect, async (req, res) => {
         });
       }
       return res.status(400).json({ ok: false, message: 'No active attendance session found to stop' });
+    }
+
+    // If employee was currently on break when stopping, automatically close the active break
+    if (attendance.status === 'ON_BREAK' && Array.isArray(attendance.breaks)) {
+      attendance.breaks.forEach((b) => {
+        if (b.status === 'ACTIVE') {
+          b.endTime = now;
+          b.status = 'COMPLETED';
+          const bStart = new Date(b.startTime).getTime();
+          const diffSec = Math.max(0, Math.floor((now.getTime() - bStart) / 1000));
+          b.durationSeconds = diffSec;
+          b.formattedDuration = formatSecToText(diffSec);
+        }
+      });
     }
 
     const lat = Number(req.body.latitude);
@@ -226,7 +369,7 @@ router.post('/stop', protect, async (req, res) => {
     attendance.endLocation = endLocationData;
     attendance.latestLocation = endLocationData;
     attendance.status = 'COMPLETED';
-    attendance.calculateFormattedDuration();
+    attendance.calculateAttendanceDurations(now);
     await attendance.save();
 
     // Stop Live GPS Tracking via Socket & In-memory cache
@@ -238,7 +381,7 @@ router.post('/stop', protect, async (req, res) => {
 
     res.json({
       ok: true,
-      message: 'Attendance marked as Completed. Location sharing stopped.',
+      message: 'Attendance completed successfully. Total working hours recorded.',
       attendance,
     });
   } catch (err) {
@@ -248,23 +391,26 @@ router.post('/stop', protect, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 3. GET /api/attendance/current — Get current employee's active status
+// 5. GET /api/attendance/current — Get current employee's active status & timers
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/current', protect, async (req, res) => {
   try {
     const userId = req.user._id;
     const { dateStr } = getLocalDateAndDay();
+    const now = new Date();
 
-    // Check for active ON_DUTY session first
+    // Check for active ON_DUTY or ON_BREAK session first
     const activeSession = await Attendance.findOne({
       employeeId: userId,
-      status: 'ON_DUTY',
+      status: { $in: ['ON_DUTY', 'ON_BREAK'] },
     }).sort({ startTime: -1 });
 
     if (activeSession) {
+      activeSession.calculateAttendanceDurations(now);
       return res.json({
         ok: true,
         active: true,
+        status: activeSession.status,
         attendance: activeSession,
       });
     }
@@ -278,6 +424,7 @@ router.get('/current', protect, async (req, res) => {
     res.json({
       ok: true,
       active: false,
+      status: completedToday ? completedToday.status : 'NOT_STARTED',
       attendance: completedToday || null,
     });
   } catch (err) {
@@ -286,34 +433,45 @@ router.get('/current', protect, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 4. GET /api/attendance/summary — Admin Summary Metrics for Date
+// 6. GET /api/attendance/summary — Admin Summary Metrics for Date
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/summary', protect, authorize('admin'), async (req, res) => {
   try {
     const { date } = req.query;
     const targetDate = date || getLocalDateAndDay().dateStr;
+    const now = new Date();
 
     // Total active employees in the system
     const totalEmployees = await User.countDocuments({ isActive: true });
 
     // Attendance sessions for the selected date
-    const records = await Attendance.find({ date: targetDate }).lean();
+    const records = await Attendance.find({ date: targetDate });
 
     // Distinct employees who clocked in today / targetDate
     const presentEmployeeIds = new Set(records.map((r) => r.employeeId.toString()));
     const presentToday = presentEmployeeIds.size;
 
-    // Currently On Duty (active right now)
+    // Currently On Duty & On Break
     const currentlyOnDuty = await Attendance.countDocuments({ status: 'ON_DUTY' });
+    const currentlyOnBreak = await Attendance.countDocuments({ status: 'ON_BREAK' });
 
-    // Completed today
+    // Completed on target date
     const completedAttendance = records.filter((r) => r.status === 'COMPLETED').length;
 
-    // Incomplete attendance (either status INCOMPLETE or ON_DUTY from previous dates)
+    // Total break duration across all records for the day
+    let totalBreakSecsToday = 0;
+    records.forEach((r) => {
+      r.calculateAttendanceDurations(now);
+      totalBreakSecsToday += r.totalBreakSeconds || 0;
+    });
+
+    const totalBreakTimeToday = formatSecToText(totalBreakSecsToday);
+
+    // Incomplete attendance (open sessions from previous dates)
     const incompleteAttendance = await Attendance.countDocuments({
       $or: [
         { status: 'INCOMPLETE' },
-        { status: 'ON_DUTY', date: { $ne: getLocalDateAndDay().dateStr } },
+        { status: { $in: ['ON_DUTY', 'ON_BREAK'] }, date: { $ne: getLocalDateAndDay().dateStr } },
       ],
     });
 
@@ -324,7 +482,9 @@ router.get('/summary', protect, authorize('admin'), async (req, res) => {
         totalEmployees,
         presentToday,
         currentlyOnDuty,
+        currentlyOnBreak,
         completedAttendance,
+        totalBreakTimeToday,
         incompleteAttendance,
       },
     });
@@ -334,12 +494,13 @@ router.get('/summary', protect, authorize('admin'), async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 5. GET /api/attendance/records — Admin Table of Employee Records for Date
+// 7. GET /api/attendance/records — Admin Table of Employee Records for Date
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/records', protect, authorize('admin'), async (req, res) => {
   try {
     const { date, fromDate, toDate, status, search } = req.query;
     const { dateStr: todayStr, dayStr: todayDay } = getLocalDateAndDay();
+    const now = new Date();
 
     let query = {};
     let isRange = false;
@@ -371,23 +532,24 @@ router.get('/records', protect, authorize('admin'), async (req, res) => {
 
     // Fetch actual attendance records matching query
     const attendanceList = await Attendance.find(query)
-      .sort({ date: -1, startTime: -1 })
-      .lean();
+      .sort({ date: -1, startTime: -1 });
 
     // Build combined table rows
     let tableRows = [];
 
     if (!isRange) {
-      // Single Date View: Merge active employees who haven't started attendance as 'NOT_STARTED'
+      // Single Date View
       const attendedUserIds = new Set();
 
       attendanceList.forEach((att) => {
         attendedUserIds.add(att.employeeId.toString());
         const userObj = allUsers.find((u) => u._id.toString() === att.employeeId.toString());
 
-        // Check live telemetry for active status if available
+        // Live calculate durations
+        att.calculateAttendanceDurations(now);
+
         const liveLoc = liveLocations.get(att.employeeId.toString());
-        const latestLocation = att.status === 'ON_DUTY' && liveLoc ? {
+        const latestLocation = (att.status === 'ON_DUTY' || att.status === 'ON_BREAK') && liveLoc ? {
           latitude: liveLoc.latitude,
           longitude: liveLoc.longitude,
           accuracy: liveLoc.accuracy,
@@ -416,7 +578,13 @@ router.get('/records', protect, authorize('admin'), async (req, res) => {
           startTimeFormatted: formatTime12h(att.startTime),
           endTimeFormatted: formatTime12h(att.endTime),
           durationSeconds: att.durationSeconds,
-          durationFormatted: att.status === 'ON_DUTY' ? 'Active' : (att.formattedDuration || '—'),
+          durationFormatted: att.formattedDuration || '0m',
+          breakCount: att.breakCount || (att.breaks?.length || 0),
+          totalBreakSeconds: att.totalBreakSeconds || 0,
+          formattedBreakDuration: att.formattedBreakDuration || '0m',
+          actualWorkSeconds: att.actualWorkSeconds || 0,
+          formattedActualWork: att.formattedActualWork || '0m',
+          breaks: att.breaks || [],
           startLocation: att.startLocation,
           latestLocation,
           endLocation: att.endLocation,
@@ -426,7 +594,7 @@ router.get('/records', protect, authorize('admin'), async (req, res) => {
         });
       });
 
-      // Add employees who haven't started if status allows it
+      // Add employees who haven't started if filter allows
       if (!status || status === 'ALL' || status === 'NOT_STARTED') {
         allUsers.forEach((user, idx) => {
           if (!attendedUserIds.has(user._id.toString())) {
@@ -448,6 +616,12 @@ router.get('/records', protect, authorize('admin'), async (req, res) => {
               endTimeFormatted: '—',
               durationSeconds: 0,
               durationFormatted: '—',
+              breakCount: 0,
+              totalBreakSeconds: 0,
+              formattedBreakDuration: '—',
+              actualWorkSeconds: 0,
+              formattedActualWork: '—',
+              breaks: [],
               startLocation: null,
               latestLocation: null,
               endLocation: null,
@@ -461,6 +635,7 @@ router.get('/records', protect, authorize('admin'), async (req, res) => {
     } else {
       // Date Range View
       tableRows = attendanceList.map((att) => {
+        att.calculateAttendanceDurations(now);
         const userObj = allUsers.find((u) => u._id.toString() === att.employeeId.toString());
         return {
           _id: att._id.toString(),
@@ -479,7 +654,13 @@ router.get('/records', protect, authorize('admin'), async (req, res) => {
           startTimeFormatted: formatTime12h(att.startTime),
           endTimeFormatted: formatTime12h(att.endTime),
           durationSeconds: att.durationSeconds,
-          durationFormatted: att.status === 'ON_DUTY' ? 'Active' : (att.formattedDuration || '—'),
+          durationFormatted: att.formattedDuration || '0m',
+          breakCount: att.breakCount || (att.breaks?.length || 0),
+          totalBreakSeconds: att.totalBreakSeconds || 0,
+          formattedBreakDuration: att.formattedBreakDuration || '0m',
+          actualWorkSeconds: att.actualWorkSeconds || 0,
+          formattedActualWork: att.formattedActualWork || '0m',
+          breaks: att.breaks || [],
           startLocation: att.startLocation,
           latestLocation: att.latestLocation,
           endLocation: att.endLocation,
@@ -490,14 +671,14 @@ router.get('/records', protect, authorize('admin'), async (req, res) => {
       });
     }
 
-    // Apply Filter by status if NOT_STARTED was specifically selected
+    // Apply Filter by status
     if (status === 'NOT_STARTED') {
       tableRows = tableRows.filter((r) => r.status === 'NOT_STARTED');
     } else if (status && status !== 'ALL') {
       tableRows = tableRows.filter((r) => r.status === status);
     }
 
-    // Apply Search Filter (by Name, Employee ID/Code, Road, or City)
+    // Apply Search Filter
     if (search && search.trim()) {
       const q = search.toLowerCase().trim();
       tableRows = tableRows.filter((r) => {
@@ -524,12 +705,13 @@ router.get('/records', protect, authorize('admin'), async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 6. GET /api/attendance/employee/:employeeId/history — Full Employee History
+// 8. GET /api/attendance/employee/:employeeId/history — Full Employee History
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/employee/:employeeId/history', protect, authorize('admin'), async (req, res) => {
   try {
     const { employeeId } = req.params;
     const { limit = 100 } = req.query;
+    const now = new Date();
 
     const user = await User.findById(employeeId).select('name email role avatar phone employeeId');
     if (!user) {
@@ -538,20 +720,24 @@ router.get('/employee/:employeeId/history', protect, authorize('admin'), async (
 
     const records = await Attendance.find({ employeeId })
       .sort({ date: -1, startTime: -1 })
-      .limit(Number(limit))
-      .lean();
+      .limit(Number(limit));
 
-    const formattedRecords = records.map((r) => ({
-      ...r,
-      startTimeFormatted: formatTime12h(r.startTime),
-      endTimeFormatted: formatTime12h(r.endTime),
-    }));
+    const formattedRecords = records.map((r) => {
+      r.calculateAttendanceDurations(now);
+      return {
+        ...r.toObject(),
+        startTimeFormatted: formatTime12h(r.startTime),
+        endTimeFormatted: formatTime12h(r.endTime),
+      };
+    });
 
     // Calculate total stats for this employee
     const totalDays = formattedRecords.length;
     const completedDays = formattedRecords.filter((r) => r.status === 'COMPLETED').length;
-    const totalSeconds = formattedRecords.reduce((sum, r) => sum + (r.durationSeconds || 0), 0);
-    const totalHours = (totalSeconds / 3600).toFixed(1);
+    const totalWorkSeconds = formattedRecords.reduce((sum, r) => sum + (r.actualWorkSeconds || 0), 0);
+    const totalBreakSeconds = formattedRecords.reduce((sum, r) => sum + (r.totalBreakSeconds || 0), 0);
+    const totalHours = (totalWorkSeconds / 3600).toFixed(1);
+    const totalBreakHours = (totalBreakSeconds / 3600).toFixed(1);
 
     res.json({
       ok: true,
@@ -567,6 +753,7 @@ router.get('/employee/:employeeId/history', protect, authorize('admin'), async (
         totalDays,
         completedDays,
         totalHours: `${totalHours} hrs`,
+        totalBreakHours: `${totalBreakHours} hrs`,
       },
       records: formattedRecords,
     });
@@ -576,13 +763,14 @@ router.get('/employee/:employeeId/history', protect, authorize('admin'), async (
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 7. GET /api/attendance/export — Export Attendance Records to CSV
+// 9. GET /api/attendance/export — Export Attendance & Breaks to CSV
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/export', protect, authorize('admin'), async (req, res) => {
   try {
     const { date, fromDate, toDate, status, search } = req.query;
     const { dateStr: todayStr } = getLocalDateAndDay();
     const queryDate = date || todayStr;
+    const now = new Date();
 
     let query = {};
     if (fromDate && toDate) {
@@ -598,13 +786,14 @@ router.get('/export', protect, authorize('admin'), async (req, res) => {
     }
 
     const allUsers = await User.find({ isActive: true }).lean();
-    const attendanceList = await Attendance.find(query).sort({ date: -1, startTime: -1 }).lean();
+    const attendanceList = await Attendance.find(query).sort({ date: -1, startTime: -1 });
 
     let rows = [];
     const attendedIds = new Set();
 
     attendanceList.forEach((att) => {
       attendedIds.add(att.employeeId.toString());
+      att.calculateAttendanceDurations(now);
       const u = allUsers.find((x) => x._id.toString() === att.employeeId.toString());
       rows.push({
         name: att.employeeName || u?.name || 'Employee',
@@ -613,7 +802,10 @@ router.get('/export', protect, authorize('admin'), async (req, res) => {
         day: att.day,
         startTime: formatTime12h(att.startTime),
         endTime: formatTime12h(att.endTime),
-        duration: att.status === 'ON_DUTY' ? 'Active' : (att.formattedDuration || '—'),
+        totalAttendance: att.formattedDuration || '—',
+        breakCount: att.breakCount || 0,
+        totalBreakTime: att.formattedBreakDuration || '0m',
+        actualWork: att.formattedActualWork || '0m',
         startLocation: att.startLocation?.road ? `${att.startLocation.road}, ${att.startLocation.city}` : (att.startLocation?.latitude ? `${att.startLocation.latitude.toFixed(4)}, ${att.startLocation.longitude.toFixed(4)}` : '—'),
         latestLocation: att.latestLocation?.road ? `${att.latestLocation.road}, ${att.latestLocation.city}` : (att.latestLocation?.latitude ? `${att.latestLocation.latitude.toFixed(4)}, ${att.latestLocation.longitude.toFixed(4)}` : '—'),
         status: att.status,
@@ -630,7 +822,10 @@ router.get('/export', protect, authorize('admin'), async (req, res) => {
             day: getLocalDateAndDay().dayStr,
             startTime: '—',
             endTime: '—',
-            duration: '—',
+            totalAttendance: '—',
+            breakCount: 0,
+            totalBreakTime: '—',
+            actualWork: '—',
             startLocation: '—',
             latestLocation: '—',
             status: 'NOT_STARTED',
@@ -652,7 +847,10 @@ router.get('/export', protect, authorize('admin'), async (req, res) => {
       'Day',
       'Start Time',
       'End Time',
-      'Working Duration',
+      'Total Attendance',
+      'Break Count',
+      'Total Break Time',
+      'Actual Working Hours',
       'Start Location',
       'Latest / End Location',
       'Attendance Status',
@@ -672,7 +870,10 @@ router.get('/export', protect, authorize('admin'), async (req, res) => {
         escapeCsv(r.day),
         escapeCsv(r.startTime),
         escapeCsv(r.endTime),
-        escapeCsv(r.duration),
+        escapeCsv(r.totalAttendance),
+        escapeCsv(r.breakCount),
+        escapeCsv(r.totalBreakTime),
+        escapeCsv(r.actualWork),
         escapeCsv(r.startLocation),
         escapeCsv(r.latestLocation),
         escapeCsv(r.status),
