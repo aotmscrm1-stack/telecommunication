@@ -1,10 +1,12 @@
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { followupsAPI, notificationsAPI, authAPI } from '../../services/api';
 import logoImg from '../../assets/aotms-global-logo.png';
 import useBreakpoint from '../../hooks/useBreakpoint';
 import { useSidebar } from '../../context/SidebarContext';
+import { Home, Users, CheckSquare, Mail, Megaphone, BarChart3, Bell, Clock, Settings, User, Key, LogOut, Shield, Sliders, Menu, X, ChevronDown, Sparkles } from 'lucide-react';
 
 // Module-level helper — no hoisting issues
 function formatNotifTime(dateStr) {
@@ -396,326 +398,333 @@ export default function Topbar() {
     },
   ];
 
+  const crmNavLinks = [
+    { label: 'Dashboard', path: '/dashboard', icon: Home },
+    { label: 'All Leads', path: '/leads', icon: Users },
+    { label: 'Tasks', path: '/tasks', icon: CheckSquare },
+    { label: 'Email CRM', path: '/email', icon: Mail },
+    { label: 'Campaigns', path: '/campaigns', icon: Megaphone },
+    { label: 'Reports', path: '/reports', icon: BarChart3 },
+  ];
+
   return (
     <>
-      <header style={{
-        position: 'fixed', top: 0, left: 0, right: 0, height: isMobile ? 56 : 64,
-        background: 'linear-gradient(135deg, #1d3557 0%, #457b9d 100%)',
-        borderBottom: '1px solid #a8dadc',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: isMobile ? '0 10px' : '0 16px 0 10px', zIndex: 100
-      }}>
-        {/* Left: hamburger (mobile) + logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 10, minWidth: 0 }}>
-          {isMobile && (
-            <button
-              onClick={toggleMobile}
-              aria-label="Toggle menu"
-              style={{
-                width: 34, height: 34, flexShrink: 0, borderRadius: 8, border: 'none',
-                background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer',
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round">
-                <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
-              </svg>
-            </button>
-          )}
-          <img
-            src={logoImg}
-            alt="AOTMS Global Pvt. Ltd"
-            style={{ height: isMobile ? 34 : 50, objectFit: 'contain', flexShrink: 0 }}
-          />
-
-          {isAdminLike && (
-            <div ref={gearRef} style={{ position: 'relative', marginLeft: 2 }}>
-              <div
-                onClick={() => { setShowWorkspaceSettings(prev => !prev); setShowProfile(false); setShowNotifications(false); }}
-                title="Workspace settings"
-                style={{
-                  width: 28, height: 28, borderRadius: '50%',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', transition: 'all 0.15s',
-                  background: showWorkspaceSettings ? 'rgba(255,255,255,0.25)' : 'transparent'
-                }}
-                onMouseEnter={e => { if (!showWorkspaceSettings) e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; }}
-                onMouseLeave={e => { if (!showWorkspaceSettings) e.currentTarget.style.background = 'transparent'; }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={showWorkspaceSettings ? '#fff' : 'rgba(255,255,255,0.8)'} strokeWidth="2">
-                  <circle cx="12" cy="12" r="3"/>
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                </svg>
-              </div>
-
-              {showWorkspaceSettings && (
-                <div
-                  ref={gearDropRef}
-                  style={{
-                    position: isMobile ? 'fixed' : 'absolute',
-                    top: isMobile ? 60 : 36, left: isMobile ? 8 : 0,
-                    width: isMobile ? 'auto' : 220, maxWidth: isMobile ? 'calc(100vw - 16px)' : 220, minWidth: isMobile ? 200 : 'auto',
-                    background: '#fff',
-                    border: '1px solid var(--theme-border-tint)', borderRadius: 12,
-                    boxShadow: '0 8px 32px rgba(var(--theme-primary-rgb),0.14)',
-                    zIndex: 200, overflow: 'hidden',
-                    animation: 'fadeSlideDown 0.15s ease',
-                    padding: '6px 0'
-                  }}
-                >
-                  <style>{`@keyframes fadeSlideDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }`}</style>
-                  {workspaceSettingsGroups.map((group, gi) => (
-                    <div key={group.label} style={{ borderTop: gi > 0 ? '1px solid var(--theme-surface-tint)' : 'none', padding: '6px 0' }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--theme-primary-pale)', letterSpacing: '0.05em', padding: '4px 16px' }}>
-                        {group.label}
-                      </div>
-                      {group.items.map(item => (
-                        <div
-                          key={item.path}
-                          onClick={() => { setShowWorkspaceSettings(false); navigate(item.path); }}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: 10,
-                            padding: '8px 16px', cursor: 'pointer',
-                            color: 'var(--theme-text-strongest)', fontSize: 13, fontWeight: 500,
-                            transition: 'background 0.1s'
-                          }}
-                          onMouseEnter={e => e.currentTarget.style.background = 'var(--theme-surface-tint)'}
-                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                        >
-                          <span style={{ color: '#888', display: 'flex' }}>{item.icon}</span>
-                          {item.label}
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+      <header className="fixed top-0 inset-x-0 z-50 h-16 flex px-0 bg-transparent pointer-events-auto">
+        {/* Left Side Bar Extension - Flexible width */}
+        <div className="flex-1 h-12 bg-gradient-to-r from-[#1d3557] to-[#2c4d75] border-b border-[#a8dadc]/40 relative min-w-0">
+          <svg className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none">
+            <line x1="0" y1="47.5" x2="100%" y2="47.5" stroke="#a8dadc" strokeOpacity={0.2} strokeWidth={0.5} />
+          </svg>
         </div>
 
-        {/* Right: time + clock + bell + avatar */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 8, flexShrink: 0 }}>
-          {!isMobile && (
-            <div style={{ textAlign: 'right', marginRight: 4 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#ffffff' }}>{timeStr}</div>
-              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.75)' }}>{dateStr}</div>
-            </div>
-          )}
-
-          {/* Clock icon — navigates to Follow-up Calls */}
-          <div
-            onClick={() => navigate('/tasks?tab=Call+Followups')}
-            title="View Follow-up Calls"
-            style={{
-              width: 30, height: 30, border: '1px solid rgba(255,255,255,0.35)', borderRadius: '50%',
-              display: isMobile ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', transition: 'all 0.15s',
-              background: 'transparent'
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.2)'; e.currentTarget.style.borderColor = '#fff'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.35)'; }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" strokeWidth="2">
-              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        {/* Responsive Notch Container */}
+        <div className="flex h-16 relative z-10 shrink-0 -ml-px">
+          {/* Left Corner Notch Slice */}
+          <div className="w-[45px] h-full relative shrink-0">
+            <div
+              className="absolute inset-0 bg-[#2c4d75]"
+              style={{ clipPath: "path('M0 0 H45 V64 C22.5 64 22.5 48 0 48 Z')" }}
+            />
+            <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 45 64">
+              <path d="M0 47.5 C22.5 47.5 22.5 63.5 45 63.5" fill="none" stroke="#a8dadc" strokeOpacity={0.3} strokeWidth={0.8} />
             </svg>
           </div>
 
-          {/* Bell */}
-          <div ref={bellRef} style={{ position: 'relative' }}>
-            <div
-              onClick={() => { setShowNotifications(prev => !prev); setShowProfile(false); }}
-              style={{
-                width: 30, height: 30, border: `1px solid ${showNotifications ? '#fff' : 'rgba(255,255,255,0.55)'}`,
-                borderRadius: '50%',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', position: 'relative',
-                background: showNotifications ? 'rgba(255,255,255,0.25)' : 'transparent',
-                transition: 'all 0.15s'
-              }}
-              onMouseEnter={e => { if (!showNotifications) { e.currentTarget.style.background = 'rgba(255,255,255,0.2)'; e.currentTarget.style.borderColor = '#fff'; } }}
-              onMouseLeave={e => { if (!showNotifications) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.55)'; } }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={showNotifications ? '#fff' : 'rgba(255,255,255,0.9)'} strokeWidth="2">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-              </svg>
-              {unreadCount > 0 && (
-                <div style={{
-                  width: 8,
-                  height: 8,
-                  background: '#e53e3e',
-                  borderRadius: '50%',
-                  position: 'absolute', top: 3, right: 3,
-                  border: '2px solid #fff',
-                }} />
+          {/* Center Slice (Main Content Area) */}
+          <div className="flex-1 h-full relative min-w-0 -ml-px bg-gradient-to-r from-[#2c4d75] via-[#37627d] to-[#457b9d] shadow-lg rounded-b-2xl border-b border-x border-[#a8dadc]/40 px-3 sm:px-6 flex items-center justify-between gap-3">
+            
+            {/* Left: Mobile Hamburger + Logo + Workspace Gear */}
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+              {isMobile && (
+                <button
+                  onClick={toggleMobile}
+                  className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all"
+                  aria-label="Toggle menu"
+                >
+                  <Menu className="w-4 h-4" />
+                </button>
+              )}
+
+              <Link to="/dashboard" className="flex items-center gap-2 group">
+                <img
+                  src={logoImg}
+                  alt="AOTMS Global"
+                  className="h-8 sm:h-9 object-contain group-hover:scale-105 transition-transform"
+                />
+              </Link>
+
+              {isAdminLike && (
+                <div ref={gearRef} className="relative">
+                  <motion.button
+                    whileHover={{ rotate: 45 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => { setShowWorkspaceSettings(prev => !prev); setShowProfile(false); setShowNotifications(false); }}
+                    className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
+                      showWorkspaceSettings ? 'bg-white/30 text-white' : 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white'
+                    }`}
+                    title="Workspace Settings"
+                  >
+                    <Settings className="w-4 h-4" />
+                  </motion.button>
+
+                  <AnimatePresence>
+                    {showWorkspaceSettings && (
+                      <motion.div
+                        ref={gearDropRef}
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute left-0 top-10 w-56 bg-white rounded-2xl shadow-2xl border border-[#a8dadc] z-50 overflow-hidden py-2"
+                      >
+                        {workspaceSettingsGroups.map((group, gi) => (
+                          <div key={group.label} className={gi > 0 ? 'border-t border-gray-100 pt-1 mt-1' : ''}>
+                            <div className="px-4 py-1 text-[10px] font-extrabold text-[#457b9d] uppercase tracking-wider">
+                              {group.label}
+                            </div>
+                            {group.items.map(item => (
+                              <div
+                                key={item.path}
+                                onClick={() => { setShowWorkspaceSettings(false); navigate(item.path); }}
+                                className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-[#1d3557] hover:bg-[#f1faee] cursor-pointer transition-colors"
+                              >
+                                <span className="text-[#457b9d]">{item.icon}</span>
+                                {item.label}
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               )}
             </div>
 
-            {/* Notifications Dropdown */}
-            {showNotifications && (
-              <div
-                ref={dropRef}
-                style={{
-                  position: isMobile ? 'fixed' : 'absolute',
-                  top: isMobile ? 60 : 36, right: isMobile ? 8 : -8,
-                  left: isMobile ? 8 : 'auto',
-                  width: isMobile ? 'auto' : 320, maxWidth: isMobile ? 'calc(100vw - 16px)' : 320,
-                  background: '#fff',
-                  border: '1px solid var(--theme-border-tint)', borderRadius: 12,
-                  boxShadow: '0 8px 32px rgba(var(--theme-primary-rgb),0.12)',
-                  zIndex: 200, overflow: 'hidden',
-                  animation: 'fadeSlideDown 0.15s ease'
-                }}
-              >
-                <style>{`@keyframes fadeSlideDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }`}</style>
-                <div style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '12px 16px', borderBottom: '1px solid var(--theme-surface-tint)'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--theme-text-strongest)' }}>Notifications</span>
-                    {unreadCount > 0 && (
-                      <span style={{ fontSize: 10, fontWeight: 700, color: '#fff', background: 'var(--theme-primary)', borderRadius: 10, padding: '1px 6px' }}>{unreadCount}</span>
-                    )}
-                  </div>
-                  {unreadCount > 0 && (
-                    <button onClick={markAllRead} style={{ fontSize: 11, color: 'var(--theme-primary)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
-                      Mark all read
-                    </button>
-                  )}
-                </div>
+            {/* Desktop Center Nav Links */}
+            <nav className="hidden lg:flex items-center gap-1 xl:gap-2">
+              {crmNavLinks.map(link => {
+                const active = location.pathname.startsWith(link.path);
+                const Icon = link.icon;
+                return (
+                  <motion.button
+                    key={link.label}
+                    whileHover={{ scale: 1.04 }}
+                    whileTap={{ scale: 0.96 }}
+                    onClick={() => navigate(link.path)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                      active
+                        ? 'bg-white text-[#1d3557] shadow-xs'
+                        : 'text-white/80 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    <span>{link.label}</span>
+                  </motion.button>
+                );
+              })}
+            </nav>
 
-                <div style={{ maxHeight: 300, overflowY: 'auto' }}>
-                  {notifications.length === 0 ? (
-                    <div style={{ padding: '32px 16px', textAlign: 'center', color: '#888', fontSize: 13 }}>
-                      <div style={{ fontSize: 28, marginBottom: 8 }}>🔔</div>
-                      No notifications
-                    </div>
-                  ) : (
-                    notifications.map(n => (
-                      <div
-                        key={n.id}
-                        onClick={() => {
-                          markRead(n.id);
-                          const target = notifTarget(n);
-                          if (target) navigate(target);
-                          setShowNotifications(false);
-                        }}
-                        style={{
-                          display: 'flex', gap: 12, padding: '12px 16px',
-                          borderBottom: '1px solid var(--theme-surface-faint)',
-                          background: n.read ? '#fff' : (n.type === 'callback_due' ? '#fff5f5' : 'var(--theme-surface-faint)'),
-                          cursor: 'pointer', transition: 'background 0.1s'
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'var(--theme-surface-tint)'}
-                        onMouseLeave={e => e.currentTarget.style.background = n.read ? '#fff' : (n.type === 'callback_due' ? '#fff5f5' : 'var(--theme-surface-faint)')}
-                      >
-                        <div style={{
-                          width: 32, height: 32, borderRadius: 8,
-                          background: notifBg(n.type),
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          flexShrink: 0
-                        }}>
-                          {notifIcon(n.type)}
+            {/* Right: Clock + Notifications + Account Details Tile */}
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+              {!isMobile && (
+                <div className="text-right hidden sm:block">
+                  <div className="text-xs font-extrabold text-white leading-tight">{timeStr}</div>
+                  <div className="text-[10px] font-semibold text-white/70">{dateStr}</div>
+                </div>
+              )}
+
+              {/* Follow-up Calls Shortcut */}
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => navigate('/tasks?tab=Call+Followups')}
+                title="View Follow-up Calls"
+                className="w-8 h-8 rounded-full border border-white/30 hover:border-white text-white/90 hover:text-white bg-white/5 hover:bg-white/15 flex items-center justify-center transition-all hidden sm:flex"
+              >
+                <Clock className="w-4 h-4" />
+              </motion.button>
+
+              {/* Bell Notifications */}
+              <div ref={bellRef} className="relative">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => { setShowNotifications(prev => !prev); setShowProfile(false); }}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all relative ${
+                    showNotifications ? 'bg-white text-[#1d3557]' : 'border border-white/30 text-white hover:bg-white/15'
+                  }`}
+                >
+                  <Bell className="w-4 h-4" />
+                  {unreadCount > 0 && (
+                    <span className="w-2.5 h-2.5 bg-[#e63946] rounded-full absolute top-0.5 right-0.5 border-2 border-[#457b9d]" />
+                  )}
+                </motion.button>
+
+                <AnimatePresence>
+                  {showNotifications && (
+                    <motion.div
+                      ref={dropRef}
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 top-10 w-80 bg-white rounded-2xl shadow-2xl border border-[#a8dadc] z-50 overflow-hidden"
+                    >
+                      <div className="p-3 border-b border-gray-100 flex items-center justify-between bg-[#f1faee]/60">
+                        <div className="flex items-center gap-2">
+                          <span className="font-extrabold text-xs text-[#1d3557]">Notifications</span>
+                          {unreadCount > 0 && (
+                            <span className="bg-[#457b9d] text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full">
+                              {unreadCount}
+                            </span>
+                          )}
                         </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-                            <span style={{ fontSize: 12, fontWeight: n.read ? 500 : 700, color: notifTitleColor(n.type) }}>{n.title}</span>
-                            <span style={{ fontSize: 10, color: '#aaa', flexShrink: 0, marginLeft: 8 }}>{n.time}</span>
-                          </div>
-                          <div style={{ fontSize: 11, color: '#666', lineHeight: 1.4 }}>{n.message}</div>
-                        </div>
-                        {!n.read && (
-                          <div style={{ width: 7, height: 7, background: n.type === 'callback_due' ? '#e53e3e' : (n.type === 'call_initiated' ? '#0891b2' : 'var(--theme-primary)'), borderRadius: '50%', flexShrink: 0, marginTop: 4 }} />
+                        {unreadCount > 0 && (
+                          <button onClick={markAllRead} className="text-[11px] font-bold text-[#457b9d] hover:underline">
+                            Mark all read
+                          </button>
                         )}
                       </div>
-                    ))
+
+                      <div className="max-h-72 overflow-y-auto divide-y divide-gray-50">
+                        {notifications.length === 0 ? (
+                          <div className="p-6 text-center text-xs text-gray-400">
+                            <Bell className="w-6 h-6 text-gray-300 mx-auto mb-1.5" />
+                            No notifications yet
+                          </div>
+                        ) : (
+                          notifications.map(n => (
+                            <div
+                              key={n.id}
+                              onClick={() => {
+                                markRead(n.id);
+                                const target = notifTarget(n);
+                                if (target) navigate(target);
+                                setShowNotifications(false);
+                              }}
+                              className={`p-3 flex gap-2.5 cursor-pointer transition-colors ${
+                                n.read ? 'bg-white hover:bg-gray-50' : 'bg-[#f1faee]/70 hover:bg-[#f1faee]'
+                              }`}
+                            >
+                              <div className="w-7 h-7 rounded-xl bg-[#f1faee] border border-[#a8dadc]/50 flex items-center justify-center shrink-0 text-[#457b9d] mt-0.5">
+                                {notifIcon(n.type)}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-1 mb-0.5">
+                                  <span className="text-xs font-bold text-[#1d3557] truncate">{n.title}</span>
+                                  <span className="text-[10px] text-gray-400 shrink-0">{n.time}</span>
+                                </div>
+                                <p className="text-[11px] text-gray-600 line-clamp-2 leading-snug">{n.message}</p>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+
+                      <div className="p-2.5 border-t border-gray-100 bg-[#f1faee]/30 text-center">
+                        <button
+                          onClick={() => { navigate('/tasks?tab=Call+Followups'); setShowNotifications(false); }}
+                          className="text-xs font-bold text-[#457b9d] hover:text-[#1d3557] hover:underline"
+                        >
+                          View all follow-up calls
+                        </button>
+                      </div>
+                    </motion.div>
                   )}
-                </div>
-
-                <div style={{ padding: '10px 16px', borderTop: '1px solid var(--theme-surface-tint)', textAlign: 'center' }}>
-                  <button
-                    onClick={() => { navigate('/tasks?tab=Call+Followups'); setShowNotifications(false); }}
-                    style={{ fontSize: 12, color: 'var(--theme-primary)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
-                  >
-                    View all follow-up calls
-                  </button>
-                </div>
+                </AnimatePresence>
               </div>
-            )}
-          </div>
 
-          {/* Profile Avatar */}
-          <div ref={profileRef} style={{ position: 'relative' }}>
-            <div
-              onClick={() => { setShowProfile(prev => !prev); setShowNotifications(false); }}
-              style={{
-                width: 30, height: 30, borderRadius: '50%',
-                background: showProfile ? '#1d3557' : '#457b9d',
-                color: '#fff', fontSize: 11, fontWeight: 700,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer',
-                boxShadow: showProfile ? '0 0 0 3px rgba(168,218,220,0.4)' : 'none',
-                transition: 'all 0.15s'
-              }}
-            >
-              {initials}
+              {/* Account Details Tile & Dropdown */}
+              <div ref={profileRef} className="relative">
+                <motion.button
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => { setShowProfile(prev => !prev); setShowNotifications(false); }}
+                  className="flex items-center gap-2 p-1 pr-2 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 transition-all text-white"
+                >
+                  <div className="w-7 h-7 rounded-xl bg-white text-[#1d3557] font-extrabold text-xs flex items-center justify-center shadow-xs">
+                    {initials}
+                  </div>
+                  {!isMobile && (
+                    <div className="text-left leading-tight hidden xl:block">
+                      <div className="text-xs font-extrabold truncate max-w-[100px]">{user?.name || 'User'}</div>
+                      <div className="text-[9px] font-bold uppercase text-white/70 tracking-wider">{roleLabel}</div>
+                    </div>
+                  )}
+                  <ChevronDown className="w-3.5 h-3.5 text-white/80" />
+                </motion.button>
+
+                <AnimatePresence>
+                  {showProfile && (
+                    <motion.div
+                      ref={profileDropRef}
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 top-11 w-64 bg-white rounded-2xl shadow-2xl border border-[#a8dadc] z-50 overflow-hidden p-3"
+                    >
+                      {/* User Info Header Tile */}
+                      <div className="p-3 bg-[#f1faee] rounded-xl border border-[#a8dadc]/60 mb-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-extrabold text-sm text-[#1d3557] truncate">{user?.name || 'User'}</span>
+                          <span className="text-[10px] font-extrabold bg-[#457b9d] text-white px-2 py-0.5 rounded-full uppercase">
+                            Pro
+                          </span>
+                        </div>
+                        <div className="inline-block text-[10px] font-bold text-[#457b9d] bg-white border border-[#a8dadc]/50 rounded-full px-2 py-0.2 mb-1.5">
+                          {roleLabel}
+                        </div>
+                        <p className="text-[11px] text-gray-500 truncate flex items-center gap-1 font-medium">
+                          <Mail className="w-3 h-3 text-[#457b9d]" />
+                          {user?.email || 'user@example.com'}
+                        </p>
+                      </div>
+
+                      {/* Profile Action Menu Items */}
+                      <div className="space-y-0.5">
+                        {profileMenuItems.map((item, idx) => (
+                          <div
+                            key={idx}
+                            onClick={item.onClick}
+                            className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold cursor-pointer transition-colors ${
+                              item.danger
+                                ? 'text-[#e63946] hover:bg-red-50'
+                                : 'text-[#1d3557] hover:bg-[#f1faee]'
+                            }`}
+                          >
+                            <span className={item.danger ? 'text-[#e63946]' : 'text-[#457b9d]'}>{item.icon}</span>
+                            {item.label}
+                          </div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
             </div>
 
-            {showProfile && (
-              <div
-                ref={profileDropRef}
-                style={{
-                  position: isMobile ? 'fixed' : 'absolute',
-                  top: isMobile ? 60 : 38, right: isMobile ? 8 : 0,
-                  width: isMobile ? 'auto' : 240, maxWidth: isMobile ? 'calc(100vw - 16px)' : 240, minWidth: isMobile ? 220 : 'auto',
-                  background: '#fff',
-                  border: '1px solid var(--theme-border-tint)', borderRadius: 14,
-                  boxShadow: '0 8px 32px rgba(var(--theme-primary-rgb),0.14)',
-                  zIndex: 200, overflow: 'hidden',
-                  animation: 'fadeSlideDown 0.15s ease'
-                }}
-              >
-                <div style={{ padding: '14px 16px 12px', borderBottom: '1px solid var(--theme-surface-tint)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--theme-text-strongest)' }}>{user?.name || 'User'}</span>
-                    <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--theme-primary)', background: 'var(--theme-surface-tint)', borderRadius: 20, padding: '2px 8px' }}>Pro</span>
-                  </div>
-                  <div style={{ display: 'inline-block', fontSize: 11, fontWeight: 500, color: '#666', background: '#f3f4f6', borderRadius: 20, padding: '2px 10px', marginBottom: 6 }}>
-                    {roleLabel}
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--theme-primary)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--theme-primary)" strokeWidth="2">
-                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                      <polyline points="22,6 12,13 2,6"/>
-                    </svg>
-                    {user?.email || 'user@example.com'}
-                  </div>
-                </div>
-                <div style={{ padding: '6px 0' }}>
-                  {profileMenuItems.map((item, idx) => (
-                    <div
-                      key={idx}
-                      onClick={item.onClick}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 10,
-                        padding: '9px 16px', cursor: 'pointer',
-                        color: item.danger ? '#e53e3e' : 'var(--theme-text-strongest)',
-                        fontSize: 13, fontWeight: 500,
-                        transition: 'background 0.1s'
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.background = item.danger ? '#fff5f5' : 'var(--theme-surface-tint)'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                    >
-                      <span style={{ color: item.danger ? '#e53e3e' : '#888', display: 'flex' }}>{item.icon}</span>
-                      {item.label}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
+
+          {/* Right Corner Notch Slice */}
+          <div className="w-[45px] h-full relative shrink-0">
+            <div
+              className="absolute inset-0 bg-[#457b9d]"
+              style={{ clipPath: "path('M0 0 H45 V48 C22.5 48 22.5 64 0 64 Z')" }}
+            />
+            <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 45 64">
+              <path d="M0 63.5 C22.5 63.5 22.5 47.5 45 47.5" fill="none" stroke="#a8dadc" strokeOpacity={0.3} strokeWidth={0.8} />
+            </svg>
+          </div>
+        </div>
+
+        {/* Right Side Bar Extension - Flexible width */}
+        <div className="flex-1 h-12 bg-gradient-to-r from-[#457b9d] to-[#1d3557] border-b border-[#a8dadc]/40 relative min-w-0 -ml-px">
+          <svg className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none">
+            <line x1="0" y1="47.5" x2="100%" y2="47.5" stroke="#a8dadc" strokeOpacity={0.2} strokeWidth={0.5} />
+          </svg>
         </div>
       </header>
 
