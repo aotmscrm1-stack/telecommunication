@@ -264,48 +264,40 @@ export default function EmployeeTrackingCard({ compact = false }) {
   return (
     <div
       style={{
-        background: '#ffffff',
-        border: '1px solid #e2e8f0',
-        borderRadius: 12,
-        padding: compact ? '14px 16px' : '20px 22px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+        background: 'linear-gradient(145deg, #ffffff 0%, #f1faee 100%)',
+        border: '1.5px solid #a8dadc',
+        borderRadius: 16,
+        padding: compact ? '16px 18px' : '22px 26px',
+        boxShadow: '0 4px 20px rgba(29, 53, 87, 0.07)',
         position: 'relative',
         overflow: 'hidden',
       }}
     >
       {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: 14,
-          flexWrap: 'wrap',
-          gap: 12,
-        }}
-      >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div
             style={{
-              width: 42,
-              height: 42,
-              borderRadius: 10,
-              background: isTracking ? '#ecfdf5' : isCompletedToday ? '#eff6ff' : '#fff1f2',
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              background: isTracking ? '#edf8f8' : isCompletedToday ? '#eff6ff' : '#fad7da',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: isTracking ? '#10b981' : isCompletedToday ? '#3b82f6' : '#f43f5e',
-              border: `1px solid ${isTracking ? '#a7f3d0' : isCompletedToday ? '#bfdbfe' : '#fecdd3'}`,
+              color: isTracking ? '#1d3557' : isCompletedToday ? '#2563eb' : '#e63946',
+              border: `1.5px solid ${isTracking ? '#a8dadc' : isCompletedToday ? '#bfdbfe' : '#f08790'}`,
               fontSize: 22,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
             }}
           >
             {isTracking ? '📅' : isCompletedToday ? '✅' : '🌴'}
           </div>
           <div>
-            <h4 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#0f172a' }}>
+            <h4 style={{ margin: 0, fontSize: 16.5, fontWeight: 700, color: '#1d3557', letterSpacing: '-0.2px' }}>
               Attendance & Live Location Status
             </h4>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 3 }}>
               <span
                 style={{
                   display: 'inline-block',
@@ -313,13 +305,14 @@ export default function EmployeeTrackingCard({ compact = false }) {
                   height: 8,
                   borderRadius: '50%',
                   background: isTracking ? '#10b981' : isCompletedToday ? '#3b82f6' : '#ef4444',
+                  boxShadow: isTracking ? '0 0 6px #10b981' : isCompletedToday ? '0 0 6px #3b82f6' : '0 0 6px #ef4444',
                 }}
               />
               <span
                 style={{
-                  fontSize: 12.5,
+                  fontSize: 13,
                   fontWeight: 600,
-                  color: isTracking ? '#059669' : isCompletedToday ? '#2563eb' : '#e11d48',
+                  color: isTracking ? '#059669' : isCompletedToday ? '#2563eb' : '#cb1928',
                 }}
               >
                 {isTracking
@@ -332,7 +325,7 @@ export default function EmployeeTrackingCard({ compact = false }) {
           </div>
         </div>
 
-        {/* Action Buttons: Start Attendance & Stop / Leave */}
+        {/* Attendance and Leave Action Buttons */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {/* Start Attendance Button */}
           <button
@@ -341,18 +334,18 @@ export default function EmployeeTrackingCard({ compact = false }) {
             disabled={loading || initialLoading || simulating || isTracking}
             title={isTracking ? 'Attendance is currently active' : 'Click to start attendance and enable live GPS location'}
             style={{
-              background: isTracking ? '#e2e8f0' : GRADIENT,
-              color: isTracking ? '#94a3b8' : '#ffffff',
+              background: isTracking ? '#dcf0f1' : 'linear-gradient(135deg, #1d3557 0%, #457b9d 100%)',
+              color: isTracking ? '#88b1cb' : '#ffffff',
               border: 'none',
-              borderRadius: 8,
+              borderRadius: 10,
               padding: '9px 18px',
               fontSize: 13,
               fontWeight: 700,
               cursor: isTracking || loading || initialLoading ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: 6,
-              boxShadow: isTracking ? 'none' : '0 2px 6px rgba(2, 132, 199, 0.25)',
+              gap: 8,
+              boxShadow: isTracking ? 'none' : '0 3px 12px rgba(29, 53, 87, 0.2)',
               transition: 'all 0.15s',
               opacity: loading && !isTracking ? 0.8 : 1,
             }}
@@ -360,7 +353,7 @@ export default function EmployeeTrackingCard({ compact = false }) {
             {loading && !isTracking ? (
               <>
                 <svg
-                  style={{ animation: 'spin 1s linear infinite', width: 14, height: 14 }}
+                  style={{ animation: 'spin 1s linear infinite', width: 16, height: 16 }}
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -384,17 +377,17 @@ export default function EmployeeTrackingCard({ compact = false }) {
             disabled={loading || initialLoading || simulating || !isTracking}
             title={!isTracking ? 'Attendance is not active' : 'Click to stop attendance and disable live location sharing'}
             style={{
-              background: !isTracking ? '#f1f5f9' : '#fee2e2',
-              color: !isTracking ? '#94a3b8' : '#dc2626',
-              border: `1px solid ${!isTracking ? '#e2e8f0' : '#fca5a5'}`,
-              borderRadius: 8,
+              background: !isTracking ? '#f1faee' : '#fad7da',
+              color: !isTracking ? '#88b1cb' : '#e63946',
+              border: `1px solid ${!isTracking ? '#cae9ea' : '#f08790'}`,
+              borderRadius: 10,
               padding: '9px 18px',
               fontSize: 13,
               fontWeight: 700,
               cursor: !isTracking || loading || initialLoading ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: 6,
+              gap: 8,
               transition: 'all 0.15s',
               opacity: loading && isTracking ? 0.8 : 1,
             }}
@@ -414,25 +407,26 @@ export default function EmployeeTrackingCard({ compact = false }) {
       {(isTracking || (position && position.latitude)) && (
         <div
           style={{
-            background: '#f8fafc',
-            borderRadius: 8,
+            background: '#ffffff',
+            borderRadius: 12,
             padding: '12px 16px',
             marginBottom: 12,
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
             gap: 12,
-            border: '1px solid #edf2f7',
+            border: '1px solid #a8dadc',
+            boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.02)',
           }}
         >
           <div>
-            <div style={{ fontSize: 10.5, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#457b9d', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
               Current Location
             </div>
             <div
               style={{
-                fontSize: 12.5,
+                fontSize: 13,
                 fontWeight: 700,
-                color: '#0369a1',
+                color: '#1d3557',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
@@ -449,24 +443,20 @@ export default function EmployeeTrackingCard({ compact = false }) {
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 10.5, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Speed</div>
-            <div style={{ fontSize: 12.5, fontWeight: 700, color: '#059669', marginTop: 2 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#457b9d', textTransform: 'uppercase', letterSpacing: '0.3px' }}>Speed</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#059669', marginTop: 2 }}>
               {position?.speed != null && position.speed > 0 ? `${position.speed} km/h` : '0 km/h'}
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 10.5, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
-              GPS Accuracy
-            </div>
-            <div style={{ fontSize: 12.5, fontWeight: 600, color: '#475569', marginTop: 2 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#457b9d', textTransform: 'uppercase', letterSpacing: '0.3px' }}>GPS Accuracy</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#1d3557', marginTop: 2 }}>
               ±{Math.round(position?.accuracy || 5)}m
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 10.5, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
-              Last Sync
-            </div>
-            <div style={{ fontSize: 12.5, fontWeight: 600, color: '#475569', marginTop: 2 }}>{lastSyncText}</div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#457b9d', textTransform: 'uppercase', letterSpacing: '0.3px' }}>Last Sync</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#1d3557', marginTop: 2 }}>{lastSyncText}</div>
           </div>
         </div>
       )}
@@ -475,12 +465,12 @@ export default function EmployeeTrackingCard({ compact = false }) {
       {error && (
         <div
           style={{
-            background: '#fef2f2',
-            color: '#b91c1c',
-            border: '1px solid #fecaca',
-            borderRadius: 8,
-            padding: '10px 14px',
-            fontSize: 12,
+            background: '#fad7da',
+            color: '#cb1928',
+            border: '1.5px solid #f08790',
+            borderRadius: 10,
+            padding: '12px 16px',
+            fontSize: 13,
             marginBottom: 12,
             display: 'flex',
             justifyContent: 'space-between',
@@ -493,13 +483,13 @@ export default function EmployeeTrackingCard({ compact = false }) {
           <button
             onClick={handleStartAttendance}
             style={{
-              background: '#fee2e2',
-              color: '#dc2626',
-              border: '1px solid #fca5a5',
-              borderRadius: 6,
-              padding: '3px 8px',
-              fontSize: 11,
-              fontWeight: 700,
+              background: '#f5afb5',
+              color: '#99131e',
+              border: '1px solid #f08790',
+              borderRadius: 8,
+              padding: '4px 10px',
+              fontSize: 12,
+              fontWeight: 800,
               cursor: 'pointer',
               marginLeft: 8,
               whiteSpace: 'nowrap',
@@ -517,8 +507,8 @@ export default function EmployeeTrackingCard({ compact = false }) {
       `}</style>
 
       {/* Transparency & Consent Notice */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
-        <p style={{ margin: 0, fontSize: 11.5, color: '#64748b', lineHeight: 1.4 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
+        <p style={{ margin: 0, fontSize: 12, color: '#457b9d', fontWeight: 600, lineHeight: 1.4 }}>
           🔒 Your location is shared securely in real-time only with authorized team managers while sharing is turned ON.
         </p>
 

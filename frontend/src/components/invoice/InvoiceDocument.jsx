@@ -78,25 +78,17 @@ export const InvoiceDocument = forwardRef(({ invoiceData, documentType = 'invoic
           }}
         >
           {/* Top Branding Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', position: 'relative' }}>
+            <div style={{ width: '130px' }} />
+            <div style={{ display: 'flex', justifyContent: 'center', flex: 1 }}>
               <img
                 src={logoImg}
-                alt="Academy Of Tech Masters Logo"
-                style={{ height: '56px', objectFit: 'contain' }}
+                alt="AOTMS Global Logo"
+                style={{ height: '62px', objectFit: 'contain' }}
                 onError={(e) => { e.target.src = atmLogoImg; }}
               />
-              <div>
-                <div style={{ fontSize: '18px', fontWeight: '800', color: '#1e3a8a', letterSpacing: '0.3px' }}>
-                  ACADEMY OF TECH MASTERS
-                </div>
-                <div style={{ fontSize: '11px', fontWeight: '800', color: '#dc2626', letterSpacing: '1px' }}>
-                  LEARN TODAY, LEAD TOMORROW
-                </div>
-              </div>
             </div>
-
-            <div style={{ textAlign: 'right', fontSize: '12px', color: '#0284c7', fontWeight: '700' }}>
+            <div style={{ textAlign: 'right', fontSize: '12px', color: '#0284c7', fontWeight: '700', width: '130px' }}>
               <div>📞 +91 80199 42233</div>
               <div>📞 +91 80199 52233</div>
             </div>
@@ -687,7 +679,7 @@ export const InvoiceDocument = forwardRef(({ invoiceData, documentType = 'invoic
                         Ameenuddin Sayyed
                       </div>
                       <div style={{ fontSize: '11.5px', fontWeight: '700', color: '#334155' }}>
-                        Founder & CEO
+                        Managing Director
                       </div>
                       <div style={{ fontSize: '11px', fontWeight: '800', color: '#000000' }}>
                         AOTMS GLOBAL PVT LTD
@@ -798,7 +790,7 @@ export const InvoiceDocument = forwardRef(({ invoiceData, documentType = 'invoic
         <div style={{ position: 'absolute', top: 12, right: 16, fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>Page 1 of 5</div>
         
         <div style={headerStyle}>
-          <img src={atmLogoImg} alt="AOTMS Logo" style={{ height: 48, objectFit: 'contain' }} onError={(e) => { e.target.src = logoImg; }} />
+          <img src={logoImg} alt="AOTMS Global Logo" style={{ height: 50, objectFit: 'contain' }} onError={(e) => { e.target.src = atmLogoImg; }} />
           <div style={{ textAlign: 'right', fontSize: 13, color: '#111827' }}>
             <div><strong>Phone:</strong> +91 80199-42233</div>
             <div><strong>Email:</strong> <a href="mailto:hr@aotms.com" style={{ color: '#2563eb', textDecoration: 'underline' }}>hr@aotms.com</a></div>
@@ -863,7 +855,7 @@ export const InvoiceDocument = forwardRef(({ invoiceData, documentType = 'invoic
         <div style={{ position: 'absolute', top: 12, right: 16, fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>Page 2 of 5</div>
         
         <div style={headerStyle}>
-          <img src={atmLogoImg} alt="AOTMS Logo" style={{ height: 48, objectFit: 'contain' }} onError={(e) => { e.target.src = logoImg; }} />
+          <img src={logoImg} alt="AOTMS Global Logo" style={{ height: 50, objectFit: 'contain' }} onError={(e) => { e.target.src = atmLogoImg; }} />
           <div style={{ textAlign: 'right', fontSize: 13, color: '#111827' }}>
             <div><strong>Phone:</strong> +91 80199-42233</div>
             <div><strong>Email:</strong> <a href="mailto:hr@aotms.com" style={{ color: '#2563eb', textDecoration: 'underline' }}>hr@aotms.com</a></div>
@@ -949,7 +941,7 @@ export const InvoiceDocument = forwardRef(({ invoiceData, documentType = 'invoic
         <div style={{ position: 'absolute', top: 12, right: 16, fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>Page 3 of 5</div>
         
         <div style={headerStyle}>
-          <img src={atmLogoImg} alt="AOTMS Logo" style={{ height: 48, objectFit: 'contain' }} onError={(e) => { e.target.src = logoImg; }} />
+          <img src={logoImg} alt="AOTMS Global Logo" style={{ height: 50, objectFit: 'contain' }} onError={(e) => { e.target.src = atmLogoImg; }} />
           <div style={{ textAlign: 'right', fontSize: 13, color: '#111827' }}>
             <div><strong>Phone:</strong> +91 80199-42233</div>
             <div><strong>Email:</strong> <a href="mailto:hr@aotms.com" style={{ color: '#2563eb', textDecoration: 'underline' }}>hr@aotms.com</a></div>
@@ -996,7 +988,7 @@ export const InvoiceDocument = forwardRef(({ invoiceData, documentType = 'invoic
         <div style={{ position: 'absolute', top: 12, right: 16, fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>Page 4 of 5</div>
         
         <div style={headerStyle}>
-          <img src={atmLogoImg} alt="AOTMS Logo" style={{ height: 48, objectFit: 'contain' }} onError={(e) => { e.target.src = logoImg; }} />
+          <img src={logoImg} alt="AOTMS Global Logo" style={{ height: 50, objectFit: 'contain' }} onError={(e) => { e.target.src = atmLogoImg; }} />
           <div style={{ textAlign: 'right', fontSize: 13, color: '#111827' }}>
             <div><strong>Phone:</strong> +91 80199-42233</div>
             <div><strong>Email:</strong> <a href="mailto:hr@aotms.com" style={{ color: '#2563eb', textDecoration: 'underline' }}>hr@aotms.com</a></div>
@@ -1039,7 +1031,7 @@ export const InvoiceDocument = forwardRef(({ invoiceData, documentType = 'invoic
         <div style={{ position: 'absolute', top: 12, right: 16, fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>Page 5 of 5</div>
         
         <div style={headerStyle}>
-          <img src={atmLogoImg} alt="AOTMS Logo" style={{ height: 48, objectFit: 'contain' }} onError={(e) => { e.target.src = logoImg; }} />
+          <img src={logoImg} alt="AOTMS Global Logo" style={{ height: 50, objectFit: 'contain' }} onError={(e) => { e.target.src = atmLogoImg; }} />
           <div style={{ textAlign: 'right', fontSize: 13, color: '#111827' }}>
             <div><strong>Phone:</strong> +91 80199-42233</div>
             <div><strong>Email:</strong> <a href="mailto:hr@aotms.com" style={{ color: '#2563eb', textDecoration: 'underline' }}>hr@aotms.com</a></div>

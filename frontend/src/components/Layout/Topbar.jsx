@@ -400,8 +400,8 @@ export default function Topbar() {
     <>
       <header style={{
         position: 'fixed', top: 0, left: 0, right: 0, height: isMobile ? 56 : 64,
-        background: 'linear-gradient(90deg, #ffb37c 0%, #38bdf8 100%)',
-        borderBottom: '1px solid #38bdf8',
+        background: 'linear-gradient(135deg, #1d3557 0%, #457b9d 100%)',
+        borderBottom: '1px solid #a8dadc',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: isMobile ? '0 10px' : '0 16px 0 10px', zIndex: 100
       }}>
@@ -652,11 +652,11 @@ export default function Topbar() {
               onClick={() => { setShowProfile(prev => !prev); setShowNotifications(false); }}
               style={{
                 width: 30, height: 30, borderRadius: '50%',
-                background: showProfile ? '#e8672a' : '#ff9d5c',
+                background: showProfile ? '#1d3557' : '#457b9d',
                 color: '#fff', fontSize: 11, fontWeight: 700,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 cursor: 'pointer',
-                boxShadow: showProfile ? '0 0 0 3px rgba(255,157,92,0.35)' : 'none',
+                boxShadow: showProfile ? '0 0 0 3px rgba(168,218,220,0.4)' : 'none',
                 transition: 'all 0.15s'
               }}
             >

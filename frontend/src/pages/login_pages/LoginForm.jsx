@@ -10,8 +10,8 @@ export const LoginForm = ({
 }) => {
   const handleAuthSubmit = ({ email, password }) => {
     setForm({ email, password });
-    // Trigger submission
-    onSubmit({ preventDefault: () => {} });
+    // Pass credentials directly so login handler receives current inputs without waiting for async state update
+    onSubmit({ email, password });
   };
 
   return (

@@ -337,7 +337,7 @@ export default function TeamOperations() {
                     </div>
                     <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 4 }}>Assigned: {demo.assignedTo?.name || 'Unassigned'}</div>
                     <div style={{ fontSize: 11.5, color: GREEN, fontWeight: 700, marginTop: 6 }}>
-                      📅 {new Date(demo.demoScheduledDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                       {new Date(demo.demoScheduledDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                     </div>
                   </div>
                 ))}

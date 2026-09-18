@@ -66,7 +66,7 @@ const SAMPLE_AOTMS_QUOTATION = {
   bank_branch: 'Enikepadu, Vijayawada-521108.',
 
   signatory_name: 'Ameenuddin Sayyed',
-  signatory_role: 'Founder & CEO',
+  signatory_role: 'Managing Director',
   signatory_company: 'Academy Of Tech Masters',
 };
 

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { leadFieldsAPI } from '../services/api';
 
 const TYPE_ICON = {
-  text: 'T', number: '#', phone: '📞', email: '✉', date: '📅', money: '₹', dropdown: '▾', checkbox: '☑', textarea: '¶',
+  text: 'T', number: '#', phone: '', email: '✉', date: '', money: '₹', dropdown: '▾', checkbox: '☑', textarea: '¶',
 };
 
 function timeAgo(dateStr) {
