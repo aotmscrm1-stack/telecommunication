@@ -69,13 +69,24 @@ export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
-    e?.preventDefault?.();
+  const handleSubmit = async (credentials) => {
+    if (credentials?.preventDefault) {
+      credentials.preventDefault();
+    }
     setError('');
     setLoading(true);
 
+    const emailToUse = (typeof credentials?.email === 'string' ? credentials.email : form.email)?.trim();
+    const passwordToUse = (typeof credentials?.password === 'string' ? credentials.password : form.password)?.trim();
+
+    if (!emailToUse || !passwordToUse) {
+      setError('Please enter both email and password.');
+      setLoading(false);
+      return;
+    }
+
     try {
-      await login(form.email, form.password);
+      await login(emailToUse, passwordToUse);
       navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Login failed. Please check your credentials.');
