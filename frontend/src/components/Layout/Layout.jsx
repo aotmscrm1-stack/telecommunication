@@ -10,7 +10,7 @@ function LayoutInner() {
   useTheme(roleToTheme(user?.role));
   const bp = useBreakpoint();
 
-  const topbarH = bp === 'mobile' ? 56 : 64;
+  const topbarH = bp === 'mobile' ? 64 : 80;
 
   return (
     <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif", background: 'var(--theme-surface-faint)', minHeight: '100vh', overflowX: 'hidden' }}>
