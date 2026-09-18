@@ -333,256 +333,317 @@ export default function Topbar() {
 
   return (
     <>
-      <header className="fixed top-0 inset-x-0 z-50 h-16 bg-gradient-to-r from-[#1d3557] via-[#2c4d75] to-[#457b9d] border-b border-[#a8dadc]/40 px-3 sm:px-6 flex items-center justify-between shadow-md backdrop-blur-md">
+      <header className="fixed top-0 inset-x-0 z-50 h-16 flex px-0 select-none drop-shadow-lg">
         
-        {/* Left: Brand Logo + Mobile Hamburger */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          <button
-            onClick={() => setMobileMenuOpen(prev => !prev)}
-            className="lg:hidden w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all"
-            aria-label="Toggle menu"
-          >
-            {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
-          </button>
-
-          <Link to="/dashboard" className="flex items-center gap-2 group">
-            <img src={logoImg} alt="AOTMS Global" className="h-8 sm:h-9 object-contain group-hover:scale-105 transition-transform" />
-          </Link>
+        {/* Left Side Extension Bar */}
+        <div className="flex-1 h-10 bg-gradient-to-r from-[#0c1623] via-[#1d3557] to-[#1d3557] z-20 relative min-w-0 border-b border-[#a8dadc]/20">
+          <svg className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none">
+            <line x1="0" y1="39.5" x2="100%" y2="39.5" stroke="#a8dadc" strokeOpacity={0.15} strokeWidth={1} />
+            <line x1="0" y1="36.5" x2="100%" y2="36.5" stroke="#a8dadc" strokeOpacity={0.08} strokeWidth={0.5} />
+          </svg>
         </div>
 
-        {/* Center: 5 Navigation Dropdowns (Desktop) */}
-        <nav ref={navDropdownRef} className="hidden lg:flex items-center gap-1 xl:gap-2 relative">
-          {topDropdownGroups.map(group => {
-            const GroupIcon = group.icon;
-            const isOpen = activeDropdown === group.title;
-            const isGroupActive = group.items.some(item => location.pathname === item.path || (location.pathname.startsWith(item.path) && item.path.length > 1));
-
-            return (
-              <div key={group.title} className="relative">
-                <motion.button
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                  onClick={() => setActiveDropdown(isOpen ? null : group.title)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
-                    isGroupActive || isOpen
-                      ? 'bg-white text-[#1d3557] shadow-xs'
-                      : 'text-white/90 hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  <GroupIcon className="w-3.5 h-3.5" />
-                  <span>{group.title}</span>
-                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-                </motion.button>
-
-                <AnimatePresence>
-                  {isOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute left-0 top-10 w-56 bg-white rounded-2xl shadow-2xl border border-[#a8dadc] z-50 overflow-hidden py-2"
-                    >
-                      {group.items
-                        .filter(item => !item.adminOnly || user?.role === 'admin')
-                        .map(item => {
-                          const ItemIcon = item.icon;
-                          const active = location.pathname === item.path;
-                          return (
-                            <div
-                              key={item.path}
-                              onClick={() => {
-                                setActiveDropdown(null);
-                                navigate(item.path);
-                              }}
-                              className={`flex items-center gap-2.5 px-4 py-2 text-xs font-bold cursor-pointer transition-colors ${
-                                active ? 'bg-[#f1faee] text-[#457b9d] border-l-4 border-[#457b9d]' : 'text-[#1d3557] hover:bg-[#f1faee]'
-                              }`}
-                            >
-                              <ItemIcon className={`w-4 h-4 ${active ? 'text-[#457b9d]' : 'text-gray-400'}`} />
-                              <span>{item.label}</span>
-                            </div>
-                          );
-                        })}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            );
-          })}
-        </nav>
-
-        {/* Right: Time + Bell Notification + User Logo / Profile Avatar Tile */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          {!isMobile && (
-            <div className="text-right hidden sm:block">
-              <div className="text-xs font-extrabold text-white leading-tight">{timeStr}</div>
-              <div className="text-[10px] font-semibold text-white/70">{dateStr}</div>
-            </div>
-          )}
-
-          {/* Follow-up Calls Shortcut */}
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={() => navigate('/tasks?tab=Call+Followups')}
-            title="View Follow-up Calls"
-            className="w-8 h-8 rounded-full border border-white/30 hover:border-white text-white/90 hover:text-white bg-white/5 hover:bg-white/15 flex items-center justify-center transition-all hidden sm:flex"
-          >
-            <Clock className="w-4 h-4" />
-          </motion.button>
-
-          {/* Bell Notifications */}
-          <div ref={bellRef} className="relative">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => { setShowNotifications(prev => !prev); setShowProfile(false); }}
-              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all relative ${
-                showNotifications ? 'bg-white text-[#1d3557]' : 'border border-white/30 text-white hover:bg-white/15'
-              }`}
-            >
-              <Bell className="w-4 h-4" />
-              {unreadCount > 0 && (
-                <span className="w-2.5 h-2.5 bg-[#e63946] rounded-full absolute top-0.5 right-0.5 border-2 border-[#457b9d]" />
-              )}
-            </motion.button>
-
-            <AnimatePresence>
-              {showNotifications && (
-                <motion.div
-                  ref={dropRef}
-                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute right-0 top-10 w-80 bg-white rounded-2xl shadow-2xl border border-[#a8dadc] z-50 overflow-hidden"
-                >
-                  <div className="p-3 border-b border-gray-100 flex items-center justify-between bg-[#f1faee]/60">
-                    <div className="flex items-center gap-2">
-                      <span className="font-extrabold text-xs text-[#1d3557]">Notifications</span>
-                      {unreadCount > 0 && (
-                        <span className="bg-[#457b9d] text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full">
-                          {unreadCount}
-                        </span>
-                      )}
-                    </div>
-                    {unreadCount > 0 && (
-                      <button onClick={markAllRead} className="text-[11px] font-bold text-[#457b9d] hover:underline">
-                        Mark all read
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="max-h-72 overflow-y-auto divide-y divide-gray-50">
-                    {notifications.length === 0 ? (
-                      <div className="p-6 text-center text-xs text-gray-400">
-                        <Bell className="w-6 h-6 text-gray-300 mx-auto mb-1.5" />
-                        No notifications yet
-                      </div>
-                    ) : (
-                      notifications.map(n => (
-                        <div
-                          key={n.id}
-                          onClick={() => {
-                            markRead(n.id);
-                            const target = notifTarget(n);
-                            if (target) navigate(target);
-                            setShowNotifications(false);
-                          }}
-                          className={`p-3 flex gap-2.5 cursor-pointer transition-colors ${
-                            n.read ? 'bg-white hover:bg-gray-50' : 'bg-[#f1faee]/70 hover:bg-[#f1faee]'
-                          }`}
-                        >
-                          <div className="w-7 h-7 rounded-xl bg-[#f1faee] border border-[#a8dadc]/50 flex items-center justify-center shrink-0 text-[#457b9d] mt-0.5">
-                            <Bell className="w-3.5 h-3.5" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-1 mb-0.5">
-                              <span className="text-xs font-bold text-[#1d3557] truncate">{n.title}</span>
-                              <span className="text-[10px] text-gray-400 shrink-0">{n.time}</span>
-                            </div>
-                            <p className="text-[11px] text-gray-600 line-clamp-2 leading-snug">{n.message}</p>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+        {/* Center Notch Navbar Container */}
+        <div className="flex h-16 relative z-10 shrink-0 -ml-px">
+          
+          {/* Left Slice (Curved Corner Notch) */}
+          <div className="w-[40px] sm:w-[50px] h-full relative shrink-0">
+            <div 
+              className="absolute inset-0 bg-gradient-to-b from-[#1d3557] via-[#1d3557] to-[#162b46]" 
+              style={{ clipPath: "path('M0 0 H50 V64 C25 64 25 40 0 40 Z')" }} 
+            />
+            <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 50 64">
+              <path d="M0 39.5 C25 39.5 25 63.5 50 63.5" fill="none" stroke="#a8dadc" strokeOpacity={0.25} strokeWidth={1} />
+              <path d="M0 36.5 C25 36.5 25 60.5 50 60.5" fill="none" stroke="#a8dadc" strokeOpacity={0.12} strokeWidth={0.5} />
+            </svg>
           </div>
 
-          {/* User Logo / Avatar Tile */}
-          <div ref={profileRef} className="relative">
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => { setShowProfile(prev => !prev); setShowNotifications(false); }}
-              className="flex items-center gap-2 p-1 pr-2 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 transition-all text-white"
-            >
-              <div className="w-7 h-7 rounded-xl bg-white text-[#1d3557] font-extrabold text-xs flex items-center justify-center shadow-xs">
-                {initials}
-              </div>
-              {!isMobile && (
-                <div className="text-left leading-tight hidden xl:block">
-                  <div className="text-xs font-extrabold truncate max-w-[100px]">{user?.name || 'User'}</div>
-                  <div className="text-[9px] font-bold uppercase text-white/70 tracking-wider">{roleLabel}</div>
-                </div>
-              )}
-              <ChevronDown className="w-3.5 h-3.5 text-white/80" />
-            </motion.button>
+          {/* Center Content Slice */}
+          <div className="flex-1 h-full relative min-w-0 -ml-px">
+             <div className="absolute inset-0 bg-gradient-to-r from-[#1d3557] via-[#29495e] to-[#1d3557]">
+                 <svg className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none">
+                   <line x1="0" y1="63.5" x2="100%" y2="63.5" stroke="#a8dadc" strokeOpacity={0.25} strokeWidth={1} />
+                   <line x1="0" y1="60.5" x2="100%" y2="60.5" stroke="#a8dadc" strokeOpacity={0.12} strokeWidth={0.5} />
+                 </svg>
+             </div>
 
-            <AnimatePresence>
-              {showProfile && (
-                <motion.div
-                  ref={profileDropRef}
-                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute right-0 top-11 w-64 bg-white rounded-2xl shadow-2xl border border-[#a8dadc] z-50 overflow-hidden p-3"
-                >
-                  <div className="p-3 bg-[#f1faee] rounded-xl border border-[#a8dadc]/60 mb-2">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-extrabold text-sm text-[#1d3557] truncate">{user?.name || 'User'}</span>
-                      <span className="text-[10px] font-extrabold bg-[#457b9d] text-white px-2 py-0.5 rounded-full uppercase">
-                        Pro
-                      </span>
-                    </div>
-                    <div className="inline-block text-[10px] font-bold text-[#457b9d] bg-white border border-[#a8dadc]/50 rounded-full px-2 py-0.2 mb-1.5">
-                      {roleLabel}
-                    </div>
-                    <p className="text-[11px] text-gray-500 truncate flex items-center gap-1 font-medium">
-                      <Mail className="w-3 h-3 text-[#457b9d]" />
-                      {user?.email || 'user@example.com'}
-                    </p>
-                  </div>
+             {/* Content Area */}
+             <div className="relative w-full h-full flex items-end justify-between pb-2 px-3 sm:px-6 gap-2 sm:gap-4">
+               
+               {/* Mobile Hamburger Button */}
+               <button 
+                 className="lg:hidden mb-1 p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors"
+                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                 aria-label="Toggle menu"
+               >
+                 {mobileMenuOpen ? <X className="w-5 h-5 text-[#a8dadc]" /> : <Menu className="w-5 h-5 text-[#a8dadc]" />}
+               </button>
 
-                  <div className="space-y-0.5">
-                    {profileMenuItems.map((item, idx) => (
-                      <div
-                        key={idx}
-                        onClick={item.onClick}
-                        className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold cursor-pointer transition-colors ${
-                          item.danger ? 'text-[#e63946] hover:bg-red-50' : 'text-[#1d3557] hover:bg-[#f1faee]'
-                        }`}
-                      >
-                        <span className={item.danger ? 'text-[#e63946]' : 'text-[#457b9d]'}>{item.icon}</span>
-                        {item.label}
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+               {/* Logo Center */}
+               <div className="flex items-center shrink-0 mb-1">
+                 <Link to="/dashboard" className="flex items-center gap-2 group">
+                   <img src={logoImg} alt="AOTMS Logo" className="h-7 sm:h-8 object-contain group-hover:scale-105 transition-transform" />
+                 </Link>
+               </div>
+
+               {/* Desktop 5 Top Navigation Dropdowns */}
+               <nav ref={navDropdownRef} className="hidden lg:flex gap-1 xl:gap-2 mb-1 shrink-0 items-center">
+                 {topDropdownGroups.map(group => {
+                   const GroupIcon = group.icon;
+                   const isOpen = activeDropdown === group.title;
+                   const isGroupActive = group.items.some(item => location.pathname === item.path || (location.pathname.startsWith(item.path) && item.path.length > 1));
+
+                   return (
+                     <div key={group.title} className="relative">
+                       <motion.button
+                         whileHover={{ scale: 1.03 }}
+                         whileTap={{ scale: 0.97 }}
+                         onClick={() => setActiveDropdown(isOpen ? null : group.title)}
+                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
+                           isGroupActive || isOpen
+                             ? 'bg-[#a8dadc] text-[#1d3557] shadow-sm font-bold'
+                             : 'text-white/90 hover:text-white hover:bg-white/15'
+                         }`}
+                       >
+                         <GroupIcon className="w-3.5 h-3.5" />
+                         <span>{group.title}</span>
+                         <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                       </motion.button>
+
+                       <AnimatePresence>
+                         {isOpen && (
+                           <motion.div
+                             initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                             animate={{ opacity: 1, y: 0, scale: 1 }}
+                             exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                             transition={{ duration: 0.15 }}
+                             className="absolute left-0 top-11 w-56 bg-white rounded-2xl shadow-2xl border border-[#a8dadc] z-50 overflow-hidden py-2"
+                           >
+                             {group.items
+                               .filter(item => !item.adminOnly || user?.role === 'admin')
+                               .map(item => {
+                                 const ItemIcon = item.icon;
+                                 const active = location.pathname === item.path;
+                                 return (
+                                   <div
+                                     key={item.path}
+                                     onClick={() => {
+                                       setActiveDropdown(null);
+                                       navigate(item.path);
+                                     }}
+                                     className={`flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold cursor-pointer transition-colors ${
+                                       active ? 'bg-[#f1faee] text-[#457b9d] border-l-4 border-[#457b9d]' : 'text-[#1d3557] hover:bg-[#f1faee]'
+                                     }`}
+                                   >
+                                     <ItemIcon className={`w-4 h-4 ${active ? 'text-[#457b9d]' : 'text-gray-400'}`} />
+                                     <span>{item.label}</span>
+                                   </div>
+                                 );
+                               })}
+                           </motion.div>
+                         )}
+                       </AnimatePresence>
+                     </div>
+                   );
+                 })}
+               </nav>
+
+               {/* Right Actions: Time, Notifications, Profile */}
+               <div className="flex items-center gap-2 sm:gap-3 mb-1 shrink-0">
+                 {!isMobile && (
+                   <div className="text-right hidden sm:block">
+                     <div className="text-xs font-black text-white leading-tight">{timeStr}</div>
+                     <div className="text-[10px] font-semibold text-[#a8dadc]">{dateStr}</div>
+                   </div>
+                 )}
+
+                 {/* Call Followups */}
+                 <motion.button
+                   whileHover={{ scale: 1.08 }}
+                   whileTap={{ scale: 0.92 }}
+                   onClick={() => navigate('/tasks?tab=Call+Followups')}
+                   title="View Call Followups"
+                   className="w-8 h-8 rounded-full border border-[#a8dadc]/40 hover:border-white text-white/90 hover:text-white bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all hidden sm:flex"
+                 >
+                   <Clock className="w-4 h-4" />
+                 </motion.button>
+
+                 {/* Notifications Bell */}
+                 <div ref={bellRef} className="relative">
+                   <motion.button
+                     whileHover={{ scale: 1.08 }}
+                     whileTap={{ scale: 0.92 }}
+                     onClick={() => { setShowNotifications(prev => !prev); setShowProfile(false); }}
+                     className={`w-8 h-8 rounded-full flex items-center justify-center transition-all relative ${
+                       showNotifications ? 'bg-[#a8dadc] text-[#1d3557]' : 'border border-[#a8dadc]/40 text-white hover:bg-white/20'
+                     }`}
+                   >
+                     <Bell className="w-4 h-4" />
+                     {unreadCount > 0 && (
+                       <span className="w-2.5 h-2.5 bg-[#e63946] rounded-full absolute top-0.5 right-0.5 border-2 border-[#1d3557]" />
+                     )}
+                   </motion.button>
+
+                   <AnimatePresence>
+                     {showNotifications && (
+                       <motion.div
+                         ref={dropRef}
+                         initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                         animate={{ opacity: 1, y: 0, scale: 1 }}
+                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                         transition={{ duration: 0.15 }}
+                         className="absolute right-0 top-11 w-80 bg-white rounded-2xl shadow-2xl border border-[#a8dadc] z-50 overflow-hidden"
+                       >
+                         <div className="p-3 border-b border-gray-100 flex items-center justify-between bg-[#f1faee]/80">
+                           <div className="flex items-center gap-2">
+                             <span className="font-extrabold text-xs text-[#1d3557]">Notifications</span>
+                             {unreadCount > 0 && (
+                               <span className="bg-[#457b9d] text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full">
+                                 {unreadCount}
+                               </span>
+                             )}
+                           </div>
+                           {unreadCount > 0 && (
+                             <button onClick={markAllRead} className="text-[11px] font-bold text-[#457b9d] hover:underline">
+                               Mark all read
+                             </button>
+                           )}
+                         </div>
+
+                         <div className="max-h-72 overflow-y-auto divide-y divide-gray-50">
+                           {notifications.length === 0 ? (
+                             <div className="p-6 text-center text-xs text-gray-400">
+                               <Bell className="w-6 h-6 text-gray-300 mx-auto mb-1.5" />
+                               No notifications yet
+                             </div>
+                           ) : (
+                             notifications.map(n => (
+                               <div
+                                 key={n.id}
+                                 onClick={() => {
+                                   markRead(n.id);
+                                   const target = notifTarget(n);
+                                   if (target) navigate(target);
+                                   setShowNotifications(false);
+                                 }}
+                                 className={`p-3 flex gap-2.5 cursor-pointer transition-colors ${
+                                   n.read ? 'bg-white hover:bg-gray-50' : 'bg-[#f1faee]/70 hover:bg-[#f1faee]'
+                                 }`}
+                               >
+                                 <div className="w-7 h-7 rounded-xl bg-[#f1faee] border border-[#a8dadc]/50 flex items-center justify-center shrink-0 text-[#457b9d] mt-0.5">
+                                   <Bell className="w-3.5 h-3.5" />
+                                 </div>
+                                 <div className="flex-1 min-w-0">
+                                   <div className="flex items-center justify-between gap-1 mb-0.5">
+                                     <span className="text-xs font-bold text-[#1d3557] truncate">{n.title}</span>
+                                     <span className="text-[10px] text-gray-400 shrink-0">{n.time}</span>
+                                   </div>
+                                   <p className="text-[11px] text-gray-600 line-clamp-2 leading-snug">{n.message}</p>
+                                 </div>
+                               </div>
+                             ))
+                           )}
+                         </div>
+                       </motion.div>
+                     )}
+                   </AnimatePresence>
+                 </div>
+
+                 {/* User Logo Profile Avatar Tile */}
+                 <div ref={profileRef} className="relative">
+                   <motion.button
+                     whileHover={{ scale: 1.03 }}
+                     whileTap={{ scale: 0.97 }}
+                     onClick={() => { setShowProfile(prev => !prev); setShowNotifications(false); }}
+                     className="flex items-center gap-2 p-1 pr-2 rounded-2xl bg-white/10 hover:bg-white/20 border border-[#a8dadc]/30 transition-all text-white"
+                   >
+                     <div className="w-7 h-7 rounded-xl bg-[#a8dadc] text-[#1d3557] font-black text-xs flex items-center justify-center shadow-xs">
+                       {initials}
+                     </div>
+                     {!isMobile && (
+                       <div className="text-left leading-tight hidden xl:block">
+                         <div className="text-xs font-extrabold truncate max-w-[100px] text-white">{user?.name || 'User'}</div>
+                         <div className="text-[9px] font-bold uppercase text-[#a8dadc] tracking-wider">{roleLabel}</div>
+                       </div>
+                     )}
+                     <ChevronDown className="w-3.5 h-3.5 text-white/80" />
+                   </motion.button>
+
+                   <AnimatePresence>
+                     {showProfile && (
+                       <motion.div
+                         ref={profileDropRef}
+                         initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                         animate={{ opacity: 1, y: 0, scale: 1 }}
+                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                         transition={{ duration: 0.15 }}
+                         className="absolute right-0 top-11 w-64 bg-white rounded-2xl shadow-2xl border border-[#a8dadc] z-50 overflow-hidden p-3"
+                       >
+                         <div className="p-3 bg-[#f1faee] rounded-xl border border-[#a8dadc]/60 mb-2">
+                           <div className="flex items-center justify-between mb-1">
+                             <span className="font-extrabold text-sm text-[#1d3557] truncate">{user?.name || 'User'}</span>
+                             <span className="text-[10px] font-extrabold bg-[#457b9d] text-white px-2 py-0.5 rounded-full uppercase">
+                               Pro
+                             </span>
+                           </div>
+                           <div className="inline-block text-[10px] font-bold text-[#457b9d] bg-white border border-[#a8dadc]/50 rounded-full px-2 py-0.2 mb-1.5">
+                             {roleLabel}
+                           </div>
+                           <p className="text-[11px] text-gray-500 truncate flex items-center gap-1 font-medium">
+                             <Mail className="w-3 h-3 text-[#457b9d]" />
+                             {user?.email || 'user@example.com'}
+                           </p>
+                         </div>
+
+                         <div className="space-y-0.5">
+                           {profileMenuItems.map((item, idx) => (
+                             <div
+                               key={idx}
+                               onClick={item.onClick}
+                               className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold cursor-pointer transition-colors ${
+                                 item.danger ? 'text-[#e63946] hover:bg-red-50' : 'text-[#1d3557] hover:bg-[#f1faee]'
+                               }`}
+                             >
+                               <span className={item.danger ? 'text-[#e63946]' : 'text-[#457b9d]'}>{item.icon}</span>
+                               {item.label}
+                             </div>
+                           ))}
+                         </div>
+                       </motion.div>
+                     )}
+                   </AnimatePresence>
+                 </div>
+
+               </div>
+
+             </div>
           </div>
 
+          {/* Right Slice (Curved Corner Notch) */}
+          <div className="w-[40px] sm:w-[50px] h-full relative shrink-0 -ml-px">
+            <div 
+              className="absolute inset-0 bg-gradient-to-b from-[#1d3557] via-[#1d3557] to-[#162b46]" 
+              style={{ clipPath: "path('M0 0 H50 V40 C25 40 25 64 0 64 Z')" }} 
+            />
+            <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 50 64">
+              <path d="M0 63.5 C25 63.5 25 39.5 50 39.5" fill="none" stroke="#a8dadc" strokeOpacity={0.25} strokeWidth={1} />
+              <path d="M0 60.5 C25 60.5 25 36.5 50 36.5" fill="none" stroke="#a8dadc" strokeOpacity={0.12} strokeWidth={0.5} />
+            </svg>
+          </div>
+
+        </div>
+
+        {/* Right Side Extension Bar */}
+        <div className="flex-1 h-10 bg-gradient-to-r from-[#1d3557] via-[#1d3557] to-[#0c1623] z-20 relative min-w-0 border-b border-[#a8dadc]/20 -ml-px">
+          <svg className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none">
+            <line x1="0" y1="39.5" x2="100%" y2="39.5" stroke="#a8dadc" strokeOpacity={0.15} strokeWidth={1} />
+            <line x1="0" y1="36.5" x2="100%" y2="36.5" stroke="#a8dadc" strokeOpacity={0.08} strokeWidth={0.5} />
+          </svg>
         </div>
 
       </header>
 
-      {/* Mobile Overlay Menu */}
+      {/* Mobile Drawer Menu */}
       <AnimatePresence>
         {mobileMenuOpen && (
           <motion.div
