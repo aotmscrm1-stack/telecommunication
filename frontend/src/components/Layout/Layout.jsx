@@ -1,5 +1,4 @@
 import { Outlet } from 'react-router-dom';
-import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import { useAuth } from '../../context/AuthContext';
 import useTheme, { roleToTheme } from '../../hooks/useTheme';
@@ -12,23 +11,20 @@ function LayoutInner() {
   const bp = useBreakpoint();
 
   const topbarH = bp === 'mobile' ? 56 : 64;
-  const marginLeft = bp === 'mobile' ? 0 : 48;
 
   return (
     <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif", background: 'var(--theme-surface-faint)', minHeight: '100vh', overflowX: 'hidden' }}>
       <Topbar />
-      <Sidebar />
       <main
         style={{
-          marginLeft,
+          marginLeft: 0,
           marginTop: topbarH,
           minHeight: `calc(100vh - ${topbarH}px)`,
-          width: `calc(100% - ${marginLeft}px)`,
-          maxWidth: `calc(100% - ${marginLeft}px)`,
+          width: '100%',
+          maxWidth: '100%',
           overflowY: 'auto',
           overflowX: 'auto',
           boxSizing: 'border-box',
-          transition: 'margin-left 0.22s ease, width 0.22s ease',
         }}
       >
         <div className="animate-fade-in">
