@@ -35,6 +35,7 @@ import Payslip from './pages/Payslip';
 import Invoice from './pages/Invoice';
 import Landing from './pages/landing_pages/Landing';
 import LiveEmployeeTracking from './pages/LiveEmployeeTracking';
+import AttendanceRecords from './pages/AttendanceRecords';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -115,6 +116,8 @@ export default function App() {
             <Route path="permission-templates" element={<AdminRoute><PermissionTemplates /></AdminRoute>} />
             <Route path="admin/employee-tracking" element={<AdminOnlyRoute><LiveEmployeeTracking /></AdminOnlyRoute>} />
             <Route path="employee-tracking" element={<AdminOnlyRoute><LiveEmployeeTracking /></AdminOnlyRoute>} />
+            <Route path="admin/attendance-records" element={<AdminOnlyRoute><AttendanceRecords /></AdminOnlyRoute>} />
+            <Route path="attendance-records" element={<AdminOnlyRoute><AttendanceRecords /></AdminOnlyRoute>} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

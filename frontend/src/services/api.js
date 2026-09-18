@@ -306,4 +306,14 @@ export const trackingAPI = {
   devSimulate: (data) => api.post('/tracking/dev-simulate', data),
 };
 
+export const attendanceAPI = {
+  start: (data) => api.post('/attendance/start', data),
+  stop: (data) => api.post('/attendance/stop', data),
+  getCurrentStatus: () => api.get('/attendance/current'),
+  getSummary: (params) => api.get('/attendance/summary', { params }),
+  getRecords: (params) => api.get('/attendance/records', { params }),
+  getEmployeeHistory: (employeeId, params) => api.get(`/attendance/employee/${employeeId}/history`, { params }),
+  exportCSV: (params) => api.get('/attendance/export', { params, responseType: 'blob' }),
+};
+
 export default api;

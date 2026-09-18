@@ -1,43 +1,69 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import geoTracker from '../../services/geoTracker';
-import { trackingAPI } from '../../services/api';
+import { attendanceAPI, trackingAPI } from '../../services/api';
 
 const GRADIENT = 'var(--btn-gradient, linear-gradient(90deg, #ffb37c 0%, #38bdf8 100%))';
 
 export default function EmployeeTrackingCard({ compact = false }) {
   const { user } = useAuth();
   const [isTracking, setIsTracking] = useState(false);
+  const [attendanceRecord, setAttendanceRecord] = useState(null);
   const [position, setPosition] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [lastSyncText, setLastSyncText] = useState('');
   const [showSimModal, setShowSimModal] = useState(false);
   const [simulating, setSimulating] = useState(false);
 
-  // Subscribe to geoTracker state changes
+  // 1. Fetch current attendance state from backend on mount & restore active session
   useEffect(() => {
-    const unsubscribe = geoTracker.subscribe((state) => {
-      setIsTracking(state.isTracking);
-      if (state.position) setPosition(state.position);
-      if (state.error) setError(state.error);
-    });
+    let isMounted = true;
 
-    // Also check current backend status
-    trackingAPI
-      .getStatus()
+    attendanceAPI
+      .getCurrentStatus()
       .then((res) => {
-        if (res.data?.active) {
+        if (!isMounted) return;
+        if (res.data?.active && res.data?.attendance) {
           setIsTracking(true);
-          if (res.data?.location) setPosition(res.data.location);
+          setAttendanceRecord(res.data.attendance);
+          if (res.data.attendance.latestLocation?.latitude) {
+            setPosition(res.data.attendance.latestLocation);
+          }
+          // Resume active live GPS tracking watcher
+          geoTracker.startTracking().catch((gErr) => {
+            console.warn('[EmployeeTrackingCard] Auto-resume GPS watcher notice:', gErr.message);
+          });
+        } else if (res.data?.attendance) {
+          setIsTracking(false);
+          setAttendanceRecord(res.data.attendance);
+          if (res.data.attendance.endLocation?.latitude || res.data.attendance.latestLocation?.latitude) {
+            setPosition(res.data.attendance.endLocation || res.data.attendance.latestLocation);
+          }
         }
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.warn('[EmployeeTrackingCard] Get current status error:', err.message);
+      })
+      .finally(() => {
+        if (isMounted) setInitialLoading(false);
+      });
 
-    return () => unsubscribe();
+    // Subscribe to geoTracker state updates
+    const unsubscribe = geoTracker.subscribe((state) => {
+      if (!isMounted) return;
+      if (state.position) setPosition(state.position);
+      if (state.error && isTracking) setError(state.error);
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, []);
 
-  // Relative last updated timer
+  // 2. Relative last updated timer
   useEffect(() => {
     if (!isTracking) {
       setLastSyncText('Not syncing');
@@ -57,25 +83,125 @@ export default function EmployeeTrackingCard({ compact = false }) {
     return () => clearInterval(interval);
   }, [isTracking]);
 
-  const handleStart = async () => {
+  // Helper to extract device battery if supported
+  const getBatteryLevel = async () => {
+    try {
+      if (typeof navigator !== 'undefined' && typeof navigator.getBattery === 'function') {
+        const battery = await navigator.getBattery();
+        return Math.round(battery.level * 100);
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  };
+
+  // Helper to get one-time GPS fix before API start
+  const getGpsFix = () =>
+    new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        return reject(new Error('Geolocation is not supported by your browser.'));
+      }
+      navigator.geolocation.getCurrentPosition(
+        resolve,
+        (err) => {
+          // Retry with standard accuracy if high accuracy timed out
+          if (err.code === 1) return reject(err); // Denied
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: false,
+            timeout: 8000,
+            maximumAge: 0,
+          });
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    });
+
+  // 3. Start Attendance Handler
+  const handleStartAttendance = async () => {
     setError('');
     setLoading(true);
+
     try {
-      await geoTracker.startTracking();
+      let lat = null;
+      let lng = null;
+      let accuracy = 10;
+      let speed = 0;
+      let heading = 0;
+
+      // Request GPS location
+      try {
+        const pos = await getGpsFix();
+        lat = pos.coords.latitude;
+        lng = pos.coords.longitude;
+        accuracy = pos.coords.accuracy || 10;
+        speed = pos.coords.speed ? Math.round(pos.coords.speed * 3.6 * 10) / 10 : 0;
+        heading = pos.coords.heading || 0;
+      } catch (gpsErr) {
+        if (gpsErr.code === 1) {
+          throw new Error('Location permission denied. Please allow GPS location access in your browser to start attendance.');
+        } else {
+          console.warn('[Start Attendance] GPS fix fallback:', gpsErr.message);
+        }
+      }
+
+      const battery = await getBatteryLevel();
+
+      // Create attendance session on the backend
+      const res = await attendanceAPI.start({
+        latitude: lat,
+        longitude: lng,
+        accuracy,
+        speed,
+        heading,
+        battery,
+        platform: navigator.platform || '',
+      });
+
+      const att = res.data?.attendance;
+      setAttendanceRecord(att);
+      setIsTracking(true);
+
+      if (att?.latestLocation) {
+        setPosition(att.latestLocation);
+      }
+
+      // Start real-time background GPS tracking
+      try {
+        await geoTracker.startTracking();
+      } catch (trackErr) {
+        console.warn('[GeoTracker start tracking error]:', trackErr.message);
+      }
     } catch (err) {
-      setError(err.message || 'Failed to start GPS tracking');
+      setError(err.message || 'Failed to start attendance. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleStop = async () => {
+  // 4. Stop / Leave Handler
+  const handleStopAttendance = async () => {
     setError('');
     setLoading(true);
+
     try {
-      await geoTracker.stopTracking();
+      const curPos = geoTracker.lastPosition || position || {};
+
+      // Mark attendance as completed in the backend
+      const res = await attendanceAPI.stop({
+        latitude: curPos.latitude,
+        longitude: curPos.longitude,
+        accuracy: curPos.accuracy || 0,
+      });
+
+      const att = res.data?.attendance;
+      setAttendanceRecord(att);
+      setIsTracking(false);
+
+      // Stop real-time GPS tracking watcher
+      await geoTracker.stopTracking().catch(() => {});
     } catch (err) {
-      setError(err.message || 'Failed to stop GPS tracking');
+      setError(err.message || 'Failed to stop attendance session. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -133,6 +259,8 @@ export default function EmployeeTrackingCard({ compact = false }) {
     }
   };
 
+  const isCompletedToday = !isTracking && attendanceRecord?.status === 'COMPLETED';
+
   return (
     <div
       style={{
@@ -146,66 +274,87 @@ export default function EmployeeTrackingCard({ compact = false }) {
       }}
     >
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 14,
+          flexWrap: 'wrap',
+          gap: 12,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div
             style={{
-              width: 38,
-              height: 38,
+              width: 42,
+              height: 42,
               borderRadius: 10,
-              background: isTracking ? '#ecfdf5' : '#fff1f2',
+              background: isTracking ? '#ecfdf5' : isCompletedToday ? '#eff6ff' : '#fff1f2',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: isTracking ? '#10b981' : '#f43f5e',
-              border: `1px solid ${isTracking ? '#a7f3d0' : '#fecdd3'}`,
-              fontSize: 20,
+              color: isTracking ? '#10b981' : isCompletedToday ? '#3b82f6' : '#f43f5e',
+              border: `1px solid ${isTracking ? '#a7f3d0' : isCompletedToday ? '#bfdbfe' : '#fecdd3'}`,
+              fontSize: 22,
             }}
           >
-            {isTracking ? '📅' : '🌴'}
+            {isTracking ? '📅' : isCompletedToday ? '✅' : '🌴'}
           </div>
           <div>
-            <h4 style={{ margin: 0, fontSize: 14.5, fontWeight: 700, color: '#0f172a' }}>
-              Attendance & Live Location
+            <h4 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#0f172a' }}>
+              Attendance & Live Location Status
             </h4>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
               <span
                 style={{
                   display: 'inline-block',
                   width: 8,
                   height: 8,
                   borderRadius: '50%',
-                  background: isTracking ? '#10b981' : '#ef4444',
+                  background: isTracking ? '#10b981' : isCompletedToday ? '#3b82f6' : '#ef4444',
                 }}
               />
-              <span style={{ fontSize: 12, fontWeight: 600, color: isTracking ? '#059669' : '#e11d48' }}>
-                {isTracking ? 'On Duty (Live Location Sharing Active)' : 'Off Duty / On Leave (Location Disabled)'}
+              <span
+                style={{
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  color: isTracking ? '#059669' : isCompletedToday ? '#2563eb' : '#e11d48',
+                }}
+              >
+                {isTracking
+                  ? 'On Duty — Live GPS Location Active'
+                  : isCompletedToday
+                  ? `Completed — Attendance Recorded (${attendanceRecord?.formattedDuration || 'Logged'})`
+                  : 'Off Duty — Attendance Not Started'}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Attendance and Leave Action Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {/* Action Buttons: Start Attendance & Stop / Leave */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* Start Attendance Button */}
           <button
-            onClick={handleStart}
-            disabled={loading || simulating || isTracking}
-            title="Mark Attendance and Enable Live Location"
+            id="start-attendance-btn"
+            onClick={handleStartAttendance}
+            disabled={loading || initialLoading || simulating || isTracking}
+            title={isTracking ? 'Attendance is currently active' : 'Click to start attendance and enable live GPS location'}
             style={{
               background: isTracking ? '#e2e8f0' : GRADIENT,
               color: isTracking ? '#94a3b8' : '#ffffff',
               border: 'none',
               borderRadius: 8,
-              padding: '8px 16px',
-              fontSize: 12.5,
+              padding: '9px 18px',
+              fontSize: 13,
               fontWeight: 700,
-              cursor: isTracking ? 'default' : loading ? 'wait' : 'pointer',
+              cursor: isTracking || loading || initialLoading ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: 6,
               boxShadow: isTracking ? 'none' : '0 2px 6px rgba(2, 132, 199, 0.25)',
               transition: 'all 0.15s',
-              opacity: loading ? 0.8 : 1,
+              opacity: loading && !isTracking ? 0.8 : 1,
             }}
           >
             {loading && !isTracking ? (
@@ -219,40 +368,42 @@ export default function EmployeeTrackingCard({ compact = false }) {
                 >
                   <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
                 </svg>
-                Connecting GPS...
+                Starting Attendance...
               </>
             ) : (
               <>
-                <span style={{ fontSize: 14 }}>📅</span> Attendance
+                <span style={{ fontSize: 14 }}>📅</span> Start Attendance
               </>
             )}
           </button>
 
+          {/* Stop / Leave Button */}
           <button
-            onClick={handleStop}
-            disabled={loading || simulating || !isTracking}
-            title="Mark Leave / Stop Live Location"
+            id="stop-attendance-btn"
+            onClick={handleStopAttendance}
+            disabled={loading || initialLoading || simulating || !isTracking}
+            title={!isTracking ? 'Attendance is not active' : 'Click to stop attendance and disable live location sharing'}
             style={{
               background: !isTracking ? '#f1f5f9' : '#fee2e2',
               color: !isTracking ? '#94a3b8' : '#dc2626',
               border: `1px solid ${!isTracking ? '#e2e8f0' : '#fca5a5'}`,
               borderRadius: 8,
-              padding: '8px 16px',
-              fontSize: 12.5,
+              padding: '9px 18px',
+              fontSize: 13,
               fontWeight: 700,
-              cursor: !isTracking ? 'default' : loading ? 'wait' : 'pointer',
+              cursor: !isTracking || loading || initialLoading ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: 6,
               transition: 'all 0.15s',
-              opacity: loading ? 0.8 : 1,
+              opacity: loading && isTracking ? 0.8 : 1,
             }}
           >
             {loading && isTracking ? (
-              'Updating...'
+              'Stopping...'
             ) : (
               <>
-                <span style={{ fontSize: 14 }}>🌴</span> Leave
+                <span style={{ fontSize: 14 }}>🌴</span> Stop / Leave
               </>
             )}
           </button>
@@ -260,47 +411,67 @@ export default function EmployeeTrackingCard({ compact = false }) {
       </div>
 
       {/* Telemetry Stats Grid */}
-      {isTracking && position && (
+      {(isTracking || (position && position.latitude)) && (
         <div
           style={{
             background: '#f8fafc',
             borderRadius: 8,
-            padding: '10px 14px',
-            marginBottom: 10,
+            padding: '12px 16px',
+            marginBottom: 12,
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
-            gap: 10,
+            gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+            gap: 12,
             border: '1px solid #edf2f7',
           }}
         >
           <div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
               Current Location
             </div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#0369a1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {position.trackingStatus === 'AT_OFFICE' ? '🏢 AOTMS - Pothuri Towers' : position.road || 'MG Road, Vijayawada'}
+            <div
+              style={{
+                fontSize: 12.5,
+                fontWeight: 700,
+                color: '#0369a1',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                marginTop: 2,
+              }}
+            >
+              {position?.trackingStatus === 'AT_OFFICE'
+                ? '🏢 AOTMS - Pothuri Towers'
+                : position?.road
+                ? `🛣️ ${position.road}`
+                : position?.latitude
+                ? `${position.latitude.toFixed(4)}, ${position.longitude.toFixed(4)}`
+                : 'Vijayawada, AP'}
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Speed</div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#059669' }}>
-              {position.speed != null ? `${position.speed} km/h` : '0 km/h'}
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Speed</div>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: '#059669', marginTop: 2 }}>
+              {position?.speed != null && position.speed > 0 ? `${position.speed} km/h` : '0 km/h'}
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>GPS Accuracy</div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>
-              ±{Math.round(position.accuracy || 5)}m
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+              GPS Accuracy
+            </div>
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: '#475569', marginTop: 2 }}>
+              ±{Math.round(position?.accuracy || 5)}m
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Last Sync</div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>{lastSyncText}</div>
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+              Last Sync
+            </div>
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: '#475569', marginTop: 2 }}>{lastSyncText}</div>
           </div>
         </div>
       )}
 
-      {/* Error display */}
+      {/* Error notice display */}
       {error && (
         <div
           style={{
@@ -310,17 +481,17 @@ export default function EmployeeTrackingCard({ compact = false }) {
             borderRadius: 8,
             padding: '10px 14px',
             fontSize: 12,
-            marginBottom: 10,
+            marginBottom: 12,
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
           }}
         >
           <div>
-            <b>⚠️ GPS Notice:</b> {error}
+            <b>⚠️ Location Notice:</b> {error}
           </div>
           <button
-            onClick={handleStart}
+            onClick={handleStartAttendance}
             style={{
               background: '#fee2e2',
               color: '#dc2626',
@@ -347,7 +518,7 @@ export default function EmployeeTrackingCard({ compact = false }) {
 
       {/* Transparency & Consent Notice */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
-        <p style={{ margin: 0, fontSize: 11, color: '#64748b', lineHeight: 1.4 }}>
+        <p style={{ margin: 0, fontSize: 11.5, color: '#64748b', lineHeight: 1.4 }}>
           🔒 Your location is shared securely in real-time only with authorized team managers while sharing is turned ON.
         </p>
 
@@ -358,7 +529,7 @@ export default function EmployeeTrackingCard({ compact = false }) {
             background: 'none',
             border: 'none',
             color: '#6366f1',
-            fontSize: 11,
+            fontSize: 11.5,
             fontWeight: 600,
             cursor: 'pointer',
             textDecoration: 'underline',
@@ -421,9 +592,6 @@ export default function EmployeeTrackingCard({ compact = false }) {
               <b>6. 🏍️ Moving along Bandar Road (36 km/h)</b>
               <br />
               <b>7. 📍 Destination Reached (Stopped)</b>
-              <br />
-              <br />
-              Watch the motorcycle marker glide on the map with rotating heading and real road names!
             </p>
 
             <div style={{ display: 'flex', gap: 10 }}>

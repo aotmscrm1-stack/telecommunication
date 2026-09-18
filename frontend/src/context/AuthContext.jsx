@@ -18,8 +18,6 @@ export const AuthProvider = ({ children }) => {
         .then(res => {
           setUser(res.data.user);
           localStorage.setItem('aotms_user', JSON.stringify(res.data.user));
-          // Auto start live location tracking on restored session
-          geoTracker.startTracking().catch(() => {});
         })
         .catch(() => {
           localStorage.removeItem('aotms_token');
@@ -38,18 +36,12 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('aotms_token', res.data.token);
     localStorage.setItem('aotms_user', JSON.stringify(res.data.user));
     setUser(res.data.user);
-    // Automatically enable live location tracking immediately on successful login click
-    geoTracker.startTracking().catch((err) => {
-      console.warn('[AuthContext] Automatic location tracking start error:', err?.message || err);
-    });
     return res.data;
   };
 
   const logout = () => {
-    // Automatically disable live location tracking immediately on logout click
-    geoTracker.stopTracking().catch((err) => {
-      console.warn('[AuthContext] Automatic location tracking stop error:', err?.message || err);
-    });
+    // Stop local browser GPS watcher on logout, preserving database attendance state
+    geoTracker.stopTracking().catch(() => {});
     localStorage.removeItem('aotms_token');
     localStorage.removeItem('aotms_user');
     setUser(null);

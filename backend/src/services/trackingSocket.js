@@ -2,6 +2,7 @@ const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const EmployeeLocation = require('../models/EmployeeLocation');
+const Attendance = require('../models/Attendance');
 const {
   isInsideOfficeGeofence,
   getDistanceToOffice,
@@ -520,6 +521,30 @@ async function handleGpsUpdate(user, payload = {}) {
         timestamp: now,
       }).catch((dbErr) => {
         console.warn('[EmployeeLocation Save Error]:', dbErr.message);
+      });
+
+      // Synchronize latest location with active Attendance session
+      Attendance.findOneAndUpdate(
+        { employeeId, status: 'ON_DUTY' },
+        {
+          $set: {
+            latestLocation: {
+              latitude: lat,
+              longitude: lng,
+              accuracy,
+              speed: updatedLive.speed,
+              heading,
+              road: addressInfo.road,
+              area: addressInfo.area,
+              city: addressInfo.city,
+              formattedAddress: addressInfo.formattedAddress,
+              timestamp: now,
+            },
+            lastLocationUpdate: now,
+          },
+        }
+      ).catch((attErr) => {
+        console.warn('[Attendance Location Sync Error]:', attErr.message);
       });
     }
   }
