@@ -957,104 +957,126 @@ export default function LeadDetailsPage({
   const isAIQueued = !isAILocked && lead.aiCallState === 'queued';
 
   return (
-    <div className={embedded ? 'h-full bg-gray-50/50 overflow-y-auto' : 'min-h-screen bg-gray-50/50 pb-12'}>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+      className={embedded ? 'h-full bg-[#f1faee]/30 overflow-y-auto' : 'min-h-screen bg-[#f1faee]/30 pb-12'}
+    >
       {/* Top Navigation Banner */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-40 backdrop-blur-md bg-white/95">
-        <div className="flex items-center gap-4 min-w-0">
+      <div className="bg-white/95 border-b border-[#a8dadc] px-4 sm:px-6 py-4 flex items-center justify-between sticky top-0 z-40 backdrop-blur-md shadow-2xs">
+        <div className="flex items-center gap-3.5 min-w-0">
           {showBackButton && (
-            <button onClick={() => (onBack ? onBack() : navigate('/leads'))} className="w-9 h-9 rounded-xl border border-gray-200 hover:bg-gray-50 flex items-center justify-center text-gray-600 transition-all active:scale-95">
-              <ArrowLeft className="w-4 h-4" />
-            </button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => (onBack ? onBack() : navigate('/leads'))}
+              className="w-9 h-9 rounded-xl border border-[#a8dadc] hover:bg-[#f1faee] flex items-center justify-center text-[#1d3557] transition-all shadow-2xs"
+            >
+              <ArrowLeft className="w-4.5 h-4.5" />
+            </motion.button>
           )}
           <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-xl font-bold text-gray-900 truncate">{lead.name}</h2>
-              <button onClick={handleToggleStar} className="text-yellow-400 hover:scale-110 transition-transform active:scale-90">
-                <Star className={`w-5 h-5 ${lead.isStarred ? 'fill-yellow-400' : 'text-gray-300'}`} />
-              </button>
-              {/* ── AI state badges in the header ── */}
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h2 className="text-xl font-extrabold text-[#1d3557] truncate tracking-tight">{lead.name}</h2>
+              <motion.button
+                whileHover={{ scale: 1.25, rotate: 15 }}
+                whileTap={{ scale: 0.85 }}
+                onClick={handleToggleStar}
+                className="text-yellow-400 focus:outline-none"
+              >
+                <Star className={`w-5 h-5 ${lead.isStarred ? 'fill-yellow-400 drop-shadow-xs' : 'text-gray-300'}`} />
+              </motion.button>
+
+              {/* Status Badge */}
+              <StatusBadge status={lead.status} />
+
+              {/* ── AI state badges ── */}
               {isAILocked && (
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 4,
-                  background: '#dcfce7', color: '#15803d',
-                  borderRadius: 20, padding: '2px 9px',
-                  fontSize: 11, fontWeight: 700, border: '1px solid #86efac',
-                }}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
-                  AI calling now
+                <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full text-xs font-bold border border-emerald-200 shadow-2xs animate-pulse">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                  AI Calling Now
                 </span>
               )}
               {isAIQueued && (
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 4,
-                  background: '#dbeafe', color: '#1d4ed8',
-                  borderRadius: 20, padding: '2px 9px',
-                  fontSize: 11, fontWeight: 700, border: '1px solid #93c5fd',
-                }}>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full text-xs font-bold border border-blue-200 shadow-2xs">
+                  <Clock className="w-3 h-3 text-blue-500" />
                   Queued for AI
                 </span>
               )}
             </div>
-            <p className="text-xs text-gray-500 font-mono mt-0.5">{lead._id}</p>
+            <p className="text-xs text-[#457b9d] font-mono font-medium mt-0.5 opacity-90">ID: {lead._id}</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 flex-wrap justify-end">
           {/* Initiate Call Button */}
-          <button
+          <motion.button
+            whileHover={{ scale: 1.03, y: -1 }}
+            whileTap={{ scale: 0.97 }}
             onClick={() => setShowInitiateCallModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-xl text-xs font-bold transition-colors shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold transition-all shadow-xs"
             title="Send call notification to mobile app"
           >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.41 2 2 0 0 1 3.58 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
-              <path d="M16 5.3a5 5 0 0 1 0 6.4" stroke="currentColor" strokeOpacity="0.7"/>
-              <path d="M19 3a9 9 0 0 1 0 11" stroke="currentColor" strokeOpacity="0.5"/>
-            </svg>
+            <Phone className="w-4 h-4" />
             <span className="hidden sm:inline">Initiate Call</span>
-          </button>
+          </motion.button>
 
           {/* Send WhatsApp Template Button */}
-          <button
+          <motion.button
+            whileHover={{ scale: 1.03, y: -1 }}
+            whileTap={{ scale: 0.97 }}
             onClick={() => setShowSendTemplateModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-[#457b9d] hover:bg-[#1d3557] text-white rounded-xl text-xs font-extrabold transition-all shadow-xs"
             title="Send WhatsApp Template to student"
           >
             <MessageCircle className="w-4 h-4" />
             <span className="hidden sm:inline">Send Template</span>
-          </button>
+          </motion.button>
 
+          {/* Status Dropdown */}
           <select
             value={lead.status}
             onChange={e => handleStatusChange(e.target.value)}
-            className="text-xs font-semibold border border-indigo-200 rounded-xl px-3 py-2 bg-indigo-50/40 text-indigo-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all hover:bg-indigo-50"
+            className="text-xs font-bold border border-[#a8dadc] rounded-xl px-3 py-2 bg-[#f1faee] text-[#1d3557] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#457b9d] transition-all hover:border-[#457b9d]"
           >
             {statuses.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
 
           {isAdmin && (
-            <button onClick={handleDeleteLead} className="w-9 h-9 rounded-xl border border-red-200 hover:bg-red-50 text-red-500 flex items-center justify-center transition-all hover:text-red-700 active:scale-95" title="Delete Lead">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleDeleteLead}
+              className="w-9 h-9 rounded-xl border border-red-200 bg-red-50/50 hover:bg-red-50 text-[#e63946] flex items-center justify-center transition-all shadow-2xs"
+              title="Delete Lead"
+            >
               <Trash2 className="w-4 h-4" />
-            </button>
+            </motion.button>
           )}
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 mt-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column */}
         <div className="lg:col-span-4 space-y-6">
-          <div className="card bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
-            <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/40">
-              <h3 className="font-bold text-gray-800 text-sm uppercase tracking-wide flex items-center gap-2">
-                <User className="w-4 h-4 text-indigo-600" /> Basic Information
+          <div className="bg-white rounded-2xl border border-[#a8dadc] shadow-xs overflow-hidden transition-all hover:shadow-md">
+            <div className="p-4 sm:p-5 border-b border-gray-100 flex items-center justify-between bg-[#f1faee]/50">
+              <h3 className="font-extrabold text-[#1d3557] text-sm uppercase tracking-wider flex items-center gap-2">
+                <User className="w-4 h-4 text-[#457b9d]" /> Basic Information
               </h3>
               {!isEditingInfo ? (
-                <button onClick={() => setIsEditingInfo(true)} className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-1 py-1 px-2.5 rounded-lg hover:bg-indigo-50">
+                <button
+                  onClick={() => setIsEditingInfo(true)}
+                  className="text-xs font-bold text-[#457b9d] hover:text-[#1d3557] transition-colors flex items-center gap-1 py-1 px-2.5 rounded-lg hover:bg-[#a8dadc]/30"
+                >
                   <Edit3 className="w-3.5 h-3.5" /> Edit Info
                 </button>
               ) : (
-                <button onClick={() => setIsEditingInfo(false)} className="text-xs font-semibold text-red-500 hover:text-red-700 transition-colors flex items-center gap-1 py-1 px-2.5 rounded-lg hover:bg-red-50">
+                <button
+                  onClick={() => setIsEditingInfo(false)}
+                  className="text-xs font-bold text-[#e63946] hover:text-red-700 transition-colors flex items-center gap-1 py-1 px-2.5 rounded-lg hover:bg-red-50"
+                >
                   <X className="w-3.5 h-3.5" /> Cancel
                 </button>
               )}
@@ -1075,55 +1097,60 @@ export default function LeadDetailsPage({
                       const locked = isPhoneField && !isSuperAdmin;
                       return (
                         <div key={field}>
-                          <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 block">
-                            {label}{locked && <span className="normal-case font-medium text-gray-400"> (only Super Admin can edit)</span>}
+                          <label className="text-xs font-bold text-[#457b9d] uppercase tracking-wider mb-1 block">
+                            {label}{locked && <span className="normal-case font-medium text-gray-400"> (Super Admin only)</span>}
                           </label>
                           <input
                             type={type}
-                            className={`input-field w-full border border-gray-200 rounded-xl p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 ${locked ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
+                            className={`input-field w-full border border-[#a8dadc] rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#457b9d] ${locked ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-white'}`}
                             value={editForm[field]}
                             onChange={e => setEditForm({ ...editForm, [field]: e.target.value })}
                             required={required}
                             readOnly={locked}
-                            title={locked ? 'Only Super Admin can edit the phone number' : undefined}
                           />
                         </div>
                       );
                     })}
                     <div>
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 block">Budget (INR)</label>
-                      <input type="number" className="input-field w-full border border-gray-200 rounded-xl p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" value={editForm.budget} onChange={e => setEditForm({ ...editForm, budget: e.target.value })} placeholder="Enter budget amount" min={0} />
+                      <label className="text-xs font-bold text-[#457b9d] uppercase tracking-wider mb-1 block">Budget (INR)</label>
+                      <input type="number" className="input-field w-full border border-[#a8dadc] rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#457b9d]" value={editForm.budget} onChange={e => setEditForm({ ...editForm, budget: e.target.value })} placeholder="Enter budget amount" min={0} />
                     </div>
                     <div>
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 block">Lead Source</label>
-                      <select className="input-field w-full border border-gray-200 rounded-xl p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" value={editForm.leadSource} onChange={e => setEditForm({ ...editForm, leadSource: e.target.value })}>
+                      <label className="text-xs font-bold text-[#457b9d] uppercase tracking-wider mb-1 block">Lead Source</label>
+                      <select className="input-field w-full border border-[#a8dadc] rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#457b9d]" value={editForm.leadSource} onChange={e => setEditForm({ ...editForm, leadSource: e.target.value })}>
                         {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
                     </div>
                     {isAdmin && (
                       <>
                         <div>
-                          <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 block">Assignee</label>
-                          <select className="input-field w-full border border-gray-200 rounded-xl p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" value={editForm.assignedTo} onChange={e => setEditForm({ ...editForm, assignedTo: e.target.value })}>
+                          <label className="text-xs font-bold text-[#457b9d] uppercase tracking-wider mb-1 block">Assignee</label>
+                          <select className="input-field w-full border border-[#a8dadc] rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#457b9d]" value={editForm.assignedTo} onChange={e => setEditForm({ ...editForm, assignedTo: e.target.value })}>
                             <option value="">Unassigned</option>
                             {callers.map(u => <option key={u._id} value={u._id}>{u.name} ({u.role})</option>)}
                           </select>
                         </div>
                         <div>
-                          <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 block">Campaign</label>
-                          <select className="input-field w-full border border-gray-200 rounded-xl p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" value={editForm.campaign} onChange={e => setEditForm({ ...editForm, campaign: e.target.value })}>
+                          <label className="text-xs font-bold text-[#457b9d] uppercase tracking-wider mb-1 block">Campaign</label>
+                          <select className="input-field w-full border border-[#a8dadc] rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#457b9d]" value={editForm.campaign} onChange={e => setEditForm({ ...editForm, campaign: e.target.value })}>
                             <option value="">No Campaign</option>
                             {campaigns.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
                           </select>
                         </div>
                       </>
                     )}
-                    <button type="submit" disabled={savingInfo} className="btn-primary w-full justify-center rounded-xl py-2.5 font-bold text-sm shadow-sm mt-4">
-                      <Save className="w-4 h-4 mr-1.5" /> Save Changes
-                    </button>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      type="submit"
+                      disabled={savingInfo}
+                      className="w-full justify-center rounded-xl py-2.5 font-bold text-sm bg-[#457b9d] hover:bg-[#1d3557] text-white shadow-xs mt-4 flex items-center gap-2 transition-colors"
+                    >
+                      <Save className="w-4 h-4" /> Save Details
+                    </motion.button>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-3.5">
                     {[
                       { icon: Phone, label: 'Phone', value: lead.phone, copyable: true },
                       { icon: Phone, label: 'Alternate Phone', value: lead.alternatePhone || '—', copyable: !!lead.alternatePhone },
@@ -1135,28 +1162,41 @@ export default function LeadDetailsPage({
                       { icon: User, label: 'Campaign', value: lead.campaign?.name || 'None' },
                       { icon: User, label: 'Assignee', value: lead.assignedTo?.name || 'Unassigned' },
                     ].map(({ icon: Icon, label, value, copyable }) => (
-                      <div key={label} className="flex items-start gap-3 text-sm">
-                        <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center flex-shrink-0 text-gray-400 mt-0.5"><Icon className="w-4 h-4" /></div>
+                      <div key={label} className="flex items-start gap-3 text-sm p-2 rounded-xl hover:bg-[#f1faee]/60 transition-colors">
+                        <div className="w-8 h-8 rounded-xl bg-[#f1faee] border border-[#a8dadc]/60 flex items-center justify-center flex-shrink-0 text-[#457b9d] mt-0.5">
+                          <Icon className="w-4 h-4" />
+                        </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{label}</p>
+                          <p className="text-[10px] font-extrabold text-[#457b9d] uppercase tracking-wider">{label}</p>
                           <div className="flex items-center gap-2 mt-0.5">
-                            <p className="font-semibold text-gray-800 break-all">{value}</p>
+                            <p className="font-bold text-[#1d3557] break-all">{value}</p>
                             {copyable && value !== '—' && (
-                              <button type="button" onClick={() => copyToClipboard(value)} className="text-gray-400 hover:text-indigo-600 transition-colors flex-shrink-0">
-                                {copiedText === value ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                              <button
+                                type="button"
+                                onClick={() => copyToClipboard(value)}
+                                className="text-gray-400 hover:text-[#457b9d] transition-colors flex-shrink-0"
+                              >
+                                {copiedText === value ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                               </button>
                             )}
                           </div>
                         </div>
                       </div>
                     ))}
-                    <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
-                      <span className="text-xs font-semibold text-gray-500">Rating</span>
+                    <div className="pt-3 border-t border-gray-100 flex items-center justify-between px-2">
+                      <span className="text-xs font-bold text-[#1d3557]">Rating</span>
                       <div className="flex items-center gap-1">
-                        {[1,2,3,4,5].map(r => (
-                          <button type="button" key={r} onClick={() => handleRatingChange(r)} className="hover:scale-110 active:scale-95 transition-transform">
-                            <Star className={`w-4 h-4 ${r <= lead.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-200'}`} />
-                          </button>
+                        {[1, 2, 3, 4, 5].map(r => (
+                          <motion.button
+                            whileHover={{ scale: 1.25 }}
+                            whileTap={{ scale: 0.9 }}
+                            type="button"
+                            key={r}
+                            onClick={() => handleRatingChange(r)}
+                            className="focus:outline-none"
+                          >
+                            <Star className={`w-4.5 h-4.5 ${r <= lead.rating ? 'fill-yellow-400 text-yellow-400 drop-shadow-2xs' : 'text-gray-200'}`} />
+                          </motion.button>
                         ))}
                       </div>
                     </div>
@@ -1170,24 +1210,22 @@ export default function LeadDetailsPage({
         {/* Right Column */}
         <div className="lg:col-span-8 space-y-6">
           {isCalling && <CallTimer onStop={handleCallEnded} />}
-
-          {/* ── AI State Banner (shown below call timer, above other cards) ── */}
           <AIStateBanner lead={lead} />
 
           {/* Course Section */}
-          <div className="card bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
-            <div className="p-5 border-b border-gray-100 bg-gray-50/40 flex items-center justify-between">
-              <h3 className="font-bold text-gray-800 text-sm uppercase tracking-wide flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-indigo-600" /> Course Interest & Enrollment Mode
+          <div className="bg-white rounded-2xl border border-[#a8dadc] shadow-xs overflow-hidden transition-all hover:shadow-md">
+            <div className="p-4 sm:p-5 border-b border-gray-100 bg-[#f1faee]/50 flex items-center justify-between">
+              <h3 className="font-extrabold text-[#1d3557] text-sm uppercase tracking-wider flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-[#457b9d]" /> Course Interest & Mode
               </h3>
             </div>
             <div className="p-5">
               {isEditingInfo ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 block">Course Target</label>
+                    <label className="text-xs font-bold text-[#457b9d] uppercase tracking-wider mb-1 block">Course Target</label>
                     <select
-                      className="input-field w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="input-field w-full border border-[#a8dadc] rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#457b9d]"
                       value={editForm.courseInterest}
                       onChange={e => {
                         const selectedCourse = courses.find(c => c._id === e.target.value);
@@ -1203,66 +1241,44 @@ export default function LeadDetailsPage({
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 block">Learning Mode</label>
-                    <select className="input-field w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" value={editForm.mode} onChange={e => setEditForm({ ...editForm, mode: e.target.value })}>
+                    <label className="text-xs font-bold text-[#457b9d] uppercase tracking-wider mb-1 block">Learning Mode</label>
+                    <select className="input-field w-full border border-[#a8dadc] rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#457b9d]" value={editForm.mode} onChange={e => setEditForm({ ...editForm, mode: e.target.value })}>
                       <option value="">Select Mode</option>
                       {MODES.map(m => <option key={m} value={m}>{m}</option>)}
                     </select>
                   </div>
-                  <div>
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 block">
-                      Budget / Negotiated Fee (₹)
-                      {editForm.courseInterest && courses.find(c => c._id === editForm.courseInterest) && (
-                        <span className="ml-2 font-normal text-indigo-500 normal-case">
-                          Course default: ₹{courses.find(c => c._id === editForm.courseInterest)?.cost?.toLocaleString()}
-                        </span>
-                      )}
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">₹</span>
-                      <input
-                        type="number"
-                        className="input-field w-full border border-gray-200 rounded-xl p-2.5 pl-7 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        value={editForm.budget}
-                        onChange={e => setEditForm({ ...editForm, budget: e.target.value })}
-                        placeholder="Enter budget amount"
-                        min={0}
-                      />
-                    </div>
-                  </div>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                  <div className="md:col-span-2 bg-indigo-50/20 border border-indigo-100 rounded-2xl p-5 flex gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-indigo-600/10 text-indigo-600 flex items-center justify-center flex-shrink-0 mt-0.5"><BookOpen className="w-6 h-6" /></div>
+                  <div className="md:col-span-2 bg-[#f1faee]/60 border border-[#a8dadc]/60 rounded-2xl p-5 flex gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-[#457b9d]/10 text-[#457b9d] flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <BookOpen className="w-6 h-6" />
+                    </div>
                     <div className="space-y-1">
-                      <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Selected Course</p>
-                      <h4 className="text-lg font-bold text-gray-800">{lead.courseInterest?.name || 'No Course Selected'}</h4>
-                      {lead.courseInterest?.description && <p className="text-xs text-gray-500 leading-relaxed pt-1">{lead.courseInterest.description}</p>}
+                      <p className="text-[10px] font-extrabold text-[#457b9d] uppercase tracking-widest">Selected Course</p>
+                      <h4 className="text-lg font-extrabold text-[#1d3557]">{lead.courseInterest?.name || 'No Course Selected'}</h4>
+                      {lead.courseInterest?.description && <p className="text-xs text-gray-600 leading-relaxed pt-1">{lead.courseInterest.description}</p>}
                       {lead.courseInterest?.duration && (
-                        <div className="inline-flex items-center gap-1 bg-white border border-indigo-100 text-[10px] font-bold text-indigo-600 px-2 py-0.5 rounded-full mt-2.5 shadow-xs">
+                        <div className="inline-flex items-center gap-1 bg-white border border-[#a8dadc] text-[10px] font-bold text-[#457b9d] px-2.5 py-0.5 rounded-full mt-2.5 shadow-2xs">
                           <Clock className="w-3 h-3" /> {lead.courseInterest.duration}
                         </div>
                       )}
                     </div>
                   </div>
-                  <div className="bg-emerald-50/25 border border-emerald-100 rounded-2xl p-5 flex flex-col justify-between">
+                  <div className="bg-emerald-50/40 border border-emerald-200/60 rounded-2xl p-5 flex flex-col justify-between">
                     <div>
-                      <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Course Fee</p>
-                      <h4 className="text-3xl font-extrabold text-emerald-800 mt-1">
+                      <p className="text-[10px] font-extrabold text-emerald-700 uppercase tracking-widest">Course Fee</p>
+                      <h4 className="text-3xl font-extrabold text-emerald-900 mt-1">
                         {lead.courseInterest?.cost ? `₹${lead.courseInterest.cost.toLocaleString()}` : '—'}
                       </h4>
-                      {lead.budget > 0 && lead.budget !== lead.courseInterest?.cost && (
-                        <p className="text-xs text-emerald-600 mt-1 font-semibold">Budget: ₹{lead.budget.toLocaleString()}</p>
-                      )}
-                      {lead.budget > 0 && !lead.courseInterest && (
-                        <p className="text-xs text-emerald-600 mt-1 font-semibold">Budget: ₹{lead.budget.toLocaleString()}</p>
+                      {lead.budget > 0 && (
+                        <p className="text-xs text-emerald-700 mt-1 font-bold">Budget: ₹{lead.budget.toLocaleString()}</p>
                       )}
                     </div>
-                    <div className="pt-4 border-t border-emerald-100/50 mt-4 flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-gray-400 uppercase">Learning Mode</span>
+                    <div className="pt-3 border-t border-emerald-200/40 mt-3 flex items-center justify-between">
+                      <span className="text-[10px] font-extrabold text-gray-400 uppercase">Learning Mode</span>
                       {lead.mode ? (
-                        <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider shadow-xs">{lead.mode}</span>
+                        <span className="bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-2xs">{lead.mode}</span>
                       ) : <span className="text-xs text-gray-400 italic">Not set</span>}
                     </div>
                   </div>
@@ -1271,132 +1287,140 @@ export default function LeadDetailsPage({
             </div>
           </div>
 
-          {/* Action Center */}
-          <div className="card bg-white rounded-2xl border border-gray-200 shadow-xs p-5" style={{ position: 'relative', overflow: 'hidden' }}>
+          {/* Quick Action Center */}
+          <div className="bg-white rounded-2xl border border-[#a8dadc] shadow-xs p-5 relative overflow-hidden transition-all hover:shadow-md">
             {isBlocked && (
-              <div style={{ position: 'absolute', inset: 0, background: 'rgba(254,242,242,0.93)', zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 16 }}>
-                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-                <span style={{ fontSize: 14, fontWeight: 700, color: '#dc2626' }}>Number Blocked — Actions Disabled</span>
-                <span style={{ fontSize: 11, color: '#991b1b' }}>Unblock this number to re-enable all actions</span>
+              <div className="absolute inset-0 bg-red-50/95 z-10 flex flex-col items-center justify-center gap-2 rounded-2xl p-4 text-center">
+                <ShieldAlert className="w-8 h-8 text-[#e63946]" />
+                <span className="text-sm font-extrabold text-[#e63946]">Phone Number Blocked — Actions Disabled</span>
+                <span className="text-xs text-red-700">Unblock this lead to re-enable communication actions.</span>
               </div>
             )}
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-gray-800 text-sm uppercase tracking-wide">Quick Action Center</h3>
+              <h3 className="font-extrabold text-[#1d3557] text-sm uppercase tracking-wider">Quick Action Center</h3>
               <button
                 onClick={handleBlockToggle}
                 disabled={blockingAction}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 5,
-                  padding: '5px 11px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: blockingAction ? 'not-allowed' : 'pointer',
-                  border: isBlocked ? '1px solid #86efac' : '1px solid #fca5a5',
-                  background: isBlocked ? '#f0fdf4' : '#fff0f0',
-                  color: isBlocked ? '#16a34a' : '#dc2626',
-                  opacity: blockingAction ? 0.6 : 1,
-                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  isBlocked ? 'bg-emerald-50 text-emerald-700 border border-emerald-300' : 'bg-red-50 text-[#e63946] border border-red-200 hover:bg-red-100'
+                }`}
               >
-                {isBlocked ? (
-                  <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><path d="M8 12l3 3 5-5"/></svg>{blockingAction ? '…' : 'Unblock'}</>
-                ) : (
-                  <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>{blockingAction ? '…' : 'Block'}</>
-                )}
+                {isBlocked ? 'Unblock Phone' : 'Block Phone'}
               </button>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { icon: Phone, label: 'CALL NOW', action: () => setShowInitiateCallModal(true), color: 'bg-green-500 hover:bg-green-600 text-white shadow-sm hover:shadow', disabled: isBlocked },
-                { icon: MessageCircle, label: 'SEND TEMPLATE', action: () => setShowSendTemplateModal(true), color: 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm hover:shadow', disabled: isBlocked },
-                { icon: Clock, label: 'CALLBACK LATER', action: () => setShowCallbackModal(true), color: 'bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200', disabled: isBlocked },
-                { icon: Plus, label: 'ADD NOTE', action: () => setShowNoteModal(true), color: 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200', disabled: isBlocked },
-              ].map(({ icon: Icon, label, action, color, disabled }) => (
-                <button key={label} onClick={action} disabled={disabled}
-                  className={`flex flex-col items-center justify-center gap-2 py-3 px-2.5 rounded-xl font-bold transition-all text-center ${color} disabled:opacity-40 disabled:cursor-not-allowed`}>
+                { icon: Phone, label: 'CALL NOW', action: () => setShowInitiateCallModal(true), bg: 'bg-emerald-600 hover:bg-emerald-700 text-white', disabled: isBlocked },
+                { icon: MessageCircle, label: 'SEND TEMPLATE', action: () => setShowSendTemplateModal(true), bg: 'bg-[#457b9d] hover:bg-[#1d3557] text-white', disabled: isBlocked },
+                { icon: Clock, label: 'CALLBACK LATER', action: () => setShowCallbackModal(true), bg: 'bg-[#f1faee] hover:bg-[#a8dadc]/40 text-[#1d3557] border border-[#a8dadc]', disabled: isBlocked },
+                { icon: Plus, label: 'ADD NOTE', action: () => setShowNoteModal(true), bg: 'bg-[#f1faee] hover:bg-[#a8dadc]/40 text-[#457b9d] border border-[#a8dadc]', disabled: isBlocked },
+              ].map(({ icon: Icon, label, action, bg, disabled }) => (
+                <motion.button
+                  key={label}
+                  whileHover={{ scale: disabled ? 1 : 1.03, y: disabled ? 0 : -2 }}
+                  whileTap={{ scale: disabled ? 1 : 0.97 }}
+                  onClick={action}
+                  disabled={disabled}
+                  className={`flex flex-col items-center justify-center gap-2 py-3.5 px-3 rounded-2xl font-extrabold transition-all text-center shadow-xs ${bg} disabled:opacity-40 disabled:cursor-not-allowed`}
+                >
                   <Icon className="w-5 h-5" />
-                  <span className="text-[10px] tracking-wider font-extrabold uppercase">{label}</span>
-                </button>
+                  <span className="text-[10px] tracking-wider uppercase">{label}</span>
+                </motion.button>
               ))}
             </div>
             <div className="mt-4 flex justify-center">
-              <button disabled={isBlocked} onClick={() => setShowLogCallModal(true)} className="text-xs font-bold text-indigo-650 hover:text-indigo-800 hover:underline transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+              <button
+                disabled={isBlocked}
+                onClick={() => setShowLogCallModal(true)}
+                className="text-xs font-bold text-[#457b9d] hover:text-[#1d3557] hover:underline transition-colors disabled:opacity-40"
+              >
                 + Log call records manually
               </button>
             </div>
           </div>
 
           {/* Activity Timeline */}
-          <div className="card bg-white rounded-2xl border border-gray-200 shadow-xs p-6">
-            <h3 className="font-bold text-gray-800 text-sm uppercase tracking-wide mb-4 pb-2.5 border-b border-gray-100">Activity & Calling History</h3>
+          <div className="bg-white rounded-2xl border border-[#a8dadc] shadow-xs p-6 transition-all hover:shadow-md">
+            <h3 className="font-extrabold text-[#1d3557] text-sm uppercase tracking-wider mb-4 pb-3 border-b border-gray-100">
+              Activity & Calling History
+            </h3>
 
             {/* Filter Tabs */}
-            <div className="flex flex-wrap gap-1.5 mb-5">
+            <div className="flex flex-wrap gap-2 mb-6">
               {[
-                { key: 'all', label: 'All' },
+                { key: 'all', label: 'All Activities' },
                 { key: 'call', label: 'Calls' },
                 { key: 'followup', label: 'Callback Later' },
                 { key: 'note', label: 'Notes' },
               ].map(tab => {
-                let count;
-                if (tab.key === 'all') {
-                  count = (lead.activities?.length || 0) + leadFollowups.length;
-                } else if (tab.key === 'followup') {
-                  count = leadFollowups.length;
-                } else {
-                  count = lead.activities?.filter(a => a.type === tab.key).length || 0;
-                }
+                let count = 0;
+                if (tab.key === 'all') count = (lead.activities?.length || 0) + leadFollowups.length;
+                else if (tab.key === 'followup') count = leadFollowups.length;
+                else count = lead.activities?.filter(a => a.type === tab.key).length || 0;
+
                 const isActive = activityFilter === tab.key;
                 return (
-                  <button
+                  <motion.button
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
                     key={tab.key}
                     onClick={() => setActivityFilter(tab.key)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                    style={{
-                      background: isActive ? 'var(--theme-primary)' : '#f3f4f6',
-                      color: isActive ? '#fff' : '#6b7280',
-                      border: isActive ? '1px solid var(--theme-primary)' : '1px solid #e5e7eb',
-                    }}
+                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                      isActive ? 'bg-[#1d3557] text-white shadow-xs' : 'bg-[#f1faee] text-[#457b9d] hover:bg-[#a8dadc]/40 border border-[#a8dadc]'
+                    }`}
                   >
                     {tab.label}
-                    <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold"
-                      style={{ background: isActive ? 'rgba(255,255,255,0.25)' : '#e5e7eb', color: isActive ? '#fff' : '#9ca3af' }}>
+                    <span className={`rounded-full px-2 py-0.2 text-[10px] font-extrabold ${
+                      isActive ? 'bg-white/25 text-white' : 'bg-[#a8dadc]/40 text-[#1d3557]'
+                    }`}>
                       {count}
                     </span>
-                  </button>
+                  </motion.button>
                 );
               })}
             </div>
 
-            {/* Timeline */}
-            <div className="relative border-l border-gray-100 ml-4 space-y-6">
+            {/* Timeline Items */}
+            <div className="relative border-l-2 border-[#a8dadc]/60 ml-4 space-y-6">
               {(() => {
                 if (activityFilter === 'followup') {
                   if (leadFollowups.length === 0) {
                     return (
                       <div className="text-center py-10">
-                        <Clock className="w-10 h-10 text-gray-200 mx-auto mb-2" />
-                        <p className="text-gray-400 text-sm">No callback scheduled yet.</p>
+                        <Clock className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                        <p className="text-gray-400 text-sm font-medium">No callback scheduled yet.</p>
                       </div>
                     );
                   }
                   return leadFollowups.map((f, i) => (
-                    <div key={f._id || i} className="relative pl-6">
-                      <div className="absolute -left-3.5 top-0 w-7 h-7 rounded-full bg-white border border-gray-200 shadow-xs flex items-center justify-center text-gray-500">
-                        <Clock className="w-4 h-4 text-orange-500" />
+                    <motion.div
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.2, delay: i * 0.05 }}
+                      key={f._id || i}
+                      className="relative pl-6"
+                    >
+                      <div className="absolute -left-3.5 top-0 w-7 h-7 rounded-full bg-white border border-[#a8dadc] shadow-2xs flex items-center justify-center text-amber-500">
+                        <Clock className="w-4 h-4" />
                       </div>
-                      <div className="bg-orange-50/50 rounded-xl p-3.5 border border-orange-100 hover:border-orange-200 transition-colors shadow-2xs">
+                      <div className="bg-[#f1faee]/60 rounded-2xl p-4 border border-[#a8dadc] shadow-2xs">
                         <div className="flex items-center justify-between gap-4 flex-wrap">
-                          <div className="font-bold text-sm text-gray-800">📅 Callback Scheduled</div>
-                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${f.status === 'upcoming' ? 'bg-orange-100 text-orange-700' : f.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                            {f.status === 'upcoming' ? '⏳ Upcoming' : f.status === 'completed' ? '✅ Done' : f.status}
+                          <div className="font-extrabold text-sm text-[#1d3557]">📅 Callback Scheduled</div>
+                          <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                            f.status === 'upcoming' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
+                          }`}>
+                            {f.status === 'upcoming' ? '⏳ Upcoming' : '✅ Done'}
                           </span>
                         </div>
                         {f.note && (
-                          <p className="text-xs text-gray-500 italic mt-1.5 bg-white border border-orange-100/50 rounded-lg p-2">"{f.note}"</p>
+                          <p className="text-xs text-gray-700 italic mt-2 bg-white border border-[#a8dadc]/50 rounded-xl p-2.5">"{f.note}"</p>
                         )}
-                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-orange-100/30 text-[10px] text-gray-400 font-semibold">
+                        <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-100 text-[10px] text-[#457b9d] font-bold">
                           <span>ASSIGNED TO: {f.assignedTo?.name || 'Unassigned'}</span>
-                          {f.scheduledAt && <span> {format(new Date(f.scheduledAt), 'dd MMM yyyy, hh:mm a')}</span>}
+                          {f.scheduledAt && <span>{format(new Date(f.scheduledAt), 'dd MMM yyyy, hh:mm a')}</span>}
                         </div>
                       </div>
-                    </div>
+                    </motion.div>
                   ));
                 }
 
@@ -1424,81 +1448,65 @@ export default function LeadDetailsPage({
                 if (allItems.length === 0) {
                   return (
                     <div className="text-center py-10">
-                      <Clock className="w-10 h-10 text-gray-200 mx-auto mb-2" />
-                      <p className="text-gray-400 text-sm">
-                        {activityFilter === 'all' ? 'No activity history logged yet.' : `No ${activityFilter} activity found.`}
-                      </p>
+                      <Clock className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                      <p className="text-gray-400 text-sm font-medium">No activity history logged yet.</p>
                     </div>
                   );
                 }
 
                 return allItems.map((a, i) => (
-                  <div key={a._id || i} className="relative pl-6">
-                    <div className={`absolute -left-3.5 top-0 w-7 h-7 rounded-full bg-white border shadow-xs flex items-center justify-center ${a._followup ? 'border-orange-200' : 'border-gray-200'}`}>
-                      {a._followup ? <Clock className="w-4 h-4 text-orange-500" /> : activityIcon(a.type)}
+                  <motion.div
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.2, delay: i * 0.04 }}
+                    key={a._id || i}
+                    className="relative pl-6"
+                  >
+                    <div className="absolute -left-3.5 top-0 w-7 h-7 rounded-full bg-white border border-[#a8dadc] shadow-2xs flex items-center justify-center">
+                      {a._followup ? <Clock className="w-4 h-4 text-amber-500" /> : activityIcon(a.type)}
                     </div>
-                    <div className={`rounded-xl p-3.5 border hover:border-gray-200 transition-colors shadow-2xs ${a._followup ? 'bg-orange-50/40 border-orange-100' : 'bg-gray-50/50 border-gray-100'}`}>
+                    <div className="rounded-2xl p-4 bg-[#f1faee]/40 border border-[#a8dadc] shadow-2xs hover:border-[#457b9d] transition-colors">
                       <div className="flex items-center justify-between gap-4 flex-wrap">
-                        <div className="font-bold text-sm text-gray-800">
+                        <div className="font-extrabold text-sm text-[#1d3557]">
                           {a._followup ? (
                             <span className="flex items-center gap-2">
                               Callback Scheduled
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${a.status === 'upcoming' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
                                 {a.status === 'upcoming' ? '⏳ Upcoming' : '✅ Done'}
                               </span>
                             </span>
                           ) : a.type === 'call' ? (
                             <span>Logged Call — {fmtDuration(a.callDuration)} ({a.callStatus?.toUpperCase() || 'CONNECTED'})</span>
                           ) : a.type === 'status_change' ? (
-                            <span className="text-orange-700">{a.description}</span>
-                          ) : a.type === 'api_call' ? (
-                            <span className="flex items-center gap-1.5 text-purple-700">⚡ {a.templateName || 'API Template'}</span>
+                            <span className="text-[#457b9d]">{a.description}</span>
                           ) : (
                             <span>{a.description}</span>
                           )}
                         </div>
-                        <span className="text-xs text-gray-400 font-medium">{a.createdAt ? formatDistanceToNow(new Date(a.createdAt), { addSuffix: true }) : ''}</span>
+                        <span className="text-xs text-gray-400 font-semibold">{a.createdAt ? formatDistanceToNow(new Date(a.createdAt), { addSuffix: true }) : ''}</span>
                       </div>
                       {a._followup && a.scheduledAt && (
-                        <p className="text-xs text-orange-600 font-semibold mt-1.5 bg-white border border-orange-100 rounded-lg p-2">
+                        <p className="text-xs text-amber-800 font-bold mt-2 bg-amber-50 border border-amber-200 rounded-xl p-2.5">
                           ⏰ Due: {format(new Date(a.scheduledAt), 'dd MMM yyyy, hh:mm a')}
                         </p>
                       )}
-                      {a._followup && a.description && (
-                        <p className="text-xs text-gray-500 italic mt-1 bg-white border border-orange-100/50 rounded-lg p-2">"{a.description}"</p>
-                      )}
                       {!a._followup && a.type === 'call' && a.description && (
-                        <>
-                          <p className="text-xs text-gray-500 italic mt-1.5 bg-white border border-gray-100/50 rounded-lg p-2">"{a.description}"</p>
+                        <div className="mt-2 bg-white border border-[#a8dadc]/60 rounded-xl p-3">
+                          <p className="text-xs text-gray-700 italic">"{a.description}"</p>
                           <button
                             onClick={() => setRunCallIqActivityId(a._id)}
-                            className="mt-1.5 text-[11px] font-bold text-violet-600 hover:text-violet-800 hover:underline flex items-center gap-1"
+                            className="mt-2 text-xs font-extrabold text-[#457b9d] hover:text-[#1d3557] flex items-center gap-1.5 transition-colors"
                           >
-                            <Sparkles className="w-3 h-3" /> Run Call IQ
+                            <Sparkles className="w-3.5 h-3.5" /> Run Call IQ Audit
                           </button>
-                        </>
-                      )}
-                      {!a._followup && a.type === 'api_call' && a.fields?.length > 0 && (
-                        <div className="mt-2 bg-white border border-gray-100 rounded-lg overflow-hidden">
-                          <div className="grid grid-cols-[1fr_2fr] bg-gray-50 text-[10px] font-bold text-gray-500 uppercase px-3 py-1.5 border-b border-gray-100">
-                            <span>Field</span><span>Value</span>
-                          </div>
-                          {a.fields.map((f, fi) => (
-                            <div key={fi} className={`grid grid-cols-[1fr_2fr] px-3 py-2 text-xs ${fi < a.fields.length - 1 ? 'border-b border-gray-50' : ''}`}>
-                              <span className="font-semibold text-gray-700 flex items-center gap-1">
-                                <span className="text-gray-400 font-mono text-[10px]">{f.type === 'Number' ? '#' : 'T'}</span> {f.label}
-                              </span>
-                              <span className="text-gray-600 break-words">{String(f.value ?? '')}</span>
-                            </div>
-                          ))}
                         </div>
                       )}
-                      <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100/30 text-[10px] text-gray-400 font-semibold">
+                      <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-100 text-[10px] text-[#457b9d] font-extrabold">
                         <span>BY: {a.performedBy?.name || 'System / Unassigned'}</span>
                         {a.createdAt && <span>{format(new Date(a.createdAt), 'dd MMM yyyy, hh:mm a')}</span>}
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 ));
               })()}
             </div>
@@ -1506,27 +1514,29 @@ export default function LeadDetailsPage({
         </div>
       </div>
 
-      {/* Modals */}
-      {showNoteModal && <AddNoteModal onClose={() => setShowNoteModal(false)} onSubmit={handleAddNote} />}
-      {showLogCallModal && <LogCallModal lead={lead} onClose={() => setShowLogCallModal(false)} onSubmit={handleLogManualCall} />}
-      {showCallbackModal && lead && <CallbackTimeModal lead={lead} currentUser={user} onClose={() => setShowCallbackModal(false)} onScheduled={handleCallbackScheduled} />}
-      {showDemoModal && lead && <ScheduleDemoModal lead={lead} onClose={() => setShowDemoModal(false)} onSave={handleScheduleDemo} />}
-      {showInitiateCallModal && (
-        <InitiateCallModal
-          lead={lead}
-          callers={callers}
-          currentUser={user}
-          onClose={() => setShowInitiateCallModal(false)}
-          onSuccess={fetchLeadDetails}
-        />
-      )}
-      {showSendTemplateModal && (
-        <SendWhatsAppTemplateModal
-          lead={lead}
-          onClose={() => setShowSendTemplateModal(false)}
-          onSuccess={fetchLeadDetails}
-        />
-      )}
-    </div>
+      {/* Modals with AnimatePresence */}
+      <AnimatePresence>
+        {showNoteModal && <AddNoteModal onClose={() => setShowNoteModal(false)} onSubmit={handleAddNote} />}
+        {showLogCallModal && <LogCallModal lead={lead} onClose={() => setShowLogCallModal(false)} onSubmit={handleLogManualCall} />}
+        {showCallbackModal && lead && <CallbackTimeModal lead={lead} currentUser={user} onClose={() => setShowCallbackModal(false)} onScheduled={handleCallbackScheduled} />}
+        {showDemoModal && lead && <ScheduleDemoModal lead={lead} onClose={() => setShowDemoModal(false)} onSave={handleScheduleDemo} />}
+        {showInitiateCallModal && (
+          <InitiateCallModal
+            lead={lead}
+            callers={callers}
+            currentUser={user}
+            onClose={() => setShowInitiateCallModal(false)}
+            onSuccess={fetchLeadDetails}
+          />
+        )}
+        {showSendTemplateModal && (
+          <SendWhatsAppTemplateModal
+            lead={lead}
+            onClose={() => setShowSendTemplateModal(false)}
+            onSuccess={fetchLeadDetails}
+          />
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
