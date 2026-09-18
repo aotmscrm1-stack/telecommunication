@@ -221,13 +221,13 @@ export default function Sidebar() {
       }}>
         <div style={{ flex: 1, paddingTop: 6 }}>
           <NavItem to="/dashboard"     icon={Icons.dashboard}   label="Dashboard" />
+          <NavItem to="/leads"         icon={Icons.leads}       label="All Leads" />
           <NavItem to="/tasks"         icon={Icons.tasks}       label="Tasks" />
-          <NavItem to="/email"            icon={Icons.email}       label="Email CRM" iconColor="#ea4335" />
+          <NavItem to="/email"         icon={Icons.email}       label="Email CRM" iconColor="#ea4335" />
 
           {isAdmin && (
             <>
-              <SectionLabel text="Leads" />
-              <NavItem to="/leads"         icon={Icons.leads}       label="All Leads" />
+              <SectionLabel text="Campaigns & Marketing" />
 
               <ExpandGroup
                 icon={Icons.addLead} label="Add Leads"
