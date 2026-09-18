@@ -1,10 +1,19 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Phone, PhoneOff, Mail, MapPin, Award, IndianRupee, Globe, User, Calendar, Tag, Star, Edit3, Save, X, Plus, Clock, MessageCircle, Copy, Check, Trash2, BookOpen, Zap, Sparkles } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, Phone, PhoneOff, Mail, MapPin, Award, IndianRupee, Globe, User, Calendar, Tag, Star, Edit3, Save, X, Plus, Clock, MessageCircle, Copy, Check, Trash2, BookOpen, Zap, Sparkles, ShieldAlert, CheckCircle2, ChevronRight } from 'lucide-react';
 import api, { leadsAPI, campaignsAPI, usersAPI, coursesAPI, followupsAPI, blocklistAPI, leadStagesAPI, messageTemplatesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import StatusBadge from '../common/StatusBadge';
 import { formatDistanceToNow, format } from 'date-fns';
+
+const PALETTE = {
+  navy: '#1d3557',
+  cerulean: '#457b9d',
+  frosted: '#a8dadc',
+  honeydew: '#f1faee',
+  red: '#e63946',
+};
 
 const FALLBACK_STATUSES = ['Fresh', 'Connected', 'Call Not Responding', 'Call Back Later', 'Not interested', 'Demo Scheduled', 'Demo Done', 'Won', 'Lost'];
 const SOURCES = ['Manual', 'Facebook', 'WhatsApp', 'Website', 'Excel', 'Referral'];
@@ -41,23 +50,52 @@ function AddNoteModal({ onClose, onSubmit }) {
   const [note, setNote] = useState('');
   const [type, setType] = useState('note');
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 border border-gray-100">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-bold text-gray-900 text-base">Add Note / Log Activity</h3>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"><X className="w-4 h-4" /></button>
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 border border-[#a8dadc]"
+      >
+        <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-[#f1faee] flex items-center justify-center text-[#457b9d]">
+              <Plus className="w-4 h-4" />
+            </div>
+            <h3 className="font-bold text-[#1d3557] text-base">Add Note / Activity</h3>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-[#f1faee] flex items-center justify-center text-gray-400 hover:text-[#1d3557] transition-colors"><X className="w-4 h-4" /></button>
         </div>
         <div className="flex gap-2 mb-4">
           {['note', 'whatsapp'].map(t => (
-            <button key={t} onClick={() => setType(t)} className={`text-xs px-3 py-1.5 rounded-full capitalize font-semibold transition-all ${type === t ? 'bg-indigo-600 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{t}</button>
+            <button
+              key={t}
+              onClick={() => setType(t)}
+              className={`text-xs px-3.5 py-1.5 rounded-xl capitalize font-bold transition-all ${type === t ? 'bg-[#1d3557] text-white shadow-xs' : 'bg-[#f1faee] text-[#457b9d] hover:bg-[#a8dadc]/40'}`}
+            >
+              {t}
+            </button>
           ))}
         </div>
-        <textarea className="input-field resize-none w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm" rows={4} placeholder="Write details here..." value={note} onChange={e => setNote(e.target.value)} />
+        <textarea
+          className="input-field resize-none w-full border border-[#a8dadc] rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#457b9d] text-sm bg-gray-50/50 focus:bg-white transition-all"
+          rows={4}
+          placeholder="Write activity notes..."
+          value={note}
+          onChange={e => setNote(e.target.value)}
+        />
         <div className="flex gap-2.5 mt-5">
-          <button onClick={onClose} className="btn-secondary flex-1 rounded-xl py-2.5 font-semibold text-sm">Cancel</button>
-          <button onClick={() => onSubmit(note, type)} className="btn-primary flex-1 rounded-xl py-2.5 font-semibold text-sm justify-center" disabled={!note.trim()}>Save Activity</button>
+          <button onClick={onClose} className="flex-1 rounded-xl py-2.5 font-bold text-sm border border-[#a8dadc] text-[#1d3557] hover:bg-[#f1faee] transition-all">Cancel</button>
+          <button
+            onClick={() => onSubmit(note, type)}
+            className="flex-1 rounded-xl py-2.5 font-bold text-sm bg-[#457b9d] hover:bg-[#1d3557] text-white transition-all shadow-xs flex items-center justify-center"
+            disabled={!note.trim()}
+          >
+            Save Activity
+          </button>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -73,16 +111,27 @@ function LogCallModal({ lead, onClose, onSubmit }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 border border-gray-100">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-bold text-gray-900 text-base">Log Call — {lead.name}</h3>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"><X className="w-4 h-4" /></button>
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 border border-[#a8dadc]"
+      >
+        <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-[#f1faee] flex items-center justify-center text-[#457b9d]">
+              <Phone className="w-4 h-4" />
+            </div>
+            <h3 className="font-bold text-[#1d3557] text-base">Log Call — {lead.name}</h3>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-[#f1faee] flex items-center justify-center text-gray-400 hover:text-[#1d3557] transition-colors"><X className="w-4 h-4" /></button>
         </div>
         <div className="space-y-4">
           <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Call Status</label>
-            <select className="input-field w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" value={form.callStatus} onChange={e => setForm({ ...form, callStatus: e.target.value })}>
+            <label className="text-xs font-bold text-[#457b9d] uppercase tracking-wide mb-1 block">Call Status</label>
+            <select className="input-field w-full border border-[#a8dadc] rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#457b9d] bg-white font-semibold text-[#1d3557]" value={form.callStatus} onChange={e => setForm({ ...form, callStatus: e.target.value })}>
               <option value="connected">Connected</option>
               <option value="no_answer">No Answer</option>
               <option value="busy">Busy</option>
@@ -90,25 +139,25 @@ function LogCallModal({ lead, onClose, onSubmit }) {
             </select>
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Duration (seconds)</label>
-            <input type="number" className="input-field w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" value={form.duration} onChange={e => setForm({ ...form, duration: +e.target.value })} min={0} />
+            <label className="text-xs font-bold text-[#457b9d] uppercase tracking-wide mb-1 block">Duration (seconds)</label>
+            <input type="number" className="input-field w-full border border-[#a8dadc] rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#457b9d]" value={form.duration} onChange={e => setForm({ ...form, duration: +e.target.value })} min={0} />
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Call Summary Note</label>
-            <textarea className="input-field w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none" rows={3} value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} placeholder="Write call feedback notes..." />
+            <label className="text-xs font-bold text-[#457b9d] uppercase tracking-wide mb-1 block">Call Summary Note</label>
+            <textarea className="input-field w-full border border-[#a8dadc] rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#457b9d] resize-none" rows={3} value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} placeholder="Write call feedback notes..." />
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">
+            <label className="text-xs font-bold text-[#457b9d] uppercase tracking-wide mb-1 block">
               Transcript <span className="text-gray-400 font-normal">(optional — enables Call IQ audit)</span>
             </label>
-            <textarea className="input-field w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none" rows={4} value={form.transcript} onChange={e => setForm({ ...form, transcript: e.target.value })} placeholder={"Paste or type the call transcript...\nAgent: Hello...\nCustomer: Hi..."} />
+            <textarea className="input-field w-full border border-[#a8dadc] rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#457b9d] resize-none" rows={3} value={form.transcript} onChange={e => setForm({ ...form, transcript: e.target.value })} placeholder={"Paste call transcript here..."} />
           </div>
         </div>
         <div className="flex gap-2.5 mt-5">
-          <button onClick={onClose} className="btn-secondary flex-1 rounded-xl py-2.5 font-semibold text-sm">Cancel</button>
-          <button onClick={handleSubmit} className="btn-primary flex-1 rounded-xl py-2.5 font-semibold text-sm justify-center">Save Call Log</button>
+          <button onClick={onClose} className="flex-1 rounded-xl py-2.5 font-bold text-sm border border-[#a8dadc] text-[#1d3557] hover:bg-[#f1faee]">Cancel</button>
+          <button onClick={handleSubmit} className="flex-1 rounded-xl py-2.5 font-bold text-sm bg-[#457b9d] hover:bg-[#1d3557] text-white shadow-xs justify-center flex items-center">Save Call Log</button>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

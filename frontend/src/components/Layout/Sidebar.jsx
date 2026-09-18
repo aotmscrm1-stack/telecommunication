@@ -227,7 +227,7 @@ export default function Sidebar() {
 
           {isAdmin && (
             <>
-              <SectionLabel text="Campaigns & Marketing" />
+              <SectionLabel text="Marketing & Campaigns" />
 
               <ExpandGroup
                 icon={Icons.addLead} label="Add Leads"
