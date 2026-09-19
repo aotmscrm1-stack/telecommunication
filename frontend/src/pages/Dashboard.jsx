@@ -1,34 +1,39 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { leadsAPI, followupsAPI, reportsAPI, usersAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import StatusBadge from '../components/common/StatusBadge';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import StatCard from '../components/dashboard/StatCard';
 import EmployeeTrackingCard from '../components/tracking/EmployeeTrackingCard';
 import LiveMap from '../components/tracking/LiveMap';
+import {
+  FaUsers, FaMoneyBillWave, FaChartLine, FaCalendarCheck, FaPhone,
+  FaTrophy, FaLocationDot, FaBuilding, FaMagnifyingGlass, FaRotate, FaFilter,
+  FaCircleCheck, FaEye, FaMapLocationDot, FaUserTie, FaChartPie,
+  FaClock, FaXmark, FaCheck, FaPhoneVolume, FaCalendarDays, FaFileLines,
+  FaChevronRight, FaBullhorn, FaArrowTrendUp, FaTowerCell
+} from 'react-icons/fa6';
 
-// User Color Palette: Oxford Navy (#1d3557), Cerulean (#457b9d), Frosted Blue (#a8dadc), Honeydew (#f1faee), Punch Red (#e63946)
-const OXFORD_NAVY  = '#1d3557';
-const CERULEAN     = '#457b9d';
-const FROSTED_BLUE = '#a8dadc';
-const HONEYDEW      = '#f1faee';
-const PUNCH_RED     = '#e63946';
-const BORDER        = '#e2e8f0';
+const EVERGREEN    = '#152614';
+const DARK_SPRUCE  = '#1e441e';
+const FOREST_GREEN = '#119822';
+const LIME_GREEN   = '#72ff47';
+const LIME_ACCENT  = '#43ff0a';
 
-const PALETTE_COLORS = [OXFORD_NAVY, CERULEAN, '#6097b9', '#315a93', '#88b1cb', PUNCH_RED];
+const PALETTE_COLORS = ['#72ff47', '#46ea5c', '#18d531', '#119822', '#569c52', '#8bc088'];
 
 const STATUS_COLORS = {
-  'Fresh':               CERULEAN,
-  'Connected':           OXFORD_NAVY,
-  'Call Not Responding': PUNCH_RED,
-  'Call Back Later':     '#d97706',
-  'Not interested':      PUNCH_RED,
-  'Demo Scheduled':      '#315a93',
-  'Demo Done':           '#4e7fc4',
-  'Won':                 OXFORD_NAVY,
-  'Lost':                PUNCH_RED,
-  'Wrong Number':        '#cb1928',
+  'Fresh':               '#46ea5c',
+  'Connected':           '#72ff47',
+  'Call Not Responding': '#f43f5e',
+  'Call Back Later':     '#f59e0b',
+  'Not interested':      '#ef4444',
+  'Demo Scheduled':      '#38bdf8',
+  'Demo Done':           '#818cf8',
+  'Won':                 '#43ff0a',
+  'Lost':                '#e11d48',
+  'Wrong Number':        '#94a3b8',
 };
 
 function fmtDuration(sec) {
@@ -55,67 +60,60 @@ function getLiveStatusBadge(status) {
   switch (status) {
     case 'ON_DUTY':
       return {
-        bg: '#ecfdf5',
-        color: '#047857',
-        border: '#a7f3d0',
-        dot: '#10b981',
+        bg: 'rgba(30, 68, 30, 0.8)',
+        color: '#72ff47',
+        border: 'rgba(114, 255, 71, 0.4)',
+        dot: '#72ff47',
         label: 'On Duty',
-        icon: '🟢',
       };
     case 'ON_CALL':
       return {
-        bg: '#eff6ff',
-        color: '#1d4ed8',
-        border: '#93c5fd',
-        dot: '#3b82f6',
+        bg: 'rgba(10, 91, 21, 0.8)',
+        color: '#84f193',
+        border: 'rgba(70, 234, 92, 0.4)',
+        dot: '#46ea5c',
         label: 'On Call',
-        icon: '🔵',
       };
     case 'ON_BREAK':
       return {
-        bg: '#fffbeb',
-        color: '#b45309',
-        border: '#fde68a',
-        dot: '#f59e0b',
+        bg: 'rgba(19, 82, 0, 0.8)',
+        color: '#a1ff85',
+        border: 'rgba(114, 255, 71, 0.4)',
+        dot: '#a1ff85',
         label: 'On Break',
-        icon: '🟡',
       };
     case 'COMPLETED':
       return {
-        bg: '#f0fdf4',
-        color: '#15803d',
-        border: '#bbf7d0',
-        dot: '#22c55e',
+        bg: 'rgba(7, 61, 14, 0.8)',
+        color: '#c1f8c9',
+        border: 'rgba(24, 213, 49, 0.4)',
+        dot: '#18d531',
         label: 'Completed',
-        icon: '✅',
       };
     case 'ACTIVE':
       return {
-        bg: '#f0fdfa',
-        color: '#0f766e',
-        border: '#99f6e4',
-        dot: '#14b8a6',
+        bg: 'rgba(21, 38, 20, 0.8)',
+        color: '#43ff0a',
+        border: 'rgba(67, 255, 10, 0.4)',
+        dot: '#43ff0a',
         label: 'Active GPS',
-        icon: '📍',
       };
     case 'NOT_STARTED':
       return {
-        bg: '#f8fafc',
-        color: '#64748b',
-        border: '#e2e8f0',
-        dot: '#94a3b8',
+        bg: 'rgba(30, 41, 59, 0.8)',
+        color: '#94a3b8',
+        border: 'rgba(148, 163, 184, 0.3)',
+        dot: '#64748b',
         label: 'Not Started',
-        icon: '⚪',
       };
     case 'OFFLINE':
     default:
       return {
-        bg: '#fef2f2',
-        color: '#991b1b',
-        border: '#fecaca',
+        bg: 'rgba(153, 27, 27, 0.3)',
+        color: '#fca5a5',
+        border: 'rgba(239, 68, 68, 0.3)',
         dot: '#ef4444',
         label: 'Offline',
-        icon: '🔴',
       };
   }
 }
@@ -137,7 +135,7 @@ export default function Dashboard() {
     activeEmployees: 0,
     employees: [],
   });
-  const [activityCallsDateFilter, setActivityCallsDateFilter] = useState('today'); // 'yesterday' | 'today' | 'tomorrow'
+  const [activityCallsDateFilter, setActivityCallsDateFilter] = useState('today');
   const [activitySearch, setActivitySearch] = useState('');
 
   // Interactive Modals State
@@ -150,34 +148,29 @@ export default function Dashboard() {
   const [callsModalData, setCallsModalData] = useState(null);
   const [callsModalLoading, setCallsModalLoading] = useState(false);
 
-  // Pre-generate all date options for dropdown (flat continuous list with all dates at a time)
+  // Pre-generate all date options for dropdown
   const allDateOptions = useMemo(() => {
     const list = [];
     const now = new Date();
 
-    // 1. All Dates
     list.push({ key: 'all', label: 'All Dates (Full History)' });
 
-    // 2. Today
     const todayFormatted = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     const todayDay = now.toLocaleDateString('en-US', { weekday: 'short' });
     list.push({ key: 'today', label: `Today — ${todayFormatted} (${todayDay})` });
 
-    // 3. Yesterday
     const yest = new Date(now);
     yest.setDate(yest.getDate() - 1);
     const yestFormatted = yest.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     const yestDay = yest.toLocaleDateString('en-US', { weekday: 'short' });
     list.push({ key: 'yesterday', label: `Yesterday — ${yestFormatted} (${yestDay})` });
 
-    // 4. Tomorrow
     const tmrw = new Date(now);
     tmrw.setDate(tmrw.getDate() + 1);
     const tmrwFormatted = tmrw.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     const tmrwDay = tmrw.toLocaleDateString('en-US', { weekday: 'short' });
     list.push({ key: 'tomorrow', label: `Tomorrow (Scheduled) — ${tmrwFormatted} (${tmrwDay})` });
 
-    // 5. Consecutive past dates (from 2 days ago up to 60 days)
     for (let i = 2; i <= 60; i++) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
@@ -199,23 +192,8 @@ export default function Dashboard() {
   const [userAnalysisData, setUserAnalysisData] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
 
-  // Employee Priorities workspace states
-  const [activeQueueIndex, setActiveQueueIndex] = useState(null);
-  const [workspaceLead, setWorkspaceLead] = useState(null);
-  const [workspaceLoading, setWorkspaceLoading] = useState(false);
-  const [callDuration, setCallDuration] = useState(0);
-  const [timerActive, setTimerActive] = useState(false);
-  const [callStatus, setCallStatus] = useState('connected');
-  const [callNote, setCallNote] = useState('');
-  const [newStatus, setNewStatus] = useState('');
-  const [nextFollowupDate, setNextFollowupDate] = useState('');
-  const [nextFollowupNote, setNextFollowupNote] = useState('');
-  const [demoDate, setDemoDate] = useState('');
-  const [savingCall, setSavingCall] = useState(false);
-
   const isSuperAdmin = user?.role === 'admin';
   const isAdmin = user?.role === 'admin' || user?.role === 'manager';
-  const isEmployee = !isAdmin;
 
   const openAnalysisModal = async (userId) => {
     setSelectedUserId(userId);
@@ -236,7 +214,6 @@ export default function Dashboard() {
     setUserAnalysisData(null);
   };
 
-  // Open Call Details Modal for a specific employee and timeframe / date
   const openCallsModal = async (employee, period = 'today', customDate = '') => {
     setCallsModalEmployee(employee);
     setCallsModalPeriod(period);
@@ -339,87 +316,6 @@ export default function Dashboard() {
     fetchData();
   };
 
-  // Call timer effect
-  useEffect(() => {
-    let interval = null;
-    if (timerActive) {
-      interval = setInterval(() => {
-        setCallDuration(prev => prev + 1);
-      }, 1000);
-    } else {
-      clearInterval(interval);
-    }
-    return () => clearInterval(interval);
-  }, [timerActive]);
-
-  // Load lead details when calling workspace opens
-  useEffect(() => {
-    if (activeQueueIndex !== null && stats?.startMyDayQueue?.[activeQueueIndex]) {
-      const leadId = stats.startMyDayQueue[activeQueueIndex].lead._id;
-      setWorkspaceLoading(true);
-      setWorkspaceLead(null);
-      setCallDuration(0);
-      setTimerActive(true);
-      setCallStatus('connected');
-      setCallNote('');
-      setNewStatus('');
-      setNextFollowupDate('');
-      setNextFollowupNote('');
-      setDemoDate('');
-      
-      leadsAPI.getOne(leadId)
-        .then(res => {
-          setWorkspaceLead(res.data.lead);
-          setNewStatus(res.data.lead.status);
-        })
-        .catch(err => console.error(err))
-        .finally(() => setWorkspaceLoading(false));
-    } else {
-      setTimerActive(false);
-    }
-  }, [activeQueueIndex, stats]);
-
-  const handleSaveCall = async () => {
-    if (!workspaceLead) return;
-    setSavingCall(true);
-    try {
-      await leadsAPI.logCall(workspaceLead._id, {
-        duration: callDuration,
-        callStatus,
-        note: callNote
-      });
-
-      if (newStatus && newStatus !== workspaceLead.status) {
-        const statusPayload = { status: newStatus };
-        if (newStatus === 'Demo Scheduled') {
-          statusPayload.demoScheduledDate = demoDate ? new Date(demoDate).toISOString() : new Date().toISOString();
-        }
-        await leadsAPI.updateStatus(workspaceLead._id, statusPayload);
-      }
-
-      if (nextFollowupDate) {
-        await followupsAPI.create({
-          lead: workspaceLead._id,
-          scheduledAt: new Date(nextFollowupDate),
-          note: nextFollowupNote || 'Scheduled from calling queue workspace'
-        });
-      }
-
-      if (activeQueueIndex < (stats.startMyDayQueue.length - 1)) {
-        setActiveQueueIndex(prev => prev + 1);
-      } else {
-        setActiveQueueIndex(null);
-        refresh();
-      }
-    } catch (err) {
-      console.error(err);
-      alert('Error saving call outcome: ' + err.message);
-    } finally {
-      setSavingCall(false);
-    }
-  };
-
-  // Filtered employees for the table
   const filteredActivityEmployees = useMemo(() => {
     const list = employeesActivityData.employees || [];
     if (!activitySearch.trim()) return list;
@@ -435,35 +331,29 @@ export default function Dashboard() {
   }, [employeesActivityData.employees, activitySearch]);
 
   if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 320 }}>
-      <div className="spinner-gradient" style={{ width: 32, height: 32 }} />
+    <div className="flex items-center justify-center h-80">
+      <div className="w-10 h-10 border-4 border-[#72ff47]/20 border-t-[#72ff47] rounded-full animate-spin" />
     </div>
   );
 
-  // -------------------------------------------------------------
-  // EMPLOYEE PORTAL DASHBOARD VIEW
-  // -------------------------------------------------------------
-  const renderEmployeeDashboard = () => {
-    return (
-      <div className="dash-employee-shell" style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: '100%', overflowX: 'hidden' }}>
-        <EmployeeTrackingCard />
-      </div>
-    );
-  };
+  const renderEmployeeDashboard = () => (
+    <div className="flex flex-col gap-6 max-w-full overflow-x-hidden">
+      <EmployeeTrackingCard />
+    </div>
+  );
 
-  // -------------------------------------------------------------
-  // ADMIN & SUPERADMIN DASHBOARD VIEW
-  // -------------------------------------------------------------
   const renderAdminDashboard = () => {
     if (!adminStats) {
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '300px', gap: 12 }}>
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke={CERULEAN} strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          <div style={{ fontSize: 15, fontWeight: 600, color: OXFORD_NAVY }}>Analytics Loading or Unavailable</div>
+        <div className="flex flex-col items-center justify-center h-72 gap-3 bg-[#0c160c]/80 border border-[#72ff47]/20 rounded-2xl p-6">
+          <FaChartPie className="w-10 h-10 text-[#72ff47]" />
+          <div className="text-sm font-medium text-slate-200">Analytics Loading or Unavailable</div>
           <button
             onClick={refresh}
-            style={{ background: CERULEAN, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-          >Retry Refresh</button>
+            className="bg-[#119822] hover:bg-[#18d531] text-white rounded-xl px-5 py-2 text-xs font-normal transition-all"
+          >
+            Retry Refresh
+          </button>
         </div>
       );
     }
@@ -481,158 +371,135 @@ export default function Dashboard() {
     const totalEmployeesCount = employeesActivityData.totalEmployees || employeesActivityData.employees.length;
 
     return (
-      <div className="dash-admin-shell" style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: '100%', overflowX: 'hidden' }}>
-        <style>{`
-          @media (max-width: 768px) {
-            .dash-grid-2 { grid-template-columns: 1fr !important; }
-            .dash-kpis-4 { grid-template-columns: 1fr 1fr !important; }
-          }
-          @media (max-width: 480px) {
-            .dash-kpis-4 { grid-template-columns: 1fr !important; }
-          }
-        `}</style>
-
+      <div className="flex flex-col gap-6 max-w-full overflow-x-hidden">
         {/* Live Attendance & Location Tracking Widget */}
         <EmployeeTrackingCard />
 
         {/* Strategic KPIs Row */}
-        <div className="dash-kpis-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard 
-            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>}
+            icon={<FaUsers />}
             label="Total Leads In System" 
             value={stats?.total || 0} 
             sub="All-time database count" 
-            bg="#edf8f8" 
-            iconColor={CERULEAN}
+            bg="rgba(30, 68, 30, 0.6)" 
+            iconColor="#72ff47"
           />
           <StatCard 
-            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>}
+            icon={<FaMoneyBillWave />}
             label="Revenue Won (This Month)" 
             value={`₹${revenueWon.toLocaleString('en-IN')}`} 
             sub="Closed won pipeline" 
-            bg="#f1faee" 
-            iconColor={OXFORD_NAVY}
+            bg="rgba(17, 152, 34, 0.4)" 
+            iconColor="#43ff0a"
           />
           <StatCard 
-            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>}
+            icon={<FaArrowTrendUp />}
             label="Lead-to-Won Success Rate" 
             value={`${leadConversionRate}%`} 
             sub="Conversion efficiency" 
-            bg="#edf8f8" 
-            iconColor={CERULEAN}
+            bg="rgba(30, 68, 30, 0.6)" 
+            iconColor="#72ff47"
           />
           <StatCard 
-            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>}
+            icon={<FaCalendarCheck />}
             label="Strategic Demos Scheduled" 
             value={actualDemosCombined} 
             sub="Scheduled this month" 
-            bg="#f1faee" 
-            iconColor={OXFORD_NAVY}
+            bg="rgba(17, 152, 34, 0.4)" 
+            iconColor="#43ff0a"
           />
         </div>
 
-        {/* ── 1. Enhanced Employees Activity & Live Status Dashboard ──────────────── */}
-        <div
-          style={{
-            background: '#ffffff',
-            border: '1px solid #a8dadc',
-            borderRadius: 18,
-            padding: '22px 24px',
-            boxShadow: '0 4px 20px rgba(29, 53, 87, 0.05)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 16,
-          }}
+        {/* ── 1. Employees Activity & Live Status Dashboard ──────────────── */}
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-[#0c160c]/90 border border-[#72ff47]/20 rounded-2xl p-5 shadow-2xl backdrop-blur-xl flex flex-col gap-4 text-slate-100"
         >
           {/* Header Toolbar */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 14 }}>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-[#1e441e] pb-4">
             <div>
-              <div style={{ fontWeight: 700, color: OXFORD_NAVY, fontSize: 17, display: 'flex', alignItems: 'center', gap: 9 }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={CERULEAN} strokeWidth="2.2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-                Employees Activity & Live Status
+              <div className="text-base font-medium text-white flex items-center gap-2.5">
+                <FaTowerCell className="w-5 h-5 text-[#72ff47]" />
+                <span>Employees Activity & Live Telemetry</span>
               </div>
-              <div style={{ fontSize: 12, color: CERULEAN, marginTop: 3 }}>
+              <div className="text-xs font-normal text-[#8bc088] mt-0.5">
                 Real-time employee presence, live GPS location, attendance timings, and call performance
               </div>
             </div>
 
             {/* Filter and Control Group */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <div className="flex items-center gap-3 flex-wrap w-full sm:w-auto">
               {/* Search Box */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f8fafc', border: `1px solid ${BORDER}`, borderRadius: 10, padding: '6px 12px', minWidth: 200 }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <div className="flex items-center gap-2 bg-[#040704] border border-[#356033] rounded-xl px-3 py-1.5 min-w-[200px] flex-1 sm:flex-initial">
+                <FaMagnifyingGlass className="w-3.5 h-3.5 text-[#8bc088]" />
                 <input
                   type="text"
                   placeholder="Search employees..."
                   value={activitySearch}
                   onChange={(e) => setActivitySearch(e.target.value)}
-                  style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: 12.5, color: OXFORD_NAVY, width: '100%' }}
+                  className="bg-transparent border-none outline-none text-xs text-slate-100 placeholder-slate-500 w-full"
                 />
                 {activitySearch && (
-                  <button onClick={() => setActivitySearch('')} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12 }}>✕</button>
+                  <button onClick={() => setActivitySearch('')} className="text-slate-400 hover:text-white">
+                    <FaXmark className="w-3 h-3" />
+                  </button>
                 )}
               </div>
 
               {/* Calls Date Selector Dropdown */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#edf8f8', border: '1px solid #a8dadc', borderRadius: 10, padding: '4px 10px' }}>
-                <span style={{ fontSize: 11.5, fontWeight: 700, color: OXFORD_NAVY }}>Calls:</span>
+              <div className="flex items-center gap-2 bg-[#1e441e] border border-[#72ff47]/30 rounded-xl px-3 py-1.5">
+                <span className="text-xs font-normal text-[#72ff47]">Calls:</span>
                 <select
                   value={activityCallsDateFilter}
                   onChange={(e) => setActivityCallsDateFilter(e.target.value)}
-                  style={{
-                    border: 'none',
-                    background: 'transparent',
-                    color: OXFORD_NAVY,
-                    fontWeight: 700,
-                    fontSize: 12.5,
-                    cursor: 'pointer',
-                    outline: 'none',
-                  }}
+                  className="bg-transparent border-none outline-none text-xs font-normal text-slate-100 cursor-pointer"
                 >
-                  <option value="today">Today ({employeesActivityData.dates?.today?.day?.slice(0, 3) || 'Today'})</option>
-                  <option value="yesterday">Yesterday ({employeesActivityData.dates?.yesterday?.day?.slice(0, 3) || 'Yest'})</option>
-                  <option value="tomorrow">Tomorrow ({employeesActivityData.dates?.tomorrow?.day?.slice(0, 3) || 'Tmrw'})</option>
+                  <option value="today" className="bg-[#0c160c] text-white">Today ({employeesActivityData.dates?.today?.day?.slice(0, 3) || 'Today'})</option>
+                  <option value="yesterday" className="bg-[#0c160c] text-white">Yesterday ({employeesActivityData.dates?.yesterday?.day?.slice(0, 3) || 'Yest'})</option>
+                  <option value="tomorrow" className="bg-[#0c160c] text-white">Tomorrow ({employeesActivityData.dates?.tomorrow?.day?.slice(0, 3) || 'Tmrw'})</option>
                 </select>
               </div>
 
               {/* Active Badge */}
-              <span style={{ background: '#ecfdf5', color: '#047857', fontSize: 12, fontWeight: 700, borderRadius: 20, padding: '5px 12px', border: '1px solid #a7f3d0', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981' }} />
-                {activeEmployeesCount} Active / {totalEmployeesCount} Total
-              </span>
+              <div className="bg-[#1e441e] text-[#72ff47] border border-[#72ff47]/40 text-xs font-normal px-3 py-1.5 rounded-xl flex items-center gap-2 shrink-0">
+                <span className="w-2 h-2 rounded-full bg-[#72ff47] animate-pulse" />
+                <span>{activeEmployeesCount} Active / {totalEmployeesCount} Total</span>
+              </div>
 
               {/* Refresh Button */}
               <button
                 onClick={refresh}
                 title="Refresh Activity"
-                style={{ background: '#ffffff', border: `1px solid ${BORDER}`, borderRadius: 10, padding: '6px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', color: OXFORD_NAVY }}
+                className="bg-[#1e441e] hover:bg-[#356033] border border-[#72ff47]/30 p-2 rounded-xl text-slate-200 transition-colors"
               >
-                🔄
+                <FaRotate className="w-3.5 h-3.5 text-[#72ff47]" />
               </button>
             </div>
           </div>
 
           {/* Table Container */}
           {filteredActivityEmployees.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '32px 0', color: CERULEAN, fontSize: 13 }}>
+            <div className="text-center py-8 text-xs font-normal text-[#8bc088]">
               No employee records matching your search or activity filters.
             </div>
           ) : (
-            <div style={{ overflowX: 'auto', border: `1px solid ${BORDER}`, borderRadius: 12 }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 980 }}>
-                <thead>
-                  <tr style={{ background: '#f8fafc', borderBottom: `1.5px solid ${BORDER}`, color: OXFORD_NAVY, height: 40 }}>
-                    <th style={{ textAlign: 'left', fontWeight: 700, padding: '10px 16px', width: '25%' }}>Employee</th>
-                    <th style={{ textAlign: 'center', fontWeight: 700, padding: '10px 12px', width: '14%' }}>Live Status</th>
-                    <th style={{ textAlign: 'center', fontWeight: 700, padding: '10px 12px', width: '15%' }}>Attendance</th>
-                    <th style={{ textAlign: 'center', fontWeight: 700, padding: '10px 12px', width: '16%' }}>
+            <div className="overflow-x-auto border border-[#1e441e] rounded-xl">
+              <table className="w-full text-xs text-left text-slate-200 min-w-[950px]">
+                <thead className="bg-[#040704] text-[#8bc088] uppercase tracking-wider text-[11px] font-normal border-b border-[#1e441e]">
+                  <tr>
+                    <th className="py-3 px-4 font-normal">Employee</th>
+                    <th className="py-3 px-3 text-center font-normal">Live Status</th>
+                    <th className="py-3 px-3 text-center font-normal">Attendance</th>
+                    <th className="py-3 px-3 text-center font-normal">
                       Calls ({activityCallsDateFilter === 'today' ? 'Today' : activityCallsDateFilter === 'yesterday' ? 'Yesterday' : 'Tomorrow'})
                     </th>
-                    <th style={{ textAlign: 'center', fontWeight: 700, padding: '10px 12px', width: '15%' }}>Last Call</th>
-                    <th style={{ textAlign: 'center', fontWeight: 700, padding: '10px 16px', width: '15%' }}>Actions</th>
+                    <th className="py-3 px-3 text-center font-normal">Last Call</th>
+                    <th className="py-3 px-4 text-center font-normal">Actions</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-[#1e441e]">
                   {filteredActivityEmployees.map((emp) => {
                     const badge = getLiveStatusBadge(emp.liveStatus);
                     const callInfo = emp.calls?.[activityCallsDateFilter] || {};
@@ -640,114 +507,76 @@ export default function Dashboard() {
                     return (
                       <tr
                         key={emp._id}
-                        style={{
-                          borderBottom: `1px solid ${BORDER}`,
-                          height: 52,
-                          transition: 'background 0.12s',
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                        className="hover:bg-[#1e441e]/50 transition-colors"
                       >
-                        {/* 1. Employee Column: Clickable to view full details */}
+                        {/* 1. Employee Column */}
                         <td
                           onClick={() => setDetailModalEmployee(emp)}
-                          style={{ padding: '10px 16px', cursor: 'pointer' }}
+                          className="py-3 px-4 cursor-pointer"
                           title="Click to view complete employee profile & history"
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <div
-                              style={{
-                                width: 34,
-                                height: 34,
-                                borderRadius: '50%',
-                                background: '#edf8f8',
-                                color: OXFORD_NAVY,
-                                fontSize: 13,
-                                fontWeight: 800,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                border: '1.5px solid #a8dadc',
-                                flexShrink: 0,
-                              }}
-                            >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#119822] to-[#31cb00] text-white font-medium text-xs flex items-center justify-center shrink-0 shadow-md">
                               {emp.name?.[0]?.toUpperCase() || 'E'}
                             </div>
-                            <div style={{ minWidth: 0 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <span style={{ color: OXFORD_NAVY, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                  {emp.name}
-                                </span>
-                                <span style={{ background: '#f1f5f9', color: '#475569', fontSize: 10.5, fontWeight: 700, padding: '1px 6px', borderRadius: 6, border: '1px solid #e2e8f0', fontFamily: 'monospace' }}>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-slate-100 truncate">{emp.name}</span>
+                                <span className="text-[10px] font-mono text-[#72ff47] bg-[#152614] border border-[#356033] px-1.5 py-0.2 rounded">
                                   {emp.employeeId}
                                 </span>
                               </div>
-                              <div style={{ fontSize: 11, color: CERULEAN, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {emp.email}
-                              </div>
+                              <div className="text-[11px] font-normal text-[#8bc088] truncate">{emp.email}</div>
                             </div>
                           </div>
                         </td>
 
-                        {/* 2. Live Status Column: Clickable to view live telemetry */}
+                        {/* 2. Live Status Column */}
                         <td
                           onClick={() => setStatusModalEmployee(emp)}
-                          style={{ textAlign: 'center', padding: '10px 12px', cursor: 'pointer' }}
+                          className="py-3 px-3 text-center cursor-pointer"
                           title="Click to view status details & live telemetry"
                         >
-                          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <span
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 6,
-                                background: badge.bg,
-                                color: badge.color,
-                                border: `1px solid ${badge.border}`,
-                                padding: '4px 12px',
-                                borderRadius: 14,
-                                fontSize: 12,
-                                fontWeight: 700,
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              <span style={{ width: 7, height: 7, borderRadius: '50%', background: badge.dot }} />
-                              {badge.label}
-                            </span>
-                          </div>
+                          <span
+                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-normal border"
+                            style={{ background: badge.bg, color: badge.color, borderColor: badge.border }}
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full" style={{ background: badge.dot }} />
+                            {badge.label}
+                          </span>
                         </td>
 
                         {/* 3. Attendance Column */}
-                        <td style={{ textAlign: 'center', padding: '10px 12px' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                            <span style={{ fontWeight: 700, color: emp.todayAttendance?.status !== 'NOT_STARTED' ? '#047857' : '#64748b', fontSize: 12 }}>
+                        <td className="py-3 px-3 text-center">
+                          <div className="flex flex-col items-center gap-0.5">
+                            <span className={`font-normal ${emp.todayAttendance?.status !== 'NOT_STARTED' ? 'text-[#72ff47]' : 'text-slate-400'}`}>
                               {emp.todayAttendance?.startTimeFormatted || 'Not Started'}
                             </span>
                             {emp.todayAttendance?.status !== 'NOT_STARTED' && (
-                              <span style={{ fontSize: 11, color: CERULEAN, background: '#edf8f8', padding: '1px 6px', borderRadius: 4, fontFamily: 'monospace' }}>
+                              <span className="text-[10px] font-mono text-[#8bc088] bg-[#040704] px-1.5 py-0.2 rounded border border-[#356033]">
                                 ⚡ {emp.todayAttendance?.formattedActualWork || emp.todayAttendance?.durationFormatted}
                               </span>
                             )}
                           </div>
                         </td>
 
-                        {/* 4. Calls Column: Clickable to open Call Details modal */}
+                        {/* 4. Calls Column */}
                         <td
                           onClick={() => openCallsModal(emp, activityCallsDateFilter)}
-                          style={{ textAlign: 'center', padding: '10px 12px', cursor: 'pointer' }}
+                          className="py-3 px-3 text-center cursor-pointer"
                           title="Click to view individual call records"
                         >
                           {activityCallsDateFilter === 'tomorrow' ? (
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '3px 9px', borderRadius: 8, fontSize: 12, fontWeight: 700 }}>
-                              <span>📅</span> {callInfo.scheduledCount || 0} Scheduled
-                            </div>
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#1e441e] text-[#a1ff85] border border-[#72ff47]/30 text-[11px]">
+                              <FaCalendarDays className="w-3 h-3 text-[#72ff47]" /> {callInfo.scheduledCount || 0} Scheduled
+                            </span>
                           ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                              <span style={{ background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0', padding: '2px 8px', borderRadius: 8, fontSize: 12, fontWeight: 700 }}>
+                            <div className="flex flex-col items-center gap-0.5">
+                              <span className="px-2.5 py-0.5 rounded-lg bg-[#1e441e] text-[#72ff47] border border-[#72ff47]/30 text-[11px] font-normal">
                                 📞 {callInfo.count || 0} Calls
                               </span>
                               {callInfo.totalDurationSec > 0 && (
-                                <span style={{ fontSize: 10.5, color: '#64748b', fontFamily: 'monospace' }}>
+                                <span className="text-[10px] font-mono text-slate-400">
                                   {callInfo.totalDurationFormatted}
                                 </span>
                               )}
@@ -755,58 +584,37 @@ export default function Dashboard() {
                           )}
                         </td>
 
-                        {/* 5. Last Call Column: Two-line layout (Time & Duration) */}
+                        {/* 5. Last Call Column */}
                         <td
                           onClick={() => openCallsModal(emp, activityCallsDateFilter)}
-                          style={{ textAlign: 'center', padding: '10px 12px', cursor: 'pointer' }}
-                          title="Click to view call record"
+                          className="py-3 px-3 text-center cursor-pointer"
                         >
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                            <span style={{ fontWeight: 700, color: emp.calls?.today?.lastCallTime ? OXFORD_NAVY : '#94a3b8', fontSize: 12 }}>
+                          <div className="flex flex-col items-center gap-0.5">
+                            <span className="font-normal text-slate-200">
                               {emp.calls?.today?.lastCallTimeFormatted || 'Never'}
                             </span>
                             {emp.calls?.today?.lastCallDurationSec > 0 && (
-                              <span style={{ fontSize: 10.5, color: CERULEAN, fontFamily: 'monospace' }}>
-                                Duration: {emp.calls.today.lastCallDurationFormatted}
+                              <span className="text-[10px] font-mono text-[#8bc088]">
+                                {emp.calls.today.lastCallDurationFormatted}
                               </span>
                             )}
                           </div>
                         </td>
 
                         {/* 6. Actions Column */}
-                        <td style={{ textAlign: 'center', padding: '10px 16px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                        <td className="py-3 px-4 text-center">
+                          <div className="flex items-center justify-center gap-2">
                             <button
                               onClick={() => setDetailModalEmployee(emp)}
-                              title="View Employee Profile"
-                              style={{
-                                background: '#f8fafc',
-                                color: '#334155',
-                                border: `1px solid ${BORDER}`,
-                                borderRadius: 7,
-                                padding: '4px 8px',
-                                fontSize: 11,
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                              }}
+                              className="bg-[#152614] hover:bg-[#1e441e] text-slate-200 border border-[#356033] px-2.5 py-1 rounded-lg text-[11px] font-normal flex items-center gap-1 transition-colors"
                             >
-                              👤 Profile
+                              <FaUserTie className="w-3 h-3 text-[#72ff47]" /> Profile
                             </button>
                             <button
                               onClick={() => setMapModalEmployee(emp)}
-                              title="View Live Location Map"
-                              style={{
-                                background: '#f0f9ff',
-                                color: '#0284c7',
-                                border: '1px solid #bae6fd',
-                                borderRadius: 7,
-                                padding: '4px 8px',
-                                fontSize: 11,
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                              }}
+                              className="bg-[#1e441e] hover:bg-[#356033] text-[#72ff47] border border-[#72ff47]/30 px-2.5 py-1 rounded-lg text-[11px] font-normal flex items-center gap-1 transition-colors"
                             >
-                              🗺️ Map
+                              <FaMapLocationDot className="w-3 h-3" /> Map
                             </button>
                           </div>
                         </td>
@@ -817,28 +625,32 @@ export default function Dashboard() {
               </table>
             </div>
           )}
-        </div>
+        </motion.div>
 
-        {/* 2. Dashboard Visualizations (Graphs & Visual Progress) */}
-        <div className="dash-grid-2" style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 20 }}>
+        {/* 2. Visualizations & Leaderboard Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           
-          {/* Conversion Funnel Visualization Chart */}
-          <div style={{ background: '#ffffff', border: '1px solid #a8dadc', borderRadius: 16, padding: 22, boxShadow: '0 4px 18px rgba(29, 53, 87, 0.04)' }}>
-            <div style={{ fontWeight: 600, color: OXFORD_NAVY, fontSize: 16, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={CERULEAN} strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-              Lead Pipeline Conversion Visualization
+          {/* Conversion Funnel Chart */}
+          <motion.div 
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="lg:col-span-7 bg-[#0c160c]/90 border border-[#72ff47]/20 rounded-2xl p-5 shadow-2xl backdrop-blur-xl flex flex-col justify-between"
+          >
+            <div className="text-base font-medium text-white flex items-center gap-2 mb-4">
+              <FaChartLine className="w-4 h-4 text-[#72ff47]" />
+              <span>Lead Pipeline Conversion Visualization</span>
             </div>
             
             {funnelStages.length > 0 ? (
               <ResponsiveContainer width="100%" height={260}>
                 <BarChart data={funnelStages} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#edf8f8" vertical={false} />
-                  <XAxis dataKey="stage" stroke={CERULEAN} fontSize={11} tickLine={false} />
-                  <YAxis stroke={CERULEAN} fontSize={11} tickLine={false} axisLine={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1e441e" vertical={false} />
+                  <XAxis dataKey="stage" stroke="#8bc088" fontSize={11} tickLine={false} />
+                  <YAxis stroke="#8bc088" fontSize={11} tickLine={false} axisLine={false} />
                   <Tooltip 
-                    contentStyle={{ background: '#ffffff', border: '1px solid #a8dadc', borderRadius: 8, fontSize: 12, color: OXFORD_NAVY }}
+                    contentStyle={{ background: '#0c160c', border: '1px solid rgba(114,255,71,0.4)', borderRadius: 12, fontSize: 12, color: '#f8fafc' }}
                   />
-                  <Bar dataKey="count" fill={OXFORD_NAVY} radius={[4, 4, 0, 0]}>
+                  <Bar dataKey="count" fill="#119822" radius={[6, 6, 0, 0]}>
                     {funnelStages.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.stage] || PALETTE_COLORS[index % PALETTE_COLORS.length]} />
                     ))}
@@ -846,29 +658,37 @@ export default function Dashboard() {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, color: CERULEAN, fontSize: 13 }}>
+              <div className="flex items-center justify-center h-48 text-xs font-normal text-[#8bc088]">
                 No conversion pipeline data available.
               </div>
             )}
-          </div>
+          </motion.div>
 
-          {/* Campaign Performance & Team Productivity Leaderboard */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <div style={{ background: '#ffffff', border: '1px solid #a8dadc', borderRadius: 16, padding: 22, boxShadow: '0 4px 18px rgba(29, 53, 87, 0.04)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                <span style={{ fontWeight: 600, color: OXFORD_NAVY, fontSize: 15, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  🏆 Team Productivity Leaderboard
+          {/* Team Productivity Leaderboard */}
+          <motion.div 
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="lg:col-span-5 bg-[#0c160c]/90 border border-[#72ff47]/20 rounded-2xl p-5 shadow-2xl backdrop-blur-xl flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-base font-medium text-white flex items-center gap-2">
+                  <FaTrophy className="w-4 h-4 text-[#72ff47]" /> Team Leaderboard
                 </span>
-                <div style={{ display: 'flex', background: '#edf8f8', padding: 2, borderRadius: 6, border: '1px solid #a8dadc' }}>
+                <div className="flex bg-[#040704] p-1 rounded-xl border border-[#356033]">
                   <button 
                     onClick={() => setLeaderboardTab('employees')}
-                    style={{ border: 'none', background: leaderboardTab === 'employees' ? '#fff' : 'transparent', color: leaderboardTab === 'employees' ? OXFORD_NAVY : CERULEAN, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 4, cursor: 'pointer' }}
+                    className={`text-xs font-normal px-3 py-1 rounded-lg transition-colors ${
+                      leaderboardTab === 'employees' ? 'bg-[#1e441e] text-[#72ff47]' : 'text-slate-400 hover:text-white'
+                    }`}
                   >
                     Employees
                   </button>
                   <button 
                     onClick={() => setLeaderboardTab('admins')}
-                    style={{ border: 'none', background: leaderboardTab === 'admins' ? '#fff' : 'transparent', color: leaderboardTab === 'admins' ? OXFORD_NAVY : CERULEAN, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 4, cursor: 'pointer' }}
+                    className={`text-xs font-normal px-3 py-1 rounded-lg transition-colors ${
+                      leaderboardTab === 'admins' ? 'bg-[#1e441e] text-[#72ff47]' : 'text-slate-400 hover:text-white'
+                    }`}
                   >
                     Admins
                   </button>
@@ -882,64 +702,62 @@ export default function Dashboard() {
                 }) || [];
 
                 return filteredCallers.length > 0 ? (
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid #a8dadc', color: CERULEAN, height: 28 }}>
-                        <th style={{ textAlign: 'left', fontWeight: 600, paddingBottom: 6 }}>User</th>
-                        <th style={{ textAlign: 'center', fontWeight: 600, paddingBottom: 6 }}>Dials</th>
-                        <th style={{ textAlign: 'right', fontWeight: 600, paddingBottom: 6 }}>Wins</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredCallers.map(c => (
-                        <tr 
-                          key={c._id} 
-                          onClick={() => openAnalysisModal(c.user?._id)}
-                          style={{ borderBottom: '1px solid #edf8f8', height: 38, cursor: 'pointer' }}
-                        >
-                          <td style={{ display: 'flex', alignItems: 'center', gap: 8, height: 38 }}>
-                            <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#edf8f8', color: OXFORD_NAVY, fontSize: 10, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              {c.user?.name?.[0]?.toUpperCase()}
-                            </div>
-                            <span style={{ fontWeight: 600, color: OXFORD_NAVY, maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.user?.name}</span>
-                          </td>
-                          <td style={{ textAlign: 'center', color: CERULEAN, fontWeight: 600 }}>{c.totalCalls}</td>
-                          <td style={{ textAlign: 'right', color: OXFORD_NAVY, fontWeight: 600 }}>{c.sales || 0}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <div className="divide-y divide-[#1e441e] text-xs">
+                    {filteredCallers.map((c, idx) => (
+                      <div 
+                        key={c._id} 
+                        onClick={() => openAnalysisModal(c.user?._id)}
+                        className="py-2.5 flex items-center justify-between cursor-pointer hover:bg-[#1e441e]/40 px-2 rounded-xl transition-colors"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="font-mono text-[11px] text-[#72ff47] w-4">{idx + 1}.</span>
+                          <div className="w-6 h-6 rounded-full bg-[#119822] text-white text-[10px] font-medium flex items-center justify-center shrink-0">
+                            {c.user?.name?.[0]?.toUpperCase()}
+                          </div>
+                          <span className="font-normal text-slate-200 truncate">{c.user?.name}</span>
+                        </div>
+                        <div className="flex items-center gap-4 shrink-0">
+                          <span className="text-slate-400 font-normal">{c.totalCalls} dials</span>
+                          <span className="text-[#72ff47] font-medium">{c.sales || 0} wins</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 ) : (
-                  <div style={{ textAlign: 'center', padding: '20px 0', color: CERULEAN, fontSize: 12 }}>No activity logged yet.</div>
+                  <div className="text-center py-8 text-xs font-normal text-[#8bc088]">No activity logged yet.</div>
                 );
               })()}
             </div>
-          </div>
+          </motion.div>
         </div>
 
-        {/* 3. Campaign Performance Visual Table */}
-        <div style={{ background: '#ffffff', border: '1px solid #a8dadc', borderRadius: 16, padding: 22, boxShadow: '0 4px 18px rgba(29, 53, 87, 0.04)' }}>
-          <div style={{ fontWeight: 600, color: OXFORD_NAVY, fontSize: 16, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={CERULEAN} strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            Campaign Performance Analytics
+        {/* 3. Campaign Performance Table */}
+        <motion.div 
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-[#0c160c]/90 border border-[#72ff47]/20 rounded-2xl p-5 shadow-2xl backdrop-blur-xl"
+        >
+          <div className="text-base font-medium text-white flex items-center gap-2 mb-4">
+            <FaBullhorn className="w-4 h-4 text-[#72ff47]" />
+            <span>Campaign Performance Analytics</span>
           </div>
 
           {campaignStats.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '20px 0', color: CERULEAN }}>No campaign statistics available.</div>
+            <div className="text-center py-6 text-xs font-normal text-[#8bc088]">No campaign statistics available.</div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid #a8dadc', color: CERULEAN, height: 32 }}>
-                    <th style={{ textAlign: 'left', fontWeight: 600, paddingBottom: 8 }}>Campaign Name</th>
-                    <th style={{ textAlign: 'center', fontWeight: 600, paddingBottom: 8 }}>Total Leads</th>
-                    <th style={{ textAlign: 'center', fontWeight: 600, paddingBottom: 8 }}>Called %</th>
-                    <th style={{ textAlign: 'center', fontWeight: 600, paddingBottom: 8 }}>Won</th>
-                    <th style={{ textAlign: 'center', fontWeight: 600, paddingBottom: 8 }}>Lost</th>
-                    <th style={{ textAlign: 'right', fontWeight: 600, paddingBottom: 8 }}>Conv. Rate %</th>
+            <div className="overflow-x-auto border border-[#1e441e] rounded-xl">
+              <table className="w-full text-xs text-left text-slate-200">
+                <thead className="bg-[#040704] text-[#8bc088] uppercase tracking-wider text-[11px] font-normal border-b border-[#1e441e]">
+                  <tr>
+                    <th className="py-3 px-4 font-normal">Campaign Name</th>
+                    <th className="py-3 px-3 text-center font-normal">Total Leads</th>
+                    <th className="py-3 px-3 text-center font-normal">Called %</th>
+                    <th className="py-3 px-3 text-center font-normal">Won</th>
+                    <th className="py-3 px-3 text-center font-normal">Lost</th>
+                    <th className="py-3 px-4 text-right font-normal">Conv. Rate %</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-[#1e441e]">
                   {campaignStats.map(c => {
                     const callPct = c.totalLeads > 0 ? Math.round((c.called / c.totalLeads) * 100) : 0;
                     const convPct = c.totalLeads > 0 ? Math.round((c.won / c.totalLeads) * 100) : 0;
@@ -947,20 +765,18 @@ export default function Dashboard() {
                       <tr 
                         key={c._id || 'unassigned'} 
                         onClick={() => c._id && navigate('/campaigns/' + c._id)}
-                        style={{ borderBottom: '1px solid #edf8f8', height: 40, cursor: c._id ? 'pointer' : 'default' }}
+                        className={`hover:bg-[#1e441e]/50 transition-colors ${c._id ? 'cursor-pointer' : ''}`}
                       >
-                        <td style={{ padding: '8px 0', fontWeight: 600, color: c._id ? OXFORD_NAVY : CERULEAN }}>
-                          {c.name}
-                        </td>
-                        <td style={{ textAlign: 'center', color: OXFORD_NAVY }}>{c.totalLeads}</td>
-                        <td style={{ textAlign: 'center' }}>
-                          <span style={{ background: '#edf8f8', color: CERULEAN, padding: '2px 8px', borderRadius: 8, fontSize: 11.5, fontWeight: 600 }}>
+                        <td className="py-3 px-4 font-medium text-slate-100">{c.name}</td>
+                        <td className="py-3 px-3 text-center font-normal">{c.totalLeads}</td>
+                        <td className="py-3 px-3 text-center">
+                          <span className="bg-[#1e441e] text-[#72ff47] px-2 py-0.5 rounded-md text-[11px] font-normal border border-[#72ff47]/30">
                             {callPct}%
                           </span>
                         </td>
-                        <td style={{ textAlign: 'center', color: OXFORD_NAVY, fontWeight: 600 }}>{c.won}</td>
-                        <td style={{ textAlign: 'center', color: PUNCH_RED, fontWeight: 600 }}>{c.lost}</td>
-                        <td style={{ textAlign: 'right', color: OXFORD_NAVY, fontWeight: 600 }}>{convPct}%</td>
+                        <td className="py-3 px-3 text-center font-medium text-[#43ff0a]">{c.won}</td>
+                        <td className="py-3 px-3 text-center font-medium text-rose-400">{c.lost}</td>
+                        <td className="py-3 px-4 text-right font-medium text-[#72ff47]">{convPct}%</td>
                       </tr>
                     );
                   })}
@@ -968,7 +784,7 @@ export default function Dashboard() {
               </table>
             </div>
           )}
-        </div>
+        </motion.div>
 
       </div>
     );
@@ -976,9 +792,9 @@ export default function Dashboard() {
 
   if (fetchError) {
     return (
-      <div style={{ padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '80vh', gap: 16 }}>
-        <div style={{ fontSize: 16, fontWeight: 600, color: PUNCH_RED }}>Dashboard Load Notice: {fetchError}</div>
-        <button onClick={refresh} style={{ background: CERULEAN, color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+      <div className="p-6 flex flex-col items-center justify-center min-h-[70vh] gap-4">
+        <div className="text-sm font-normal text-rose-400">Dashboard Load Notice: {fetchError}</div>
+        <button onClick={refresh} className="bg-[#119822] text-white px-5 py-2 rounded-xl text-xs font-normal">
           Retry
         </button>
       </div>
@@ -986,20 +802,21 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="dash-outer-shell" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 24, maxWidth: '100vw', overflowX: 'hidden', boxSizing: 'border-box' }}>
+    <div className="p-4 sm:p-6 flex flex-col gap-6 max-w-full overflow-x-hidden text-slate-100">
       {/* Page Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #a8dadc', paddingBottom: 14, flexWrap: 'wrap', gap: 10 }}>
+      <div className="flex items-center justify-between border-b border-[#1e441e] pb-4 flex-wrap gap-3">
         <div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: OXFORD_NAVY, display: 'flex', alignItems: 'center', gap: 8 }}>
-            {isSuperAdmin ? 'Admin Dashboard' : isAdmin ? 'Manager Dashboard' : 'Employee Portal'}
+          <div className="text-xl font-medium text-white flex items-center gap-3">
+            <span>{isSuperAdmin ? 'Admin Dashboard' : isAdmin ? 'Manager Dashboard' : 'Employee Portal'}</span>
             <button
               onClick={refresh}
-              style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: CERULEAN, padding: 0, display: 'flex', alignItems: 'center' }}
+              className="text-[#72ff47] hover:text-white transition-colors"
+              title="Refresh Dashboard"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+              <FaRotate className="w-4 h-4" />
             </button>
           </div>
-          <div style={{ fontSize: 12.5, color: CERULEAN, marginTop: 2 }}>
+          <div className="text-xs font-normal text-[#8bc088] mt-1">
             Welcome back, {user?.name}!
           </div>
         </div>
@@ -1009,694 +826,186 @@ export default function Dashboard() {
       {isAdmin ? renderAdminDashboard() : renderEmployeeDashboard()}
 
       {/* ── MODAL 1: Complete Employee Details Modal ───────────────────────── */}
-      {detailModalEmployee && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.55)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-            padding: 16,
-          }}
-          onClick={() => setDetailModalEmployee(null)}
-        >
-          <div
-            style={{
-              background: '#ffffff',
-              borderRadius: 20,
-              width: '100%',
-              maxWidth: 780,
-              maxHeight: '90vh',
-              display: 'flex',
-              flexDirection: 'column',
-              boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25)',
-              border: `1px solid ${BORDER}`,
-              overflow: 'hidden',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div style={{ padding: '20px 24px', borderBottom: `1px solid ${BORDER}`, background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                <div
-                  style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: '50%',
-                    background: '#e0f2fe',
-                    color: '#0284c7',
-                    fontSize: 18,
-                    fontWeight: 800,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: '2px solid #bae6fd',
-                  }}
-                >
-                  {detailModalEmployee.name?.[0]?.toUpperCase() || 'E'}
-                </div>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 18, fontWeight: 800, color: OXFORD_NAVY }}>{detailModalEmployee.name}</span>
-                    <span style={{ background: '#f1f5f9', color: '#475569', fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontFamily: 'monospace' }}>
-                      {detailModalEmployee.employeeId}
-                    </span>
-                    <span style={{ background: detailModalEmployee.isActive ? '#ecfdf5' : '#fef2f2', color: detailModalEmployee.isActive ? '#047857' : '#991b1b', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 12, border: `1px solid ${detailModalEmployee.isActive ? '#a7f3d0' : '#fecaca'}` }}>
-                      {detailModalEmployee.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 12.5, color: CERULEAN, marginTop: 2 }}>{detailModalEmployee.email} • {detailModalEmployee.role?.toUpperCase()}</div>
-                </div>
-              </div>
-              <button onClick={() => setDetailModalEmployee(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#94a3b8' }}>✕</button>
-            </div>
-
-            {/* Modal Body */}
-            <div style={{ padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
-              
-              {/* Section 1: Attendance Timings (Today & Yesterday) */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                
-                {/* Today's Attendance Card */}
-                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 14, padding: 16 }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 800, color: '#15803d', textTransform: 'uppercase', marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span>🟢 Today's Attendance</span>
-                    <span style={{ fontSize: 11, fontWeight: 700 }}>{detailModalEmployee.todayAttendance?.day}</span>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12.5 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#4b5563' }}>Date:</span>
-                      <span style={{ fontWeight: 700, color: OXFORD_NAVY }}>{formatDateDisplay(detailModalEmployee.todayAttendance?.date)}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#4b5563' }}>Start Time:</span>
-                      <span style={{ fontWeight: 700, color: '#047857' }}>{detailModalEmployee.todayAttendance?.startTimeFormatted}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#4b5563' }}>Stop / Leave:</span>
-                      <span style={{ fontWeight: 700, color: OXFORD_NAVY }}>{detailModalEmployee.todayAttendance?.endTimeFormatted}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#4b5563' }}>Total Duration:</span>
-                      <span style={{ fontWeight: 700, color: OXFORD_NAVY, fontFamily: 'monospace' }}>{detailModalEmployee.todayAttendance?.durationFormatted}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#4b5563' }}>Total Break Time:</span>
-                      <span style={{ fontWeight: 700, color: '#b45309', fontFamily: 'monospace' }}>{detailModalEmployee.todayAttendance?.formattedBreakDuration} ({detailModalEmployee.todayAttendance?.breakCount || 0} breaks)</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #dcfce7', paddingTop: 6 }}>
-                      <span style={{ color: '#15803d', fontWeight: 700 }}>Actual Work:</span>
-                      <span style={{ fontWeight: 800, color: '#15803d', fontFamily: 'monospace' }}>{detailModalEmployee.todayAttendance?.formattedActualWork}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Yesterday's Attendance Card */}
-                <div style={{ background: '#f8fafc', border: `1px solid ${BORDER}`, borderRadius: 14, padding: 16 }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span>⏱️ Yesterday's Attendance</span>
-                    <span style={{ fontSize: 11, fontWeight: 700 }}>{detailModalEmployee.yesterdayAttendance?.day || 'Yesterday'}</span>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12.5 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#4b5563' }}>Date:</span>
-                      <span style={{ fontWeight: 700, color: OXFORD_NAVY }}>{formatDateDisplay(detailModalEmployee.yesterdayAttendance?.date)}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#4b5563' }}>Start Time:</span>
-                      <span style={{ fontWeight: 700, color: OXFORD_NAVY }}>{detailModalEmployee.yesterdayAttendance?.startTimeFormatted}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#4b5563' }}>Logout Time:</span>
-                      <span style={{ fontWeight: 700, color: OXFORD_NAVY }}>{detailModalEmployee.yesterdayAttendance?.endTimeFormatted}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#4b5563' }}>Total Duration:</span>
-                      <span style={{ fontWeight: 700, color: OXFORD_NAVY, fontFamily: 'monospace' }}>{detailModalEmployee.yesterdayAttendance?.durationFormatted}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#4b5563' }}>Total Break Time:</span>
-                      <span style={{ fontWeight: 700, color: '#b45309', fontFamily: 'monospace' }}>{detailModalEmployee.yesterdayAttendance?.formattedBreakDuration}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: `1px solid ${BORDER}`, paddingTop: 6 }}>
-                      <span style={{ color: '#334155', fontWeight: 700 }}>Actual Work:</span>
-                      <span style={{ fontWeight: 800, color: '#334155', fontFamily: 'monospace' }}>{detailModalEmployee.yesterdayAttendance?.formattedActualWork}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Section 3: Live GPS Location & Map Access */}
-              <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 14, padding: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: '#0369a1', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span>📍</span> Live Location Status
-                  </div>
-                  <button
-                    onClick={() => {
-                      const target = detailModalEmployee;
-                      setDetailModalEmployee(null);
-                      setMapModalEmployee(target);
-                    }}
-                    style={{ background: '#0284c7', color: '#ffffff', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}
-                  >
-                    🗺️ View Live Location on Map
-                  </button>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, fontSize: 12.5 }}>
-                  <div>
-                    <div style={{ fontSize: 11, color: '#64748b' }}>GPS Sharing Status</div>
-                    <div style={{ fontWeight: 700, color: detailModalEmployee.location?.isLive ? '#047857' : '#991b1b' }}>
-                      {detailModalEmployee.location?.isLive ? '🟢 Active GPS Location Sharing' : '🔴 Location Inactive / Offline'}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 11, color: '#64748b' }}>Current Address</div>
-                    <div style={{ fontWeight: 700, color: OXFORD_NAVY }}>{detailModalEmployee.location?.formattedAddress || 'Location unavailable'}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 11, color: '#64748b' }}>Speed & Accuracy</div>
-                    <div style={{ fontWeight: 700, color: OXFORD_NAVY }}>
-                      {detailModalEmployee.location?.speed || 0} km/h • Accuracy: ±{Math.round(detailModalEmployee.location?.accuracy || 0)}m
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 11, color: '#64748b' }}>Last Updated</div>
-                    <div style={{ fontWeight: 700, color: OXFORD_NAVY }}>
-                      {detailModalEmployee.location?.lastUpdated ? new Date(detailModalEmployee.location.lastUpdated).toLocaleTimeString() : 'Never'}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Section 4: Call Activity Summary */}
-              <div style={{ background: '#ffffff', border: `1px solid ${BORDER}`, borderRadius: 14, padding: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: OXFORD_NAVY, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span>📞</span> Call Activity Summary
-                  </div>
-                  <button
-                    onClick={() => {
-                      const target = detailModalEmployee;
-                      setDetailModalEmployee(null);
-                      openCallsModal(target, 'today');
-                    }}
-                    style={{ background: '#f8fafc', color: '#0284c7', border: '1px solid #bae6fd', borderRadius: 8, padding: '5px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
-                  >
-                    View Individual Call Records →
-                  </button>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, textAlign: 'center' }}>
-                  <div style={{ background: '#f8fafc', padding: '10px 8px', borderRadius: 10 }}>
-                    <div style={{ fontSize: 11, color: '#64748b' }}>Today's Calls</div>
-                    <div style={{ fontSize: 16, fontWeight: 800, color: OXFORD_NAVY, marginTop: 2 }}>{detailModalEmployee.calls?.today?.count || 0}</div>
-                  </div>
-                  <div style={{ background: '#f8fafc', padding: '10px 8px', borderRadius: 10 }}>
-                    <div style={{ fontSize: 11, color: '#64748b' }}>Today's Duration</div>
-                    <div style={{ fontSize: 16, fontWeight: 800, color: OXFORD_NAVY, marginTop: 2, fontFamily: 'monospace' }}>{detailModalEmployee.calls?.today?.totalDurationFormatted || '00m 00s'}</div>
-                  </div>
-                  <div style={{ background: '#f8fafc', padding: '10px 8px', borderRadius: 10 }}>
-                    <div style={{ fontSize: 11, color: '#64748b' }}>Last Call Time</div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: OXFORD_NAVY, marginTop: 2 }}>{detailModalEmployee.calls?.today?.lastCallTimeFormatted || 'Never'}</div>
-                  </div>
-                  <div style={{ background: '#f8fafc', padding: '10px 8px', borderRadius: 10 }}>
-                    <div style={{ fontSize: 11, color: '#64748b' }}>Last Call Duration</div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: OXFORD_NAVY, marginTop: 2, fontFamily: 'monospace' }}>{detailModalEmployee.calls?.today?.lastCallDurationFormatted || '—'}</div>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── MODAL 2: Live Status & Telemetry Modal ─────────────────────────── */}
-      {statusModalEmployee && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.55)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-            padding: 16,
-          }}
-          onClick={() => setStatusModalEmployee(null)}
-        >
-          <div
-            style={{
-              background: '#ffffff',
-              borderRadius: 20,
-              width: '100%',
-              maxWidth: 540,
-              padding: 24,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 18,
-              boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25)',
-              border: `1px solid ${BORDER}`,
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 20 }}>⚡</span>
-                <div>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: OXFORD_NAVY }}>{statusModalEmployee.name} — Live Status</div>
-                  <div style={{ fontSize: 11.5, color: CERULEAN }}>{statusModalEmployee.employeeId} • {statusModalEmployee.email}</div>
-                </div>
-              </div>
-              <button onClick={() => setStatusModalEmployee(null)} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#94a3b8' }}>✕</button>
-            </div>
-
-            {/* Current Status Pill Highlight */}
-            {(() => {
-              const badge = getLiveStatusBadge(statusModalEmployee.liveStatus);
-              return (
-                <div style={{ background: badge.bg, border: `1.5px solid ${badge.border}`, borderRadius: 14, padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: badge.color, textTransform: 'uppercase', letterSpacing: '0.03em' }}>Current Operational Status</div>
-                    <div style={{ fontSize: 19, fontWeight: 800, color: badge.color, marginTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ width: 10, height: 10, borderRadius: '50%', background: badge.dot }} />
-                      {badge.label}
-                    </div>
-                  </div>
-                  <div style={{ background: '#ffffff', padding: '5px 12px', borderRadius: 8, border: `1px solid ${badge.border}`, fontSize: 12, fontWeight: 700, color: badge.color }}>
-                    {badge.icon} Live
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Attendance Timings & Location Telemetry Details */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, fontSize: 13, background: '#f8fafc', padding: 16, borderRadius: 14, border: `1px solid ${BORDER}` }}>
-              <div>
-                <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Today's Login Time</div>
-                <div style={{ fontWeight: 800, color: statusModalEmployee.todayAttendance?.startTimeFormatted !== 'Not Started' ? '#047857' : '#64748b', fontSize: 14, marginTop: 2 }}>
-                  {statusModalEmployee.todayAttendance?.startTimeFormatted || 'Not Started'}
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Yesterday's Logout Time</div>
-                <div style={{ fontWeight: 800, color: statusModalEmployee.yesterdayAttendance?.endTimeFormatted && statusModalEmployee.yesterdayAttendance.endTimeFormatted !== 'No Record' ? OXFORD_NAVY : '#64748b', fontSize: 14, marginTop: 2 }}>
-                  {statusModalEmployee.yesterdayAttendance?.endTimeFormatted || 'No Record'}
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Location Sharing Status</div>
-                <div style={{ fontWeight: 700, color: statusModalEmployee.location?.isLive ? '#047857' : '#991b1b', marginTop: 2 }}>
-                  {statusModalEmployee.location?.isLive ? '🟢 Active GPS Sharing' : '🔴 Inactive / Offline'}
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Last Location Ping</div>
-                <div style={{ fontWeight: 700, color: OXFORD_NAVY, marginTop: 2 }}>
-                  {statusModalEmployee.location?.lastUpdated ? new Date(statusModalEmployee.location.lastUpdated).toLocaleTimeString() : 'Never'}
-                </div>
-              </div>
-              <div style={{ gridColumn: '1 / -1', borderTop: `1px solid ${BORDER}`, paddingTop: 10 }}>
-                <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Current Location Address</div>
-                <div style={{ fontWeight: 700, color: OXFORD_NAVY, marginTop: 3, fontSize: 13.5 }}>
-                  {statusModalEmployee.location?.formattedAddress || 'Location unavailable'}
-                </div>
-              </div>
-            </div>
-
-            {/* View Live Location on Map Button */}
-            <button
-              onClick={() => {
-                const target = statusModalEmployee;
-                setStatusModalEmployee(null);
-                setMapModalEmployee(target);
-              }}
-              style={{
-                background: 'linear-gradient(90deg, #0284c7 0%, #0369a1 100%)',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: 12,
-                padding: '12px 18px',
-                fontSize: 14,
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)',
-                transition: 'all 0.15s',
-              }}
+      <AnimatePresence>
+        {detailModalEmployee && (
+          <div className="fixed inset-0 bg-[#040704]/80 z-50 flex items-center justify-center p-4 backdrop-blur-md" onClick={() => setDetailModalEmployee(null)}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-[#0c160c] border border-[#72ff47]/30 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden text-slate-100"
+              onClick={(e) => e.stopPropagation()}
             >
-              🗺️ View Live Location on Map
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── MODAL 3: Live Location Map Modal ───────────────────────────────── */}
-      {mapModalEmployee && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.6)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-            padding: 16,
-          }}
-          onClick={() => setMapModalEmployee(null)}
-        >
-          <div
-            style={{
-              background: '#ffffff',
-              borderRadius: 20,
-              width: '100%',
-              maxWidth: 900,
-              height: '80vh',
-              display: 'flex',
-              flexDirection: 'column',
-              boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.3)',
-              border: `1px solid ${BORDER}`,
-              overflow: 'hidden',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ padding: '16px 22px', borderBottom: `1px solid ${BORDER}`, background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 20 }}>🗺️</span>
-                <div>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: OXFORD_NAVY }}>
-                    Live Location — {mapModalEmployee.name} ({mapModalEmployee.employeeId})
+              <div className="p-5 border-b border-[#1e441e] bg-[#040704]/90 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#119822] to-[#31cb00] text-white font-medium text-sm flex items-center justify-center">
+                    {detailModalEmployee.name?.[0]?.toUpperCase() || 'E'}
                   </div>
-                  <div style={{ fontSize: 12, color: CERULEAN }}>
-                    {mapModalEmployee.location?.formattedAddress || 'Location tracking active'}
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-base font-medium text-white">{detailModalEmployee.name}</span>
+                      <span className="text-[10px] font-mono text-[#72ff47] bg-[#152614] border border-[#356033] px-2 py-0.5 rounded">
+                        {detailModalEmployee.employeeId}
+                      </span>
+                    </div>
+                    <div className="text-xs text-[#8bc088]">{detailModalEmployee.email} • {detailModalEmployee.role?.toUpperCase()}</div>
                   </div>
                 </div>
-              </div>
-              <button onClick={() => setMapModalEmployee(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#94a3b8' }}>✕</button>
-            </div>
-
-            <div style={{ flex: 1, position: 'relative' }}>
-              <LiveMap
-                employees={[mapModalEmployee]}
-                selectedEmployee={mapModalEmployee}
-                onSelectEmployee={() => {}}
-                officeConfig={employeesActivityData.office}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── MODAL 4: Individual Call Records & Activity Modal ──────────────── */}
-      {callsModalEmployee && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.55)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-            padding: 16,
-          }}
-          onClick={() => setCallsModalEmployee(null)}
-        >
-          <div
-            style={{
-              background: '#ffffff',
-              borderRadius: 20,
-              width: '100%',
-              maxWidth: 820,
-              maxHeight: '88vh',
-              display: 'flex',
-              flexDirection: 'column',
-              boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25)',
-              border: `1px solid ${BORDER}`,
-              overflow: 'hidden',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div style={{ padding: '16px 22px', borderBottom: `1px solid ${BORDER}`, background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#edf8f8', color: OXFORD_NAVY, fontSize: 14, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {callsModalEmployee.name?.[0]?.toUpperCase()}
-                </div>
-                <div>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: OXFORD_NAVY }}>
-                    Call Details — {callsModalEmployee.name}
-                  </div>
-                  <div style={{ fontSize: 11.5, color: CERULEAN }}>{callsModalEmployee.employeeId} • {callsModalEmployee.email}</div>
-                </div>
-              </div>
-
-              {/* Controls: Yesterday / Today / Tomorrow buttons + Unified Dates dropdown */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                {/* Segmented Quick Pills: Yesterday, Today, Tomorrow */}
-                <div style={{ display: 'inline-flex', background: '#e2e8f0', borderRadius: 8, padding: 3, gap: 2 }}>
-                  {[
-                    { key: 'yesterday', label: 'Yesterday' },
-                    { key: 'today', label: 'Today' },
-                    { key: 'tomorrow', label: 'Tomorrow (Scheduled)' },
-                  ].map((t) => (
-                    <button
-                      key={t.key}
-                      onClick={() => switchCallsModalPeriod(t.key)}
-                      style={{
-                        border: 'none',
-                        background: callsModalPeriod === t.key ? '#ffffff' : 'transparent',
-                        color: callsModalPeriod === t.key ? OXFORD_NAVY : '#64748b',
-                        fontSize: 12,
-                        fontWeight: callsModalPeriod === t.key ? 700 : 600,
-                        padding: '6px 12px',
-                        borderRadius: 6,
-                        cursor: 'pointer',
-                        boxShadow: callsModalPeriod === t.key ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                        transition: 'all 0.15s ease',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Unified Dates Dropdown (All dates at a time, without separate optgroups) */}
-                <div
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    background: '#ffffff',
-                    border: `1.5px solid ${callsModalPeriod === 'all' || callsModalPeriod === 'custom' ? '#457b9d' : '#cbd5e1'}`,
-                    borderRadius: 8,
-                    padding: '4px 10px',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-                    transition: 'border-color 0.15s ease',
-                  }}
-                >
-                  <span style={{ fontSize: 13, color: '#457b9d' }}>📅</span>
-                  <select
-                    value={callsModalPeriod === 'custom' ? callsModalCustomDate : callsModalPeriod}
-                    onChange={(e) => handleCallsDateDropdownChange(e.target.value)}
-                    style={{
-                      border: 'none',
-                      background: 'transparent',
-                      color: OXFORD_NAVY,
-                      fontSize: 12,
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      outline: 'none',
-                      minWidth: 160,
-                      maxWidth: 240,
-                    }}
-                    title="Select any date from history or full history"
-                  >
-                    {allDateOptions.map((opt) => (
-                      <option key={opt.key} value={opt.key}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Close Button */}
-                <button
-                  onClick={() => setCallsModalEmployee(null)}
-                  style={{
-                    background: '#f1f5f9',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '50%',
-                    width: 30,
-                    height: 30,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 14,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    color: '#64748b',
-                    marginLeft: 2,
-                    transition: 'all 0.15s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#e2e8f0';
-                    e.currentTarget.style.color = OXFORD_NAVY;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = '#f1f5f9';
-                    e.currentTarget.style.color = '#64748b';
-                  }}
-                  title="Close Modal"
-                >
-                  ✕
+                <button onClick={() => setDetailModalEmployee(null)} className="text-slate-400 hover:text-white">
+                  <FaXmark className="w-5 h-5" />
                 </button>
               </div>
-            </div>
 
-            {/* Summary Metrics Bar */}
-            {callsModalData && (
-              <div style={{ padding: '12px 22px', background: '#edf8f8', borderBottom: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12.5, flexWrap: 'wrap', gap: 10 }}>
-                <div>
-                  <span style={{ color: '#64748b' }}>Date: </span>
-                  <span style={{ fontWeight: 800, color: OXFORD_NAVY }}>
-                    {callsModalPeriod === 'all' || callsModalData.period === 'all'
-                      ? 'All Dates (Full History)'
-                      : `${formatDateDisplay(callsModalData.targetDate)} ${callsModalData.day ? `(${callsModalData.day})` : ''}`}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', gap: 16 }}>
-                  <div>
-                    <span style={{ color: '#64748b' }}>Total Calls: </span>
-                    <span style={{ fontWeight: 800, color: OXFORD_NAVY }}>{callsModalData.totalCalls}</span>
-                  </div>
-                  {!callsModalData.isTomorrow && (
-                    <div>
-                      <span style={{ color: '#64748b' }}>Connected Duration: </span>
-                      <span style={{ fontWeight: 800, color: '#047857', fontFamily: 'monospace' }}>{callsModalData.totalConnectedDurationFormatted}</span>
+              <div className="p-6 overflow-y-auto flex flex-col gap-4 text-xs">
+                {/* Attendance Details Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="bg-[#1e441e]/50 border border-[#72ff47]/30 rounded-xl p-4 flex flex-col gap-2">
+                    <div className="font-normal text-[#72ff47] uppercase text-[11px] flex items-center justify-between border-b border-[#1e441e] pb-2">
+                      <span>🟢 Today's Attendance</span>
+                      <span>{detailModalEmployee.todayAttendance?.day}</span>
                     </div>
-                  )}
+                    <div className="flex justify-between"><span className="text-[#8bc088]">Start Time:</span> <span className="text-[#72ff47]">{detailModalEmployee.todayAttendance?.startTimeFormatted}</span></div>
+                    <div className="flex justify-between"><span className="text-[#8bc088]">Logout Time:</span> <span>{detailModalEmployee.todayAttendance?.endTimeFormatted}</span></div>
+                    <div className="flex justify-between"><span className="text-[#8bc088]">Duration:</span> <span className="font-mono">{detailModalEmployee.todayAttendance?.durationFormatted}</span></div>
+                    <div className="flex justify-between pt-2 border-t border-[#1e441e]"><span className="text-white">Actual Work:</span> <span className="font-mono text-[#72ff47] font-medium">{detailModalEmployee.todayAttendance?.formattedActualWork}</span></div>
+                  </div>
+
+                  <div className="bg-[#040704] border border-[#356033] rounded-xl p-4 flex flex-col gap-2">
+                    <div className="font-normal text-slate-400 uppercase text-[11px] flex items-center justify-between border-b border-[#1e441e] pb-2">
+                      <span>⏱️ Yesterday's Attendance</span>
+                      <span>{detailModalEmployee.yesterdayAttendance?.day || 'Yesterday'}</span>
+                    </div>
+                    <div className="flex justify-between"><span className="text-[#8bc088]">Start Time:</span> <span>{detailModalEmployee.yesterdayAttendance?.startTimeFormatted}</span></div>
+                    <div className="flex justify-between"><span className="text-[#8bc088]">Logout Time:</span> <span>{detailModalEmployee.yesterdayAttendance?.endTimeFormatted}</span></div>
+                    <div className="flex justify-between"><span className="text-[#8bc088]">Duration:</span> <span className="font-mono">{detailModalEmployee.yesterdayAttendance?.durationFormatted}</span></div>
+                    <div className="flex justify-between pt-2 border-t border-[#1e441e]"><span className="text-white">Actual Work:</span> <span className="font-mono text-slate-200">{detailModalEmployee.yesterdayAttendance?.formattedActualWork}</span></div>
+                  </div>
+                </div>
+
+                {/* Location Telemetry */}
+                <div className="bg-[#1e441e]/30 border border-[#72ff47]/20 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-normal text-[#72ff47] uppercase flex items-center gap-2">
+                      <FaLocationDot /> Live Location Telemetry
+                    </span>
+                    <button
+                      onClick={() => {
+                        const target = detailModalEmployee;
+                        setDetailModalEmployee(null);
+                        setMapModalEmployee(target);
+                      }}
+                      className="bg-[#119822] hover:bg-[#18d531] text-white px-3 py-1 rounded-lg text-xs font-normal flex items-center gap-1"
+                    >
+                      <FaMapLocationDot /> View Live Map
+                    </button>
+                  </div>
+                  <div className="text-slate-200 font-normal mt-1">{detailModalEmployee.location?.formattedAddress || 'Location unavailable'}</div>
                 </div>
               </div>
-            )}
-
-            {/* Body: Call Records Table */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '16px 22px' }}>
-              {callsModalLoading ? (
-                <div style={{ textAlign: 'center', padding: '40px 0', color: CERULEAN }}>Loading call records...</div>
-              ) : !callsModalData || callsModalData.calls?.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px 0', color: '#64748b', fontSize: 13 }}>
-                  {callsModalPeriod === 'tomorrow' ? 'No scheduled calls or tasks planned for tomorrow.' : 'No call activity records found for this date.'}
-                </div>
-              ) : (
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
-                  <thead>
-                    <tr style={{ background: '#f8fafc', borderBottom: `1.5px solid ${BORDER}`, color: OXFORD_NAVY, height: 34 }}>
-                      <th style={{ textAlign: 'left', fontWeight: 700, padding: '8px 10px' }}>
-                        {callsModalPeriod === 'all' || callsModalData?.period === 'all' ? 'Date & Time' : 'Time'}
-                      </th>
-                      <th style={{ textAlign: 'left', fontWeight: 700, padding: '8px 10px' }}>Contact</th>
-                      <th style={{ textAlign: 'left', fontWeight: 700, padding: '8px 10px' }}>Phone</th>
-                      <th style={{ textAlign: 'center', fontWeight: 700, padding: '8px 10px' }}>Status</th>
-                      <th style={{ textAlign: 'right', fontWeight: 700, padding: '8px 10px' }}>Duration</th>
-                      <th style={{ textAlign: 'left', fontWeight: 700, padding: '8px 10px' }}>Notes / Type</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {callsModalData.calls.map((c, idx) => (
-                      <tr key={c.id || idx} style={{ borderBottom: `1px solid ${BORDER}`, height: 42 }}>
-                        <td style={{ padding: '8px 10px', fontWeight: 700, color: OXFORD_NAVY }}>
-                          {(callsModalPeriod === 'all' || callsModalData?.period === 'all') && (
-                            <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>{formatDateDisplay(c.callDate)}</div>
-                          )}
-                          <div>{c.callTime}</div>
-                        </td>
-                        <td style={{ padding: '8px 10px', fontWeight: 600, color: OXFORD_NAVY }}>{c.contactName}</td>
-                        <td style={{ padding: '8px 10px', color: CERULEAN, fontFamily: 'monospace' }}>{c.contactNumber}</td>
-                        <td style={{ textAlign: 'center', padding: '8px 10px' }}>
-                          <span
-                            style={{
-                              padding: '2px 8px',
-                              borderRadius: 8,
-                              fontSize: 11,
-                              fontWeight: 700,
-                              background: c.rawCallStatus === 'connected' || c.callStatus === 'Scheduled' ? '#ecfdf5' : '#fef2f2',
-                              color: c.rawCallStatus === 'connected' || c.callStatus === 'Scheduled' ? '#047857' : '#991b1b',
-                            }}
-                          >
-                            {c.callStatus}
-                          </span>
-                        </td>
-                        <td style={{ textAlign: 'right', padding: '8px 10px', fontFamily: 'monospace', fontWeight: 700, color: OXFORD_NAVY }}>
-                          {c.callDurationFormatted}
-                        </td>
-                        <td style={{ padding: '8px 10px', color: '#64748b', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {c.notes || c.callType}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
-      {/* Legacy User Performance Modal */}
-      {selectedUserId && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(29, 53, 87, 0.4)', backdropFilter: 'blur(3px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 20
-        }} onClick={closeAnalysisModal}>
-          <div style={{
-            background: '#fff', borderRadius: 16, width: '100%', maxWidth: 600, maxHeight: '85vh',
-            display: 'flex', flexDirection: 'column', padding: 20
-          }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #a8dadc', paddingBottom: 12 }}>
-              <span style={{ fontSize: 15, fontWeight: 600, color: OXFORD_NAVY }}>Employee Performance Details</span>
-              <button onClick={closeAnalysisModal} style={{ background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', color: CERULEAN }}>✕</button>
-            </div>
-            <div style={{ padding: '16px 0', flex: 1, overflowY: 'auto' }}>
-              {modalLoading ? (
-                <div style={{ textAlign: 'center', color: CERULEAN, padding: '30px 0' }}>Loading user details...</div>
-              ) : userAnalysisData ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-                    <div style={{ background: '#edf8f8', padding: 12, borderRadius: 10, textAlign: 'center' }}>
-                      <div style={{ fontSize: 11, color: CERULEAN }}>Total Calls</div>
-                      <div style={{ fontSize: 18, fontWeight: 700, color: OXFORD_NAVY }}>{userAnalysisData.stats?.totalCalls || 0}</div>
-                    </div>
-                    <div style={{ background: '#edf8f8', padding: 12, borderRadius: 10, textAlign: 'center' }}>
-                      <div style={{ fontSize: 11, color: CERULEAN }}>Duration</div>
-                      <div style={{ fontSize: 18, fontWeight: 700, color: OXFORD_NAVY }}>{fmtDuration(userAnalysisData.stats?.totalDuration)}</div>
-                    </div>
-                    <div style={{ background: '#edf8f8', padding: 12, borderRadius: 10, textAlign: 'center' }}>
-                      <div style={{ fontSize: 11, color: CERULEAN }}>Connect %</div>
-                      <div style={{ fontSize: 18, fontWeight: 700, color: OXFORD_NAVY }}>
-                        {userAnalysisData.stats?.totalCalls > 0 ? Math.round((userAnalysisData.stats?.connected / userAnalysisData.stats?.totalCalls) * 100) : 0}%
-                      </div>
-                    </div>
+      {/* ── MODAL 3: Live Map Modal ───────────────────────────────── */}
+      <AnimatePresence>
+        {mapModalEmployee && (
+          <div className="fixed inset-0 bg-[#040704]/80 z-50 flex items-center justify-center p-4 backdrop-blur-md" onClick={() => setMapModalEmployee(null)}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-[#0c160c] border border-[#72ff47]/30 rounded-2xl w-full max-w-4xl h-[80vh] flex flex-col shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-4 border-b border-[#1e441e] bg-[#040704]/90 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <FaMapLocationDot className="w-5 h-5 text-[#72ff47]" />
+                  <div>
+                    <div className="text-sm font-medium text-white">Live Map — {mapModalEmployee.name} ({mapModalEmployee.employeeId})</div>
+                    <div className="text-xs text-[#8bc088]">{mapModalEmployee.location?.formattedAddress || 'Tracking live'}</div>
                   </div>
                 </div>
-              ) : <div style={{ color: CERULEAN }}>No analysis data available.</div>}
-            </div>
+                <button onClick={() => setMapModalEmployee(null)} className="text-slate-400 hover:text-white">
+                  <FaXmark className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="flex-1 relative">
+                <LiveMap
+                  employees={[mapModalEmployee]}
+                  selectedEmployee={mapModalEmployee}
+                  onSelectEmployee={() => {}}
+                  officeConfig={employeesActivityData.office}
+                />
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
+
+      {/* ── MODAL 4: Call Records Modal ──────────────── */}
+      <AnimatePresence>
+        {callsModalEmployee && (
+          <div className="fixed inset-0 bg-[#040704]/80 z-50 flex items-center justify-center p-4 backdrop-blur-md" onClick={() => setCallsModalEmployee(null)}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-[#0c160c] border border-[#72ff47]/30 rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden text-slate-100"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-4 border-b border-[#1e441e] bg-[#040704]/90 flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-3">
+                  <FaPhone className="w-4 h-4 text-[#72ff47]" />
+                  <div>
+                    <div className="text-sm font-medium text-white">Call Records — {callsModalEmployee.name}</div>
+                    <div className="text-xs text-[#8bc088]">{callsModalEmployee.employeeId} • {callsModalEmployee.email}</div>
+                  </div>
+                </div>
+                <button onClick={() => setCallsModalEmployee(null)} className="text-slate-400 hover:text-white">
+                  <FaXmark className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-4 flex-1 overflow-y-auto">
+                {callsModalLoading ? (
+                  <div className="text-center py-8 text-xs text-[#8bc088]">Loading records...</div>
+                ) : !callsModalData || callsModalData.calls?.length === 0 ? (
+                  <div className="text-center py-8 text-xs text-slate-400">No call activity records found for this period.</div>
+                ) : (
+                  <table className="w-full text-xs text-left text-slate-200">
+                    <thead className="bg-[#040704] text-[#8bc088] uppercase text-[11px] font-normal border-b border-[#1e441e]">
+                      <tr>
+                        <th className="py-2.5 px-3 font-normal">Time</th>
+                        <th className="py-2.5 px-3 font-normal">Contact</th>
+                        <th className="py-2.5 px-3 font-normal">Phone</th>
+                        <th className="py-2.5 px-3 text-center font-normal">Status</th>
+                        <th className="py-2.5 px-3 text-right font-normal">Duration</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#1e441e]">
+                      {callsModalData.calls.map((c, idx) => (
+                        <tr key={c.id || idx}>
+                          <td className="py-2.5 px-3 font-normal">{c.callTime}</td>
+                          <td className="py-2.5 px-3 font-medium text-slate-100">{c.contactName}</td>
+                          <td className="py-2.5 px-3 font-mono text-[#8bc088]">{c.contactNumber}</td>
+                          <td className="py-2.5 px-3 text-center">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-normal bg-[#1e441e] text-[#72ff47]">
+                              {c.callStatus}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono text-slate-200">{c.callDurationFormatted}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

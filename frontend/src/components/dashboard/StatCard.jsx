@@ -1,51 +1,36 @@
 import React from 'react';
-
-const OXFORD_NAVY = '#1d3557';
-const CERULEAN = '#457b9d';
+import { motion } from 'framer-motion';
 
 export const StatCard = ({ icon, label, value, sub, bg, iconColor }) => (
-  <div 
-    className="stat-card" 
-    style={{ 
-      background: 'linear-gradient(145deg, #ffffff 0%, #f1faee 100%)', 
-      border: '1px solid #a8dadc', 
-      borderRadius: 14, 
-      padding: '18px 20px', 
-      display: 'flex', 
-      alignItems: 'center', 
-      gap: 14, 
-      boxSizing: 'border-box', 
-      width: '100%', 
-      maxWidth: '100%', 
-      overflow: 'hidden',
-      boxShadow: '0 2px 12px rgba(29, 53, 87, 0.04)',
-      transition: 'all 0.2s ease',
+  <motion.div 
+    whileHover={{ y: -3, scale: 1.01 }}
+    transition={{ duration: 0.2 }}
+    className="relative overflow-hidden rounded-2xl p-5 border border-[#72ff47]/20 shadow-xl"
+    style={{
+      background: 'linear-gradient(135deg, rgba(30, 68, 30, 0.85) 0%, rgba(15, 38, 20, 0.95) 100%)',
+      backdropFilter: 'blur(12px)',
     }}
   >
-    <div 
-      style={{ 
-        width: 48, 
-        height: 48, 
-        borderRadius: 12, 
-        background: bg || '#edf8f8', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        flexShrink: 0,
-        boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.8)',
-      }}
-    >
-      <span style={{ color: iconColor || CERULEAN, display: 'flex' }}>{icon}</span>
-    </div>
-    <div style={{ flex: 1, minWidth: 0 }}>
-      <div style={{ fontSize: 13, fontWeight: 600, color: CERULEAN, wordBreak: 'break-word', letterSpacing: '-0.1px' }}>{label}</div>
-      <div style={{ fontSize: 26, fontWeight: 700, color: OXFORD_NAVY, lineHeight: 1.15, marginTop: 4, wordBreak: 'break-word' }}>
-        {value}
+    {/* Subtle Glow Background Overlay */}
+    <div className="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-[#72ff47]/10 blur-xl pointer-events-none" />
+
+    <div className="flex items-center gap-4 relative z-10">
+      <div 
+        className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border border-[#72ff47]/30 shadow-inner"
+        style={{ background: bg || 'rgba(53, 96, 51, 0.5)' }}
+      >
+        <span style={{ color: iconColor || '#72ff47', fontSize: '20px' }}>{icon}</span>
       </div>
-      {sub && <div style={{ fontSize: 12, fontWeight: 500, color: '#6097b9', marginTop: 3, wordBreak: 'break-word' }}>{sub}</div>}
+
+      <div className="flex-1 min-w-0">
+        <div className="text-xs font-normal text-[#8bc088] uppercase tracking-wider truncate">{label}</div>
+        <div className="text-2xl font-medium text-white tracking-tight leading-tight mt-1 truncate">
+          {value}
+        </div>
+        {sub && <div className="text-[11px] font-normal text-[#c5e0c4] mt-0.5 truncate">{sub}</div>}
+      </div>
     </div>
-  </div>
+  </motion.div>
 );
 
 export default StatCard;
-
