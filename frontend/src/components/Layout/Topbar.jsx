@@ -70,47 +70,47 @@ function ChangePasswordModal({ onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/70 z-50 flex items-center justify-center p-4 backdrop-blur-md">
+    <div className="fixed inset-0 bg-[#040704]/80 z-50 flex items-center justify-center p-4 backdrop-blur-md">
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 10 }}
-        className="bg-slate-900 border border-sky-500/30 rounded-2xl shadow-2xl w-full max-w-md p-6 text-slate-100"
+        className="bg-[#0c160c] border border-[#72ff47]/30 rounded-2xl shadow-2xl w-full max-w-md p-6 text-slate-100"
       >
-        <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
-          <h3 className="font-medium text-sky-400 text-base">Change Password</h3>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-200">
+        <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#1e441e]">
+          <h3 className="font-medium text-[#72ff47] text-base">Change Password</h3>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-[#1e441e] flex items-center justify-center text-slate-400 hover:text-slate-200">
             <FaXmark className="w-4 h-4" />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-xs font-normal text-slate-400 uppercase tracking-wider mb-1 block">Current Password</label>
+            <label className="text-xs font-normal text-[#8bc088] uppercase tracking-wider mb-1 block">Current Password</label>
             <div className="relative">
-              <input type={showCurrent ? 'text' : 'password'} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className="w-full bg-slate-950 border border-slate-700/80 rounded-xl p-2.5 pr-10 text-sm text-slate-200 focus:outline-none focus:border-sky-500" placeholder="••••••••" autoComplete="current-password" />
-              <button type="button" onClick={() => setShowCurrent(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">{eyeIcon(showCurrent)}</button>
+              <input type={showCurrent ? 'text' : 'password'} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className="w-full bg-[#040704] border border-[#356033] rounded-xl p-2.5 pr-10 text-sm text-slate-100 focus:outline-none focus:border-[#72ff47]" placeholder="••••••••" autoComplete="current-password" />
+              <button type="button" onClick={() => setShowCurrent(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200">{eyeIcon(showCurrent)}</button>
             </div>
           </div>
           <div>
-            <label className="text-xs font-normal text-slate-400 uppercase tracking-wider mb-1 block">New Password</label>
+            <label className="text-xs font-normal text-[#8bc088] uppercase tracking-wider mb-1 block">New Password</label>
             <div className="relative">
-              <input type={showNew ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full bg-slate-950 border border-slate-700/80 rounded-xl p-2.5 pr-10 text-sm text-slate-200 focus:outline-none focus:border-sky-500" placeholder="At least 6 characters" autoComplete="new-password" />
-              <button type="button" onClick={() => setShowNew(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">{eyeIcon(showNew)}</button>
+              <input type={showNew ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full bg-[#040704] border border-[#356033] rounded-xl p-2.5 pr-10 text-sm text-slate-100 focus:outline-none focus:border-[#72ff47]" placeholder="At least 6 characters" autoComplete="new-password" />
+              <button type="button" onClick={() => setShowNew(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200">{eyeIcon(showNew)}</button>
             </div>
           </div>
           <div>
-            <label className="text-xs font-normal text-slate-400 uppercase tracking-wider mb-1 block">Confirm New Password</label>
+            <label className="text-xs font-normal text-[#8bc088] uppercase tracking-wider mb-1 block">Confirm New Password</label>
             <div className="relative">
-              <input type={showNew ? 'text' : 'password'} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="w-full bg-slate-950 border border-slate-700/80 rounded-xl p-2.5 text-sm text-slate-200 focus:outline-none focus:border-sky-500" placeholder="Re-enter new password" autoComplete="new-password" />
+              <input type={showNew ? 'text' : 'password'} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="w-full bg-[#040704] border border-[#356033] rounded-xl p-2.5 text-sm text-slate-100 focus:outline-none focus:border-[#72ff47]" placeholder="Re-enter new password" autoComplete="new-password" />
             </div>
           </div>
 
           {error && <p className="text-xs text-rose-400 font-normal">{error}</p>}
-          {success && <p className="text-xs text-emerald-400 font-normal">✓ Password changed successfully!</p>}
+          {success && <p className="text-xs text-[#72ff47] font-normal">✓ Password changed successfully!</p>}
 
           <div className="flex gap-2.5 mt-5">
-            <button type="button" onClick={onClose} className="flex-1 rounded-xl py-2.5 font-normal text-sm border border-slate-700 text-slate-300 hover:bg-slate-800">Cancel</button>
-            <button type="submit" disabled={saving || success} className="flex-1 rounded-xl py-2.5 font-normal text-sm bg-sky-600 hover:bg-sky-500 text-white shadow-xs justify-center flex items-center">
+            <button type="button" onClick={onClose} className="flex-1 rounded-xl py-2.5 font-normal text-sm border border-[#356033] text-slate-300 hover:bg-[#1e441e]">Cancel</button>
+            <button type="submit" disabled={saving || success} className="flex-1 rounded-xl py-2.5 font-normal text-sm bg-[#119822] hover:bg-[#18d531] text-white shadow-xs justify-center flex items-center">
               {saving ? 'Saving...' : 'Update Password'}
             </button>
           </div>
@@ -263,7 +263,7 @@ export default function Topbar() {
 
   const roleLabel = user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Employee';
 
-  // ── 5 Top Navigation Bar Dropdown Categories with React Icons ────────────────
+  // ── 5 Top Navigation Bar Dropdown Categories with Premium Evergreen Green Theme ─────────────
   const topDropdownGroups = [
     {
       title: 'Information',
@@ -329,13 +329,13 @@ export default function Topbar() {
 
   return (
     <>
-      <header className="fixed top-0 inset-x-0 z-50 h-20 flex px-0 select-none drop-shadow-xl">
+      <header className="fixed top-0 inset-x-0 z-50 h-20 flex px-0 select-none drop-shadow-2xl">
         
         {/* Left Side Extension Bar */}
-        <div className="flex-1 h-12 bg-gradient-to-r from-[#030712] via-[#0f172a] to-[#0f172a] z-20 relative min-w-0 border-b border-sky-500/20">
+        <div className="flex-1 h-12 bg-gradient-to-r from-[#040704] via-[#152614] to-[#152614] z-20 relative min-w-0 border-b border-[#72ff47]/20">
           <svg className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none">
-            <line x1="0" y1="47.5" x2="100%" y2="47.5" stroke="#38bdf8" strokeOpacity={0.15} strokeWidth={1} />
-            <line x1="0" y1="44.5" x2="100%" y2="44.5" stroke="#38bdf8" strokeOpacity={0.08} strokeWidth={0.5} />
+            <line x1="0" y1="47.5" x2="100%" y2="47.5" stroke="#72ff47" strokeOpacity={0.25} strokeWidth={1} />
+            <line x1="0" y1="44.5" x2="100%" y2="44.5" stroke="#72ff47" strokeOpacity={0.12} strokeWidth={0.5} />
           </svg>
         </div>
 
@@ -345,21 +345,21 @@ export default function Topbar() {
           {/* Left Slice (Curved Corner Notch - Height 80px) */}
           <div className="w-[45px] sm:w-[55px] h-full relative shrink-0">
             <div 
-              className="absolute inset-0 bg-gradient-to-b from-[#0f172a] via-[#1e293b] to-[#0f172a]" 
+              className="absolute inset-0 bg-gradient-to-b from-[#152614] via-[#1e441e] to-[#152614]" 
               style={{ clipPath: "path('M0 0 H55 V80 C28 80 28 48 0 48 Z')" }} 
             />
             <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 55 80">
-              <path d="M0 47.5 C28 47.5 28 79.5 55 79.5" fill="none" stroke="#38bdf8" strokeOpacity={0.25} strokeWidth={1} />
-              <path d="M0 44.5 C28 44.5 28 76.5 55 76.5" fill="none" stroke="#38bdf8" strokeOpacity={0.12} strokeWidth={0.5} />
+              <path d="M0 47.5 C28 47.5 28 79.5 55 79.5" fill="none" stroke="#72ff47" strokeOpacity={0.3} strokeWidth={1} />
+              <path d="M0 44.5 C28 44.5 28 76.5 55 76.5" fill="none" stroke="#72ff47" strokeOpacity={0.15} strokeWidth={0.5} />
             </svg>
           </div>
 
           {/* Center Content Slice */}
           <div className="flex-1 h-full relative min-w-0 -ml-px">
-             <div className="absolute inset-0 bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a]">
+             <div className="absolute inset-0 bg-gradient-to-r from-[#152614] via-[#1e441e] to-[#152614]">
                  <svg className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none">
-                   <line x1="0" y1="79.5" x2="100%" y2="79.5" stroke="#38bdf8" strokeOpacity={0.25} strokeWidth={1} />
-                   <line x1="0" y1="76.5" x2="100%" y2="76.5" stroke="#38bdf8" strokeOpacity={0.12} strokeWidth={0.5} />
+                   <line x1="0" y1="79.5" x2="100%" y2="79.5" stroke="#72ff47" strokeOpacity={0.3} strokeWidth={1} />
+                   <line x1="0" y1="76.5" x2="100%" y2="76.5" stroke="#72ff47" strokeOpacity={0.15} strokeWidth={0.5} />
                  </svg>
              </div>
 
@@ -368,11 +368,11 @@ export default function Topbar() {
                
                {/* Mobile Hamburger Button */}
                <button 
-                 className="lg:hidden p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-200 transition-colors"
+                 className="lg:hidden p-2 rounded-xl bg-[#1e441e] hover:bg-[#356033] text-slate-100 transition-colors"
                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                  aria-label="Toggle menu"
                >
-                 {mobileMenuOpen ? <FaXmark className="w-5 h-5 text-sky-400" /> : <FaBars className="w-5 h-5 text-sky-400" />}
+                 {mobileMenuOpen ? <FaXmark className="w-5 h-5 text-[#72ff47]" /> : <FaBars className="w-5 h-5 text-[#72ff47]" />}
                </button>
 
                {/* Logo Center */}
@@ -397,13 +397,13 @@ export default function Topbar() {
                          onClick={() => setActiveDropdown(isOpen ? null : group.title)}
                          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-normal transition-all ${
                            isGroupActive || isOpen
-                             ? 'bg-sky-500/20 text-sky-300 border border-sky-400/40 shadow-sm'
-                             : 'text-slate-300 hover:text-white hover:bg-slate-800/60 border border-transparent'
+                             ? 'bg-[#1e441e] text-[#72ff47] border border-[#72ff47]/40 shadow-sm'
+                             : 'text-[#c5e0c4] hover:text-white hover:bg-[#1e441e]/60 border border-transparent'
                          }`}
                        >
-                         <GroupIcon className="w-3.5 h-3.5 text-sky-400" />
+                         <GroupIcon className="w-3.5 h-3.5 text-[#72ff47]" />
                          <span className="tracking-wide">{group.title}</span>
-                         <FaChevronDown className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180 text-sky-400' : ''}`} />
+                         <FaChevronDown className={`w-3 h-3 text-[#8bc088] transition-transform duration-200 ${isOpen ? 'rotate-180 text-[#72ff47]' : ''}`} />
                        </motion.button>
 
                        <AnimatePresence>
@@ -413,7 +413,7 @@ export default function Topbar() {
                              animate={{ opacity: 1, y: 0, scale: 1 }}
                              exit={{ opacity: 0, y: 10, scale: 0.95 }}
                              transition={{ duration: 0.15 }}
-                             className="absolute left-0 top-12 w-60 bg-slate-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-sky-500/30 z-50 overflow-hidden py-2"
+                             className="absolute left-0 top-12 w-60 bg-[#0c160c]/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-[#72ff47]/30 z-50 overflow-hidden py-2"
                            >
                              {group.items
                                .filter(item => !item.adminOnly || user?.role === 'admin')
@@ -428,10 +428,10 @@ export default function Topbar() {
                                        navigate(item.path);
                                      }}
                                      className={`flex items-center gap-3 px-4 py-2.5 text-xs font-normal cursor-pointer transition-colors ${
-                                       active ? 'bg-sky-500/15 text-sky-300 border-l-4 border-sky-400' : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                                       active ? 'bg-[#1e441e] text-[#72ff47] border-l-4 border-[#72ff47]' : 'text-[#c5e0c4] hover:bg-[#1e441e]/80 hover:text-white'
                                      }`}
                                    >
-                                     <ItemIcon className={`w-4 h-4 ${active ? 'text-sky-400' : 'text-slate-400'}`} />
+                                     <ItemIcon className={`w-4 h-4 ${active ? 'text-[#72ff47]' : 'text-[#8bc088]'}`} />
                                      <span className="tracking-normal">{item.label}</span>
                                    </div>
                                  );
@@ -449,7 +449,7 @@ export default function Topbar() {
                  {!isMobile && (
                    <div className="text-right hidden sm:block">
                      <div className="text-xs font-medium text-slate-100 leading-tight">{timeStr}</div>
-                     <div className="text-[10px] font-normal text-sky-400/90">{dateStr}</div>
+                     <div className="text-[10px] font-normal text-[#8bc088]">{dateStr}</div>
                    </div>
                  )}
 
@@ -459,9 +459,9 @@ export default function Topbar() {
                    whileTap={{ scale: 0.95 }}
                    onClick={() => navigate('/tasks?tab=Call+Followups')}
                    title="View Call Followups"
-                   className="w-9 h-9 rounded-full border border-slate-700 hover:border-sky-400/60 text-slate-300 hover:text-white bg-slate-800/60 hover:bg-slate-800 flex items-center justify-center transition-all hidden sm:flex"
+                   className="w-9 h-9 rounded-full border border-[#356033] hover:border-[#72ff47]/60 text-slate-200 hover:text-white bg-[#152614]/80 hover:bg-[#1e441e] flex items-center justify-center transition-all hidden sm:flex"
                  >
-                   <FaClock className="w-4 h-4 text-sky-400" />
+                   <FaClock className="w-4 h-4 text-[#72ff47]" />
                  </motion.button>
 
                  {/* Notifications Bell */}
@@ -471,12 +471,12 @@ export default function Topbar() {
                      whileTap={{ scale: 0.95 }}
                      onClick={() => { setShowNotifications(prev => !prev); setShowProfile(false); }}
                      className={`w-9 h-9 rounded-full flex items-center justify-center transition-all relative ${
-                       showNotifications ? 'bg-sky-500/20 border border-sky-400 text-sky-300' : 'border border-slate-700 text-slate-300 hover:bg-slate-800'
+                       showNotifications ? 'bg-[#1e441e] border border-[#72ff47] text-[#72ff47]' : 'border border-[#356033] text-slate-200 hover:bg-[#1e441e]'
                      }`}
                    >
-                     <FaBell className="w-4 h-4 text-sky-400" />
+                     <FaBell className="w-4 h-4 text-[#72ff47]" />
                      {unreadCount > 0 && (
-                       <span className="w-2.5 h-2.5 bg-rose-500 rounded-full absolute top-1 right-1 border-2 border-slate-900" />
+                       <span className="w-2.5 h-2.5 bg-rose-500 rounded-full absolute top-1 right-1 border-2 border-[#040704]" />
                      )}
                    </motion.button>
 
@@ -488,28 +488,28 @@ export default function Topbar() {
                          animate={{ opacity: 1, y: 0, scale: 1 }}
                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
                          transition={{ duration: 0.15 }}
-                         className="absolute right-0 top-12 w-80 bg-slate-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-sky-500/30 z-50 overflow-hidden"
+                         className="absolute right-0 top-12 w-80 bg-[#0c160c]/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-[#72ff47]/30 z-50 overflow-hidden"
                        >
-                         <div className="p-3 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+                         <div className="p-3 border-b border-[#1e441e] flex items-center justify-between bg-[#040704]/80">
                            <div className="flex items-center gap-2">
                              <span className="font-medium text-xs text-slate-200">Notifications</span>
                              {unreadCount > 0 && (
-                               <span className="bg-sky-600 text-white text-[10px] font-normal px-1.5 py-0.2 rounded-full">
+                               <span className="bg-[#119822] text-white text-[10px] font-normal px-1.5 py-0.2 rounded-full">
                                  {unreadCount}
                                </span>
                              )}
                            </div>
                            {unreadCount > 0 && (
-                             <button onClick={markAllRead} className="text-[11px] font-normal text-sky-400 hover:underline">
+                             <button onClick={markAllRead} className="text-[11px] font-normal text-[#72ff47] hover:underline">
                                Mark all read
                              </button>
                            )}
                          </div>
 
-                         <div className="max-h-72 overflow-y-auto divide-y divide-slate-800/60">
+                         <div className="max-h-72 overflow-y-auto divide-y divide-[#1e441e]/60">
                            {notifications.length === 0 ? (
-                             <div className="p-6 text-center text-xs text-slate-500">
-                               <FaBell className="w-6 h-6 text-slate-600 mx-auto mb-1.5" />
+                             <div className="p-6 text-center text-xs text-[#8bc088]">
+                               <FaBell className="w-6 h-6 text-[#356033] mx-auto mb-1.5" />
                                No notifications yet
                              </div>
                            ) : (
@@ -523,18 +523,18 @@ export default function Topbar() {
                                    setShowNotifications(false);
                                  }}
                                  className={`p-3 flex gap-2.5 cursor-pointer transition-colors ${
-                                   n.read ? 'bg-slate-900 hover:bg-slate-800/70' : 'bg-slate-800/80 hover:bg-slate-800'
+                                   n.read ? 'bg-[#0c160c] hover:bg-[#1e441e]/60' : 'bg-[#1e441e]/80 hover:bg-[#1e441e]'
                                  }`}
                                >
-                                 <div className="w-7 h-7 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0 text-sky-400 mt-0.5">
+                                 <div className="w-7 h-7 rounded-xl bg-[#1e441e] border border-[#356033] flex items-center justify-center shrink-0 text-[#72ff47] mt-0.5">
                                    <FaBell className="w-3.5 h-3.5" />
                                  </div>
                                  <div className="flex-1 min-w-0">
                                    <div className="flex items-center justify-between gap-1 mb-0.5">
-                                     <span className="text-xs font-normal text-slate-200 truncate">{n.title}</span>
-                                     <span className="text-[10px] text-slate-400 shrink-0">{n.time}</span>
+                                     <span className="text-xs font-normal text-slate-100 truncate">{n.title}</span>
+                                     <span className="text-[10px] text-[#8bc088] shrink-0">{n.time}</span>
                                    </div>
-                                   <p className="text-[11px] text-slate-400 line-clamp-2 leading-snug">{n.message}</p>
+                                   <p className="text-[11px] text-[#c5e0c4] line-clamp-2 leading-snug">{n.message}</p>
                                  </div>
                                </div>
                              ))
@@ -551,18 +551,18 @@ export default function Topbar() {
                      whileHover={{ scale: 1.03 }}
                      whileTap={{ scale: 0.97 }}
                      onClick={() => { setShowProfile(prev => !prev); setShowNotifications(false); }}
-                     className="flex items-center gap-2.5 p-1.5 pr-3 rounded-2xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700 transition-all text-slate-200"
+                     className="flex items-center gap-2.5 p-1.5 pr-3 rounded-2xl bg-[#152614] hover:bg-[#1e441e] border border-[#356033] transition-all text-slate-100"
                    >
-                     <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-sky-600 to-cyan-500 text-white font-medium text-xs flex items-center justify-center shadow-md">
+                     <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#119822] via-[#2a7221] to-[#31cb00] text-white font-medium text-xs flex items-center justify-center shadow-md">
                        {initials}
                      </div>
                      {!isMobile && (
                        <div className="text-left leading-tight hidden xl:block">
                          <div className="text-xs font-medium truncate max-w-[100px] text-slate-100">{user?.name || 'User'}</div>
-                         <div className="text-[9px] font-normal uppercase text-sky-400 tracking-wider">{roleLabel}</div>
+                         <div className="text-[9px] font-normal uppercase text-[#72ff47] tracking-wider">{roleLabel}</div>
                        </div>
                      )}
-                     <FaChevronDown className="w-3 h-3 text-slate-400" />
+                     <FaChevronDown className="w-3 h-3 text-[#8bc088]" />
                    </motion.button>
 
                    <AnimatePresence>
@@ -573,20 +573,20 @@ export default function Topbar() {
                          animate={{ opacity: 1, y: 0, scale: 1 }}
                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
                          transition={{ duration: 0.15 }}
-                         className="absolute right-0 top-12 w-64 bg-slate-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-sky-500/30 z-50 overflow-hidden p-3"
+                         className="absolute right-0 top-12 w-64 bg-[#0c160c]/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-[#72ff47]/30 z-50 overflow-hidden p-3"
                        >
-                         <div className="p-3 bg-slate-950/80 rounded-xl border border-slate-800 mb-2">
+                         <div className="p-3 bg-[#040704]/90 rounded-xl border border-[#1e441e] mb-2">
                            <div className="flex items-center justify-between mb-1">
                              <span className="font-medium text-sm text-slate-100 truncate">{user?.name || 'User'}</span>
-                             <span className="text-[10px] font-normal bg-sky-600/80 text-white px-2 py-0.5 rounded-full uppercase">
+                             <span className="text-[10px] font-normal bg-[#119822] text-white px-2 py-0.5 rounded-full uppercase">
                                Pro
                              </span>
                            </div>
-                           <div className="inline-block text-[10px] font-normal text-sky-400 bg-slate-900 border border-slate-800 rounded-full px-2 py-0.2 mb-1.5">
+                           <div className="inline-block text-[10px] font-normal text-[#72ff47] bg-[#1e441e] border border-[#356033] rounded-full px-2 py-0.2 mb-1.5">
                              {roleLabel}
                            </div>
-                           <p className="text-[11px] text-slate-400 truncate flex items-center gap-1.5 font-normal">
-                             <FaUser className="w-3 h-3 text-sky-400" />
+                           <p className="text-[11px] text-[#8bc088] truncate flex items-center gap-1.5 font-normal">
+                             <FaUser className="w-3 h-3 text-[#72ff47]" />
                              {user?.email || 'user@example.com'}
                            </p>
                          </div>
@@ -597,10 +597,10 @@ export default function Topbar() {
                                key={idx}
                                onClick={item.onClick}
                                className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-normal cursor-pointer transition-colors ${
-                                 item.danger ? 'text-rose-400 hover:bg-rose-500/10' : 'text-slate-300 hover:bg-slate-800'
+                                 item.danger ? 'text-rose-400 hover:bg-rose-500/10' : 'text-[#c5e0c4] hover:bg-[#1e441e]'
                                }`}
                              >
-                               <span className={item.danger ? 'text-rose-400' : 'text-sky-400'}>{item.icon}</span>
+                               <span className={item.danger ? 'text-rose-400' : 'text-[#72ff47]'}>{item.icon}</span>
                                {item.label}
                              </div>
                            ))}
@@ -618,22 +618,22 @@ export default function Topbar() {
           {/* Right Slice (Curved Corner Notch - Height 80px) */}
           <div className="w-[45px] sm:w-[55px] h-full relative shrink-0 -ml-px">
             <div 
-              className="absolute inset-0 bg-gradient-to-b from-[#0f172a] via-[#1e293b] to-[#0f172a]" 
+              className="absolute inset-0 bg-gradient-to-b from-[#152614] via-[#1e441e] to-[#152614]" 
               style={{ clipPath: "path('M0 0 H55 V48 C28 48 28 80 0 80 Z')" }} 
             />
             <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 55 80">
-              <path d="M0 79.5 C28 79.5 28 47.5 55 47.5" fill="none" stroke="#38bdf8" strokeOpacity={0.25} strokeWidth={1} />
-              <path d="M0 76.5 C28 76.5 28 44.5 55 44.5" fill="none" stroke="#38bdf8" strokeOpacity={0.12} strokeWidth={0.5} />
+              <path d="M0 79.5 C28 79.5 28 47.5 55 47.5" fill="none" stroke="#72ff47" strokeOpacity={0.3} strokeWidth={1} />
+              <path d="M0 44.5 C28 44.5 28 76.5 55 76.5" fill="none" stroke="#72ff47" strokeOpacity={0.15} strokeWidth={0.5} />
             </svg>
           </div>
 
         </div>
 
         {/* Right Side Extension Bar */}
-        <div className="flex-1 h-12 bg-gradient-to-r from-[#0f172a] via-[#0f172a] to-[#030712] z-20 relative min-w-0 border-b border-sky-500/20 -ml-px">
+        <div className="flex-1 h-12 bg-gradient-to-r from-[#152614] via-[#152614] to-[#040704] z-20 relative min-w-0 border-b border-[#72ff47]/20 -ml-px">
           <svg className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none">
-            <line x1="0" y1="47.5" x2="100%" y2="47.5" stroke="#38bdf8" strokeOpacity={0.15} strokeWidth={1} />
-            <line x1="0" y1="44.5" x2="100%" y2="44.5" stroke="#38bdf8" strokeOpacity={0.08} strokeWidth={0.5} />
+            <line x1="0" y1="47.5" x2="100%" y2="47.5" stroke="#72ff47" strokeOpacity={0.25} strokeWidth={1} />
+            <line x1="0" y1="44.5" x2="100%" y2="44.5" stroke="#72ff47" strokeOpacity={0.12} strokeWidth={0.5} />
           </svg>
         </div>
 
@@ -646,14 +646,14 @@ export default function Topbar() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="fixed inset-x-0 top-20 z-40 bg-slate-900 text-slate-200 p-4 lg:hidden border-b border-sky-500/30 max-h-[85vh] overflow-y-auto shadow-2xl"
+            className="fixed inset-x-0 top-20 z-40 bg-[#0c160c] text-slate-100 p-4 lg:hidden border-b border-[#72ff47]/30 max-h-[85vh] overflow-y-auto shadow-2xl"
           >
             <div className="space-y-4">
               {topDropdownGroups.map(group => {
                 const GroupIcon = group.icon;
                 return (
-                  <div key={group.title} className="bg-slate-950/80 p-3 rounded-2xl border border-slate-800">
-                    <div className="flex items-center gap-2 text-xs font-normal text-sky-400 uppercase mb-2">
+                  <div key={group.title} className="bg-[#040704]/90 p-3 rounded-2xl border border-[#1e441e]">
+                    <div className="flex items-center gap-2 text-xs font-normal text-[#72ff47] uppercase mb-2">
                       <GroupIcon className="w-4 h-4" />
                       <span>{group.title}</span>
                     </div>
@@ -669,9 +669,9 @@ export default function Topbar() {
                                 setMobileMenuOpen(false);
                                 navigate(item.path);
                               }}
-                              className="flex items-center gap-2 p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs font-normal cursor-pointer"
+                              className="flex items-center gap-2 p-2 rounded-xl bg-[#1e441e] hover:bg-[#356033] text-xs font-normal cursor-pointer text-[#c5e0c4]"
                             >
-                              <ItemIcon className="w-3.5 h-3.5 text-sky-400" />
+                              <ItemIcon className="w-3.5 h-3.5 text-[#72ff47]" />
                               <span className="truncate">{item.label}</span>
                             </div>
                           );

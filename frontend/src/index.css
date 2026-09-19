@@ -5,6 +5,61 @@
 /* stylelint-enable at-rule-no-unknown */
 
 :root {
+  --evergreen: #152614;
+  --evergreen-100: #040704;
+  --evergreen-200: #080f08;
+  --evergreen-300: #0c160c;
+  --evergreen-400: #101d0f;
+  --evergreen-500: #152614;
+  --evergreen-600: #356033;
+  --evergreen-700: #569c52;
+  --evergreen-800: #8bc088;
+  --evergreen-900: #c5e0c4;
+
+  --dark-spruce: #1e441e;
+  --dark-spruce-100: #060d06;
+  --dark-spruce-200: #0c1b0c;
+  --dark-spruce-300: #122812;
+  --dark-spruce-400: #183618;
+  --dark-spruce-500: #1e441e;
+  --dark-spruce-600: #377d37;
+  --dark-spruce-700: #53b353;
+  --dark-spruce-800: #8ccd8c;
+  --dark-spruce-900: #c6e6c6;
+
+  --green: #2a7221;
+  --green-100: #091707;
+  --green-200: #112e0d;
+  --green-300: #1a4514;
+  --green-400: #225c1b;
+  --green-500: #2a7221;
+  --green-600: #40ab32;
+  --green-700: #65ce57;
+  --green-800: #98de8f;
+  --green-900: #ccefc7;
+
+  --forest-green: #119822;
+  --forest-green-100: #031e07;
+  --forest-green-200: #073d0e;
+  --forest-green-300: #0a5b15;
+  --forest-green-400: #0d791c;
+  --forest-green-500: #119822;
+  --forest-green-600: #18d531;
+  --forest-green-700: #46ea5c;
+  --forest-green-800: #84f193;
+  --forest-green-900: #c1f8c9;
+
+  --lime-green: #31cb00;
+  --lime-green-100: #0a2900;
+  --lime-green-200: #135200;
+  --lime-green-300: #1d7a00;
+  --lime-green-400: #26a300;
+  --lime-green-500: #31cb00;
+  --lime-green-600: #43ff0a;
+  --lime-green-700: #72ff47;
+  --lime-green-800: #a1ff85;
+  --lime-green-900: #d0ffc2;
+
   --punch-red: #e63946;
   --punch-red-100: #33060a;
   --punch-red-200: #660d14;
