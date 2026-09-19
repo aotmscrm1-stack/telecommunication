@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Layout from './components/Layout/Layout';
 import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
+import Dashboard from './components/dashboard/Dashboard';
 import Leads from './pages/Leads';
 import AddLead from './pages/AddLead';
 import Campaigns from './pages/Campaigns';
