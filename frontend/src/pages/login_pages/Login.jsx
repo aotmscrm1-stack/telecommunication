@@ -4,8 +4,30 @@ import { useAuth } from '../../context/AuthContext';
 
 const lampLoginStyles = `
 /* ==========================================================
-   1. BASE / CONTAINER
+   1. BASE / RESET
    ========================================================== */
+*, *::before, *::after { box-sizing: border-box; }
+
+:root {
+  --s: 1;                /* lamp scale            */
+  --lamp-right: 10%;     /* lamp distance from right */
+  --lamp-w: 220px;       /* lamp width            */
+  --amber: #ffbe5c;
+}
+
+html, body { 
+  height: 100%; 
+}
+
+body.lamp-page-active {
+  margin: 0;
+  background: #04040a !important;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: #e9e9f0;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
 .lamp-login-root {
   position: fixed;
   inset: 0;
@@ -17,30 +39,24 @@ const lampLoginStyles = `
   color: #e9e9f0;
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
-  --s: 1;                /* lamp scale            */
-  --lamp-right: 10%;     /* lamp distance from right */
-  --lamp-w: 220px;       /* lamp width            */
-  --amber: #ffbe5c;
-  user-select: none;
+  z-index: 1;
 }
 
 /* ==========================================================
    2. LAMP  (right side)
    ========================================================== */
-.lamp-login-root .lamp {
+.lamp {
   position: fixed;
-  top: 0; 
-  right: var(--lamp-right);
-  width: var(--lamp-w); 
-  height: 380px;
+  top: 0; right: var(--lamp-right);
+  width: var(--lamp-w); height: 380px;
   transform: scale(var(--s));
   transform-origin: top right;
   cursor: pointer;
-  z-index: 30;
+  z-index: 3;
   -webkit-tap-highlight-color: transparent;
 }
 
-.lamp-login-root .wire {
+.wire {
   position: absolute;
   top: 0; left: 50%;
   transform: translateX(-50%);
@@ -49,8 +65,8 @@ const lampLoginStyles = `
   border-radius: 3px;
 }
 
-/* --- BULB : blinks on hover/lit --- */
-.lamp-login-root .bulb {
+/* --- BULB : blinks on hover --- */
+.bulb {
   position: absolute;
   top: 180px; left: 50%;
   transform: translate(-50%, -50%);
@@ -59,16 +75,17 @@ const lampLoginStyles = `
   background: #24242b;
   transition: background .3s ease, box-shadow .3s ease;
 }
+body.lit .bulb,
 .lamp-login-root.lit .bulb {
   background: #fff6d6;
   box-shadow:
     0 0 18px 6px rgba(255,220,140,.95),
     0 0 60px 18px rgba(255,190,80,.65);
-  animation: lampBlink 1.6s ease-in-out infinite;
+  animation: blink 1.6s ease-in-out infinite;
 }
 
 /* --- SHADE : subtle blink --- */
-.lamp-login-root .shade {
+.shade {
   position: absolute;
   top: 70px; left: 50%;
   transform: translateX(-50%);
@@ -78,12 +95,13 @@ const lampLoginStyles = `
       #45454f 0%, #26262e 30%, #111116 72%, #08080b 100%);
   transition: filter .3s ease;
 }
+body.lit .shade,
 .lamp-login-root.lit .shade {
   animation: shadeBlink 1.6s ease-in-out infinite;
 }
 
 /* --- CORD --- */
-.lamp-login-root .cord {
+.cord {
   position: absolute;
   top: 180px; left: 50%;
   transform: translateX(-50%);
@@ -91,11 +109,12 @@ const lampLoginStyles = `
   background: linear-gradient(#2c2c34, #131318);
   transition: height .4s cubic-bezier(.34,1.56,.64,1);
 }
+body.lit .cord,
 .lamp-login-root.lit .cord { 
   height: 162px; 
 }
 
-.lamp-login-root .knob {
+.knob {
   position: absolute;
   bottom: -11px; left: 50%;
   transform: translateX(-50%);
@@ -105,6 +124,7 @@ const lampLoginStyles = `
   box-shadow: 0 3px 9px rgba(0,0,0,.9);
   transition: box-shadow .3s ease;
 }
+body.lit .knob,
 .lamp-login-root.lit .knob {
   box-shadow: 0 3px 9px rgba(0,0,0,.9), 0 0 16px rgba(255,190,80,.6);
 }
@@ -112,7 +132,7 @@ const lampLoginStyles = `
 /* ==========================================================
    3. BLINK KEYFRAMES
    ========================================================== */
-@keyframes lampBlink {
+@keyframes blink {
   0%, 100% {
     box-shadow:
       0 0 18px 6px rgba(255,220,140,.95),
@@ -139,17 +159,17 @@ const lampLoginStyles = `
 /* ==========================================================
    4. STAGE + CARD
    ========================================================== */
-.lamp-login-root .stage {
+.stage {
   position: fixed;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   perspective: 1600px;
-  z-index: 20;
+  z-index: 2;
 }
 
-.lamp-login-root .card {
+.card {
   position: relative;
   width: 400px;
   max-width: 92vw;
@@ -170,8 +190,8 @@ const lampLoginStyles = `
     transform 1.15s cubic-bezier(.19,1,.22,1),
     opacity .7s ease,
     box-shadow .9s ease;
-  user-select: auto;
 }
+body.lit .card,
 .lamp-login-root.lit .card {
   opacity: 1;
   pointer-events: auto;
@@ -182,7 +202,7 @@ const lampLoginStyles = `
 }
 
 /* parallax layer */
-.lamp-login-root .card-inner {
+.card-inner {
   transform-style: preserve-3d;
   transform: rotateY(var(--tiltY, 0deg)) rotateX(var(--tiltX, 0deg));
   transition: transform .18s ease-out;
@@ -191,7 +211,7 @@ const lampLoginStyles = `
 /* ==========================================================
    5. FORM  — 3D FIELDS
    ========================================================== */
-.lamp-login-root .brand {
+.brand {
   font-size: 11px;
   letter-spacing: .38em;
   text-transform: uppercase;
@@ -199,12 +219,12 @@ const lampLoginStyles = `
   margin-bottom: 22px;
   transform: translateZ(30px);
 }
-.lamp-login-root .brand::before {
+.brand::before {
   content: "◈ ";
   color: var(--amber);
 }
 
-.lamp-login-root .card h1 {
+.card h1 {
   margin: 0 0 8px;
   font-size: 28px;
   font-weight: 600;
@@ -212,14 +232,15 @@ const lampLoginStyles = `
   color: #f4f4fa;
   transform: translateZ(34px);
 }
-.lamp-login-root .sub {
-  margin: 0 0 24px;
+.sub {
+  margin: 0 0 30px;
   font-size: 13px;
   color: #74748a;
   transform: translateZ(20px);
 }
 
-.lamp-login-root .error-banner {
+/* Error message banner */
+.login-error-msg {
   background: rgba(239, 68, 68, 0.15);
   border: 1px solid rgba(239, 68, 68, 0.35);
   color: #fca5a5;
@@ -231,18 +252,18 @@ const lampLoginStyles = `
 }
 
 /* ---- 3D FIELD WRAPPER ---- */
-.lamp-login-root .field {
+.field {
   position: relative;
   margin-bottom: 20px;
   transform-style: preserve-3d;
   transform: translateZ(24px);
   transition: transform .4s cubic-bezier(.2,.9,.3,1.2);
 }
-.lamp-login-root .field:focus-within {
+.field:focus-within {
   transform: translateZ(52px) rotateX(-2deg);
 }
 
-.lamp-login-root .field label {
+.field label {
   display: block;
   font-size: 10.5px;
   letter-spacing: .18em;
@@ -253,13 +274,13 @@ const lampLoginStyles = `
   transform-origin: left center;
   transition: color .3s ease, transform .4s ease;
 }
-.lamp-login-root .field:focus-within label {
+.field:focus-within label {
   color: var(--amber);
   transform: translateZ(22px) translateX(2px);
 }
 
 /* ---- 3D INPUT ---- */
-.lamp-login-root .field input {
+.field input {
   width: 100%;
   padding: 15px 16px;
   font-family: inherit;
@@ -282,11 +303,11 @@ const lampLoginStyles = `
     border-color .3s ease,
     background .3s ease;
 }
-.lamp-login-root .field input::placeholder { 
+.field input::placeholder { 
   color: #4f4f5e; 
 }
 
-.lamp-login-root .field input:hover {
+.field input:hover {
   transform: translateZ(10px);
   border-color: rgba(255,255,255,.18);
   box-shadow:
@@ -296,7 +317,7 @@ const lampLoginStyles = `
     0 3px 0 rgba(0,0,0,.35);
 }
 
-.lamp-login-root .field input:focus {
+.field input:focus {
   transform: translateZ(26px) rotateX(-1.5deg);
   border-color: rgba(255,196,90,.7);
   background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.035));
@@ -308,7 +329,7 @@ const lampLoginStyles = `
 }
 
 /* focus dot */
-.lamp-login-root .field::after {
+.field::after {
   content: "";
   position: absolute;
   right: 14px;
@@ -322,13 +343,14 @@ const lampLoginStyles = `
   transition: opacity .3s ease, transform .3s cubic-bezier(.2,1.6,.4,1);
   pointer-events: none;
 }
-.lamp-login-root .field:focus-within::after {
+.field:focus-within::after {
   opacity: 1;
   transform: scale(1);
 }
 
 /* ---- 3D BUTTON ---- */
-.lamp-login-root button.submit-btn {
+.card button,
+button.sign-in-btn {
   width: 100%;
   margin-top: 14px;
   padding: 15px;
@@ -336,11 +358,11 @@ const lampLoginStyles = `
   font-size: 14px;
   font-weight: 700;
   letter-spacing: .08em;
-  color: #241703;
+  color: #241703 !important;
   border: none;
   border-radius: 12px;
   cursor: pointer;
-  background: linear-gradient(135deg, #ffd27a, #ff9f3c);
+  background: linear-gradient(135deg, #ffd27a, #ff9f3c) !important;
   transform: translateZ(30px);
   box-shadow:
     0 12px 26px rgba(255,150,40,.35),
@@ -355,7 +377,8 @@ const lampLoginStyles = `
   justify-content: center;
   gap: 8px;
 }
-.lamp-login-root button.submit-btn:hover {
+.card button:hover,
+button.sign-in-btn:hover {
   transform: translateZ(46px) translateY(-2px);
   filter: brightness(1.07);
   box-shadow:
@@ -363,20 +386,22 @@ const lampLoginStyles = `
     0 6px 0 #b96c14,
     0 1px 0 rgba(255,255,255,.7) inset;
 }
-.lamp-login-root button.submit-btn:active {
+.card button:active,
+button.sign-in-btn:active {
   transform: translateZ(18px) translateY(3px);
   box-shadow:
     0 6px 14px rgba(255,150,40,.4),
     0 1px 0 #b96c14,
     0 1px 0 rgba(255,255,255,.5) inset;
 }
-.lamp-login-root button.submit-btn:disabled {
-  opacity: 0.7;
+.card button:disabled,
+button.sign-in-btn:disabled {
+  opacity: 0.75;
   cursor: not-allowed;
 }
 
 /* ---- ROW ---- */
-.lamp-login-root .row {
+.row {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -384,7 +409,7 @@ const lampLoginStyles = `
   font-size: 12.5px;
   transform: translateZ(14px);
 }
-.lamp-login-root .check {
+.check {
   display: flex;
   align-items: center;
   gap: 7px;
@@ -393,21 +418,21 @@ const lampLoginStyles = `
   user-select: none;
   transition: color .25s;
 }
-.lamp-login-root .check:hover { 
+.check:hover { 
   color: #c9c9da; 
 }
-.lamp-login-root .check input {
+.check input {
   width: 15px; height: 15px;
   margin: 0;
   accent-color: #ffb44d;
   cursor: pointer;
 }
-.lamp-login-root .row a {
+.row a {
   color: #8a8a9e;
   text-decoration: none;
   transition: color .25s, transform .25s;
 }
-.lamp-login-root .row a:hover {
+.row a:hover {
   color: var(--amber);
   transform: translateZ(10px);
 }
@@ -415,7 +440,7 @@ const lampLoginStyles = `
 /* ==========================================================
    6. HINT
    ========================================================== */
-.lamp-login-root .hint {
+.hint {
   position: fixed;
   bottom: 34px; left: 50%;
   transform: translateX(-50%);
@@ -425,16 +450,17 @@ const lampLoginStyles = `
   color: #5b5b73;
   white-space: nowrap;
   pointer-events: none;
-  z-index: 40;
-  animation: hintPulse 2.4s ease-in-out infinite;
+  z-index: 4;
+  animation: pulse 2.4s ease-in-out infinite;
   transition: opacity .6s ease;
 }
+body.lit .hint,
 .lamp-login-root.lit .hint { 
   opacity: 0; 
   animation: none; 
 }
 
-@keyframes hintPulse {
+@keyframes pulse {
   0%, 100% { opacity: .40; }
   50%      { opacity: .95; }
 }
@@ -443,33 +469,33 @@ const lampLoginStyles = `
    7. RESPONSIVE
    ========================================================== */
 @media (min-width: 900px) {
-  .lamp-login-root .stage { 
+  .stage { 
     padding-right: 24%; 
   }
 }
 
 @media (max-width: 900px) {
-  .lamp-login-root { 
+  :root { 
     --s: .68; 
     --lamp-right: 3%; 
   }
-  .lamp-login-root .stage { 
+  .stage { 
     padding-right: 0; 
     align-items: center; 
     padding-top: 60px; 
   }
-  .lamp-login-root .card { 
+  .card { 
     padding: 34px 26px 28px; 
     border-radius: 18px; 
   }
-  .lamp-login-root .card h1 { 
+  .card h1 { 
     font-size: 23px; 
   }
-  .lamp-login-root .hint { 
+  .hint { 
     font-size: 10.5px; 
     bottom: 20px; 
   }
-  .lamp-login-root .field input:focus { 
+  .field input:focus { 
     transform: translateZ(16px); 
   }
 }
@@ -488,7 +514,24 @@ export default function Login() {
 
   const cardInnerRef = useRef(null);
 
-  // Parallax 3D mousemove effect on the card
+  // Sync dark background & body lit class directly with document.body
+  useEffect(() => {
+    document.body.classList.add('lamp-page-active');
+    return () => {
+      document.body.classList.remove('lamp-page-active');
+      document.body.classList.remove('lit');
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isLit) {
+      document.body.classList.add('lit');
+    } else {
+      document.body.classList.remove('lit');
+    }
+  }, [isLit]);
+
+  // Parallax mousemove on the card
   useEffect(() => {
     const handleMouseMove = (e) => {
       if (!cardInnerRef.current) return;
@@ -514,19 +557,19 @@ export default function Login() {
     };
   }, []);
 
-  // Handle pointer enter on lamp
+  // Hover lamp (mouse) -> ON
   const handleLampPointerEnter = (e) => {
     if (e.pointerType === 'mouse') {
       setIsLit(true);
     }
   };
 
-  // Handle click on lamp toggle
+  // Click lamp -> toggle
   const handleLampClick = () => {
     setIsLit((prev) => !prev);
   };
 
-  // Form submission with Auth Context
+  // Submit handler with AuthContext
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -554,17 +597,17 @@ export default function Login() {
     <div className={`lamp-login-root ${isLit ? 'lit' : ''}`}>
       <style>{lampLoginStyles}</style>
 
-      {/* ── 3D LOGIN CARD STAGE ───────────────────────── */}
+      {/* LOGIN CARD */}
       <main className="stage" onClick={() => !isLit && setIsLit(true)}>
         <form className="card" autoComplete="off" onSubmit={handleSubmit}>
           <div className="card-inner" ref={cardInnerRef}>
 
-            <div className="brand">AOTMS CRM</div>
+            <div className="brand">Nexus</div>
             <h1>Welcome back</h1>
             <p className="sub">Hover the lamp, then sign in.</p>
 
             {error && (
-              <div className="error-banner">
+              <div className="login-error-msg">
                 {error}
               </div>
             )}
@@ -593,15 +636,8 @@ export default function Login() {
               />
             </div>
 
-            <button type="submit" className="submit-btn" disabled={loading}>
-              {loading ? (
-                <>
-                  <span className="w-4 h-4 border-2 border-amber-950/30 border-t-amber-950 rounded-full animate-spin inline-block" />
-                  <span>Signing In...</span>
-                </>
-              ) : (
-                'Sign In'
-              )}
+            <button type="submit" className="sign-in-btn" disabled={loading}>
+              {loading ? 'Signing In...' : 'Sign In'}
             </button>
 
             <div className="row">
@@ -613,7 +649,13 @@ export default function Login() {
                 />
                 <span>Remember me</span>
               </label>
-              <a href="#forgot" onClick={(e) => { e.preventDefault(); alert('Please contact your administrator to reset your password.'); }}>
+              <a 
+                href="#forgot" 
+                onClick={(e) => { 
+                  e.preventDefault(); 
+                  alert('Please contact your system administrator to reset your account password.'); 
+                }}
+              >
                 Forgot?
               </a>
             </div>
@@ -622,13 +664,13 @@ export default function Login() {
         </form>
       </main>
 
-      {/* ── INTERACTIVE HANGING LAMP ─────────────────── */}
+      {/* LAMP */}
       <div 
         className="lamp" 
         id="lamp"
         onPointerEnter={handleLampPointerEnter}
         onClick={handleLampClick}
-        title="Click or hover to switch lamp"
+        title="Hover or click to switch lamp"
       >
         <div className="wire" />
         <div className="bulb" />
@@ -638,10 +680,15 @@ export default function Login() {
         </div>
       </div>
 
-      {/* ── BOTTOM HINT ─────────────────────────────── */}
-      <div className="hint" onClick={() => setIsLit(true)} style={{ cursor: 'pointer' }}>
+      {/* HINT */}
+      <div 
+        className="hint" 
+        onClick={() => setIsLit(true)} 
+        style={{ cursor: 'pointer' }}
+      >
         Hover the lamp &nbsp;💡
       </div>
+
     </div>
   );
 }
