@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import geoTracker from '../../services/geoTracker';
 import { attendanceAPI, trackingAPI } from '../../services/api';
@@ -14,7 +15,9 @@ import {
   FaClock,
   FaRotate,
   FaPhone,
-  FaLaptopCode
+  FaLaptopCode,
+  FaGaugeHigh,
+  FaSatelliteDish
 } from 'react-icons/fa6';
 
 const GRADIENT = 'var(--btn-gradient, linear-gradient(90deg, #ffb37c 0%, #38bdf8 100%))';
@@ -724,58 +727,61 @@ export default function EmployeeTrackingCard({ compact = false }) {
 
       {/* ── 4. Telemetry Stats Grid (Location, Speed, GPS Accuracy, Last Sync) ─ */}
       {(isTracking || isOnBreak || (position && position.latitude)) && (
-        <div
-          style={{
-            background: '#ffffff',
-            borderRadius: 12,
-            padding: '12px 16px',
-            marginBottom: 12,
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-            gap: 12,
-            border: '1px solid #a8dadc',
-            boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.02)',
-          }}
-        >
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#457b9d', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-              Current Location
+        <div className="bg-gray-50/80 rounded-2xl p-3.5 mt-3 border border-gray-200/70 grid grid-cols-2 sm:grid-cols-4 gap-3 shadow-2xs">
+          {/* Item 1: Current Location */}
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-emerald-100/70 text-[#0d6537] flex items-center justify-center shrink-0">
+              <FaLocationDot className="w-3.5 h-3.5" />
             </div>
-            <div
-              style={{
-                fontSize: 13,
-                fontWeight: 700,
-                color: '#1d3557',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                marginTop: 2,
-              }}
-            >
-              {position?.trackingStatus === 'AT_OFFICE'
-                ? '🏢 AOTMS - Pothuri Towers'
-                : position?.road
-                ? `🛣️ ${position.road}`
-                : position?.latitude
-                ? `${position.latitude.toFixed(4)}, ${position.longitude.toFixed(4)}`
-                : 'Vijayawada, AP'}
+            <div className="overflow-hidden">
+              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Current Location</div>
+              <div className="text-xs font-bold text-gray-900 truncate mt-0.5" title={position?.road || 'Vijayawada, AP'}>
+                {position?.trackingStatus === 'AT_OFFICE'
+                  ? '🏢 AOTMS - Pothuri Towers'
+                  : position?.road
+                  ? position.road
+                  : position?.latitude
+                  ? `${position.latitude.toFixed(3)}, ${position.longitude.toFixed(3)}`
+                  : 'Vijayawada, AP'}
+              </div>
             </div>
           </div>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#457b9d', textTransform: 'uppercase', letterSpacing: '0.3px' }}>Speed</div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#059669', marginTop: 2 }}>
-              {position?.speed != null && position.speed > 0 ? `${position.speed} km/h` : '0 km/h'}
+
+          {/* Item 2: Speed */}
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-emerald-100/70 text-emerald-600 flex items-center justify-center shrink-0">
+              <FaGaugeHigh className="w-3.5 h-3.5" />
+            </div>
+            <div>
+              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Speed</div>
+              <div className="text-xs font-bold text-emerald-700 mt-0.5">
+                {position?.speed != null && position.speed > 0 ? `${position.speed} km/h` : '0 km/h'}
+              </div>
             </div>
           </div>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#457b9d', textTransform: 'uppercase', letterSpacing: '0.3px' }}>GPS Accuracy</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#1d3557', marginTop: 2 }}>
-              ±{Math.round(position?.accuracy || 5)}m
+
+          {/* Item 3: GPS Accuracy */}
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-sky-100/70 text-sky-600 flex items-center justify-center shrink-0">
+              <FaSatelliteDish className="w-3.5 h-3.5" />
+            </div>
+            <div>
+              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">GPS Accuracy</div>
+              <div className="text-xs font-bold text-gray-900 mt-0.5">
+                ±{Math.round(position?.accuracy || 5)}m
+              </div>
             </div>
           </div>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#457b9d', textTransform: 'uppercase', letterSpacing: '0.3px' }}>Last Sync</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#1d3557', marginTop: 2 }}>{lastSyncText}</div>
+
+          {/* Item 4: Last Sync */}
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-amber-100/70 text-amber-600 flex items-center justify-center shrink-0">
+              <FaRotate className="w-3.5 h-3.5 animate-spin-slow" />
+            </div>
+            <div>
+              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Last Sync</div>
+              <div className="text-xs font-bold text-gray-900 mt-0.5">{lastSyncText || 'Just now'}</div>
+            </div>
           </div>
         </div>
       )}
