@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import geoTracker from '../../services/geoTracker';
 import { attendanceAPI, trackingAPI } from '../../services/api';
@@ -17,7 +17,10 @@ import {
   FaPhone,
   FaLaptopCode,
   FaGaugeHigh,
-  FaSatelliteDish
+  FaSatelliteDish,
+  FaChevronDown,
+  FaCalendarDays,
+  FaCheck
 } from 'react-icons/fa6';
 
 const GRADIENT = 'var(--btn-gradient, linear-gradient(90deg, #ffb37c 0%, #38bdf8 100%))';
@@ -65,7 +68,7 @@ export default function EmployeeTrackingCard({ compact = false }) {
   const [position, setPosition] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [actionLoading, setActionLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(''); // '' | 'start' | 'break' | 'resume' | 'stop'
   const [initialLoading, setInitialLoading] = useState(true);
   const [lastSyncText, setLastSyncText] = useState('');
   const [showSimModal, setShowSimModal] = useState(false);
@@ -77,6 +80,19 @@ export default function EmployeeTrackingCard({ compact = false }) {
 
   // Selected Date Filter ('today', 'yesterday', 'prevDay')
   const [selectedDateFilter, setSelectedDateFilter] = useState('today');
+  const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
+  const dateDropdownRef = useRef(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (dateDropdownRef.current && !dateDropdownRef.current.contains(e.target)) {
+        setDateDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const status = attendanceRecord?.status || 'NOT_STARTED';
   const isTracking = status === 'ON_DUTY';
@@ -235,7 +251,7 @@ export default function EmployeeTrackingCard({ compact = false }) {
   // 4. Start Attendance Handler
   const handleStartAttendance = async () => {
     setError('');
-    setActionLoading(true);
+    setActionLoading('start');
 
     try {
       let lat = null;
@@ -286,14 +302,14 @@ export default function EmployeeTrackingCard({ compact = false }) {
     } catch (err) {
       setError(err.message || 'Failed to start attendance. Please try again.');
     } finally {
-      setActionLoading(false);
+      setActionLoading('');
     }
   };
 
   // 5. Start Break Handler
   const handleStartBreak = async () => {
     setError('');
-    setActionLoading(true);
+    setActionLoading('break');
 
     try {
       const res = await attendanceAPI.startBreak({});
@@ -302,14 +318,14 @@ export default function EmployeeTrackingCard({ compact = false }) {
     } catch (err) {
       setError(err.message || 'Failed to start break. Please try again.');
     } finally {
-      setActionLoading(false);
+      setActionLoading('');
     }
   };
 
   // 6. Resume Work Handler
   const handleResumeWork = async () => {
     setError('');
-    setActionLoading(true);
+    setActionLoading('resume');
 
     try {
       const res = await attendanceAPI.resumeBreak({});
@@ -318,14 +334,14 @@ export default function EmployeeTrackingCard({ compact = false }) {
     } catch (err) {
       setError(err.message || 'Failed to resume work. Please try again.');
     } finally {
-      setActionLoading(false);
+      setActionLoading('');
     }
   };
 
   // 7. Stop / Leave Handler
   const handleStopAttendance = async () => {
     setError('');
-    setActionLoading(true);
+    setActionLoading('stop');
 
     try {
       const curPos = geoTracker.lastPosition || position || {};
@@ -343,7 +359,7 @@ export default function EmployeeTrackingCard({ compact = false }) {
     } catch (err) {
       setError(err.message || 'Failed to stop attendance session. Please try again.');
     } finally {
-      setActionLoading(false);
+      setActionLoading('');
     }
   };
 
@@ -451,18 +467,79 @@ export default function EmployeeTrackingCard({ compact = false }) {
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
-          {/* Date Selector Filter Dropdown ("Open Now" / Previous Dates) */}
-          <div className="relative">
-            <select
-              value={selectedDateFilter}
-              onChange={(e) => setSelectedDateFilter(e.target.value)}
-              className="bg-gray-100/90 border border-gray-200 text-gray-800 text-xs font-bold rounded-full px-4 py-2 pr-8 outline-none cursor-pointer hover:bg-gray-200/80 transition-colors appearance-none"
+          {/* Custom Date Selector Filter Dropdown with React Icons */}
+          <div className="relative" ref={dateDropdownRef}>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              type="button"
+              onClick={() => setDateDropdownOpen(!dateDropdownOpen)}
+              className="bg-white hover:bg-gray-50 border border-gray-200/90 text-gray-800 text-xs font-semibold rounded-full px-4 py-2 flex items-center gap-2 shadow-xs transition-colors cursor-pointer"
             >
-              <option value="today">🟢 Open Now — Today ({dayToday} {dateToday}) ✔</option>
-              <option value="yesterday">📅 Yesterday ({dayYesterday} {dateYesterday}) ✔</option>
-              <option value="prevDay">📅 Previous ({dayPrevDay} {datePrevDay}) ✔</option>
-            </select>
-            <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-[10px]">▼</div>
+              <FaCalendarDays className="w-3.5 h-3.5 text-[#0d6537]" />
+              <span>
+                {selectedDateFilter === 'today'
+                  ? `Open Now — Today (${dayToday} ${dateToday})`
+                  : selectedDateFilter === 'yesterday'
+                  ? `Yesterday (${dayYesterday} ${dateYesterday})`
+                  : `Previous Day (${dayPrevDay} ${datePrevDay})`}
+              </span>
+              <FaChevronDown className={`w-2.5 h-2.5 text-gray-400 transition-transform duration-200 ${dateDropdownOpen ? 'rotate-180' : ''}`} />
+            </motion.button>
+
+            <AnimatePresence>
+              {dateDropdownOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 6, scale: 0.96 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 p-1.5 z-40 text-xs flex flex-col gap-1"
+                >
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedDateFilter('today'); setDateDropdownOpen(false); }}
+                    className={`w-full text-left px-3 py-2 rounded-xl flex items-center justify-between font-medium transition-colors cursor-pointer ${
+                      selectedDateFilter === 'today' ? 'bg-[#e6f4ea] text-[#0d6537] font-bold' : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-[#0d6537] animate-pulse" />
+                      <span>Open Now — Today ({dayToday} {dateToday})</span>
+                    </div>
+                    {selectedDateFilter === 'today' && <FaCheck className="w-3 h-3 text-[#0d6537]" />}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedDateFilter('yesterday'); setDateDropdownOpen(false); }}
+                    className={`w-full text-left px-3 py-2 rounded-xl flex items-center justify-between font-medium transition-colors cursor-pointer ${
+                      selectedDateFilter === 'yesterday' ? 'bg-[#e6f4ea] text-[#0d6537] font-bold' : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <FaCircleCheck className="w-3 h-3 text-emerald-600" />
+                      <span>Yesterday ({dayYesterday} {dateYesterday})</span>
+                    </div>
+                    {selectedDateFilter === 'yesterday' && <FaCheck className="w-3 h-3 text-[#0d6537]" />}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedDateFilter('prevDay'); setDateDropdownOpen(false); }}
+                    className={`w-full text-left px-3 py-2 rounded-xl flex items-center justify-between font-medium transition-colors cursor-pointer ${
+                      selectedDateFilter === 'prevDay' ? 'bg-[#e6f4ea] text-[#0d6537] font-bold' : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <FaClock className="w-3 h-3 text-teal-600" />
+                      <span>Previous Day ({dayPrevDay} {datePrevDay})</span>
+                    </div>
+                    {selectedDateFilter === 'prevDay' && <FaCheck className="w-3 h-3 text-[#0d6537]" />}
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Live Working Digital Counter */}
@@ -480,288 +557,297 @@ export default function EmployeeTrackingCard({ compact = false }) {
         </div>
       </div>
 
-      {/* ── 3 STACKED PILL CARDS MATCHING REFERENCE DESIGN ────────────────── */}
-      <div className="flex flex-col gap-3.5 my-3">
-        
-        {/* CARD 1: TODAY (Light Lime Green Theme) */}
-        <div 
-          onClick={() => setSelectedDateFilter('today')}
-          className={`bg-gradient-to-r from-[#d9f99d] via-[#dcfce7] to-[#e6f4ea] text-[#0d4722] rounded-[24px] p-4 shadow-sm border transition-all cursor-pointer ${
-            selectedDateFilter === 'today' ? 'ring-2 ring-[#0d6537] border-[#0d6537]' : 'border-[#b7e4c7] hover:shadow-md'
-          } flex items-center justify-between flex-wrap gap-4 relative`}
-        >
-          <div className="flex items-center gap-4 flex-wrap">
-            
-            {/* Date Badge Chevron */}
-            <div className="relative flex items-center shrink-0">
-              <div className="bg-white rounded-2xl px-4 py-2.5 shadow-md flex flex-col items-center justify-center min-w-[68px] border border-gray-100 text-gray-900">
-                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{dayToday}</span>
-                <span className="text-2xl font-black tracking-tight leading-none mt-0.5 text-gray-900">{dateToday}</span>
-              </div>
-              <div className="w-0 h-0 border-y-[9px] border-y-transparent border-l-[9px] border-l-white -ml-[1px]" />
-            </div>
-
-            {/* Productive & Wave Sparkline */}
-            <div className="flex items-center gap-3">
-              <div>
-                <div className="text-[11px] font-bold text-[#0d4722]/80 uppercase tracking-wider">Productive</div>
-                <div className="flex items-center gap-2 mt-1">
-                  <svg className="w-14 h-5 overflow-visible shrink-0" viewBox="0 0 60 20">
-                    <path d="M0 10 Q12 2, 24 10 T48 10 T60 10" fill="none" stroke="#0d6537" strokeWidth="2.5" strokeLinecap="round" />
-                  </svg>
-                  <span className="bg-white/90 shadow-2xs text-[#0d6537] text-xs font-black px-2.5 py-0.5 rounded-full border border-[#0d6537]/20">
-                    {liveEfficiencyPercent}%
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="h-9 w-[1px] bg-[#0d4722]/20 hidden md:block" />
-
-            {/* Productive Time */}
-            <div>
-              <div className="text-[11px] font-bold text-[#0d4722]/80 uppercase tracking-wider">Productive Time</div>
-              <div className="text-xl font-black text-[#0d4722] tracking-tight mt-0.5">
-                {formatDurationText(liveWorkSeconds)}
-              </div>
-            </div>
-
-            <div className="h-9 w-[1px] bg-[#0d4722]/20 hidden md:block" />
-
-            {/* Time at Work */}
-            <div>
-              <div className="text-[11px] font-bold text-[#0d4722]/80 uppercase tracking-wider">Time at Work</div>
-              <div className="text-xl font-black text-[#0d4722] tracking-tight mt-0.5">
-                {formatDurationText(liveWorkSeconds + liveBreakSeconds)}
-              </div>
-            </div>
-          </div>
-
-          {/* Integrated Action Buttons */}
-          <div className="flex items-center gap-2 flex-wrap ml-auto" onClick={(e) => e.stopPropagation()}>
-            {/* Button 1: Start Attendance */}
-            <motion.button
-              whileHover={{ scale: 1.05, boxShadow: '0 8px 20px rgba(13, 101, 55, 0.25)' }}
-              whileTap={{ scale: 0.95 }}
-              id="start-attendance-btn"
-              onClick={handleStartAttendance}
-              disabled={actionLoading || initialLoading || simulating || isTracking || isOnBreak}
-              className={`rounded-full px-5 py-2 text-xs font-bold flex items-center gap-2 transition-all ${
-                isTracking || isOnBreak
-                  ? 'bg-white/50 text-gray-400 cursor-not-allowed border border-white/60'
-                  : 'bg-[#0d6537] hover:bg-[#0b542e] text-white shadow-sm cursor-pointer'
-              }`}
+      {/* ── ACTIVE RECORD CARD DISPLAY (ONLY SELECTED DATE SHOWN) ────────── */}
+      <div className="my-3">
+        <AnimatePresence mode="wait">
+          {/* CARD 1: TODAY (Light Lime Green Theme) */}
+          {selectedDateFilter === 'today' && (
+            <motion.div 
+              key="today-card"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.2 }}
+              className="bg-gradient-to-r from-[#d9f99d] via-[#dcfce7] to-[#e6f4ea] text-[#0d4722] rounded-[24px] p-4 shadow-sm border border-[#b7e4c7] flex items-center justify-between flex-wrap gap-4 relative"
             >
-              {actionLoading && !isTracking && !isOnBreak ? (
-                <>
-                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Starting...</span>
-                </>
-              ) : (
-                <>
-                  <FaCalendarCheck className="w-3.5 h-3.5" />
-                  <span>Start Attendance</span>
-                </>
-              )}
-            </motion.button>
+              <div className="flex items-center gap-4 flex-wrap">
+                {/* Date Badge Chevron */}
+                <div className="relative flex items-center shrink-0">
+                  <div className="bg-white rounded-2xl px-4 py-2.5 shadow-md flex flex-col items-center justify-center min-w-[68px] border border-gray-100 text-gray-900">
+                    <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{dayToday}</span>
+                    <span className="text-2xl font-black tracking-tight leading-none mt-0.5 text-gray-900">{dateToday}</span>
+                  </div>
+                  <div className="w-0 h-0 border-y-[9px] border-y-transparent border-l-[9px] border-l-white -ml-[1px]" />
+                </div>
 
-            {/* Button 2: Take Break / Resume Work */}
-            {isOnBreak ? (
-              <motion.button
-                whileHover={{ scale: 1.05, boxShadow: '0 8px 20px rgba(13, 101, 55, 0.25)' }}
-                whileTap={{ scale: 0.95 }}
-                id="resume-work-btn"
-                onClick={handleResumeWork}
-                disabled={actionLoading || initialLoading || simulating}
-                className="bg-[#0d6537] hover:bg-[#0b542e] text-white rounded-full px-5 py-2 text-xs font-bold shadow-sm flex items-center gap-2 transition-all cursor-pointer"
-              >
-                {actionLoading ? (
-                  <>
-                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    <span>Resuming...</span>
-                  </>
-                ) : (
-                  <>
-                    <FaPlay className="w-3 h-3" />
-                    <span>Resume Work</span>
-                  </>
-                )}
-              </motion.button>
-            ) : (
-              <motion.button
-                whileHover={{ scale: 1.05, boxShadow: '0 8px 20px rgba(217, 119, 6, 0.25)' }}
-                whileTap={{ scale: 0.95 }}
-                id="take-break-btn"
-                onClick={handleStartBreak}
-                disabled={actionLoading || initialLoading || simulating || !isTracking}
-                className={`rounded-full px-5 py-2 text-xs font-bold flex items-center gap-2 transition-all ${
-                  !isTracking
-                    ? 'bg-white/50 text-gray-400 border border-white/60 cursor-not-allowed'
-                    : 'bg-amber-600 hover:bg-amber-700 text-white shadow-sm cursor-pointer'
-                }`}
-              >
-                {actionLoading && isTracking ? (
-                  <>
-                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    <span>Pausing...</span>
-                  </>
-                ) : (
-                  <>
-                    <FaMugHot className="w-3.5 h-3.5" />
-                    <span>Take Break</span>
-                  </>
-                )}
-              </motion.button>
-            )}
+                {/* Productive & Wave Sparkline */}
+                <div className="flex items-center gap-3">
+                  <div>
+                    <div className="text-[11px] font-bold text-[#0d4722]/80 uppercase tracking-wider">Productive</div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <svg className="w-14 h-5 overflow-visible shrink-0" viewBox="0 0 60 20">
+                        <path d="M0 10 Q12 2, 24 10 T48 10 T60 10" fill="none" stroke="#0d6537" strokeWidth="2.5" strokeLinecap="round" />
+                      </svg>
+                      <span className="bg-white/90 shadow-2xs text-[#0d6537] text-xs font-black px-2.5 py-0.5 rounded-full border border-[#0d6537]/20">
+                        {liveEfficiencyPercent}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
 
-            {/* Button 3: Stop / Leave */}
-            <motion.button
-              whileHover={{ scale: 1.05, boxShadow: '0 8px 20px rgba(225, 29, 72, 0.25)' }}
-              whileTap={{ scale: 0.95 }}
-              id="stop-attendance-btn"
-              onClick={handleStopAttendance}
-              disabled={actionLoading || initialLoading || simulating || (!isTracking && !isOnBreak)}
-              className={`rounded-full px-5 py-2 text-xs font-bold flex items-center gap-2 transition-all ${
-                !isTracking && !isOnBreak
-                  ? 'bg-white/50 text-gray-400 border border-white/60 cursor-not-allowed'
-                  : 'bg-rose-600 hover:bg-rose-700 text-white shadow-sm cursor-pointer'
-              }`}
+                <div className="h-9 w-[1px] bg-[#0d4722]/20 hidden md:block" />
+
+                {/* Productive Time */}
+                <div>
+                  <div className="text-[11px] font-bold text-[#0d4722]/80 uppercase tracking-wider">Productive Time</div>
+                  <div className="text-xl font-black text-[#0d4722] tracking-tight mt-0.5">
+                    {formatDurationText(liveWorkSeconds)}
+                  </div>
+                </div>
+
+                <div className="h-9 w-[1px] bg-[#0d4722]/20 hidden md:block" />
+
+                {/* Time at Work */}
+                <div>
+                  <div className="text-[11px] font-bold text-[#0d4722]/80 uppercase tracking-wider">Time at Work</div>
+                  <div className="text-xl font-black text-[#0d4722] tracking-tight mt-0.5">
+                    {formatDurationText(liveWorkSeconds + liveBreakSeconds)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Integrated Action Buttons */}
+              <div className="flex items-center gap-2 flex-wrap ml-auto">
+                {/* Button 1: Start Attendance */}
+                <motion.button
+                  whileHover={{ scale: 1.05, boxShadow: '0 8px 20px rgba(13, 101, 55, 0.25)' }}
+                  whileTap={{ scale: 0.95 }}
+                  id="start-attendance-btn"
+                  onClick={handleStartAttendance}
+                  disabled={!!actionLoading || initialLoading || simulating || isTracking || isOnBreak}
+                  className={`rounded-full px-5 py-2 text-xs font-bold flex items-center gap-2 transition-all ${
+                    isTracking || isOnBreak
+                      ? 'bg-white/50 text-gray-400 cursor-not-allowed border border-white/60'
+                      : 'bg-[#0d6537] hover:bg-[#0b542e] text-white shadow-sm cursor-pointer'
+                  }`}
+                >
+                  {actionLoading === 'start' ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Starting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FaCalendarCheck className="w-3.5 h-3.5" />
+                      <span>Start Attendance</span>
+                    </>
+                  )}
+                </motion.button>
+
+                {/* Button 2: Take Break / Resume Work */}
+                {isOnBreak ? (
+                  <motion.button
+                    whileHover={{ scale: 1.05, boxShadow: '0 8px 20px rgba(13, 101, 55, 0.25)' }}
+                    whileTap={{ scale: 0.95 }}
+                    id="resume-work-btn"
+                    onClick={handleResumeWork}
+                    disabled={!!actionLoading || initialLoading || simulating}
+                    className="bg-[#0d6537] hover:bg-[#0b542e] text-white rounded-full px-5 py-2 text-xs font-bold shadow-sm flex items-center gap-2 transition-all cursor-pointer"
+                  >
+                    {actionLoading === 'resume' ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Resuming...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FaPlay className="w-3 h-3" />
+                        <span>Resume Work</span>
+                      </>
+                    )}
+                  </motion.button>
+                ) : (
+                  <motion.button
+                    whileHover={{ scale: 1.05, boxShadow: '0 8px 20px rgba(217, 119, 6, 0.25)' }}
+                    whileTap={{ scale: 0.95 }}
+                    id="take-break-btn"
+                    onClick={handleStartBreak}
+                    disabled={!!actionLoading || initialLoading || simulating || !isTracking}
+                    className={`rounded-full px-5 py-2 text-xs font-bold flex items-center gap-2 transition-all ${
+                      !isTracking
+                        ? 'bg-white/50 text-gray-400 border border-white/60 cursor-not-allowed'
+                        : 'bg-amber-600 hover:bg-amber-700 text-white shadow-sm cursor-pointer'
+                    }`}
+                  >
+                    {actionLoading === 'break' ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Pausing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FaMugHot className="w-3.5 h-3.5" />
+                        <span>Take Break</span>
+                      </>
+                    )}
+                  </motion.button>
+                )}
+
+                {/* Button 3: Stop / Leave */}
+                <motion.button
+                  whileHover={{ scale: 1.05, boxShadow: '0 8px 20px rgba(225, 29, 72, 0.25)' }}
+                  whileTap={{ scale: 0.95 }}
+                  id="stop-attendance-btn"
+                  onClick={handleStopAttendance}
+                  disabled={!!actionLoading || initialLoading || simulating || (!isTracking && !isOnBreak)}
+                  className={`rounded-full px-5 py-2 text-xs font-bold flex items-center gap-2 transition-all ${
+                    !isTracking && !isOnBreak
+                      ? 'bg-white/50 text-gray-400 border border-white/60 cursor-not-allowed'
+                      : 'bg-rose-600 hover:bg-rose-700 text-white shadow-sm cursor-pointer'
+                  }`}
+                >
+                  {actionLoading === 'stop' ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Stopping...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FaStop className="w-3 h-3" />
+                      <span>Stop / Leave</span>
+                    </>
+                  )}
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* CARD 2: YESTERDAY (Medium Emerald Green Theme) */}
+          {selectedDateFilter === 'yesterday' && (
+            <motion.div 
+              key="yesterday-card"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.2 }}
+              className="bg-gradient-to-r from-[#22c55e] via-[#16a34a] to-[#15803d] text-white rounded-[24px] p-4 shadow-sm border border-emerald-500/40 flex items-center justify-between flex-wrap gap-4"
             >
-              {actionLoading && (isTracking || isOnBreak) ? (
-                <>
-                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Stopping...</span>
-                </>
-              ) : (
-                <>
-                  <FaStop className="w-3 h-3" />
-                  <span>Stop / Leave</span>
-                </>
-              )}
-            </motion.button>
-          </div>
-        </div>
+              <div className="flex items-center gap-4 flex-wrap">
+                {/* Date Badge Chevron */}
+                <div className="relative flex items-center shrink-0">
+                  <div className="bg-white rounded-2xl px-4 py-2.5 shadow-md flex flex-col items-center justify-center min-w-[68px] border border-gray-100 text-gray-900">
+                    <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{dayYesterday}</span>
+                    <span className="text-2xl font-black tracking-tight leading-none mt-0.5 text-gray-900">{dateYesterday}</span>
+                  </div>
+                  <div className="w-0 h-0 border-y-[9px] border-y-transparent border-l-[9px] border-l-white -ml-[1px]" />
+                </div>
 
-        {/* CARD 2: YESTERDAY (Medium Emerald Green Theme) */}
-        <div 
-          onClick={() => setSelectedDateFilter('yesterday')}
-          className={`bg-gradient-to-r from-[#22c55e] via-[#16a34a] to-[#15803d] text-white rounded-[24px] p-4 shadow-sm border transition-all cursor-pointer ${
-            selectedDateFilter === 'yesterday' ? 'ring-2 ring-emerald-300 border-white' : 'border-emerald-500/40 hover:shadow-md'
-          } flex items-center justify-between flex-wrap gap-4`}
-        >
-          <div className="flex items-center gap-4 flex-wrap">
-            
-            {/* Date Badge Chevron */}
-            <div className="relative flex items-center shrink-0">
-              <div className="bg-white rounded-2xl px-4 py-2.5 shadow-md flex flex-col items-center justify-center min-w-[68px] border border-gray-100 text-gray-900">
-                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{dayYesterday}</span>
-                <span className="text-2xl font-black tracking-tight leading-none mt-0.5 text-gray-900">{dateYesterday}</span>
-              </div>
-              <div className="w-0 h-0 border-y-[9px] border-y-transparent border-l-[9px] border-l-white -ml-[1px]" />
-            </div>
+                {/* Productive & Wave Sparkline */}
+                <div className="flex items-center gap-3">
+                  <div>
+                    <div className="text-[11px] font-bold text-emerald-100 uppercase tracking-wider">Productive</div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <svg className="w-14 h-5 overflow-visible shrink-0" viewBox="0 0 60 20">
+                        <path d="M0 10 Q12 2, 24 10 T48 10 T60 10" fill="none" stroke="#b7e4c7" strokeWidth="2.5" strokeLinecap="round" />
+                      </svg>
+                      <span className="bg-white/20 backdrop-blur-xs text-white text-xs font-black px-2.5 py-0.5 rounded-full border border-white/30">
+                        72%
+                      </span>
+                    </div>
+                  </div>
+                </div>
 
-            {/* Productive & Wave Sparkline */}
-            <div className="flex items-center gap-3">
-              <div>
-                <div className="text-[11px] font-bold text-emerald-100 uppercase tracking-wider">Productive</div>
-                <div className="flex items-center gap-2 mt-1">
-                  <svg className="w-14 h-5 overflow-visible shrink-0" viewBox="0 0 60 20">
-                    <path d="M0 10 Q12 2, 24 10 T48 10 T60 10" fill="none" stroke="#b7e4c7" strokeWidth="2.5" strokeLinecap="round" />
-                  </svg>
-                  <span className="bg-white/20 backdrop-blur-xs text-white text-xs font-black px-2.5 py-0.5 rounded-full border border-white/30">
-                    72%
-                  </span>
+                <div className="h-9 w-[1px] bg-white/20 hidden md:block" />
+
+                {/* Productive Time */}
+                <div>
+                  <div className="text-[11px] font-bold text-emerald-100 uppercase tracking-wider">Productive Time</div>
+                  <div className="text-xl font-black text-white tracking-tight mt-0.5">
+                    4h 10m
+                  </div>
+                </div>
+
+                <div className="h-9 w-[1px] bg-white/20 hidden md:block" />
+
+                {/* Time at Work */}
+                <div>
+                  <div className="text-[11px] font-bold text-emerald-100 uppercase tracking-wider">Time at Work</div>
+                  <div className="text-xl font-black text-white tracking-tight mt-0.5">
+                    6h 30m
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="h-9 w-[1px] bg-white/20 hidden md:block" />
-
-            {/* Productive Time */}
-            <div>
-              <div className="text-[11px] font-bold text-emerald-100 uppercase tracking-wider">Productive Time</div>
-              <div className="text-xl font-black text-white tracking-tight mt-0.5">
-                4h 10m
+              <div className="flex items-center gap-2 bg-white/20 backdrop-blur-xs px-3.5 py-1.5 rounded-full text-xs font-bold text-white border border-white/30 ml-auto">
+                <FaCircleCheck className="w-3.5 h-3.5 text-emerald-200" />
+                <span>Shift Completed ✔</span>
               </div>
-            </div>
+            </motion.div>
+          )}
 
-            <div className="h-9 w-[1px] bg-white/20 hidden md:block" />
+          {/* CARD 3: PREVIOUS DAY (Deep Forest / Spruce Dark Green Theme) */}
+          {selectedDateFilter === 'prevDay' && (
+            <motion.div 
+              key="prevday-card"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.2 }}
+              className="bg-gradient-to-r from-[#0c4a3e] via-[#134e4a] to-[#064e3b] text-white rounded-[24px] p-4 shadow-sm border border-[#0c4a3e] flex items-center justify-between flex-wrap gap-4"
+            >
+              <div className="flex items-center gap-4 flex-wrap">
+                {/* Date Badge Chevron */}
+                <div className="relative flex items-center shrink-0">
+                  <div className="bg-white rounded-2xl px-4 py-2.5 shadow-md flex flex-col items-center justify-center min-w-[68px] border border-gray-100 text-gray-900">
+                    <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{dayPrevDay}</span>
+                    <span className="text-2xl font-black tracking-tight leading-none mt-0.5 text-gray-900">{datePrevDay}</span>
+                  </div>
+                  <div className="w-0 h-0 border-y-[9px] border-y-transparent border-l-[9px] border-l-white -ml-[1px]" />
+                </div>
 
-            {/* Time at Work */}
-            <div>
-              <div className="text-[11px] font-bold text-emerald-100 uppercase tracking-wider">Time at Work</div>
-              <div className="text-xl font-black text-white tracking-tight mt-0.5">
-                6h 30m
-              </div>
-            </div>
-          </div>
+                {/* Productive & Wave Sparkline */}
+                <div className="flex items-center gap-3">
+                  <div>
+                    <div className="text-[11px] font-bold text-emerald-200/80 uppercase tracking-wider">Productive</div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <svg className="w-14 h-5 overflow-visible shrink-0" viewBox="0 0 60 20">
+                        <path d="M0 10 Q12 2, 24 10 T48 10 T60 10" fill="none" stroke="#6ee7b7" strokeWidth="2.5" strokeLinecap="round" />
+                      </svg>
+                      <span className="bg-white/20 backdrop-blur-xs text-white text-xs font-black px-2.5 py-0.5 rounded-full border border-white/30">
+                        60%
+                      </span>
+                    </div>
+                  </div>
+                </div>
 
-          <div className="flex items-center gap-2 bg-white/20 backdrop-blur-xs px-3.5 py-1.5 rounded-full text-xs font-bold text-white border border-white/30 ml-auto">
-            <FaCircleCheck className="w-3.5 h-3.5 text-emerald-200" />
-            <span>Shift Completed ✔</span>
-          </div>
-        </div>
+                <div className="h-9 w-[1px] bg-white/20 hidden md:block" />
 
-        {/* CARD 3: PREVIOUS DAY (Deep Forest / Spruce Dark Green Theme) */}
-        <div 
-          onClick={() => setSelectedDateFilter('prevDay')}
-          className={`bg-gradient-to-r from-[#0c4a3e] via-[#134e4a] to-[#064e3b] text-white rounded-[24px] p-4 shadow-sm border transition-all cursor-pointer ${
-            selectedDateFilter === 'prevDay' ? 'ring-2 ring-lime-300 border-white' : 'border-[#0c4a3e] hover:shadow-md'
-          } flex items-center justify-between flex-wrap gap-4`}
-        >
-          <div className="flex items-center gap-4 flex-wrap">
-            
-            {/* Date Badge Chevron */}
-            <div className="relative flex items-center shrink-0">
-              <div className="bg-white rounded-2xl px-4 py-2.5 shadow-md flex flex-col items-center justify-center min-w-[68px] border border-gray-100 text-gray-900">
-                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{dayPrevDay}</span>
-                <span className="text-2xl font-black tracking-tight leading-none mt-0.5 text-gray-900">{datePrevDay}</span>
-              </div>
-              <div className="w-0 h-0 border-y-[9px] border-y-transparent border-l-[9px] border-l-white -ml-[1px]" />
-            </div>
+                {/* Productive Time */}
+                <div>
+                  <div className="text-[11px] font-bold text-emerald-200/80 uppercase tracking-wider">Productive Time</div>
+                  <div className="text-xl font-black text-white tracking-tight mt-0.5">
+                    3h 05m
+                  </div>
+                </div>
 
-            {/* Productive & Wave Sparkline */}
-            <div className="flex items-center gap-3">
-              <div>
-                <div className="text-[11px] font-bold text-emerald-200/80 uppercase tracking-wider">Productive</div>
-                <div className="flex items-center gap-2 mt-1">
-                  <svg className="w-14 h-5 overflow-visible shrink-0" viewBox="0 0 60 20">
-                    <path d="M0 10 Q12 2, 24 10 T48 10 T60 10" fill="none" stroke="#6ee7b7" strokeWidth="2.5" strokeLinecap="round" />
-                  </svg>
-                  <span className="bg-white/20 backdrop-blur-xs text-white text-xs font-black px-2.5 py-0.5 rounded-full border border-white/30">
-                    60%
-                  </span>
+                <div className="h-9 w-[1px] bg-white/20 hidden md:block" />
+
+                {/* Time at Work */}
+                <div>
+                  <div className="text-[11px] font-bold text-emerald-200/80 uppercase tracking-wider">Time at Work</div>
+                  <div className="text-xl font-black text-white tracking-tight mt-0.5">
+                    7h 10m
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="h-9 w-[1px] bg-white/20 hidden md:block" />
-
-            {/* Productive Time */}
-            <div>
-              <div className="text-[11px] font-bold text-emerald-200/80 uppercase tracking-wider">Productive Time</div>
-              <div className="text-xl font-black text-white tracking-tight mt-0.5">
-                3h 05m
+              <div className="flex items-center gap-2 bg-white/20 backdrop-blur-xs px-3.5 py-1.5 rounded-full text-xs font-bold text-white border border-white/30 ml-auto">
+                <FaClock className="w-3.5 h-3.5 text-lime-300" />
+                <span>Verified Log ✔</span>
               </div>
-            </div>
-
-            <div className="h-9 w-[1px] bg-white/20 hidden md:block" />
-
-            {/* Time at Work */}
-            <div>
-              <div className="text-[11px] font-bold text-emerald-200/80 uppercase tracking-wider">Time at Work</div>
-              <div className="text-xl font-black text-white tracking-tight mt-0.5">
-                7h 10m
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 bg-white/20 backdrop-blur-xs px-3.5 py-1.5 rounded-full text-xs font-bold text-white border border-white/30 ml-auto">
-            <FaClock className="w-3.5 h-3.5 text-lime-300" />
-            <span>Verified Log ✔</span>
-          </div>
-        </div>
-
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* ── 3. Break Details History Chips (if breaks have been taken) ──────── */}

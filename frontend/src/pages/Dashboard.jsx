@@ -239,15 +239,21 @@ export default function Dashboard() {
   const activeStaffList = employeesActivityData.employees || [];
 
   return (
-    <div className="min-h-screen bg-[#f4f6f8] text-gray-900 p-4 sm:p-8 flex flex-col gap-6 max-w-full overflow-x-hidden font-sans">
+    <div className="min-h-screen bg-[#f8faf9] text-gray-900 p-4 sm:p-8 flex flex-col gap-6 max-w-full overflow-x-hidden font-sans">
       
       {/* ── TOP HEADER (Reference Style) ────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-gray-900 flex items-center gap-3">
-            <span>Welcome Back,</span>
-            <span className="font-normal text-gray-500">{user?.name || 'Sujon'}</span>
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-gray-900 flex items-center gap-2.5">
+              <span>Welcome Back,</span>
+              <span className="font-normal text-gray-500">{user?.name || 'Sujon'}</span>
+            </h1>
+            <span className="hidden sm:inline-flex items-center gap-1.5 bg-[#e6f4ea] text-[#0d6537] text-[11px] font-bold px-3 py-1 rounded-full border border-[#b7e4c7]/80">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#0d6537] animate-pulse" />
+              Live Telemetry Active
+            </span>
+          </div>
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
@@ -299,7 +305,7 @@ export default function Dashboard() {
         <motion.div 
           whileHover={{ y: -3 }}
           transition={{ duration: 0.2 }}
-          className="lg:col-span-3 bg-white rounded-[28px] p-6 shadow-[0_4px_25px_rgba(0,0,0,0.03)] border border-gray-100/90 flex flex-col justify-between"
+          className="lg:col-span-3 bg-white rounded-[28px] p-6 shadow-[0_4px_25px_rgba(21,38,20,0.03)] border border-gray-100/90 flex flex-col justify-between"
         >
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -315,13 +321,13 @@ export default function Dashboard() {
             </button>
           </div>
 
-          {/* Featured Emerald Green Banner */}
-          <div className="bg-gradient-to-br from-[#0d6537] via-[#117843] to-[#0a4e2a] rounded-2xl p-5 text-white shadow-lg relative overflow-hidden flex flex-col justify-between h-44 my-2">
+          {/* Featured Evergreen Gradient Banner */}
+          <div className="bg-gradient-to-br from-[#152614] via-[#1e441e] to-[#0d6537] rounded-2xl p-5 text-white shadow-lg relative overflow-hidden flex flex-col justify-between h-44 my-2 border border-emerald-900/20">
             <div className="flex items-center justify-between">
               <span className="text-base font-extrabold tracking-wider flex items-center gap-1.5">
                 <FaCoins className="w-4 h-4 text-emerald-300" /> AOTMS CRM
               </span>
-              <FaWifi className="w-4 h-4 opacity-80 rotate-90" />
+              <FaWifi className="w-4 h-4 opacity-80 rotate-90 text-emerald-300" />
             </div>
 
             <div>
@@ -332,7 +338,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-[11px] font-mono opacity-90">
+            <div className="flex items-center justify-between text-[11px] font-mono opacity-90 text-emerald-100">
               <span>•••• 909090</span>
               <span>EXP 09/26</span>
             </div>
