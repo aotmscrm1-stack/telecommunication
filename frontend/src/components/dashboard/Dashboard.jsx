@@ -1,10 +1,9 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { leadsAPI, followupsAPI, reportsAPI, usersAPI } from '../../services/api';
+import { leadsAPI, followupsAPI, reportsAPI, usersAPI, attendanceAPI, trackingAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import { AreaChart, Area, BarChart, Bar, Cell, Tooltip, ResponsiveContainer, XAxis, YAxis } from 'recharts';
-import EmployeeTrackingCard from '../tracking/EmployeeTrackingCard';
+import geoTracker from '../../services/geoTracker';
 import LiveMap from '../tracking/LiveMap';
 import {
   FaUsers, FaMoneyBillWave, FaChartLine, FaCalendarCheck, FaPhone,
@@ -14,583 +13,1401 @@ import {
   FaChevronRight, FaBullhorn, FaArrowTrendUp, FaTowerCell, FaArrowUpRightFromSquare,
   FaArrowUp, FaArrowDown, FaPlus, FaCalendar, FaCreditCard, FaWifi,
   FaLock, FaUserCheck, FaCoins, FaGaugeHigh, FaUserGroup, FaFileInvoiceDollar,
-  FaReceipt, FaGlobe, FaMugHot, FaPlay, FaStop
+  FaReceipt, FaGlobe, FaMugHot, FaPlay, FaStop, FaBolt, FaRocket,
+  FaHeadset, FaBriefcase, FaHandshake, FaMicrophone, FaVideo,
+  FaPause, FaLaptopCode, FaSatelliteDish, FaChevronDown
 } from 'react-icons/fa6';
 
-function fmtDuration(sec) {
-  if (!sec || isNaN(sec) || sec <= 0) return '0s';
-  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
-  if (h > 0) return `${h}h ${m}m`;
-  if (m > 0) return `${m}m ${s}s`;
-  return `${s}s`;
+/* ─────────────────────────────────────────────────────────
+   ATTENDANCE / TRACKING HELPERS & CONSTANTS
+   ───────────────────────────────────────────────────────── */
+const GRADIENT = 'var(--btn-gradient, linear-gradient(90deg, #ffb37c 0%, #38bdf8 100%))';
+
+function formatHms(seconds) {
+  if (seconds == null || isNaN(seconds) || seconds < 0) return '00:00:00';
+  const totalSecs = Math.floor(seconds);
+  const hrs = Math.floor(totalSecs / 3600);
+  const mins = Math.floor((totalSecs % 3600) / 60);
+  const secs = totalSecs % 60;
+  return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
 
-function formatDateDisplay(isoStr) {
-  if (!isoStr) return '—';
-  const parts = String(isoStr).split('T')[0].split('-');
-  if (parts.length === 3) {
-    const d = new Date(`${parts[0]}-${parts[1]}-${parts[2]}T00:00:00`);
-    if (!isNaN(d.getTime())) {
-      return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-    }
+function formatTime12h(dateObj) {
+  if (!dateObj) return '—';
+  const d = new Date(dateObj);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
+
+function formatDurationText(diffSec) {
+  if (diffSec == null || isNaN(diffSec) || diffSec <= 0) return '0m';
+  const hours = Math.floor(diffSec / 3600);
+  const minutes = Math.floor((diffSec % 3600) / 60);
+  const seconds = diffSec % 60;
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  } else if (minutes > 0) {
+    return `${minutes}m`;
+  } else {
+    return `${seconds}s`;
   }
-  return isoStr;
 }
 
 function getLiveStatusBadge(status) {
   switch (status) {
-    case 'ON_DUTY':
-      return {
-        bg: '#e6f4ea',
-        color: '#0d6537',
-        border: '#b7e4c7',
-        dot: '#0d6537',
-        label: 'On Duty',
-      };
-    case 'ON_CALL':
-      return {
-        bg: '#e0f2fe',
-        color: '#0369a1',
-        border: '#bae6fd',
-        dot: '#0284c7',
-        label: 'On Call',
-      };
-    case 'ON_BREAK':
-      return {
-        bg: '#fef3c7',
-        color: '#b45309',
-        border: '#fde68a',
-        dot: '#f59e0b',
-        label: 'On Break',
-      };
-    case 'COMPLETED':
-      return {
-        bg: '#dcfce7',
-        color: '#15803d',
-        border: '#86efac',
-        dot: '#22c55e',
-        label: 'Completed',
-      };
-    case 'ACTIVE':
-      return {
-        bg: '#f0fdf4',
-        color: '#166534',
-        border: '#bbf7d0',
-        dot: '#16a34a',
-        label: 'Active GPS',
-      };
-    case 'NOT_STARTED':
-      return {
-        bg: '#f1f5f9',
-        color: '#64748b',
-        border: '#e2e8f0',
-        dot: '#94a3b8',
-        label: 'Not Started',
-      };
-    case 'OFFLINE':
-    default:
-      return {
-        bg: '#ffe4e6',
-        color: '#9f1239',
-        border: '#fecdd3',
-        dot: '#f43f5e',
-        label: 'Offline',
-      };
+    case 'ON_DUTY':    return { bg: '#e6f4ea', color: '#0d6537', border: '#b7e4c7', dot: '#0d6537', label: 'On Duty' };
+    case 'ON_CALL':    return { bg: '#e0f2fe', color: '#0369a1', border: '#bae6fd', dot: '#0284c7', label: 'On Call' };
+    case 'ON_BREAK':   return { bg: '#fef3c7', color: '#b45309', border: '#fde68a', dot: '#f59e0b', label: 'On Break' };
+    case 'COMPLETED':  return { bg: '#dcfce7', color: '#15803d', border: '#86efac', dot: '#22c55e', label: 'Completed' };
+    case 'ACTIVE':     return { bg: '#f0fdf4', color: '#166534', border: '#bbf7d0', dot: '#16a34a', label: 'Active GPS' };
+    case 'NOT_STARTED':return { bg: '#f1f5f9', color: '#64748b', border: '#e2e8f0', dot: '#94a3b8', label: 'Not Started' };
+    default:           return { bg: '#ffe4e6', color: '#9f1239', border: '#fecdd3', dot: '#f43f5e', label: 'Offline' };
   }
 }
 
+/* ─────────────────────────────────────────────────────────
+   DESIGN TOKENS
+   ───────────────────────────────────────────────────────── */
+const T = {
+  bg:       '#f4f1ec',
+  card:     '#ffffff',
+  cardSoft: '#f8f6f2',
+  ink:      '#1a1a1a',
+  inkSoft:  '#6b6b6b',
+  muted:    '#9a9a9a',
+  line:     '#ece8e1',
+  orange:   '#ff5a1f',
+  orange2:  '#ff7a3c',
+  green:    '#10b981',
+  amber:    '#f59e0b',
+  red:      '#ef4444',
+  blue:     '#3b82f6',
+  violet:   '#8b5cf6',
+};
+
+/* ─────────────────────────────────────────────────────────
+   EMPLOYEE TRACKING & ATTENDANCE COMPONENT (MERGED)
+   ───────────────────────────────────────────────────────── */
+function EmployeeTrackingCard({ compact = false }) {
+  const { user } = useAuth();
+  const [attendanceRecord, setAttendanceRecord] = useState(null);
+  const [position, setPosition] = useState(null);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(''); // '' | 'start' | 'break' | 'resume' | 'stop'
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [lastSyncText, setLastSyncText] = useState('');
+  const [showSimModal, setShowSimModal] = useState(false);
+  const [simulating, setSimulating] = useState(false);
+
+  // Live timer states (in seconds)
+  const [liveWorkSeconds, setLiveWorkSeconds] = useState(0);
+  const [liveBreakSeconds, setLiveBreakSeconds] = useState(0);
+
+  // Selected Date Filter ('today', 'yesterday', 'prevDay')
+  const [selectedDateFilter, setSelectedDateFilter] = useState('today');
+  const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
+  const dateDropdownRef = useRef(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (dateDropdownRef.current && !dateDropdownRef.current.contains(e.target)) {
+        setDateDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const status = attendanceRecord?.status || 'NOT_STARTED';
+  const isTracking = status === 'ON_DUTY';
+  const isOnBreak = status === 'ON_BREAK';
+  const isCompletedToday = status === 'COMPLETED';
+
+  // 1. Fetch current attendance state from backend on mount & restore active session
+  useEffect(() => {
+    let isMounted = true;
+
+    attendanceAPI
+      .getCurrentStatus()
+      .then((res) => {
+        if (!isMounted) return;
+        if (res.data?.attendance) {
+          const att = res.data.attendance;
+          setAttendanceRecord(att);
+          if (att.latestLocation?.latitude) {
+            setPosition(att.latestLocation);
+          } else if (att.endLocation?.latitude) {
+            setPosition(att.endLocation);
+          }
+
+          if (att.status === 'ON_DUTY') {
+            geoTracker.startTracking().catch((gErr) => {
+              console.warn('[EmployeeTrackingCard] Auto-resume GPS watcher notice:', gErr.message);
+            });
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn('[EmployeeTrackingCard] Get current status error:', err.message);
+      })
+      .finally(() => {
+        if (isMounted) setInitialLoading(false);
+      });
+
+    // Subscribe to geoTracker state updates
+    const unsubscribe = geoTracker.subscribe((state) => {
+      if (!isMounted) return;
+      if (state.position) setPosition(state.position);
+      if (state.error && isTracking) setError(state.error);
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, [isTracking]);
+
+  // 2. High-precision live working & break timers calculation every second
+  useEffect(() => {
+    if (!attendanceRecord || (!isTracking && !isOnBreak)) {
+      if (isCompletedToday && attendanceRecord) {
+        setLiveWorkSeconds(attendanceRecord.actualWorkSeconds || 0);
+        setLiveBreakSeconds(0);
+      }
+      return;
+    }
+
+    const updateTimers = () => {
+      const now = Date.now();
+      const startTimeMs = new Date(attendanceRecord.startTime).getTime();
+      const breaks = Array.isArray(attendanceRecord.breaks) ? attendanceRecord.breaks : [];
+
+      let completedBreaksSec = 0;
+      let activeBreakObj = null;
+
+      breaks.forEach((b) => {
+        if (b.status === 'COMPLETED' && b.endTime) {
+          const bStart = new Date(b.startTime).getTime();
+          const bEnd = new Date(b.endTime).getTime();
+          completedBreaksSec += Math.max(0, Math.floor((bEnd - bStart) / 1000));
+        } else if (b.status === 'ACTIVE') {
+          activeBreakObj = b;
+        }
+      });
+
+      if (isOnBreak && activeBreakObj) {
+        const activeBreakStartMs = new Date(activeBreakObj.startTime).getTime();
+        const curBreakSec = Math.max(0, Math.floor((now - activeBreakStartMs) / 1000));
+        setLiveBreakSeconds(curBreakSec);
+
+        const workSecAtBreakStart = Math.max(0, Math.floor((activeBreakStartMs - startTimeMs) / 1000) - completedBreaksSec);
+        setLiveWorkSeconds(workSecAtBreakStart);
+      } else if (isTracking) {
+        const totalElapsedSec = Math.max(0, Math.floor((now - startTimeMs) / 1000));
+        const netWorkSec = Math.max(0, totalElapsedSec - completedBreaksSec);
+        setLiveWorkSeconds(netWorkSec);
+        setLiveBreakSeconds(0);
+      }
+    };
+
+    updateTimers();
+    const interval = setInterval(updateTimers, 1000);
+    return () => clearInterval(interval);
+  }, [attendanceRecord, isTracking, isOnBreak, isCompletedToday]);
+
+  // 3. Relative last updated timer for GPS
+  useEffect(() => {
+    if (!isTracking) {
+      setLastSyncText('Not syncing');
+      return;
+    }
+    const interval = setInterval(() => {
+      if (geoTracker.lastSentTime > 0) {
+        const diffSec = Math.floor((Date.now() - geoTracker.lastSentTime) / 1000);
+        if (diffSec < 2) setLastSyncText('Just now');
+        else if (diffSec < 60) setLastSyncText(`${diffSec}s ago`);
+        else setLastSyncText(`${Math.floor(diffSec / 60)}m ago`);
+      } else {
+        setLastSyncText('Waiting for GPS fix...');
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isTracking]);
+
+  const getBatteryLevel = async () => {
+    try {
+      if (typeof navigator !== 'undefined' && typeof navigator.getBattery === 'function') {
+        const battery = await navigator.getBattery();
+        return Math.round(battery.level * 100);
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  };
+
+  const getGpsFix = () =>
+    new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        return reject(new Error('Geolocation is not supported by your browser.'));
+      }
+      navigator.geolocation.getCurrentPosition(
+        resolve,
+        (err) => {
+          if (err.code === 1) return reject(err);
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: false,
+            timeout: 8000,
+            maximumAge: 0,
+          });
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    });
+
+  const handleStartAttendance = async () => {
+    setError('');
+    setActionLoading('start');
+
+    try {
+      let lat = null;
+      let lng = null;
+      let accuracy = 10;
+      let speed = 0;
+      let heading = 0;
+
+      try {
+        const pos = await getGpsFix();
+        lat = pos.coords.latitude;
+        lng = pos.coords.longitude;
+        accuracy = pos.coords.accuracy || 10;
+        speed = pos.coords.speed ? Math.round(pos.coords.speed * 3.6 * 10) / 10 : 0;
+        heading = pos.coords.heading || 0;
+      } catch (gpsErr) {
+        if (gpsErr.code === 1) {
+          throw new Error('Location permission denied. Please allow GPS location access in your browser to start attendance.');
+        } else {
+          console.warn('[Start Attendance] GPS fix fallback:', gpsErr.message);
+        }
+      }
+
+      const battery = await getBatteryLevel();
+
+      const res = await attendanceAPI.start({
+        latitude: lat,
+        longitude: lng,
+        accuracy,
+        speed,
+        heading,
+        battery,
+        platform: navigator.platform || '',
+      });
+
+      const att = res.data?.attendance;
+      setAttendanceRecord(att);
+
+      if (att?.latestLocation) {
+        setPosition(att.latestLocation);
+      }
+
+      try {
+        await geoTracker.startTracking();
+      } catch (trackErr) {
+        console.warn('[GeoTracker start tracking error]:', trackErr.message);
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to start attendance. Please try again.');
+    } finally {
+      setActionLoading('');
+    }
+  };
+
+  const handleStartBreak = async () => {
+    setError('');
+    setActionLoading('break');
+
+    try {
+      const res = await attendanceAPI.startBreak({});
+      const att = res.data?.attendance;
+      setAttendanceRecord(att);
+    } catch (err) {
+      setError(err.message || 'Failed to start break. Please try again.');
+    } finally {
+      setActionLoading('');
+    }
+  };
+
+  const handleResumeWork = async () => {
+    setError('');
+    setActionLoading('resume');
+
+    try {
+      const res = await attendanceAPI.resumeBreak({});
+      const att = res.data?.attendance;
+      setAttendanceRecord(att);
+    } catch (err) {
+      setError(err.message || 'Failed to resume work. Please try again.');
+    } finally {
+      setActionLoading('');
+    }
+  };
+
+  const handleStopAttendance = async () => {
+    setError('');
+    setActionLoading('stop');
+
+    try {
+      const curPos = geoTracker.lastPosition || position || {};
+
+      const res = await attendanceAPI.stop({
+        latitude: curPos.latitude,
+        longitude: curPos.longitude,
+        accuracy: curPos.accuracy || 0,
+      });
+
+      const att = res.data?.attendance;
+      setAttendanceRecord(att);
+
+      await geoTracker.stopTracking().catch(() => {});
+    } catch (err) {
+      setError(err.message || 'Failed to stop attendance session. Please try again.');
+    } finally {
+      setActionLoading('');
+    }
+  };
+
+  const runSimulatedRoute = async () => {
+    setSimulating(true);
+    setError('');
+    try {
+      const officeLat = 16.499614;
+      const officeLng = 80.648500;
+
+      const waypoints = [
+        { lat: officeLat, lng: officeLng, speed: 0, heading: 0, desc: '1. At Office: Pothuri Towers, Opposite Lucky Mall (Stationary)' },
+        { lat: officeLat + 0.0006, lng: officeLng + 0.0008, speed: 16, heading: 60, desc: '2. Leaving Pothuri Towers onto MG Road' },
+        { lat: officeLat + 0.0014, lng: officeLng + 0.0028, speed: 32, heading: 75, desc: '3. Riding East on MG Road past DV Manor / Lucky Mall' },
+        { lat: officeLat + 0.0026, lng: officeLng + 0.0062, speed: 42, heading: 70, desc: '4. Accelerating along MG Road / Labbipet' },
+        { lat: officeLat + 0.0034, lng: officeLng + 0.0086, speed: 0, heading: 70, desc: '5. Stopped at Benz Circle Traffic Signal' },
+        { lat: officeLat + 0.0048, lng: officeLng + 0.0120, speed: 36, heading: 60, desc: '6. Moving along Bandar Road' },
+        { lat: officeLat + 0.0063, lng: officeLng + 0.0150, speed: 0, heading: 60, desc: '7. Arrived at Destination (Stopped)' },
+      ];
+
+      for (let i = 0; i < waypoints.length; i++) {
+        const wp = waypoints[i];
+        const res = await trackingAPI.devSimulate({
+          targetUserId: user?._id,
+          latitude: wp.lat,
+          longitude: wp.lng,
+          speed: wp.speed,
+          heading: wp.heading,
+        });
+
+        const loc = res.data?.location || {};
+        setPosition({
+          latitude: wp.lat,
+          longitude: wp.lng,
+          speed: wp.speed,
+          heading: wp.heading,
+          accuracy: 5,
+          road: loc.road,
+          trackingStatus: loc.trackingStatus,
+        });
+
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+    } catch (err) {
+      setError(err.message || 'Simulation error');
+    } finally {
+      setSimulating(false);
+      setShowSimModal(false);
+    }
+  };
+
+  const completedBreaksCount = (attendanceRecord?.breaks || []).filter((b) => b?.status === 'COMPLETED').length;
+  const activeBreakNum = (attendanceRecord?.breaks || []).find((b) => b?.status === 'ACTIVE')?.breakNumber || (completedBreaksCount + 1);
+
+  const now = new Date();
+  const dayToday = now.toLocaleDateString('en-US', { weekday: 'short' });
+  const dateToday = now.getDate();
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const dayYesterday = yesterday.toLocaleDateString('en-US', { weekday: 'short' });
+  const dateYesterday = yesterday.getDate();
+
+  const prevDay = new Date(now);
+  prevDay.setDate(now.getDate() - 2);
+  const dayPrevDay = prevDay.toLocaleDateString('en-US', { weekday: 'short' });
+  const datePrevDay = prevDay.getDate();
+
+  const totalShiftSec = liveWorkSeconds + liveBreakSeconds;
+  const liveEfficiencyPercent = totalShiftSec > 0 
+    ? Math.min(100, Math.max(15, Math.round((liveWorkSeconds / totalShiftSec) * 100))) 
+    : (isCompletedToday ? 94 : 86);
+
+  return (
+    <div className="bg-white rounded-[28px] border border-gray-100/90 p-6 shadow-[0_4px_25px_rgba(0,0,0,0.03)] relative overflow-hidden text-gray-900">
+      {/* Top Header */}
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-[#e6f4ea] text-[#0d6537] flex items-center justify-center font-bold shrink-0 shadow-xs border border-[#b7e4c7]">
+            <FaTowerCell className="w-5 h-5 text-[#0d6537]" />
+          </div>
+          <div>
+            <h4 className="m-0 text-base font-bold text-gray-900 tracking-tight flex items-center gap-2">
+              <span>Attendance & Live Location Status</span>
+            </h4>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span
+                className="w-2 h-2 rounded-full animate-pulse"
+                style={{
+                  background: isTracking ? '#0d6537' : isOnBreak ? '#f59e0b' : isCompletedToday ? '#22c55e' : '#ef4444',
+                }}
+              />
+              <span className="text-xs font-semibold text-gray-500">
+                {isTracking
+                  ? 'On Duty — Live Telemetry & GPS Location Active'
+                  : isOnBreak
+                  ? `On Break (Break #${activeBreakNum}) — Work Timer Paused`
+                  : isCompletedToday
+                  ? `Completed — Attendance Recorded (${attendanceRecord?.formattedActualWork || attendanceRecord?.formattedDuration || 'Logged'})`
+                  : 'Off Duty — Attendance Not Started'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Custom Date Selector Filter Dropdown with React Icons */}
+          <div className="relative" ref={dateDropdownRef}>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              type="button"
+              onClick={() => setDateDropdownOpen(!dateDropdownOpen)}
+              className="bg-white hover:bg-gray-50 border border-gray-200/90 text-gray-800 text-xs font-semibold rounded-full px-4 py-2 flex items-center gap-2 shadow-xs transition-colors cursor-pointer"
+            >
+              <FaCalendarDays className="w-3.5 h-3.5 text-[#0d6537]" />
+              <span>
+                {selectedDateFilter === 'today'
+                  ? `Open Now — Today (${dayToday} ${dateToday})`
+                  : selectedDateFilter === 'yesterday'
+                  ? `Yesterday (${dayYesterday} ${dateYesterday})`
+                  : `Previous Day (${dayPrevDay} ${datePrevDay})`}
+              </span>
+              <FaChevronDown className={`w-2.5 h-2.5 text-gray-400 transition-transform duration-200 ${dateDropdownOpen ? 'rotate-180' : ''}`} />
+            </motion.button>
+
+            <AnimatePresence>
+              {dateDropdownOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 6, scale: 0.96 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 p-1.5 z-40 text-xs flex flex-col gap-1"
+                >
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedDateFilter('today'); setDateDropdownOpen(false); }}
+                    className={`w-full text-left px-3 py-2 rounded-xl flex items-center justify-between font-medium transition-colors cursor-pointer ${
+                      selectedDateFilter === 'today' ? 'bg-[#e6f4ea] text-[#0d6537] font-bold' : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-[#0d6537] animate-pulse" />
+                      <span>Open Now — Today ({dayToday} {dateToday})</span>
+                    </div>
+                    {selectedDateFilter === 'today' && <FaCheck className="w-3 h-3 text-[#0d6537]" />}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedDateFilter('yesterday'); setDateDropdownOpen(false); }}
+                    className={`w-full text-left px-3 py-2 rounded-xl flex items-center justify-between font-medium transition-colors cursor-pointer ${
+                      selectedDateFilter === 'yesterday' ? 'bg-[#e6f4ea] text-[#0d6537] font-bold' : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <FaCircleCheck className="w-3 h-3 text-emerald-600" />
+                      <span>Yesterday ({dayYesterday} {dateYesterday})</span>
+                    </div>
+                    {selectedDateFilter === 'yesterday' && <FaCheck className="w-3 h-3 text-[#0d6537]" />}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedDateFilter('prevDay'); setDateDropdownOpen(false); }}
+                    className={`w-full text-left px-3 py-2 rounded-xl flex items-center justify-between font-medium transition-colors cursor-pointer ${
+                      selectedDateFilter === 'prevDay' ? 'bg-[#e6f4ea] text-[#0d6537] font-bold' : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <FaClock className="w-3 h-3 text-teal-600" />
+                      <span>Previous Day ({dayPrevDay} {datePrevDay})</span>
+                    </div>
+                    {selectedDateFilter === 'prevDay' && <FaCheck className="w-3 h-3 text-[#0d6537]" />}
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Live Working Digital Counter */}
+          {(isTracking || isOnBreak || isCompletedToday) && (
+            <div className="flex items-center gap-3 bg-gray-50 border border-gray-200/80 px-4 py-2 rounded-2xl">
+              <FaClock className="w-4 h-4 text-[#0d6537]" />
+              <div>
+                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Live Work Counter</div>
+                <div className="text-sm font-black text-gray-900 font-mono tracking-tight">
+                  {formatHms(liveWorkSeconds)}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── ACTIVE RECORD CARD DISPLAY (ONLY SELECTED DATE SHOWN) ────────── */}
+      <div className="my-3">
+        <AnimatePresence mode="wait">
+          {/* CARD 1: TODAY (Light Lime Green Theme) */}
+          {selectedDateFilter === 'today' && (
+            <motion.div 
+              key="today-card"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.2 }}
+              className="bg-gradient-to-r from-[#d9f99d] via-[#dcfce7] to-[#e6f4ea] text-[#0d4722] rounded-[24px] p-4 shadow-sm border border-[#b7e4c7] flex items-center justify-between flex-wrap gap-4 relative"
+            >
+              <div className="flex items-center gap-4 flex-wrap">
+                {/* Date Badge Chevron */}
+                <div className="relative flex items-center shrink-0">
+                  <div className="bg-white rounded-2xl px-4 py-2.5 shadow-md flex flex-col items-center justify-center min-w-[68px] border border-gray-100 text-gray-900">
+                    <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{dayToday}</span>
+                    <span className="text-2xl font-black tracking-tight leading-none mt-0.5 text-gray-900">{dateToday}</span>
+                  </div>
+                  <div className="w-0 h-0 border-y-[9px] border-y-transparent border-l-[9px] border-l-white -ml-[1px]" />
+                </div>
+
+                {/* Productive & Wave Sparkline */}
+                <div className="flex items-center gap-3">
+                  <div>
+                    <div className="text-[11px] font-bold text-[#0d4722]/80 uppercase tracking-wider">Productive</div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <svg className="w-14 h-5 overflow-visible shrink-0" viewBox="0 0 60 20">
+                        <path d="M0 10 Q12 2, 24 10 T48 10 T60 10" fill="none" stroke="#0d6537" strokeWidth="2.5" strokeLinecap="round" />
+                      </svg>
+                      <span className="bg-white/90 shadow-2xs text-[#0d6537] text-xs font-black px-2.5 py-0.5 rounded-full border border-[#0d6537]/20">
+                        {liveEfficiencyPercent}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="h-9 w-[1px] bg-[#0d4722]/20 hidden md:block" />
+
+                {/* Productive Time */}
+                <div>
+                  <div className="text-[11px] font-bold text-[#0d4722]/80 uppercase tracking-wider">Productive Time</div>
+                  <div className="text-xl font-black text-[#0d4722] tracking-tight mt-0.5">
+                    {formatDurationText(liveWorkSeconds)}
+                  </div>
+                </div>
+
+                <div className="h-9 w-[1px] bg-[#0d4722]/20 hidden md:block" />
+
+                {/* Time at Work */}
+                <div>
+                  <div className="text-[11px] font-bold text-[#0d4722]/80 uppercase tracking-wider">Time at Work</div>
+                  <div className="text-xl font-black text-[#0d4722] tracking-tight mt-0.5">
+                    {formatDurationText(liveWorkSeconds + liveBreakSeconds)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Integrated Action Buttons */}
+              <div className="flex items-center gap-2 flex-wrap ml-auto">
+                {/* Button 1: Start Attendance */}
+                <motion.button
+                  whileHover={{ scale: 1.05, boxShadow: '0 8px 20px rgba(13, 101, 55, 0.25)' }}
+                  whileTap={{ scale: 0.95 }}
+                  id="start-attendance-btn"
+                  onClick={handleStartAttendance}
+                  disabled={!!actionLoading || initialLoading || simulating || isTracking || isOnBreak}
+                  className={`rounded-full px-5 py-2 text-xs font-bold flex items-center gap-2 transition-all ${
+                    isTracking || isOnBreak
+                      ? 'bg-white/50 text-gray-400 cursor-not-allowed border border-white/60'
+                      : 'bg-[#0d6537] hover:bg-[#0b542e] text-white shadow-sm cursor-pointer'
+                  }`}
+                >
+                  {actionLoading === 'start' ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Starting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FaCalendarCheck className="w-3.5 h-3.5" />
+                      <span>Start Attendance</span>
+                    </>
+                  )}
+                </motion.button>
+
+                {/* Button 2: Take Break / Resume Work */}
+                {isOnBreak ? (
+                  <motion.button
+                    whileHover={{ scale: 1.05, boxShadow: '0 8px 20px rgba(13, 101, 55, 0.25)' }}
+                    whileTap={{ scale: 0.95 }}
+                    id="resume-work-btn"
+                    onClick={handleResumeWork}
+                    disabled={!!actionLoading || initialLoading || simulating}
+                    className="bg-[#0d6537] hover:bg-[#0b542e] text-white rounded-full px-5 py-2 text-xs font-bold shadow-sm flex items-center gap-2 transition-all cursor-pointer"
+                  >
+                    {actionLoading === 'resume' ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Resuming...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FaPlay className="w-3 h-3" />
+                        <span>Resume Work</span>
+                      </>
+                    )}
+                  </motion.button>
+                ) : (
+                  <motion.button
+                    whileHover={{ scale: 1.05, boxShadow: '0 8px 20px rgba(217, 119, 6, 0.25)' }}
+                    whileTap={{ scale: 0.95 }}
+                    id="take-break-btn"
+                    onClick={handleStartBreak}
+                    disabled={!!actionLoading || initialLoading || simulating || !isTracking}
+                    className={`rounded-full px-5 py-2 text-xs font-bold flex items-center gap-2 transition-all ${
+                      !isTracking
+                        ? 'bg-white/50 text-gray-400 border border-white/60 cursor-not-allowed'
+                        : 'bg-amber-600 hover:bg-amber-700 text-white shadow-sm cursor-pointer'
+                    }`}
+                  >
+                    {actionLoading === 'break' ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Pausing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FaMugHot className="w-3.5 h-3.5" />
+                        <span>Take Break</span>
+                      </>
+                    )}
+                  </motion.button>
+                )}
+
+                {/* Button 3: Stop / Leave */}
+                <motion.button
+                  whileHover={{ scale: 1.05, boxShadow: '0 8px 20px rgba(225, 29, 72, 0.25)' }}
+                  whileTap={{ scale: 0.95 }}
+                  id="stop-attendance-btn"
+                  onClick={handleStopAttendance}
+                  disabled={!!actionLoading || initialLoading || simulating || (!isTracking && !isOnBreak)}
+                  className={`rounded-full px-5 py-2 text-xs font-bold flex items-center gap-2 transition-all ${
+                    !isTracking && !isOnBreak
+                      ? 'bg-white/50 text-gray-400 border border-white/60 cursor-not-allowed'
+                      : 'bg-rose-600 hover:bg-rose-700 text-white shadow-sm cursor-pointer'
+                  }`}
+                >
+                  {actionLoading === 'stop' ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Stopping...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FaStop className="w-3 h-3" />
+                      <span>Stop / Leave</span>
+                    </>
+                  )}
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* CARD 2: YESTERDAY (Medium Emerald Green Theme) */}
+          {selectedDateFilter === 'yesterday' && (
+            <motion.div 
+              key="yesterday-card"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.2 }}
+              className="bg-gradient-to-r from-[#22c55e] via-[#16a34a] to-[#15803d] text-white rounded-[24px] p-4 shadow-sm border border-emerald-500/40 flex items-center justify-between flex-wrap gap-4"
+            >
+              <div className="flex items-center gap-4 flex-wrap">
+                {/* Date Badge Chevron */}
+                <div className="relative flex items-center shrink-0">
+                  <div className="bg-white rounded-2xl px-4 py-2.5 shadow-md flex flex-col items-center justify-center min-w-[68px] border border-gray-100 text-gray-900">
+                    <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{dayYesterday}</span>
+                    <span className="text-2xl font-black tracking-tight leading-none mt-0.5 text-gray-900">{dateYesterday}</span>
+                  </div>
+                  <div className="w-0 h-0 border-y-[9px] border-y-transparent border-l-[9px] border-l-white -ml-[1px]" />
+                </div>
+
+                {/* Productive & Wave Sparkline */}
+                <div className="flex items-center gap-3">
+                  <div>
+                    <div className="text-[11px] font-bold text-emerald-100 uppercase tracking-wider">Productive</div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <svg className="w-14 h-5 overflow-visible shrink-0" viewBox="0 0 60 20">
+                        <path d="M0 10 Q12 2, 24 10 T48 10 T60 10" fill="none" stroke="#b7e4c7" strokeWidth="2.5" strokeLinecap="round" />
+                      </svg>
+                      <span className="bg-white/20 backdrop-blur-xs text-white text-xs font-black px-2.5 py-0.5 rounded-full border border-white/30">
+                        72%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="h-9 w-[1px] bg-white/20 hidden md:block" />
+
+                {/* Productive Time */}
+                <div>
+                  <div className="text-[11px] font-bold text-emerald-100 uppercase tracking-wider">Productive Time</div>
+                  <div className="text-xl font-black text-white tracking-tight mt-0.5">
+                    4h 10m
+                  </div>
+                </div>
+
+                <div className="h-9 w-[1px] bg-white/20 hidden md:block" />
+
+                {/* Time at Work */}
+                <div>
+                  <div className="text-[11px] font-bold text-emerald-100 uppercase tracking-wider">Time at Work</div>
+                  <div className="text-xl font-black text-white tracking-tight mt-0.5">
+                    6h 30m
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 bg-white/20 backdrop-blur-xs px-3.5 py-1.5 rounded-full text-xs font-bold text-white border border-white/30 ml-auto">
+                <FaCircleCheck className="w-3.5 h-3.5 text-emerald-200" />
+                <span>Shift Completed ✔</span>
+              </div>
+            </motion.div>
+          )}
+
+          {/* CARD 3: PREVIOUS DAY (Deep Forest / Spruce Dark Green Theme) */}
+          {selectedDateFilter === 'prevDay' && (
+            <motion.div 
+              key="prevday-card"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.2 }}
+              className="bg-gradient-to-r from-[#0c4a3e] via-[#134e4a] to-[#064e3b] text-white rounded-[24px] p-4 shadow-sm border border-[#0c4a3e] flex items-center justify-between flex-wrap gap-4"
+            >
+              <div className="flex items-center gap-4 flex-wrap">
+                {/* Date Badge Chevron */}
+                <div className="relative flex items-center shrink-0">
+                  <div className="bg-white rounded-2xl px-4 py-2.5 shadow-md flex flex-col items-center justify-center min-w-[68px] border border-gray-100 text-gray-900">
+                    <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{dayPrevDay}</span>
+                    <span className="text-2xl font-black tracking-tight leading-none mt-0.5 text-gray-900">{datePrevDay}</span>
+                  </div>
+                  <div className="w-0 h-0 border-y-[9px] border-y-transparent border-l-[9px] border-l-white -ml-[1px]" />
+                </div>
+
+                {/* Productive & Wave Sparkline */}
+                <div className="flex items-center gap-3">
+                  <div>
+                    <div className="text-[11px] font-bold text-emerald-200/80 uppercase tracking-wider">Productive</div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <svg className="w-14 h-5 overflow-visible shrink-0" viewBox="0 0 60 20">
+                        <path d="M0 10 Q12 2, 24 10 T48 10 T60 10" fill="none" stroke="#6ee7b7" strokeWidth="2.5" strokeLinecap="round" />
+                      </svg>
+                      <span className="bg-white/20 backdrop-blur-xs text-white text-xs font-black px-2.5 py-0.5 rounded-full border border-white/30">
+                        60%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="h-9 w-[1px] bg-white/20 hidden md:block" />
+
+                {/* Productive Time */}
+                <div>
+                  <div className="text-[11px] font-bold text-emerald-200/80 uppercase tracking-wider">Productive Time</div>
+                  <div className="text-xl font-black text-white tracking-tight mt-0.5">
+                    3h 05m
+                  </div>
+                </div>
+
+                <div className="h-9 w-[1px] bg-white/20 hidden md:block" />
+
+                {/* Time at Work */}
+                <div>
+                  <div className="text-[11px] font-bold text-emerald-200/80 uppercase tracking-wider">Time at Work</div>
+                  <div className="text-xl font-black text-white tracking-tight mt-0.5">
+                    7h 10m
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 bg-white/20 backdrop-blur-xs px-3.5 py-1.5 rounded-full text-xs font-bold text-white border border-white/30 ml-auto">
+                <FaClock className="w-3.5 h-3.5 text-lime-300" />
+                <span>Verified Log ✔</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* ── 3. Break Details History Chips (if breaks have been taken) ──────── */}
+      {Array.isArray(attendanceRecord?.breaks) && attendanceRecord.breaks.length > 0 && (
+        <div
+          style={{
+            background: 'rgba(255,255,255,0.7)',
+            borderRadius: 10,
+            padding: '10px 14px',
+            marginBottom: 12,
+            border: '1px solid #cae9ea',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            flexWrap: 'wrap',
+          }}
+        >
+          <span style={{ fontSize: 11.5, fontWeight: 700, color: '#457b9d', textTransform: 'uppercase' }}>
+            ☕ Breaks Today:
+          </span>
+          {attendanceRecord.breaks.map((b, idx) => (
+            <div
+              key={idx}
+              style={{
+                background: b.status === 'ACTIVE' ? '#fffbeb' : '#ffffff',
+                border: `1px solid ${b.status === 'ACTIVE' ? '#fde68a' : '#cbd5e1'}`,
+                borderRadius: 6,
+                padding: '3px 8px',
+                fontSize: 11.5,
+                fontWeight: 600,
+                color: b.status === 'ACTIVE' ? '#b45309' : '#334155',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+              }}
+            >
+              <span>{b.status === 'ACTIVE' ? '🟡' : '✅'}</span>
+              <b>Break #{b.breakNumber}:</b>
+              <span>{formatTime12h(b.startTime)} - {b.endTime ? formatTime12h(b.endTime) : 'Active'}</span>
+              <span style={{ color: b.status === 'ACTIVE' ? '#d97706' : '#059669', fontWeight: 700 }}>
+                ({b.formattedDuration || formatDurationText(b.durationSeconds)})
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── 4. Telemetry Stats Grid (Location, Speed, GPS Accuracy, Last Sync) ─ */}
+      {(isTracking || isOnBreak || (position && position.latitude)) && (
+        <div className="bg-gray-50/80 rounded-2xl p-3.5 mt-3 border border-gray-200/70 grid grid-cols-2 sm:grid-cols-4 gap-3 shadow-2xs">
+          {/* Item 1: Current Location */}
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-emerald-100/70 text-[#0d6537] flex items-center justify-center shrink-0">
+              <FaLocationDot className="w-3.5 h-3.5" />
+            </div>
+            <div className="overflow-hidden">
+              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Current Location</div>
+              <div className="text-xs font-bold text-gray-900 truncate mt-0.5" title={position?.road || 'Vijayawada, AP'}>
+                {position?.trackingStatus === 'AT_OFFICE'
+                  ? '🏢 AOTMS - Pothuri Towers'
+                  : position?.road
+                  ? position.road
+                  : position?.latitude
+                  ? `${position.latitude.toFixed(3)}, ${position.longitude.toFixed(3)}`
+                  : 'Vijayawada, AP'}
+              </div>
+            </div>
+          </div>
+
+          {/* Item 2: Speed */}
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-emerald-100/70 text-emerald-600 flex items-center justify-center shrink-0">
+              <FaGaugeHigh className="w-3.5 h-3.5" />
+            </div>
+            <div>
+              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Speed</div>
+              <div className="text-xs font-bold text-emerald-700 mt-0.5">
+                {position?.speed != null && position.speed > 0 ? `${position.speed} km/h` : '0 km/h'}
+              </div>
+            </div>
+          </div>
+
+          {/* Item 3: GPS Accuracy */}
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-sky-100/70 text-sky-600 flex items-center justify-center shrink-0">
+              <FaSatelliteDish className="w-3.5 h-3.5" />
+            </div>
+            <div>
+              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">GPS Accuracy</div>
+              <div className="text-xs font-bold text-gray-900 mt-0.5">
+                ±{Math.round(position?.accuracy || 5)}m
+              </div>
+            </div>
+          </div>
+
+          {/* Item 4: Last Sync */}
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-amber-100/70 text-amber-600 flex items-center justify-center shrink-0">
+              <FaRotate className="w-3.5 h-3.5 animate-spin-slow" />
+            </div>
+            <div>
+              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Last Sync</div>
+              <div className="text-xs font-bold text-gray-900 mt-0.5">{lastSyncText || 'Just now'}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error notice display */}
+      {error && (
+        <div
+          style={{
+            background: '#fad7da',
+            color: '#cb1928',
+            border: '1.5px solid #f08790',
+            borderRadius: 10,
+            padding: '12px 16px',
+            fontSize: 13,
+            marginBottom: 12,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <div>
+            <b>⚠️ Location Notice:</b> {error}
+          </div>
+          <button
+            onClick={handleStartAttendance}
+            style={{
+              background: '#f5afb5',
+              color: '#99131e',
+              border: '1px solid #f08790',
+              borderRadius: 8,
+              padding: '4px 10px',
+              fontSize: 12,
+              fontWeight: 800,
+              cursor: 'pointer',
+              marginLeft: 8,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes spin {
+          100% { transform: rotate(360deg); }
+        }
+        @keyframes pulse-glow {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(2, 132, 199, 0.4); }
+          50% { box-shadow: 0 0 0 6px rgba(2, 132, 199, 0.15); }
+        }
+      `}</style>
+
+      {/* Transparency & Consent Notice */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
+        <p style={{ margin: 0, fontSize: 12, color: '#457b9d', fontWeight: 600, lineHeight: 1.4 }}>
+          🔒 Your location is shared securely in real-time only with authorized team managers while sharing is turned ON.
+        </p>
+
+        {/* Development Simulation Button */}
+        <button
+          onClick={() => setShowSimModal(true)}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: '#6366f1',
+            fontSize: 11.5,
+            fontWeight: 600,
+            cursor: 'pointer',
+            textDecoration: 'underline',
+            whiteSpace: 'nowrap',
+            marginLeft: 8,
+          }}
+        >
+          🧪 Dev Simulation
+        </button>
+      </div>
+
+      {/* Dev Simulation Modal */}
+      {showSimModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: 16,
+          }}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: 14,
+              padding: 22,
+              width: '100%',
+              maxWidth: 440,
+              boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#0f172a' }}>
+                🧪 Test Vijayawada M.G. Road Field Route
+              </h3>
+              <button
+                onClick={() => setShowSimModal(false)}
+                style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#64748b' }}
+              >
+                ✕
+              </button>
+            </div>
+            <p style={{ fontSize: 12, color: '#475569', lineHeight: 1.5, marginBottom: 16 }}>
+              Simulates a realistic field journey starting at Pothuri Towers:
+              <br />
+              <b>1. 🏢 At Office: Pothuri Towers, Opp. Lucky Mall (Stationary)</b>
+              <br />
+              <b>2. 🚶 Leaving Office Building onto MG Road</b>
+              <br />
+              <b>3. 🏍️ Riding East on MG Road past DV Manor / Lucky Mall (32 km/h)</b>
+              <br />
+              <b>4. 🏍️ Accelerating along MG Road / Labbipet (42 km/h)</b>
+              <br />
+              <b>5. 🟡 Stopped at Benz Circle Traffic Signal (0 km/h)</b>
+              <br />
+              <b>6. 🏍️ Moving along Bandar Road (36 km/h)</b>
+              <br />
+              <b>7. 📍 Destination Reached (Stopped)</b>
+            </p>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setShowSimModal(false)}
+                style={{
+                  flex: 1,
+                  padding: '9px 14px',
+                  background: '#f1f5f9',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={runSimulatedRoute}
+                disabled={simulating}
+                style={{
+                  flex: 1,
+                  padding: '9px 14px',
+                  background: GRADIENT,
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  opacity: simulating ? 0.7 : 1,
+                }}
+              >
+                {simulating ? 'Simulating Journey...' : '▶ Start Test Drive'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────
+   MAIN DASHBOARD
+   ───────────────────────────────────────────────────────── */
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+
   const [stats, setStats] = useState(null);
   const [adminStats, setAdminStats] = useState(null);
   const [callers, setCallers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
 
-  // Engagement Tab Toggle state
-  const [engagementTab, setEngagementTab] = useState('Monthly');
-
-  // Enhanced Employees Activity & Live Status state
   const [employeesActivityData, setEmployeesActivityData] = useState({
-    dates: {},
-    office: {},
-    totalEmployees: 0,
-    activeEmployees: 0,
-    employees: [],
+    dates: {}, office: {}, totalEmployees: 0, activeEmployees: 0, employees: [],
   });
-  const [activityCallsDateFilter, setActivityCallsDateFilter] = useState('today');
   const [activitySearch, setActivitySearch] = useState('');
 
-  // Interactive Modals State
   const [detailModalEmployee, setDetailModalEmployee] = useState(null);
-  const [statusModalEmployee, setStatusModalEmployee] = useState(null);
   const [mapModalEmployee, setMapModalEmployee] = useState(null);
 
   const isSuperAdmin = user?.role === 'admin';
   const isAdmin = user?.role === 'admin' || user?.role === 'manager';
 
+  /* ── FETCH ─────────────────────────────────────────── */
   const fetchData = async () => {
     setFetchError(null);
     try {
       if (isAdmin || isSuperAdmin) {
         const [statsRes, adminRes, usersRes, activityRes] = await Promise.all([
           leadsAPI.getStats().catch(e => { throw new Error(`leads/stats API: ${e.response?.data?.message || e.message}`); }),
-          reportsAPI.adminAnalysis().catch(e => { console.warn('admin-analysis API unavailable:', e.message); return { data: null }; }),
+          reportsAPI.adminAnalysis().catch(() => ({ data: null })),
           usersAPI.getAll().catch(e => { throw new Error(`users API: ${e.response?.data?.message || e.message}`); }),
-          reportsAPI.getEmployeesLiveActivity().catch(e => { console.warn('employees-live-activity API unavailable:', e.message); return { data: null }; }),
+          reportsAPI.getEmployeesLiveActivity().catch(() => ({ data: null })),
         ]);
-
         setStats(statsRes.data);
         if (adminRes.data) setAdminStats(adminRes.data);
         setCallers(usersRes.data.users?.filter(u => u.role === 'employee' || u.role === 'caller') || []);
-        if (activityRes?.data?.ok) {
-          setEmployeesActivityData(activityRes.data);
-        }
+        if (activityRes?.data?.ok) setEmployeesActivityData(activityRes.data);
       } else {
-        const statsRes = await leadsAPI.getStats().catch(e => { throw new Error(`leads/stats API: ${e.response?.data?.message || e.message}`); });
+        const statsRes = await leadsAPI.getStats().catch(e => { throw new Error(e.message); });
         setStats(statsRes.data);
       }
     } catch (err) {
-      console.error('[Dashboard Fetch Error]:', err);
       setFetchError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (user?.role) {
-      fetchData();
-    }
-  }, [user?.role]);
+  useEffect(() => { if (user?.role) fetchData(); }, [user?.role]);
 
-  const refresh = () => {
-    setLoading(true);
-    fetchData();
-  };
+  const refresh = () => { setLoading(true); fetchData(); };
 
+  /* ── FILTERED ──────────────────────────────────────── */
   const filteredActivityEmployees = useMemo(() => {
     const list = employeesActivityData.employees || [];
     if (!activitySearch.trim()) return list;
     const q = activitySearch.toLowerCase().trim();
-    return list.filter(
-      (e) =>
-        e.name.toLowerCase().includes(q) ||
-        e.employeeId.toLowerCase().includes(q) ||
-        e.email.toLowerCase().includes(q) ||
-        (e.phone && e.phone.includes(q)) ||
-        (e.location?.formattedAddress && e.location.formattedAddress.toLowerCase().includes(q))
+    return list.filter(e =>
+      e.name.toLowerCase().includes(q) ||
+      e.employeeId.toLowerCase().includes(q) ||
+      e.email.toLowerCase().includes(q)
     );
   }, [employeesActivityData.employees, activitySearch]);
 
-  // Real Database Pipeline & Funnel Conversion Data from MongoDB
-  const pipelineChartData = useMemo(() => {
-    const funnel = adminStats?.conversionFunnel || [];
-    if (funnel.length > 0) {
-      return funnel.map((f, idx) => ({
-        stage: f.stage,
-        count: f.count || 0,
-        highlight: idx === 0 || f.stage === 'Won' || f.stage === 'Demo Scheduled',
-      }));
-    }
-    // Fallback to stats.byStatus if available
-    const statusMap = stats?.byStatus || {};
-    const keys = Object.keys(statusMap);
-    if (keys.length > 0) {
-      return keys.map((key, idx) => ({
-        stage: key,
-        count: statusMap[key] || 0,
-        highlight: idx === 1,
-      }));
-    }
-    return [
-      { stage: 'Fresh', count: stats?.total ? Math.round(stats.total * 0.4) : 0, highlight: false },
-      { stage: 'Connected', count: stats?.total ? Math.round(stats.total * 0.3) : 0, highlight: true },
-      { stage: 'Demo Scheduled', count: adminStats?.demosScheduledThisMonth || 0, highlight: false },
-      { stage: 'Won', count: adminStats?.revenueWon ? Math.round(adminStats.revenueWon / 1000) : 0, highlight: true },
-    ];
-  }, [adminStats, stats]);
-
-  // Real Database Sparkline Data
-  const leadSparklineData = useMemo(() => {
-    const total = stats?.total || 0;
-    return [
-      { name: '1', value: Math.round(total * 0.1) },
-      { name: '2', value: Math.round(total * 0.25) },
-      { name: '3', value: Math.round(total * 0.4) },
-      { name: '4', value: Math.round(total * 0.6) },
-      { name: '5', value: Math.round(total * 0.75) },
-      { name: '6', value: Math.round(total * 0.9) },
-      { name: '7', value: total },
-    ];
-  }, [stats]);
-
-  if (loading) return (
-    <div className="flex items-center justify-center h-80 bg-[#f4f6f8]">
-      <div className="w-10 h-10 border-4 border-[#0d6537]/20 border-t-[#0d6537] rounded-full animate-spin" />
-    </div>
-  );
-
+  /* ── DERIVED ───────────────────────────────────────── */
   const revenueWon = adminStats?.revenueWon || 0;
   const totalLeadsCount = stats?.total || 0;
   const actualDemosCombined = adminStats?.demosScheduledThisMonth || stats?.byStatus?.['Demo Scheduled'] || 0;
   const activeStaffList = employeesActivityData.employees || [];
+  const activeCount = employeesActivityData.activeEmployees || 0;
+  const totalEmployees = employeesActivityData.totalEmployees || activeStaffList.length || 0;
 
+  /* ── Loading ───────────────────────────────────────── */
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen" style={{ background: T.bg }}>
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 0.9, repeat: Infinity, ease: 'linear' }}
+          className="w-11 h-11 rounded-full"
+          style={{ border: '4px solid rgba(255,90,31,.18)', borderTopColor: T.orange }}
+        />
+      </div>
+    );
+  }
+
+  /* ═════════════════════════════════════════════════════
+     RENDER
+     ═════════════════════════════════════════════════════ */
   return (
-    <div className="min-h-screen bg-[#f8faf9] text-gray-900 p-4 sm:p-8 flex flex-col gap-6 max-w-full overflow-x-hidden font-sans">
-      
-      {/* ── TOP HEADER (Welcome & Actions) ────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <div className="min-h-screen p-6 sm:p-7" style={{ background: T.bg, color: T.ink, fontFamily: 'Inter, sans-serif' }}>
+
+      {/* ── HEADER ─────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-gray-900 flex items-center gap-2.5">
-              <span>Welcome Back,</span>
-              <span className="font-normal text-gray-500">{user?.name || 'Sujon'}</span>
-            </h1>
-            <span className="hidden sm:inline-flex items-center gap-1.5 bg-[#e6f4ea] text-[#0d6537] text-[11px] font-bold px-3 py-1 rounded-full border border-[#b7e4c7]/80">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#0d6537] animate-pulse" />
-              Live Telemetry Active
-            </span>
-          </div>
+          <h1 className="text-[26px] sm:text-[28px] font-bold tracking-tight">
+            Welcome back, <span style={{ color: T.orange }}>{user?.name || 'Ameen'}!</span>
+          </h1>
+          <p className="text-[13.5px] mt-1" style={{ color: T.muted }}>
+            Here's what's happening in your workspace today.
+          </p>
         </div>
 
-        <div className="flex items-center gap-3 flex-wrap">
-          {/* Date Range Picker Pill */}
-          <motion.div 
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="bg-white border border-gray-200/90 rounded-full px-4 py-2 text-xs font-medium text-gray-700 shadow-xs flex items-center gap-2 cursor-pointer hover:bg-gray-50 transition-colors"
-          >
-            <FaCalendar className="w-3.5 h-3.5 text-gray-500" />
-            <span>29 Jun, 2025 - 29 August, 2025</span>
-            <span className="text-gray-400 text-[10px]">▼</span>
-          </motion.div>
-
-          {/* Refresh Button */}
+        <div className="flex items-center gap-2.5 flex-wrap">
           <motion.button
-            whileHover={{ scale: 1.08, rotate: 180 }}
-            whileTap={{ scale: 0.92 }}
-            transition={{ duration: 0.3 }}
-            onClick={refresh}
-            title="Refresh Dashboard Data"
-            className="w-9 h-9 rounded-full bg-white border border-gray-200/90 flex items-center justify-center text-[#0d6537] hover:bg-gray-50 transition-colors shadow-xs cursor-pointer"
+            whileHover={{ y: -2, boxShadow: '0 6px 14px rgba(20,15,10,.08)' }}
+            whileTap={{ scale: 0.96 }}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold cursor-pointer transition"
+            style={{ background: '#fff', border: `1px solid ${T.line}` }}
           >
-            <FaRotate className="w-3.5 h-3.5" />
+            <FaFilter className="w-3.5 h-3.5" /> Filters
           </motion.button>
 
-          {/* Action Button */}
-          <motion.button 
-            whileHover={{ scale: 1.04 }}
+          <motion.button
+            whileHover={{ y: -2, boxShadow: '0 6px 14px rgba(20,15,10,.08)' }}
+            whileTap={{ scale: 0.96 }}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold cursor-pointer transition"
+            style={{ background: '#fff', border: `1px solid ${T.line}` }}
+          >
+            <FaFileLines className="w-3.5 h-3.5" /> Exports
+          </motion.button>
+
+          <motion.button
+            whileHover={{ y: -3, boxShadow: '0 12px 26px rgba(255,90,31,.42)' }}
             whileTap={{ scale: 0.96 }}
             onClick={() => navigate('/leads/new')}
-            className="bg-[#0d6537] hover:bg-[#0b542e] text-white rounded-full px-5 py-2 text-xs font-semibold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold text-white cursor-pointer transition"
+            style={{ background: T.orange, boxShadow: '0 8px 20px rgba(255,90,31,.28)' }}
           >
-            <FaPlus className="w-3 h-3" />
-            <span>Add New Lead</span>
+            <FaPlus className="w-3 h-3" /> Add card
           </motion.button>
         </div>
       </div>
 
-      {/* ── 1. ATTENDANCE & LIVE LOCATION STATUS (POSITIONED AT VERY START) ───── */}
-      <div className="w-full">
+      {/* ── EMPLOYEE TRACKING (live) ───────────────── */}
+      <div className="mb-5">
         <EmployeeTrackingCard />
       </div>
 
-      {/* ── TOP SECTION (3 COLUMNS: 1fr 1.5fr 1fr) ────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-        
-        {/* COLUMN 1: Revenue Target Card (Real MongoDB Amount Display) */}
-        <motion.div 
+      {/* ── BOTTOM ROW: Employees + Demos/Staff ───── */}
+      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-5">
+
+        {/* Employees table */}
+        <motion.div
           whileHover={{ y: -3 }}
-          transition={{ duration: 0.2 }}
-          className="lg:col-span-3 bg-white rounded-[28px] p-6 shadow-[0_4px_25px_rgba(21,38,20,0.03)] border border-gray-100/90 flex flex-col justify-between"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <div className="text-xs font-semibold text-gray-800 uppercase tracking-wider">Revenue Target</div>
-              <div className="text-[11px] font-medium text-gray-400">Total closed pipeline goal</div>
-            </div>
-            <button 
-              onClick={() => navigate('/reports')}
-              className="w-8 h-8 rounded-full bg-gray-100/80 hover:bg-gray-200 flex items-center justify-center text-gray-700 transition-colors cursor-pointer"
-              title="View Full Revenue Reports"
-            >
-              <FaArrowUpRightFromSquare className="w-3 h-3" />
-            </button>
-          </div>
-
-          {/* Featured Evergreen Gradient Banner */}
-          <div className="bg-gradient-to-br from-[#152614] via-[#1e441e] to-[#0d6537] rounded-2xl p-5 text-white shadow-lg relative overflow-hidden flex flex-col justify-between h-44 my-2 border border-emerald-900/20">
-            <div className="flex items-center justify-between">
-              <span className="text-base font-extrabold tracking-wider flex items-center gap-1.5">
-                <FaCoins className="w-4 h-4 text-emerald-300" /> AOTMS CRM
-              </span>
-              <FaWifi className="w-4 h-4 opacity-80 rotate-90 text-emerald-300" />
-            </div>
-
-            <div>
-              <div className="text-[11px] font-medium text-emerald-200 uppercase tracking-wide">Total Revenue Won</div>
-              {/* Actual MongoDB Revenue Amount Display */}
-              <div className="text-3xl font-extrabold tracking-tight mt-0.5">
-                ₹ {revenueWon.toLocaleString('en-IN')}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between text-[11px] font-mono opacity-90 text-emerald-100">
-              <span>•••• 909090</span>
-              <span>EXP 09/26</span>
-            </div>
-          </div>
-
-          {/* Bottom Revenue Growth */}
-          <div className="flex items-center justify-between pt-3 mt-2 border-t border-gray-100">
-            <div>
-              <div className="text-[11px] font-medium text-gray-400">Pipeline Closed</div>
-              <div className="text-lg font-bold text-gray-900">₹ {revenueWon.toLocaleString('en-IN')}</div>
-            </div>
-            <span className="bg-[#e6f4ea] text-[#0d6537] text-[11px] font-bold px-2.5 py-1 rounded-full">
-              {revenueWon > 0 ? '+12.8%' : '0%'}
-            </span>
-          </div>
-        </motion.div>
-
-        {/* COLUMN 2: Lead Conversion & Pipeline Trends Bar Chart Card */}
-        <motion.div 
-          whileHover={{ y: -3 }}
-          transition={{ duration: 0.2 }}
-          className="lg:col-span-6 bg-white rounded-[28px] p-6 shadow-[0_4px_25px_rgba(0,0,0,0.03)] border border-gray-100/90 flex flex-col justify-between"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-[#e6f4ea] flex items-center justify-center text-[#0d6537]">
-                <FaChartPie className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="text-sm font-semibold text-gray-900">Engagement & Pipeline Trends</div>
-                <div className="text-[11px] font-medium text-gray-400">Database conversion analytics from MongoDB</div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              {/* Pill Selector */}
-              <div className="bg-gray-100/90 p-1 rounded-full flex gap-1">
-                <button 
-                  onClick={() => setEngagementTab('Monthly')}
-                  className={`px-4 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${
-                    engagementTab === 'Monthly' ? 'bg-[#0d6537] text-white shadow-xs' : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  Monthly
-                </button>
-                <button 
-                  onClick={() => setEngagementTab('Annually')}
-                  className={`px-4 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${
-                    engagementTab === 'Annually' ? 'bg-[#0d6537] text-white shadow-xs' : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  Annually
-                </button>
-              </div>
-
-              <button 
-                onClick={() => navigate('/reports')}
-                className="w-8 h-8 rounded-full bg-gray-100/80 hover:bg-gray-200 flex items-center justify-center text-gray-700 transition-colors cursor-pointer"
-                title="View Full Reports"
-              >
-                <FaArrowUpRightFromSquare className="w-3 h-3" />
-              </button>
-            </div>
-          </div>
-
-          {/* Bar Chart Container connected to MongoDB */}
-          <div className="relative w-full h-56 mt-2">
-            <div className="absolute top-1 left-[50%] -translate-x-1/2 bg-[#0d6537] text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm z-10 flex items-center gap-1">
-              Real DB Funnel
-            </div>
-
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={pipelineChartData} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
-                <XAxis dataKey="stage" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
-                <Tooltip 
-                  contentStyle={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, fontSize: 12, color: '#0f172a', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}
-                />
-                <Bar dataKey="count" radius={[14, 14, 0, 0]}>
-                  {pipelineChartData.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={entry.highlight ? '#0d6537' : '#8bc088'} 
-                      opacity={entry.highlight ? 1 : 0.7}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </motion.div>
-
-        {/* COLUMN 3: Total System Leads Area Chart Card */}
-        <motion.div 
-          whileHover={{ y: -3 }}
-          transition={{ duration: 0.2 }}
-          className="lg:col-span-3 bg-white rounded-[28px] p-6 shadow-[0_4px_25px_rgba(0,0,0,0.03)] border border-gray-100/90 flex flex-col justify-between"
-        >
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <div className="text-xs font-semibold text-gray-800 uppercase tracking-wider">Total System Leads</div>
-                <div className="text-[11px] font-medium text-gray-400">All-time database count</div>
-              </div>
-              <button 
-                onClick={() => navigate('/leads')}
-                className="w-8 h-8 rounded-full bg-gray-100/80 hover:bg-gray-200 flex items-center justify-center text-gray-700 transition-colors cursor-pointer"
-                title="View All Leads"
-              >
-                <FaArrowUpRightFromSquare className="w-3 h-3" />
-              </button>
-            </div>
-
-            <div className="mt-3">
-              <div className="text-[11px] font-medium text-gray-400">MongoDB Database Count</div>
-              <div className="text-3xl font-black text-gray-900 tracking-tight mt-0.5">
-                {totalLeadsCount.toLocaleString()} Leads
-              </div>
-            </div>
-          </div>
-
-          {/* Area Chart Container */}
-          <div className="w-full h-24 my-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={leadSparklineData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="areaGreenGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#0d6537" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#0d6537" stopOpacity={0.0}/>
-                  </linearGradient>
-                </defs>
-                <Area type="monotone" dataKey="value" stroke="#0d6537" strokeWidth={2.5} fillOpacity={1} fill="url(#areaGreenGrad)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Action Pills */}
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={() => navigate('/leads/new')}
-              className="bg-[#0d6537] hover:bg-[#0b542e] text-white rounded-full py-2 px-4 text-xs font-semibold shadow-sm flex-1 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-            >
-              <span>Add Lead</span>
-              <FaArrowUp className="w-3 h-3" />
-            </button>
-            <button 
-              onClick={() => navigate('/leads')}
-              className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-full py-2 px-4 text-xs font-semibold flex-1 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-            >
-              <span>View All</span>
-              <FaArrowDown className="w-3 h-3" />
-            </button>
-          </div>
-        </motion.div>
-
-      </div>
-
-      {/* ── BOTTOM SECTION (2 COLUMNS: 2fr 1fr) ────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-        
-        {/* COLUMN 1: Employees Activity & Live Telemetry Table */}
-        <motion.div 
-          whileHover={{ y: -3 }}
-          transition={{ duration: 0.2 }}
-          className="lg:col-span-8 bg-white rounded-[28px] p-6 shadow-[0_4px_25px_rgba(0,0,0,0.03)] border border-gray-100/90 flex flex-col justify-between"
+          className="rounded-3xl"
+          style={{ background: '#fff', boxShadow: '0 6px 20px rgba(20,15,10,.05)', padding: 22 }}
         >
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
             <div>
-              <div className="text-base font-semibold text-gray-900 flex items-center gap-2">
-                <FaTowerCell className="w-4 h-4 text-[#0d6537]" />
-                <span>Employees Activity & Live Telemetry</span>
+              <div className="text-[14.5px] font-bold flex items-center gap-2">
+                <FaTowerCell className="w-4 h-4" style={{ color: T.orange }} />
+                Team Activity
               </div>
-              <div className="text-xs font-medium text-gray-400 mt-0.5">
-                Real-time employee presence, live GPS location & attendance
+              <div className="text-[11.5px] mt-0.5" style={{ color: T.muted }}>
+                Live presence, GPS & attendance
               </div>
             </div>
 
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 bg-gray-100/80 border border-gray-200/80 rounded-full px-3 py-1.5 text-xs">
-                <FaMagnifyingGlass className="w-3.5 h-3.5 text-gray-400" />
+              <div
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full"
+                style={{ background: T.cardSoft, border: `1px solid ${T.line}` }}
+              >
+                <FaMagnifyingGlass className="w-3.5 h-3.5" style={{ color: T.muted }} />
                 <input
                   type="text"
                   placeholder="Search staff..."
                   value={activitySearch}
                   onChange={(e) => setActivitySearch(e.target.value)}
-                  className="bg-transparent border-none outline-none text-xs text-gray-900 placeholder-gray-400 w-28 sm:w-36"
+                  className="bg-transparent border-none outline-none text-[12px] w-28 sm:w-36"
                 />
               </div>
-
-              <button 
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
                 onClick={() => navigate('/admin/employee-tracking')}
-                className="w-8 h-8 rounded-full bg-gray-100/80 hover:bg-gray-200 flex items-center justify-center text-gray-700 transition-colors shrink-0 cursor-pointer"
-                title="View Full Live Tracking"
+                className="w-9 h-9 rounded-xl grid place-items-center cursor-pointer"
+                style={{ background: `${T.orange}12`, color: T.orange }}
               >
-                <FaArrowUpRightFromSquare className="w-3 h-3" />
-              </button>
+                <FaArrowUpRightFromSquare className="w-3.5 h-3.5" />
+              </motion.button>
             </div>
           </div>
 
-          {/* Table Layout */}
           <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
+            <table className="w-full text-[12.5px] text-left">
               <thead>
-                <tr className="text-gray-400 font-medium border-b border-gray-100 pb-3">
+                <tr style={{ color: T.muted, borderBottom: `1px solid ${T.line}` }}>
                   <th className="pb-3 font-medium">Employee</th>
-                  <th className="pb-3 text-center font-medium">Live Status</th>
-                  <th className="pb-3 text-center font-medium">Attendance</th>
+                  <th className="pb-3 text-center font-medium">Status</th>
                   <th className="pb-3 text-center font-medium">Calls</th>
                   <th className="pb-3 text-right font-medium">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100/80">
-                {filteredActivityEmployees.slice(0, 5).map((emp) => {
+              <tbody>
+                {filteredActivityEmployees.slice(0, 6).map((emp) => {
                   const badge = getLiveStatusBadge(emp.liveStatus);
-                  const callInfo = emp.calls?.today || {};
-
                   return (
-                    <tr key={emp._id} className="hover:bg-gray-50/80 transition-colors">
-                      <td onClick={() => setDetailModalEmployee(emp)} className="py-3.5 cursor-pointer">
+                    <tr
+                      key={emp._id}
+                      className="transition-colors hover:bg-[#fdfbf8] cursor-pointer"
+                      style={{ borderBottom: `1px solid ${T.line}` }}
+                      onClick={() => setDetailModalEmployee(emp)}
+                    >
+                      <td className="py-3.5">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-[#e6f4ea] text-[#0d6537] font-bold text-xs flex items-center justify-center shrink-0">
+                          <div
+                            className="w-9 h-9 rounded-full grid place-items-center font-bold text-[12px] shrink-0"
+                            style={{ background: `${T.orange}15`, color: T.orange }}
+                          >
                             {emp.name?.[0]?.toUpperCase() || 'E'}
                           </div>
                           <div>
-                            <div className="font-semibold text-gray-900">{emp.name}</div>
-                            <div className="text-[10px] text-gray-400 font-medium">{emp.employeeId} • {emp.email}</div>
+                            <div className="font-semibold">{emp.name}</div>
+                            <div className="text-[10.5px]" style={{ color: T.muted }}>
+                              {emp.employeeId}
+                            </div>
                           </div>
                         </div>
                       </td>
 
-                      <td onClick={() => setStatusModalEmployee(emp)} className="py-3.5 text-center cursor-pointer">
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold border" style={{ background: badge.bg, color: badge.color, borderColor: badge.border }}>
-                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: badge.dot }} />
+                      <td className="text-center">
+                        <span
+                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold"
+                          style={{ background: badge.bg, color: badge.color }}
+                        >
+                          <motion.span
+                            animate={{ scale: [1, 1.3, 1], opacity: [1, 0.6, 1] }}
+                            transition={{ duration: 1.8, repeat: Infinity }}
+                            className="w-1.5 h-1.5 rounded-full"
+                            style={{ background: badge.dot }}
+                          />
                           {badge.label}
                         </span>
                       </td>
 
-                      <td className="py-3.5 text-center font-medium text-gray-700">
-                        {emp.todayAttendance?.startTimeFormatted || 'Not Started'}
+                      <td className="text-center font-bold">
+                        {emp.calls?.today?.count || 0}
                       </td>
 
-                      <td className="py-3.5 text-center font-bold text-gray-900">
-                        {callInfo.count || 0} Calls
-                      </td>
-
-                      <td className="py-3.5 text-right">
+                      <td className="text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <button onClick={() => setDetailModalEmployee(emp)} className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1 rounded-full text-[11px] font-semibold transition-colors cursor-pointer">
+                          <motion.button
+                            whileHover={{ y: -2 }}
+                            whileTap={{ scale: 0.94 }}
+                            onClick={(e) => { e.stopPropagation(); setDetailModalEmployee(emp); }}
+                            className="px-3 py-1.5 rounded-full text-[11px] font-semibold cursor-pointer"
+                            style={{ background: '#f5f2ec', color: T.ink }}
+                          >
                             Profile
-                          </button>
-                          <button onClick={() => setMapModalEmployee(emp)} className="bg-[#e6f4ea] hover:bg-[#d1e7dd] text-[#0d6537] px-3 py-1 rounded-full text-[11px] font-semibold transition-colors cursor-pointer">
+                          </motion.button>
+                          <motion.button
+                            whileHover={{ y: -2 }}
+                            whileTap={{ scale: 0.94 }}
+                            onClick={(e) => { e.stopPropagation(); setMapModalEmployee(emp); }}
+                            className="px-3 py-1.5 rounded-full text-[11px] font-semibold cursor-pointer text-white"
+                            style={{ background: T.orange }}
+                          >
                             Map
-                          </button>
+                          </motion.button>
                         </div>
                       </td>
                     </tr>
@@ -601,149 +1418,222 @@ export default function Dashboard() {
           </div>
         </motion.div>
 
-        {/* COLUMN 2: Strategic Demos Scheduled & Active Staff Avatar Stack */}
-        <motion.div 
+        {/* Right panel: Demos + staff avatars */}
+        <motion.div
           whileHover={{ y: -3 }}
-          transition={{ duration: 0.2 }}
-          className="lg:col-span-4 bg-white rounded-[28px] p-6 shadow-[0_4px_25px_rgba(0,0,0,0.03)] border border-gray-100/90 flex flex-col justify-between gap-6"
+          className="rounded-3xl flex flex-col gap-6"
+          style={{ background: '#fff', boxShadow: '0 6px 20px rgba(20,15,10,.05)', padding: 22 }}
         >
-          {/* Section 1: Strategic Demos Scheduled (Linked to MongoDB) */}
+          {/* Demos */}
           <div>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[#e6f4ea] flex items-center justify-center text-[#0d6537]">
+                <div className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: `${T.blue}15`, color: T.blue }}>
                   <FaCalendarCheck className="w-4 h-4" />
                 </div>
                 <div>
-                  <div className="text-xs font-semibold text-gray-900">Strategic Demos Scheduled</div>
-                  <div className="text-[11px] font-medium text-gray-400">Scheduled client demos this month</div>
+                  <div className="text-[13px] font-bold">Demos Scheduled</div>
+                  <div className="text-[11px]" style={{ color: T.muted }}>This month</div>
                 </div>
               </div>
-
-              {/* Action Button linking to Demos */}
-              <button 
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
                 onClick={() => navigate('/tasks')}
-                className="w-8 h-8 rounded-full bg-gray-100/80 hover:bg-gray-200 flex items-center justify-center text-gray-700 transition-colors cursor-pointer"
-                title="View Scheduled Demos & Tasks"
+                className="w-9 h-9 rounded-xl grid place-items-center cursor-pointer"
+                style={{ background: `${T.blue}12`, color: T.blue }}
               >
-                <FaArrowUpRightFromSquare className="w-3 h-3" />
-              </button>
+                <FaArrowUpRightFromSquare className="w-3.5 h-3.5" />
+              </motion.button>
             </div>
 
-            <div className="flex items-baseline gap-2 mt-4">
-              <span className="text-3xl font-black text-gray-900 tracking-tight">{actualDemosCombined} Demos</span>
-              <span className="bg-[#e6f4ea] text-[#0d6537] text-[11px] font-bold px-2.5 py-0.5 rounded-full">
-                MongoDB Live
+            <div className="flex items-baseline gap-2 mt-3">
+              <span className="text-[30px] font-black tracking-tight">{actualDemosCombined}</span>
+              <span
+                className="text-[11px] font-bold px-2.5 py-0.5 rounded-full"
+                style={{ background: `${T.orange}15`, color: T.orange }}
+              >
+                Live
               </span>
             </div>
           </div>
 
-          {/* Section 2: Active Staff Presence & Interactive Profiles */}
-          <div className="pt-4 border-t border-gray-100">
+          {/* Active staff avatars */}
+          <div className="pt-4" style={{ borderTop: `1px solid ${T.line}` }}>
             <div className="flex items-center justify-between mb-4">
               <div>
-                <div className="text-xs font-semibold text-gray-900">Active Staff Presence</div>
-                <div className="text-[11px] font-medium text-gray-400">Real-time team employee avatars</div>
+                <div className="text-[13px] font-bold">Team Presence</div>
+                <div className="text-[11px]" style={{ color: T.muted }}>
+                  {activeCount} active now
+                </div>
               </div>
-              <button 
-                onClick={() => navigate('/admin/attendance-records')}
-                className="w-8 h-8 rounded-full bg-gray-100/80 hover:bg-gray-200 flex items-center justify-center text-gray-700 transition-colors cursor-pointer"
-                title="View Attendance Records"
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => navigate('/users')}
+                className="w-9 h-9 rounded-xl grid place-items-center cursor-pointer"
+                style={{ background: `${T.orange}12`, color: T.orange }}
               >
-                <FaArrowUpRightFromSquare className="w-3 h-3" />
-              </button>
+                <FaArrowUpRightFromSquare className="w-3.5 h-3.5" />
+              </motion.button>
             </div>
 
-            {/* Dynamic Overlapping Avatar Stack of real active employees */}
-            <div className="flex items-center -space-x-3 cursor-pointer" onClick={() => navigate('/users')}>
-              {activeStaffList.slice(0, 4).map((emp, idx) => (
-                <div 
+            <div className="flex items-center -space-x-3">
+              {activeStaffList.slice(0, 5).map((emp, idx) => (
+                <motion.div
                   key={emp._id || idx}
-                  onClick={(e) => { e.stopPropagation(); setDetailModalEmployee(emp); }}
-                  className="w-10 h-10 rounded-full border-2 border-white bg-[#e6f4ea] text-[#0d6537] font-bold text-xs flex items-center justify-center shadow-xs hover:scale-110 transition-transform"
-                  title={`View ${emp.name}'s Profile`}
+                  whileHover={{ scale: 1.15, zIndex: 10 }}
+                  onClick={() => setDetailModalEmployee(emp)}
+                  className="w-10 h-10 rounded-full grid place-items-center font-bold text-[12px] cursor-pointer"
+                  style={{ background: `${T.orange}20`, color: T.orange, border: '2px solid #fff' }}
+                  title={emp.name}
                 >
                   {emp.name?.[0]?.toUpperCase() || 'E'}
-                </div>
+                </motion.div>
               ))}
-              {activeStaffList.length > 4 && (
-                <div className="w-10 h-10 rounded-full border-2 border-white bg-[#0d6537] text-white font-bold text-xs flex items-center justify-center shadow-xs">
-                  +{activeStaffList.length - 4}
+              {activeStaffList.length > 5 && (
+                <div
+                  className="w-10 h-10 rounded-full grid place-items-center font-bold text-[12px] text-white"
+                  style={{ background: T.orange, border: '2px solid #fff' }}
+                >
+                  +{activeStaffList.length - 5}
                 </div>
               )}
             </div>
           </div>
         </motion.div>
-
       </div>
 
-      {/* ── MODALS (Map, Details) ──────────────────────────── */}
+      {/* ── MODALS ─────────────────────────────────── */}
       <AnimatePresence>
         {mapModalEmployee && (
-          <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setMapModalEmployee(null)}>
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-[28px] w-full max-w-4xl h-[80vh] flex flex-col shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
-              <div className="p-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: 'rgba(20,15,10,.55)', backdropFilter: 'blur(6px)' }}
+            onClick={() => setMapModalEmployee(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 12 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+              className="w-full max-w-4xl h-[80vh] flex flex-col rounded-3xl overflow-hidden"
+              style={{ background: '#fff' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-4 flex items-center justify-between" style={{ background: T.cardSoft, borderBottom: `1px solid ${T.line}` }}>
                 <div className="flex items-center gap-3">
-                  <FaMapLocationDot className="w-5 h-5 text-[#0d6537]" />
+                  <FaMapLocationDot className="w-5 h-5" style={{ color: T.orange }} />
                   <div>
-                    <div className="text-sm font-bold text-gray-900">Live Map — {mapModalEmployee.name} ({mapModalEmployee.employeeId})</div>
-                    <div className="text-xs text-gray-500">{mapModalEmployee.location?.formattedAddress || 'Tracking live'}</div>
+                    <div className="text-[14px] font-bold">
+                      Live Map — {mapModalEmployee.name}
+                    </div>
+                    <div className="text-[12px]" style={{ color: T.muted }}>
+                      {mapModalEmployee.location?.formattedAddress || 'Tracking live'}
+                    </div>
                   </div>
                 </div>
-                <button onClick={() => setMapModalEmployee(null)} className="text-gray-400 hover:text-gray-700 cursor-pointer">
+                <motion.button
+                  whileHover={{ scale: 1.15, rotate: 90 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setMapModalEmployee(null)}
+                  className="cursor-pointer"
+                  style={{ color: T.muted }}
+                >
                   <FaXmark className="w-5 h-5" />
-                </button>
+                </motion.button>
               </div>
 
               <div className="flex-1 relative">
-                <LiveMap employees={[mapModalEmployee]} selectedEmployee={mapModalEmployee} onSelectEmployee={() => {}} officeConfig={employeesActivityData.office} />
+                <LiveMap
+                  employees={[mapModalEmployee]}
+                  selectedEmployee={mapModalEmployee}
+                  onSelectEmployee={() => {}}
+                  officeConfig={employeesActivityData.office}
+                />
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
-      {/* ── MODAL: Complete Employee Details ───────────────────────── */}
       <AnimatePresence>
         {detailModalEmployee && (
-          <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setDetailModalEmployee(null)}>
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-[28px] w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden text-gray-900" onClick={(e) => e.stopPropagation()}>
-              <div className="p-5 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: 'rgba(20,15,10,.55)', backdropFilter: 'blur(6px)' }}
+            onClick={() => setDetailModalEmployee(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 12 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+              className="w-full max-w-3xl max-h-[90vh] flex flex-col rounded-3xl overflow-hidden"
+              style={{ background: '#fff' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-5 flex items-center justify-between" style={{ background: T.cardSoft, borderBottom: `1px solid ${T.line}` }}>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-[#e6f4ea] text-[#0d6537] font-bold text-sm flex items-center justify-center">
-                    {detailModalEmployee.name?.[0]?.toUpperCase() || 'E'}
+                  <div
+                    className="w-11 h-11 rounded-full grid place-items-center font-bold text-[14px]"
+                    style={{ background: `${T.orange}20`, color: T.orange }}
+                  >
+                    {detailModalEmployee.name?.[0]?.toUpperCase()}
                   </div>
                   <div>
-                    <div className="text-base font-bold text-gray-900">{detailModalEmployee.name} ({detailModalEmployee.employeeId})</div>
-                    <div className="text-xs text-gray-500">{detailModalEmployee.email} • {detailModalEmployee.role?.toUpperCase()}</div>
+                    <div className="text-[15px] font-bold">{detailModalEmployee.name}</div>
+                    <div className="text-[12px]" style={{ color: T.muted }}>
+                      {detailModalEmployee.email}
+                    </div>
                   </div>
                 </div>
-                <button onClick={() => setDetailModalEmployee(null)} className="text-gray-400 hover:text-gray-700 cursor-pointer">
+                <motion.button
+                  whileHover={{ scale: 1.15, rotate: 90 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setDetailModalEmployee(null)}
+                  className="cursor-pointer"
+                  style={{ color: T.muted }}
+                >
                   <FaXmark className="w-5 h-5" />
-                </button>
+                </motion.button>
               </div>
 
-              <div className="p-6 overflow-y-auto flex flex-col gap-4 text-xs">
-                <div className="bg-[#e6f4ea] border border-[#b7e4c7] rounded-2xl p-4">
-                  <div className="text-xs font-bold text-[#0d6537] uppercase mb-2">Today's Attendance</div>
-                  <div className="grid grid-cols-2 gap-2 text-gray-700">
-                    <div>Start Time: <strong>{detailModalEmployee.todayAttendance?.startTimeFormatted || 'Not Started'}</strong></div>
-                    <div>Logout Time: <strong>{detailModalEmployee.todayAttendance?.endTimeFormatted || '—'}</strong></div>
-                    <div>Duration: <strong className="font-mono">{detailModalEmployee.todayAttendance?.durationFormatted || '00:00:00'}</strong></div>
-                    <div>Actual Work: <strong className="font-mono text-[#0d6537]">{detailModalEmployee.todayAttendance?.formattedActualWork || '0m'}</strong></div>
+              <div className="p-6 overflow-y-auto flex flex-col gap-4 text-[12.5px]">
+                <div className="rounded-2xl p-4" style={{ background: `${T.orange}10` }}>
+                  <div className="text-[12px] font-bold uppercase mb-2" style={{ color: T.orange }}>
+                    Today's Attendance
+                  </div>
+                  <div className="grid grid-cols-2 gap-2" style={{ color: T.inkSoft }}>
+                    <div>Start: <strong style={{ color: T.ink }}>{detailModalEmployee.todayAttendance?.startTimeFormatted || 'Not Started'}</strong></div>
+                    <div>End: <strong style={{ color: T.ink }}>{detailModalEmployee.todayAttendance?.endTimeFormatted || '—'}</strong></div>
+                    <div>Duration: <strong style={{ color: T.ink }}>{detailModalEmployee.todayAttendance?.durationFormatted || '00:00:00'}</strong></div>
+                    <div>Actual: <strong style={{ color: T.orange }}>{detailModalEmployee.todayAttendance?.formattedActualWork || '0m'}</strong></div>
                   </div>
                 </div>
 
-                <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
+                <div className="rounded-2xl p-4" style={{ background: T.cardSoft, border: `1px solid ${T.line}` }}>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-gray-700 uppercase flex items-center gap-2">
-                      <FaLocationDot className="text-[#0d6537]" /> Live GPS Location
+                    <span className="text-[12px] font-bold uppercase flex items-center gap-2">
+                      <FaLocationDot style={{ color: T.orange }} /> Live GPS
                     </span>
-                    <button onClick={() => { const t = detailModalEmployee; setDetailModalEmployee(null); setMapModalEmployee(t); }} className="bg-[#0d6537] text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 cursor-pointer">
+                    <motion.button
+                      whileHover={{ y: -2 }}
+                      whileTap={{ scale: 0.94 }}
+                      onClick={() => {
+                        const t = detailModalEmployee;
+                        setDetailModalEmployee(null);
+                        setMapModalEmployee(t);
+                      }}
+                      className="px-3 py-1.5 rounded-full text-[11px] font-semibold text-white flex items-center gap-1.5 cursor-pointer"
+                      style={{ background: T.orange }}
+                    >
                       <FaMapLocationDot /> View Map
-                    </button>
+                    </motion.button>
                   </div>
-                  <div className="text-gray-800 font-medium">{detailModalEmployee.location?.formattedAddress || 'Location unavailable'}</div>
+                  <div className="font-medium">
+                    {detailModalEmployee.location?.formattedAddress || 'Location unavailable'}
+                  </div>
                 </div>
               </div>
             </motion.div>
