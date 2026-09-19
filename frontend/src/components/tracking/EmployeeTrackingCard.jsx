@@ -381,62 +381,37 @@ export default function EmployeeTrackingCard({ compact = false }) {
 
   return (
     <div
-      style={{
-        background: 'linear-gradient(145deg, #ffffff 0%, #f1faee 100%)',
-        border: '1.5px solid #a8dadc',
-        borderRadius: 16,
-        padding: compact ? '16px 18px' : '22px 26px',
-        boxShadow: '0 4px 20px rgba(29, 53, 87, 0.07)',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
+      className="bg-white rounded-[28px] border border-gray-100/90 p-6 shadow-[0_4px_25px_rgba(0,0,0,0.03)] relative overflow-hidden text-gray-900"
     >
       {/* Top Header Bar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 14 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div className="flex items-center gap-3">
           <div
+            className="w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-lg shrink-0 border shadow-xs"
             style={{
-              width: 46,
-              height: 46,
-              borderRadius: 12,
-              background: isTracking ? '#edf8f8' : isOnBreak ? '#fffbeb' : isCompletedToday ? '#eff6ff' : '#fad7da',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: isTracking ? '#1d3557' : isOnBreak ? '#d97706' : isCompletedToday ? '#2563eb' : '#e63946',
-              border: `1.5px solid ${isTracking ? '#a8dadc' : isOnBreak ? '#fde68a' : isCompletedToday ? '#bfdbfe' : '#f08790'}`,
-              fontSize: 24,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+              background: isTracking ? '#e6f4ea' : isOnBreak ? '#fef3c7' : isCompletedToday ? '#dcfce7' : '#ffe4e6',
+              color: isTracking ? '#0d6537' : isOnBreak ? '#b45309' : isCompletedToday ? '#15803d' : '#e11d48',
+              borderColor: isTracking ? '#b7e4c7' : isOnBreak ? '#fde68a' : isCompletedToday ? '#86efac' : '#fecdd3',
             }}
           >
-            {isTracking ? '📅' : isOnBreak ? '☕' : isCompletedToday ? '✅' : '🌴'}
+            {isTracking ? <FaCalendarCheck className="w-5 h-5 text-[#0d6537]" /> : isOnBreak ? <FaMugHot className="w-5 h-5 text-amber-600" /> : isCompletedToday ? <FaCircleCheck className="w-5 h-5 text-emerald-600" /> : <FaClock className="w-5 h-5 text-rose-500" />}
           </div>
           <div>
-            <h4 style={{ margin: 0, fontSize: 16.5, fontWeight: 700, color: '#1d3557', letterSpacing: '-0.2px' }}>
-              Attendance & Live Location Status
+            <h4 className="m-0 text-base font-semibold text-gray-900 tracking-tight flex items-center gap-2">
+              <FaTowerCell className="w-4 h-4 text-[#0d6537]" />
+              <span>Attendance & Live Location Status</span>
             </h4>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 3 }}>
+            <div className="flex items-center gap-2 mt-1">
               <span
+                className="w-2 h-2 rounded-full animate-pulse"
                 style={{
-                  display: 'inline-block',
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  background: isTracking ? '#10b981' : isOnBreak ? '#f59e0b' : isCompletedToday ? '#3b82f6' : '#ef4444',
-                  boxShadow: isTracking
-                    ? '0 0 6px #10b981'
-                    : isOnBreak
-                    ? '0 0 6px #f59e0b'
-                    : isCompletedToday
-                    ? '0 0 6px #3b82f6'
-                    : '0 0 6px #ef4444',
+                  background: isTracking ? '#0d6537' : isOnBreak ? '#f59e0b' : isCompletedToday ? '#22c55e' : '#ef4444',
                 }}
               />
               <span
+                className="text-xs font-medium"
                 style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: isTracking ? '#059669' : isOnBreak ? '#d97706' : isCompletedToday ? '#2563eb' : '#cb1928',
+                  color: isTracking ? '#0d6537' : isOnBreak ? '#b45309' : isCompletedToday ? '#15803d' : '#e11d48',
                 }}
               >
                 {isTracking
@@ -452,46 +427,28 @@ export default function EmployeeTrackingCard({ compact = false }) {
         </div>
 
         {/* 3 Attendance Action Buttons: Start, Break/Resume, Stop */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <div className="flex items-center gap-2.5 flex-wrap">
           {/* Button 1: Start Attendance */}
           <button
             id="start-attendance-btn"
             onClick={handleStartAttendance}
             disabled={actionLoading || initialLoading || simulating || isTracking || isOnBreak}
             title={isTracking || isOnBreak ? 'Attendance is currently active' : 'Click to start attendance and enable live GPS location'}
-            style={{
-              background: isTracking || isOnBreak ? '#dcf0f1' : 'linear-gradient(135deg, #1d3557 0%, #457b9d 100%)',
-              color: isTracking || isOnBreak ? '#88b1cb' : '#ffffff',
-              border: 'none',
-              borderRadius: 10,
-              padding: '9px 18px',
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: isTracking || isOnBreak || actionLoading || initialLoading ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              boxShadow: isTracking || isOnBreak ? 'none' : '0 3px 12px rgba(29, 53, 87, 0.2)',
-              transition: 'all 0.15s',
-              opacity: actionLoading && !isTracking && !isOnBreak ? 0.8 : 1,
-            }}
+            className={`rounded-full px-5 py-2 text-xs font-semibold flex items-center gap-2 transition-all ${
+              isTracking || isOnBreak
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
+                : 'bg-[#0d6537] hover:bg-[#0b542e] text-white shadow-sm cursor-pointer'
+            }`}
           >
             {actionLoading && !isTracking && !isOnBreak ? (
               <>
-                <svg
-                  style={{ animation: 'spin 1s linear infinite', width: 16, height: 16 }}
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                >
-                  <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
-                </svg>
-                Starting...
+                <div className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                <span>Starting...</span>
               </>
             ) : (
               <>
-                <span style={{ fontSize: 14 }}>📅</span> Start Attendance
+                <FaCalendarCheck className="w-3.5 h-3.5" />
+                <span>Start Attendance</span>
               </>
             )}
           </button>
@@ -503,29 +460,14 @@ export default function EmployeeTrackingCard({ compact = false }) {
               id="resume-work-btn"
               onClick={handleResumeWork}
               disabled={actionLoading || initialLoading || simulating}
-              title="Click to end break and resume actual working hours"
-              style={{
-                background: GRADIENT,
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: 10,
-                padding: '9px 18px',
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: actionLoading ? 'wait' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                boxShadow: '0 3px 12px rgba(2, 132, 199, 0.25)',
-                transition: 'all 0.15s',
-                animation: 'pulse-glow 2s infinite',
-              }}
+              className="bg-[#0d6537] hover:bg-[#0b542e] text-white rounded-full px-5 py-2 text-xs font-semibold shadow-sm flex items-center gap-2 transition-all"
             >
               {actionLoading ? (
-                'Resuming...'
+                <span>Resuming...</span>
               ) : (
                 <>
-                  <span style={{ fontSize: 14 }}>▶️</span> Resume Work
+                  <FaPlay className="w-3 h-3" />
+                  <span>Resume Work</span>
                 </>
               )}
             </button>
@@ -535,28 +477,18 @@ export default function EmployeeTrackingCard({ compact = false }) {
               id="take-break-btn"
               onClick={handleStartBreak}
               disabled={actionLoading || initialLoading || simulating || !isTracking}
-              title={!isTracking ? 'Start attendance first to take a break' : 'Click to take a break and pause working hours'}
-              style={{
-                background: !isTracking ? '#f1faee' : '#fffbeb',
-                color: !isTracking ? '#88b1cb' : '#b45309',
-                border: `1px solid ${!isTracking ? '#cae9ea' : '#fde68a'}`,
-                borderRadius: 10,
-                padding: '9px 18px',
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: !isTracking || actionLoading || initialLoading ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                transition: 'all 0.15s',
-                opacity: actionLoading && isTracking ? 0.8 : 1,
-              }}
+              className={`rounded-full px-5 py-2 text-xs font-semibold flex items-center gap-2 transition-all ${
+                !isTracking
+                  ? 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed'
+                  : 'bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 cursor-pointer'
+              }`}
             >
               {actionLoading && isTracking ? (
-                'Pausing...'
+                <span>Pausing...</span>
               ) : (
                 <>
-                  <span style={{ fontSize: 14 }}>☕</span> Take Break
+                  <FaMugHot className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Take Break</span>
                 </>
               )}
             </button>
@@ -567,28 +499,18 @@ export default function EmployeeTrackingCard({ compact = false }) {
             id="stop-attendance-btn"
             onClick={handleStopAttendance}
             disabled={actionLoading || initialLoading || simulating || (!isTracking && !isOnBreak)}
-            title={!isTracking && !isOnBreak ? 'Attendance is not active' : 'Click to finish attendance session and calculate final working hours'}
-            style={{
-              background: !isTracking && !isOnBreak ? '#f1faee' : '#fad7da',
-              color: !isTracking && !isOnBreak ? '#88b1cb' : '#e63946',
-              border: `1px solid ${!isTracking && !isOnBreak ? '#cae9ea' : '#f08790'}`,
-              borderRadius: 10,
-              padding: '9px 18px',
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: !isTracking && !isOnBreak || actionLoading || initialLoading ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              transition: 'all 0.15s',
-              opacity: actionLoading && (isTracking || isOnBreak) ? 0.8 : 1,
-            }}
+            className={`rounded-full px-5 py-2 text-xs font-semibold flex items-center gap-2 transition-all ${
+              !isTracking && !isOnBreak
+                ? 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed'
+                : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 cursor-pointer'
+            }`}
           >
             {actionLoading && (isTracking || isOnBreak) ? (
-              'Stopping...'
+              <span>Stopping...</span>
             ) : (
               <>
-                <span style={{ fontSize: 14 }}>🌴</span> Stop / Leave
+                <FaStop className="w-3 h-3 text-rose-600" />
+                <span>Stop / Leave</span>
               </>
             )}
           </button>
