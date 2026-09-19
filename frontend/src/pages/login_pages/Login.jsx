@@ -23,7 +23,7 @@ body.lamp-page-active {
   margin: 0;
   background: #04040a !important;
   font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  color: #e9e9f0;
+  color: #ffffff !important;
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
 }
@@ -34,25 +34,27 @@ body.lamp-page-active {
   width: 100vw;
   height: 100vh;
   margin: 0;
-  background: #04040a;
+  background: #04040a !important;
   font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  color: #e9e9f0;
+  color: #ffffff !important;
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
   z-index: 1;
 }
 
 /* ==========================================================
-   2. LAMP  (right side)
+   2. LAMP (Right Side Hanging Lamp)
    ========================================================== */
 .lamp {
   position: fixed;
-  top: 0; right: var(--lamp-right);
-  width: var(--lamp-w); height: 380px;
+  top: 0; 
+  right: var(--lamp-right);
+  width: var(--lamp-w); 
+  height: 380px;
   transform: scale(var(--s));
   transform-origin: top right;
   cursor: pointer;
-  z-index: 3;
+  z-index: 30;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -65,7 +67,7 @@ body.lamp-page-active {
   border-radius: 3px;
 }
 
-/* --- BULB : blinks on hover --- */
+/* --- BULB --- */
 .bulb {
   position: absolute;
   top: 180px; left: 50%;
@@ -77,14 +79,14 @@ body.lamp-page-active {
 }
 body.lit .bulb,
 .lamp-login-root.lit .bulb {
-  background: #fff6d6;
+  background: #fff6d6 !important;
   box-shadow:
     0 0 18px 6px rgba(255,220,140,.95),
-    0 0 60px 18px rgba(255,190,80,.65);
+    0 0 60px 18px rgba(255,190,80,.65) !important;
   animation: blink 1.6s ease-in-out infinite;
 }
 
-/* --- SHADE : subtle blink --- */
+/* --- SHADE --- */
 .shade {
   position: absolute;
   top: 70px; left: 50%;
@@ -126,7 +128,7 @@ body.lit .cord,
 }
 body.lit .knob,
 .lamp-login-root.lit .knob {
-  box-shadow: 0 3px 9px rgba(0,0,0,.9), 0 0 16px rgba(255,190,80,.6);
+  box-shadow: 0 3px 9px rgba(0,0,0,.9), 0 0 16px rgba(255,190,80,.6) !important;
 }
 
 /* ==========================================================
@@ -157,7 +159,7 @@ body.lit .knob,
 }
 
 /* ==========================================================
-   4. STAGE + CARD
+   4. STAGE + DEEP BLACK CARD
    ========================================================== */
 .stage {
   position: fixed;
@@ -166,20 +168,25 @@ body.lit .knob,
   align-items: center;
   justify-content: center;
   perspective: 1600px;
-  z-index: 2;
+  z-index: 20;
 }
 
-.card {
+/* Force pure deep obsidian black card with crisp white text */
+body .lamp-login-root .card,
+body .lamp-card,
+.card.lamp-card {
   position: relative;
   width: 400px;
   max-width: 92vw;
   padding: 44px 40px 36px;
   border-radius: 22px;
-  border: 1px solid rgba(255,255,255,.07);
-  background: linear-gradient(155deg, rgba(40,40,54,.86), rgba(11,11,17,.93));
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 40px 90px rgba(0,0,0,.8);
+  background: linear-gradient(155deg, rgba(32,32,46,0.96), rgba(8,8,15,0.98)) !important;
+  background-color: #0b0b12 !important;
+  border: 1px solid rgba(255,255,255,0.12) !important;
+  border-image: none !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 40px 90px rgba(0,0,0,0.9) !important;
   transform-style: preserve-3d;
   opacity: 0;
   pointer-events: none;
@@ -190,15 +197,23 @@ body.lit .knob,
     transform 1.15s cubic-bezier(.19,1,.22,1),
     opacity .7s ease,
     box-shadow .9s ease;
+  color: #ffffff !important;
 }
+
 body.lit .card,
-.lamp-login-root.lit .card {
-  opacity: 1;
-  pointer-events: auto;
-  transform: rotateY(0) rotateX(0) translateZ(0) translateY(0) scale(1);
+body.lit .lamp-card,
+.lamp-login-root.lit .card,
+.lamp-login-root.lit .lamp-card {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  transform: rotateY(0) rotateX(0) translateZ(0) translateY(0) scale(1) !important;
+  background: linear-gradient(155deg, rgba(35,35,50,0.96), rgba(9,9,16,0.98)) !important;
+  background-color: #0b0b13 !important;
+  border: 1px solid rgba(255,255,255,0.14) !important;
+  border-image: none !important;
   box-shadow:
-    0 40px 90px rgba(0,0,0,.85),
-    inset 0 1px 0 rgba(255,255,255,.07);
+    0 40px 90px rgba(0,0,0,0.95),
+    inset 0 1px 0 rgba(255,255,255,0.1) !important;
 }
 
 /* parallax layer */
@@ -206,44 +221,49 @@ body.lit .card,
   transform-style: preserve-3d;
   transform: rotateY(var(--tiltY, 0deg)) rotateX(var(--tiltX, 0deg));
   transition: transform .18s ease-out;
+  color: #ffffff !important;
 }
 
 /* ==========================================================
-   5. FORM  — 3D FIELDS
+   5. 3D FORM & WHITE TEXT
    ========================================================== */
 .brand {
   font-size: 11px;
   letter-spacing: .38em;
   text-transform: uppercase;
-  color: #83839a;
+  color: #ffffff !important;
   margin-bottom: 22px;
   transform: translateZ(30px);
+  font-weight: 600;
 }
 .brand::before {
   content: "◈ ";
-  color: var(--amber);
+  color: var(--amber) !important;
 }
 
+.lamp-card h1,
 .card h1 {
   margin: 0 0 8px;
   font-size: 28px;
   font-weight: 600;
   letter-spacing: -.02em;
-  color: #f4f4fa;
+  color: #ffffff !important;
   transform: translateZ(34px);
 }
-.sub {
+
+.lamp-card .sub,
+.card .sub {
   margin: 0 0 30px;
   font-size: 13px;
-  color: #74748a;
+  color: #cbd5e1 !important;
   transform: translateZ(20px);
 }
 
 /* Error message banner */
 .login-error-msg {
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.35);
-  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.2) !important;
+  border: 1px solid rgba(239, 68, 68, 0.45) !important;
+  color: #fecaca !important;
   padding: 10px 14px;
   border-radius: 10px;
   font-size: 12px;
@@ -268,35 +288,36 @@ body.lit .card,
   font-size: 10.5px;
   letter-spacing: .18em;
   text-transform: uppercase;
-  color: #8a8aa0;
+  color: #e2e8f0 !important;
   margin-bottom: 9px;
   transform: translateZ(12px);
   transform-origin: left center;
   transition: color .3s ease, transform .4s ease;
+  font-weight: 500;
 }
 .field:focus-within label {
-  color: var(--amber);
+  color: var(--amber) !important;
   transform: translateZ(22px) translateX(2px);
 }
 
-/* ---- 3D INPUT ---- */
+/* ---- 3D INPUT (Black glass background, white text) ---- */
 .field input {
   width: 100%;
   padding: 15px 16px;
   font-family: inherit;
   font-size: 14px;
-  color: #eaeaf2;
-  background: linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.025));
-  border: 1px solid rgba(255,255,255,.10);
+  color: #ffffff !important;
+  background: rgba(255,255,255,0.06) !important;
+  border: 1px solid rgba(255,255,255,0.16) !important;
+  border-image: none !important;
   border-radius: 12px;
   outline: none;
   transform-style: preserve-3d;
   transform: translateZ(0);
   box-shadow:
-    0 1px 0 rgba(255,255,255,.06) inset,
-    0 -1px 0 rgba(0,0,0,.4) inset,
-    0 8px 18px rgba(0,0,0,.45),
-    0 2px 0 rgba(0,0,0,.35);
+    0 1px 0 rgba(255,255,255,.08) inset,
+    0 -1px 0 rgba(0,0,0,.5) inset,
+    0 8px 18px rgba(0,0,0,.5) !important;
   transition:
     transform .35s cubic-bezier(.2,.9,.3,1.3),
     box-shadow .35s ease,
@@ -304,28 +325,29 @@ body.lit .card,
     background .3s ease;
 }
 .field input::placeholder { 
-  color: #4f4f5e; 
+  color: #94a3b8 !important; 
 }
 
 .field input:hover {
   transform: translateZ(10px);
-  border-color: rgba(255,255,255,.18);
+  border-color: rgba(255,255,255,.28) !important;
+  background: rgba(255,255,255,0.08) !important;
   box-shadow:
-    0 1px 0 rgba(255,255,255,.08) inset,
-    0 -1px 0 rgba(0,0,0,.4) inset,
-    0 14px 26px rgba(0,0,0,.55),
-    0 3px 0 rgba(0,0,0,.35);
+    0 1px 0 rgba(255,255,255,.1) inset,
+    0 -1px 0 rgba(0,0,0,.5) inset,
+    0 14px 26px rgba(0,0,0,.6) !important;
 }
 
 .field input:focus {
   transform: translateZ(26px) rotateX(-1.5deg);
-  border-color: rgba(255,196,90,.7);
-  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.035));
+  border-color: rgba(255,196,90,.85) !important;
+  background: rgba(255,255,255,0.11) !important;
+  color: #ffffff !important;
   box-shadow:
-    0 0 0 3px rgba(255,190,80,.14),
-    0 18px 36px rgba(0,0,0,.6),
-    0 0 34px rgba(255,180,60,.30),
-    0 3px 0 rgba(0,0,0,.4);
+    0 0 0 3px rgba(255,190,80,.18),
+    0 18px 36px rgba(0,0,0,.65),
+    0 0 34px rgba(255,180,60,.35),
+    0 3px 0 rgba(0,0,0,.4) !important;
 }
 
 /* focus dot */
@@ -339,7 +361,7 @@ body.lit .card,
   background: var(--amber);
   opacity: 0;
   transform: scale(.4);
-  box-shadow: 0 0 12px 3px rgba(255,190,80,.7);
+  box-shadow: 0 0 12px 3px rgba(255,190,80,.8) !important;
   transition: opacity .3s ease, transform .3s cubic-bezier(.2,1.6,.4,1);
   pointer-events: none;
 }
@@ -348,8 +370,9 @@ body.lit .card,
   transform: scale(1);
 }
 
-/* ---- 3D BUTTON ---- */
-.card button,
+/* ---- 3D BUTTON (Warm Gold Gradient) ---- */
+body .lamp-login-root .card button,
+body .lamp-card button,
 button.sign-in-btn {
   width: 100%;
   margin-top: 14px;
@@ -359,15 +382,16 @@ button.sign-in-btn {
   font-weight: 700;
   letter-spacing: .08em;
   color: #241703 !important;
-  border: none;
+  border: none !important;
   border-radius: 12px;
   cursor: pointer;
   background: linear-gradient(135deg, #ffd27a, #ff9f3c) !important;
+  border-image: none !important;
   transform: translateZ(30px);
   box-shadow:
-    0 12px 26px rgba(255,150,40,.35),
+    0 12px 26px rgba(255,150,40,.38),
     0 4px 0 #b96c14,
-    0 1px 0 rgba(255,255,255,.6) inset;
+    0 1px 0 rgba(255,255,255,.6) inset !important;
   transition:
     transform .25s cubic-bezier(.2,.9,.3,1.4),
     box-shadow .25s ease,
@@ -377,30 +401,31 @@ button.sign-in-btn {
   justify-content: center;
   gap: 8px;
 }
-.card button:hover,
+body .lamp-login-root .card button:hover,
+body .lamp-card button:hover,
 button.sign-in-btn:hover {
   transform: translateZ(46px) translateY(-2px);
   filter: brightness(1.07);
   box-shadow:
-    0 20px 40px rgba(255,150,40,.5),
+    0 20px 40px rgba(255,150,40,.55),
     0 6px 0 #b96c14,
-    0 1px 0 rgba(255,255,255,.7) inset;
+    0 1px 0 rgba(255,255,255,.7) inset !important;
 }
-.card button:active,
+body .lamp-login-root .card button:active,
+body .lamp-card button:active,
 button.sign-in-btn:active {
   transform: translateZ(18px) translateY(3px);
   box-shadow:
-    0 6px 14px rgba(255,150,40,.4),
+    0 6px 14px rgba(255,150,40,.45),
     0 1px 0 #b96c14,
-    0 1px 0 rgba(255,255,255,.5) inset;
+    0 1px 0 rgba(255,255,255,.5) inset !important;
 }
-.card button:disabled,
 button.sign-in-btn:disabled {
   opacity: 0.75;
   cursor: not-allowed;
 }
 
-/* ---- ROW ---- */
+/* ---- ROW & WHITE TEXT ---- */
 .row {
   display: flex;
   justify-content: space-between;
@@ -413,13 +438,16 @@ button.sign-in-btn:disabled {
   display: flex;
   align-items: center;
   gap: 7px;
-  color: #8a8a9e;
+  color: #f1f5f9 !important;
   cursor: pointer;
   user-select: none;
   transition: color .25s;
 }
+.check span {
+  color: #f1f5f9 !important;
+}
 .check:hover { 
-  color: #c9c9da; 
+  color: #ffffff !important; 
 }
 .check input {
   width: 15px; height: 15px;
@@ -428,12 +456,12 @@ button.sign-in-btn:disabled {
   cursor: pointer;
 }
 .row a {
-  color: #8a8a9e;
+  color: #cbd5e1 !important;
   text-decoration: none;
   transition: color .25s, transform .25s;
 }
 .row a:hover {
-  color: var(--amber);
+  color: var(--amber) !important;
   transform: translateZ(10px);
 }
 
@@ -447,17 +475,17 @@ button.sign-in-btn:disabled {
   font-size: 12px;
   letter-spacing: .18em;
   text-transform: uppercase;
-  color: #5b5b73;
+  color: #8383a0 !important;
   white-space: nowrap;
   pointer-events: none;
-  z-index: 4;
+  z-index: 25;
   animation: pulse 2.4s ease-in-out infinite;
   transition: opacity .6s ease;
 }
 body.lit .hint,
 .lamp-login-root.lit .hint { 
-  opacity: 0; 
-  animation: none; 
+  opacity: 0 !important; 
+  animation: none !important; 
 }
 
 @keyframes pulse {
@@ -484,10 +512,12 @@ body.lit .hint,
     align-items: center; 
     padding-top: 60px; 
   }
+  .lamp-card,
   .card { 
     padding: 34px 26px 28px; 
     border-radius: 18px; 
   }
+  .lamp-card h1,
   .card h1 { 
     font-size: 23px; 
   }
@@ -597,9 +627,9 @@ export default function Login() {
     <div className={`lamp-login-root ${isLit ? 'lit' : ''}`}>
       <style>{lampLoginStyles}</style>
 
-      {/* LOGIN CARD */}
+      {/* LOGIN CARD (Deep Black Background, Pure White Text) */}
       <main className="stage" onClick={() => !isLit && setIsLit(true)}>
-        <form className="card" autoComplete="off" onSubmit={handleSubmit}>
+        <form className="card lamp-card" autoComplete="off" onSubmit={handleSubmit}>
           <div className="card-inner" ref={cardInnerRef}>
 
             <div className="brand">Nexus</div>

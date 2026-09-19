@@ -237,7 +237,7 @@ body {
 }
 
 /* Gradient styling for cards and key surfaces (visual only) */
-.card {
+.card:not(.lamp-card) {
   background: linear-gradient(160deg, #ffffff 0%, var(--theme-surface-faint, #f0fbff) 100%) !important;
   border-image: linear-gradient(135deg, var(--theme-primary-light, #38bdf8), var(--theme-primary-mid, #3b82f6)) 1 !important;
 }
