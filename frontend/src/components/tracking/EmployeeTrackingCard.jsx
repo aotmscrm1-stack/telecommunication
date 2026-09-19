@@ -2,6 +2,20 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import geoTracker from '../../services/geoTracker';
 import { attendanceAPI, trackingAPI } from '../../services/api';
+import {
+  FaCalendarCheck,
+  FaMugHot,
+  FaCircleCheck,
+  FaPlay,
+  FaPause,
+  FaStop,
+  FaTowerCell,
+  FaLocationDot,
+  FaClock,
+  FaRotate,
+  FaPhone,
+  FaLaptopCode
+} from 'react-icons/fa6';
 
 const GRADIENT = 'var(--btn-gradient, linear-gradient(90deg, #ffb37c 0%, #38bdf8 100%))';
 
