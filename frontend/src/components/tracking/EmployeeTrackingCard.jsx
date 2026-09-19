@@ -75,6 +75,9 @@ export default function EmployeeTrackingCard({ compact = false }) {
   const [liveWorkSeconds, setLiveWorkSeconds] = useState(0);
   const [liveBreakSeconds, setLiveBreakSeconds] = useState(0);
 
+  // Selected Date Filter ('today', 'yesterday', 'prevDay')
+  const [selectedDateFilter, setSelectedDateFilter] = useState('today');
+
   const status = attendanceRecord?.status || 'NOT_STARTED';
   const isTracking = status === 'ON_DUTY';
   const isOnBreak = status === 'ON_BREAK';
@@ -393,6 +396,9 @@ export default function EmployeeTrackingCard({ compact = false }) {
     }
   };
 
+  const completedBreaksCount = (attendanceRecord?.breaks || []).filter((b) => b?.status === 'COMPLETED').length;
+  const activeBreakNum = (attendanceRecord?.breaks || []).find((b) => b?.status === 'ACTIVE')?.breakNumber || (completedBreaksCount + 1);
+
   const now = new Date();
   const dayToday = now.toLocaleDateString('en-US', { weekday: 'short' });
   const dateToday = now.getDate();
@@ -444,25 +450,46 @@ export default function EmployeeTrackingCard({ compact = false }) {
           </div>
         </div>
 
-        {/* Live Working Digital Counter */}
-        {(isTracking || isOnBreak || isCompletedToday) && (
-          <div className="flex items-center gap-3 bg-gray-50 border border-gray-200/80 px-4 py-2 rounded-2xl">
-            <FaClock className="w-4 h-4 text-[#0d6537]" />
-            <div>
-              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Live Work Counter</div>
-              <div className="text-sm font-black text-gray-900 font-mono tracking-tight">
-                {formatHms(liveWorkSeconds)}
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Date Selector Filter Dropdown ("Open Now" / Previous Dates) */}
+          <div className="relative">
+            <select
+              value={selectedDateFilter}
+              onChange={(e) => setSelectedDateFilter(e.target.value)}
+              className="bg-gray-100/90 border border-gray-200 text-gray-800 text-xs font-bold rounded-full px-4 py-2 pr-8 outline-none cursor-pointer hover:bg-gray-200/80 transition-colors appearance-none"
+            >
+              <option value="today">🟢 Open Now — Today ({dayToday} {dateToday}) ✔</option>
+              <option value="yesterday">📅 Yesterday ({dayYesterday} {dateYesterday}) ✔</option>
+              <option value="prevDay">📅 Previous ({dayPrevDay} {datePrevDay}) ✔</option>
+            </select>
+            <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-[10px]">▼</div>
+          </div>
+
+          {/* Live Working Digital Counter */}
+          {(isTracking || isOnBreak || isCompletedToday) && (
+            <div className="flex items-center gap-3 bg-gray-50 border border-gray-200/80 px-4 py-2 rounded-2xl">
+              <FaClock className="w-4 h-4 text-[#0d6537]" />
+              <div>
+                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Live Work Counter</div>
+                <div className="text-sm font-black text-gray-900 font-mono tracking-tight">
+                  {formatHms(liveWorkSeconds)}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* ── 3 STACKED PILL CARDS MATCHING REFERENCE DESIGN ────────────────── */}
       <div className="flex flex-col gap-3.5 my-3">
         
         {/* CARD 1: TODAY (Light Lime Green Theme) */}
-        <div className="bg-gradient-to-r from-[#d9f99d] via-[#dcfce7] to-[#e6f4ea] text-[#0d4722] rounded-[24px] p-4 shadow-sm border border-[#b7e4c7] flex items-center justify-between flex-wrap gap-4 relative">
+        <div 
+          onClick={() => setSelectedDateFilter('today')}
+          className={`bg-gradient-to-r from-[#d9f99d] via-[#dcfce7] to-[#e6f4ea] text-[#0d4722] rounded-[24px] p-4 shadow-sm border transition-all cursor-pointer ${
+            selectedDateFilter === 'today' ? 'ring-2 ring-[#0d6537] border-[#0d6537]' : 'border-[#b7e4c7] hover:shadow-md'
+          } flex items-center justify-between flex-wrap gap-4 relative`}
+        >
           <div className="flex items-center gap-4 flex-wrap">
             
             {/* Date Badge Chevron */}
@@ -511,65 +538,117 @@ export default function EmployeeTrackingCard({ compact = false }) {
           </div>
 
           {/* Integrated Action Buttons */}
-          <div className="flex items-center gap-2 flex-wrap ml-auto">
-            <button
+          <div className="flex items-center gap-2 flex-wrap ml-auto" onClick={(e) => e.stopPropagation()}>
+            {/* Button 1: Start Attendance */}
+            <motion.button
+              whileHover={{ scale: 1.05, boxShadow: '0 8px 20px rgba(13, 101, 55, 0.25)' }}
+              whileTap={{ scale: 0.95 }}
               id="start-attendance-btn"
               onClick={handleStartAttendance}
               disabled={actionLoading || initialLoading || simulating || isTracking || isOnBreak}
-              className={`rounded-full px-4 py-2 text-xs font-bold flex items-center gap-1.5 transition-all ${
+              className={`rounded-full px-5 py-2 text-xs font-bold flex items-center gap-2 transition-all ${
                 isTracking || isOnBreak
                   ? 'bg-white/50 text-gray-400 cursor-not-allowed border border-white/60'
                   : 'bg-[#0d6537] hover:bg-[#0b542e] text-white shadow-sm cursor-pointer'
               }`}
             >
-              <FaCalendarCheck className="w-3.5 h-3.5" />
-              <span>Start Attendance</span>
-            </button>
+              {actionLoading && !isTracking && !isOnBreak ? (
+                <>
+                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Starting...</span>
+                </>
+              ) : (
+                <>
+                  <FaCalendarCheck className="w-3.5 h-3.5" />
+                  <span>Start Attendance</span>
+                </>
+              )}
+            </motion.button>
 
+            {/* Button 2: Take Break / Resume Work */}
             {isOnBreak ? (
-              <button
+              <motion.button
+                whileHover={{ scale: 1.05, boxShadow: '0 8px 20px rgba(13, 101, 55, 0.25)' }}
+                whileTap={{ scale: 0.95 }}
                 id="resume-work-btn"
                 onClick={handleResumeWork}
                 disabled={actionLoading || initialLoading || simulating}
-                className="bg-[#0d6537] hover:bg-[#0b542e] text-white rounded-full px-4 py-2 text-xs font-bold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
+                className="bg-[#0d6537] hover:bg-[#0b542e] text-white rounded-full px-5 py-2 text-xs font-bold shadow-sm flex items-center gap-2 transition-all cursor-pointer"
               >
-                <FaPlay className="w-3 h-3" />
-                <span>Resume Work</span>
-              </button>
+                {actionLoading ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Resuming...</span>
+                  </>
+                ) : (
+                  <>
+                    <FaPlay className="w-3 h-3" />
+                    <span>Resume Work</span>
+                  </>
+                )}
+              </motion.button>
             ) : (
-              <button
+              <motion.button
+                whileHover={{ scale: 1.05, boxShadow: '0 8px 20px rgba(217, 119, 6, 0.25)' }}
+                whileTap={{ scale: 0.95 }}
                 id="take-break-btn"
                 onClick={handleStartBreak}
                 disabled={actionLoading || initialLoading || simulating || !isTracking}
-                className={`rounded-full px-4 py-2 text-xs font-bold flex items-center gap-1.5 transition-all ${
+                className={`rounded-full px-5 py-2 text-xs font-bold flex items-center gap-2 transition-all ${
                   !isTracking
                     ? 'bg-white/50 text-gray-400 border border-white/60 cursor-not-allowed'
                     : 'bg-amber-600 hover:bg-amber-700 text-white shadow-sm cursor-pointer'
                 }`}
               >
-                <FaMugHot className="w-3.5 h-3.5" />
-                <span>Take Break</span>
-              </button>
+                {actionLoading && isTracking ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Pausing...</span>
+                  </>
+                ) : (
+                  <>
+                    <FaMugHot className="w-3.5 h-3.5" />
+                    <span>Take Break</span>
+                  </>
+                )}
+              </motion.button>
             )}
 
-            <button
+            {/* Button 3: Stop / Leave */}
+            <motion.button
+              whileHover={{ scale: 1.05, boxShadow: '0 8px 20px rgba(225, 29, 72, 0.25)' }}
+              whileTap={{ scale: 0.95 }}
               id="stop-attendance-btn"
               onClick={handleStopAttendance}
               disabled={actionLoading || initialLoading || simulating || (!isTracking && !isOnBreak)}
-              className={`rounded-full px-4 py-2 text-xs font-bold flex items-center gap-1.5 transition-all ${
+              className={`rounded-full px-5 py-2 text-xs font-bold flex items-center gap-2 transition-all ${
                 !isTracking && !isOnBreak
                   ? 'bg-white/50 text-gray-400 border border-white/60 cursor-not-allowed'
                   : 'bg-rose-600 hover:bg-rose-700 text-white shadow-sm cursor-pointer'
               }`}
             >
-              <FaStop className="w-3 h-3" />
-              <span>Stop / Leave</span>
-            </button>
+              {actionLoading && (isTracking || isOnBreak) ? (
+                <>
+                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Stopping...</span>
+                </>
+              ) : (
+                <>
+                  <FaStop className="w-3 h-3" />
+                  <span>Stop / Leave</span>
+                </>
+              )}
+            </motion.button>
           </div>
         </div>
 
         {/* CARD 2: YESTERDAY (Medium Emerald Green Theme) */}
-        <div className="bg-gradient-to-r from-[#22c55e] via-[#16a34a] to-[#15803d] text-white rounded-[24px] p-4 shadow-sm border border-emerald-500/40 flex items-center justify-between flex-wrap gap-4">
+        <div 
+          onClick={() => setSelectedDateFilter('yesterday')}
+          className={`bg-gradient-to-r from-[#22c55e] via-[#16a34a] to-[#15803d] text-white rounded-[24px] p-4 shadow-sm border transition-all cursor-pointer ${
+            selectedDateFilter === 'yesterday' ? 'ring-2 ring-emerald-300 border-white' : 'border-emerald-500/40 hover:shadow-md'
+          } flex items-center justify-between flex-wrap gap-4`}
+        >
           <div className="flex items-center gap-4 flex-wrap">
             
             {/* Date Badge Chevron */}
@@ -619,12 +698,17 @@ export default function EmployeeTrackingCard({ compact = false }) {
 
           <div className="flex items-center gap-2 bg-white/20 backdrop-blur-xs px-3.5 py-1.5 rounded-full text-xs font-bold text-white border border-white/30 ml-auto">
             <FaCircleCheck className="w-3.5 h-3.5 text-emerald-200" />
-            <span>Shift Completed</span>
+            <span>Shift Completed ✔</span>
           </div>
         </div>
 
         {/* CARD 3: PREVIOUS DAY (Deep Forest / Spruce Dark Green Theme) */}
-        <div className="bg-gradient-to-r from-[#0c4a3e] via-[#134e4a] to-[#064e3b] text-white rounded-[24px] p-4 shadow-sm border border-[#0c4a3e] flex items-center justify-between flex-wrap gap-4">
+        <div 
+          onClick={() => setSelectedDateFilter('prevDay')}
+          className={`bg-gradient-to-r from-[#0c4a3e] via-[#134e4a] to-[#064e3b] text-white rounded-[24px] p-4 shadow-sm border transition-all cursor-pointer ${
+            selectedDateFilter === 'prevDay' ? 'ring-2 ring-lime-300 border-white' : 'border-[#0c4a3e] hover:shadow-md'
+          } flex items-center justify-between flex-wrap gap-4`}
+        >
           <div className="flex items-center gap-4 flex-wrap">
             
             {/* Date Badge Chevron */}
@@ -674,7 +758,7 @@ export default function EmployeeTrackingCard({ compact = false }) {
 
           <div className="flex items-center gap-2 bg-white/20 backdrop-blur-xs px-3.5 py-1.5 rounded-full text-xs font-bold text-white border border-white/30 ml-auto">
             <FaClock className="w-3.5 h-3.5 text-lime-300" />
-            <span>Verified Log</span>
+            <span>Verified Log ✔</span>
           </div>
         </div>
 
