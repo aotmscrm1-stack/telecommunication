@@ -15,7 +15,7 @@ import MessageTemplates from './Marketing/MessageTemplate/MessageTemplates';
 import Blocklist from './pages/Blocklist';
 import MyPreferences from './pages/MyPreferences';
 import WhatsApp from './Marketing/Whatsapp/WhatsApp';
-import EmailCRM from './Marketing/Email/EmailCRM';
+import EmailCRM from './Management/Email/EmailCRM';
 import Users from './pages/Users';
 import StaleLeads from './pages/StaleLeads';
 import BulkImport from './Marketing/AllLeads/BulkImport';

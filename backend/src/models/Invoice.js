@@ -19,6 +19,7 @@ const invoiceSchema = new mongoose.Schema({
   medical_allowance: { type: Number, default: 0 },
   conveyance: { type: Number, default: 0 },
   food_transport_allowance: { type: Number, default: 0 },
+  incentive: { type: Number, default: 0 },
   dearness_allowance: { type: Number, default: 0 },
   special_allowance: { type: Number, default: 0 },
   

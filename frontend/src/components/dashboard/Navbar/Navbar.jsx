@@ -472,7 +472,6 @@ export default function Navbar() {
       { label: 'Campaigns', path: '/campaigns', icon: FaBullhorn },
       { label: 'Message Templates', path: '/message-templates', icon: FaFileLines },
       { label: 'WhatsApp', path: '/whatsapp', icon: FaWhatsapp },
-      { label: 'Email CRM', path: '/email', icon: FaEnvelopeOpenText },
       { label: 'Leaderboard', path: '/leaderboard', icon: FaTrophy },
       { label: 'Reports', path: '/reports', icon: FaChartPie },
     ]},
@@ -485,6 +484,7 @@ export default function Navbar() {
     { title: 'Management', icon: FaSitemap, items: [
       { label: 'Attendance', path: '/admin/attendance-records', icon: FaCalendarCheck, adminOnly: true },
       { label: 'Live Tracking', path: '/admin/employee-tracking', icon: FaLocationDot, adminOnly: true },
+      { label: 'Email CRM', path: '/email', icon: FaEnvelopeOpenText },
       { label: 'Team Ops', path: '/team-operations', icon: FaPeopleGroup },
       { label: 'Idle Leads', path: '/stale-leads', icon: FaClock },
       { label: 'Blocklist', path: '/blocklist', icon: FaBan },
