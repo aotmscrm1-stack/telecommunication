@@ -261,7 +261,7 @@ export default function IntegrationSetup() {
           <div style={s.card}>
             <h4 style={{ margin: '0 0 10px', fontSize: 16 }}>3) Need help?</h4>
             <p style={{ margin: 0, fontSize: 14, color: '#4b5563', lineHeight: 1.6 }}>
-              If you don't see the option you're looking for, drop a mail at <span style={{ color: 'var(--theme-primary-alt)' }}>support@telecrm.in</span>
+              If you don't see the option you're looking for, drop a mail at <span style={{ color: 'var(--theme-primary-alt)' }}>info@aotms.in</span>
             </p>
           </div>
         </div>
