@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
 import { accessTokensAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { canDelete } from '../utils/permissions';
+
 
 const C = { indigo: 'var(--theme-primary-alt)', border: 'var(--theme-border-tint)', ink: 'var(--theme-text-strongest)', sub: '#6b7280' };
 const card = { background: '#fff', border: `1px solid ${C.border}`, borderRadius: 12 };
@@ -9,6 +12,7 @@ const inp = { width: '100%', padding: '9px 12px', border: `1px solid ${C.border}
 const lbl = { fontSize: 12, fontWeight: 700, color: C.sub, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6, display: 'block' };
 
 export default function AccessTokens() {
+  const { user } = useAuth();
   const [tokens, setTokens] = useState([]);
   const [meta, setMeta] = useState({ max: 6, used: 0 });
   const [loading, setLoading] = useState(true);
@@ -62,7 +66,7 @@ export default function AccessTokens() {
                 <span style={{ fontSize: 13, color: C.sub }}>{(t.recapturePreference || '').replace(/_/g, ' ')}</span>
                 <span style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                   {t.status === 'active' && <button style={{ ...btnGhost, padding: '5px 10px' }} onClick={async () => { if (confirm('Revoke this token?')) { await accessTokensAPI.revoke(t._id); load(); } }}>Revoke</button>}
-                  <button style={{ ...btnGhost, padding: '5px 10px', color: '#dc2626', borderColor: '#fecaca' }} onClick={async () => { if (confirm('Delete?')) { await accessTokensAPI.delete(t._id); load(); } }}>✕</button>
+                  {canDelete(user) && <button style={{ ...btnGhost, padding: '5px 10px', color: '#dc2626', borderColor: '#fecaca' }} onClick={async () => { if (confirm('Delete?')) { await accessTokensAPI.delete(t._id); load(); } }}>✕</button>}
                 </span>
               </div>
             ))}

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Phone, PhoneOff, Mail, MapPin, Award, IndianRupee, Globe, User, Calendar, Tag, Star, Edit3, Save, X, Plus, Clock, MessageCircle, Copy, Check, Trash2, BookOpen, Zap, Sparkles, ShieldAlert, CheckCircle2, ChevronRight } from 'lucide-react';
 import api, { leadsAPI, campaignsAPI, usersAPI, coursesAPI, followupsAPI, blocklistAPI, leadStagesAPI, messageTemplatesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { canDelete } from '../../utils/permissions';
 import StatusBadge from '../common/StatusBadge';
 import { formatDistanceToNow, format } from 'date-fns';
 
@@ -1043,7 +1044,7 @@ export default function LeadDetailsPage({
             {statuses.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
 
-          {isAdmin && (
+          {canDelete(user) && (
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}

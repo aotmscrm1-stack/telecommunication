@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import { FiUserPlus, FiLink, FiChevronRight } from 'react-icons/fi';
 import { RiFileExcel2Line } from 'react-icons/ri';
+import { canDelete } from '../../utils/permissions';
+
 
 /* ─────────────────────────────────────────────────────────
    ORANGE MARKETING THEME (Harmonized with AddLead.jsx)
@@ -710,7 +712,7 @@ export default function AllLeads() {
                                 <Ban className="w-3.5 h-3.5" />
                               </button>
                             )}
-                            {isAdmin && (
+                            {canDelete(user) && (
                               <button
                                 onClick={e => handleDelete(lead._id, e)}
                                 className="p-1.5 rounded-lg text-stone-400 hover:bg-red-50 hover:text-red-600 transition-colors"

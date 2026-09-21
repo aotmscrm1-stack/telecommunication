@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
 import { permissionTemplatesAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { canDelete } from '../utils/permissions';
+
 
 function timeAgo(dateStr) {
   if (!dateStr) return '';
@@ -113,6 +116,7 @@ function TemplateModal({ template, onClose, onSaved }) {
 }
 
 export default function PermissionTemplates() {
+  const { user } = useAuth();
   const [tab, setTab] = useState('all');
   const [templates, setTemplates] = useState([]);
   const [search, setSearch] = useState('');
@@ -214,9 +218,11 @@ export default function PermissionTemplates() {
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                   </span>
                 )}
-                <span onClick={() => remove(t)} style={{ cursor: t.isDefault ? 'not-allowed' : 'pointer', color: t.isDefault ? '#f0c2c2' : '#e53e3e' }} title={t.isDefault ? "Can't delete a default template" : 'Delete'}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-                </span>
+                {canDelete(user) && (
+                  <span onClick={() => remove(t)} style={{ cursor: t.isDefault ? 'not-allowed' : 'pointer', color: t.isDefault ? '#f0c2c2' : '#e53e3e' }} title={t.isDefault ? "Can't delete a default template" : 'Delete'}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                  </span>
+                )}
               </div>
             </div>
           ))

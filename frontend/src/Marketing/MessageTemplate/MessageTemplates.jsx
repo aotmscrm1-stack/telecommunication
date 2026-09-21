@@ -7,7 +7,10 @@ import {
 } from 'react-icons/fi';
 import { RiWhatsappLine, RiMailSendLine, RiMessage3Line } from 'react-icons/ri';
 import { messageTemplatesAPI } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import { canDelete } from '../../utils/permissions';
 import EmailCampaignWizard from '../Email/EmailCampaignWizard';
+
 import EmailTemplateModal from '../Email/EmailTemplateModal';
 import EmailCampaignHistory from '../Email/EmailCampaignHistory';
 
@@ -48,6 +51,7 @@ const TABS = ['WHATSAPP', 'EMAIL'];
 const TAB_TYPE_MAP = { WHATSAPP: 'whatsapp', EMAIL: 'email' };
 
 export default function MessageTemplates() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('WHATSAPP');
   const [selected, setSelected] = useState(null);
   const [showNewModal, setShowNewModal] = useState(false);
@@ -435,12 +439,14 @@ export default function MessageTemplates() {
                     {copiedId === selected._id ? 'Copied!' : 'Copy Text'}
                   </button>
 
-                  <button
-                    onClick={() => handleDelete(selected._id)}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border text-red-600 border-red-200 bg-white hover:bg-red-50 transition-colors shadow-sm"
-                  >
-                    <FiTrash2 className="w-3.5 h-3.5" /> Delete
-                  </button>
+                  {canDelete(user) && (
+                    <button
+                      onClick={() => handleDelete(selected._id)}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border text-red-600 border-red-200 bg-white hover:bg-red-50 transition-colors shadow-sm"
+                    >
+                      <FiTrash2 className="w-3.5 h-3.5" /> Delete
+                    </button>
+                  )}
                 </div>
               </div>
 

@@ -24,8 +24,11 @@ import {
 } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import { invoicesAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { canDelete } from '../utils/permissions';
 import { numberToWords } from '../utils/numberToWords';
 import InvoiceDocument from './InvoiceDocument';
+
 
 const SAMPLE_AOTMS_QUOTATION = {
   doc_type: 'quotation',
@@ -131,6 +134,7 @@ const SAMPLE_JAYAVEER = {
 };
 
 export default function Invoice() {
+  const { user } = useAuth();
   const location = useLocation();
   const path = location.pathname.toLowerCase();
 
@@ -1347,12 +1351,14 @@ export default function Invoice() {
                         >
                           <Eye size={14} /> View
                         </button>
-                        <button
-                          onClick={() => handleDeleteInvoice(inv._id)}
-                          style={{ padding: '6px 10px', background: '#fef2f2', color: '#b91c1c', border: '1px solid #fca5a5', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        {canDelete(user) && (
+                          <button
+                            onClick={() => handleDeleteInvoice(inv._id)}
+                            style={{ padding: '6px 10px', background: '#fef2f2', color: '#b91c1c', border: '1px solid #fca5a5', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

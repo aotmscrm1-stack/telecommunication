@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { campaignsAPI, usersAPI, leadsAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { canDelete } from '../../utils/permissions';
+
 import {
   FiPlus, FiRefreshCw, FiSearch, FiLayers, FiUsers, FiCalendar,
   FiFlag, FiBarChart2, FiTrash2, FiArrowRight, FiX, FiCheck,
@@ -1104,13 +1106,15 @@ export default function Campaigns() {
                         >
                           <FiBarChart2 className="w-3.5 h-3.5" />
                         </button>
-                        <button
-                          onClick={(e) => handleDeleteCampaign(c, e)}
-                          title="Delete Campaign"
-                          className="p-2 rounded-xl border hover:bg-red-50 text-red-600 border-red-200 transition-colors"
-                        >
-                          <FiTrash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {canDelete(user) && (
+                          <button
+                            onClick={(e) => handleDeleteCampaign(c, e)}
+                            title="Delete Campaign"
+                            className="p-2 rounded-xl border hover:bg-red-50 text-red-600 border-red-200 transition-colors"
+                          >
+                            <FiTrash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

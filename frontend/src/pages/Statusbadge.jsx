@@ -3,6 +3,8 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { followupsAPI, leadsAPI, usersAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { formatISTDateTime } from '../utils/dateFormat';
+import { canDelete as checkCanDelete } from '../utils/permissions';
+
 
 const PURPLE = '#0891b2';
 const PURPLE_LIGHT = '#e0f7ff';
@@ -691,7 +693,7 @@ export default function Tasks() {
   const [showTeamDrop, setShowTeamDrop] = useState(false);
   const teamDropRef = useRef(null);
   const { user: currentUser } = useAuth();
-  const canDelete = currentUser?.role === 'manager' || currentUser?.role === 'admin';
+  const canDelete = checkCanDelete(currentUser);
   const [markingCompleteId, setMarkingCompleteId] = useState(null);
 
   // Callers/employees never get edit rights on tasks — they can only view them (and
