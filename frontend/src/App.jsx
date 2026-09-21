@@ -37,6 +37,8 @@ import Landing from './pages/landing_pages/Landing';
 import LiveEmployeeTracking from './Management/Attedence/LiveEmployee/LiveEmployeeTracking';
 import AttendanceRecords from './Management/Attedence/AttendanceRecords';
 
+import { isCEO, isHR, isLimitedStaff } from './utils/permissions';
+
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return (
@@ -59,16 +61,36 @@ const PublicRoute = ({ children }) => {
 const AdminRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return null;
-  const isAdmin = user?.role === 'admin' || user?.role === 'manager';
+  const isAdmin = user?.role === 'admin' || user?.role === 'manager' || isCEO(user) || isHR(user);
   return isAdmin ? children : <Navigate to="/dashboard" replace />;
 };
 
 const AdminOnlyRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return null;
-  const isStrictAdmin = user?.role === 'admin';
+  const isStrictAdmin = user?.role === 'admin' || isCEO(user) || isHR(user);
   return isStrictAdmin ? children : <Navigate to="/dashboard" replace />;
 };
+
+// Route guard for Attendance — fully enabled for CEO, HR, Developer, Trainer, Digital Marketing, Admins & Managers
+const AttendanceRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  return children;
+};
+
+// Route guard restricting Developer, Trainer, Digital Marketing from non-assigned modules
+const StaffRestrictedRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  if (isLimitedStaff(user)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return children;
+};
+
 
 export default function App() {
   return (
@@ -80,21 +102,21 @@ export default function App() {
           <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="billing" element={<AdminRoute><Billing /></AdminRoute>} />
-            <Route path="leads" element={<AllLeads />} />
-            <Route path="all-leads" element={<AllLeads />} />
-            <Route path="leads/new" element={<AddLead />} />
-            <Route path="leads/:id" element={<LeadProfile />} />
-            <Route path="leads/:id/edit" element={<AddLead />} />
-            <Route path="campaigns" element={<Campaigns />} />
-            <Route path="campaigns/:id" element={<CampaignDetail />} />
-            <Route path="leaderboard" element={<Leaderboard />} />
-            <Route path="reports" element={<Reports />} />
+            <Route path="leads" element={<StaffRestrictedRoute><AllLeads /></StaffRestrictedRoute>} />
+            <Route path="all-leads" element={<StaffRestrictedRoute><AllLeads /></StaffRestrictedRoute>} />
+            <Route path="leads/new" element={<StaffRestrictedRoute><AddLead /></StaffRestrictedRoute>} />
+            <Route path="leads/:id" element={<StaffRestrictedRoute><LeadProfile /></StaffRestrictedRoute>} />
+            <Route path="leads/:id/edit" element={<StaffRestrictedRoute><AddLead /></StaffRestrictedRoute>} />
+            <Route path="campaigns" element={<StaffRestrictedRoute><Campaigns /></StaffRestrictedRoute>} />
+            <Route path="campaigns/:id" element={<StaffRestrictedRoute><CampaignDetail /></StaffRestrictedRoute>} />
+            <Route path="leaderboard" element={<StaffRestrictedRoute><Leaderboard /></StaffRestrictedRoute>} />
+            <Route path="reports" element={<StaffRestrictedRoute><Reports /></StaffRestrictedRoute>} />
             <Route path="tasks" element={<Tasks />} />
             <Route path="profile" element={<Profile />} />
-            <Route path="message-templates" element={<MessageTemplates />} />
+            <Route path="message-templates" element={<StaffRestrictedRoute><MessageTemplates /></StaffRestrictedRoute>} />
             <Route path="blocklist" element={<AdminRoute><Blocklist /></AdminRoute>} />
             <Route path="my-preferences" element={<MyPreferences />} />
-            <Route path="whatsapp" element={<WhatsApp />} />
+            <Route path="whatsapp" element={<StaffRestrictedRoute><WhatsApp /></StaffRestrictedRoute>} />
             <Route path="email" element={<EmailCRM />} />
             <Route path="offer-letter" element={<AdminRoute><Invoice /></AdminRoute>} />
             <Route path="payslips" element={<AdminRoute><Payslip /></AdminRoute>} />
@@ -104,7 +126,7 @@ export default function App() {
             <Route path="invoices" element={<Navigate to="/invoice" replace />} />
             <Route path="users" element={<AdminRoute><Users /></AdminRoute>} />
             <Route path="stale-leads" element={<AdminRoute><StaleLeads /></AdminRoute>} />
-            <Route path="bulk-import" element={<BulkImport />} />
+            <Route path="bulk-import" element={<StaffRestrictedRoute><BulkImport /></StaffRestrictedRoute>} />
             <Route path="team-operations" element={<AdminRoute><TeamOperations /></AdminRoute>} />
             <Route path="integrations" element={<AdminRoute><Integrations /></AdminRoute>} />
             <Route path="integrations/setup/:type" element={<AdminRoute><IntegrationSetup /></AdminRoute>} />
@@ -117,9 +139,9 @@ export default function App() {
             <Route path="permission-templates" element={<AdminRoute><PermissionTemplates /></AdminRoute>} />
             <Route path="admin/employee-tracking" element={<AdminOnlyRoute><LiveEmployeeTracking /></AdminOnlyRoute>} />
             <Route path="employee-tracking" element={<AdminOnlyRoute><LiveEmployeeTracking /></AdminOnlyRoute>} />
-            <Route path="admin/attendance-records" element={<AdminOnlyRoute><AttendanceRecords /></AdminOnlyRoute>} />
-            <Route path="attendance-records" element={<AdminOnlyRoute><AttendanceRecords /></AdminOnlyRoute>} />
-            <Route path="add-lead" element={<AddLead />} />
+            <Route path="admin/attendance-records" element={<AttendanceRoute><AttendanceRecords /></AttendanceRoute>} />
+            <Route path="attendance-records" element={<AttendanceRoute><AttendanceRecords /></AttendanceRoute>} />
+            <Route path="add-lead" element={<StaffRestrictedRoute><AddLead /></StaffRestrictedRoute>} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
 import { leadFieldsAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { canDelete } from '../utils/permissions';
+
 
 const TYPE_ICON = {
   text: 'T', number: '#', phone: '', email: '✉', date: '', money: '₹', dropdown: '▾', checkbox: '☑', textarea: '¶',
@@ -63,6 +66,7 @@ function AddFieldModal({ onClose, onSaved }) {
 }
 
 export default function Fields() {
+  const { user } = useAuth();
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -188,7 +192,7 @@ export default function Fields() {
               <div style={{ display: 'flex', gap: 14 }}>
                 <span onClick={() => { setEditingId(f._id); setEditName(f.name); }} style={{ cursor: 'pointer', color: 'var(--theme-primary-mid)', fontWeight: 600, fontSize: 12.5 }}>✎ Edit</span>
                 <span onClick={() => toggleHide(f)} style={{ cursor: 'pointer', color: '#888', fontWeight: 600, fontSize: 12.5 }}>{f.hidden ? '👁 Show' : '🚫 Hide'}</span>
-                {!f.isSystem && <span onClick={() => remove(f)} style={{ cursor: 'pointer', color: '#e53e3e', fontWeight: 600, fontSize: 12.5 }}>🗑</span>}
+                {!f.isSystem && canDelete(user) && <span onClick={() => remove(f)} style={{ cursor: 'pointer', color: '#e53e3e', fontWeight: 600, fontSize: 12.5 }}>🗑</span>}
               </div>
             </div>
           ))

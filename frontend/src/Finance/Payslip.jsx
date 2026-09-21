@@ -30,9 +30,12 @@ import {
   Edit3,
 } from 'lucide-react';
 import { payslipsAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { canDelete } from '../utils/permissions';
 import { numberToWords } from '../utils/numberToWords';
 import PayslipDocument from './payslip/PayslipDocument';
 import ExcelUploadModal from './payslip/ExcelUploadModal';
+
 
 // Month options generator (e.g. "January 2026", "February 2026", "March 2026", etc.)
 const MONTH_NAMES = [
@@ -86,6 +89,7 @@ function formatPayslipFilename(employeeName, employeeId, payslipMonth) {
 }
 
 export default function Payslip() {
+  const { user } = useAuth();
   const [form, setForm] = useState(INITIAL_FORM);
   const [currentSlipId, setCurrentSlipId] = useState(null); // When editing an existing saved slip
   const [history, setHistory] = useState([]);
@@ -1256,14 +1260,16 @@ export default function Payslip() {
                           >
                             <Download className="w-4 h-4" />
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(slip._id, slip.employee_name)}
-                            className="p-1.5 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {canDelete(user) && (
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(slip._id, slip.employee_name)}
+                              className="p-1.5 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
