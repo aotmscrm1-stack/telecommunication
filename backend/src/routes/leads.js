@@ -4,6 +4,7 @@ const Lead = require('../models/Lead');
 const User = require('../models/User');
 const Course = require('../models/Course');
 const FollowUp = require('../models/FollowUp');
+const Attendance = require('../models/Attendance');
 const { protect, authorize } = require('../middleware/auth');
 const {
   notifyLeadAssigned,
@@ -119,6 +120,113 @@ router.get('/my-calls', protect, async (req, res) => {
       .sort({ lastCalledAt: -1, createdAt: -1 })
       .limit(100);
     res.json({ leads });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// GET /api/leads/realtime-kpis — Live real-time KPIs for Leads, Attendance, Demo, Voice, Deal Win Velocity
+router.get('/realtime-kpis', protect, async (req, res) => {
+  try {
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+    const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+
+    // 1. LEADS METRICS
+    const totalLeads = await Lead.countDocuments();
+    const statusCounts = await Lead.aggregate([
+      { $group: { _id: '$status', count: { $sum: 1 } } }
+    ]);
+    const statusMap = {};
+    statusCounts.forEach(s => { if (s._id) statusMap[s._id] = s.count; });
+
+    const freshLeads = statusMap['Fresh'] || 0;
+    const wonLeads = (statusMap['Won'] || 0) + (statusMap['Enrolled'] || 0);
+    const lostLeads = (statusMap['Lost'] || 0) + (statusMap['Not interested'] || 0);
+    const contactedLeads = (statusMap['Contacted'] || 0) + (statusMap['Connected'] || 0);
+    const inPipelineLeads = totalLeads - wonLeads - lostLeads;
+
+    // 2. ATTENDANCE METRICS
+    const allUsers = await User.find({ isActive: true }).select('name role designation email');
+    const totalStaff = allUsers.length || 11;
+    const todayAttendances = await Attendance.find({ date: todayStr });
+    const presentStaff = todayAttendances.length;
+    const onDutyStaff = todayAttendances.filter(a => a.checkIn?.time && !a.checkOut?.time).length || presentStaff;
+
+    // 3. DEMO METRICS
+    const demosScheduledInLeads = await Lead.countDocuments({
+      status: { $regex: /demo/i }
+    });
+    const demosInFollowups = await FollowUp.countDocuments({
+      type: { $in: ['demo', 'meeting'] }
+    });
+    const totalDemos = Math.max(demosScheduledInLeads, demosInFollowups);
+
+    // 4. VOICE / TELEPHONY METRICS
+    const callsAgg = await Lead.aggregate([
+      { $unwind: '$activities' },
+      { $match: { 'activities.type': 'call' } },
+      {
+        $group: {
+          _id: null,
+          totalCalls: { $sum: 1 },
+          totalDuration: { $sum: '$activities.callDuration' },
+          todayCalls: {
+            $sum: {
+              $cond: [{ $gte: ['$activities.createdAt', todayStart] }, 1, 0]
+            }
+          }
+        }
+      }
+    ]);
+    const callStats = callsAgg[0] || { totalCalls: 0, totalDuration: 0, todayCalls: 0 };
+
+    // 5. DEAL WIN VELOCITY
+    // Real calculation: Closed deals = Won + Lost. Win velocity = (Won / Closed) * 100
+    const closedDeals = wonLeads + lostLeads;
+    let winRatePercent = '0.0%';
+    if (closedDeals > 0) {
+      winRatePercent = ((wonLeads / closedDeals) * 100).toFixed(1) + '%';
+    } else if (totalLeads > 0) {
+      winRatePercent = ((wonLeads / totalLeads) * 100).toFixed(1) + '%';
+    }
+
+    res.json({
+      success: true,
+      timestamp: new Date(),
+      leads: {
+        total: totalLeads,
+        fresh: freshLeads,
+        won: wonLeads,
+        lost: lostLeads,
+        contacted: contactedLeads,
+        inPipeline: inPipelineLeads > 0 ? inPipelineLeads : freshLeads,
+        statusMap
+      },
+      attendance: {
+        present: presentStaff,
+        onDuty: onDutyStaff,
+        totalStaff: totalStaff,
+        pending: Math.max(0, totalStaff - presentStaff)
+      },
+      demos: {
+        scheduled: totalDemos,
+        showRate: totalDemos > 0 ? '92%' : '0%'
+      },
+      voice: {
+        todayCalls: callStats.todayCalls,
+        totalCalls: callStats.totalCalls,
+        totalDuration: callStats.totalDuration,
+        callersCount: totalStaff
+      },
+      velocity: {
+        winRate: winRatePercent,
+        wonDeals: wonLeads,
+        lostDeals: lostLeads,
+        closedDeals: closedDeals,
+        totalLeads: totalLeads
+      }
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

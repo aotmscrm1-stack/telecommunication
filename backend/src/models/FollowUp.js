@@ -8,7 +8,7 @@ const followUpSchema = new mongoose.Schema({
   },
   assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   // Who created / delegated this task (defaults to the creator, but can be overridden by admins)
-  assignedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  assignedBy: { type: mongoose.Schema.Types.Mixed, ref: 'User' },
   scheduledAt: { type: Date, required: true },
   status: { type: String, enum: ['upcoming', 'done', 'late', 'cancelled'], default: 'upcoming' },
   // FIX BUG-03: added type field so Tasks page "To-Do" tab works

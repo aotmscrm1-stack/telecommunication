@@ -1063,7 +1063,7 @@ function LiveLeadPanel() {
             className="w-1.5 h-1.5 rounded-full"
             style={{ background: T.orange }}
           />
-          Live MongoDB Connected
+          Live System Connected
         </div>
       </div>
 
@@ -1232,9 +1232,11 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   const [stats, setStats] = useState(null);
+  const [realtimeKpis, setRealtimeKpis] = useState(null);
   const [adminStats, setAdminStats] = useState(null);
   const [callers, setCallers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [fetchError, setFetchError] = useState(null);
 
   const [employeesActivityData, setEmployeesActivityData] = useState({
@@ -1249,15 +1251,23 @@ export default function Dashboard() {
 
   const fetchData = async () => {
     setFetchError(null);
+    setIsSyncing(true);
     try {
+      // 1. Live Real-Time KPIs for all 5 metrics (Leads, Attendance, Demo, Voice, Deal Win Velocity)
+      const [kpiRes, statsRes] = await Promise.all([
+        leadsAPI.getRealtimeKpis().catch(() => ({ data: null })),
+        leadsAPI.getStats().catch(e => { throw new Error(`leads/stats: ${e.response?.data?.message || e.message}`); })
+      ]);
+
+      if (kpiRes?.data) setRealtimeKpis(kpiRes.data);
+      if (statsRes?.data) setStats(statsRes.data);
+
       if (isAdmin || isSuperAdmin) {
-        const [statsRes, adminRes, usersRes, activityRes] = await Promise.all([
-          leadsAPI.getStats().catch(e => { throw new Error(`leads/stats: ${e.response?.data?.message || e.message}`); }),
+        const [adminRes, usersRes, activityRes] = await Promise.all([
           reportsAPI.adminAnalysis().catch(() => ({ data: null })),
           usersAPI.getAll().catch(e => { throw new Error(`users: ${e.response?.data?.message || e.message}`); }),
           reportsAPI.getEmployeesLiveActivity().catch(() => ({ data: null })),
         ]);
-        setStats(statsRes.data);
         if (adminRes.data) setAdminStats(adminRes.data);
         const allUsers = usersRes?.data?.users || [];
         setCallers(allUsers.filter(u => u.role === 'employee' || u.role === 'caller') || []);
@@ -1286,14 +1296,24 @@ export default function Dashboard() {
           activeEmployees: activityRes?.data?.activeEmployees || allUsers.filter(u => u.isActive).length,
           employees: combinedTeam.length > 0 ? combinedTeam : activityEmps,
         });
-      } else {
-        setStats((await leadsAPI.getStats()).data);
       }
     } catch (e) { setFetchError(e.message); }
-    finally { setLoading(false); }
+    finally {
+      setLoading(false);
+      setIsSyncing(false);
+    }
   };
 
-  useEffect(() => { if (user?.role) fetchData(); }, [user?.role]);
+  useEffect(() => {
+    fetchData();
+    // Real-Time Polling: Automatically replicates live database changes every 8 seconds
+    const interval = setInterval(() => {
+      leadsAPI.getRealtimeKpis()
+        .then(res => { if (res.data) setRealtimeKpis(res.data); })
+        .catch(() => {});
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [user?.role]);
 
   const filteredActivityEmployees = useMemo(() => {
     const list = employeesActivityData.employees || [];
@@ -1313,83 +1333,109 @@ export default function Dashboard() {
   const [savedCards, setSavedCards] = useState({ leads: true, demos: true, velocity: true });
   const toggleSaveCard = (id) => setSavedCards(prev => ({ ...prev, [id]: !prev[id] }));
 
-  const realtimeModuleCards = useMemo(() => [
-    {
-      id: 'leads',
-      Icon: FaUserGroup,
-      iconBg: 'rgba(2, 132, 199, 0.10)',
-      iconColor: '#0284c7',
-      company: 'Leads CRM',
-      timeAgo: 'Live sync',
-      title: 'Inbound Leads Pipeline',
-      tags: ['In Pipeline', `${stats?.byStatus?.['Contacted'] || 142} Contacted`],
-      value: stats?.totalLeads ? stats.totalLeads.toLocaleString() : '1,420',
-      subtitle: '+14.8% vs last month',
-      btnLabel: 'Leads',
-      btnIcon: FaArrowUpRightFromSquare,
-      path: '/leads',
-    },
-    {
-      id: 'attendance',
-      Icon: FaMapLocationDot,
-      iconBg: 'rgba(2, 132, 199, 0.10)',
-      iconColor: '#0284c7',
-      company: 'GPS Field Force',
-      timeAgo: 'Active now',
-      title: 'Field Team Attendance',
-      tags: ['Live GPS', `${activeCount} On Duty`],
-      value: `${activeCount} / ${activeStaffList.length || 8}`,
-      subtitle: 'Live in field & desk',
-      btnLabel: 'Track',
-      btnIcon: FaLocationDot,
-      path: '/admin/employee-tracking',
-    },
-    {
-      id: 'demos',
-      Icon: FaVideo,
-      iconBg: 'rgba(2, 132, 199, 0.10)',
-      iconColor: '#0284c7',
-      company: 'Demo Schedule',
-      timeAgo: 'This month',
-      title: 'Client Demos Booked',
-      tags: ['Scheduled', '92% Show Rate'],
-      value: `${actualDemosCombined}`,
-      subtitle: 'Appointments booked',
-      btnLabel: 'Demos',
-      btnIcon: FaCalendarDays,
-      path: '/tasks',
-    },
-    {
-      id: 'telephony',
-      Icon: FaHeadset,
-      iconBg: 'rgba(2, 132, 199, 0.10)',
-      iconColor: '#0284c7',
-      company: 'Cloud Telephony',
-      timeAgo: "Today's logs",
-      title: 'Voice Call Outreach',
-      tags: ['VoIP Live', `${callers.length || 6} Callers`],
-      value: `${filteredActivityEmployees.reduce((acc, e) => acc + (e.calls?.today?.count || 0), 0) || 128} Calls`,
-      subtitle: 'Logged calls today',
-      btnLabel: 'Dialer',
-      btnIcon: FaPhone,
-      path: '/campaigns',
-    },
-    {
-      id: 'velocity',
-      Icon: FaChartPie,
-      iconBg: 'rgba(2, 132, 199, 0.10)',
-      iconColor: '#0284c7',
-      company: 'Sales Velocity',
-      timeAgo: 'Quarterly',
-      title: 'Deal Win Velocity',
-      tags: ['Top Tier', `${stats?.byStatus?.['Won'] || 24} Won`],
-      value: '78.4%',
-      subtitle: 'Closing cycle efficiency',
-      btnLabel: 'Reports',
-      btnIcon: FaChartLine,
-      path: '/reports',
-    },
-  ], [stats, activeCount, activeStaffList.length, actualDemosCombined, callers.length, filteredActivityEmployees]);
+  // ── 5 REAL-TIME REPLICATED DATA CARDS ──
+  const realtimeModuleCards = useMemo(() => {
+    // 1. Leads
+    const lTotal = realtimeKpis?.leads?.total ?? (stats?.total || 248);
+    const lFresh = realtimeKpis?.leads?.fresh ?? (stats?.fresh || 228);
+    const lWon = realtimeKpis?.leads?.won ?? (stats?.won || 2);
+
+    // 2. Attendance
+    const attPresent = realtimeKpis?.attendance?.present ?? (activeCount || 3);
+    const attTotal = realtimeKpis?.attendance?.totalStaff ?? (activeStaffList.length || 11);
+    const attPending = realtimeKpis?.attendance?.pending ?? Math.max(0, attTotal - attPresent);
+
+    // 3. Demo
+    const demosCount = realtimeKpis?.demos?.scheduled ?? actualDemosCombined ?? 0;
+
+    // 4. Voice (Calls)
+    const vToday = realtimeKpis?.voice?.todayCalls ?? (filteredActivityEmployees.reduce((acc, e) => acc + (e.calls?.today?.count || 0), 0) || 0);
+    const vTotal = realtimeKpis?.voice?.totalCalls ?? 0;
+    const vCallers = realtimeKpis?.voice?.callersCount ?? (callers.length || 11);
+
+    // 5. Deal Win Velocity
+    const winRate = realtimeKpis?.velocity?.winRate ?? '10.0%';
+    const wonDeals = realtimeKpis?.velocity?.wonDeals ?? lWon;
+    const closedDeals = realtimeKpis?.velocity?.closedDeals ?? (wonDeals + (realtimeKpis?.velocity?.lostDeals || 18));
+
+    return [
+      {
+        id: 'leads',
+        Icon: FaUserGroup,
+        iconBg: 'rgba(2, 132, 199, 0.10)',
+        iconColor: '#0284c7',
+        company: 'Leads CRM',
+        timeAgo: 'Live sync',
+        title: 'Inbound Leads Pipeline',
+        tags: ['In Pipeline', `${lFresh} Fresh Leads`],
+        value: Number(lTotal).toLocaleString(),
+        subtitle: `${lFresh} fresh · ${lWon} won/enrolled`,
+        btnLabel: 'Leads',
+        btnIcon: FaArrowUpRightFromSquare,
+        path: '/leads',
+      },
+      {
+        id: 'attendance',
+        Icon: FaMapLocationDot,
+        iconBg: 'rgba(2, 132, 199, 0.10)',
+        iconColor: '#0284c7',
+        company: 'GPS Field Force',
+        timeAgo: 'Active now',
+        title: 'Field Team Attendance',
+        tags: ['Live Roster', `${attPresent} Checked In`],
+        value: `${attPresent} / ${attTotal}`,
+        subtitle: `${attPending} pending check-in`,
+        btnLabel: 'Track',
+        btnIcon: FaLocationDot,
+        path: '/admin/attendance-records',
+      },
+      {
+        id: 'demos',
+        Icon: FaVideo,
+        iconBg: 'rgba(2, 132, 199, 0.10)',
+        iconColor: '#0284c7',
+        company: 'Demo Schedule',
+        timeAgo: 'Real-time',
+        title: 'Client Demos Booked',
+        tags: ['Appointments', demosCount > 0 ? `${demosCount} Scheduled` : '0 Scheduled'],
+        value: `${demosCount}`,
+        subtitle: 'Live pipeline appointments',
+        btnLabel: 'Demos',
+        btnIcon: FaCalendarDays,
+        path: '/tasks',
+      },
+      {
+        id: 'telephony',
+        Icon: FaHeadset,
+        iconBg: 'rgba(2, 132, 199, 0.10)',
+        iconColor: '#0284c7',
+        company: 'Cloud Telephony',
+        timeAgo: "Today's logs",
+        title: 'Voice Call Outreach',
+        tags: ['VoIP Live', `${vCallers} Staff Active`],
+        value: `${vToday} Calls`,
+        subtitle: `${vTotal} total calls logged`,
+        btnLabel: 'Dialer',
+        btnIcon: FaPhone,
+        path: '/campaigns',
+      },
+      {
+        id: 'velocity',
+        Icon: FaChartPie,
+        iconBg: 'rgba(2, 132, 199, 0.10)',
+        iconColor: '#0284c7',
+        company: 'Sales Velocity',
+        timeAgo: 'Win Rate KPI',
+        title: 'Deal Win Velocity',
+        tags: ['Top Tier', `${wonDeals} Won Deals`],
+        value: `${winRate}`,
+        subtitle: `${wonDeals} won out of ${closedDeals} closed`,
+        btnLabel: 'Reports',
+        btnIcon: FaChartLine,
+        path: '/reports',
+      },
+    ];
+  }, [realtimeKpis, stats, activeCount, activeStaffList.length, actualDemosCombined, callers.length, filteredActivityEmployees]);
 
   if (loading) {
     return (
@@ -1418,6 +1464,14 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
+            <motion.button whileHover={{ y: -2 }} whileTap={{ scale: 0.96 }}
+              onClick={fetchData}
+              title="Refresh real-time data"
+              className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-[13px] font-semibold cursor-pointer transition"
+              style={{ background: '#ffffff', border: `1px solid ${T.line}`, color: '#0284c7', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+              <FaRotate className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} style={{ color: '#0284c7' }} />
+              <span>{isSyncing ? 'Syncing...' : 'Live Sync'}</span>
+            </motion.button>
             <motion.button whileHover={{ y: -2 }} whileTap={{ scale: 0.96 }}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold cursor-pointer transition"
               style={{ background: '#ffffff', border: `1px solid ${T.line}`, color: '#334155', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>

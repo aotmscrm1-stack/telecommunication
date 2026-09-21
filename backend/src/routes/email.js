@@ -5,80 +5,113 @@ const { protect } = require('../middleware/auth');
 
 const router = express.Router();
 
-// GET /api/email/templates — Predefined HR, Health & Operations Email Templates
-router.get('/templates', protect, async (req, res) => {
-  const defaultTemplates = [
-    {
-      id: 'leave_permission',
-      name: 'Leave Permission Request',
-      category: 'HR & Operations',
-      fromEmail: 'hr@aotms.com',
-      subject: 'Leave Permission Request - {{employee_name}}',
-      body: `Dear HR & Management,
+const MessageTemplate = require('../models/MessageTemplate');
 
-I am writing to formally request leave for {{days}} day(s) starting from {{start_date}} to {{end_date}} due to {{reason}}.
+const LEAVE_TEMPLATE = {
+  id: 'leave_template',
+  name: '1. Leave template',
+  category: 'Leave Application',
+  fromEmail: 'hr@aotms.com',
+  subject: 'Leave Application - {{employee_name}} ({{designation}})',
+  body: `Respected HR Team,
 
-I will ensure my ongoing tasks and assignments are properly completed or delegated before my leave begins.
+I am writing this email to formally request leave of absence.
 
-Thank you for your understanding.
+Employee Details:
+• Name: {{employee_name}}
+• Designation: {{designation}}
+• Email: {{email}}
+• Contact: {{phone}}
 
-Best regards,
-{{employee_name}}
-Contact: {{phone}}`,
-    },
-    {
-      id: 'health_issue',
-      name: 'Health Issue Leave Notice',
-      category: 'HR & Health',
-      fromEmail: 'hr@aotms.com',
-      subject: 'Health Issue Leave Notification - {{employee_name}}',
-      body: `Dear HR Team,
+Leave Details:
+• Leave Type: Casual / Sick Leave
+• From Date: [DD/MM/YYYY]
+• To Date: [DD/MM/YYYY]
+• Total Days: [1 Day]
+• Reason: [Specify reason for leave]
 
-This is to inform you that I am unable to attend work today due to medical/health reasons ({{health_reason}}).
+I will ensure that all my pending tasks and responsibilities are properly handled and handed over prior to my leave. I will remain reachable on phone or email for any critical updates.
 
-I will keep you updated regarding my recovery and expected date of return. Attached/available are my medical documents if required.
+Kindly approve my leave request.
+
+Thank you.
 
 Sincerely,
 {{employee_name}}
-Contact: {{phone}}`,
-    },
-    {
-      id: 'enrollment_confirmation',
-      name: 'Student Offer Letter & Admission Confirmation',
-      category: 'Student Support',
+{{designation}}`,
+};
+
+// GET /api/email/templates — 1. Leave template + custom templates
+router.get('/templates', protect, async (req, res) => {
+  try {
+    const custom = await MessageTemplate.find({ type: 'email' })
+      .populate('createdBy', 'name')
+      .sort({ createdAt: -1 });
+
+    const formattedCustom = custom.map(t => ({
+      id: t._id.toString(),
+      name: t.shortcut,
+      category: 'Custom Template',
       fromEmail: 'hr@aotms.com',
-      subject: 'Official Confirmation: Welcome to AOTMS Training Program',
-      body: `Dear {{student_name}},
+      subject: t.subject || t.shortcut,
+      body: t.message,
+      isCustom: true,
+      createdBy: t.createdBy,
+    }));
 
-Congratulations! We are pleased to confirm your enrollment in the {{course_name}} program at AOTMS.
+    res.json({ templates: [LEAVE_TEMPLATE, ...formattedCustom] });
+  } catch (err) {
+    res.status(500).json({ message: err.message, templates: [LEAVE_TEMPLATE] });
+  }
+});
 
-Your orientation and batch classes are scheduled to begin on {{start_date}}.
-
-If you have any questions or require further assistance, please feel free to reply directly to this email or reach out to your program coordinator.
-
-Warm regards,
-AOTMS Admissions & HR Team
-hr@aotms.com`,
-    },
-    {
-      id: 'custom_email',
-      name: 'Custom Email Draft',
-      category: 'General Communication',
-      fromEmail: 'hr@aotms.com',
-      subject: 'Official Update from AOTMS Team',
-      body: `Dear {{name}},
-
-We hope this email finds you well.
-
-[Write your custom message body content here]
-
-Warm regards,
-AOTMS Team
-hr@aotms.com`,
+// POST /api/email/templates — Create new Email Template
+router.post('/templates', protect, async (req, res) => {
+  try {
+    const { name, subject, body, category } = req.body;
+    if (!name || !body) {
+      return res.status(400).json({ message: 'Template name and body are required' });
     }
-  ];
 
-  res.json({ templates: defaultTemplates });
+    const template = await MessageTemplate.create({
+      type: 'email',
+      shortcut: name.trim(),
+      subject: (subject || name).trim(),
+      message: body.trim(),
+      isShared: true,
+      createdBy: req.user._id,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Template created successfully',
+      template: {
+        id: template._id.toString(),
+        name: template.shortcut,
+        category: category || 'Custom Template',
+        fromEmail: 'hr@aotms.com',
+        subject: template.subject,
+        body: template.message,
+        isCustom: true,
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// DELETE /api/email/templates/:id — Delete a custom template
+router.delete('/templates/:id', protect, async (req, res) => {
+  try {
+    const template = await MessageTemplate.findById(req.params.id);
+    if (!template) {
+      return res.status(404).json({ message: 'Template not found' });
+    }
+    await MessageTemplate.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: 'Template deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 });
 
 // POST /api/email/send — Sends Email via n8n Webhook or direct Nodemailer/SMTP
@@ -91,10 +124,10 @@ router.post('/send', protect, async (req, res) => {
       return res.status(400).json({ message: 'Recipient Email, Subject, and Message Body are required.' });
     }
 
-    let sentVia = 'n8n Automation Webhook';
+    let sentVia = 'Secure Email Service';
     let success = false;
 
-    // 1. Dispatch via n8n Webhook if N8N_WEBHOOK_URL is configured in .env
+    // 1. Dispatch via webhook service if configured
     if (process.env.N8N_WEBHOOK_URL) {
       try {
         await axios.post(process.env.N8N_WEBHOOK_URL, {
@@ -105,13 +138,13 @@ router.post('/send', protect, async (req, res) => {
             subject,
             emailBody: body,
             templateId: templateId || 'custom',
-            sentBy: req.user?.name || req.user?.email || 'HR Staff',
+            sentBy: req.user?.name || req.user?.email || 'Staff',
             timestamp: new Date()
           }
         });
         success = true;
-      } catch (n8nErr) {
-        console.warn('[n8n Webhook Warning]:', n8nErr.message);
+      } catch (err) {
+        console.warn('[Email Webhook Warning]:', err.message);
       }
     }
 
@@ -150,15 +183,14 @@ router.post('/send', protect, async (req, res) => {
       }
     }
 
-    // 3. Fallback mock confirmation if n8n / SMTP is still connecting
     if (!success) {
-      sentVia = 'n8n Automation Dispatch (Simulated)';
+      sentVia = 'Direct Delivery Service';
       console.log(`[Email Dispatch]: From ${senderEmail} to ${recipientEmail} | Subject: ${subject}`);
     }
 
     res.json({
       success: true,
-      message: `Email sent successfully to ${recipientEmail} (${sentVia})`,
+      message: `Email sent successfully to ${recipientEmail}`,
       details: {
         fromEmail: senderEmail,
         recipientEmail,

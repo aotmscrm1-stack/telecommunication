@@ -12,7 +12,7 @@ async function runTest() {
   console.log('Connected to MongoDB for test verification');
 
   const users = await mongoose.connection.collection('users').find({
-    email: { $in: ['ameen@aotms.com', 'deenaz@aotms.com', 'saadiya@aotms.com', 'bhargav@aotms.com', 'ashok@aotms.com'] }
+    email: { $in: ['ameen@aotms.com', 'rabbani@aotms.com', 'deenaz@aotms.com', 'saadiya@aotms.com', 'bhargav@aotms.com', 'ashok@aotms.com'] }
   }).toArray();
 
   const userMap = {};
@@ -22,18 +22,29 @@ async function runTest() {
     return jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
   }
 
-  console.log('\n--- 1. CEO PERMISSIONS TEST (Ameen - CEO) ---');
-  const ceoToken = makeToken(userMap['CEO']);
+  console.log('\n--- 1. MANAGING DIRECTOR PERMISSIONS TEST (Ameen - Managing Director) ---');
+  const mdToken = makeToken(userMap['Managing Director']);
   try {
     const res = await axios.get(`${BASE_URL}/attendance/summary`, {
-      headers: { Authorization: `Bearer ${ceoToken}` }
+      headers: { Authorization: `Bearer ${mdToken}` }
     });
-    console.log('✓ CEO can access attendance summary: OK (Status:', res.status, ')');
+    console.log('✓ Managing Director can access attendance summary: OK (Status:', res.status, ')');
   } catch (err) {
-    console.error('✗ CEO attendance summary failed:', err.response?.status, err.response?.data);
+    console.error('✗ Managing Director attendance summary failed:', err.response?.status, err.response?.data);
   }
 
-  console.log('\n--- 2. HR PERMISSIONS TEST (Deenaz - HR) ---');
+  console.log('\n--- 2. CTO PERMISSIONS TEST (Rabbani - CTO) ---');
+  const ctoToken = makeToken(userMap['CTO']);
+  try {
+    const res = await axios.get(`${BASE_URL}/attendance/summary`, {
+      headers: { Authorization: `Bearer ${ctoToken}` }
+    });
+    console.log('✓ CTO can access attendance summary: OK (Status:', res.status, ')');
+  } catch (err) {
+    console.error('✗ CTO attendance summary failed:', err.response?.status, err.response?.data);
+  }
+
+  console.log('\n--- 3. HR PERMISSIONS TEST (Deenaz - HR) ---');
   const hrToken = makeToken(userMap['HR']);
   try {
     const res = await axios.get(`${BASE_URL}/attendance/records`, {
@@ -58,7 +69,7 @@ async function runTest() {
     }
   }
 
-  console.log('\n--- 3. DEVELOPER PERMISSIONS TEST (Saadiya - Developer) ---');
+  console.log('\n--- 4. DEVELOPER PERMISSIONS TEST (Saadiya - Developer) ---');
   const devToken = makeToken(userMap['Developer']);
   try {
     const res = await axios.get(`${BASE_URL}/attendance/records`, {
@@ -68,7 +79,6 @@ async function runTest() {
   } catch (err) {
     console.error('✗ Developer attendance records failed:', err.response?.status, err.response?.data);
   }
-
   try {
     const res = await axios.get(`${BASE_URL}/email/templates`, {
       headers: { Authorization: `Bearer ${devToken}` }
@@ -78,7 +88,7 @@ async function runTest() {
     console.error('✗ Developer email templates failed:', err.response?.status, err.response?.data);
   }
 
-  console.log('\n--- 4. TRAINER PERMISSIONS TEST (Bhargav - Trainer) ---');
+  console.log('\n--- 5. TRAINER PERMISSIONS TEST (Bhargav - Trainer) ---');
   const trainerToken = makeToken(userMap['Trainer']);
   try {
     const res = await axios.get(`${BASE_URL}/attendance/records`, {
@@ -89,7 +99,7 @@ async function runTest() {
     console.error('✗ Trainer attendance records failed:', err.response?.status, err.response?.data);
   }
 
-  console.log('\n--- 5. DIGITAL MARKETING PERMISSIONS TEST (Ashok - Digital Marketing) ---');
+  console.log('\n--- 6. DIGITAL MARKETING PERMISSIONS TEST (Ashok - Digital Marketing) ---');
   const dmToken = makeToken(userMap['Digital Marketing']);
   try {
     const res = await axios.get(`${BASE_URL}/attendance/records`, {
@@ -100,8 +110,11 @@ async function runTest() {
     console.error('✗ Digital Marketing attendance records failed:', err.response?.status, err.response?.data);
   }
 
-  console.log('\nALL 5 DESIGNATION PERMISSION TESTS PASSED PERFECTLY!');
+  console.log('\nALL DESIGNATION PERMISSION TESTS PASSED PERFECTLY!');
   process.exit(0);
 }
 
-runTest().catch(e => { console.error(e); process.exit(1); });
+runTest().catch(err => {
+  console.error('Fatal error during test:', err);
+  process.exit(1);
+});

@@ -37,7 +37,7 @@ import Landing from './pages/landing_pages/Landing';
 import LiveEmployeeTracking from './Management/Attedence/LiveEmployee/LiveEmployeeTracking';
 import AttendanceRecords from './Management/Attedence/AttendanceRecords';
 
-import { isCEO, isHR, isLimitedStaff } from './utils/permissions';
+import { isCEO, isHR, isLimitedStaff, canViewDashboard } from './utils/permissions';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -55,21 +55,32 @@ const ProtectedRoute = ({ children }) => {
 const PublicRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return null;
-  return user ? <Navigate to="/dashboard" replace /> : children;
+  return user ? <Navigate to={canViewDashboard(user) ? "/dashboard" : "/tasks"} replace /> : children;
+};
+
+// Route guard: Only CEO and HR are allowed to view Dashboard. Remaining staff are redirected to /tasks
+const DashboardRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  if (canViewDashboard(user)) {
+    return children;
+  }
+  return <Navigate to="/tasks" replace />;
 };
 
 const AdminRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return null;
   const isAdmin = user?.role === 'admin' || user?.role === 'manager' || isCEO(user) || isHR(user);
-  return isAdmin ? children : <Navigate to="/dashboard" replace />;
+  return isAdmin ? children : <Navigate to={canViewDashboard(user) ? "/dashboard" : "/tasks"} replace />;
 };
 
 const AdminOnlyRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return null;
   const isStrictAdmin = user?.role === 'admin' || isCEO(user) || isHR(user);
-  return isStrictAdmin ? children : <Navigate to="/dashboard" replace />;
+  return isStrictAdmin ? children : <Navigate to={canViewDashboard(user) ? "/dashboard" : "/tasks"} replace />;
 };
 
 // Route guard for Attendance — fully enabled for CEO, HR, Developer, Trainer, Digital Marketing, Admins & Managers
@@ -85,10 +96,17 @@ const StaffRestrictedRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
-  if (isLimitedStaff(user)) {
-    return <Navigate to="/dashboard" replace />;
+  if (!canViewDashboard(user) || isLimitedStaff(user)) {
+    return <Navigate to="/tasks" replace />;
   }
   return children;
+};
+
+const RootRedirect = () => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  return <Navigate to={canViewDashboard(user) ? "/dashboard" : "/tasks"} replace />;
 };
 
 
@@ -100,7 +118,7 @@ export default function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
           <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="dashboard" element={<DashboardRoute><Dashboard /></DashboardRoute>} />
             <Route path="billing" element={<AdminRoute><Billing /></AdminRoute>} />
             <Route path="leads" element={<StaffRestrictedRoute><AllLeads /></StaffRestrictedRoute>} />
             <Route path="all-leads" element={<StaffRestrictedRoute><AllLeads /></StaffRestrictedRoute>} />
@@ -143,7 +161,7 @@ export default function App() {
             <Route path="attendance-records" element={<AttendanceRoute><AttendanceRecords /></AttendanceRoute>} />
             <Route path="add-lead" element={<StaffRestrictedRoute><AddLead /></StaffRestrictedRoute>} />
           </Route>
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<RootRedirect />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

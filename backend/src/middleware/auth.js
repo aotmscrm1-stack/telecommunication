@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
 const ALLOWED_STAFF_DESIGNATIONS = [
-  'CEO', 'HR', 'DEVELOPER', 'TRAINER', 'TRAINERS', 'DIGITAL MARKETING', 'DEGITAL MARKETING'
+  'MANAGING DIRECTOR', 'MD', 'CTO', 'CEO', 'HR', 'DEVELOPER', 'TRAINER', 'TRAINERS', 'DIGITAL MARKETING', 'DEGITAL MARKETING'
 ];
 
 const protect = async (req, res, next) => {
@@ -31,8 +31,9 @@ const authorize = (...roles) => (req, res, next) => {
   const userRole = req.user?.role;
   const userDesig = String(req.user?.designation || '').trim().toUpperCase();
 
-  // Rule 1: CEO has full unrestricted access
-  if (userDesig === 'CEO') {
+  // Rule 1: Managing Director, CTO, CEO have full unrestricted access
+  const isExecutive = userDesig === 'MANAGING DIRECTOR' || userDesig === 'MD' || userDesig === 'CTO' || userDesig === 'CEO';
+  if (isExecutive) {
     return next();
   }
 

@@ -129,7 +129,17 @@ router.get('/', protect, async (req, res) => {
       .populate('assignedBy', 'name avatar')
       .sort({ scheduledAt: 1 });
 
-    res.json({ followups });
+    const sanitized = followups.map(f => {
+      const doc = f.toObject ? f.toObject() : f;
+      if (!doc.assignedBy && (f.get && (f.get('assignedBy') === 'all' || f.get('assignedBy') === 'All'))) {
+        doc.assignedBy = { _id: 'all', name: 'All' };
+      } else if (doc.assignedBy === 'all' || doc.assignedBy === 'All') {
+        doc.assignedBy = { _id: 'all', name: 'All' };
+      }
+      return doc;
+    });
+
+    res.json({ followups: sanitized });
   } catch (err) {
     console.error('[GET /followups]', err);
     res.status(500).json({ message: err.message });
@@ -138,10 +148,15 @@ router.get('/', protect, async (req, res) => {
 
 // Enforce who a given user is allowed to assign a task to:
 // - admin & manager: anyone
+// - limited staff (developer, trainer, marketing): anyone in their allowed scope
 // - caller: themselves only
 async function canAssignTo(actor, assigneeId) {
   if (!assigneeId) return true; // falls back to actor as assignee
   if (actor.role === 'admin' || actor.role === 'manager') return true;
+  const desig = String(actor.designation || '').trim().toUpperCase();
+  if (['DEVELOPER', 'TRAINER', 'TRAINERS', 'DIGITAL MARKETING', 'DEGITAL MARKETING'].includes(desig)) {
+    return true;
+  }
   if (assigneeId.toString() === actor._id.toString()) return true;
   return false; // callers can only assign to themselves
 }
@@ -169,7 +184,11 @@ router.post('/', protect, async (req, res) => {
 
       await followup.populate('lead', 'name phone status');
       await followup.populate('assignedTo', 'name email');
-      await followup.populate('assignedBy', 'name email');
+      if (baseDoc.assignedBy && mongoose.Types.ObjectId.isValid(baseDoc.assignedBy)) {
+        await followup.populate('assignedBy', 'name email');
+      } else if (baseDoc.assignedBy === 'all' || baseDoc.assignedBy === 'All') {
+        followup.assignedBy = { _id: 'all', name: 'All' };
+      }
 
       fireAndForget(() => notifyAdminsTaskCreated({ followup, performedByUser: req.user }));
 
