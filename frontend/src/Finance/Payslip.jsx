@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   FileText,
-  Plus,
   Search,
   Download,
   Printer,
@@ -10,23 +9,17 @@ import {
   CheckCircle2,
   AlertCircle,
   IndianRupee,
-  Calendar,
-  Building2,
   User,
   CreditCard,
   Briefcase,
-  Layers,
-  ArrowRight,
   Sparkles,
   RefreshCw,
   X,
-  Clock,
   FileSpreadsheet,
   Users,
   ChevronLeft,
   ChevronRight,
   Save,
-  Check,
   Edit3,
 } from 'lucide-react';
 import { payslipsAPI } from '../services/api';
@@ -36,8 +29,7 @@ import { numberToWords } from '../utils/numberToWords';
 import PayslipDocument from './payslip/PayslipDocument';
 import ExcelUploadModal from './payslip/ExcelUploadModal';
 
-
-// Month options generator (e.g. "January 2026", "February 2026", "March 2026", etc.)
+// Month options generator
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
@@ -81,6 +73,26 @@ const INITIAL_FORM = {
   tds: 200,
 };
 
+const SAMPLE_PAYSLIP = {
+  employee_name: 'Bhavani Shankar',
+  employee_id: 'AOTMS-EMP-104',
+  joining_date: '01-08-2025',
+  designation: 'HR Executive',
+  department: 'Human Resources',
+  location: 'Vijayawada',
+  effective_work_days: 30,
+  lop: 0,
+  bank_name: 'HDFC Bank',
+  bank_account_number: '50200120568031',
+  pan_number: 'ABCDE1234F',
+  pf_number: 'AP/VJA/0012345/000/0001',
+  uan_number: '101234567890',
+  payslip_month: getDefaultMonth(),
+  gross_salary: 25000,
+  incentive: 0,
+  tds: 200,
+};
+
 function formatPayslipFilename(employeeName, employeeId, payslipMonth) {
   const cleanName = (employeeName || 'Employee').trim().replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
   const cleanId = (employeeId || '').trim().replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
@@ -91,13 +103,14 @@ function formatPayslipFilename(employeeName, employeeId, payslipMonth) {
 export default function Payslip() {
   const { user } = useAuth();
   const [form, setForm] = useState(INITIAL_FORM);
-  const [currentSlipId, setCurrentSlipId] = useState(null); // When editing an existing saved slip
+  const [currentSlipId, setCurrentSlipId] = useState(null);
   const [history, setHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [monthFilter, setMonthFilter] = useState('all');
   const [activeTab, setActiveTab] = useState('create'); // 'create' | 'history'
+  const [previewMode, setPreviewMode] = useState('split'); // 'split' | 'fullscreen'
   const [selectedPayslip, setSelectedPayslip] = useState(null);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [showExcelModal, setShowExcelModal] = useState(false);
@@ -126,14 +139,10 @@ export default function Payslip() {
   const incentive = Math.max(0, Math.round(Number(form.incentive) || 0));
   const totalEarnings = grossNum > 0 ? basicSalary + hra + conveyance + medicalAllowance + foodAllowance + specialAllowance + incentive : 0;
 
-  // Effective Work Days is fixed at standard 30 days
-  const workDaysNum = 30;
   const lopDaysNum = Number(form.lop) >= 0 ? Number(form.lop) : 0;
-  // LOP Deduction: Calculated on standard 30 days basis -> (Gross Salary / 30) * LOP Days
   const perDaySalary = grossNum > 0 ? grossNum / 30 : 0;
   const lopDeduction = grossNum > 0 && lopDaysNum > 0 ? Math.round(perDaySalary * lopDaysNum) : 0;
 
-  // Professional Tax is fixed at ₹200
   const tds = 200;
   const totalDeductions = grossNum > 0 ? lopDeduction + tds : 0;
   const netSalary = grossNum > 0 ? totalEarnings - totalDeductions : 0;
@@ -222,7 +231,6 @@ export default function Payslip() {
   const triggerPdfDownload = async (slip) => {
     if (!slip) return;
     setActiveExportSlip(slip);
-    // Allow React state to render the export DOM node
     await new Promise((resolve) => setTimeout(resolve, 150));
 
     const element = document.getElementById('payslip-direct-export-node');
@@ -263,8 +271,9 @@ export default function Payslip() {
       setSelectedBulkIndex(0);
       loadEmployeeIntoForm(savedSlips[0]);
       setSuccessMessage(
-        `Successfully generated and saved ${savedSlips.length} payslips to the database! Use the employee navigation below to review each payslip or download individual PDFs.`
+        `Successfully generated and saved ${savedSlips.length} payslips to the database! Use employee navigation to review or download.`
       );
+      setTimeout(() => setSuccessMessage(''), 5000);
       fetchHistory();
     }
   };
@@ -299,6 +308,7 @@ export default function Payslip() {
     setCurrentSlipId(null);
     setForm(INITIAL_FORM);
     setSuccessMessage('Exited bulk workspace. Switched to manual single payslip mode.');
+    setTimeout(() => setSuccessMessage(''), 4000);
   };
 
   // ── Handle Download All Payslips Sequentially ─────────────────────────────
@@ -315,9 +325,11 @@ export default function Payslip() {
         }
       }
       setSuccessMessage(`Successfully downloaded all ${bulkEmployees.length} employee payslips.`);
+      setTimeout(() => setSuccessMessage(''), 5000);
     } catch (err) {
       console.error('Error in bulk download all:', err);
       setErrorMessage('An error occurred while downloading all payslips');
+      setTimeout(() => setErrorMessage(''), 5000);
     } finally {
       setDownloadingAll(false);
       setDownloadAllProgress({ current: 0, total: 0 });
@@ -330,7 +342,6 @@ export default function Payslip() {
     setErrorMessage('');
     setSuccessMessage('');
 
-    // Strict validation for all required fields
     if (!form.employee_name?.trim()) {
       setErrorMessage('Please enter Employee Name');
       return;
@@ -414,33 +425,28 @@ export default function Payslip() {
       };
 
       if (currentSlipId) {
-        // Update existing database record
         const res = await payslipsAPI.update(currentSlipId, payload);
         activeSlip = res.data?.payslip || draftPayslip;
 
-        // Update current record in bulkEmployees list if present
         if (bulkEmployees.length > 0) {
           setBulkEmployees((prev) =>
             prev.map((item, idx) => (idx === selectedBulkIndex ? activeSlip : item))
           );
         }
       } else {
-        // Create new record in database
         const res = await payslipsAPI.create(payload);
         activeSlip = res.data?.payslip || draftPayslip;
         setCurrentSlipId(activeSlip._id || null);
       }
 
-      // 2. Generate and download PDF immediately for the active employee
       await triggerPdfDownload(activeSlip);
 
-      // 3. Update history and notify user
       setSuccessMessage(
         `Payslip for ${form.employee_name} (${form.employee_id}) saved to database and downloaded successfully.`
       );
+      setTimeout(() => setSuccessMessage(''), 5000);
       fetchHistory();
 
-      // If in manual mode (not bulk), clear form after creation
       if (bulkEmployees.length === 0 && !currentSlipId) {
         setForm(INITIAL_FORM);
         setCurrentSlipId(null);
@@ -448,6 +454,7 @@ export default function Payslip() {
     } catch (err) {
       console.error('Download payslip error:', err);
       setErrorMessage(err.response?.data?.message || err.message || 'Failed to save payslip or generate PDF');
+      setTimeout(() => setErrorMessage(''), 5000);
     } finally {
       setSaving(false);
     }
@@ -478,9 +485,11 @@ export default function Payslip() {
         );
       }
       setSuccessMessage(`Changes for ${form.employee_name} saved successfully.`);
+      setTimeout(() => setSuccessMessage(''), 4000);
       fetchHistory();
     } catch (err) {
       setErrorMessage(err.response?.data?.message || err.message || 'Failed to save changes');
+      setTimeout(() => setErrorMessage(''), 4000);
     } finally {
       setSaving(false);
     }
@@ -504,7 +513,6 @@ export default function Payslip() {
     }
   };
 
-  // ── Print Handler ────────────────────────────────────────────────────────
   const handlePrint = () => {
     window.print();
   };
@@ -519,125 +527,183 @@ export default function Payslip() {
   const fmt = (v) => (v !== undefined && v !== null && v !== '' ? Number(v).toLocaleString('en-IN') : '0');
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
-      {/* ── Page Header ──────────────────────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-xs">
+    <div style={{ padding: '24px 32px', backgroundColor: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
+      
+      {/* ── Top Header Toolbar ──────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
         <div>
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
-              <FileText className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
-                AOTMS Payslip Module
-              </h1>
-              <p className="text-xs sm:text-sm text-gray-500">
-                Official employee salary slips generator with Excel bulk import, automated statutory calculations & PDF export
-              </p>
-            </div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ padding: 8, borderRadius: 10, background: '#eff6ff', color: '#1d4ed8', display: 'flex' }}>
+              <FileText size={24} />
+            </span>
+            Salary Payslip Generator
+          </div>
+          <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>
+            Official employee salary slips generator with Excel bulk import, automated statutory calculations & PDF export.
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('create');
-            }}
-            className={`px-4 py-2.5 rounded-xl font-semibold text-xs sm:text-sm flex items-center gap-2 transition-all cursor-pointer ${
-              activeTab === 'create'
-                ? 'bg-indigo-600 text-white shadow-xs'
-                : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
-            }`}
-          >
-            <Plus className="w-4 h-4" /> Create Payslip
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('history');
-              fetchHistory();
-            }}
-            className={`px-4 py-2.5 rounded-xl font-semibold text-xs sm:text-sm flex items-center gap-2 transition-all cursor-pointer ${
-              activeTab === 'history'
-                ? 'bg-indigo-600 text-white shadow-xs'
-                : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
-            }`}
-          >
-            <Clock className="w-4 h-4" /> History ({history.length})
-          </button>
+        {/* Tab & Action Controls */}
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ background: '#e2e8f0', padding: 3, borderRadius: 8, display: 'flex', gap: 2 }}>
+            <button
+              onClick={() => setActiveTab('create')}
+              style={{
+                padding: '8px 16px', borderRadius: 6, border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                background: activeTab === 'create' ? '#ffffff' : 'transparent',
+                color: activeTab === 'create' ? '#0f172a' : '#64748b',
+                boxShadow: activeTab === 'create' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                transition: 'all 0.15s'
+              }}
+            >
+              Form Builder
+            </button>
+            <button
+              onClick={() => { setActiveTab('history'); fetchHistory(); }}
+              style={{
+                padding: '8px 16px', borderRadius: 6, border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                background: activeTab === 'history' ? '#ffffff' : 'transparent',
+                color: activeTab === 'history' ? '#0f172a' : '#64748b',
+                boxShadow: activeTab === 'history' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                transition: 'all 0.15s'
+              }}
+            >
+              Saved Records ({history.length})
+            </button>
+          </div>
+
+          {activeTab === 'create' && (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  loadEmployeeIntoForm(SAMPLE_PAYSLIP);
+                  setSuccessMessage('Loaded sample payslip details into form!');
+                  setTimeout(() => setSuccessMessage(''), 3000);
+                }}
+                style={{
+                  padding: '9px 14px', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe',
+                  borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6
+                }}
+                title="Fill sample employee payslip details"
+              >
+                <Sparkles size={15} /> Sample Payslip
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowExcelModal(true)}
+                style={{
+                  padding: '9px 14px', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0',
+                  borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6
+                }}
+                title="Upload Excel for bulk payslip generation"
+              >
+                <FileSpreadsheet size={15} /> Upload Excel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleClearForm}
+                style={{
+                  padding: '9px 14px', background: '#fef2f2', color: '#b91c1c', border: '1px solid #fca5a5',
+                  borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6
+                }}
+                title="Clear all fields"
+              >
+                <RefreshCw size={15} /> Reset Form
+              </button>
+
+              {currentSlipId && (
+                <button
+                  type="button"
+                  onClick={handleSaveOnly}
+                  disabled={saving}
+                  style={{
+                    padding: '9px 16px', background: '#0284c7', color: '#ffffff', border: 'none',
+                    borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6
+                  }}
+                >
+                  {saving ? <RefreshCw size={15} className="animate-spin" /> : <Save size={15} />}
+                  Save Changes
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={handleDownloadPayslip}
+                disabled={saving}
+                style={{
+                  padding: '9px 18px', background: '#059669', color: '#ffffff', border: 'none',
+                  borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+                  boxShadow: '0 2px 4px rgba(5,150,105,0.2)'
+                }}
+              >
+                {saving ? <RefreshCw size={15} className="animate-spin" /> : <Download size={15} />}
+                Download PDF
+              </button>
+            </>
+          )}
         </div>
       </div>
 
-      {/* ── Alerts ───────────────────────────────────────────────────────────── */}
+      {/* Notifications */}
       {successMessage && (
-        <div className="flex items-center justify-between gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-sm animate-fadeIn">
-          <div className="flex items-center gap-2.5">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-            <span>{successMessage}</span>
+        <div style={{ background: '#ecfdf5', border: '1px solid #6ee7b7', color: '#047857', padding: '12px 16px', borderRadius: 8, marginBottom: 20, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <CheckCircle2 size={18} /> {successMessage}
           </div>
-          <button onClick={() => setSuccessMessage('')} className="text-emerald-600 hover:text-emerald-800 cursor-pointer">
-            <X className="w-4 h-4" />
-          </button>
+          <button onClick={() => setSuccessMessage('')} style={{ background: 'none', border: 'none', color: '#047857', cursor: 'pointer' }}><X size={16} /></button>
         </div>
       )}
-
       {errorMessage && (
-        <div className="flex items-center justify-between gap-3 p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-sm animate-fadeIn">
-          <div className="flex items-center gap-2.5">
-            <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0" />
-            <span>{errorMessage}</span>
+        <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#b91c1c', padding: '12px 16px', borderRadius: 8, marginBottom: 20, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <AlertCircle size={18} /> {errorMessage}
           </div>
-          <button onClick={() => setErrorMessage('')} className="text-rose-600 hover:text-rose-800 cursor-pointer">
-            <X className="w-4 h-4" />
-          </button>
+          <button onClick={() => setErrorMessage('')} style={{ background: 'none', border: 'none', color: '#b91c1c', cursor: 'pointer' }}><X size={16} /></button>
         </div>
       )}
 
-      {/* ── Tab: Create Payslip ──────────────────────────────────────────────── */}
+      {/* ── CREATE TAB: FORM BUILDER & LIVE PREVIEW SPLIT VIEW ──────────────── */}
       {activeTab === 'create' && (
-        <div className="space-y-4">
-          {/* ── Bulk Employee Navigation Bar (Visible when bulk employees are loaded) ── */}
+        <div>
+          {/* ── Bulk Employee Navigation Banner (when bulk employees loaded) ── */}
           {bulkEmployees.length > 0 && (
-            <div className="bg-gradient-to-r from-indigo-50/95 via-blue-50/95 to-slate-50 border border-indigo-200/90 p-4 rounded-2xl shadow-xs flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 animate-fadeIn">
-              {/* Left: Bulk Mode details & counter */}
-              <div className="flex items-center gap-3">
-                <span className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-xs flex-shrink-0">
-                  <Users className="w-5 h-5" />
+            <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 12, padding: '14px 20px', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ width: 36, height: 36, borderRadius: 8, background: '#1d4ed8', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Users size={20} />
                 </span>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-sm text-gray-900">Bulk Payslip Workspace</h3>
-                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-700 border border-indigo-200">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontWeight: 800, fontSize: 14, color: '#0f172a' }}>Bulk Payslip Workspace</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, background: '#dbeafe', color: '#1d4ed8', padding: '2px 8px', borderRadius: 12 }}>
                       {bulkEmployees.length} Employees Loaded
                     </span>
                   </div>
-                  <p className="text-xs text-gray-500">
-                    Viewing Employee {selectedBulkIndex + 1} of {bulkEmployees.length}: <span className="font-semibold text-gray-800">{bulkEmployees[selectedBulkIndex]?.employee_name || 'Draft'}</span>
-                  </p>
+                  <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                    Viewing Employee {selectedBulkIndex + 1} of {bulkEmployees.length}: <strong style={{ color: '#0f172a' }}>{bulkEmployees[selectedBulkIndex]?.employee_name || 'Draft'}</strong> ({bulkEmployees[selectedBulkIndex]?.employee_id})
+                  </div>
                 </div>
               </div>
 
-              {/* Right: Navigation Dropdown, Download All & Exit Bulk Mode */}
-              <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto justify-between lg:justify-end">
-                {/* Employee Selector Dropdown with Prev & Next */}
-                <div className="inline-flex items-center bg-white rounded-xl border border-gray-300 p-0.5 shadow-2xs">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', background: '#ffffff', borderRadius: 8, border: '1px solid #cbd5e1', padding: 2 }}>
                   <button
                     type="button"
                     onClick={handlePrevEmployee}
                     disabled={selectedBulkIndex <= 0 || downloadingAll}
-                    className="px-2.5 py-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent text-gray-700 font-semibold text-xs flex items-center gap-1 transition-colors cursor-pointer"
-                    title="Previous Employee"
+                    style={{ padding: '6px 10px', borderRadius: 6, border: 'none', background: 'transparent', color: '#334155', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, opacity: selectedBulkIndex <= 0 ? 0.4 : 1 }}
                   >
-                    <ChevronLeft className="w-3.5 h-3.5" /> Prev
+                    <ChevronLeft size={14} /> Prev
                   </button>
 
                   <select
                     value={selectedBulkIndex}
                     onChange={(e) => handleSelectEmployee(Number(e.target.value))}
                     disabled={downloadingAll}
-                    aria-label="Select employee"
-                    className="px-3 py-1.5 border-x border-gray-200 bg-transparent text-xs font-semibold text-gray-800 focus:outline-none max-w-[220px] cursor-pointer"
+                    style={{ padding: '6px 10px', border: 'none', borderLeft: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0', background: 'transparent', fontSize: 12, fontWeight: 700, color: '#0f172a', outline: 'none', cursor: 'pointer' }}
                   >
                     {bulkEmployees.map((emp, idx) => (
                       <option key={emp._id || idx} value={idx}>
@@ -650,604 +716,464 @@ export default function Payslip() {
                     type="button"
                     onClick={handleNextEmployee}
                     disabled={selectedBulkIndex >= bulkEmployees.length - 1 || downloadingAll}
-                    className="px-2.5 py-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent text-gray-700 font-semibold text-xs flex items-center gap-1 transition-colors cursor-pointer"
-                    title="Next Employee"
+                    style={{ padding: '6px 10px', borderRadius: 6, border: 'none', background: 'transparent', color: '#334155', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, opacity: selectedBulkIndex >= bulkEmployees.length - 1 ? 0.4 : 1 }}
                   >
-                    Next <ChevronRight className="w-3.5 h-3.5" />
+                    Next <ChevronRight size={14} />
                   </button>
                 </div>
 
-                {/* Subtle Divider */}
-                <div className="hidden sm:block h-6 w-px bg-indigo-200"></div>
+                <button
+                  type="button"
+                  onClick={handleDownloadAll}
+                  disabled={downloadingAll || bulkEmployees.length === 0}
+                  style={{
+                    padding: '8px 16px', background: '#059669', color: '#ffffff', border: 'none',
+                    borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+                    opacity: downloadingAll ? 0.6 : 1
+                  }}
+                >
+                  {downloadingAll ? (
+                    <>
+                      <RefreshCw size={14} className="animate-spin" /> Downloading {downloadAllProgress.current}/{downloadAllProgress.total}...
+                    </>
+                  ) : (
+                    <>
+                      <Download size={14} /> Download All ({bulkEmployees.length})
+                    </>
+                  )}
+                </button>
 
-                {/* Action Group: Download All & Exit Bulk Mode */}
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleDownloadAll}
-                    disabled={downloadingAll || bulkEmployees.length === 0}
-                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer hover:shadow-sm"
-                    title="Download all employee payslip PDFs sequentially"
-                  >
-                    {downloadingAll ? (
-                      <>
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        Downloading {downloadAllProgress.current}/{downloadAllProgress.total}...
-                      </>
-                    ) : (
-                      <>
-                        <Download className="w-3.5 h-3.5" /> Download All ({bulkEmployees.length})
-                      </>
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleExitBulkMode}
-                    disabled={downloadingAll}
-                    className="px-3.5 py-2 rounded-xl border border-gray-300 bg-white hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 text-gray-700 text-xs font-semibold transition-colors cursor-pointer"
-                    title="Exit bulk mode and switch to standard manual single payslip"
-                  >
-                    Exit Bulk Mode
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={handleExitBulkMode}
+                  disabled={downloadingAll}
+                  style={{ padding: '8px 14px', background: '#ffffff', border: '1px solid #cbd5e1', color: '#dc2626', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Exit Bulk Mode
+                </button>
               </div>
             </div>
           )}
 
-          {/* Main 2-Column Grid: Form Left (6 cols) & Live Preview Right (6 cols) */}
-          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-            {/* Form Left Side (6 cols) */}
-            <div className="xl:col-span-6 bg-white p-6 rounded-2xl border border-gray-100 shadow-xs space-y-6">
-              <div className="flex flex-wrap items-center justify-between border-b border-gray-100 pb-4 gap-2">
-                <div>
-                  <h2 className="text-base font-bold text-gray-900">Employee & Salary Information</h2>
-                  <p className="text-xs text-gray-500">
-                    {bulkEmployees.length > 0 ? (
-                      <span className="text-indigo-600 font-medium">
-                        Editing Employee {selectedBulkIndex + 1} of {bulkEmployees.length} ({form.employee_name || 'Draft'})
-                      </span>
-                    ) : (
-                      <>Fill in all required fields marked with <span className="text-red-500 font-bold">*</span></>
+          {/* Main Form Builder & Live Preview Split View */}
+          <div style={{ display: 'grid', gridTemplateColumns: previewMode === 'fullscreen' ? '1fr' : '480px 1fr', gap: 24, alignItems: 'start' }}>
+
+            {/* Left Form Controls */}
+            {previewMode !== 'fullscreen' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                
+                {/* Card 1: Employee & Employment Details */}
+                <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <User size={18} style={{ color: '#1d4ed8' }} /> Employee & Employment Details
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 10 }}>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Employee Name *</label>
+                        <input
+                          type="text"
+                          required
+                          value={form.employee_name || ''}
+                          onChange={e => setForm({ ...form, employee_name: e.target.value })}
+                          placeholder="e.g. Bhavani Shankar"
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, fontWeight: 600 }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Employee ID / No. *</label>
+                        <input
+                          type="text"
+                          required
+                          value={form.employee_id || ''}
+                          onChange={e => setForm({ ...form, employee_id: e.target.value })}
+                          placeholder="e.g. AOTMS-EMP-104"
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, fontFamily: 'monospace' }}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Joining Date *</label>
+                        <input
+                          type="text"
+                          required
+                          value={form.joining_date || ''}
+                          onChange={e => setForm({ ...form, joining_date: e.target.value })}
+                          placeholder="DD-MM-YYYY"
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Designation *</label>
+                        <input
+                          type="text"
+                          required
+                          value={form.designation || ''}
+                          onChange={e => setForm({ ...form, designation: e.target.value })}
+                          placeholder="e.g. Developer / HR Executive"
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Department *</label>
+                        <input
+                          type="text"
+                          required
+                          value={form.department || ''}
+                          onChange={e => setForm({ ...form, department: e.target.value })}
+                          placeholder="e.g. Development / Operations"
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Work Location *</label>
+                        <input
+                          type="text"
+                          required
+                          value={form.location || ''}
+                          onChange={e => setForm({ ...form, location: e.target.value })}
+                          placeholder="e.g. Vijayawada"
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card 2: Bank & Statutory Details */}
+                <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <CreditCard size={18} style={{ color: '#059669' }} /> Bank & Statutory Details
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Bank Name *</label>
+                        <input
+                          type="text"
+                          required
+                          value={form.bank_name || ''}
+                          onChange={e => setForm({ ...form, bank_name: e.target.value })}
+                          placeholder="e.g. HDFC Bank"
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Bank Account Number *</label>
+                        <input
+                          type="text"
+                          required
+                          value={form.bank_account_number || ''}
+                          onChange={e => setForm({ ...form, bank_account_number: e.target.value })}
+                          placeholder="Enter account number"
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, fontFamily: 'monospace' }}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>PAN Number *</label>
+                        <input
+                          type="text"
+                          required
+                          value={form.pan_number || ''}
+                          onChange={e => setForm({ ...form, pan_number: e.target.value.toUpperCase() })}
+                          placeholder="ABCDE1234F"
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, fontFamily: 'monospace', textTransform: 'uppercase' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>PF Number *</label>
+                        <input
+                          type="text"
+                          required
+                          value={form.pf_number || ''}
+                          onChange={e => setForm({ ...form, pf_number: e.target.value })}
+                          placeholder="AP/VJA/0012345/000/0001"
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, fontFamily: 'monospace' }}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>PF UAN (Universal Account Number) *</label>
+                      <input
+                        type="text"
+                        required
+                        value={form.uan_number || ''}
+                        onChange={e => setForm({ ...form, uan_number: e.target.value })}
+                        placeholder="101234567890"
+                        style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, fontFamily: 'monospace' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card 3: Salary & Working Period Details */}
+                <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <IndianRupee size={18} style={{ color: '#6366f1' }} /> Salary & Period Details
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Payslip Month *</label>
+                        <input
+                          type="text"
+                          required
+                          value={form.payslip_month || ''}
+                          onChange={e => setForm({ ...form, payslip_month: e.target.value })}
+                          placeholder="e.g. September 2026"
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, fontWeight: 600 }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Gross Monthly Salary (₹) *</label>
+                        <input
+                          type="number"
+                          required
+                          min="1"
+                          value={form.gross_salary || ''}
+                          onChange={e => setForm({ ...form, gross_salary: e.target.value })}
+                          placeholder="e.g. 25000"
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13.5, fontWeight: 800, color: '#0f172a' }}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Incentive / Bonus (₹)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={form.incentive || ''}
+                          onChange={e => setForm({ ...form, incentive: e.target.value })}
+                          placeholder="0"
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>LOP (Loss of Pay Days)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="30"
+                          value={form.lop !== undefined ? form.lop : 0}
+                          onChange={e => setForm({ ...form, lop: e.target.value })}
+                          placeholder="0"
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Statutory PT Notice */}
+                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>Professional Tax (PT)</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>Fixed: ₹200</span>
+                    </div>
+
+                    {/* Live Calculation Summary Card */}
+                    {grossNum > 0 && (
+                      <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: 12, marginTop: 4 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#166534', marginBottom: 8 }}>Salary Breakdown Summary</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 12px', fontSize: 11.5 }}>
+                          <div style={{ color: '#334155' }}>Basic Salary (40%): <strong>₹{fmt(basicSalary)}</strong></div>
+                          <div style={{ color: '#334155' }}>HRA (40% Basic): <strong>₹{fmt(hra)}</strong></div>
+                          <div style={{ color: '#334155' }}>Conveyance: <strong>₹{fmt(conveyance)}</strong></div>
+                          <div style={{ color: '#334155' }}>Medical Allowance: <strong>₹{fmt(medicalAllowance)}</strong></div>
+                          <div style={{ color: '#334155' }}>Food/Transport: <strong>₹{fmt(foodAllowance)}</strong></div>
+                          <div style={{ color: '#334155' }}>Special Allowance: <strong>₹{fmt(specialAllowance)}</strong></div>
+                          {lopDaysNum > 0 && (
+                            <div style={{ color: '#b91c1c' }}>LOP Deduction ({lopDaysNum}d): <strong>-₹{fmt(lopDeduction)}</strong></div>
+                          )}
+                          <div style={{ color: '#b91c1c' }}>PT Deduction: <strong>-₹200</strong></div>
+                        </div>
+                        <div style={{ borderTop: '1px solid #bbf7d0', marginTop: 8, paddingTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: '#166534' }}>Net Take-Home Salary:</span>
+                          <span style={{ fontSize: 15, fontWeight: 800, color: '#15803d' }}>₹{fmt(netSalary)}</span>
+                        </div>
+                      </div>
                     )}
-                  </p>
-                </div>
-
-                {/* Action Helpers: Upload Excel beside Reset Form */}
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowExcelModal(true)}
-                    className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
-                    title="Upload Excel for bulk payslip generation"
-                  >
-                    <FileSpreadsheet className="w-3.5 h-3.5" /> Upload Excel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleClearForm}
-                    className="text-xs font-semibold text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
-                    title="Clear all fields"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" /> Reset Form
-                  </button>
-                </div>
-              </div>
-
-              <form onSubmit={handleDownloadPayslip} className="space-y-5">
-                {/* ── Section: Employee Details ── */}
-                <div>
-                  <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">
-                    <User className="w-3.5 h-3.5" /> Employee Details
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        Employee Name <span className="text-red-500 font-bold">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Enter employee name"
-                        value={form.employee_name}
-                        onChange={(e) => setForm({ ...form, employee_name: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        Employee ID / No. <span className="text-red-500 font-bold">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Enter employee ID"
-                        value={form.employee_id}
-                        onChange={(e) => setForm({ ...form, employee_id: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        Joining Date <span className="text-red-500 font-bold">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Enter joining date (DD-MM-YYYY)"
-                        value={form.joining_date}
-                        onChange={(e) => setForm({ ...form, joining_date: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        Designation <span className="text-red-500 font-bold">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Enter designation"
-                        value={form.designation}
-                        onChange={(e) => setForm({ ...form, designation: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        Department <span className="text-red-500 font-bold">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Enter department"
-                        value={form.department}
-                        onChange={(e) => setForm({ ...form, department: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        Location <span className="text-red-500 font-bold">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Enter location"
-                        value={form.location}
-                        onChange={(e) => setForm({ ...form, location: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="block text-xs font-semibold text-gray-700">
-                          Effective Work Days <span className="text-red-500 font-bold">*</span>
-                        </label>
-                        <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded uppercase tracking-wider">
-                          Fixed (30)
-                        </span>
-                      </div>
-                      <input
-                        type="number"
-                        readOnly
-                        disabled
-                        value={30}
-                        className="w-full px-3 py-2 rounded-xl border border-gray-200 bg-gray-100 text-gray-500 text-xs font-mono cursor-not-allowed select-none"
-                      />
-                      <p className="text-[10px] text-gray-400 mt-1">Standard 30 days/month (Fixed)</p>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="block text-xs font-semibold text-gray-700">
-                          LOP (Loss Of Pay Days)
-                        </label>
-                        <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded uppercase tracking-wider">
-                          Editable
-                        </span>
-                      </div>
-                      <input
-                        type="number"
-                        min="0"
-                        max="30"
-                        placeholder="0"
-                        value={form.lop}
-                        onChange={(e) => setForm({ ...form, lop: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
-                      />
-                      <p className="text-[10px] text-gray-400 mt-1">
-                        {lopDaysNum > 0 && grossNum > 0 ? (
-                          <span className="text-rose-600 font-medium">
-                            Deduction: ₹{lopDeduction.toLocaleString('en-IN')} (₹{(grossNum / 30).toFixed(2)}/day × {lopDaysNum}d)
-                          </span>
-                        ) : (
-                          'Deduction = (Gross / 30) × LOP'
-                        )}
-                      </p>
-                    </div>
                   </div>
                 </div>
 
-                {/* ── Section: Bank & Statutory Details ── */}
-                <div className="pt-2 border-t border-gray-100">
-                  <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">
-                    <CreditCard className="w-3.5 h-3.5" /> Bank & Statutory Details
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        Bank Name <span className="text-red-500 font-bold">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Enter bank name"
-                        value={form.bank_name}
-                        onChange={(e) => setForm({ ...form, bank_name: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        Bank Account Number <span className="text-red-500 font-bold">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Enter bank account number"
-                        value={form.bank_account_number}
-                        onChange={(e) => setForm({ ...form, bank_account_number: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        PAN Number <span className="text-red-500 font-bold">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Enter PAN number"
-                        value={form.pan_number}
-                        onChange={(e) => setForm({ ...form, pan_number: e.target.value.toUpperCase() })}
-                        className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono uppercase"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        PF Number <span className="text-red-500 font-bold">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Enter PF number"
-                        value={form.pf_number}
-                        onChange={(e) => setForm({ ...form, pf_number: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
-                      />
-                    </div>
-
-                    <div className="sm:col-span-2">
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        PF UAN <span className="text-red-500 font-bold">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Enter PF UAN number"
-                        value={form.uan_number}
-                        onChange={(e) => setForm({ ...form, uan_number: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* ── Section: Salary Information ── */}
-                <div className="pt-2 border-t border-gray-100">
-                  <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">
-                    <IndianRupee className="w-3.5 h-3.5" /> Salary & Period
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        Payslip Month <span className="text-red-500 font-bold">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Enter payslip month (e.g. September 2026)"
-                        value={form.payslip_month}
-                        onChange={(e) => setForm({ ...form, payslip_month: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        Gross Salary (₹) <span className="text-red-500 font-bold">*</span>
-                      </label>
-                      <input
-                        type="number"
-                        required
-                        min="1"
-                        placeholder="Enter gross salary"
-                        value={form.gross_salary}
-                        onChange={(e) => setForm({ ...form, gross_salary: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono font-semibold text-gray-900"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        Incentive (₹)
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        placeholder="0"
-                        value={form.incentive}
-                        onChange={(e) => setForm({ ...form, incentive: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
-                      />
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="block text-xs font-semibold text-gray-700">
-                          Professional Tax (₹)
-                        </label>
-                        <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded uppercase tracking-wider">
-                          Fixed (₹200)
-                        </span>
-                      </div>
-                      <input
-                        type="number"
-                        readOnly
-                        disabled
-                        value={200}
-                        className="w-full px-3 py-2 rounded-xl border border-gray-200 bg-gray-100 text-gray-500 text-xs font-mono cursor-not-allowed select-none"
-                      />
-                      <p className="text-[10px] text-gray-400 mt-1">Standard statutory PT (Fixed: ₹200)</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* ── Submit / Download Actions ── */}
-                <div className="pt-4 border-t border-gray-100 flex flex-col sm:flex-row items-center gap-3">
+                {/* Form Bottom Action */}
+                <div style={{ display: 'flex', gap: 10 }}>
                   {currentSlipId && (
                     <button
                       type="button"
                       onClick={handleSaveOnly}
                       disabled={saving}
-                      className="w-full sm:w-auto px-4 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold text-xs rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                      style={{
+                        flex: 1, padding: '12px', background: '#0284c7', color: '#ffffff', border: 'none',
+                        borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+                      }}
                     >
-                      <Save className="w-4 h-4" /> Save Changes
+                      <Save size={16} /> Save Changes
                     </button>
                   )}
                   <button
-                    type="submit"
+                    type="button"
+                    onClick={handleDownloadPayslip}
                     disabled={saving}
-                    className="flex-1 w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 disabled:opacity-50 text-white font-bold py-3.5 px-6 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 text-sm cursor-pointer"
+                    style={{
+                      flex: 1, padding: '12px', background: '#059669', color: '#ffffff', border: 'none',
+                      borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                      boxShadow: '0 2px 4px rgba(5,150,105,0.2)'
+                    }}
                   >
-                    {saving ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 animate-spin" /> Saving & Downloading...
-                      </>
-                    ) : (
-                      <>
-                        <Download className="w-4 h-4" /> Download Payslip
-                      </>
-                    )}
+                    {saving ? <RefreshCw size={16} className="animate-spin" /> : <Download size={16} />}
+                    Download Payslip PDF
                   </button>
                 </div>
-              </form>
-            </div>
+              </div>
+            )}
 
-            {/* Realistic Live Payslip Preview on Right Side (6 cols) */}
-            <div className="xl:col-span-6 space-y-4 xl:sticky xl:top-6">
-              <div className="bg-slate-50/90 p-4 sm:p-5 rounded-2xl border border-gray-200 shadow-xs space-y-4">
-                {/* Preview Header */}
-                <div className="flex items-center justify-between border-b border-gray-200/80 pb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
-                      <Eye className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-sm text-gray-900">Live Payslip Preview</h3>
-                      <p className="text-[11px] text-gray-500">Real-time AOTMS format mirror</p>
-                    </div>
-                  </div>
+            {/* Right Live Preview Sticky Panel */}
+            <div style={{ position: 'sticky', top: 24 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0f172a', color: '#ffffff', padding: '12px 20px', borderRadius: '12px 12px 0 0' }}>
+                <div style={{ fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Eye size={18} style={{ color: '#38bdf8' }} /> Live Payslip Preview
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   {grossNum > 0 && (
-                    <span className="text-xs px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 font-semibold font-mono">
+                    <span style={{ fontSize: 12, background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '4px 10px', borderRadius: 6, fontWeight: 700 }}>
                       Net: ₹{fmt(netSalary)}
                     </span>
                   )}
+                  <button
+                    onClick={() => setPreviewMode(previewMode === 'split' ? 'fullscreen' : 'split')}
+                    style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}
+                  >
+                    {previewMode === 'split' ? 'Full Width' : 'Split View'}
+                  </button>
                 </div>
+              </div>
 
-                {/* Realistic Payslip Document Paper Rendering */}
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                  <PayslipDocument payslip={draftPayslip} isPreview={true} />
-                </div>
-
-                {/* Salary Calculation Notice if Gross is below threshold */}
-                {specialAllowance < 0 && (
-                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-500" />
-                    <span>Gross salary must be at least ₹12,160. Special Allowance is currently negative (₹{fmt(specialAllowance)}).</span>
-                  </div>
-                )}
+              <div style={{ padding: 16, backgroundColor: '#f1f5f9', overflowX: 'auto', border: '1px solid #e2e8f0', borderTop: 'none', borderRadius: '0 0 12px 12px' }}>
+                <PayslipDocument ref={printRef} payslip={draftPayslip} isPreview={true} />
               </div>
             </div>
+
           </div>
         </div>
       )}
 
-      {/* ── Tab: History Table ──────────────────────────────────────────────── */}
+      {/* ── HISTORY TAB: SAVED PAYSLIPS RECORDS ──────────────────────────────── */}
       {activeTab === 'history' && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden space-y-4 p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-bold text-gray-900">Generated Payslips History</h2>
-              <p className="text-xs text-gray-500">Search and download previously generated salary slips</p>
-            </div>
-
-            {/* Search & Month Filter */}
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="relative min-w-[220px]">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 16 }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ position: 'relative', width: 320 }}>
+                <Search size={18} style={{ position: 'absolute', left: 12, top: 11, color: '#94a3b8' }} />
                 <input
                   type="text"
-                  placeholder="Search employee, ID, role..."
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-9 pr-3.5 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search employee, ID, role..."
+                  style={{ width: '100%', padding: '9px 12px 9px 38px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}
                 />
               </div>
 
               <select
                 value={monthFilter}
-                onChange={(e) => setMonthFilter(e.target.value)}
-                className="px-3 py-2 rounded-xl border border-gray-200 text-xs font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                onChange={e => setMonthFilter(e.target.value)}
+                style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, fontWeight: 600, background: '#ffffff', color: '#334155', cursor: 'pointer' }}
               >
                 <option value="all">All Months</option>
-                {Array.from(new Set(history.map((h) => h.payslip_month))).filter(Boolean).map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
+                {Array.from(new Set(history.map(h => h.payslip_month))).filter(Boolean).map(m => (
+                  <option key={m} value={m}>{m}</option>
                 ))}
               </select>
 
               <button
                 type="button"
                 onClick={fetchHistory}
-                className="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-600 transition-colors cursor-pointer"
+                style={{ padding: '9px 12px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#f8fafc', color: '#475569', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                 title="Refresh history"
               >
-                <RefreshCw className={`w-4 h-4 ${loadingHistory ? 'animate-spin' : ''}`} />
+                <RefreshCw size={16} className={loadingHistory ? 'animate-spin' : ''} />
               </button>
             </div>
           </div>
 
-          {/* History Table */}
-          {loadingHistory ? (
-            <div className="py-16 text-center text-gray-400 text-sm flex items-center justify-center gap-2">
-              <RefreshCw className="w-4 h-4 animate-spin text-indigo-600" /> Loading payslips...
+          {loadingHistory && <div style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>Loading records...</div>}
+
+          {!loadingHistory && history.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '60px 20px', color: '#64748b' }}>
+              <FileText size={48} style={{ color: '#cbd5e1', marginBottom: 12 }} />
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#334155' }}>No Saved Payslips Found</div>
+              <div style={{ fontSize: 13, marginTop: 4 }}>Generate and save a new employee payslip from the Form Builder tab.</div>
             </div>
-          ) : history.length === 0 ? (
-            <div className="py-16 text-center space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
-                <FileText className="w-6 h-6" />
-              </div>
-              <p className="text-sm font-semibold text-gray-700">No payslips found</p>
-              <p className="text-xs text-gray-400">Generate your first payslip from the "Create Payslip" tab</p>
-              <button
-                onClick={() => setActiveTab('create')}
-                className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-colors cursor-pointer"
-              >
-                Create Payslip Now
-              </button>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs whitespace-nowrap">
+          )}
+
+          {!loadingHistory && history.length > 0 && (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
-                  <tr className="border-b border-gray-100 text-gray-500 uppercase tracking-wider font-semibold text-[11px] bg-gray-50/50">
-                    <th className="py-3 px-4">Employee Name</th>
-                    <th className="py-3 px-4">Employee ID</th>
-                    <th className="py-3 px-4">Payslip Month</th>
-                    <th className="py-3 px-4 text-right">Gross Salary</th>
-                    <th className="py-3 px-4 text-center">LOP</th>
-                    <th className="py-3 px-4 text-right">Incentive</th>
-                    <th className="py-3 px-4 text-right">Total Earnings</th>
-                    <th className="py-3 px-4 text-right">Total Deductions</th>
-                    <th className="py-3 px-4 text-right">Net Salary</th>
-                    <th className="py-3 px-4">Created Date</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
+                  <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', textAlign: 'left', color: '#475569', fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <th style={{ padding: '12px 16px' }}>Employee Name</th>
+                    <th style={{ padding: '12px 16px' }}>Employee ID</th>
+                    <th style={{ padding: '12px 16px' }}>Payslip Month</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'right' }}>Gross Salary</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'center' }}>LOP</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'right' }}>Incentive</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'right' }}>Net Salary</th>
+                    <th style={{ padding: '12px 16px' }}>Created Date</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 text-gray-700">
-                  {history.map((slip) => (
-                    <tr key={slip._id} className="hover:bg-gray-50/80 transition-colors">
-                      <td className="py-3 px-4 font-semibold text-gray-900">
-                        {slip.employee_name}
-                      </td>
-                      <td className="py-3 px-4 font-mono font-medium text-indigo-600">
-                        {slip.employee_id}
-                      </td>
-                      <td className="py-3 px-4 font-semibold text-gray-800">
-                        {slip.payslip_month}
-                      </td>
-                      <td className="py-3 px-4 text-right font-mono font-semibold text-gray-800">
-                        ₹{fmt(slip.gross_salary)}
-                      </td>
-                      <td className="py-3 px-4 text-center font-mono">
+                <tbody>
+                  {history.map((slip, idx) => (
+                    <tr key={slip._id || idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '12px 16px', fontWeight: 700, color: '#0f172a' }}>{slip.employee_name}</td>
+                      <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontWeight: 600, color: '#2563eb' }}>{slip.employee_id}</td>
+                      <td style={{ padding: '12px 16px', fontWeight: 600, color: '#334155' }}>{slip.payslip_month}</td>
+                      <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 700, color: '#0f172a' }}>₹{fmt(slip.gross_salary)}</td>
+                      <td style={{ padding: '12px 16px', textAlign: 'center' }}>
                         {Number(slip.lop) > 0 ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                          <span style={{ background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a', padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700 }}>
                             {slip.lop}d (-₹{fmt(slip.lop_deduction)})
                           </span>
                         ) : (
-                          <span className="text-gray-400">0d</span>
+                          <span style={{ color: '#94a3b8' }}>0d</span>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-right font-mono font-semibold text-indigo-600">
-                        ₹{fmt(slip.incentive || 0)}
+                      <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 600, color: '#4f46e5' }}>₹{fmt(slip.incentive || 0)}</td>
+                      <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 800, color: '#059669', fontSize: 13.5 }}>₹{fmt(slip.net_salary)}</td>
+                      <td style={{ padding: '12px 16px', color: '#64748b' }}>
+                        {new Date(slip.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </td>
-                      <td className="py-3 px-4 text-right font-mono font-semibold text-blue-700">
-                        ₹{fmt(slip.total_earnings || slip.gross_salary)}
-                      </td>
-                      <td className="py-3 px-4 text-right font-mono font-semibold text-rose-600">
-                        ₹{fmt(slip.total_deductions || slip.tds || 200)}
-                      </td>
-                      <td className="py-3 px-4 text-right font-mono font-bold text-emerald-600 text-[13px]">
-                        ₹{fmt(slip.net_salary)}
-                      </td>
-                      <td className="py-3 px-4 text-gray-500">
-                        {new Date(slip.createdAt).toLocaleDateString('en-IN', {
-                          day: '2-digit',
-                          month: 'short',
-                          year: 'numeric',
-                        })}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                      <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                        <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                           <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedPayslip(slip);
-                              setShowPreviewModal(true);
-                            }}
-                            className="p-1.5 rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer"
-                            title="View / Preview"
+                            onClick={() => { setSelectedPayslip(slip); setShowPreviewModal(true); }}
+                            style={{ padding: '6px 10px', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                            title="Preview Payslip"
                           >
-                            <Eye className="w-4 h-4" />
+                            <Eye size={13} /> View
                           </button>
                           <button
-                            type="button"
                             onClick={() => {
                               setActiveTab('create');
                               loadEmployeeIntoForm(slip);
                             }}
-                            className="p-1.5 rounded-lg text-gray-500 hover:text-amber-600 hover:bg-amber-50 transition-colors cursor-pointer"
-                            title="Edit in Form"
+                            style={{ padding: '6px 10px', background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                            title="Edit in Form Builder"
                           >
-                            <Edit3 className="w-4 h-4" />
+                            <Edit3 size={13} /> Edit
                           </button>
                           <button
-                            type="button"
                             onClick={async () => {
                               try {
                                 await triggerPdfDownload(slip);
@@ -1255,19 +1181,18 @@ export default function Payslip() {
                                 alert('Failed to download PDF');
                               }
                             }}
-                            className="p-1.5 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
+                            style={{ padding: '6px 10px', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
                             title="Download PDF"
                           >
-                            <Download className="w-4 h-4" />
+                            <Download size={13} />
                           </button>
                           {canDelete(user) && (
                             <button
-                              type="button"
                               onClick={() => handleDelete(slip._id, slip.employee_name)}
-                              className="p-1.5 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                              title="Delete"
+                              style={{ padding: '6px 8px', background: '#fef2f2', color: '#b91c1c', border: '1px solid #fca5a5', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}
+                              title="Delete Record"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 size={13} />
                             </button>
                           )}
                         </div>
@@ -1283,30 +1208,29 @@ export default function Payslip() {
 
       {/* ── Modal: Payslip Document Preview & Download ──────────────────────── */}
       {showPreviewModal && selectedPayslip && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden animate-scaleIn border border-gray-200">
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: '#ffffff', borderRadius: 16, width: '100%', maxWidth: 840, maxHeight: '92vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3)', border: '1px solid #cbd5e1' }}>
             {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
-                  <FileText className="w-4 h-4" />
-                </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ width: 32, height: 32, borderRadius: 8, background: '#eff6ff', color: '#1d4ed8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <FileText size={18} />
+                </span>
                 <div>
-                  <h3 className="font-bold text-gray-900 text-sm sm:text-base">
+                  <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>
                     Payslip Preview – {selectedPayslip.employee_name}
-                  </h3>
-                  <p className="text-xs text-gray-500">{selectedPayslip.payslip_month}</p>
+                  </div>
+                  <div style={{ fontSize: 12, color: '#64748b' }}>{selectedPayslip.payslip_month}</div>
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <button
                   type="button"
                   onClick={handlePrint}
-                  className="px-3.5 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-100 font-semibold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                  style={{ padding: '7px 12px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#ffffff', color: '#334155', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
                 >
-                  <Printer className="w-4 h-4" /> Print
+                  <Printer size={14} /> Print
                 </button>
                 <button
                   type="button"
@@ -1321,24 +1245,24 @@ export default function Payslip() {
                     }
                   }}
                   disabled={downloadingPdf}
-                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+                  style={{ padding: '7px 14px', background: '#059669', color: '#ffffff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
                 >
-                  <Download className="w-4 h-4" /> {downloadingPdf ? 'Downloading...' : 'Download PDF'}
+                  <Download size={14} /> {downloadingPdf ? 'Downloading...' : 'Download PDF'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowPreviewModal(false)}
-                  className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-200 transition-colors ml-2 cursor-pointer"
+                  style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: 4 }}
                 >
-                  <X className="w-5 h-5" />
+                  <X size={20} />
                 </button>
               </div>
             </div>
 
             {/* Modal Document Body */}
-            <div className="p-4 sm:p-8 overflow-y-auto bg-slate-100 flex justify-center">
-              <div id="payslip-printable-document" className="bg-white shadow-lg">
-                <PayslipDocument ref={printRef} payslip={selectedPayslip} />
+            <div style={{ padding: 20, overflowY: 'auto', backgroundColor: '#f1f5f9', display: 'flex', justifyContent: 'center' }}>
+              <div style={{ background: '#ffffff', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', borderRadius: 4 }}>
+                <PayslipDocument payslip={selectedPayslip} isPreview={true} />
               </div>
             </div>
           </div>

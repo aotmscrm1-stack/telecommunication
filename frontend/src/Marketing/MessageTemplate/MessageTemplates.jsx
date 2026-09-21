@@ -9,10 +9,9 @@ import { RiWhatsappLine, RiMailSendLine, RiMessage3Line } from 'react-icons/ri';
 import { messageTemplatesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { canDelete } from '../../utils/permissions';
-import EmailCampaignWizard from '../Email/EmailCampaignWizard';
-
-import EmailTemplateModal from '../Email/EmailTemplateModal';
-import EmailCampaignHistory from '../Email/EmailCampaignHistory';
+import EmailCampaignWizard from '../../Management/Email/EmailCampaignWizard';
+import EmailTemplateModal from '../../Management/Email/EmailTemplateModal';
+import EmailCampaignHistory from '../../Management/Email/EmailCampaignHistory';
 
 // ── Sunset Warm Marketing Palette ─────────────────────────────────────────────
 const O = {

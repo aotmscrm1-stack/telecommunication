@@ -223,7 +223,6 @@ export default function Sidebar() {
           <NavItem to="/dashboard"     icon={Icons.dashboard}   label="Dashboard" />
           <NavItem to="/leads"         icon={Icons.leads}       label="All Leads" />
           <NavItem to="/tasks"         icon={Icons.tasks}       label="Tasks" />
-          <NavItem to="/email"         icon={Icons.email}       label="Email CRM" iconColor="#ea4335" />
 
           {isAdmin && (
             <>
@@ -257,6 +256,7 @@ export default function Sidebar() {
                   <NavItem to="/admin/employee-tracking" icon={Icons.liveTracking} label="Live Employee Tracking" iconColor="#0284c7" />
                 </>
               )}
+              <NavItem to="/email"           icon={Icons.email}      label="Email CRM" iconColor="#ea4335" />
               <NavItem to="/team-operations" icon={Icons.teamOps}    label="Team Operations" />
               <NavItem to="/stale-leads"     icon={Icons.staleLeads} label="Idle Leads" />
               <NavItem to="/blocklist"       icon={Icons.blocklist}  label="Blocklist" />

@@ -36,7 +36,7 @@ const SAMPLE_AOTMS_QUOTATION = {
   invoice_date: '20/02/2026',
   valid_till: '02/03/2026',
 
-  company_name: 'ACADEMY OF TECH MASTERS',
+  company_name: 'AOTMS Global Private Limited',
   company_address: '2nd Floor, Pothuri Towers, MG Road, Near DV Manor, Vijayawada-10',
   company_mobile: '+91 80199-52233',
   company_email: 'Info@aotms.in',
@@ -62,7 +62,7 @@ const SAMPLE_AOTMS_QUOTATION = {
   payment_terms_2: '50% after Workshop completion',
   payment_note: '*Note: GST & TDS Applicable*',
 
-  bank_account_holder: 'Academy Of Tech Masters',
+  bank_account_holder: 'AOTMS Global Private Limited',
   bank_name: 'HDFC',
   bank_account_no: '50200113949476',
   bank_ifsc: 'HDFC0003975',
@@ -70,7 +70,7 @@ const SAMPLE_AOTMS_QUOTATION = {
 
   signatory_name: 'Ameenuddin Sayyed',
   signatory_role: 'Managing Director',
-  signatory_company: 'Academy Of Tech Masters',
+  signatory_company: 'AOTMS Global Private Limited',
 };
 
 const SAMPLE_URCE_INVOICE = {
@@ -120,6 +120,7 @@ const SAMPLE_JAYAVEER = {
   medical_allowance: 1500,
   conveyance: 2500,
   food_transport_allowance: 1350,
+  incentive: 0,
   dearness_allowance: 3450,
   special_allowance: 0,
   custom_earnings: [],
@@ -175,9 +176,10 @@ export default function Invoice() {
     const medM = 1500;
     const convM = 2500;
     const foodM = 1350;
+    const incM = 0;
     const daM = 3450;
 
-    const fixedSum = basicM + hraM + medM + convM + foodM + daM;
+    const fixedSum = basicM + hraM + medM + convM + foodM + incM + daM;
     const specM = monthly > fixedSum ? monthly - fixedSum : 0;
 
     setForm(prev => ({
@@ -189,12 +191,31 @@ export default function Invoice() {
       medical_allowance: medM,
       conveyance: convM,
       food_transport_allowance: foodM,
+      incentive: 0,
       dearness_allowance: daM,
       special_allowance: specM,
       net_earnings_annual: annual - ((prev.professional_tax || 200) * 12 + (prev.tds || 0) * 12),
       net_earnings_monthly: monthly - ((prev.professional_tax || 200) + (prev.tds || 0)),
       net_earnings_in_words: numberToWords(annual),
     }));
+  };
+
+  // ── Auto Calculate Tax Invoice Components (Items, GST %, Total, Words) ───────
+  const updateInvoiceCalculations = (itemsList, gstRateVal) => {
+    const items = itemsList !== undefined ? itemsList : (form.items || []);
+    const rate = (gstRateVal !== undefined && gstRateVal !== '') ? Number(gstRateVal) : (form.gst_rate !== undefined && form.gst_rate !== '' ? Number(form.gst_rate) : 18);
+    const subtotal = items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const gstAmount = Math.round(subtotal * (rate / 100));
+    const totalAmount = subtotal + gstAmount;
+    const inWords = totalAmount > 0 ? `INR ${numberToWords(Math.round(totalAmount))} Only` : 'INR Zero Only';
+
+    return {
+      items,
+      gst_rate: rate,
+      gst_amount: gstAmount,
+      total_amount: totalAmount,
+      net_earnings_in_words: inWords,
+    };
   };
 
   const loadHistory = async () => {
@@ -703,7 +724,7 @@ export default function Invoice() {
                           <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>A/c Holder Name</label>
                           <input
                             type="text"
-                            value={form.bank_account_holder || 'Academy Of Tech Masters'}
+                            value={form.bank_account_holder || 'AOTMS Global Private Limited'}
                             onChange={e => setForm({ ...form, bank_account_holder: e.target.value })}
                             style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12.5 }}
                           />
@@ -868,7 +889,9 @@ export default function Invoice() {
                             per: '1Unit',
                             amount: 5000,
                           };
-                          setForm({ ...form, items: [...currentItems, newItem] });
+                          const updated = [...currentItems, newItem];
+                          const calcs = updateInvoiceCalculations(updated, form.gst_rate);
+                          setForm(prev => ({ ...prev, ...calcs }));
                         }}
                         style={{ background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', padding: '5px 10px', borderRadius: 6, fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}
                       >
@@ -885,7 +908,8 @@ export default function Invoice() {
                               type="button"
                               onClick={() => {
                                 const updated = form.items.filter((_, i) => i !== idx);
-                                setForm({ ...form, items: updated });
+                                const calcs = updateInvoiceCalculations(updated, form.gst_rate);
+                                setForm(prev => ({ ...prev, ...calcs }));
                               }}
                               style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}
                             >
@@ -935,7 +959,8 @@ export default function Invoice() {
                                   const r = Number(e.target.value) || 0;
                                   updated[idx].rate = r;
                                   updated[idx].amount = r;
-                                  setForm({ ...form, items: updated });
+                                  const calcs = updateInvoiceCalculations(updated, form.gst_rate);
+                                  setForm(prev => ({ ...prev, ...calcs }));
                                 }}
                                 placeholder="7000"
                                 style={{ width: '100%', padding: '6px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
@@ -963,7 +988,8 @@ export default function Invoice() {
                                 onChange={e => {
                                   const updated = [...form.items];
                                   updated[idx].amount = Number(e.target.value) || 0;
-                                  setForm({ ...form, items: updated });
+                                  const calcs = updateInvoiceCalculations(updated, form.gst_rate);
+                                  setForm(prev => ({ ...prev, ...calcs }));
                                 }}
                                 placeholder="42000"
                                 style={{ width: '100%', padding: '6px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, fontWeight: 700 }}
@@ -974,16 +1000,41 @@ export default function Invoice() {
                       </div>
                     ))}
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginTop: 14, background: '#f8fafc', padding: 14, borderRadius: 8, border: '1px solid #e2e8f0' }}>
                       <div>
                         <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>GST Rate (%)</label>
                         <input
                           type="number"
-                          value={form.gst_rate ?? 18}
-                          onChange={e => setForm({ ...form, gst_rate: Number(e.target.value) || 0 })}
+                          value={form.gst_rate !== undefined ? form.gst_rate : 18}
+                          onChange={e => {
+                            const val = e.target.value === '' ? '' : Number(e.target.value);
+                            const calcs = updateInvoiceCalculations(form.items, val === '' ? 0 : val);
+                            setForm(prev => ({ ...prev, ...calcs, gst_rate: val }));
+                          }}
                           placeholder="18"
-                          style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                          style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, fontWeight: 700 }}
                         />
+                      </div>
+                      <div>
+                        <span style={{ fontSize: 11, color: '#64748b', display: 'block', fontWeight: 600 }}>GST Amount</span>
+                        <strong style={{ fontSize: 14, color: '#0284c7', display: 'block', marginTop: 8 }}>
+                          ₹{Number(
+                            form.gst_amount !== undefined
+                              ? form.gst_amount
+                              : Math.round((form.items || []).reduce((s, it) => s + (Number(it.amount) || 0), 0) * ((form.gst_rate !== undefined && form.gst_rate !== '' ? Number(form.gst_rate) : 18) / 100))
+                          ).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </strong>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: 11, color: '#64748b', display: 'block', fontWeight: 600 }}>Total Invoice Amount</span>
+                        <strong style={{ fontSize: 15, color: '#059669', display: 'block', marginTop: 8 }}>
+                          ₹{Number(
+                            form.total_amount !== undefined
+                              ? form.total_amount
+                              : (form.items || []).reduce((s, it) => s + (Number(it.amount) || 0), 0) +
+                                Math.round((form.items || []).reduce((s, it) => s + (Number(it.amount) || 0), 0) * ((form.gst_rate !== undefined && form.gst_rate !== '' ? Number(form.gst_rate) : 18) / 100))
+                          ).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </strong>
                       </div>
                     </div>
                   </div>
@@ -1097,27 +1148,15 @@ export default function Invoice() {
                         </div>
                       </div>
 
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                        <div>
-                          <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Email</label>
-                          <input
-                            type="email"
-                            value={form.email || ''}
-                            onChange={e => setForm({ ...form, email: e.target.value })}
-                            placeholder="jayaveer@aotms.com"
-                            style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
-                          />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Document No.</label>
-                          <input
-                            type="text"
-                            value={form.invoice_number || ''}
-                            onChange={e => setForm({ ...form, invoice_number: e.target.value })}
-                            placeholder="AOTMS-OFF-2026-001"
-                            style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
-                          />
-                        </div>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Email</label>
+                        <input
+                          type="email"
+                          value={form.email || ''}
+                          onChange={e => setForm({ ...form, email: e.target.value })}
+                          placeholder="jayaveer@aotms.com"
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                        />
                       </div>
 
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -1182,6 +1221,18 @@ export default function Invoice() {
                         <div>
                           <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Conveyance</span>
                           <strong style={{ fontSize: 13, color: '#1e293b' }}>₹{Number(form.conveyance || 0).toLocaleString('en-IN')}</strong>
+                        </div>
+                        <div>
+                          <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Food Transport</span>
+                          <strong style={{ fontSize: 13, color: '#1e293b' }}>₹{Number(form.food_transport_allowance || 1350).toLocaleString('en-IN')}</strong>
+                        </div>
+                        <div>
+                          <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Incentive</span>
+                          <strong style={{ fontSize: 13, color: '#1e293b' }}>₹{Number(form.incentive || 0).toLocaleString('en-IN')}</strong>
+                        </div>
+                        <div>
+                          <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Dearness Allowance</span>
+                          <strong style={{ fontSize: 13, color: '#1e293b' }}>₹{Number(form.dearness_allowance || 3450).toLocaleString('en-IN')}</strong>
                         </div>
                       </div>
                     </div>

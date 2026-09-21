@@ -1,8 +1,29 @@
-﻿import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { attendanceAPI, trackingAPI, usersAPI } from '../../services/api';
 import LiveMap from '../../components/tracking/LiveMap';
+import {
+  Users,
+  User,
+  Calendar,
+  Activity,
+  Coffee,
+  CheckCircle2,
+  Clock,
+  Search,
+  X,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Check,
+  RotateCcw,
+  MapPin,
+  FileText,
+  Zap,
+  Download,
+  RefreshCw,
+} from 'lucide-react';
 
 const GRADIENT = 'var(--btn-gradient, linear-gradient(90deg, #ffb37c 0%, #38bdf8 100%))';
 const TEXT_MAIN = '#0f172a';
@@ -38,7 +59,7 @@ function formatDurationText(diffSec) {
 
 // Helper to normalize backend duration strings to uniform format (e.g. "8h 15m" -> "08h 15m")
 function normalizeDurationStr(str) {
-  if (!str || str === 'ΓÇö') return 'ΓÇö';
+  if (!str || str === '—' || str === '-') return '—';
   if (str.includes(':')) return str; // Already HH:MM:SS
   const hMatch = str.match(/(\d+)h/);
   const mMatch = str.match(/(\d+)m/);
@@ -66,7 +87,7 @@ function getTodayIso() {
 
 // Helper to format date display (e.g. "18 Sep 2026")
 function formatDateDisplay(isoStr) {
-  if (!isoStr) return 'ΓÇö';
+  if (!isoStr) return '—';
   const parts = isoStr.split('-');
   if (parts.length === 3) {
     const d = new Date(`${parts[0]}-${parts[1]}-${parts[2]}T00:00:00`);
@@ -80,9 +101,9 @@ function formatDateDisplay(isoStr) {
 
 // Helper to format 12-hour time (e.g. "09:15 AM")
 function formatTime12h(dateObj) {
-  if (!dateObj) return 'ΓÇö';
+  if (!dateObj) return '—';
   const d = new Date(dateObj);
-  if (isNaN(d.getTime())) return 'ΓÇö';
+  if (isNaN(d.getTime())) return '—';
   return d.toLocaleTimeString('en-US', {
     hour: '2-digit',
     minute: '2-digit',
@@ -370,9 +391,9 @@ export default function AttendanceRecords() {
   const getRecordLiveTimes = (rec) => {
     if (!rec || rec.status === 'NOT_STARTED' || !rec.startTime) {
       return {
-        totalAttendance: rec?.durationFormatted ? normalizeDurationStr(rec.durationFormatted) : 'ΓÇö',
-        totalBreak: rec?.formattedBreakDuration ? normalizeDurationStr(rec.formattedBreakDuration) : 'ΓÇö',
-        actualWork: rec?.formattedActualWork ? normalizeDurationStr(rec.formattedActualWork) : 'ΓÇö',
+        totalAttendance: rec?.durationFormatted ? normalizeDurationStr(rec.durationFormatted) : '—',
+        totalBreak: rec?.formattedBreakDuration ? normalizeDurationStr(rec.formattedBreakDuration) : '—',
+        actualWork: rec?.formattedActualWork ? normalizeDurationStr(rec.formattedActualWork) : '—',
         liveBreakElapsed: null,
       };
     }
@@ -429,9 +450,9 @@ export default function AttendanceRecords() {
     }
 
     return {
-      totalAttendance: normalizeDurationStr(rec.durationFormatted || 'ΓÇö'),
-      totalBreak: normalizeDurationStr(rec.formattedBreakDuration || 'ΓÇö'),
-      actualWork: normalizeDurationStr(rec.formattedActualWork || 'ΓÇö'),
+      totalAttendance: normalizeDurationStr(rec.durationFormatted || '—'),
+      totalBreak: normalizeDurationStr(rec.formattedBreakDuration || '—'),
+      actualWork: normalizeDurationStr(rec.formattedActualWork || '—'),
       liveBreakElapsed: null,
     };
   };
@@ -446,7 +467,7 @@ export default function AttendanceRecords() {
           border: '#a7f3d0',
           dot: '#10b981',
           label: 'On Duty',
-          icon: '≡ƒƒó',
+          icon: '🟢',
         };
       case 'ON_BREAK':
         return {
@@ -455,7 +476,7 @@ export default function AttendanceRecords() {
           border: '#fde68a',
           dot: '#f59e0b',
           label: 'On Break',
-          icon: 'Γÿò',
+          icon: '☕',
         };
       case 'COMPLETED':
         return {
@@ -464,7 +485,7 @@ export default function AttendanceRecords() {
           border: '#bfdbfe',
           dot: '#3b82f6',
           label: 'Completed',
-          icon: 'Γ£à',
+          icon: '✅',
         };
       case 'INCOMPLETE':
         return {
@@ -473,7 +494,7 @@ export default function AttendanceRecords() {
           border: '#fed7aa',
           dot: '#f97316',
           label: 'Incomplete',
-          icon: 'ΓÜá∩╕Å',
+          icon: '⚠️',
         };
       case 'NOT_STARTED':
       default:
@@ -483,7 +504,7 @@ export default function AttendanceRecords() {
           border: '#e2e8f0',
           dot: '#94a3b8',
           label: 'Not Started',
-          icon: 'ΓÜ¬',
+          icon: '⚪',
         };
     }
   };
@@ -491,7 +512,7 @@ export default function AttendanceRecords() {
   return (
     <div style={{ padding: '24px 32px', maxWidth: 1600, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 22 }}>
       
-      {/* ΓöÇΓöÇ 1. Top Header & Title Bar ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
+      {/* ──── 1. Top Header & Title Bar ────────────────────────────────────────────────────────────────────────────────── */}
       <div
         style={{
           display: 'flex',
@@ -522,14 +543,14 @@ export default function AttendanceRecords() {
               boxShadow: '0 2px 6px rgba(16, 185, 129, 0.1)',
             }}
           >
-            ≡ƒôï
+            <FileText size={24} color="#059669" />
           </div>
           <div>
             <h2 style={{ margin: 0, fontSize: 19, fontWeight: 800, color: TEXT_MAIN, letterSpacing: '-0.02em' }}>
               Attendance & Working Hours Records
             </h2>
             <div style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 3, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontWeight: 600 }}>≡ƒôà {isRangeMode ? `${formatDateDisplay(startDate)} to ${formatDateDisplay(endDate)}` : formatHeaderDate(selectedDate)}</span>
+              <span style={{ fontWeight: 600 }}><Calendar size={13} style={{ display: 'inline', marginRight: 4 }} /> {isRangeMode ? `${formatDateDisplay(startDate)} to ${formatDateDisplay(endDate)}` : formatHeaderDate(selectedDate)}</span>
               {!isRangeMode && selectedDate === getTodayIso() && (
                 <span style={{ background: '#dbeafe', color: '#1d4ed8', fontSize: 11, fontWeight: 700, padding: '2px 9px', borderRadius: 12 }}>
                   Today
@@ -559,7 +580,7 @@ export default function AttendanceRecords() {
               transition: 'all 0.15s',
             }}
           >
-            {isRangeMode ? '≡ƒôå Date Range Active' : '≡ƒùô∩╕Å Date Range'}
+            <><Calendar size={13} /> {isRangeMode ? 'Date Range Active' : 'Date Range'}</>
           </button>
 
           {!isRangeMode ? (
@@ -568,9 +589,9 @@ export default function AttendanceRecords() {
               <button
                 onClick={handlePrevDay}
                 title="Previous Day"
-                style={{ background: 'none', border: 'none', padding: '6px 12px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', color: '#475569' }}
+                style={{ background: 'none', border: 'none', padding: '6px 10px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', color: '#475569', display: 'flex', alignItems: 'center', gap: 4 }}
               >
-                ΓùÇ Prev Day
+                <ChevronLeft size={14} /> Prev Day
               </button>
               <input
                 type="date"
@@ -592,9 +613,9 @@ export default function AttendanceRecords() {
               <button
                 onClick={handleNextDay}
                 title="Next Day"
-                style={{ background: 'none', border: 'none', padding: '6px 12px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', color: '#475569' }}
+                style={{ background: 'none', border: 'none', padding: '6px 10px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', color: '#475569', display: 'flex', alignItems: 'center', gap: 4 }}
               >
-                Next Day Γû╢
+                Next Day <ChevronRight size={14} />
               </button>
               <button
                 onClick={handleToday}
@@ -652,7 +673,7 @@ export default function AttendanceRecords() {
               transition: 'all 0.15s',
             }}
           >
-            {exporting ? 'Exporting...' : '≡ƒôÑ Export CSV'}
+            {exporting ? 'Exporting...' : <><Download size={14} /> Export CSV</>}
           </button>
 
           {/* Refresh Button */}
@@ -674,12 +695,12 @@ export default function AttendanceRecords() {
               transition: 'all 0.15s',
             }}
           >
-            ≡ƒöä Refresh
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
           </button>
         </div>
       </div>
 
-      {/* ΓöÇΓöÇ 2. Dashboard Summary KPI Cards (6 Cards) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
+      {/* ──── 2. Dashboard Summary KPI Cards (6 Cards) ────────────────────────────────────────────────── */}
       <div
         style={{
           display: 'grid',
@@ -712,7 +733,7 @@ export default function AttendanceRecords() {
               fontSize: 22,
             }}
           >
-            ≡ƒæÑ
+            <Users size={22} color="#475569" />
           </div>
           <div>
             <div style={{ fontSize: 11.5, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
@@ -750,7 +771,7 @@ export default function AttendanceRecords() {
               color: '#0284c7',
             }}
           >
-            ≡ƒôà
+            <Calendar size={22} color="#0284c7" />
           </div>
           <div>
             <div style={{ fontSize: 11.5, fontWeight: 700, color: '#0369a1', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
@@ -788,7 +809,7 @@ export default function AttendanceRecords() {
               color: '#059669',
             }}
           >
-            ≡ƒƒó
+            <Activity size={22} color="#059669" />
           </div>
           <div>
             <div style={{ fontSize: 11.5, fontWeight: 700, color: '#047857', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
@@ -827,7 +848,7 @@ export default function AttendanceRecords() {
               border: '1px solid #fde68a',
             }}
           >
-            Γÿò
+            <Coffee size={22} color="#d97706" />
           </div>
           <div>
             <div style={{ fontSize: 11.5, fontWeight: 700, color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
@@ -865,7 +886,7 @@ export default function AttendanceRecords() {
               color: '#2563eb',
             }}
           >
-            Γ£à
+            <CheckCircle2 size={22} color="#2563eb" />
           </div>
           <div>
             <div style={{ fontSize: 11.5, fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
@@ -903,7 +924,7 @@ export default function AttendanceRecords() {
               color: '#b45309',
             }}
           >
-            ΓÅ▒∩╕Å
+            <Clock size={22} color="#b45309" />
           </div>
           <div>
             <div style={{ fontSize: 11.5, fontWeight: 700, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
@@ -916,7 +937,7 @@ export default function AttendanceRecords() {
         </div>
       </div>
 
-      {/* ΓöÇΓöÇ 3. Filters & Search Section (With Dedicated Employee Dropdown) ΓöÇΓöÇΓöÇ */}
+      {/* ──── 3. Filters & Search Section (With Dedicated Employee Dropdown) ────── */}
       <div
         style={{
           display: 'flex',
@@ -971,7 +992,7 @@ export default function AttendanceRecords() {
                 onClick={() => setSearchQuery('')}
                 style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 13 }}
               >
-                Γ£ò
+                ✕
               </button>
             )}
           </div>
@@ -999,7 +1020,7 @@ export default function AttendanceRecords() {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
-                <span style={{ fontSize: 14 }}>≡ƒæñ</span>
+                <User size={15} color="#3b82f6" />
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {selectedEmployeeObj ? `${selectedEmployeeObj.name} (${selectedEmployeeObj.code})` : `All Employees (${employeeOptions.length})`}
                 </span>
@@ -1025,11 +1046,11 @@ export default function AttendanceRecords() {
                       fontWeight: 800,
                     }}
                   >
-                    Γ£ò
+                    ✕
                   </span>
                 )}
                 <span style={{ fontSize: 10, color: TEXT_MUTED, transform: showEmployeeDropdown ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
-                  Γû╝
+                  ▼
                 </span>
               </div>
             </button>
@@ -1056,7 +1077,7 @@ export default function AttendanceRecords() {
                 {/* Search inside dropdown */}
                 <div style={{ padding: '10px 12px', borderBottom: `1px solid ${BORDER}`, background: '#f8fafc' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#ffffff', border: `1px solid ${BORDER}`, borderRadius: 8, padding: '6px 10px' }}>
-                    <span style={{ fontSize: 12, color: '#94a3b8' }}>≡ƒöì</span>
+                    <Search size={13} color="#94a3b8" />
                     <input
                       type="text"
                       placeholder="Search employee by name or ID..."
@@ -1067,7 +1088,7 @@ export default function AttendanceRecords() {
                     />
                     {empDropdownSearch && (
                       <button onClick={() => setEmpDropdownSearch('')} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12 }}>
-                        Γ£ò
+                        ✕
                       </button>
                     )}
                   </div>
@@ -1103,7 +1124,7 @@ export default function AttendanceRecords() {
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 14 }}>≡ƒæÑ</span>
+                      <Users size={15} color="#64748b" />
                       <span>All Employees</span>
                     </div>
                     <span style={{ background: selectedEmployeeId === 'ALL' ? '#bae6fd' : '#f1f5f9', padding: '2px 7px', borderRadius: 10, fontSize: 11, fontWeight: 700, color: '#475569' }}>
@@ -1176,7 +1197,7 @@ export default function AttendanceRecords() {
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <span style={{ width: 7, height: 7, borderRadius: '50%', background: badge.dot }} title={badge.label} />
-                            {isSelected && <span style={{ color: '#2563eb', fontWeight: 800, fontSize: 13 }}>Γ£ô</span>}
+                            {isSelected && <span style={{ color: '#2563eb', fontWeight: 800, fontSize: 13 }}>✓</span>}
                           </div>
                         </div>
                       );
@@ -1206,7 +1227,7 @@ export default function AttendanceRecords() {
                 gap: 5,
               }}
             >
-              <span>Γ£ò</span> Reset
+              <RotateCcw size={13} /> Reset
             </button>
           )}
         </div>
@@ -1215,11 +1236,11 @@ export default function AttendanceRecords() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           {[
             { key: 'ALL', label: 'All Status' },
-            { key: 'ON_DUTY', label: '≡ƒƒó On Duty' },
-            { key: 'ON_BREAK', label: '≡ƒƒí On Break' },
-            { key: 'COMPLETED', label: 'Γ£à Completed' },
-            { key: 'NOT_STARTED', label: 'ΓÜ¬ Not Started' },
-            { key: 'INCOMPLETE', label: 'ΓÜá∩╕Å Incomplete' },
+            { key: 'ON_DUTY', label: '🟢 On Duty' },
+            { key: 'ON_BREAK', label: '🟡 On Break' },
+            { key: 'COMPLETED', label: '✅ Completed' },
+            { key: 'NOT_STARTED', label: '⚪ Not Started' },
+            { key: 'INCOMPLETE', label: '⚠️ Incomplete' },
           ].map((pill) => (
             <button
               key={pill.key}
@@ -1243,7 +1264,7 @@ export default function AttendanceRecords() {
         </div>
       </div>
 
-      {/* ΓöÇΓöÇ 4. Main Attendance Records Table ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
+      {/* ──── 4. Main Attendance Records Table ────────────────────────────────────────────────────────────────────── */}
       <div
         style={{
           background: '#ffffff',
@@ -1297,7 +1318,7 @@ export default function AttendanceRecords() {
               ) : displayRecords.length === 0 ? (
                 <tr>
                   <td colSpan={12} style={{ padding: '80px 20px', textAlign: 'center', color: TEXT_MUTED }}>
-                    <div style={{ fontSize: 40, marginBottom: 10 }}>≡ƒôï</div>
+                    <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'center' }}><FileText size={40} color="#94a3b8" /></div>
                     <div style={{ fontSize: 16, fontWeight: 700, color: TEXT_MAIN }}>No attendance records found</div>
                     <div style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 4 }}>
                       {isFilterActive
@@ -1408,27 +1429,27 @@ export default function AttendanceRecords() {
 
                       {/* Start Time */}
                       <td style={{ padding: '16px 14px', fontWeight: 700, color: isNotStarted ? '#94a3b8' : '#047857', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
-                        {rec.startTimeFormatted || 'ΓÇö'}
+                        {rec.startTimeFormatted || '—'}
                       </td>
 
                       {/* End Time */}
-                      <td style={{ padding: '16px 14px', fontWeight: 700, color: rec.endTimeFormatted === 'ΓÇö' ? '#94a3b8' : '#1d4ed8', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
-                        {rec.endTimeFormatted || 'ΓÇö'}
+                      <td style={{ padding: '16px 14px', fontWeight: 700, color: rec.endTimeFormatted === '—' ? '#94a3b8' : '#1d4ed8', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                        {rec.endTimeFormatted || '—'}
                       </td>
 
                       {/* Total Attendance */}
                       <td style={{ padding: '16px 14px', whiteSpace: 'nowrap' }}>
                         {rec.status === 'ON_DUTY' ? (
                           <span style={{ color: '#047857', fontWeight: 800, fontFamily: 'ui-monospace, monospace', background: '#ecfdf5', border: '1px solid #a7f3d0', padding: '4px 9px', borderRadius: 8, fontSize: 12.5, fontVariantNumeric: 'tabular-nums' }}>
-                            ΓÅ▒∩╕Å {liveTimes.totalAttendance}
+                            <Clock size={12} style={{ display: 'inline', marginRight: 3 }} />{liveTimes.totalAttendance}
                           </span>
                         ) : rec.status === 'ON_BREAK' ? (
                           <span style={{ color: '#b45309', fontWeight: 800, fontFamily: 'ui-monospace, monospace', background: '#fffbeb', border: '1px solid #fde68a', padding: '4px 9px', borderRadius: 8, fontSize: 12.5, fontVariantNumeric: 'tabular-nums' }}>
-                            ΓÅ▒∩╕Å {liveTimes.totalAttendance}
+                            <Clock size={12} style={{ display: 'inline', marginRight: 3 }} />{liveTimes.totalAttendance}
                           </span>
                         ) : (
                           <span style={{ color: isNotStarted ? '#94a3b8' : '#1e293b', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-                            {normalizeDurationStr(rec.durationFormatted) || 'ΓÇö'}
+                            {normalizeDurationStr(rec.durationFormatted) || '—'}
                           </span>
                         )}
                       </td>
@@ -1436,7 +1457,7 @@ export default function AttendanceRecords() {
                       {/* Break Count */}
                       <td style={{ padding: '16px 14px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                         {isNotStarted ? (
-                          <span style={{ color: '#94a3b8' }}>ΓÇö</span>
+                          <span style={{ color: '#94a3b8' }}>—</span>
                         ) : breakCount > 0 ? (
                           <button
                             onClick={() => setBreakModalRecord(rec)}
@@ -1456,7 +1477,7 @@ export default function AttendanceRecords() {
                               boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
                             }}
                           >
-                            <span>Γÿò</span> {breakCount}
+                            <Coffee size={12} /> {breakCount}
                           </button>
                         ) : (
                           <span style={{ color: '#64748b', fontSize: 12.5, fontWeight: 600 }}>0</span>
@@ -1467,10 +1488,10 @@ export default function AttendanceRecords() {
                       <td style={{ padding: '16px 14px', whiteSpace: 'nowrap' }}>
                         {rec.status === 'ON_BREAK' ? (
                           <span style={{ color: '#d97706', fontWeight: 800, fontFamily: 'ui-monospace, monospace', background: '#fffbeb', border: '1px solid #fde68a', padding: '4px 9px', borderRadius: 8, fontSize: 12.5, fontVariantNumeric: 'tabular-nums' }}>
-                            Γÿò {liveTimes.totalBreak}
+                            <Coffee size={12} style={{ display: 'inline', marginRight: 3 }} />{liveTimes.totalBreak}
                           </span>
                         ) : isNotStarted ? (
-                          <span style={{ color: '#94a3b8' }}>ΓÇö</span>
+                          <span style={{ color: '#94a3b8' }}>—</span>
                         ) : (
                           <span style={{ color: breakCount > 0 ? '#b45309' : '#64748b', fontWeight: breakCount > 0 ? 700 : 500, fontVariantNumeric: 'tabular-nums' }}>
                             {normalizeDurationStr(rec.formattedBreakDuration) || '00h 00m'}
@@ -1482,14 +1503,14 @@ export default function AttendanceRecords() {
                       <td style={{ padding: '16px 14px', whiteSpace: 'nowrap' }}>
                         {rec.status === 'ON_DUTY' ? (
                           <span style={{ color: '#047857', fontWeight: 800, fontFamily: 'ui-monospace, monospace', background: '#ecfdf5', border: '1px solid #a7f3d0', padding: '4px 10px', borderRadius: 8, fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
-                            ΓÜí {liveTimes.actualWork}
+                            <Zap size={12} style={{ display: 'inline', marginRight: 3 }} />{liveTimes.actualWork}
                           </span>
                         ) : rec.status === 'ON_BREAK' ? (
                           <span style={{ color: '#b45309', fontWeight: 800, fontFamily: 'ui-monospace, monospace', background: '#fffbeb', border: '1px solid #fde68a', padding: '4px 10px', borderRadius: 8, fontSize: 13, fontVariantNumeric: 'tabular-nums' }} title="Working timer paused while on break">
-                            ΓÅ╕∩╕Å {liveTimes.actualWork}
+                            <Clock size={12} style={{ display: 'inline', marginRight: 3 }} />{liveTimes.actualWork}
                           </span>
                         ) : isNotStarted ? (
-                          <span style={{ color: '#94a3b8' }}>ΓÇö</span>
+                          <span style={{ color: '#94a3b8' }}>—</span>
                         ) : (
                           <span style={{ color: '#1d4ed8', fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
                             {normalizeDurationStr(rec.formattedActualWork || rec.durationFormatted) || '00h 00m'}
@@ -1542,7 +1563,7 @@ export default function AttendanceRecords() {
                                 transition: 'all 0.15s',
                               }}
                             >
-                              <span>Γÿò</span> Breaks
+                              <Coffee size={12} /> Breaks
                             </button>
                           )}
 
@@ -1567,7 +1588,7 @@ export default function AttendanceRecords() {
                                 transition: 'all 0.15s',
                               }}
                             >
-                              <span>≡ƒù║∩╕Å</span> Map
+                              <MapPin size={12} /> Map
                             </button>
                           )}
 
@@ -1592,7 +1613,7 @@ export default function AttendanceRecords() {
                                 transition: 'all 0.15s',
                               }}
                             >
-                              <span>≡ƒôï</span> Details
+                              <FileText size={12} /> Details
                             </button>
                           )}
                         </div>
@@ -1606,7 +1627,7 @@ export default function AttendanceRecords() {
         </div>
       </div>
 
-      {/* ΓöÇΓöÇ 5. View Break Details Modal ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
+      {/* ──── 5. View Break Details Modal ────────────────────────────────────────────────────────────────────────────── */}
       {breakModalRecord && (
         <div
           style={{
@@ -1639,14 +1660,14 @@ export default function AttendanceRecords() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ width: 44, height: 44, borderRadius: 12, background: '#fffbeb', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#b45309', fontSize: 22, border: '1px solid #fde68a' }}>
-                  Γÿò
+                  <Coffee size={22} color="#b45309" />
                 </div>
                 <div>
                   <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: TEXT_MAIN }}>
-                    Break Details ΓÇö {breakModalRecord.employeeName}
+                    Break Details — {breakModalRecord.employeeName}
                   </h3>
                   <div style={{ fontSize: 12.5, color: TEXT_MUTED, marginTop: 2 }}>
-                    {breakModalRecord.employeeCode} ΓÇó {formatDateDisplay(breakModalRecord.date)} ({breakModalRecord.day})
+                    {breakModalRecord.employeeCode} • {formatDateDisplay(breakModalRecord.date)} ({breakModalRecord.day})
                   </div>
                 </div>
               </div>
@@ -1654,7 +1675,7 @@ export default function AttendanceRecords() {
                 onClick={() => setBreakModalRecord(null)}
                 style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: TEXT_MUTED, padding: '4px 8px' }}
               >
-                Γ£ò
+                ✕
               </button>
             </div>
 
@@ -1663,7 +1684,7 @@ export default function AttendanceRecords() {
               <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: 10, border: `1px solid ${BORDER}` }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' }}>Total Attendance</div>
                 <div style={{ fontSize: 15, fontWeight: 800, color: '#0369a1', marginTop: 3 }}>
-                  {normalizeDurationStr(breakModalRecord.durationFormatted) || 'ΓÇö'}
+                  {normalizeDurationStr(breakModalRecord.durationFormatted) || '—'}
                 </div>
               </div>
               <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: 10, border: `1px solid ${BORDER}` }}>
@@ -1690,7 +1711,7 @@ export default function AttendanceRecords() {
             <div style={{ flex: 1, overflowY: 'auto', border: `1px solid ${BORDER}`, borderRadius: 12, marginBottom: 20 }}>
               {!Array.isArray(breakModalRecord.breaks) || breakModalRecord.breaks.length === 0 ? (
                 <div style={{ padding: '40px 20px', textAlign: 'center', color: TEXT_MUTED }}>
-                  <div style={{ fontSize: 32, marginBottom: 8 }}>Γÿò</div>
+                  <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'center' }}><Coffee size={32} color="#d97706" /></div>
                   <div style={{ fontSize: 15, fontWeight: 700, color: TEXT_MAIN }}>No breaks recorded</div>
                   <div style={{ fontSize: 12.5, color: TEXT_MUTED, marginTop: 3 }}>
                     The employee did not record any breaks during this attendance session.
@@ -1734,7 +1755,7 @@ export default function AttendanceRecords() {
                               border: `1px solid ${b.status === 'ACTIVE' ? '#fde68a' : '#a7f3d0'}`,
                             }}
                           >
-                            {b.status === 'ACTIVE' ? '≡ƒƒí Active' : 'Γ£à Completed'}
+                            {b.status === 'ACTIVE' ? '🟡 Active' : '✅ Completed'}
                           </span>
                         </td>
                       </tr>
@@ -1766,7 +1787,7 @@ export default function AttendanceRecords() {
         </div>
       )}
 
-      {/* ΓöÇΓöÇ 6. Full Record Details Modal ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
+      {/* ──── 6. Full Record Details Modal ──────────────────────────────────────────────────────────────────────────── */}
       {detailModalRecord && (
         <div
           style={{
@@ -1797,14 +1818,14 @@ export default function AttendanceRecords() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ width: 42, height: 42, borderRadius: 12, background: '#e0f2fe', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0284c7', fontSize: 20 }}>
-                  ≡ƒôï
+                  <FileText size={20} color="#0284c7" />
                 </div>
                 <div>
                   <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: TEXT_MAIN }}>
                     {detailModalRecord.employeeName}
                   </h3>
                   <div style={{ fontSize: 12.5, color: TEXT_MUTED, marginTop: 2 }}>
-                    {detailModalRecord.employeeCode} ΓÇó {formatDateDisplay(detailModalRecord.date)} ({detailModalRecord.day})
+                    {detailModalRecord.employeeCode} • {formatDateDisplay(detailModalRecord.date)} ({detailModalRecord.day})
                   </div>
                 </div>
               </div>
@@ -1812,7 +1833,7 @@ export default function AttendanceRecords() {
                 onClick={() => setDetailModalRecord(null)}
                 style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: TEXT_MUTED }}
               >
-                Γ£ò
+                ✕
               </button>
             </div>
 
@@ -1821,19 +1842,19 @@ export default function AttendanceRecords() {
               <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: 10, border: `1px solid ${BORDER}` }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' }}>Start Time</div>
                 <div style={{ fontSize: 14.5, fontWeight: 800, color: '#047857', marginTop: 3 }}>
-                  {detailModalRecord.startTimeFormatted || 'ΓÇö'}
+                  {detailModalRecord.startTimeFormatted || '—'}
                 </div>
               </div>
               <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: 10, border: `1px solid ${BORDER}` }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' }}>End Time</div>
-                <div style={{ fontSize: 14.5, fontWeight: 800, color: detailModalRecord.endTimeFormatted === 'ΓÇö' ? '#94a3b8' : '#1d4ed8', marginTop: 3 }}>
-                  {detailModalRecord.endTimeFormatted || 'ΓÇö'}
+                <div style={{ fontSize: 14.5, fontWeight: 800, color: detailModalRecord.endTimeFormatted === '—' ? '#94a3b8' : '#1d4ed8', marginTop: 3 }}>
+                  {detailModalRecord.endTimeFormatted || '—'}
                 </div>
               </div>
               <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: 10, border: `1px solid ${BORDER}` }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' }}>Total Attendance</div>
                 <div style={{ fontSize: 14.5, fontWeight: 800, color: '#0284c7', marginTop: 3 }}>
-                  {normalizeDurationStr(detailModalRecord.durationFormatted) || 'ΓÇö'}
+                  {normalizeDurationStr(detailModalRecord.durationFormatted) || '—'}
                 </div>
               </div>
             </div>
@@ -1842,14 +1863,14 @@ export default function AttendanceRecords() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 18 }}>
               <div style={{ background: '#fffbeb', padding: '12px 14px', borderRadius: 10, border: '1px solid #fde68a' }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: '#b45309', textTransform: 'uppercase' }}>
-                  Γÿò Breaks ({detailModalRecord.breakCount || detailModalRecord.breaks?.length || 0})
+                  ☕ Breaks ({detailModalRecord.breakCount || detailModalRecord.breaks?.length || 0})
                 </div>
                 <div style={{ fontSize: 15, fontWeight: 800, color: '#d97706', marginTop: 3 }}>
                   {normalizeDurationStr(detailModalRecord.formattedBreakDuration) || '00h 00m'}
                 </div>
               </div>
               <div style={{ background: '#ecfdf5', padding: '12px 14px', borderRadius: 10, border: '1px solid #a7f3d0' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#047857', textTransform: 'uppercase' }}>ΓÜí Actual Work Hours</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#047857', textTransform: 'uppercase' }}>⚡ Actual Work Hours</div>
                 <div style={{ fontSize: 15, fontWeight: 800, color: '#047857', marginTop: 3 }}>
                   {normalizeDurationStr(detailModalRecord.formattedActualWork || detailModalRecord.durationFormatted) || '00h 00m'}
                 </div>
@@ -1861,7 +1882,7 @@ export default function AttendanceRecords() {
               {/* Start Location */}
               <div style={{ background: '#f8fafc', padding: '14px 16px', borderRadius: 10, border: `1px solid ${BORDER}` }}>
                 <div style={{ fontSize: 11.5, fontWeight: 700, color: '#0369a1', textTransform: 'uppercase', marginBottom: 4 }}>
-                  ≡ƒôì Starting Location
+                  📍 Starting Location
                 </div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: TEXT_MAIN }}>
                   {detailModalRecord.startLocation?.road || 'Vijayawada, AP'}
@@ -1873,7 +1894,7 @@ export default function AttendanceRecords() {
                 )}
                 {detailModalRecord.startLocation?.latitude && (
                   <div style={{ fontSize: 11.5, color: '#94a3b8', marginTop: 3 }}>
-                    GPS: {detailModalRecord.startLocation.latitude.toFixed(6)}, {detailModalRecord.startLocation.longitude.toFixed(6)} (Accuracy ┬▒{Math.round(detailModalRecord.startLocation.accuracy || 5)}m)
+                    GPS: {detailModalRecord.startLocation.latitude.toFixed(6)}, {detailModalRecord.startLocation.longitude.toFixed(6)} (Accuracy ±{Math.round(detailModalRecord.startLocation.accuracy || 5)}m)
                   </div>
                 )}
               </div>
@@ -1881,7 +1902,7 @@ export default function AttendanceRecords() {
               {/* Latest / End Location */}
               <div style={{ background: '#f8fafc', padding: '14px 16px', borderRadius: 10, border: `1px solid ${BORDER}` }}>
                 <div style={{ fontSize: 11.5, fontWeight: 700, color: detailModalRecord.status === 'ON_DUTY' ? '#047857' : '#475569', textTransform: 'uppercase', marginBottom: 4 }}>
-                  {detailModalRecord.status === 'ON_DUTY' ? '≡ƒƒó Current Live Location' : '≡ƒÅü Final Recorded Location'}
+                  {detailModalRecord.status === 'ON_DUTY' ? '🟢 Current Live Location' : '📍 Final Recorded Location'}
                 </div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: TEXT_MAIN }}>
                   {detailModalRecord.latestLocation?.road || detailModalRecord.endLocation?.road || 'Vijayawada, AP'}
@@ -1936,7 +1957,7 @@ export default function AttendanceRecords() {
                     cursor: 'pointer',
                   }}
                 >
-                  ≡ƒù║∩╕Å View on Map
+                  <><MapPin size={13} /> View on Map</>
                 </button>
               )}
             </div>
@@ -1944,7 +1965,7 @@ export default function AttendanceRecords() {
         </div>
       )}
 
-      {/* ΓöÇΓöÇ 7. Full Employee History Modal ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
+      {/* ──── 7. Full Employee History Modal ──────────────────────────────────────────────────────────────────────── */}
       {historyModalEmployee && (
         <div
           style={{
@@ -1975,10 +1996,10 @@ export default function AttendanceRecords() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: TEXT_MAIN }}>
-                  {employeeHistoryData?.employee?.name || 'Employee'} ΓÇö Complete Attendance Log
+                  {employeeHistoryData?.employee?.name || 'Employee'} — Complete Attendance Log
                 </h3>
                 <div style={{ fontSize: 12.5, color: TEXT_MUTED, marginTop: 2 }}>
-                  {employeeHistoryData?.employee?.employeeCode} ΓÇó {employeeHistoryData?.employee?.email}
+                  {employeeHistoryData?.employee?.employeeCode} • {employeeHistoryData?.employee?.email}
                 </div>
               </div>
               <button
@@ -1988,7 +2009,7 @@ export default function AttendanceRecords() {
                 }}
                 style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: TEXT_MUTED }}
               >
-                Γ£ò
+                ✕
               </button>
             </div>
 
@@ -2055,12 +2076,12 @@ export default function AttendanceRecords() {
                           <td style={{ padding: '10px 14px', color: TEXT_MUTED }}>{r.day}</td>
                           <td style={{ padding: '10px 14px', fontWeight: 700 }}>{r.startTimeFormatted}</td>
                           <td style={{ padding: '10px 14px', fontWeight: 700 }}>{r.endTimeFormatted}</td>
-                          <td style={{ padding: '10px 14px' }}>{normalizeDurationStr(r.formattedDuration) || 'ΓÇö'}</td>
+                          <td style={{ padding: '10px 14px' }}>{normalizeDurationStr(r.formattedDuration) || '—'}</td>
                           <td style={{ padding: '10px 14px', color: '#b45309', fontWeight: 600 }}>
                             {r.breakCount > 0 ? `${r.breakCount} (${normalizeDurationStr(r.formattedBreakDuration) || '00h 00m'})` : '0'}
                           </td>
                           <td style={{ padding: '10px 14px', fontWeight: 700, color: '#047857' }}>
-                            {normalizeDurationStr(r.formattedActualWork || r.formattedDuration) || 'ΓÇö'}
+                            {normalizeDurationStr(r.formattedActualWork || r.formattedDuration) || '—'}
                           </td>
                           <td style={{ padding: '10px 14px' }}>
                             <span style={{ fontSize: 11.5, fontWeight: 700, color: b.color, background: b.bg, padding: '3px 8px', borderRadius: 12, border: `1px solid ${b.border}` }}>
@@ -2078,7 +2099,7 @@ export default function AttendanceRecords() {
         </div>
       )}
 
-      {/* ΓöÇΓöÇ 8. View on Map Modal ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
+      {/* ──── 8. View on Map Modal ──────────────────────────────────────────────────────────────────────────────────────────── */}
       {mapModalRecord && (
         <div
           style={{
@@ -2118,15 +2139,15 @@ export default function AttendanceRecords() {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: '#e0f2fe', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
-                  ≡ƒù║∩╕Å
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: '#e0f2fe', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <MapPin size={20} color="#0284c7" />
                 </div>
                 <div>
                   <h4 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: TEXT_MAIN }}>
-                    {mapModalRecord.employeeName} ΓÇö Location & Route
+                    {mapModalRecord.employeeName} — Location & Route
                   </h4>
                   <div style={{ fontSize: 12, color: TEXT_MUTED, marginTop: 1 }}>
-                    {mapModalRecord.employeeCode} ΓÇó {mapModalRecord.latestLocation?.road || mapModalRecord.startLocation?.road || 'Vijayawada'}
+                    {mapModalRecord.employeeCode} • {mapModalRecord.latestLocation?.road || mapModalRecord.startLocation?.road || 'Vijayawada'}
                   </div>
                 </div>
               </div>
@@ -2147,13 +2168,13 @@ export default function AttendanceRecords() {
                     cursor: 'pointer',
                   }}
                 >
-                  Open in Live Field Tracking Γ₧ö
+                  Open in Live Field Tracking →
                 </button>
                 <button
                   onClick={() => setMapModalRecord(null)}
                   style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: TEXT_MUTED }}
                 >
-                  Γ£ò
+                  ✕
                 </button>
               </div>
             </div>
