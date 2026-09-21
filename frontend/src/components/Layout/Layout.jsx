@@ -1,5 +1,5 @@
 import { Outlet } from 'react-router-dom';
-import Topbar from './Topbar';
+import Navbar from '../dashboard/Navbar/Navbar';
 import { useAuth } from '../../context/AuthContext';
 import useTheme, { roleToTheme } from '../../hooks/useTheme';
 import useBreakpoint from '../../hooks/useBreakpoint';
@@ -10,16 +10,16 @@ function LayoutInner() {
   useTheme(roleToTheme(user?.role));
   const bp = useBreakpoint();
 
-  const topbarH = bp === 'mobile' ? 64 : 80;
+  const navbarH = bp === 'mobile' ? 64 : 80;
 
   return (
-    <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif", background: 'var(--theme-surface-faint)', minHeight: '100vh', overflowX: 'hidden' }}>
-      <Topbar />
+    <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif", background: '#f8fafc', minHeight: '100vh', overflowX: 'hidden' }}>
+      <Navbar />
       <main
         style={{
           marginLeft: 0,
-          marginTop: topbarH,
-          minHeight: `calc(100vh - ${topbarH}px)`,
+          marginTop: navbarH,
+          minHeight: `calc(100vh - ${navbarH}px)`,
           width: '100%',
           maxWidth: '100%',
           overflowY: 'auto',

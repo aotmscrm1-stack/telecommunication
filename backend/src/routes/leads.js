@@ -1,6 +1,8 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const Lead = require('../models/Lead');
 const User = require('../models/User');
+const Course = require('../models/Course');
 const FollowUp = require('../models/FollowUp');
 const { protect, authorize } = require('../middleware/auth');
 const {
@@ -266,6 +268,17 @@ router.post('/', protect, async (req, res) => {
     if (!body.campaign || body.campaign === '') body.campaign = undefined;
     if (!body.assignedTo || body.assignedTo === '') body.assignedTo = undefined;
     if (Array.isArray(body.courseInterest)) body.courseInterest = body.courseInterest[0] || undefined;
+    if (body.courseInterest && typeof body.courseInterest === 'string' && !mongoose.Types.ObjectId.isValid(body.courseInterest)) {
+      let course = await Course.findOne({ name: new RegExp('^' + body.courseInterest.trim() + '$', 'i') });
+      if (!course) {
+        course = await Course.create({
+          name: body.courseInterest.trim(),
+          cost: body.budget || 0,
+          isActive: true
+        });
+      }
+      body.courseInterest = course._id;
+    }
     const assignedToId = body.assignedTo || req.user._id;
     const lead = await Lead.create({ ...body, assignedTo: assignedToId });
     await lead.populate([
@@ -304,6 +317,17 @@ router.put('/:id', protect, async (req, res) => {
 
     const body = { ...req.body };
     if (Array.isArray(body.courseInterest)) body.courseInterest = body.courseInterest[0] || undefined;
+    if (body.courseInterest && typeof body.courseInterest === 'string' && !mongoose.Types.ObjectId.isValid(body.courseInterest)) {
+      let course = await Course.findOne({ name: new RegExp('^' + body.courseInterest.trim() + '$', 'i') });
+      if (!course) {
+        course = await Course.create({
+          name: body.courseInterest.trim(),
+          cost: body.budget || 0,
+          isActive: true
+        });
+      }
+      body.courseInterest = course._id;
+    }
 
     // Only Super Admin (admin role) may change a lead's phone number.
     if ('phone' in body && body.phone !== lead.phone && req.user.role !== 'admin') {

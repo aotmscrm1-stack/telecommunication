@@ -16,8 +16,8 @@ export default function Landing() {
         .nk-landing-root {
           min-height: 100vh;
           width: 100vw;
-          background-color: #ffffff;
-          color: #000000;
+          background-color: #000806;
+          color: #ffffff;
           font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
           display: flex;
           flex-direction: column;

@@ -1,3 +1,4 @@
+// src/pages/Login.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -9,10 +10,14 @@ const lampLoginStyles = `
 *, *::before, *::after { box-sizing: border-box; }
 
 :root {
-  --s: 1;                /* lamp scale            */
-  --lamp-right: 10%;     /* lamp distance from right */
-  --lamp-w: 220px;       /* lamp width            */
-  --amber: #ffbe5c;
+  --s: 1;
+  --lamp-right: 10%;
+  --lamp-w: 220px;
+  --gy: #adff2f;             /* greenyellow — main accent */
+  --gy-bright: #c5ff66;      /* lighter greenyellow */
+  --gy-deep: #8fcc24;        /* deeper greenyellow */
+  --gy-dark: #5c8500;        /* darkest for shadows */
+  --gy-text: #1a2800;        /* dark green text on greenyellow */
 }
 
 html, body { 
@@ -21,7 +26,7 @@ html, body {
 
 body.lamp-page-active {
   margin: 0;
-  background: #04040a !important;
+  background: #01150f !important;
   font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color: #ffffff !important;
   overflow: hidden;
@@ -34,16 +39,40 @@ body.lamp-page-active {
   width: 100vw;
   height: 100vh;
   margin: 0;
-  background: #04040a !important;
+  /* ══════════════════════════════════════════════
+     MATCHES HeroSection GREEN GRADIENT THEME
+     ══════════════════════════════════════════════ */
+  background: radial-gradient(
+    ellipse at 50% 40%,
+    #064e3b 0%,
+    #022c22 40%,
+    #01150f 75%,
+    #000806 100%
+  );
   font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  color: #ffffff !important;
+  color: #ffffff;
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
   z-index: 1;
+  transition: background 0.8s ease;
+}
+
+/* When lamp is ON — greenyellow ambient glow + deep green base */
+.lamp-login-root.lit {
+  background:
+    radial-gradient(ellipse at 82% 30%, rgba(173,255,47,0.16) 0%, transparent 45%),
+    radial-gradient(ellipse at 50% 50%, rgba(173,255,47,0.06) 0%, transparent 60%),
+    radial-gradient(
+      ellipse at 50% 40%,
+      #064e3b 0%,
+      #022c22 40%,
+      #01150f 75%,
+      #000806 100%
+    );
 }
 
 /* ==========================================================
-   2. LAMP (Right Side Hanging Lamp)
+   2. LAMP
    ========================================================== */
 .lamp {
   position: fixed;
@@ -63,11 +92,10 @@ body.lamp-page-active {
   top: 0; left: 50%;
   transform: translateX(-50%);
   width: 5px; height: 72px;
-  background: linear-gradient(#0b0b10, #2a2a33);
+  background: linear-gradient(#0b0b10, #1f2614);
   border-radius: 3px;
 }
 
-/* --- BULB --- */
 .bulb {
   position: absolute;
   top: 180px; left: 50%;
@@ -75,18 +103,9 @@ body.lamp-page-active {
   width: 40px; height: 40px;
   border-radius: 50%;
   background: #24242b;
-  transition: background .3s ease, box-shadow .3s ease;
-}
-body.lit .bulb,
-.lamp-login-root.lit .bulb {
-  background: #fff6d6 !important;
-  box-shadow:
-    0 0 18px 6px rgba(255,220,140,.95),
-    0 0 60px 18px rgba(255,190,80,.65) !important;
-  animation: blink 1.6s ease-in-out infinite;
+  transition: background .5s ease, box-shadow .5s ease;
 }
 
-/* --- SHADE --- */
 .shade {
   position: absolute;
   top: 70px; left: 50%;
@@ -94,26 +113,17 @@ body.lit .bulb,
   width: 190px; height: 112px;
   clip-path: polygon(20% 0, 80% 0, 100% 100%, 0 100%);
   background: linear-gradient(100deg,
-      #45454f 0%, #26262e 30%, #111116 72%, #08080b 100%);
-  transition: filter .3s ease;
-}
-body.lit .shade,
-.lamp-login-root.lit .shade {
-  animation: shadeBlink 1.6s ease-in-out infinite;
+      #3d4a2a 0%, #232b16 30%, #141a0c 72%, #0a0d06 100%);
+  transition: filter .5s ease;
 }
 
-/* --- CORD --- */
 .cord {
   position: absolute;
   top: 180px; left: 50%;
   transform: translateX(-50%);
   width: 2px; height: 118px;
   background: linear-gradient(#2c2c34, #131318);
-  transition: height .4s cubic-bezier(.34,1.56,.64,1);
-}
-body.lit .cord,
-.lamp-login-root.lit .cord { 
-  height: 162px; 
+  transition: height .5s cubic-bezier(.34,1.56,.64,1);
 }
 
 .knob {
@@ -124,42 +134,70 @@ body.lit .cord,
   border-radius: 50%;
   background: radial-gradient(circle at 32% 28%, #75758a, #16161c 72%);
   box-shadow: 0 3px 9px rgba(0,0,0,.9);
-  transition: box-shadow .3s ease;
-}
-body.lit .knob,
-.lamp-login-root.lit .knob {
-  box-shadow: 0 3px 9px rgba(0,0,0,.9), 0 0 16px rgba(255,190,80,.6) !important;
+  transition: box-shadow .5s ease;
 }
 
 /* ==========================================================
-   3. BLINK KEYFRAMES
+   3. LAMP ON STATE — greenyellow glow
    ========================================================== */
-@keyframes blink {
-  0%, 100% {
-    box-shadow:
-      0 0 18px 6px rgba(255,220,140,.95),
-      0 0 60px 18px rgba(255,190,80,.65);
-    background: #fff6d6;
-  }
-  50% {
-    box-shadow:
-      0 0 8px 2px rgba(255,220,140,.45),
-      0 0 26px 6px rgba(255,190,80,.25);
-    background: #d9c9a0;
-  }
+.lamp-login-root.lit .bulb {
+  background: #e8ffcc;
+  box-shadow:
+    0 0 22px 8px rgba(173,255,47,0.95),
+    0 0 70px 24px rgba(173,255,47,0.55),
+    0 0 140px 60px rgba(143,204,36,0.25);
+  animation: bulbPulse 2.2s ease-in-out infinite;
 }
 
-@keyframes shadeBlink {
-  0%, 100% {
-    filter: drop-shadow(0 0 22px rgba(255,190,80,.55));
-  }
-  50% {
-    filter: drop-shadow(0 0 8px rgba(255,190,80,.20));
-  }
+.lamp-login-root.lit .shade {
+  filter: drop-shadow(0 6px 30px rgba(173,255,47,0.55));
+  animation: shadeGlow 2.2s ease-in-out infinite;
+}
+
+.lamp-login-root.lit .cord {
+  height: 162px;
+}
+
+.lamp-login-root.lit .knob {
+  box-shadow: 
+    0 3px 9px rgba(0,0,0,0.9), 
+    0 0 18px rgba(173,255,47,0.7);
 }
 
 /* ==========================================================
-   4. STAGE + DEEP BLACK CARD
+   4. KEYFRAMES
+   ========================================================== */
+@keyframes bulbPulse {
+  0%, 100% {
+    box-shadow:
+      0 0 22px 8px rgba(173,255,47,0.95),
+      0 0 70px 24px rgba(173,255,47,0.55),
+      0 0 140px 60px rgba(143,204,36,0.25);
+  }
+  50% {
+    box-shadow:
+      0 0 14px 5px rgba(173,255,47,0.75),
+      0 0 50px 16px rgba(173,255,47,0.35),
+      0 0 100px 40px rgba(143,204,36,0.15);
+  }
+}
+
+@keyframes shadeGlow {
+  0%, 100% {
+    filter: drop-shadow(0 6px 30px rgba(173,255,47,0.55));
+  }
+  50% {
+    filter: drop-shadow(0 6px 18px rgba(173,255,47,0.30));
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: .40; }
+  50%      { opacity: .95; }
+}
+
+/* ==========================================================
+   5. STAGE + CARD
    ========================================================== */
 .stage {
   position: fixed;
@@ -171,22 +209,17 @@ body.lit .knob,
   z-index: 20;
 }
 
-/* Force pure deep obsidian black card with crisp white text */
-body .lamp-login-root .card,
-body .lamp-card,
 .card.lamp-card {
   position: relative;
   width: 400px;
   max-width: 92vw;
   padding: 44px 40px 36px;
   border-radius: 22px;
-  background: linear-gradient(155deg, rgba(32,32,46,0.96), rgba(8,8,15,0.98)) !important;
-  background-color: #0b0b12 !important;
-  border: 1px solid rgba(255,255,255,0.12) !important;
-  border-image: none !important;
+  background: rgba(9, 26, 18, 0.92);
+  border: 1px solid rgba(173,255,47,0.15);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  box-shadow: 0 40px 90px rgba(0,0,0,0.9) !important;
+  box-shadow: 0 40px 90px rgba(0,0,0,0.9);
   transform-style: preserve-3d;
   opacity: 0;
   pointer-events: none;
@@ -196,74 +229,66 @@ body .lamp-card,
   transition:
     transform 1.15s cubic-bezier(.19,1,.22,1),
     opacity .7s ease,
-    box-shadow .9s ease;
-  color: #ffffff !important;
+    box-shadow .9s ease,
+    border-color .9s ease;
+  color: #ffffff;
 }
 
-body.lit .card,
-body.lit .lamp-card,
-.lamp-login-root.lit .card,
-.lamp-login-root.lit .lamp-card {
-  opacity: 1 !important;
-  pointer-events: auto !important;
-  transform: rotateY(0) rotateX(0) translateZ(0) translateY(0) scale(1) !important;
-  background: linear-gradient(155deg, rgba(35,35,50,0.96), rgba(9,9,16,0.98)) !important;
-  background-color: #0b0b13 !important;
-  border: 1px solid rgba(255,255,255,0.14) !important;
-  border-image: none !important;
+.lamp-login-root.lit .card.lamp-card {
+  opacity: 1;
+  pointer-events: auto;
+  transform: rotateY(0) rotateX(0) translateZ(0) translateY(0) scale(1);
   box-shadow:
     0 40px 90px rgba(0,0,0,0.95),
-    inset 0 1px 0 rgba(255,255,255,0.1) !important;
+    0 0 60px rgba(173,255,47,0.12),
+    inset 0 1px 0 rgba(173,255,47,0.10);
+  border-color: rgba(173,255,47,0.25);
 }
 
-/* parallax layer */
 .card-inner {
   transform-style: preserve-3d;
   transform: rotateY(var(--tiltY, 0deg)) rotateX(var(--tiltX, 0deg));
   transition: transform .18s ease-out;
-  color: #ffffff !important;
+  color: #ffffff;
 }
 
 /* ==========================================================
-   5. 3D FORM & WHITE TEXT
+   6. FORM ELEMENTS
    ========================================================== */
 .brand {
   font-size: 11px;
   letter-spacing: .38em;
   text-transform: uppercase;
-  color: #ffffff !important;
+  color: #ffffff;
   margin-bottom: 22px;
   transform: translateZ(30px);
   font-weight: 600;
 }
 .brand::before {
   content: "◈ ";
-  color: var(--amber) !important;
+  color: var(--gy);
 }
 
-.lamp-card h1,
 .card h1 {
   margin: 0 0 8px;
   font-size: 28px;
   font-weight: 600;
   letter-spacing: -.02em;
-  color: #ffffff !important;
+  color: #ffffff;
   transform: translateZ(34px);
 }
 
-.lamp-card .sub,
 .card .sub {
   margin: 0 0 30px;
   font-size: 13px;
-  color: #cbd5e1 !important;
+  color: #cbd5e1;
   transform: translateZ(20px);
 }
 
-/* Error message banner */
 .login-error-msg {
-  background: rgba(239, 68, 68, 0.2) !important;
-  border: 1px solid rgba(239, 68, 68, 0.45) !important;
-  color: #fecaca !important;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fecaca;
   padding: 10px 14px;
   border-radius: 10px;
   font-size: 12px;
@@ -271,7 +296,6 @@ body.lit .lamp-card,
   transform: translateZ(22px);
 }
 
-/* ---- 3D FIELD WRAPPER ---- */
 .field {
   position: relative;
   margin-bottom: 20px;
@@ -288,7 +312,7 @@ body.lit .lamp-card,
   font-size: 10.5px;
   letter-spacing: .18em;
   text-transform: uppercase;
-  color: #e2e8f0 !important;
+  color: #e2e8f0;
   margin-bottom: 9px;
   transform: translateZ(12px);
   transform-origin: left center;
@@ -296,28 +320,26 @@ body.lit .lamp-card,
   font-weight: 500;
 }
 .field:focus-within label {
-  color: var(--amber) !important;
+  color: var(--gy);
   transform: translateZ(22px) translateX(2px);
 }
 
-/* ---- 3D INPUT (Black glass background, white text) ---- */
 .field input {
   width: 100%;
   padding: 15px 16px;
   font-family: inherit;
   font-size: 14px;
-  color: #ffffff !important;
-  background: rgba(255,255,255,0.06) !important;
-  border: 1px solid rgba(255,255,255,0.16) !important;
-  border-image: none !important;
+  color: #ffffff;
+  background: rgba(173,255,47,0.04);
+  border: 1px solid rgba(173,255,47,0.18);
   border-radius: 12px;
   outline: none;
   transform-style: preserve-3d;
   transform: translateZ(0);
   box-shadow:
-    0 1px 0 rgba(255,255,255,.08) inset,
+    0 1px 0 rgba(173,255,47,.06) inset,
     0 -1px 0 rgba(0,0,0,.5) inset,
-    0 8px 18px rgba(0,0,0,.5) !important;
+    0 8px 18px rgba(0,0,0,.5);
   transition:
     transform .35s cubic-bezier(.2,.9,.3,1.3),
     box-shadow .35s ease,
@@ -325,32 +347,25 @@ body.lit .lamp-card,
     background .3s ease;
 }
 .field input::placeholder { 
-  color: #94a3b8 !important; 
+  color: #7c8a5e; 
 }
 
 .field input:hover {
   transform: translateZ(10px);
-  border-color: rgba(255,255,255,.28) !important;
-  background: rgba(255,255,255,0.08) !important;
-  box-shadow:
-    0 1px 0 rgba(255,255,255,.1) inset,
-    0 -1px 0 rgba(0,0,0,.5) inset,
-    0 14px 26px rgba(0,0,0,.6) !important;
+  border-color: rgba(173,255,47,0.35);
+  background: rgba(173,255,47,0.06);
 }
 
 .field input:focus {
   transform: translateZ(26px) rotateX(-1.5deg);
-  border-color: rgba(255,196,90,.85) !important;
-  background: rgba(255,255,255,0.11) !important;
-  color: #ffffff !important;
+  border-color: rgba(173,255,47,0.85);
+  background: rgba(173,255,47,0.09);
   box-shadow:
-    0 0 0 3px rgba(255,190,80,.18),
-    0 18px 36px rgba(0,0,0,.65),
-    0 0 34px rgba(255,180,60,.35),
-    0 3px 0 rgba(0,0,0,.4) !important;
+    0 0 0 3px rgba(173,255,47,0.18),
+    0 18px 36px rgba(0,0,0,0.65),
+    0 0 34px rgba(173,255,47,0.30);
 }
 
-/* focus dot */
 .field::after {
   content: "";
   position: absolute;
@@ -358,10 +373,10 @@ body.lit .lamp-card,
   top: 42px;
   width: 7px; height: 7px;
   border-radius: 50%;
-  background: var(--amber);
+  background: var(--gy);
   opacity: 0;
   transform: scale(.4);
-  box-shadow: 0 0 12px 3px rgba(255,190,80,.8) !important;
+  box-shadow: 0 0 12px 3px rgba(173,255,47,0.8);
   transition: opacity .3s ease, transform .3s cubic-bezier(.2,1.6,.4,1);
   pointer-events: none;
 }
@@ -370,28 +385,24 @@ body.lit .lamp-card,
   transform: scale(1);
 }
 
-/* ---- 3D BUTTON (Warm Gold Gradient) ---- */
-body .lamp-login-root .card button,
-body .lamp-card button,
-button.sign-in-btn {
+.card button.sign-in-btn {
   width: 100%;
   margin-top: 14px;
   padding: 15px;
   font-family: inherit;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: .08em;
-  color: #241703 !important;
-  border: none !important;
+  color: var(--gy-text);
+  border: none;
   border-radius: 12px;
   cursor: pointer;
-  background: linear-gradient(135deg, #ffd27a, #ff9f3c) !important;
-  border-image: none !important;
+  background: linear-gradient(135deg, var(--gy-bright), var(--gy), var(--gy-deep));
   transform: translateZ(30px);
   box-shadow:
-    0 12px 26px rgba(255,150,40,.38),
-    0 4px 0 #b96c14,
-    0 1px 0 rgba(255,255,255,.6) inset !important;
+    0 12px 26px rgba(173,255,47,.35),
+    0 4px 0 var(--gy-dark),
+    0 1px 0 rgba(255,255,255,.7) inset;
   transition:
     transform .25s cubic-bezier(.2,.9,.3,1.4),
     box-shadow .25s ease,
@@ -401,31 +412,26 @@ button.sign-in-btn {
   justify-content: center;
   gap: 8px;
 }
-body .lamp-login-root .card button:hover,
-body .lamp-card button:hover,
-button.sign-in-btn:hover {
+.card button.sign-in-btn:hover {
   transform: translateZ(46px) translateY(-2px);
-  filter: brightness(1.07);
+  filter: brightness(1.08);
   box-shadow:
-    0 20px 40px rgba(255,150,40,.55),
-    0 6px 0 #b96c14,
-    0 1px 0 rgba(255,255,255,.7) inset !important;
+    0 20px 40px rgba(173,255,47,.55),
+    0 6px 0 var(--gy-dark),
+    0 1px 0 rgba(255,255,255,.8) inset;
 }
-body .lamp-login-root .card button:active,
-body .lamp-card button:active,
-button.sign-in-btn:active {
+.card button.sign-in-btn:active {
   transform: translateZ(18px) translateY(3px);
   box-shadow:
-    0 6px 14px rgba(255,150,40,.45),
-    0 1px 0 #b96c14,
-    0 1px 0 rgba(255,255,255,.5) inset !important;
+    0 6px 14px rgba(173,255,47,.45),
+    0 1px 0 var(--gy-dark),
+    0 1px 0 rgba(255,255,255,.5) inset;
 }
-button.sign-in-btn:disabled {
+.card button.sign-in-btn:disabled {
   opacity: 0.75;
   cursor: not-allowed;
 }
 
-/* ---- ROW & WHITE TEXT ---- */
 .row {
   display: flex;
   justify-content: space-between;
@@ -438,35 +444,32 @@ button.sign-in-btn:disabled {
   display: flex;
   align-items: center;
   gap: 7px;
-  color: #f1f5f9 !important;
+  color: #f1f5f9;
   cursor: pointer;
   user-select: none;
   transition: color .25s;
 }
-.check span {
-  color: #f1f5f9 !important;
-}
 .check:hover { 
-  color: #ffffff !important; 
+  color: #ffffff; 
 }
 .check input {
   width: 15px; height: 15px;
   margin: 0;
-  accent-color: #ffb44d;
+  accent-color: var(--gy);
   cursor: pointer;
 }
 .row a {
-  color: #cbd5e1 !important;
+  color: #cbd5e1;
   text-decoration: none;
   transition: color .25s, transform .25s;
 }
 .row a:hover {
-  color: var(--amber) !important;
+  color: var(--gy);
   transform: translateZ(10px);
 }
 
 /* ==========================================================
-   6. HINT
+   7. HINT
    ========================================================== */
 .hint {
   position: fixed;
@@ -475,26 +478,20 @@ button.sign-in-btn:disabled {
   font-size: 12px;
   letter-spacing: .18em;
   text-transform: uppercase;
-  color: #8383a0 !important;
+  color: #7c8a5e;
   white-space: nowrap;
   pointer-events: none;
   z-index: 25;
   animation: pulse 2.4s ease-in-out infinite;
   transition: opacity .6s ease;
 }
-body.lit .hint,
 .lamp-login-root.lit .hint { 
-  opacity: 0 !important; 
-  animation: none !important; 
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: .40; }
-  50%      { opacity: .95; }
+  opacity: 0;
+  animation: none;
 }
 
 /* ==========================================================
-   7. RESPONSIVE
+   8. RESPONSIVE
    ========================================================== */
 @media (min-width: 900px) {
   .stage { 
@@ -512,12 +509,10 @@ body.lit .hint,
     align-items: center; 
     padding-top: 60px; 
   }
-  .lamp-card,
-  .card { 
+  .card.lamp-card { 
     padding: 34px 26px 28px; 
     border-radius: 18px; 
   }
-  .lamp-card h1,
   .card h1 { 
     font-size: 23px; 
   }
@@ -541,33 +536,20 @@ export default function Login() {
 
   const { login } = useAuth();
   const navigate = useNavigate();
-
   const cardInnerRef = useRef(null);
 
-  // Sync dark background & body lit class directly with document.body
   useEffect(() => {
     document.body.classList.add('lamp-page-active');
     return () => {
       document.body.classList.remove('lamp-page-active');
-      document.body.classList.remove('lit');
     };
   }, []);
 
-  useEffect(() => {
-    if (isLit) {
-      document.body.classList.add('lit');
-    } else {
-      document.body.classList.remove('lit');
-    }
-  }, [isLit]);
-
-  // Parallax mousemove on the card
   useEffect(() => {
     const handleMouseMove = (e) => {
       if (!cardInnerRef.current) return;
       const x = (e.clientX / window.innerWidth - 0.5) * 2;
       const y = (e.clientY / window.innerHeight - 0.5) * 2;
-
       cardInnerRef.current.style.setProperty('--tiltY', (x * 6).toFixed(2) + 'deg');
       cardInnerRef.current.style.setProperty('--tiltX', (-y * 6).toFixed(2) + 'deg');
     };
@@ -580,26 +562,21 @@ export default function Login() {
 
     window.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseleave', handleMouseLeave);
-
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseleave', handleMouseLeave);
     };
   }, []);
 
-  // Hover lamp (mouse) -> ON
   const handleLampPointerEnter = (e) => {
-    if (e.pointerType === 'mouse') {
-      setIsLit(true);
-    }
+    if (e.pointerType === 'mouse') setIsLit(true);
   };
 
-  // Click lamp -> toggle
-  const handleLampClick = () => {
+  const handleLampClick = (e) => {
+    e.stopPropagation();
     setIsLit((prev) => !prev);
   };
 
-  // Submit handler with AuthContext
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -617,7 +594,11 @@ export default function Login() {
       await login(trimmedEmail, trimmedPassword);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Login failed. Please check your credentials.');
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          'Login failed. Please check your credentials.'
+      );
     } finally {
       setLoading(false);
     }
@@ -627,20 +608,21 @@ export default function Login() {
     <div className={`lamp-login-root ${isLit ? 'lit' : ''}`}>
       <style>{lampLoginStyles}</style>
 
-      {/* LOGIN CARD (Deep Black Background, Pure White Text) */}
       <main className="stage" onClick={() => !isLit && setIsLit(true)}>
-        <form className="card lamp-card" autoComplete="off" onSubmit={handleSubmit}>
+        <form
+          className="card lamp-card"
+          autoComplete="off"
+          onSubmit={handleSubmit}
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="card-inner" ref={cardInnerRef}>
-
             <div className="brand">Nexus</div>
             <h1>Welcome back</h1>
-            <p className="sub">Hover the lamp, then sign in.</p>
+            <p className="sub">
+              {isLit ? 'Sign in to continue.' : 'Hover the lamp to light up the room.'}
+            </p>
 
-            {error && (
-              <div className="login-error-msg">
-                {error}
-              </div>
-            )}
+            {error && <div className="login-error-msg">{error}</div>}
 
             <div className="field">
               <label htmlFor="email">Email</label>
@@ -679,24 +661,24 @@ export default function Login() {
                 />
                 <span>Remember me</span>
               </label>
-              <a 
-                href="#forgot" 
-                onClick={(e) => { 
-                  e.preventDefault(); 
-                  alert('Please contact your system administrator to reset your account password.'); 
+              <a
+                href="#forgot"
+                onClick={(e) => {
+                  e.preventDefault();
+                  alert(
+                    'Please contact your system administrator to reset your account password.'
+                  );
                 }}
               >
                 Forgot?
               </a>
             </div>
-
           </div>
         </form>
       </main>
 
-      {/* LAMP */}
-      <div 
-        className="lamp" 
+      <div
+        className="lamp"
         id="lamp"
         onPointerEnter={handleLampPointerEnter}
         onClick={handleLampClick}
@@ -710,15 +692,9 @@ export default function Login() {
         </div>
       </div>
 
-      {/* HINT */}
-      <div 
-        className="hint" 
-        onClick={() => setIsLit(true)} 
-        style={{ cursor: 'pointer' }}
-      >
+      <div className="hint" onClick={() => setIsLit(true)} style={{ cursor: 'pointer' }}>
         Hover the lamp &nbsp;💡
       </div>
-
     </div>
   );
 }

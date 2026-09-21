@@ -1,41 +1,41 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Layout from './components/Layout/Layout';
-import Login from './pages/Login';
+import Login from './pages/login_pages/Login';
 import Dashboard from './components/dashboard/Dashboard';
-import Leads from './pages/Leads';
-import AddLead from './pages/AddLead';
-import Campaigns from './pages/Campaigns';
-import CampaignDetail from './pages/CampaignDetail';
-import Leaderboard from './pages/Leaderboard';
-import Reports from './pages/Reports';
-import Tasks from './pages/Tasks';
+import AllLeads from './Marketing/AllLeads/AllLeads';
+import AddLead from './Marketing/AddLead';
+import Campaigns from './Marketing/Campaign/Campaigns';
+import CampaignDetail from './Marketing/Campaign/CampaignDetail';
+import Leaderboard from './Marketing/Leaderboard/Leaderboard';
+import Reports from './Marketing/Report/Reports';
+import Tasks from './components/dashboard/Task/Task';
 import Profile from './pages/Profile';
-import MessageTemplates from './pages/MessageTemplates';
+import MessageTemplates from './Marketing/MessageTemplate/MessageTemplates';
 import Blocklist from './pages/Blocklist';
 import MyPreferences from './pages/MyPreferences';
-import WhatsApp from './pages/WhatsApp';
-import EmailCRM from './pages/EmailCRM';
+import WhatsApp from './Marketing/Whatsapp/WhatsApp';
+import EmailCRM from './Marketing/Email/EmailCRM';
 import Users from './pages/Users';
 import StaleLeads from './pages/StaleLeads';
-import BulkImport from './pages/BulkImport';
+import BulkImport from './Marketing/AllLeads/BulkImport';
 import TeamOperations from './pages/TeamOperations';
-import LeadProfile from './pages/LeadProfile';
+import LeadProfile from './Marketing/Leaderboard/LeadProfile';
 import Integrations from './pages/Integrations';
 import IntegrationSetup from './pages/IntegrationSetup';
 import IntegrationDetail from './pages/IntegrationDetail';
 import AccessTokens from './pages/AccessTokens';
-import LeadStage from './pages/LeadStage';
+import LeadStage from './Marketing/Leaderboard/LeadStage';
 import Fields from './pages/Fields';
 import CustomActions from './pages/CustomActions';
 import WorkspacePreferences from './pages/WorkspacePreferences';
 import PermissionTemplates from './pages/PermissionTemplates';
 import Billing from './pages/Billing';
-import Payslip from './pages/Payslip';
-import Invoice from './pages/Invoice';
+import Payslip from './Finance/Payslip';
+import Invoice from './Finance/Invoice';
 import Landing from './pages/landing_pages/Landing';
-import LiveEmployeeTracking from './pages/LiveEmployeeTracking';
-import AttendanceRecords from './pages/AttendanceRecords';
+import LiveEmployeeTracking from './Management/Attedence/LiveEmployee/LiveEmployeeTracking';
+import AttendanceRecords from './Management/Attedence/AttendanceRecords';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -80,7 +80,8 @@ export default function App() {
           <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="billing" element={<AdminRoute><Billing /></AdminRoute>} />
-            <Route path="leads" element={<Leads />} />
+            <Route path="leads" element={<AllLeads />} />
+            <Route path="all-leads" element={<AllLeads />} />
             <Route path="leads/new" element={<AddLead />} />
             <Route path="leads/:id" element={<LeadProfile />} />
             <Route path="leads/:id/edit" element={<AddLead />} />
@@ -118,6 +119,7 @@ export default function App() {
             <Route path="employee-tracking" element={<AdminOnlyRoute><LiveEmployeeTracking /></AdminOnlyRoute>} />
             <Route path="admin/attendance-records" element={<AdminOnlyRoute><AttendanceRecords /></AdminOnlyRoute>} />
             <Route path="attendance-records" element={<AdminOnlyRoute><AttendanceRecords /></AdminOnlyRoute>} />
+            <Route path="add-lead" element={<AddLead />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
