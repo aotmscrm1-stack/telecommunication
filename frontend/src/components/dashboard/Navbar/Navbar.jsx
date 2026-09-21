@@ -13,7 +13,7 @@ import {
   FaCode, FaBell, FaChevronDown, FaBars, FaXmark, FaRightFromBracket,
   FaUser, FaLock
 } from 'react-icons/fa6';
-import { isCEO, isHR, isLimitedStaff, normalizeDesignation } from '../../../utils/permissions';
+import { isCEO, isHR, isLimitedStaff, canViewDashboard, normalizeDesignation } from '../../../utils/permissions';
 
 
 /* ─────────────────────────────────────────────────────────
@@ -468,16 +468,16 @@ export default function Navbar() {
   const displayDesignation = user?.designation || roleLabel;
 
   // Designation Navigation Rules:
-  // 1. CEO (Ameen, Rabbani): All navigation groups and actions shown.
-  // 2. HR (Deenaz, Bhavani): All navigation groups shown (delete buttons hidden in screens).
-  // 3, 4, 5. Developer, Trainer, Digital Marketing: Only show Information, Email CRM, Attendance.
-  const topDropdownGroups = isLimited ? [
+  // 1. CEO & HR: Full navigation, Dashboard shown under Information.
+  // 2. Remaining All: Dashboard is removed completely. Only Task is shown, along with Email CRM & Attendance.
+  const hasDashboard = canViewDashboard(user);
+
+  const topDropdownGroups = !hasDashboard ? [
     {
-      title: 'Information',
-      icon: FaCircleInfo,
+      title: 'TODO List',
+      icon: FaListCheck,
       items: [
-        { label: 'Dashboard', path: '/dashboard', icon: FaHouse },
-        { label: 'Task', path: '/tasks', icon: FaListCheck },
+        { label: 'TODO List', path: '/tasks', icon: FaListCheck },
       ]
     },
     {
@@ -614,7 +614,7 @@ export default function Navbar() {
 
               {/* Logo */}
               <div className="flex items-center shrink-0">
-                <Link to="/dashboard" className="flex items-center gap-2 group">
+                <Link to={hasDashboard ? "/dashboard" : "/tasks"} className="flex items-center gap-2 group">
                   <img
                     src={logoImg}
                     alt="AOTMS Logo"

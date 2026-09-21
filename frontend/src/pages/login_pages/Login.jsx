@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { canViewDashboard } from '../../utils/permissions';
 
 const lampLoginStyles = `
 /* ==========================================================
@@ -591,8 +592,12 @@ export default function Login() {
 
     setLoading(true);
     try {
-      await login(trimmedEmail, trimmedPassword);
-      navigate('/dashboard');
+      const data = await login(trimmedEmail, trimmedPassword);
+      if (canViewDashboard(data?.user)) {
+        navigate('/dashboard');
+      } else {
+        navigate('/tasks');
+      }
     } catch (err) {
       setError(
         err.response?.data?.message ||

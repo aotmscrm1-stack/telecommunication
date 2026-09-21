@@ -38,6 +38,7 @@ export const leadsAPI = {
   getAll: (params) => api.get('/leads', { params }),
   getMyCalls: () => api.get('/leads/my-calls'),
   getStats: () => api.get('/leads/stats'),
+  getRealtimeKpis: () => api.get('/leads/realtime-kpis'),
   getOne: (id) => api.get(`/leads/${id}`),
   create: (data) => api.post('/leads', data),
   update: (id, data) => api.put(`/leads/${id}`, data),

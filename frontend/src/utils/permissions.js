@@ -13,10 +13,22 @@ export const normalizeDesignation = (user) => {
   return String(user?.designation || '').trim().toUpperCase();
 };
 
-export const isCEO = (user) => {
+export const isManagingDirector = (user) => {
   const d = normalizeDesignation(user);
-  return d === 'CEO' || user?.role === 'admin';
+  return d === 'MANAGING DIRECTOR' || d === 'MD';
 };
+
+export const isCTO = (user) => {
+  const d = normalizeDesignation(user);
+  return d === 'CTO';
+};
+
+export const isExecutive = (user) => {
+  const d = normalizeDesignation(user);
+  return isManagingDirector(user) || isCTO(user) || d === 'CEO' || user?.role === 'admin';
+};
+
+export const isCEO = (user) => isExecutive(user);
 
 export const isHR = (user) => {
   const d = normalizeDesignation(user);
@@ -56,3 +68,82 @@ export const canDelete = (user) => {
   if (isHR(user)) return false;
   return isCEO(user) || user?.role === 'admin' || user?.role === 'manager';
 };
+
+/**
+ * Dashboard Access Guard:
+ * - Only CEO and HR are allowed to view Dashboard.
+ * - Remaining all (Developer, Trainer, Digital Marketing, etc.) have Dashboard removed and only view Task.
+ */
+export const canViewDashboard = (user) => {
+  if (!user) return false;
+  return isCEO(user) || isHR(user);
+};
+
+/**
+ * Task Creation "Assigned By" allowed options per Designation:
+ * 1. Developer: Only Ameen (CEO/MD) and You.
+ * 2. Digital Marketing: CEO, CTO, HR, You, All.
+ * 3. Trainers: CEO, HR, You, All.
+ * 4. Others (Executive / Admin / Manager): All individual users + All.
+ */
+export const getTaskAssignorOptions = (currentUser, users = []) => {
+  const ameen = users.find(u =>
+    u.name?.toLowerCase().trim() === 'ameen' ||
+    u.email?.toLowerCase().includes('ameen@') ||
+    normalizeDesignation(u) === 'CEO' ||
+    normalizeDesignation(u) === 'MANAGING DIRECTOR'
+  ) || { _id: 'ameen_fallback', name: 'Ameen', designation: 'Managing Director' };
+
+  const cto = users.find(u =>
+    u.name?.toLowerCase().trim() === 'rabbani' ||
+    normalizeDesignation(u) === 'CTO'
+  );
+
+  const hrList = users.filter(u => normalizeDesignation(u) === 'HR');
+
+  const allOption = { _id: 'all', name: 'All' };
+
+  // 1. Developer: Only Ameen and You
+  if (isDeveloper(currentUser)) {
+    const list = [ameen];
+    if (currentUser && currentUser._id !== ameen._id) {
+      list.push(currentUser);
+    }
+    return list;
+  }
+
+  // 2. Digital Marketing: CEO, CTO, HR, You, All
+  if (isDigitalMarketing(currentUser)) {
+    const list = [ameen];
+    if (cto && cto._id !== ameen._id) list.push(cto);
+    hrList.forEach(hr => {
+      if (!list.some(u => u._id === hr._id)) list.push(hr);
+    });
+    if (currentUser && !list.some(u => u._id === currentUser._id)) {
+      list.push(currentUser);
+    }
+    list.push(allOption);
+    return list;
+  }
+
+  // 3. Trainers: CEO, HR, You, All
+  if (isTrainer(currentUser)) {
+    const list = [ameen];
+    hrList.forEach(hr => {
+      if (!list.some(u => u._id === hr._id)) list.push(hr);
+    });
+    if (currentUser && !list.some(u => u._id === currentUser._id)) {
+      list.push(currentUser);
+    }
+    list.push(allOption);
+    return list;
+  }
+
+  // 4. All others: All individual users + All option
+  const list = [...users];
+  if (!list.some(u => u._id === 'all')) {
+    list.push(allOption);
+  }
+  return list;
+};
+

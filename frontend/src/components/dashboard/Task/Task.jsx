@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { followupsAPI, leadsAPI, usersAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import { formatISTDateTime } from '../../../utils/dateFormat';
+import { isLimitedStaff, isDeveloper, getTaskAssignorOptions } from '../../../utils/permissions';
 
 // Theme Palette Constants
 const COLOR_DEEP_BLUE = '#023047';
@@ -485,16 +486,29 @@ function AddTaskModal({ type, onClose, onCreated }) {
   }, [canAssign]);
 
   const assignableUsers = (() => {
-    if (currentUser?.role === 'admin' || currentUser?.role === 'manager') return users;
-    return users.filter(u => u._id === currentUser?._id);
+    if (currentUser?.role === 'admin' || currentUser?.role === 'manager') {
+      const list = [...users];
+      if (!list.some(u => u._id === 'all')) list.push({ _id: 'all', name: 'All' });
+      return list;
+    }
+    return getTaskAssignorOptions(currentUser, users);
   })();
+
+  const assignedByUsers = getTaskAssignorOptions(currentUser, users);
 
   useEffect(() => {
     if (!assignableUsers.length) return;
     if (!assignableUsers.some(u => u._id === assignedTo)) {
       setAssignedTo(currentUser?._id || assignableUsers[0]._id);
     }
-  }, [users]);
+  }, [users, assignableUsers]);
+
+  useEffect(() => {
+    if (!assignedByUsers.length) return;
+    if (!assignedByUsers.some(u => u._id === assignedBy)) {
+      setAssignedBy(assignedByUsers[0]._id);
+    }
+  }, [users, assignedByUsers]);
 
   // Lead search
   useEffect(() => {
@@ -541,8 +555,19 @@ function AddTaskModal({ type, onClose, onCreated }) {
       };
       if (isCallFollowup && selectedLead) payload.lead = selectedLead._id;
       if (canAssign) {
-        payload.assignedTo = assignedTo || currentUser._id;
-        payload.assignedBy = assignedBy || currentUser._id;
+        let finalAssignedTo = assignedTo || currentUser._id;
+        if (finalAssignedTo === 'ameen_fallback') {
+          const realAmeen = users.find(u => u.name?.toLowerCase().trim() === 'ameen');
+          finalAssignedTo = realAmeen ? realAmeen._id : currentUser._id;
+        }
+        payload.assignedTo = finalAssignedTo;
+
+        let finalAssignedBy = assignedBy || currentUser._id;
+        if (finalAssignedBy === 'ameen_fallback') {
+          const realAmeen = users.find(u => u.name?.toLowerCase().trim() === 'ameen');
+          finalAssignedBy = realAmeen ? realAmeen._id : currentUser._id;
+        }
+        payload.assignedBy = finalAssignedBy;
       }
       if (repeatFrequency !== 'none') {
         payload.recurrence = {
@@ -697,7 +722,9 @@ function AddTaskModal({ type, onClose, onCreated }) {
                 >
                   {assignableUsers.map(u => (
                     <option key={u._id} value={u._id}>
-                      {u.name}{u._id === currentUser?._id ? ' (You)' : ''}
+                      {u._id === 'all'
+                        ? 'All'
+                        : `${u.name}${u._id === currentUser?._id ? ' (You)' : (u.designation ? ` (${u.designation})` : '')}`}
                     </option>
                   ))}
                 </select>
@@ -709,9 +736,11 @@ function AddTaskModal({ type, onClose, onCreated }) {
                   onChange={e => setAssignedBy(e.target.value)}
                   style={{ width: '100%', border: `1px solid ${COLOR_BORDER}`, borderRadius: 8, padding: '9px 12px', fontSize: 14, outline: 'none', color: COLOR_DEEP_BLUE }}
                 >
-                  {users.map(u => (
+                  {assignedByUsers.map(u => (
                     <option key={u._id} value={u._id}>
-                      {u.name}{u._id === currentUser?._id ? ' (You)' : ''}
+                      {u._id === 'all'
+                        ? 'All'
+                        : `${u.name}${u._id === currentUser?._id ? ' (You)' : (u.designation ? ` (${u.designation})` : '')}`}
                     </option>
                   ))}
                 </select>
@@ -767,17 +796,24 @@ export default function Task() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
+  const isLimited = isLimitedStaff(currentUser);
+
   const [activeTab, setActiveTab] = useState(() => {
+    if (isLimited) return 'Todo';
     const tab = searchParams.get('tab');
     return tab || 'Call Followups';
   });
 
   useEffect(() => {
+    if (isLimited) {
+      if (activeTab !== 'Todo') setActiveTab('Todo');
+      return;
+    }
     const tab = searchParams.get('tab');
     if (tab && tab !== activeTab) {
       setActiveTab(tab);
     }
-  }, [searchParams]);
+  }, [searchParams, isLimited, activeTab]);
 
   const [forFilter, setForFilter] = useState(() => (currentUser?.role === 'admin' || currentUser?.role === 'manager') ? 'Team' : 'Me');
   const [dueFilter, setDueFilter] = useState(null);
@@ -1150,7 +1186,7 @@ export default function Task() {
       {/* Tabs bar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${COLOR_BORDER}`, marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          {['Call Followups', 'Todo'].map(tab => {
+          {(isLimited ? ['Todo'] : ['Call Followups', 'Todo']).map(tab => {
             const isActive = !historyMode && activeTab === tab;
             return (
               <button
@@ -1533,7 +1569,7 @@ export default function Task() {
                     {/* Assigned By */}
                     <td style={{ padding: '14px 18px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        {task.assignedBy?.name ? (
+                        {(task.assignedBy?.name || task.assignedBy === 'all' || task.assignedBy === 'All') ? (
                           <>
                             <div style={{
                               width: 28,
@@ -1549,9 +1585,15 @@ export default function Task() {
                               justifyContent: 'center',
                               flexShrink: 0
                             }}>
-                              {task.assignedBy.name.slice(0, 2).toUpperCase()}
+                              {((task.assignedBy?.name || task.assignedBy) === 'all' || (task.assignedBy?.name || task.assignedBy) === 'All')
+                                ? 'ALL'
+                                : (task.assignedBy?.name || '').slice(0, 2).toUpperCase()}
                             </div>
-                            <span style={{ fontSize: 14, color: COLOR_DEEP_BLUE, fontWeight: 400 }}>{task.assignedBy.name}</span>
+                            <span style={{ fontSize: 14, color: COLOR_DEEP_BLUE, fontWeight: 400 }}>
+                              {((task.assignedBy?.name || task.assignedBy) === 'all' || (task.assignedBy?.name || task.assignedBy) === 'All')
+                                ? 'All'
+                                : task.assignedBy.name}
+                            </span>
                           </>
                         ) : (
                           <span style={{ fontSize: 14, color: COLOR_MUTED }}>—</span>
