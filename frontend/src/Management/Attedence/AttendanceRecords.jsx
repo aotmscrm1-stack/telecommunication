@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { attendanceAPI, trackingAPI, usersAPI } from '../../services/api';
 import LiveMap from '../../components/tracking/LiveMap';
+import { isManagingDirector } from '../../utils/permissions';
+import SplitText from '../../components/ui/SplitText';
 import {
   Users,
   User,
@@ -23,6 +25,13 @@ import {
   Zap,
   Download,
   RefreshCw,
+  Play,
+  Square,
+  AlertCircle,
+  Loader2,
+  Sparkles,
+  ShieldCheck,
+  ArrowUpRight,
 } from 'lucide-react';
 
 const GRADIENT = 'var(--btn-gradient, linear-gradient(90deg, #ffb37c 0%, #38bdf8 100%))';
@@ -127,6 +136,13 @@ function formatHeaderDate(isoStr) {
 export default function AttendanceRecords() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const isMD = isManagingDirector(user);
+
+  // Live Personal Attendance Session state (Start / Break / Resume / Stop)
+  const [currentSession, setCurrentSession] = useState(null);
+  const [sessionLoading, setSessionLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(null); // 'START' | 'BREAK' | 'RESUME' | 'STOP' | null
+  const [actionStatusMsg, setActionStatusMsg] = useState(null); // { type: 'success' | 'error', message: string }
 
   // Date and filter states
   const [selectedDate, setSelectedDate] = useState(getTodayIso());
@@ -168,7 +184,7 @@ export default function AttendanceRecords() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [mapModalRecord, setMapModalRecord] = useState(null);
 
-  // Live clock tick every second for real-time timers in table
+  // Live clock tick every second for real-time timers in card and table
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentNow(Date.now());
@@ -176,8 +192,28 @@ export default function AttendanceRecords() {
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch all active system users for the employee dropdown
+  // Fetch current user's live active attendance session
+  const fetchCurrentSession = useCallback(async () => {
+    try {
+      setSessionLoading(true);
+      const res = await attendanceAPI.getCurrentStatus();
+      if (res.data?.ok) {
+        setCurrentSession(res.data);
+      }
+    } catch (err) {
+      console.warn('[Fetch Current Attendance Error]:', err.message);
+    } finally {
+      setSessionLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
+    fetchCurrentSession();
+  }, [fetchCurrentSession]);
+
+  // Fetch all active system users for Managing Director's employee dropdown
+  useEffect(() => {
+    if (!isMD) return;
     usersAPI
       .getAll()
       .then((res) => {
@@ -188,7 +224,7 @@ export default function AttendanceRecords() {
       .catch((err) => {
         console.warn('[Fetch System Users Error]:', err.message);
       });
-  }, []);
+  }, [isMD]);
 
   // Close employee dropdown when clicking outside
   useEffect(() => {
@@ -387,6 +423,187 @@ export default function AttendanceRecords() {
     }
   };
 
+  // Action Handlers for Live Personal Attendance (Start / Break / Resume / Stop)
+  const handleStartAttendance = async () => {
+    try {
+      setActionLoading('START');
+      setActionStatusMsg(null);
+      let location = { latitude: null, longitude: null, accuracy: null, platform: navigator.platform || 'web' };
+      if (navigator.geolocation) {
+        try {
+          const pos = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+          });
+          location.latitude = pos.coords.latitude;
+          location.longitude = pos.coords.longitude;
+          location.accuracy = pos.coords.accuracy;
+        } catch (geoErr) {
+          console.warn('Geolocation fallback:', geoErr.message);
+        }
+      }
+      const res = await attendanceAPI.start(location);
+      if (res.data?.ok) {
+        setActionStatusMsg({ type: 'success', message: 'Attendance started successfully! Live timer running.' });
+        await fetchCurrentSession();
+        await fetchData();
+      } else {
+        setActionStatusMsg({ type: 'error', message: res.data?.message || 'Failed to start attendance.' });
+      }
+    } catch (err) {
+      setActionStatusMsg({ type: 'error', message: err.response?.data?.message || err.message || 'Error starting attendance.' });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleStartBreak = async () => {
+    try {
+      setActionLoading('BREAK');
+      setActionStatusMsg(null);
+      const res = await attendanceAPI.startBreak({ reason: 'General Break' });
+      if (res.data?.ok) {
+        setActionStatusMsg({ type: 'success', message: 'Break started and autosaved to MongoDB!' });
+        await fetchCurrentSession();
+        await fetchData();
+      } else {
+        setActionStatusMsg({ type: 'error', message: res.data?.message || 'Failed to start break.' });
+      }
+    } catch (err) {
+      setActionStatusMsg({ type: 'error', message: err.response?.data?.message || err.message || 'Error starting break.' });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleResumeBreak = async () => {
+    try {
+      setActionLoading('RESUME');
+      setActionStatusMsg(null);
+      const res = await attendanceAPI.resumeBreak();
+      if (res.data?.ok) {
+        setActionStatusMsg({ type: 'success', message: 'Resumed work! Break saved to MongoDB & timer continued.' });
+        await fetchCurrentSession();
+        await fetchData();
+      } else {
+        setActionStatusMsg({ type: 'error', message: res.data?.message || 'Failed to resume work.' });
+      }
+    } catch (err) {
+      setActionStatusMsg({ type: 'error', message: err.response?.data?.message || err.message || 'Error resuming work.' });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleStopAttendance = async () => {
+    if (!window.confirm('Are you sure you want to end your attendance session for today?')) return;
+    try {
+      setActionLoading('STOP');
+      setActionStatusMsg(null);
+      let location = { latitude: null, longitude: null, accuracy: null };
+      if (navigator.geolocation) {
+        try {
+          const pos = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+          });
+          location.latitude = pos.coords.latitude;
+          location.longitude = pos.coords.longitude;
+          location.accuracy = pos.coords.accuracy;
+        } catch (geoErr) {}
+      }
+      const res = await attendanceAPI.stop(location);
+      if (res.data?.ok) {
+        setActionStatusMsg({ type: 'success', message: 'Attendance completed and saved to MongoDB!' });
+        await fetchCurrentSession();
+        await fetchData();
+      } else {
+        setActionStatusMsg({ type: 'error', message: res.data?.message || 'Failed to end attendance.' });
+      }
+    } catch (err) {
+      setActionStatusMsg({ type: 'error', message: err.response?.data?.message || err.message || 'Error ending attendance.' });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Derive live real-time countdown / work timer for the personal session
+  const liveSessionMetrics = useMemo(() => {
+    const sessionData = currentSession?.attendance;
+    const sessionStatus = currentSession?.status || 'NOT_STARTED';
+
+    if (!sessionData || sessionStatus === 'NOT_STARTED' || !sessionData.startTime) {
+      return {
+        status: 'NOT_STARTED',
+        workHms: '00:00:00',
+        breakHms: '00:00:00',
+        totalHms: '00:00:00',
+        breakCount: 0,
+        activeBreakDurationHms: '00:00:00',
+        startTimeFormatted: '—',
+      };
+    }
+
+    const startMs = new Date(sessionData.startTime).getTime();
+    const breaks = Array.isArray(sessionData.breaks) ? sessionData.breaks : [];
+    let completedBreaksSec = 0;
+    let activeBreakObj = null;
+
+    breaks.forEach((b) => {
+      if (b.status === 'COMPLETED' && b.endTime) {
+        const bStart = new Date(b.startTime).getTime();
+        const bEnd = new Date(b.endTime).getTime();
+        completedBreaksSec += Math.max(0, Math.floor((bEnd - bStart) / 1000));
+      } else if (b.status === 'ACTIVE') {
+        activeBreakObj = b;
+      }
+    });
+
+    const totalElapsedSec = Math.max(0, Math.floor((currentNow - startMs) / 1000));
+    const startTimeFormatted = formatTime12h(sessionData.startTime);
+
+    if (sessionStatus === 'COMPLETED') {
+      const finalWork = sessionData.actualWorkSeconds || Math.max(0, (sessionData.durationSeconds || 0) - completedBreaksSec);
+      return {
+        status: 'COMPLETED',
+        workHms: formatHms(finalWork),
+        breakHms: formatHms(sessionData.totalBreakSeconds || completedBreaksSec),
+        totalHms: formatHms(sessionData.durationSeconds || totalElapsedSec),
+        breakCount: breaks.length,
+        activeBreakDurationHms: '00:00:00',
+        startTimeFormatted,
+        endTimeFormatted: formatTime12h(sessionData.endTime),
+      };
+    }
+
+    if (sessionStatus === 'ON_BREAK' && activeBreakObj) {
+      const activeBreakStartMs = new Date(activeBreakObj.startTime).getTime();
+      const curBreakSec = Math.max(0, Math.floor((currentNow - activeBreakStartMs) / 1000));
+      const totalBreakSec = completedBreaksSec + curBreakSec;
+      const workSecAtBreakStart = Math.max(0, Math.floor((activeBreakStartMs - startMs) / 1000) - completedBreaksSec);
+
+      return {
+        status: 'ON_BREAK',
+        workHms: formatHms(workSecAtBreakStart),
+        breakHms: formatHms(totalBreakSec),
+        totalHms: formatHms(totalElapsedSec),
+        breakCount: breaks.length,
+        activeBreakDurationHms: formatHms(curBreakSec),
+        startTimeFormatted,
+      };
+    }
+
+    // ON_DUTY: live incrementing work time
+    const netWorkSec = Math.max(0, totalElapsedSec - completedBreaksSec);
+    return {
+      status: 'ON_DUTY',
+      workHms: formatHms(netWorkSec),
+      breakHms: formatHms(completedBreaksSec),
+      totalHms: formatHms(totalElapsedSec),
+      breakCount: breaks.length,
+      activeBreakDurationHms: '00:00:00',
+      startTimeFormatted,
+    };
+  }, [currentSession, currentNow]);
+
   // Calculate real-time timer values for a record
   const getRecordLiveTimes = (rec) => {
     if (!rec || rec.status === 'NOT_STARTED' || !rec.startTime) {
@@ -462,19 +679,19 @@ export default function AttendanceRecords() {
     switch (status) {
       case 'ON_DUTY':
         return {
-          bg: '#ecfdf5',
-          color: '#047857',
-          border: '#a7f3d0',
-          dot: '#10b981',
+          bg: '#eff6ff',
+          color: '#1d4ed8',
+          border: '#bfdbfe',
+          dot: '#2563eb',
           label: 'On Duty',
-          icon: '🟢',
+          icon: '🔵',
         };
       case 'ON_BREAK':
         return {
-          bg: '#fffbeb',
-          color: '#b45309',
-          border: '#fde68a',
-          dot: '#f59e0b',
+          bg: '#fff7ed',
+          color: '#c2410c',
+          border: '#fed7aa',
+          dot: '#f97316',
           label: 'On Break',
           icon: '☕',
         };
@@ -490,16 +707,16 @@ export default function AttendanceRecords() {
       case 'INCOMPLETE':
         return {
           bg: '#fff7ed',
-          color: '#c2410c',
+          color: '#ea580c',
           border: '#fed7aa',
-          dot: '#f97316',
+          dot: '#ea580c',
           label: 'Incomplete',
           icon: '⚠️',
         };
       case 'NOT_STARTED':
       default:
         return {
-          bg: '#f8fafc',
+          bg: '#ffffff',
           color: '#64748b',
           border: '#e2e8f0',
           dot: '#94a3b8',
@@ -522,40 +739,43 @@ export default function AttendanceRecords() {
           gap: 16,
           background: '#ffffff',
           padding: '20px 28px',
-          borderRadius: 16,
+          borderRadius: 18,
           border: `1px solid ${BORDER}`,
-          boxShadow: '0 2px 10px rgba(15, 23, 42, 0.03)',
+          boxShadow: '0 2px 12px rgba(15, 23, 42, 0.03)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <div
             style={{
-              width: 48,
-              height: 48,
+              width: 46,
+              height: 46,
               borderRadius: 14,
-              background: '#ecfdf5',
-              border: '1px solid #a7f3d0',
+              background: '#eff6ff',
+              border: '1px solid #bfdbfe',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: 24,
-              color: '#059669',
-              boxShadow: '0 2px 6px rgba(16, 185, 129, 0.1)',
+              color: '#2563eb',
             }}
           >
-            <FileText size={24} color="#059669" />
+            <Clock size={22} color="#2563eb" />
           </div>
           <div>
-            <h2 style={{ margin: 0, fontSize: 19, fontWeight: 800, color: TEXT_MAIN, letterSpacing: '-0.02em' }}>
-              Attendance & Working Hours Records
+            <h2 style={{ margin: 0, fontSize: 22, fontWeight: 600, color: '#0f172a', letterSpacing: '-0.015em' }}>
+              My Attendance & Timesheet
             </h2>
-            <div style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 3, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontWeight: 600 }}><Calendar size={13} style={{ display: 'inline', marginRight: 4 }} /> {isRangeMode ? `${formatDateDisplay(startDate)} to ${formatDateDisplay(endDate)}` : formatHeaderDate(selectedDate)}</span>
+            <div style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 4, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <Calendar size={13} color="#2563eb" /> {isRangeMode ? `${formatDateDisplay(startDate)} to ${formatDateDisplay(endDate)}` : formatHeaderDate(selectedDate)}
+              </span>
               {!isRangeMode && selectedDate === getTodayIso() && (
-                <span style={{ background: '#dbeafe', color: '#1d4ed8', fontSize: 11, fontWeight: 700, padding: '2px 9px', borderRadius: 12 }}>
+                <span style={{ background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', fontSize: 11, fontWeight: 600, padding: '2px 9px', borderRadius: 12 }}>
                   Today
                 </span>
               )}
+              <span style={{ background: '#fff7ed', color: '#ea580c', border: '1px solid #fed7aa', fontSize: 11, fontWeight: 600, padding: '2px 9px', borderRadius: 12 }}>
+                {user?.designation || 'Staff'} • {user?.name}
+              </span>
             </div>
           </div>
         </div>
@@ -700,241 +920,748 @@ export default function AttendanceRecords() {
         </div>
       </div>
 
-      {/* ──── 2. Dashboard Summary KPI Cards (6 Cards) ────────────────────────────────────────────────── */}
+      {/* ──── 1.5. Live Interactive Attendance & Action Card (White, Orange, Blue Theme) ──── */}
+      <div
+        style={{
+          background: liveSessionMetrics.status === 'ON_BREAK'
+            ? 'linear-gradient(135deg, #ffffff 0%, #fffbf7 40%, #fff7ed 100%)'
+            : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+          borderRadius: 22,
+          border: `2px solid ${liveSessionMetrics.status === 'ON_BREAK' ? '#fdba74' : '#bfdbfe'}`,
+          boxShadow: liveSessionMetrics.status === 'ON_BREAK'
+            ? '0 14px 34px -4px rgba(249, 115, 22, 0.16), 0 0 0 1px rgba(251, 146, 60, 0.2)'
+            : '0 10px 25px -5px rgba(37, 99, 235, 0.1), 0 4px 10px rgba(0, 0, 0, 0.03)',
+          padding: '24px 28px',
+          position: 'relative',
+          overflow: 'hidden',
+          transition: 'all 0.3s ease',
+        }}
+      >
+        {/* Decorative Orange & Blue glowing accent top bar */}
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 4,
+            background: liveSessionMetrics.status === 'ON_BREAK'
+              ? 'linear-gradient(90deg, #ea580c 0%, #f97316 45%, #fb923c 80%, #38bdf8 100%)'
+              : 'linear-gradient(90deg, #f97316 0%, #38bdf8 50%, #2563eb 100%)',
+          }}
+        />
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20 }}>
+          
+          {/* Left: User Identity & Live Status Pill */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div
+              style={{
+                width: 54,
+                height: 54,
+                borderRadius: 16,
+                background: liveSessionMetrics.status === 'ON_BREAK'
+                  ? 'linear-gradient(135deg, #fff7ed, #ffedd5)'
+                  : 'linear-gradient(135deg, #eff6ff, #dbeafe)',
+                border: `1.5px solid ${liveSessionMetrics.status === 'ON_BREAK' ? '#fed7aa' : '#bfdbfe'}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 26,
+                boxShadow: '0 4px 10px rgba(0,0,0,0.04)',
+              }}
+            >
+              {liveSessionMetrics.status === 'ON_DUTY' && <Activity size={26} color="#2563eb" />}
+              {liveSessionMetrics.status === 'ON_BREAK' && <Coffee size={26} color="#ea580c" />}
+              {liveSessionMetrics.status === 'COMPLETED' && <CheckCircle2 size={26} color="#2563eb" />}
+              {liveSessionMetrics.status === 'NOT_STARTED' && <Clock size={26} color="#2563eb" />}
+            </div>
+
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                {liveSessionMetrics.status === 'ON_BREAK' ? (
+                  <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                    <SplitText
+                      text="Break In Progress"
+                      className="break-in-progress-title"
+                      delay={40}
+                      duration={0.8}
+                      ease="power3.out"
+                      style={{
+                        margin: 0,
+                        fontSize: 19,
+                        fontWeight: 700,
+                        color: '#ea580c',
+                        letterSpacing: '-0.015em',
+                        display: 'inline-block',
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: TEXT_MAIN, letterSpacing: '-0.01em' }}>
+                    {liveSessionMetrics.status === 'ON_DUTY'
+                      ? 'Active Work Shift'
+                      : liveSessionMetrics.status === 'COMPLETED'
+                      ? 'Shift Completed'
+                      : 'Attendance Session'}
+                  </h3>
+                )}
+
+                {/* Status Indicator Pill */}
+                {liveSessionMetrics.status === 'ON_DUTY' && (
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    background: '#eff6ff',
+                    color: '#1d4ed8',
+                    border: '1px solid #bfdbfe',
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    padding: '3px 10px',
+                    borderRadius: 20,
+                    letterSpacing: '0.04em',
+                    textTransform: 'uppercase'
+                  }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#2563eb', display: 'inline-block', boxShadow: '0 0 8px #2563eb' }} />
+                    Live On Duty
+                  </span>
+                )}
+                {liveSessionMetrics.status === 'ON_BREAK' && (
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    background: '#fff7ed',
+                    color: '#ea580c',
+                    border: '1px solid #fed7aa',
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    padding: '3px 10px',
+                    borderRadius: 20,
+                    letterSpacing: '0.04em',
+                    textTransform: 'uppercase'
+                  }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f97316', display: 'inline-block', boxShadow: '0 0 8px #f97316' }} />
+                    Paused On Break (Autosaved)
+                  </span>
+                )}
+                {liveSessionMetrics.status === 'COMPLETED' && (
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    background: '#eff6ff',
+                    color: '#1d4ed8',
+                    border: '1px solid #bfdbfe',
+                    fontSize: 11.5,
+                    fontWeight: 800,
+                    padding: '3px 10px',
+                    borderRadius: 20,
+                    letterSpacing: '0.04em',
+                    textTransform: 'uppercase'
+                  }}>
+                    <CheckCircle2 size={13} color="#2563eb" />
+                    Completed
+                  </span>
+                )}
+                {liveSessionMetrics.status === 'NOT_STARTED' && (
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    background: '#f8fafc',
+                    color: '#475569',
+                    border: '1px solid #cbd5e1',
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    padding: '3px 10px',
+                    borderRadius: 20,
+                    letterSpacing: '0.04em',
+                    textTransform: 'uppercase'
+                  }}>
+                    Ready to Start
+                  </span>
+                )}
+              </div>
+
+              <div style={{ fontSize: 12.5, color: TEXT_MUTED, marginTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>Employee: <strong style={{ color: TEXT_MAIN }}>{user?.name || 'Staff'}</strong></span>
+                <span>•</span>
+                <span>Role: <strong style={{ color: '#ea580c' }}>{user?.designation || 'Team Member'}</strong></span>
+                {liveSessionMetrics.startTimeFormatted !== '—' && (
+                  <>
+                    <span>•</span>
+                    <span>Clock In: <strong style={{ color: '#2563eb' }}>{liveSessionMetrics.startTimeFormatted}</strong></span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Center / Main: High-Tech Digital Stopwatch HUD (Hours : Min : Sec) */}
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: '#ffffff',
+              border: `1.5px solid ${liveSessionMetrics.status === 'ON_BREAK' ? '#fed7aa' : '#bfdbfe'}`,
+              borderRadius: 14,
+              padding: '12px 28px',
+              boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.02), 0 2px 8px rgba(0,0,0,0.03)',
+              minWidth: 260,
+            }}
+          >
+            <div style={{
+              fontSize: 11,
+              fontWeight: 800,
+              textTransform: 'uppercase',
+              letterSpacing: '0.12em',
+              color: liveSessionMetrics.status === 'ON_BREAK' ? '#ea580c' : '#2563eb',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5
+            }}>
+              {liveSessionMetrics.status === 'ON_BREAK' ? (
+                <><Coffee size={12} /> Work Timer Paused</>
+              ) : liveSessionMetrics.status === 'ON_DUTY' ? (
+                <><Activity size={12} /> Live Work Timer</>
+              ) : (
+                <><Clock size={12} /> Total Working Hours</>
+              )}
+            </div>
+
+            {/* Live 00:00:00 Counter */}
+            <div
+              style={{
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                fontSize: 'clamp(28px, 3.5vw, 42px)',
+                fontWeight: 900,
+                letterSpacing: '0.06em',
+                lineHeight: 1.1,
+                marginTop: 4,
+                color: liveSessionMetrics.status === 'ON_BREAK'
+                  ? '#ea580c'
+                  : liveSessionMetrics.status === 'ON_DUTY'
+                  ? '#1d4ed8'
+                  : '#0f172a',
+                textShadow: liveSessionMetrics.status === 'ON_DUTY' ? '0 0 18px rgba(37, 99, 235, 0.2)' : 'none',
+              }}
+            >
+              {liveSessionMetrics.workHms}
+            </div>
+
+            {/* Sub-labels: Hours / Min / Sec */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              width: '100%',
+              maxWidth: 220,
+              fontSize: 10,
+              fontWeight: 800,
+              color: TEXT_MUTED,
+              letterSpacing: '0.08em',
+              marginTop: 2,
+              padding: '0 6px',
+            }}>
+              <span>HOURS</span>
+              <span>MIN</span>
+              <span>SEC</span>
+            </div>
+
+            {/* Active Break Banner if ON_BREAK */}
+            {liveSessionMetrics.status === 'ON_BREAK' && (
+              <div
+                style={{
+                  marginTop: 8,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  background: '#fff7ed',
+                  border: '1px solid #fed7aa',
+                  borderRadius: 12,
+                  padding: '4px 10px',
+                  color: '#ea580c',
+                  fontSize: 11.5,
+                  fontWeight: 700,
+                }}
+              >
+                <Coffee size={12} color="#ea580c" />
+                <span>Break: <strong style={{ fontFamily: 'monospace' }}>{liveSessionMetrics.activeBreakDurationHms}</strong></span>
+                <span style={{ fontSize: 10, color: '#c2410c', opacity: 0.85 }}>(Autosaved)</span>
+              </div>
+            )}
+          </div>
+
+          {/* Right: Action Buttons (White, Orange, Blue Theme) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            {liveSessionMetrics.status === 'NOT_STARTED' && (
+              <button
+                onClick={handleStartAttendance}
+                disabled={actionLoading !== null}
+                style={{
+                  background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: 12,
+                  padding: '12px 26px',
+                  fontSize: 13.5,
+                  fontWeight: 800,
+                  cursor: actionLoading ? 'wait' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  boxShadow: '0 4px 14px rgba(37, 99, 235, 0.35)',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {actionLoading === 'START' ? (
+                  <><Loader2 size={16} className="animate-spin" /> Starting Session...</>
+                ) : (
+                  <><Play size={16} fill="#ffffff" /> Start Attendance</>
+                )}
+              </button>
+            )}
+
+            {liveSessionMetrics.status === 'ON_DUTY' && (
+              <>
+                {/* Break Button (Autosave to MongoDB - Orange) */}
+                <button
+                  onClick={handleStartBreak}
+                  disabled={actionLoading !== null}
+                  title="Pause work timer & autosave break immediately to MongoDB"
+                  style={{
+                    background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: 12,
+                    padding: '12px 22px',
+                    fontSize: 13.5,
+                    fontWeight: 800,
+                    cursor: actionLoading ? 'wait' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    boxShadow: '0 4px 14px rgba(249, 115, 22, 0.35)',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {actionLoading === 'BREAK' ? (
+                    <><Loader2 size={16} className="animate-spin" /> Autosaving...</>
+                  ) : (
+                    <><Coffee size={16} /> Break (Autosave)</>
+                  )}
+                </button>
+
+                {/* End Attendance Button (White & Orange) */}
+                <button
+                  onClick={handleStopAttendance}
+                  disabled={actionLoading !== null}
+                  title="End today's attendance session"
+                  style={{
+                    background: '#ffffff',
+                    color: '#ea580c',
+                    border: '2px solid #fed7aa',
+                    borderRadius: 12,
+                    padding: '12px 22px',
+                    fontSize: 13.5,
+                    fontWeight: 800,
+                    cursor: actionLoading ? 'wait' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    boxShadow: '0 4px 12px rgba(234, 88, 12, 0.12)',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {actionLoading === 'STOP' ? (
+                    <><Loader2 size={16} className="animate-spin" /> Ending...</>
+                  ) : (
+                    <><Square size={15} fill="#ea580c" /> End Attendance</>
+                  )}
+                </button>
+              </>
+            )}
+
+            {liveSessionMetrics.status === 'ON_BREAK' && (
+              <>
+                {/* Resume Work Button (Blue) */}
+                <button
+                  onClick={handleResumeBreak}
+                  disabled={actionLoading !== null}
+                  title="Resume work, continue timer, and complete break in MongoDB"
+                  style={{
+                    background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: 12,
+                    padding: '12px 24px',
+                    fontSize: 13.5,
+                    fontWeight: 800,
+                    cursor: actionLoading ? 'wait' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    boxShadow: '0 4px 14px rgba(37, 99, 235, 0.35)',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {actionLoading === 'RESUME' ? (
+                    <><Loader2 size={16} className="animate-spin" /> Resuming...</>
+                  ) : (
+                    <><Play size={16} fill="#ffffff" /> Resume (Continue Timer)</>
+                  )}
+                </button>
+
+                {/* End Attendance Button (White & Orange) */}
+                <button
+                  onClick={handleStopAttendance}
+                  disabled={actionLoading !== null}
+                  title="End today's attendance session directly"
+                  style={{
+                    background: '#ffffff',
+                    color: '#ea580c',
+                    border: '2px solid #fed7aa',
+                    borderRadius: 12,
+                    padding: '12px 22px',
+                    fontSize: 13.5,
+                    fontWeight: 800,
+                    cursor: actionLoading ? 'wait' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    boxShadow: '0 4px 12px rgba(234, 88, 12, 0.12)',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {actionLoading === 'STOP' ? (
+                    <><Loader2 size={16} className="animate-spin" /> Ending...</>
+                  ) : (
+                    <><Square size={15} fill="#ea580c" /> End Attendance</>
+                  )}
+                </button>
+              </>
+            )}
+
+            {liveSessionMetrics.status === 'COMPLETED' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <div style={{
+                  background: '#eff6ff',
+                  border: '1px solid #bfdbfe',
+                  borderRadius: 10,
+                  padding: '9px 16px',
+                  color: '#1d4ed8',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6
+                }}>
+                  <CheckCircle2 size={16} color="#2563eb" />
+                  <span>Session Completed ({liveSessionMetrics.workHms} worked)</span>
+                </div>
+                <button
+                  onClick={handleStartAttendance}
+                  disabled={actionLoading !== null}
+                  style={{
+                    background: '#ffffff',
+                    color: '#2563eb',
+                    border: '1.5px solid #bfdbfe',
+                    borderRadius: 10,
+                    padding: '9px 16px',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    boxShadow: '0 1px 3px rgba(37, 99, 235, 0.08)',
+                  }}
+                >
+                  <RotateCcw size={14} /> Start New Session
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Feedback Alert if action completed or failed */}
+        {actionStatusMsg && (
+          <div
+            style={{
+              marginTop: 16,
+              background: actionStatusMsg.type === 'success' ? '#eff6ff' : '#fff7ed',
+              border: `1px solid ${actionStatusMsg.type === 'success' ? '#bfdbfe' : '#fed7aa'}`,
+              color: actionStatusMsg.type === 'success' ? '#1d4ed8' : '#ea580c',
+              borderRadius: 10,
+              padding: '10px 16px',
+              fontSize: 13,
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {actionStatusMsg.type === 'success' ? <CheckCircle2 size={16} color="#2563eb" /> : <AlertCircle size={16} color="#ea580c" />}
+              <span>{actionStatusMsg.message}</span>
+            </div>
+            <button
+              onClick={() => setActionStatusMsg(null)}
+              style={{ background: 'none', border: 'none', color: 'currentColor', cursor: 'pointer', fontSize: 14, fontWeight: 800 }}
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* Informational Sub-Bar: Break summary & MongoDB sync confirmation */}
+        <div
+          style={{
+            marginTop: 16,
+            paddingTop: 12,
+            borderTop: '1px solid #f1f5f9',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 12,
+            fontSize: 12,
+            color: TEXT_MUTED,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+            <span>Total Break Time: <strong style={{ color: '#ea580c' }}>{liveSessionMetrics.breakHms}</strong> ({liveSessionMetrics.breakCount} breaks)</span>
+            <span>•</span>
+            <span>Elapsed Total: <strong style={{ color: '#2563eb' }}>{liveSessionMetrics.totalHms}</strong></span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#2563eb', fontWeight: 600 }}>
+            <ShieldCheck size={14} color="#2563eb" />
+            <span>MongoDB Autosave & Real-Time Sync Active</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ──── 2. Dashboard Summary KPI Cards (Modern Card Style per Reference UI) ──── */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
-          gap: 16,
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gap: 18,
         }}
       >
-        {/* Card 1: Total Employees */}
-        <div
-          style={{
-            background: '#ffffff',
-            border: `1px solid ${BORDER}`,
-            borderRadius: 14,
-            padding: '18px 20px',
-            boxShadow: '0 2px 8px rgba(15, 23, 42, 0.02)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 16,
-          }}
-        >
-          <div
-            style={{
-              width: 46,
-              height: 46,
-              borderRadius: 12,
-              background: '#f1f5f9',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 22,
-            }}
-          >
-            <Users size={22} color="#475569" />
-          </div>
-          <div>
-            <div style={{ fontSize: 11.5, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-              Total Employees
-            </div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: TEXT_MAIN, marginTop: 2 }}>
-              {summary.totalEmployees}
-            </div>
-          </div>
-        </div>
+        {[
+          {
+            id: 'my-status',
+            title: 'My Status',
+            value: isMD
+              ? `${summary.presentToday} Present Today`
+              : summary.presentToday
+              ? 'Present Today'
+              : 'Not Clocked In',
+            description: isMD
+              ? 'Overview of all active staff logged in today across company departments.'
+              : 'Your personal real-time attendance clock-in state for today\'s scheduled shift.',
+            theme: 'blue',
+            icon: <Users size={22} color="#2563eb" />,
+            actionLabel: 'Learn more',
+            filter: summary.presentToday ? 'ON_DUTY' : 'ALL',
+          },
+          {
+            id: 'currently-on-duty',
+            title: 'Currently on Duty',
+            value: summary.currentlyOnDuty || 0,
+            description: 'Staff members actively working and logging shift hours right now.',
+            theme: 'blue',
+            icon: <Activity size={22} color="#1d4ed8" />,
+            actionLabel: 'Learn more',
+            filter: 'ON_DUTY',
+          },
+          {
+            id: 'currently-on-break',
+            title: 'Break In Progress',
+            splitText: true,
+            value: summary.currentlyOnBreak || 0,
+            description: 'Team members currently on break with live autosave to MongoDB.',
+            theme: 'orange',
+            icon: <Coffee size={22} color="#ea580c" />,
+            actionLabel: 'Learn more',
+            filter: 'ON_BREAK',
+          },
+          {
+            id: 'completed',
+            title: 'Completed',
+            value: summary.completedAttendance || 0,
+            description: 'Employees who have finalized shift duration and clocked out today.',
+            theme: 'blue',
+            icon: <CheckCircle2 size={22} color="#2563eb" />,
+            actionLabel: 'Learn more',
+            filter: 'COMPLETED',
+          },
+          {
+            id: 'total-break-time',
+            title: 'Total Break Time Today',
+            value: normalizeDurationStr(summary.totalBreakTimeToday || '00h 00m'),
+            description: 'Cumulative paused break duration logged across all active shifts today.',
+            theme: 'orange',
+            icon: <Clock size={22} color="#ea580c" />,
+            actionLabel: 'Learn more',
+            filter: 'ON_BREAK',
+          },
+        ].map((card) => {
+          const isOrange = card.theme === 'orange';
+          return (
+            <div
+              key={card.id}
+              style={{
+                background: '#ffffff',
+                borderRadius: 24,
+                border: '1px solid #f1f5f9',
+                padding: '24px 22px 20px 22px',
+                boxShadow: '0 4px 20px -2px rgba(15, 23, 42, 0.05)',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                transition: 'all 0.2s ease',
+                position: 'relative',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-3px)';
+                e.currentTarget.style.boxShadow = '0 12px 28px -4px rgba(15, 23, 42, 0.09)';
+                e.currentTarget.style.borderColor = isOrange ? '#fed7aa' : '#bfdbfe';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 20px -2px rgba(15, 23, 42, 0.05)';
+                e.currentTarget.style.borderColor = '#f1f5f9';
+              }}
+            >
+              {/* Top Row: Left Rounded Squircle Icon Badge + Right Round Action */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+                <div
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 14,
+                    background: isOrange ? '#fff7ed' : '#eff6ff',
+                    border: `1px solid ${isOrange ? '#ffedd5' : '#dbeafe'}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {card.icon}
+                </div>
 
-        {/* Card 2: Present Today */}
-        <div
-          style={{
-            background: '#ffffff',
-            border: `1px solid ${BORDER}`,
-            borderRadius: 14,
-            padding: '18px 20px',
-            boxShadow: '0 2px 8px rgba(15, 23, 42, 0.02)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 16,
-          }}
-        >
-          <div
-            style={{
-              width: 46,
-              height: 46,
-              borderRadius: 12,
-              background: '#e0f2fe',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 22,
-              color: '#0284c7',
-            }}
-          >
-            <Calendar size={22} color="#0284c7" />
-          </div>
-          <div>
-            <div style={{ fontSize: 11.5, fontWeight: 700, color: '#0369a1', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-              Present Today
-            </div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: '#0284c7', marginTop: 2 }}>
-              {summary.presentToday}
-            </div>
-          </div>
-        </div>
+                <div
+                  onClick={() => setStatusFilter(card.filter)}
+                  title="Filter records"
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    background: '#f8fafc',
+                    border: '1px solid #f1f5f9',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#94a3b8',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = isOrange ? '#fff7ed' : '#eff6ff';
+                    e.currentTarget.style.color = isOrange ? '#ea580c' : '#2563eb';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#f8fafc';
+                    e.currentTarget.style.color = '#94a3b8';
+                  }}
+                >
+                  <ArrowUpRight size={15} />
+                </div>
+              </div>
 
-        {/* Card 3: Currently On Duty */}
-        <div
-          style={{
-            background: '#ffffff',
-            border: `1px solid ${BORDER}`,
-            borderRadius: 14,
-            padding: '18px 20px',
-            boxShadow: '0 2px 8px rgba(15, 23, 42, 0.02)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 16,
-          }}
-        >
-          <div
-            style={{
-              width: 46,
-              height: 46,
-              borderRadius: 12,
-              background: '#ecfdf5',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 22,
-              color: '#059669',
-            }}
-          >
-            <Activity size={22} color="#059669" />
-          </div>
-          <div>
-            <div style={{ fontSize: 11.5, fontWeight: 700, color: '#047857', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-              Currently On Duty
-            </div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: '#059669', marginTop: 2 }}>
-              {summary.currentlyOnDuty}
-            </div>
-          </div>
-        </div>
+              {/* Middle Content: Title, Value & Description */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <div style={{ fontSize: 17, fontWeight: 600, color: '#0f172a', letterSpacing: '-0.01em', lineHeight: 1.3 }}>
+                  {card.splitText ? (
+                    <SplitText
+                      text={card.title}
+                      className="card-split-title"
+                      delay={45}
+                      duration={0.85}
+                      ease="power3.out"
+                      style={{
+                        fontSize: 17,
+                        fontWeight: 600,
+                        color: isOrange ? '#ea580c' : '#0f172a',
+                        letterSpacing: '-0.01em',
+                        display: 'inline-block',
+                      }}
+                    />
+                  ) : (
+                    card.title
+                  )}
+                </div>
 
-        {/* Card 4: Currently On Break */}
-        <div
-          style={{
-            background: '#ffffff',
-            border: `1px solid ${BORDER}`,
-            borderRadius: 14,
-            padding: '18px 20px',
-            boxShadow: '0 2px 8px rgba(15, 23, 42, 0.02)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 16,
-          }}
-        >
-          <div
-            style={{
-              width: 46,
-              height: 46,
-              borderRadius: 12,
-              background: '#fffbeb',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 22,
-              color: '#d97706',
-              border: '1px solid #fde68a',
-            }}
-          >
-            <Coffee size={22} color="#d97706" />
-          </div>
-          <div>
-            <div style={{ fontSize: 11.5, fontWeight: 700, color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-              Currently On Break
-            </div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: '#d97706', marginTop: 2 }}>
-              {summary.currentlyOnBreak || 0}
-            </div>
-          </div>
-        </div>
+                <div
+                  style={{
+                    fontSize: 26,
+                    fontWeight: 600,
+                    color: isOrange ? '#ea580c' : '#1d4ed8',
+                    marginTop: 8,
+                    marginBottom: 6,
+                    letterSpacing: '-0.02em',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                >
+                  {card.value}
+                </div>
 
-        {/* Card 5: Completed Attendance */}
-        <div
-          style={{
-            background: '#ffffff',
-            border: `1px solid ${BORDER}`,
-            borderRadius: 14,
-            padding: '18px 20px',
-            boxShadow: '0 2px 8px rgba(15, 23, 42, 0.02)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 16,
-          }}
-        >
-          <div
-            style={{
-              width: 46,
-              height: 46,
-              borderRadius: 12,
-              background: '#eff6ff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 22,
-              color: '#2563eb',
-            }}
-          >
-            <CheckCircle2 size={22} color="#2563eb" />
-          </div>
-          <div>
-            <div style={{ fontSize: 11.5, fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-              Completed
-            </div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: '#2563eb', marginTop: 2 }}>
-              {summary.completedAttendance}
-            </div>
-          </div>
-        </div>
+                <div style={{ fontSize: 12.5, color: '#64748b', lineHeight: 1.45, marginBottom: 20, flex: 1 }}>
+                  {card.description}
+                </div>
+              </div>
 
-        {/* Card 6: Total Break Time Today */}
-        <div
-          style={{
-            background: '#ffffff',
-            border: `1px solid ${BORDER}`,
-            borderRadius: 14,
-            padding: '18px 20px',
-            boxShadow: '0 2px 8px rgba(15, 23, 42, 0.02)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 16,
-          }}
-        >
-          <div
-            style={{
-              width: 46,
-              height: 46,
-              borderRadius: 12,
-              background: '#fef3c7',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 22,
-              color: '#b45309',
-            }}
-          >
-            <Clock size={22} color="#b45309" />
-          </div>
-          <div>
-            <div style={{ fontSize: 11.5, fontWeight: 700, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-              Total Break Time Today
+              {/* Bottom Action: "Learn more" Style Pill Button */}
+              <button
+                onClick={() => setStatusFilter(card.filter)}
+                style={{
+                  width: '100%',
+                  padding: '9px 16px',
+                  borderRadius: 20,
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  color: '#475569',
+                  fontSize: 12.5,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = isOrange ? '#fff7ed' : '#eff6ff';
+                  e.currentTarget.style.color = isOrange ? '#ea580c' : '#1d4ed8';
+                  e.currentTarget.style.borderColor = isOrange ? '#fed7aa' : '#bfdbfe';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#f8fafc';
+                  e.currentTarget.style.color = '#475569';
+                  e.currentTarget.style.borderColor = '#e2e8f0';
+                }}
+              >
+                <span>{card.actionLabel}</span>
+              </button>
             </div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: '#b45309', marginTop: 2 }}>
-              {normalizeDurationStr(summary.totalBreakTimeToday || '00h 00m')}
-            </div>
-          </div>
-        </div>
+          );
+        })}
       </div>
 
       {/* ──── 3. Filters & Search Section (With Dedicated Employee Dropdown) ────── */}
@@ -997,10 +1724,11 @@ export default function AttendanceRecords() {
             )}
           </div>
 
-          {/* Dedicated Employee Dropdown Selector */}
-          <div ref={employeeDropdownRef} style={{ position: 'relative', minWidth: 240 }}>
-            <button
-              onClick={() => setShowEmployeeDropdown((prev) => !prev)}
+          {/* Dedicated Employee Dropdown Selector (Only for Managing Director) */}
+          {isMD ? (
+            <div ref={employeeDropdownRef} style={{ position: 'relative', minWidth: 240 }}>
+              <button
+                onClick={() => setShowEmployeeDropdown((prev) => !prev)}
               type="button"
               style={{
                 display: 'flex',
@@ -1206,7 +1934,24 @@ export default function AttendanceRecords() {
                 </div>
               </div>
             )}
-          </div>
+            </div>
+          ) : (
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              background: '#f8fafc',
+              border: `1.5px solid ${BORDER}`,
+              borderRadius: 10,
+              padding: '9px 14px',
+              fontSize: 13,
+              fontWeight: 600,
+              color: '#334155'
+            }}>
+              <User size={15} color="#3b82f6" />
+              <span>Personal Records: <strong style={{ color: TEXT_MAIN }}>{user?.name}</strong> ({user?.designation || 'Staff'})</span>
+            </div>
+          )}
 
           {/* Reset Filters button if any filter is active */}
           {isFilterActive && (
@@ -1214,9 +1959,9 @@ export default function AttendanceRecords() {
               onClick={handleResetFilters}
               title="Clear all filters"
               style={{
-                background: '#fef2f2',
-                color: '#dc2626',
-                border: '1px solid #fecaca',
+                background: '#fff7ed',
+                color: '#ea580c',
+                border: '1px solid #fed7aa',
                 borderRadius: 10,
                 padding: '8px 12px',
                 fontSize: 12,
@@ -1225,6 +1970,7 @@ export default function AttendanceRecords() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 5,
+                transition: 'all 0.15s',
               }}
             >
               <RotateCcw size={13} /> Reset
@@ -1232,35 +1978,38 @@ export default function AttendanceRecords() {
           )}
         </div>
 
-        {/* Right Filter Group: Status Filter Pills */}
+        {/* Right Filter Group: Status Filter Pills (White, Orange, Blue) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           {[
             { key: 'ALL', label: 'All Status' },
-            { key: 'ON_DUTY', label: '🟢 On Duty' },
-            { key: 'ON_BREAK', label: '🟡 On Break' },
-            { key: 'COMPLETED', label: '✅ Completed' },
-            { key: 'NOT_STARTED', label: '⚪ Not Started' },
-            { key: 'INCOMPLETE', label: '⚠️ Incomplete' },
-          ].map((pill) => (
-            <button
-              key={pill.key}
-              onClick={() => setStatusFilter(pill.key)}
-              style={{
-                padding: '7px 13px',
-                borderRadius: 20,
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: 'pointer',
-                background: statusFilter === pill.key ? '#0284c7' : '#f8fafc',
-                color: statusFilter === pill.key ? '#ffffff' : '#475569',
-                border: `1.5px solid ${statusFilter === pill.key ? '#0284c7' : BORDER}`,
-                transition: 'all 0.15s',
-                boxShadow: statusFilter === pill.key ? '0 2px 6px rgba(2, 132, 199, 0.2)' : 'none',
-              }}
-            >
-              {pill.label}
-            </button>
-          ))}
+            { key: 'ON_DUTY', label: '🔵 On Duty' },
+            { key: 'ON_BREAK', label: '☕ On Break' },
+            { key: 'COMPLETED', label: '✓ Completed' },
+            { key: 'NOT_STARTED', label: 'Not Started' },
+            { key: 'INCOMPLETE', label: 'Incomplete' },
+          ].map((pill) => {
+            const isActive = statusFilter === pill.key;
+            return (
+              <button
+                key={pill.key}
+                onClick={() => setStatusFilter(pill.key)}
+                style={{
+                  padding: '7px 13px',
+                  borderRadius: 20,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  background: isActive ? '#2563eb' : '#ffffff',
+                  color: isActive ? '#ffffff' : '#334155',
+                  border: `1.5px solid ${isActive ? '#2563eb' : '#cbd5e1'}`,
+                  transition: 'all 0.15s',
+                  boxShadow: isActive ? '0 2px 6px rgba(37, 99, 235, 0.25)' : 'none',
+                }}
+              >
+                {pill.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -1428,7 +2177,7 @@ export default function AttendanceRecords() {
                       </td>
 
                       {/* Start Time */}
-                      <td style={{ padding: '16px 14px', fontWeight: 700, color: isNotStarted ? '#94a3b8' : '#047857', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                      <td style={{ padding: '16px 14px', fontWeight: 700, color: isNotStarted ? '#94a3b8' : '#1d4ed8', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
                         {rec.startTimeFormatted || '—'}
                       </td>
 
@@ -1440,11 +2189,11 @@ export default function AttendanceRecords() {
                       {/* Total Attendance */}
                       <td style={{ padding: '16px 14px', whiteSpace: 'nowrap' }}>
                         {rec.status === 'ON_DUTY' ? (
-                          <span style={{ color: '#047857', fontWeight: 800, fontFamily: 'ui-monospace, monospace', background: '#ecfdf5', border: '1px solid #a7f3d0', padding: '4px 9px', borderRadius: 8, fontSize: 12.5, fontVariantNumeric: 'tabular-nums' }}>
+                          <span style={{ color: '#1d4ed8', fontWeight: 800, fontFamily: 'ui-monospace, monospace', background: '#eff6ff', border: '1px solid #bfdbfe', padding: '4px 9px', borderRadius: 8, fontSize: 12.5, fontVariantNumeric: 'tabular-nums' }}>
                             <Clock size={12} style={{ display: 'inline', marginRight: 3 }} />{liveTimes.totalAttendance}
                           </span>
                         ) : rec.status === 'ON_BREAK' ? (
-                          <span style={{ color: '#b45309', fontWeight: 800, fontFamily: 'ui-monospace, monospace', background: '#fffbeb', border: '1px solid #fde68a', padding: '4px 9px', borderRadius: 8, fontSize: 12.5, fontVariantNumeric: 'tabular-nums' }}>
+                          <span style={{ color: '#ea580c', fontWeight: 800, fontFamily: 'ui-monospace, monospace', background: '#fff7ed', border: '1px solid #fed7aa', padding: '4px 9px', borderRadius: 8, fontSize: 12.5, fontVariantNumeric: 'tabular-nums' }}>
                             <Clock size={12} style={{ display: 'inline', marginRight: 3 }} />{liveTimes.totalAttendance}
                           </span>
                         ) : (
@@ -1463,9 +2212,9 @@ export default function AttendanceRecords() {
                             onClick={() => setBreakModalRecord(rec)}
                             title="Click to view break breakdown"
                             style={{
-                              background: '#fffbeb',
-                              border: '1px solid #fde68a',
-                              color: '#b45309',
+                              background: '#fff7ed',
+                              border: '1px solid #fed7aa',
+                              color: '#ea580c',
                               padding: '3px 10px',
                               borderRadius: 14,
                               fontSize: 12,
@@ -1487,13 +2236,13 @@ export default function AttendanceRecords() {
                       {/* Total Break Time */}
                       <td style={{ padding: '16px 14px', whiteSpace: 'nowrap' }}>
                         {rec.status === 'ON_BREAK' ? (
-                          <span style={{ color: '#d97706', fontWeight: 800, fontFamily: 'ui-monospace, monospace', background: '#fffbeb', border: '1px solid #fde68a', padding: '4px 9px', borderRadius: 8, fontSize: 12.5, fontVariantNumeric: 'tabular-nums' }}>
+                          <span style={{ color: '#ea580c', fontWeight: 800, fontFamily: 'ui-monospace, monospace', background: '#fff7ed', border: '1px solid #fed7aa', padding: '4px 9px', borderRadius: 8, fontSize: 12.5, fontVariantNumeric: 'tabular-nums' }}>
                             <Coffee size={12} style={{ display: 'inline', marginRight: 3 }} />{liveTimes.totalBreak}
                           </span>
                         ) : isNotStarted ? (
                           <span style={{ color: '#94a3b8' }}>—</span>
                         ) : (
-                          <span style={{ color: breakCount > 0 ? '#b45309' : '#64748b', fontWeight: breakCount > 0 ? 700 : 500, fontVariantNumeric: 'tabular-nums' }}>
+                          <span style={{ color: breakCount > 0 ? '#ea580c' : '#64748b', fontWeight: breakCount > 0 ? 700 : 500, fontVariantNumeric: 'tabular-nums' }}>
                             {normalizeDurationStr(rec.formattedBreakDuration) || '00h 00m'}
                           </span>
                         )}
@@ -1502,11 +2251,11 @@ export default function AttendanceRecords() {
                       {/* Actual Working Hours */}
                       <td style={{ padding: '16px 14px', whiteSpace: 'nowrap' }}>
                         {rec.status === 'ON_DUTY' ? (
-                          <span style={{ color: '#047857', fontWeight: 800, fontFamily: 'ui-monospace, monospace', background: '#ecfdf5', border: '1px solid #a7f3d0', padding: '4px 10px', borderRadius: 8, fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
+                          <span style={{ color: '#1d4ed8', fontWeight: 800, fontFamily: 'ui-monospace, monospace', background: '#eff6ff', border: '1px solid #bfdbfe', padding: '4px 10px', borderRadius: 8, fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
                             <Zap size={12} style={{ display: 'inline', marginRight: 3 }} />{liveTimes.actualWork}
                           </span>
                         ) : rec.status === 'ON_BREAK' ? (
-                          <span style={{ color: '#b45309', fontWeight: 800, fontFamily: 'ui-monospace, monospace', background: '#fffbeb', border: '1px solid #fde68a', padding: '4px 10px', borderRadius: 8, fontSize: 13, fontVariantNumeric: 'tabular-nums' }} title="Working timer paused while on break">
+                          <span style={{ color: '#ea580c', fontWeight: 800, fontFamily: 'ui-monospace, monospace', background: '#fff7ed', border: '1px solid #fed7aa', padding: '4px 10px', borderRadius: 8, fontSize: 13, fontVariantNumeric: 'tabular-nums' }} title="Working timer paused while on break">
                             <Clock size={12} style={{ display: 'inline', marginRight: 3 }} />{liveTimes.actualWork}
                           </span>
                         ) : isNotStarted ? (
@@ -1549,9 +2298,9 @@ export default function AttendanceRecords() {
                               title="View full break details breakdown"
                               style={{
                                 height: 32,
-                                background: '#fffbeb',
-                                color: '#b45309',
-                                border: '1px solid #fde68a',
+                                background: '#fff7ed',
+                                color: '#ea580c',
+                                border: '1px solid #fed7aa',
                                 borderRadius: 8,
                                 padding: '0 10px',
                                 fontSize: 12,
@@ -1574,9 +2323,9 @@ export default function AttendanceRecords() {
                               title="View GPS location on map"
                               style={{
                                 height: 32,
-                                background: '#f0f9ff',
-                                color: '#0284c7',
-                                border: '1px solid #bae6fd',
+                                background: '#eff6ff',
+                                color: '#1d4ed8',
+                                border: '1px solid #bfdbfe',
                                 borderRadius: 8,
                                 padding: '0 10px',
                                 fontSize: 12,
@@ -1659,8 +2408,8 @@ export default function AttendanceRecords() {
             {/* Modal Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 44, height: 44, borderRadius: 12, background: '#fffbeb', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#b45309', fontSize: 22, border: '1px solid #fde68a' }}>
-                  <Coffee size={22} color="#b45309" />
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ea580c', fontSize: 22, border: '1px solid #fed7aa' }}>
+                  <Coffee size={22} color="#ea580c" />
                 </div>
                 <div>
                   <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: TEXT_MAIN }}>
@@ -1683,25 +2432,25 @@ export default function AttendanceRecords() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
               <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: 10, border: `1px solid ${BORDER}` }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' }}>Total Attendance</div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: '#0369a1', marginTop: 3 }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#1d4ed8', marginTop: 3 }}>
                   {normalizeDurationStr(breakModalRecord.durationFormatted) || '—'}
                 </div>
               </div>
               <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: 10, border: `1px solid ${BORDER}` }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' }}>Total Breaks</div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: '#b45309', marginTop: 3 }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#ea580c', marginTop: 3 }}>
                   {breakModalRecord.breakCount || breakModalRecord.breaks?.length || 0}
                 </div>
               </div>
               <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: 10, border: `1px solid ${BORDER}` }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' }}>Total Break Time</div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: '#d97706', marginTop: 3 }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#ea580c', marginTop: 3 }}>
                   {normalizeDurationStr(breakModalRecord.formattedBreakDuration) || '00h 00m'}
                 </div>
               </div>
               <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: 10, border: `1px solid ${BORDER}` }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' }}>Actual Working</div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: '#047857', marginTop: 3 }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#1d4ed8', marginTop: 3 }}>
                   {normalizeDurationStr(breakModalRecord.formattedActualWork || breakModalRecord.durationFormatted) || '00h 00m'}
                 </div>
               </div>
@@ -1711,7 +2460,7 @@ export default function AttendanceRecords() {
             <div style={{ flex: 1, overflowY: 'auto', border: `1px solid ${BORDER}`, borderRadius: 12, marginBottom: 20 }}>
               {!Array.isArray(breakModalRecord.breaks) || breakModalRecord.breaks.length === 0 ? (
                 <div style={{ padding: '40px 20px', textAlign: 'center', color: TEXT_MUTED }}>
-                  <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'center' }}><Coffee size={32} color="#d97706" /></div>
+                  <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'center' }}><Coffee size={32} color="#ea580c" /></div>
                   <div style={{ fontSize: 15, fontWeight: 700, color: TEXT_MAIN }}>No breaks recorded</div>
                   <div style={{ fontSize: 12.5, color: TEXT_MUTED, marginTop: 3 }}>
                     The employee did not record any breaks during this attendance session.
@@ -1734,10 +2483,10 @@ export default function AttendanceRecords() {
                         <td style={{ padding: '11px 16px', fontWeight: 700, color: '#1e293b' }}>
                           Break #{b.breakNumber || idx + 1}
                         </td>
-                        <td style={{ padding: '11px 14px', color: '#047857', fontWeight: 700 }}>
+                        <td style={{ padding: '11px 14px', color: '#1d4ed8', fontWeight: 700 }}>
                           {formatTime12h(b.startTime)}
                         </td>
-                        <td style={{ padding: '11px 14px', color: b.endTime ? '#1d4ed8' : '#d97706', fontWeight: 700 }}>
+                        <td style={{ padding: '11px 14px', color: b.endTime ? '#1d4ed8' : '#ea580c', fontWeight: 700 }}>
                           {b.endTime ? formatTime12h(b.endTime) : 'Active (Ongoing)'}
                         </td>
                         <td style={{ padding: '11px 14px', fontWeight: 700, color: '#334155', fontVariantNumeric: 'tabular-nums' }}>
@@ -1750,12 +2499,12 @@ export default function AttendanceRecords() {
                               fontWeight: 700,
                               padding: '3px 9px',
                               borderRadius: 12,
-                              background: b.status === 'ACTIVE' ? '#fffbeb' : '#ecfdf5',
-                              color: b.status === 'ACTIVE' ? '#b45309' : '#047857',
-                              border: `1px solid ${b.status === 'ACTIVE' ? '#fde68a' : '#a7f3d0'}`,
+                              background: b.status === 'ACTIVE' ? '#fff7ed' : '#eff6ff',
+                              color: b.status === 'ACTIVE' ? '#ea580c' : '#1d4ed8',
+                              border: `1px solid ${b.status === 'ACTIVE' ? '#fed7aa' : '#bfdbfe'}`,
                             }}
                           >
-                            {b.status === 'ACTIVE' ? '🟡 Active' : '✅ Completed'}
+                            {b.status === 'ACTIVE' ? '☕ Active' : '🔵 Completed'}
                           </span>
                         </td>
                       </tr>
@@ -1841,7 +2590,7 @@ export default function AttendanceRecords() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 14 }}>
               <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: 10, border: `1px solid ${BORDER}` }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' }}>Start Time</div>
-                <div style={{ fontSize: 14.5, fontWeight: 800, color: '#047857', marginTop: 3 }}>
+                <div style={{ fontSize: 14.5, fontWeight: 800, color: '#1d4ed8', marginTop: 3 }}>
                   {detailModalRecord.startTimeFormatted || '—'}
                 </div>
               </div>
@@ -1853,7 +2602,7 @@ export default function AttendanceRecords() {
               </div>
               <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: 10, border: `1px solid ${BORDER}` }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' }}>Total Attendance</div>
-                <div style={{ fontSize: 14.5, fontWeight: 800, color: '#0284c7', marginTop: 3 }}>
+                <div style={{ fontSize: 14.5, fontWeight: 800, color: '#2563eb', marginTop: 3 }}>
                   {normalizeDurationStr(detailModalRecord.durationFormatted) || '—'}
                 </div>
               </div>
@@ -1861,17 +2610,17 @@ export default function AttendanceRecords() {
 
             {/* Break & Net Work Stats */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 18 }}>
-              <div style={{ background: '#fffbeb', padding: '12px 14px', borderRadius: 10, border: '1px solid #fde68a' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#b45309', textTransform: 'uppercase' }}>
+              <div style={{ background: '#fff7ed', padding: '12px 14px', borderRadius: 10, border: '1px solid #fed7aa' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#ea580c', textTransform: 'uppercase' }}>
                   ☕ Breaks ({detailModalRecord.breakCount || detailModalRecord.breaks?.length || 0})
                 </div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: '#d97706', marginTop: 3 }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#ea580c', marginTop: 3 }}>
                   {normalizeDurationStr(detailModalRecord.formattedBreakDuration) || '00h 00m'}
                 </div>
               </div>
-              <div style={{ background: '#ecfdf5', padding: '12px 14px', borderRadius: 10, border: '1px solid #a7f3d0' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#047857', textTransform: 'uppercase' }}>⚡ Actual Work Hours</div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: '#047857', marginTop: 3 }}>
+              <div style={{ background: '#eff6ff', padding: '12px 14px', borderRadius: 10, border: '1px solid #bfdbfe' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase' }}>⚡ Actual Work Hours</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#1d4ed8', marginTop: 3 }}>
                   {normalizeDurationStr(detailModalRecord.formattedActualWork || detailModalRecord.durationFormatted) || '00h 00m'}
                 </div>
               </div>
@@ -1881,7 +2630,7 @@ export default function AttendanceRecords() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
               {/* Start Location */}
               <div style={{ background: '#f8fafc', padding: '14px 16px', borderRadius: 10, border: `1px solid ${BORDER}` }}>
-                <div style={{ fontSize: 11.5, fontWeight: 700, color: '#0369a1', textTransform: 'uppercase', marginBottom: 4 }}>
+                <div style={{ fontSize: 11.5, fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', marginBottom: 4 }}>
                   📍 Starting Location
                 </div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: TEXT_MAIN }}>
@@ -1901,8 +2650,8 @@ export default function AttendanceRecords() {
 
               {/* Latest / End Location */}
               <div style={{ background: '#f8fafc', padding: '14px 16px', borderRadius: 10, border: `1px solid ${BORDER}` }}>
-                <div style={{ fontSize: 11.5, fontWeight: 700, color: detailModalRecord.status === 'ON_DUTY' ? '#047857' : '#475569', textTransform: 'uppercase', marginBottom: 4 }}>
-                  {detailModalRecord.status === 'ON_DUTY' ? '🟢 Current Live Location' : '📍 Final Recorded Location'}
+                <div style={{ fontSize: 11.5, fontWeight: 700, color: detailModalRecord.status === 'ON_DUTY' ? '#1d4ed8' : '#ea580c', textTransform: 'uppercase', marginBottom: 4 }}>
+                  {detailModalRecord.status === 'ON_DUTY' ? '🔵 Current Live Location' : '📍 Final Recorded Location'}
                 </div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: TEXT_MAIN }}>
                   {detailModalRecord.latestLocation?.road || detailModalRecord.endLocation?.road || 'Vijayawada, AP'}

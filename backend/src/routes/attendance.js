@@ -433,15 +433,38 @@ router.get('/current', protect, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 6. GET /api/attendance/summary — Admin Summary Metrics for Date
+// 6. GET /api/attendance/summary — Admin / Staff Summary Metrics for Date
 // ─────────────────────────────────────────────────────────────────────────────
-router.get('/summary', protect, authorize('admin'), async (req, res) => {
+router.get('/summary', protect, async (req, res) => {
   try {
     const { date } = req.query;
     const targetDate = date || getLocalDateAndDay().dateStr;
     const now = new Date();
 
-    // Total active employees in the system
+    const userDesig = String(req.user?.designation || '').trim().toUpperCase();
+    const isMD = userDesig === 'MANAGING DIRECTOR' || userDesig === 'MD' || userDesig === 'CEO';
+
+    // Staff view: only return personal day metrics for Developer, Trainer, Digital Marketing
+    if (!isMD) {
+      const userRecord = await Attendance.findOne({ employeeId: req.user._id, date: targetDate });
+      if (userRecord) userRecord.calculateAttendanceDurations(now);
+
+      return res.json({
+        ok: true,
+        date: targetDate,
+        summary: {
+          totalEmployees: 1,
+          presentToday: userRecord ? 1 : 0,
+          currentlyOnDuty: userRecord?.status === 'ON_DUTY' ? 1 : 0,
+          currentlyOnBreak: userRecord?.status === 'ON_BREAK' ? 1 : 0,
+          completedAttendance: userRecord?.status === 'COMPLETED' ? 1 : 0,
+          totalBreakTimeToday: userRecord?.formattedBreakDuration || '00h 00m',
+          incompleteAttendance: 0,
+        },
+      });
+    }
+
+    // Managing Director View: Total active employees in the system
     const totalEmployees = await User.countDocuments({ isActive: true });
 
     // Attendance sessions for the selected date
@@ -494,18 +517,26 @@ router.get('/summary', protect, authorize('admin'), async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 7. GET /api/attendance/records — Admin Table of Employee Records for Date
+// 7. GET /api/attendance/records — Table of Employee Records for Date
 // ─────────────────────────────────────────────────────────────────────────────
-router.get('/records', protect, authorize('admin'), async (req, res) => {
+router.get('/records', protect, async (req, res) => {
   try {
     const { date, fromDate, toDate, status, search } = req.query;
     const { dateStr: todayStr, dayStr: todayDay } = getLocalDateAndDay();
     const now = new Date();
 
+    const userDesig = String(req.user?.designation || '').trim().toUpperCase();
+    const isMD = userDesig === 'MANAGING DIRECTOR' || userDesig === 'MD' || userDesig === 'CEO';
+
     let query = {};
     let isRange = false;
     let selectedDate = date || todayStr;
     let selectedDay = todayDay;
+
+    // Strict Scope: Only Managing Director can view all users. Developers, Trainers, Digital Marketing view only own.
+    if (!isMD) {
+      query.employeeId = req.user._id;
+    }
 
     if (fromDate && toDate) {
       isRange = true;
@@ -524,8 +555,8 @@ router.get('/records', protect, authorize('admin'), async (req, res) => {
       query.status = status;
     }
 
-    // Fetch all active employees
-    const allUsers = await User.find({ isActive: true })
+    // Fetch active employees (All users for Managing Director, only self for staff)
+    const allUsers = await User.find(isMD ? { isActive: true } : { _id: req.user._id })
       .select('name email role avatar phone employeeId createdAt')
       .sort({ name: 1 })
       .lean();
@@ -707,18 +738,20 @@ router.get('/records', protect, authorize('admin'), async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // 8. GET /api/attendance/employee/:employeeId/history — Full Employee History
 // ─────────────────────────────────────────────────────────────────────────────
-router.get('/employee/:employeeId/history', protect, authorize('admin'), async (req, res) => {
+router.get('/employee/:employeeId/history', protect, async (req, res) => {
   try {
-    const { employeeId } = req.params;
+    const userDesig = String(req.user?.designation || '').trim().toUpperCase();
+    const isMD = userDesig === 'MANAGING DIRECTOR' || userDesig === 'MD' || userDesig === 'CEO';
+    const targetEmployeeId = isMD ? req.params.employeeId : req.user._id;
     const { limit = 100 } = req.query;
     const now = new Date();
 
-    const user = await User.findById(employeeId).select('name email role avatar phone employeeId');
+    const user = await User.findById(targetEmployeeId).select('name email role avatar phone employeeId');
     if (!user) {
       return res.status(404).json({ ok: false, message: 'Employee not found' });
     }
 
-    const records = await Attendance.find({ employeeId })
+    const records = await Attendance.find({ employeeId: targetEmployeeId })
       .sort({ date: -1, startTime: -1 })
       .limit(Number(limit));
 
@@ -765,14 +798,20 @@ router.get('/employee/:employeeId/history', protect, authorize('admin'), async (
 // ─────────────────────────────────────────────────────────────────────────────
 // 9. GET /api/attendance/export — Export Attendance & Breaks to CSV
 // ─────────────────────────────────────────────────────────────────────────────
-router.get('/export', protect, authorize('admin'), async (req, res) => {
+router.get('/export', protect, async (req, res) => {
   try {
     const { date, fromDate, toDate, status, search } = req.query;
     const { dateStr: todayStr } = getLocalDateAndDay();
     const queryDate = date || todayStr;
     const now = new Date();
 
+    const userDesig = String(req.user?.designation || '').trim().toUpperCase();
+    const isMD = userDesig === 'MANAGING DIRECTOR' || userDesig === 'MD' || userDesig === 'CEO';
+
     let query = {};
+    if (!isMD) {
+      query.employeeId = req.user._id;
+    }
     if (fromDate && toDate) {
       query.date = { $gte: fromDate, $lte: toDate };
     } else if (date) {
@@ -785,7 +824,7 @@ router.get('/export', protect, authorize('admin'), async (req, res) => {
       query.status = status;
     }
 
-    const allUsers = await User.find({ isActive: true }).lean();
+    const allUsers = await User.find(isMD ? { isActive: true } : { _id: req.user._id }).lean();
     const attendanceList = await Attendance.find(query).sort({ date: -1, startTime: -1 });
 
     let rows = [];

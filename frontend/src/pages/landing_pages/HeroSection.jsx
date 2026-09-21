@@ -2,13 +2,38 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ArrowUpRight, Play } from 'lucide-react';
+import { ArrowUpRight, Play, Video, MessageSquare, Globe, Coffee } from 'lucide-react';
 import GradientWaves from './GradientWaves';
 import useBreakpoint from '../../hooks/useBreakpoint';
 import TextType from '../../components/TextType';
 import crmImage from '../../assets/CRM.png';
 
 const EASE = [0.22, 1, 0.36, 1];
+
+/* ─────────────────────────────────────────────────────────
+   ORANGE → PURPLE FULL-SCREEN GRADIENT THEME
+   ───────────────────────────────────────────────────────── */
+const C = {
+  /* Gradient stops */
+  orangeTop:    '#f97316',
+  orangeMid:    '#ea580c',
+  orangeDeep:   '#c2410c',
+  purpleMid:    '#7c3aed',
+  purpleBottom: '#4c1d95',
+
+  /* Accents */
+  white:        '#ffffff',
+  textSoft:     'rgba(255, 255, 255, 0.82)',
+  textMuted:    'rgba(255, 255, 255, 0.60)',
+
+  orange:       '#fb923c',
+  orangeLt:     '#fdba74',
+  orangeGlow:   'rgba(251, 146, 60, 0.55)',
+
+  purple:       '#a855f7',
+  purpleLt:     '#c084fc',
+  purpleGlow:   'rgba(168, 85, 247, 0.45)',
+};
 
 export function HeroSection() {
   const navigate = useNavigate();
@@ -22,18 +47,124 @@ export function HeroSection() {
         width: '100%',
         minHeight: '100vh',
         overflow: 'hidden',
-        background:
-          'radial-gradient(ellipse at 50% 30%, #064e3b 0%, #022c22 45%, #01150f 80%, #000806 100%)',
+        /* ══════════════════════════════════════════════
+           FULL-SCREEN ORANGE → PURPLE GRADIENT
+           (no border, no rounded corners, full bleed)
+           ══════════════════════════════════════════════ */
+        background: `
+          linear-gradient(
+            180deg,
+            #f97316 0%,
+            #ea580c 25%,
+            #c2410c 45%,
+            #7c3aed 70%,
+            #4c1d95 100%
+          )
+        `,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        paddingTop: isMobile ? 100 : 120,
+        paddingTop: isMobile ? 90 : 110,
         paddingBottom: isMobile ? 60 : 80,
+        paddingLeft: isMobile ? 16 : 32,
+        paddingRight: isMobile ? 16 : 32,
         boxSizing: 'border-box',
       }}
     >
       {/* ══════════════════════════════════════════════
-          ANIMATED GREEN WAVES BACKGROUND
+          SUBTLE GRID OVERLAY
+          ══════════════════════════════════════════════ */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          pointerEvents: 'none',
+          opacity: 0.07,
+          backgroundImage: `
+            linear-gradient(rgba(255, 255, 255, 0.6) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.6) 1px, transparent 1px)
+          `,
+          backgroundSize: '80px 80px',
+        }}
+      />
+
+      {/* ══════════════════════════════════════════════
+          DECORATIVE ICONS
+          ══════════════════════════════════════════════ */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          pointerEvents: 'none',
+          opacity: 0.14,
+        }}
+      >
+        {/* Video camera */}
+        <motion.div
+          animate={{ y: [0, -8, 0] }}
+          transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+          style={{ position: 'absolute', top: '26%', right: '18%', color: '#fff' }}
+        >
+          <Video size={isMobile ? 40 : 64} strokeWidth={1.2} />
+        </motion.div>
+
+        {/* Message square */}
+        <motion.div
+          animate={{ y: [0, 6, 0] }}
+          transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+          style={{ position: 'absolute', top: '42%', right: '26%', color: '#fff' }}
+        >
+          <MessageSquare size={isMobile ? 36 : 58} strokeWidth={1.2} />
+        </motion.div>
+
+        {/* Globe */}
+        <motion.div
+          animate={{ y: [0, -6, 0] }}
+          transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
+          style={{ position: 'absolute', top: '58%', right: '20%', color: '#fff' }}
+        >
+          <Globe size={isMobile ? 42 : 68} strokeWidth={1.2} />
+        </motion.div>
+
+        {/* Coffee cup */}
+        <motion.div
+          animate={{ y: [0, 6, 0] }}
+          transition={{ duration: 7.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
+          style={{ position: 'absolute', top: '62%', right: '32%', color: '#fff' }}
+        >
+          <Coffee size={isMobile ? 34 : 54} strokeWidth={1.2} />
+        </motion.div>
+
+        {/* Small dot indicator — top-left */}
+        <motion.div
+          animate={{ opacity: [0.4, 1, 0.4] }}
+          transition={{ duration: 2.5, repeat: Infinity }}
+          style={{
+            position: 'absolute',
+            top: '16%',
+            left: '6%',
+            width: 24,
+            height: 24,
+            borderRadius: '50%',
+            border: '1.5px solid rgba(255, 255, 255, 0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <div
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: '#ffffff',
+            }}
+          />
+        </motion.div>
+      </div>
+
+      {/* ══════════════════════════════════════════════
+          TONED-DOWN ANIMATED WAVES
           ══════════════════════════════════════════════ */}
       <div
         style={{
@@ -42,57 +173,36 @@ export function HeroSection() {
           width: '100%',
           height: '100%',
           zIndex: 0,
+          opacity: 0.32,
+          mixBlendMode: 'overlay',
         }}
       >
-        <motion.div
-          initial={{ opacity: 0, scale: 1.08 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 2.0, ease: EASE }}
-          style={{
-            width: '100%',
-            height: '100%',
-            position: 'relative',
-            willChange: 'transform, opacity',
-          }}
-        >
-          <GradientWaves
-            horizonColor="#01150f"
-            waveColor="#16a34a"
-            crestColor="#bef264"
-            speed={0.35}
-            amplitude={2.6}
-            waveScale={0.6}
-            waveRatio={0.9}
-            swell={35}
-            turbulence={20}
-            tilt={1.11}
-            zoom={1}
-            height={5.5}
-            fogDepth={15}
-            detail="medium"
-            brightness={1.1}
-            opacity={1}
-            mouseInteraction
-            parallaxStrength={0.55}
-            grain
-            grainIntensity={0.04}
-          />
-        </motion.div>
-
-        {/* Vignette */}
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            pointerEvents: 'none',
-            background:
-              'radial-gradient(ellipse at 50% 40%, transparent 35%, rgba(1,21,15,0.55) 75%, rgba(0,8,6,0.95) 100%)',
-          }}
+        <GradientWaves
+          horizonColor="#4c1d95"
+          waveColor="#7c3aed"
+          crestColor="#fdba74"
+          speed={0.3}
+          amplitude={2.4}
+          waveScale={0.6}
+          waveRatio={0.9}
+          swell={32}
+          turbulence={18}
+          tilt={1.11}
+          zoom={1}
+          height={5.5}
+          fogDepth={14}
+          detail="medium"
+          brightness={1.0}
+          opacity={1}
+          mouseInteraction
+          parallaxStrength={0.5}
+          grain
+          grainIntensity={0.03}
         />
       </div>
 
       {/* ══════════════════════════════════════════════
-          CENTERED HERO CONTENT
+          HERO CONTENT
           ══════════════════════════════════════════════ */}
       <motion.div
         initial={{ y: 30, opacity: 0 }}
@@ -102,8 +212,7 @@ export function HeroSection() {
           position: 'relative',
           zIndex: 20,
           width: '100%',
-          maxWidth: 1280,
-          padding: isMobile ? '0 16px' : '0 clamp(16px, 2.5vw, 36px)',
+          maxWidth: 1000,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -111,7 +220,7 @@ export function HeroSection() {
           boxSizing: 'border-box',
         }}
       >
-        {/* Small badge — "What's New" */}
+        {/* Badge — "What's New" */}
         <motion.div
           initial={{ y: 12, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -122,8 +231,8 @@ export function HeroSection() {
             gap: 10,
             padding: '6px 16px 6px 6px',
             borderRadius: 9999,
-            background: 'rgba(190, 242, 100, 0.10)',
-            border: '1px solid rgba(190, 242, 100, 0.30)',
+            background: 'rgba(255, 255, 255, 0.15)',
+            border: '1px solid rgba(255, 255, 255, 0.30)',
             backdropFilter: 'blur(12px)',
             WebkitBackdropFilter: 'blur(12px)',
             marginBottom: isMobile ? 20 : 26,
@@ -135,8 +244,8 @@ export function HeroSection() {
               alignItems: 'center',
               padding: '3px 10px',
               borderRadius: 9999,
-              background: '#bef264',
-              color: '#1a2800',
+              background: '#ffffff',
+              color: '#ea580c',
               fontSize: 10.5,
               fontWeight: 800,
               letterSpacing: '0.06em',
@@ -147,7 +256,7 @@ export function HeroSection() {
           </span>
           <span
             style={{
-              color: '#dcfce7',
+              color: '#ffffff',
               fontSize: 12.5,
               fontWeight: 500,
               letterSpacing: '-0.005em',
@@ -158,7 +267,7 @@ export function HeroSection() {
           <span style={{ fontSize: 12 }}>✨</span>
         </motion.div>
 
-        {/* Heading — strictly 2 lines (Line 1: Manage Your CRM Pipeline / Line 2: Track Every Lead.) */}
+        {/* Heading */}
         <motion.h1
           initial={{ y: 26, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -176,9 +285,9 @@ export function HeroSection() {
               '"Bricolage Grotesque", "Manrope", "Inter", system-ui, sans-serif',
             color: '#ffffff',
             minHeight: isMobile ? '2.4em' : '2.3em',
+            textShadow: '0 4px 30px rgba(0, 0, 0, 0.15)',
           }}
         >
-          {/* Line 1 — static white (strictly 1 line) */}
           <span
             style={{
               display: 'block',
@@ -189,7 +298,6 @@ export function HeroSection() {
             Manage Your CRM Pipeline
           </span>
 
-          {/* Line 2 — typing animated (strictly 1 line, starting with Track Every Lead.) */}
           <span
             style={{
               display: 'block',
@@ -224,7 +332,7 @@ export function HeroSection() {
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.85, duration: 0.95, ease: EASE }}
           style={{
-            color: 'rgba(255, 255, 255, 0.72)',
+            color: C.textSoft,
             fontSize: isMobile ? 13.5 : 'clamp(14px, 1.05vw, 16px)',
             lineHeight: 1.6,
             maxWidth: 600,
@@ -254,26 +362,28 @@ export function HeroSection() {
             alignItems: 'center',
           }}
         >
-          {/* Primary — lime gradient pill with arrow badge */}
+          {/* ═══════════════════════════════════════════
+             PRIMARY — SOLID WHITE pill with orange text
+             & orange arrow circle (pops hard on gradient)
+             ═══════════════════════════════════════════ */}
           <motion.button
             onClick={() => navigate('/login')}
             whileHover={{
               y: -3,
-              boxShadow: '0 20px 44px rgba(163,230,53,0.55)',
+              boxShadow: '0 20px 44px rgba(255, 255, 255, 0.40)',
             }}
             whileTap={{ scale: 0.97 }}
             transition={{ duration: 0.28, ease: EASE }}
             style={{
-              padding: isMobile ? '14px 22px' : '14px 16px 14px 26px',
+              padding: isMobile ? '14px 22px' : '14px 18px 14px 28px',
               borderRadius: 9999,
               border: 'none',
-              background:
-                'linear-gradient(135deg, #bef264 0%, #a3e635 55%, #65a30d 100%)',
-              color: '#0a1500',
+              background: '#ffffff',
+              color: '#ea580c',
               fontWeight: 800,
               fontSize: isMobile ? 14 : 14.5,
               cursor: 'pointer',
-              boxShadow: '0 12px 30px rgba(163,230,53,0.45)',
+              boxShadow: '0 12px 30px rgba(0, 0, 0, 0.20)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -285,61 +395,67 @@ export function HeroSection() {
             Get Started Free
             <span
               style={{
-                width: 30,
-                height: 30,
+                width: 32,
+                height: 32,
                 borderRadius: '50%',
-                background: '#ffffff',
+                background: 'linear-gradient(135deg, #f97316, #c2410c)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#0a1500',
-                boxShadow: '0 4px 14px rgba(0,0,0,0.15)',
+                color: '#ffffff',
+                boxShadow: '0 4px 14px rgba(234, 88, 12, 0.45)',
               }}
             >
-              <ArrowUpRight size={15} strokeWidth={2.6} />
+              <ArrowUpRight size={16} strokeWidth={2.6} />
             </span>
           </motion.button>
 
-          {/* Secondary — white pill with play icon */}
+          {/* ═══════════════════════════════════════════
+             SECONDARY — TRANSLUCENT glass pill with
+             PURPLE play button
+             ═══════════════════════════════════════════ */}
           <motion.button
             onClick={() => navigate('/demo')}
             whileHover={{
               y: -3,
-              boxShadow: '0 20px 44px rgba(255,255,255,0.25)',
+              background: 'rgba(255, 255, 255, 0.22)',
+              borderColor: 'rgba(255, 255, 255, 0.75)',
             }}
             whileTap={{ scale: 0.97 }}
             transition={{ duration: 0.28, ease: EASE }}
             style={{
-              padding: isMobile ? '14px 22px' : '14px 26px 14px 16px',
+              padding: isMobile ? '14px 22px' : '14px 28px 14px 18px',
               borderRadius: 9999,
-              border: 'none',
-              background: '#ffffff',
-              color: '#0a1500',
+              border: '1.5px solid rgba(255, 255, 255, 0.55)',
+              background: 'rgba(255, 255, 255, 0.12)',
+              color: '#ffffff',
               fontWeight: 800,
               fontSize: isMobile ? 14 : 14.5,
               cursor: 'pointer',
-              boxShadow: '0 12px 30px rgba(255,255,255,0.18)',
+              backdropFilter: 'blur(14px)',
+              WebkitBackdropFilter: 'blur(14px)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 10,
+              gap: 12,
               letterSpacing: '-0.005em',
               fontFamily: '"Inter", system-ui, sans-serif',
             }}
           >
             <span
               style={{
-                width: 30,
-                height: 30,
+                width: 32,
+                height: 32,
                 borderRadius: '50%',
-                background: '#0a1500',
+                background: 'linear-gradient(135deg, #c084fc, #7c3aed)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: '#ffffff',
+                boxShadow: '0 4px 14px rgba(124, 58, 237, 0.5)',
               }}
             >
-              <Play size={13} fill="#ffffff" strokeWidth={0} />
+              <Play size={14} fill="#ffffff" strokeWidth={0} />
             </span>
             Watch Demo
           </motion.button>
@@ -357,9 +473,8 @@ export function HeroSection() {
           position: 'relative',
           zIndex: 15,
           width: '100%',
-          maxWidth: 1240,
+          maxWidth: 1080,
           marginTop: isMobile ? 44 : 64,
-          padding: isMobile ? '0 16px' : '0 clamp(20px, 3.5vw, 48px)',
           boxSizing: 'border-box',
           perspective: 1200,
         }}
@@ -371,8 +486,10 @@ export function HeroSection() {
           style={{
             borderRadius: isMobile ? 16 : 24,
             overflow: 'hidden',
-            boxShadow:
-              '0 30px 90px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.14), 0 0 50px rgba(190, 242, 100, 0.12)',
+            boxShadow: `
+              0 40px 100px rgba(0, 0, 0, 0.50),
+              0 0 0 1px rgba(255, 255, 255, 0.18)
+            `,
             transformStyle: 'preserve-3d',
             willChange: 'transform',
             background: 'transparent',
@@ -389,14 +506,19 @@ export function HeroSection() {
           />
         </motion.div>
 
-        {/* Soft glow behind the dashboard */}
+        {/* Soft purple glow behind dashboard */}
         <div
           style={{
             position: 'absolute',
             inset: '15% 5% -10% 5%',
-            background:
-              'radial-gradient(ellipse at 50% 100%, rgba(190, 242, 100, 0.28) 0%, transparent 70%)',
-            filter: 'blur(60px)',
+            background: `
+              radial-gradient(
+                ellipse at 50% 100%,
+                rgba(124, 58, 237, 0.45) 0%,
+                transparent 65%
+              )
+            `,
+            filter: 'blur(70px)',
             zIndex: -1,
             pointerEvents: 'none',
           }}
@@ -408,7 +530,12 @@ export function HeroSection() {
           ══════════════════════════════════════════════ */}
       <style>{`
         .hero-typing-line {
-          background: linear-gradient(120deg, #bef264 0%, #a3e635 30%, #4ade80 65%, #22c55e 100%);
+          background: linear-gradient(
+            120deg,
+            #fdba74 0%,
+            #fb923c 45%,
+            #ffffff 100%
+          );
           -webkit-background-clip: text;
           background-clip: text;
           -webkit-text-fill-color: transparent;
@@ -416,13 +543,10 @@ export function HeroSection() {
           font-weight: 800;
           letter-spacing: -0.025em;
         }
-        .hero-typing-line span[style] {
-          /* inner text color override removed — gradient applies */
-        }
         .hero-cursor {
-          color: #bef264 !important;
+          color: #fdba74 !important;
           font-weight: 300;
-          -webkit-text-fill-color: #bef264 !important;
+          -webkit-text-fill-color: #fdba74 !important;
         }
       `}</style>
     </section>
