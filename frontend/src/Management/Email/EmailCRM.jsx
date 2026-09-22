@@ -38,8 +38,8 @@ export default function EmailCRM() {
   const { user } = useAuth();
   const isMD = isManagingDirector(user) || isExecutive(user);
 
-  // Active Navigation Tab: 'sent', 'leaves', 'inbox', 'templates', 'admin_audit'
-  const [activeFolder, setActiveFolder] = useState('sent');
+  // Active Navigation Tab: 'inbox', 'sent', 'leaves', 'templates', 'admin_audit'
+  const [activeFolder, setActiveFolder] = useState('inbox');
 
   // Templates
   const [templates, setTemplates] = useState([]);
