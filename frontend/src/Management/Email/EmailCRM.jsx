@@ -255,8 +255,10 @@ ${user?.designation || 'Staff'}`
       : (selectedEmail.recipientEmail || selectedEmail.fromEmail);
 
     try {
+      const mySenderEmail = (fromEmail || user?.email || (selectedEmail.direction === 'inbound' ? selectedEmail.recipientEmail : selectedEmail.fromEmail) || '').trim();
       const res = await api.post('/email/reply', {
         emailId: selectedEmail._id || selectedEmail.id,
+        fromEmail: mySenderEmail,
         body: inlineReplyText.trim(),
         toEmail: targetRecipient,
         subject: selectedEmail.subject?.startsWith('Re:') ? selectedEmail.subject : `Re: ${selectedEmail.subject || 'Message'}`

@@ -355,7 +355,13 @@ router.post('/reply', protect, async (req, res) => {
 
     const replyRecipient = (toEmail || (parentLog.direction === 'inbound' ? parentLog.fromEmail : parentLog.recipientEmail) || '').trim();
     const replySubject = subject || (parentLog.subject.startsWith('Re:') ? parentLog.subject : `Re: ${parentLog.subject}`);
-    const senderEmail = (req.body.fromEmail || req.user?.email || parentLog.fromEmail || process.env.DEFAULT_FROM_EMAIL || 'admin@aotms.com').trim();
+    const senderEmail = (
+      req.body.fromEmail ||
+      (parentLog.direction === 'inbound' ? (parentLog.recipientEmail || parentLog.toEmail) : parentLog.fromEmail) ||
+      req.user?.email ||
+      process.env.DEFAULT_FROM_EMAIL ||
+      'hr@aotms.com'
+    ).trim();
     const replyBody = body.trim();
 
     let success = false;
