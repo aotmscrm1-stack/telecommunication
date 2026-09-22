@@ -414,7 +414,7 @@ body.lamp-page-active {
 
 .field input.has-eye { padding-right: 50px; }
 
-/* ── Eye toggle — properly positioned ── */
+/* ── Eye toggle — properly positioned with 3D depth ── */
 .eye-toggle {
   position: absolute;
   right: 10px;
@@ -429,19 +429,28 @@ body.lamp-page-active {
   align-items: center;
   justify-content: center;
   color: #94a3b8;
-  transition: color .2s ease, background .2s ease;
-  z-index: 3;
+  transition: color .2s ease, background .2s ease, transform .2s ease;
+  z-index: 20;
+  transform: translateZ(35px);
   padding: 0;
   margin: 0;
   line-height: 1;
 }
 .eye-toggle:hover {
   color: var(--orange-bright);
-  background: rgba(249, 115, 22, 0.12);
+  background: rgba(249, 115, 22, 0.15);
+  transform: translateZ(40px) scale(1.05);
 }
-.eye-toggle:active { transform: scale(0.94); }
-.eye-toggle:focus { outline: none; color: var(--orange-bright); }
-.eye-toggle svg { pointer-events: none; }
+.eye-toggle:active {
+  transform: translateZ(32px) scale(0.94);
+}
+.eye-toggle:focus {
+  outline: none;
+  color: var(--orange-bright);
+}
+.eye-toggle svg {
+  pointer-events: none;
+}
 
 .field::after {
   content: "";
@@ -996,6 +1005,7 @@ export default function Login() {
                     type="button"
                     className="eye-toggle"
                     onClick={() => setShowPassword((v) => !v)}
+                    onMouseDown={(e) => e.preventDefault()}
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? <EyeOffIcon /> : <EyeIcon />}
@@ -1191,13 +1201,14 @@ export default function Login() {
                         type="button"
                         className="eye-toggle"
                         onClick={() => setFpShowPassword((v) => !v)}
+                        onMouseDown={(e) => e.preventDefault()}
                         aria-label={fpShowPassword ? 'Hide password' : 'Show password'}
                       >
                         {fpShowPassword ? <EyeOffIcon /> : <EyeIcon />}
                       </button>
                     </div>
 
-                    <div className="field">
+                    <div className="field field-with-eye">
                       <label htmlFor="fp-cp">Confirm Password</label>
                       <input
                         id="fp-cp"
@@ -1205,8 +1216,18 @@ export default function Login() {
                         placeholder="Re-enter new password"
                         value={fpConfirmPassword}
                         onChange={(e) => setFpConfirmPassword(e.target.value)}
+                        className="has-eye"
                         required
                       />
+                      <button
+                        type="button"
+                        className="eye-toggle"
+                        onClick={() => setFpShowPassword((v) => !v)}
+                        onMouseDown={(e) => e.preventDefault()}
+                        aria-label={fpShowPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {fpShowPassword ? <EyeOffIcon /> : <EyeIcon />}
+                      </button>
                     </div>
 
                     <button type="submit" className="sign-in-btn" disabled={fpLoading}>
