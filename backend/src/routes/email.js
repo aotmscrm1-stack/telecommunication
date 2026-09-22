@@ -174,7 +174,7 @@ router.post('/send', protect, async (req, res) => {
             sentBy: req.user?.name || req.user?.email || 'Staff',
             timestamp: new Date().toISOString()
           }
-        }, { timeout: 15000 });
+        }, { timeout: 35000 });
 
         const d = n8nRes.data;
         // Detect if n8n returned an error inside a 200 payload
@@ -379,7 +379,7 @@ router.post('/reply', protect, async (req, res) => {
             sentBy: req.user?.name || req.user?.email || 'Staff',
             timestamp: new Date().toISOString()
           }
-        }, { timeout: 15000 });
+        }, { timeout: 35000 });
 
         const d = n8nRes.data;
         if (d && (d.errorMessage || d.error || d.status === 'error' || d.success === false)) {
@@ -451,23 +451,63 @@ router.post('/reply', protect, async (req, res) => {
   }
 });
 
+// Helper to safely extract clean email address from string, object, or array
+function extractEmailAddress(raw) {
+  if (!raw) return '';
+  if (typeof raw === 'string') {
+    const match = raw.match(/<([^>]+)>/) || raw.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+    return match ? match[1] || match[0] : raw.trim();
+  }
+  if (Array.isArray(raw)) {
+    return extractEmailAddress(raw[0]);
+  }
+  if (typeof raw === 'object') {
+    return (
+      raw.address ||
+      raw.text ||
+      raw.value?.[0]?.address ||
+      extractEmailAddress(raw.value) ||
+      extractEmailAddress(raw.text) ||
+      ''
+    );
+  }
+  return String(raw).trim();
+}
+
+// Helper to safely extract sender display name
+function extractSenderName(raw) {
+  if (!raw) return '';
+  if (typeof raw === 'string') {
+    const match = raw.match(/^"?([^"<]+)"?\s*</);
+    if (match) return match[1].trim();
+    if (raw.includes('@')) return raw.split('@')[0];
+    return raw.trim();
+  }
+  if (typeof raw === 'object') {
+    return raw.name || raw.value?.[0]?.name || extractSenderName(raw.text) || '';
+  }
+  return '';
+}
+
 // Core Inbound Email Handler for GoDaddy IMAP & n8n webhooks
 async function handleInboundEmail(req, res) {
   try {
-    const data = req.body.payload || req.body.body || req.body;
-    const from = (data.fromEmail || data.from || data.senderEmail || data.sender || '').trim();
-    const to = (data.toEmail || data.to || data.recipientEmail || data.recipient || data.mailbox || '').trim();
-    const rawSubject = (data.subject || data.title || 'No Subject').trim();
-    const bodyContent = (data.body || data.text || data.html || data.message || data.content || '').trim();
-    const senderName = (data.senderName || data.name || from.split('@')[0] || 'External Contact').trim();
-    const messageId = (data.messageId || '').trim();
-    const inReplyTo = (data.inReplyTo || '').trim();
-    const references = (data.references || '').trim();
-    const parentEmailId = data.parentEmailId || data.threadId || null;
-
-    if (!from || (!bodyContent && !rawSubject)) {
-      return res.status(400).json({ message: 'Sender email (from) and message content are required' });
+    let data = req.body;
+    if (typeof data === 'string') {
+      try { data = JSON.parse(data); } catch (_) {}
     }
+    if (data?.payload && typeof data.payload === 'object') data = data.payload;
+    if (data?.body && typeof data.body === 'object') data = data.body;
+
+    const from = extractEmailAddress(data.fromEmail || data.from || data.senderEmail || data.sender) || 'customer@external.com';
+    const to = extractEmailAddress(data.toEmail || data.to || data.recipientEmail || data.recipient || data.mailbox) || '';
+    const rawSubject = (data.subject || data.title || 'No Subject').trim();
+    const bodyContent = (data.body || data.textPlain || data.text || data.html || data.message || data.content || '(No message body recorded)').trim();
+    const senderName = (data.senderName || data.name || extractSenderName(data.from) || from.split('@')[0] || 'Customer').trim();
+    const messageId = (data.messageId || data.headers?.['message-id'] || '').trim();
+    const inReplyTo = (data.inReplyTo || data.headers?.['in-reply-to'] || '').trim();
+    const references = (data.references || data.headers?.references || '').trim();
+    const parentEmailId = data.parentEmailId || data.threadId || null;
 
     console.log(`[INCOMING GODADDY EMAIL] From: "${from}", To: "${to}", Subject: "${rawSubject}", MessageId: "${messageId}"`);
 
