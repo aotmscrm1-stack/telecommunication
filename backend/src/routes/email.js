@@ -596,12 +596,19 @@ async function handleInboundEmail(req, res) {
     if (parentLog) {
       parentLog.replies.push(replySubDoc);
       parentLog.isRead = false; // Mark unread notification in CRM
+      parentLog.status = 'Received';
       await parentLog.save();
+
+      return res.json({
+        success: true,
+        message: 'Incoming reply matched and threaded into conversation',
+        parentThreadId: parentLog._id,
+        reply: replySubDoc
+      });
     }
 
-    // Also create/record standalone Inbound EmailLog so it appears in CRM "Inbox & Replies"
+    // ONLY create a standalone Inbound EmailLog if this is a brand new, unthreaded cold email
     const newInboundLog = await EmailLog.create({
-      sender: parentLog?.sender || null,
       senderName,
       senderEmail: from,
       senderDesignation: 'Customer / External',
@@ -609,12 +616,12 @@ async function handleInboundEmail(req, res) {
       recipientEmail: to,
       subject: rawSubject,
       body: bodyContent,
-      templateId: parentLog?.templateId || 'inbound_godaddy',
+      templateId: 'inbound_godaddy',
       sentVia: 'GoDaddy IMAP via n8n',
       status: 'Received',
       direction: 'inbound',
-      isReply: !!parentLog,
-      parentEmail: parentLog?._id || null,
+      isReply: false,
+      parentEmail: null,
       messageId,
       inReplyTo,
       references,
@@ -624,9 +631,8 @@ async function handleInboundEmail(req, res) {
 
     res.json({
       success: true,
-      message: 'Incoming email successfully processed and synced to CRM inbox',
-      logId: newInboundLog._id,
-      parentThreadId: parentLog?._id || null
+      message: 'New incoming email recorded in CRM inbox',
+      logId: newInboundLog._id
     });
   } catch (err) {
     console.error('[INCOMING EMAIL WEBHOOK ERROR]:', err);

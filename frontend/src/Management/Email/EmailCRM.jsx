@@ -38,8 +38,8 @@ export default function EmailCRM() {
   const { user } = useAuth();
   const isMD = isManagingDirector(user) || isExecutive(user);
 
-  // Active Navigation Tab: 'inbox', 'sent', 'leaves', 'templates', 'admin_audit'
-  const [activeFolder, setActiveFolder] = useState('inbox');
+  // Active Navigation Tab: 'sent', 'leaves', 'inbox', 'templates', 'admin_audit'
+  const [activeFolder, setActiveFolder] = useState('sent');
 
   // Templates
   const [templates, setTemplates] = useState([]);
@@ -397,6 +397,9 @@ ${user?.designation || 'Staff'}`
 
   // Filter logs based on activeFolder tab
   const displayedLogs = logs.filter(log => {
+    // If it's a reply to an existing parent email, don't show as a separate standalone email in list
+    if (log.isReply && log.parentEmail) return false;
+
     if (activeFolder === 'inbox') {
       return log.direction === 'inbound' || (log.replies && log.replies.length > 0);
     }
@@ -412,10 +415,10 @@ ${user?.designation || 'Staff'}`
     return true;
   });
 
-  const inboxRepliesCount = logs.filter(l => l.direction === 'inbound' || (l.replies && l.replies.length > 0)).length;
-  const unreadRepliesCount = logs.filter(l => l.isRead === false).length;
-  const leaveRequestsCount = logs.filter(l => l.isLeaveRequest || /leave|absence|permission/i.test(l.subject)).length;
-  const sentCount = logs.filter(l => l.direction !== 'inbound').length;
+  const inboxRepliesCount = logs.filter(l => !(l.isReply && l.parentEmail) && (l.direction === 'inbound' || (l.replies && l.replies.length > 0))).length;
+  const unreadRepliesCount = logs.filter(l => !(l.isReply && l.parentEmail) && l.isRead === false).length;
+  const leaveRequestsCount = logs.filter(l => !(l.isReply && l.parentEmail) && (l.isLeaveRequest || /leave|absence|permission/i.test(l.subject))).length;
+  const sentCount = logs.filter(l => !(l.isReply && l.parentEmail) && l.direction !== 'inbound').length;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)', background: WHITE, color: TEXT_MAIN, fontFamily: 'Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif', overflow: 'hidden' }}>
