@@ -68,6 +68,15 @@ export default function EmailCRM() {
   const [starredEmails, setStarredEmails] = useState(new Set());
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Inbound & Reply States (Message mail notification style)
+  const [inlineReplyText, setInlineReplyText] = useState('');
+  const [replying, setReplying] = useState(false);
+  const [replySuccess, setReplySuccess] = useState('');
+  const [replyError, setReplyError] = useState('');
+  const [showWebhookModal, setShowWebhookModal] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [inboxCount, setInboxCount] = useState(0);
+
   // Admin / MD Tracking Portal State
   const [mdStats, setMdStats] = useState(null);
   const [trackingUsers, setTrackingUsers] = useState([]);
@@ -169,8 +178,18 @@ ${user?.designation || 'Staff'}`
 
     api.get(url)
       .then(res => {
-        setLogs(res.data?.logs || []);
+        const fetchedLogs = res.data?.logs || [];
+        setLogs(fetchedLogs);
         if (res.data?.stats) setMdStats(res.data.stats);
+        if (res.data?.unreadCount !== undefined) setUnreadCount(res.data.unreadCount);
+        if (res.data?.totalInbox !== undefined) setInboxCount(res.data.totalInbox);
+
+        // Keep selectedEmail fresh with newest replies
+        setSelectedEmail(prev => {
+          if (!prev) return null;
+          const fresh = fetchedLogs.find(l => (l._id || l.id) === (prev._id || prev.id));
+          return fresh || prev;
+        });
       })
       .catch(err => {
         console.warn('Failed to load email logs:', err.message);
@@ -191,6 +210,73 @@ ${user?.designation || 'Staff'}`
     fetchEmailLogs('all', '');
     fetchTrackingUsers();
   }, [user?.email, user?.name, user?.designation]);
+
+  // Background auto-refresh every 15s to pull incoming replies from n8n webhook
+  useEffect(() => {
+    const timer = setInterval(() => {
+      let url = `/email/logs?employeeId=${selectedEmployeeFilter}`;
+      if (searchQuery.trim()) url += `&search=${encodeURIComponent(searchQuery.trim())}`;
+      api.get(url).then(res => {
+        const fetchedLogs = res.data?.logs || [];
+        setLogs(fetchedLogs);
+        if (res.data?.unreadCount !== undefined) setUnreadCount(res.data.unreadCount);
+        if (res.data?.totalInbox !== undefined) setInboxCount(res.data.totalInbox);
+        setSelectedEmail(prev => {
+          if (!prev) return null;
+          const fresh = fetchedLogs.find(l => (l._id || l.id) === (prev._id || prev.id));
+          return fresh || prev;
+        });
+      }).catch(() => {});
+    }, 15000);
+    return () => clearInterval(timer);
+  }, [selectedEmployeeFilter, searchQuery]);
+
+  const handleSelectEmail = (log) => {
+    setSelectedEmail(log);
+    setInlineReplyText('');
+    setReplySuccess('');
+    setReplyError('');
+    if (log && log.isRead === false) {
+      api.patch(`/email/logs/${log._id || log.id}/read`).catch(() => {});
+      setLogs(prev => prev.map(l => (l._id === log._id ? { ...l, isRead: true } : l)));
+    }
+  };
+
+  const handleSendInlineReply = async () => {
+    if (!inlineReplyText.trim() || !selectedEmail) return;
+    setReplying(true);
+    setReplySuccess('');
+    setReplyError('');
+
+    const targetRecipient = selectedEmail.direction === 'inbound'
+      ? selectedEmail.fromEmail
+      : (selectedEmail.recipientEmail || selectedEmail.fromEmail);
+
+    try {
+      const res = await api.post('/email/reply', {
+        emailId: selectedEmail._id || selectedEmail.id,
+        body: inlineReplyText.trim(),
+        toEmail: targetRecipient,
+        subject: selectedEmail.subject?.startsWith('Re:') ? selectedEmail.subject : `Re: ${selectedEmail.subject || 'Message'}`
+      });
+
+      const newReply = res.data?.reply;
+      if (newReply) {
+        setSelectedEmail(prev => ({
+          ...prev,
+          replies: [...(prev.replies || []), newReply]
+        }));
+      }
+      setInlineReplyText('');
+      setReplySuccess('Reply sent successfully!');
+      setTimeout(() => setReplySuccess(''), 3000);
+      fetchEmailLogs(selectedEmployeeFilter, searchQuery);
+    } catch (err) {
+      setReplyError(err.response?.data?.message || 'Failed to send reply');
+    } finally {
+      setReplying(false);
+    }
+  };
 
   const toggleStar = (id, e) => {
     e.stopPropagation();
@@ -307,6 +393,12 @@ ${user?.designation || 'Staff'}`
 
   // Filter logs based on activeFolder tab
   const displayedLogs = logs.filter(log => {
+    if (activeFolder === 'inbox') {
+      return log.direction === 'inbound' || (log.replies && log.replies.length > 0);
+    }
+    if (activeFolder === 'sent') {
+      return log.direction !== 'inbound';
+    }
     if (activeFolder === 'leaves') {
       return log.isLeaveRequest || /leave|absence|permission/i.test(log.subject);
     }
@@ -316,7 +408,10 @@ ${user?.designation || 'Staff'}`
     return true;
   });
 
+  const inboxRepliesCount = logs.filter(l => l.direction === 'inbound' || (l.replies && l.replies.length > 0)).length;
+  const unreadRepliesCount = logs.filter(l => l.isRead === false).length;
   const leaveRequestsCount = logs.filter(l => l.isLeaveRequest || /leave|absence|permission/i.test(l.subject)).length;
+  const sentCount = logs.filter(l => l.direction !== 'inbound').length;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)', background: WHITE, color: TEXT_MAIN, fontFamily: 'Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif', overflow: 'hidden' }}>
@@ -369,8 +464,23 @@ ${user?.designation || 'Staff'}`
           </div>
         </div>
 
-        {/* Right Status Badges */}
+        {/* Right Status Badges & Webhook Config */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            onClick={() => setShowWebhookModal(true)}
+            title="Incoming Email & Reply Webhook Setup"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              background: '#f3e8ff', color: '#6b21a8',
+              border: '1px solid #d8b4fe',
+              padding: '6px 12px', borderRadius: 20,
+              fontSize: 12, fontWeight: 600, cursor: 'pointer'
+            }}
+          >
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#9333ea', display: 'inline-block' }}></span>
+            Inbound Webhook
+          </button>
+
           <button
             onClick={() => fetchEmailLogs(selectedEmployeeFilter, searchQuery)}
             title="Refresh mail"
@@ -428,6 +538,22 @@ ${user?.designation || 'Staff'}`
             Compose
           </button>
 
+          {/* Folder Item: Inbox & Replies */}
+          <div
+            onClick={() => { setActiveFolder('inbox'); setSelectedEmail(null); }}
+            style={getSidebarItemStyle(activeFolder === 'inbox')}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2"><path d="M22 12h-6l-2 3h-4l-2-3H2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-7z"/><path d="M5.45 5.11L2 12v0h20v0l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+              <span>Inbox & Replies</span>
+            </div>
+            {inboxRepliesCount > 0 && (
+              <span style={{ fontSize: 11, fontWeight: 700, background: unreadRepliesCount > 0 ? '#7c3aed' : '#e2e8f0', color: unreadRepliesCount > 0 ? WHITE : TEXT_MAIN, padding: '1px 7px', borderRadius: 10 }}>
+                {inboxRepliesCount}
+              </span>
+            )}
+          </div>
+
           {/* Folder Item: Sent / Outbox */}
           <div
             onClick={() => { setActiveFolder('sent'); setSelectedEmail(null); }}
@@ -437,7 +563,7 @@ ${user?.designation || 'Staff'}`
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
               <span>Sent</span>
             </div>
-            <span style={{ fontSize: 12, fontWeight: 600, color: TEXT_MUTED }}>{logs.length}</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: TEXT_MUTED }}>{sentCount}</span>
           </div>
 
           {/* Folder Item: Leave Requests */}
@@ -488,7 +614,7 @@ ${user?.designation || 'Staff'}`
           <div style={{ marginTop: 'auto', padding: '12px 8px', borderTop: `1px solid ${BORDER_LIGHT}`, fontSize: 11, color: TEXT_MUTED }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#188038', fontWeight: 500 }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#188038', display: 'inline-block' }}></span>
-              Automatic Portal Sync Active
+              Live Mail & Reply Sync Active
             </div>
           </div>
         </div>
@@ -547,6 +673,20 @@ ${user?.designation || 'Staff'}`
                   + Create Template
                 </button>
               )}
+
+              <button
+                onClick={() => setShowWebhookModal(true)}
+                title="View incoming reply webhook instructions & payload schema for n8n"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  background: '#f5f3ff', color: '#7c3aed', border: '1px solid #ddd6fe', borderRadius: 8,
+                  padding: '7px 13px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  transition: 'background 0.15s'
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                Webhook Setup
+              </button>
             </div>
           </div>
 
@@ -649,24 +789,279 @@ ${user?.designation || 'Staff'}`
                 </div>
               )}
 
-              {/* Message Body Content */}
-              <div style={{ fontSize: 13.5, color: TEXT_MAIN, lineHeight: 1.7, whiteSpace: 'pre-wrap', fontFamily: 'monospace', background: '#fafbfc', padding: 24, borderRadius: 8, border: `1px solid ${BORDER_LIGHT}` }}>
-                {selectedEmail.body || '(No message content recorded)'}
+              {/* Original Message Card */}
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: TEXT_MUTED }}>
+                    {selectedEmail.direction === 'inbound' ? 'Initial Inbound Message' : 'Original Dispatched Message'}
+                  </span>
+                  <span style={{ fontSize: 11, color: TEXT_MUTED }}>
+                    {selectedEmail.createdAt ? new Date(selectedEmail.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : ''}
+                  </span>
+                </div>
+                <div style={{ fontSize: 13.5, color: TEXT_MAIN, lineHeight: 1.7, whiteSpace: 'pre-wrap', fontFamily: 'monospace', background: '#fafbfc', padding: 20, borderRadius: 8, border: `1px solid ${BORDER_LIGHT}` }}>
+                  {selectedEmail.body || '(No message content recorded)'}
+                </div>
               </div>
 
-              {/* Bottom Quick Reply Pill */}
-              <div style={{ marginTop: 24, display: 'flex', gap: 10 }}>
-                <button
-                  onClick={() => {
-                    setRecipientEmail(selectedEmail.fromEmail || 'hr@aotms.com');
-                    setSubject(`Re: ${selectedEmail.subject}`);
-                    setComposeOpen(true);
+              {/* ── REPLY STREAM: Notification Style Mail Cards ────────── */}
+              <div style={{ marginTop: 8, marginBottom: 24 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, paddingBottom: 8, borderBottom: `1px solid ${BORDER_LIGHT}` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: TEXT_MAIN }}>
+                      Conversation & Replies
+                    </span>
+                    <span style={{ fontSize: 11, fontWeight: 700, background: selectedEmail.replies?.length > 0 ? '#7c3aed' : '#e2e8f0', color: selectedEmail.replies?.length > 0 ? WHITE : TEXT_MUTED, padding: '2px 8px', borderRadius: 12 }}>
+                      {selectedEmail.replies?.length || 0}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: '#16a34a', fontWeight: 600 }}>
+                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#16a34a', display: 'inline-block' }}></span>
+                    Live Webhook Synced
+                  </div>
+                </div>
+
+                {/* List of Replies */}
+                {selectedEmail.replies && selectedEmail.replies.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {selectedEmail.replies.map((reply, idx) => {
+                      const isInbound = reply.direction === 'inbound' || reply.source === 'webhook' || reply.source === 'n8n_inbound';
+                      const senderInitial = (reply.senderName || reply.senderEmail || 'U')[0].toUpperCase();
+
+                      return (
+                        <div
+                          key={reply._id || idx}
+                          style={{
+                            borderRadius: 10,
+                            border: `1px solid ${isInbound ? '#ddd6fe' : '#bfdbfe'}`,
+                            borderLeft: `5px solid ${isInbound ? '#7c3aed' : '#1a73e8'}`,
+                            background: isInbound ? '#faf7ff' : '#f8fbff',
+                            padding: '14px 18px',
+                            boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+                            transition: 'box-shadow 0.15s'
+                          }}
+                        >
+                          {/* Notification Header */}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <div
+                                style={{
+                                  width: 32, height: 32, borderRadius: '50%',
+                                  background: isInbound ? '#7c3aed' : '#1a73e8',
+                                  color: WHITE, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  fontSize: 13, fontWeight: 700
+                                }}
+                              >
+                                {senderInitial}
+                              </div>
+                              <div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: TEXT_MAIN }}>
+                                  {reply.senderName || reply.senderEmail}
+                                  <span style={{ fontSize: 11.5, fontWeight: 400, color: TEXT_MUTED, marginLeft: 6 }}>
+                                    &lt;{reply.senderEmail}&gt;
+                                  </span>
+                                </div>
+                                <div style={{ fontSize: 11, color: TEXT_MUTED }}>
+                                  to: {reply.recipientEmail || selectedEmail.fromEmail || selectedEmail.recipientEmail}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span
+                                style={{
+                                  fontSize: 10.5, fontWeight: 700,
+                                  background: isInbound ? '#f3e8ff' : '#dbeafe',
+                                  color: isInbound ? '#6b21a8' : '#1e40af',
+                                  border: `1px solid ${isInbound ? '#e9d5ff' : '#bfdbfe'}`,
+                                  padding: '2px 8px', borderRadius: 12,
+                                  display: 'flex', alignItems: 'center', gap: 4
+                                }}
+                              >
+                                {isInbound ? (
+                                  <>
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+                                    Incoming Reply (n8n Webhook)
+                                  </>
+                                ) : (
+                                  <>
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                                    Sent Reply
+                                  </>
+                                )}
+                              </span>
+
+                              <span style={{ fontSize: 11, color: TEXT_MUTED }}>
+                                {reply.receivedAt ? new Date(reply.receivedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'Recently'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Reply Subject (if different or specified) */}
+                          {reply.subject && reply.subject !== selectedEmail.subject && (
+                            <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_MUTED, marginBottom: 6 }}>
+                              Subject: {reply.subject}
+                            </div>
+                          )}
+
+                          {/* Reply Message Body */}
+                          <div
+                            style={{
+                              fontSize: 13,
+                              color: '#1f2937',
+                              lineHeight: 1.65,
+                              whiteSpace: 'pre-wrap',
+                              fontFamily: 'inherit',
+                              background: WHITE,
+                              padding: '12px 16px',
+                              borderRadius: 6,
+                              border: `1px solid ${isInbound ? '#ede9fe' : '#e0e7ff'}`
+                            }}
+                          >
+                            {reply.body}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      padding: '18px 20px',
+                      background: '#f8fafc',
+                      borderRadius: 8,
+                      border: `1px dashed ${BORDER_LIGHT}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      color: TEXT_MUTED,
+                      fontSize: 12.5
+                    }}
+                  >
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    <div>
+                      <div style={{ fontWeight: 600, color: TEXT_MAIN }}>No replies recorded yet</div>
+                      <div>When the recipient replies via email or n8n webhook triggers an update, replies will appear right here automatically.</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ── INLINE REPLY COMPOSER ─────────────────────────────────── */}
+              <div
+                style={{
+                  marginTop: 'auto',
+                  background: '#f8fafd',
+                  border: `1px solid ${BORDER_LIGHT}`,
+                  borderRadius: 10,
+                  padding: 16,
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: TEXT_MAIN }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={GMAIL_BLUE} strokeWidth="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+                    Quick Reply in Thread
+                  </div>
+                  <span style={{ fontSize: 11.5, color: TEXT_MUTED }}>
+                    To: <strong style={{ color: TEXT_MAIN }}>
+                      {selectedEmail.direction === 'inbound'
+                        ? selectedEmail.fromEmail
+                        : (selectedEmail.recipientEmail || selectedEmail.fromEmail)}
+                    </strong>
+                  </span>
+                </div>
+
+                <textarea
+                  rows={3}
+                  placeholder={`Write your reply to ${selectedEmail.direction === 'inbound' ? selectedEmail.fromEmail : (selectedEmail.recipientEmail || selectedEmail.fromEmail)}...`}
+                  value={inlineReplyText}
+                  onChange={e => setInlineReplyText(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    border: `1px solid ${BORDER_LIGHT}`,
+                    borderRadius: 6,
+                    fontSize: 13,
+                    fontFamily: 'inherit',
+                    outline: 'none',
+                    resize: 'vertical',
+                    background: WHITE,
+                    boxSizing: 'border-box'
                   }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 18px', background: WHITE, border: `1px solid ${BORDER_LIGHT}`, borderRadius: 18, fontSize: 13, fontWeight: 500, cursor: 'pointer', color: TEXT_MAIN }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
-                  Reply
-                </button>
+                />
+
+                {replyError && (
+                  <div style={{ marginTop: 8, color: '#dc2626', fontSize: 12, fontWeight: 500 }}>
+                    ⚠️ {replyError}
+                  </div>
+                )}
+
+                {replySuccess && (
+                  <div style={{ marginTop: 8, color: '#16a34a', fontSize: 12, fontWeight: 600 }}>
+                    ✓ {replySuccess}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRecipientEmail(
+                        selectedEmail.direction === 'inbound'
+                          ? selectedEmail.fromEmail
+                          : (selectedEmail.recipientEmail || selectedEmail.fromEmail)
+                      );
+                      setSubject(selectedEmail.subject?.startsWith('Re:') ? selectedEmail.subject : `Re: ${selectedEmail.subject || ''}`);
+                      setBody(inlineReplyText || '');
+                      setComposeOpen(true);
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: GMAIL_BLUE,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4
+                    }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                    Open in Full Composer
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSendInlineReply}
+                    disabled={replying || !inlineReplyText.trim()}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '8px 20px',
+                      background: !inlineReplyText.trim() ? '#93c5fd' : GMAIL_BLUE,
+                      color: WHITE,
+                      border: 'none',
+                      borderRadius: 18,
+                      fontSize: 12.5,
+                      fontWeight: 600,
+                      cursor: !inlineReplyText.trim() || replying ? 'not-allowed' : 'pointer',
+                      transition: 'background 0.15s'
+                    }}
+                  >
+                    {replying ? (
+                      'Sending...'
+                    ) : (
+                      <>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                        Send Reply
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           ) : activeFolder === 'templates' ? (
@@ -733,24 +1128,30 @@ ${user?.designation || 'Staff'}`
                 <div>
                   {displayedLogs.map(log => {
                     const isStarred = starredEmails.has(log._id || log.id);
+                    const isUnread = log.isRead === false;
+                    const hasReplies = log.replies && log.replies.length > 0;
+                    const isInbound = log.direction === 'inbound';
+
                     return (
                       <div
                         key={log._id || log.id}
-                        onClick={() => setSelectedEmail(log)}
+                        onClick={() => handleSelectEmail(log)}
                         style={{
                           display: 'flex', alignItems: 'center',
                           padding: '10px 20px',
                           borderBottom: `1px solid #f1f3f4`,
                           cursor: 'pointer',
-                          background: WHITE,
+                          background: isUnread ? '#f5f8ff' : WHITE,
+                          fontWeight: isUnread ? 700 : 400,
                           transition: 'background 0.15s, box-shadow 0.15s',
+                          borderLeft: isUnread ? `4px solid ${GMAIL_BLUE}` : '4px solid transparent'
                         }}
                         onMouseEnter={e => {
-                          e.currentTarget.style.background = ROW_HOVER;
+                          e.currentTarget.style.background = isUnread ? '#edf3fd' : ROW_HOVER;
                           e.currentTarget.style.boxShadow = 'inset 1px 0 0 #dadce0, inset -1px 0 0 #dadce0, 0 1px 2px rgba(60,64,67,0.15)';
                         }}
                         onMouseLeave={e => {
-                          e.currentTarget.style.background = WHITE;
+                          e.currentTarget.style.background = isUnread ? '#f5f8ff' : WHITE;
                           e.currentTarget.style.boxShadow = 'none';
                         }}
                       >
@@ -766,13 +1167,22 @@ ${user?.designation || 'Staff'}`
                         </div>
 
                         {/* Recipient / Sender Name */}
-                        <div style={{ width: 190, minWidth: 160, fontWeight: 600, fontSize: 13, color: TEXT_MAIN, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {activeFolder === 'admin_audit' ? (log.senderName || 'Staff') : `To: ${log.recipientEmail || log.recipient}`}
+                        <div style={{ width: 200, minWidth: 170, fontWeight: isUnread ? 700 : 600, fontSize: 13, color: TEXT_MAIN, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {isInbound ? (
+                            <>
+                              <span style={{ fontSize: 9.5, fontWeight: 700, background: '#f3e8ff', color: '#7c3aed', padding: '1px 5px', borderRadius: 3, border: '1px solid #ddd6fe' }}>IN</span>
+                              <span>{log.senderName || log.fromEmail}</span>
+                            </>
+                          ) : activeFolder === 'admin_audit' ? (
+                            log.senderName || 'Staff'
+                          ) : (
+                            <span>To: {log.recipientEmail || log.recipient}</span>
+                          )}
                         </div>
 
-                        {/* Subject + Body Snippet (Gmail signature style) */}
+                        {/* Subject + Body Snippet */}
                         <div style={{ flex: 1, display: 'flex', alignItems: 'center', minWidth: 0, marginRight: 20 }}>
-                          <span style={{ fontSize: 13, fontWeight: 600, color: TEXT_MAIN, whiteSpace: 'nowrap' }}>
+                          <span style={{ fontSize: 13, fontWeight: isUnread ? 700 : 600, color: TEXT_MAIN, whiteSpace: 'nowrap' }}>
                             {log.subject || '(No subject)'}
                           </span>
                           <span style={{ fontSize: 13, color: TEXT_MUTED, marginLeft: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -780,9 +1190,27 @@ ${user?.designation || 'Staff'}`
                           </span>
                         </div>
 
+                        {/* Reply Count Badge */}
+                        {hasReplies && (
+                          <span
+                            title={`${log.replies.length} reply message(s) in this thread`}
+                            style={{
+                              fontSize: 11, fontWeight: 700,
+                              color: '#6b21a8', background: '#f5f3ff',
+                              border: '1px solid #ddd6fe',
+                              padding: '2px 8px', borderRadius: 12,
+                              marginRight: 10, flexShrink: 0,
+                              display: 'flex', alignItems: 'center', gap: 4
+                            }}
+                          >
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                            {log.replies.length}
+                          </span>
+                        )}
+
                         {/* Category Tag if leave request */}
                         {log.isLeaveRequest && (
-                          <span style={{ fontSize: 10.5, fontWeight: 600, color: ORANGE_PRIMARY, background: ORANGE_LIGHT, border: `1px solid ${ORANGE_BORDER}`, padding: '2px 8px', borderRadius: 4, marginRight: 14, flexShrink: 0 }}>
+                          <span style={{ fontSize: 10.5, fontWeight: 600, color: ORANGE_PRIMARY, background: ORANGE_LIGHT, border: `1px solid ${ORANGE_BORDER}`, padding: '2px 8px', borderRadius: 4, marginRight: 10, flexShrink: 0 }}>
                             Leave
                           </span>
                         )}
@@ -799,7 +1227,7 @@ ${user?.designation || 'Staff'}`
                         )}
 
                         {/* Date / Time */}
-                        <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_MUTED, whiteSpace: 'nowrap', textAlign: 'right', minWidth: 70 }}>
+                        <div style={{ fontSize: 12, fontWeight: isUnread ? 700 : 500, color: isUnread ? TEXT_MAIN : TEXT_MUTED, whiteSpace: 'nowrap', textAlign: 'right', minWidth: 70 }}>
                           {log.createdAt ? formatGmailDate(log.createdAt) : 'Today'}
                         </div>
                       </div>
@@ -1093,6 +1521,120 @@ ${user?.designation || 'Staff'}`
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── 6. INCOMING WEBHOOK SETUP MODAL (FOR N8N & AUTOMATIONS) ────── */}
+      {showWebhookModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(32,33,36,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: 16 }}>
+          <div style={{ background: WHITE, borderRadius: 14, width: 620, maxWidth: '96%', maxHeight: '90vh', overflowY: 'auto', padding: 26, boxShadow: '0 12px 36px rgba(0,0,0,0.25)', border: `1px solid ${BORDER_LIGHT}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: '#f5f3ff', color: '#7c3aed', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                </div>
+                <div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: TEXT_MAIN }}>Incoming Reply Webhook for n8n</div>
+                  <div style={{ fontSize: 12, color: TEXT_MUTED }}>Real-time message synchronization with automated thread linking</div>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowWebhookModal(false)}
+                style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: TEXT_MUTED, padding: 4 }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Notification explanation banner */}
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '12px 16px', marginBottom: 18, fontSize: 12.5, color: '#334155', lineHeight: 1.6 }}>
+              ⚡ <strong>How it works:</strong> Whenever an external recipient replies to your email, n8n (or any email trigger node) can send an HTTP POST request to this endpoint. The CRM automatically matches the thread by subject and sender, appending the incoming reply directly into the conversation stream in <strong>message notification style</strong>.
+            </div>
+
+            {/* Endpoint block */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: TEXT_MAIN, display: 'block', marginBottom: 6 }}>
+                Webhook Endpoint URL
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, background: '#22c55e', color: WHITE, padding: '6px 10px', borderRadius: 6 }}>
+                  POST
+                </span>
+                <input
+                  readOnly
+                  value={`${window.location.origin}/api/email/inbound-reply`}
+                  style={{ flex: 1, padding: '8px 12px', border: `1px solid ${BORDER_LIGHT}`, borderRadius: 6, fontSize: 12.5, fontFamily: 'monospace', background: '#f8f9fa', outline: 'none' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}/api/email/inbound-reply`);
+                    alert('Endpoint URL copied to clipboard!');
+                  }}
+                  style={{ padding: '8px 14px', background: GMAIL_BLUE, color: WHITE, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Copy URL
+                </button>
+              </div>
+            </div>
+
+            {/* Payload Schema for n8n */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <label style={{ fontSize: 12, fontWeight: 700, color: TEXT_MAIN }}>
+                  Expected JSON Payload (n8n HTTP Request / Webhook Node)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const sample = JSON.stringify({
+                      from: "client@example.com",
+                      to: "support@company.com",
+                      subject: "Re: Your Email Subject",
+                      body: "Hello, this is my reply to your email.",
+                      senderName: "Client Name"
+                    }, null, 2);
+                    navigator.clipboard.writeText(sample);
+                    alert('Sample JSON copied to clipboard!');
+                  }}
+                  style={{ background: 'none', border: 'none', color: GMAIL_BLUE, fontSize: 11.5, fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Copy Sample JSON
+                </button>
+              </div>
+              <pre style={{ background: '#1e293b', color: '#f8fafc', padding: '14px 16px', borderRadius: 8, fontSize: 12, lineHeight: 1.5, overflowX: 'auto', fontFamily: 'monospace', margin: 0 }}>
+{`{
+  "from": "client@example.com",
+  "to": "support@company.com",
+  "subject": "Re: Project Discussion",
+  "body": "Thank you for the message. I agree with the proposal and would like to move forward.",
+  "senderName": "Client Name"
+}`}
+              </pre>
+            </div>
+
+            {/* Field breakdown */}
+            <div style={{ background: '#fcfcfc', border: `1px solid ${BORDER_LIGHT}`, borderRadius: 8, padding: 14, marginBottom: 20, fontSize: 12 }}>
+              <div style={{ fontWeight: 700, color: TEXT_MAIN, marginBottom: 8 }}>Field Reference:</div>
+              <ul style={{ margin: 0, paddingLeft: 18, color: TEXT_MUTED, lineHeight: 1.6 }}>
+                <li><strong style={{ color: TEXT_MAIN }}>from</strong> (string, required): The email address of the person replying.</li>
+                <li><strong style={{ color: TEXT_MAIN }}>to</strong> (string, optional): Your email or CRM recipient address.</li>
+                <li><strong style={{ color: TEXT_MAIN }}>subject</strong> (string, required): The email subject (e.g. <code>Re: Project Discussion</code>).</li>
+                <li><strong style={{ color: TEXT_MAIN }}>body</strong> (string, required): The body of the reply message.</li>
+                <li><strong style={{ color: TEXT_MAIN }}>senderName</strong> (string, optional): Display name of the sender.</li>
+              </ul>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => setShowWebhookModal(false)}
+                style={{ padding: '8px 20px', background: GMAIL_BLUE, color: WHITE, border: 'none', borderRadius: 8, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -286,6 +286,8 @@ router.post('/send', protect, async (req, res) => {
         errorMessage: finalErrorMsg,
         isLeaveRequest: isLeave,
         trackedByMD: true,
+        direction: 'outbound',
+        isRead: true,
         n8nDetails: n8nDetails || (n8nError ? n8nError.raw : null)
       });
     } catch (logErr) {
@@ -325,7 +327,208 @@ router.post('/send', protect, async (req, res) => {
   }
 });
 
-// GET /api/email/logs — Fetch email history. MD/Executive tracks all staff; staff sees own logs
+// POST /api/email/reply — Send reply in a thread from EmailCRM reading pane
+router.post('/reply', protect, async (req, res) => {
+  try {
+    const { emailId, body, toEmail, subject } = req.body;
+    if (!emailId || !body || !body.trim()) {
+      return res.status(400).json({ message: 'Parent Email ID and reply body are required.' });
+    }
+
+    const parentLog = await EmailLog.findById(emailId);
+    if (!parentLog) {
+      return res.status(404).json({ message: 'Original email thread not found.' });
+    }
+
+    const replyRecipient = (toEmail || parentLog.recipientEmail || parentLog.fromEmail || '').trim();
+    const replySubject = subject || (parentLog.subject.startsWith('Re:') ? parentLog.subject : `Re: ${parentLog.subject}`);
+    const senderEmail = req.user?.email || parentLog.fromEmail || 'hr@aotms.com';
+    const replyBody = body.trim();
+
+    let success = false;
+    let sentVia = 'n8n Automation Webhook';
+    let n8nDetails = null;
+
+    // 1. Try n8n webhook
+    if (process.env.N8N_WEBHOOK_URL) {
+      try {
+        const n8nRes = await axios.post(process.env.N8N_WEBHOOK_URL, {
+          event: 'email:reply',
+          payload: {
+            parentEmailId: parentLog._id,
+            fromEmail: senderEmail,
+            senderEmail,
+            recipientEmail: replyRecipient,
+            toEmail: replyRecipient,
+            subject: replySubject,
+            emailBody: replyBody,
+            body: replyBody,
+            sentBy: req.user?.name || req.user?.email || 'Staff',
+            timestamp: new Date().toISOString()
+          }
+        }, { timeout: 15000 });
+        success = true;
+        n8nDetails = n8nRes.data;
+      } catch (err) {
+        console.warn('[Email Reply Webhook Warning]:', err.message);
+      }
+    }
+
+    // 2. SMTP fallback
+    if (!success && process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+      try {
+        const nodemailer = require('nodemailer');
+        const transporter = nodemailer.createTransport({
+          host: process.env.SMTP_HOST,
+          port: Number(process.env.SMTP_PORT || 587),
+          secure: Number(process.env.SMTP_PORT) === 465,
+          auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS,
+          },
+        });
+
+        await transporter.sendMail({
+          from: `"${req.user?.name || 'AOTMS HR'}" <${senderEmail}>`,
+          to: replyRecipient,
+          replyTo: senderEmail,
+          subject: replySubject,
+          text: replyBody,
+        });
+        sentVia = 'SMTP Mailer';
+        success = true;
+      } catch (smtpErr) {
+        console.warn('[Reply SMTP Warning]:', smtpErr.message);
+      }
+    }
+
+    const replyEntry = {
+      senderEmail,
+      senderName: req.user?.name || 'Staff',
+      recipientEmail: replyRecipient,
+      subject: replySubject,
+      body: replyBody,
+      direction: 'outbound',
+      receivedAt: new Date(),
+      source: 'email_crm_reply',
+      n8nDetails
+    };
+
+    parentLog.replies.push(replyEntry);
+    await parentLog.save();
+
+    res.json({
+      success: true,
+      message: `Reply sent successfully to ${replyRecipient}`,
+      reply: replyEntry,
+      updatedLog: parentLog
+    });
+  } catch (err) {
+    console.error('[Email Reply Error]:', err);
+    res.status(500).json({ message: 'Failed to send reply: ' + err.message });
+  }
+});
+
+// POST /api/email/inbound-reply — Webhook for n8n to ingest incoming replies and incoming emails
+router.post('/inbound-reply', async (req, res) => {
+  try {
+    const data = req.body.payload || req.body.body || req.body;
+    const from = (data.from || data.fromEmail || data.senderEmail || data.sender || '').trim();
+    const to = (data.to || data.toEmail || data.recipientEmail || data.recipient || '').trim();
+    const rawSubject = (data.subject || data.title || 'Re: No Subject').trim();
+    const bodyContent = (data.body || data.text || data.html || data.message || data.content || '').trim();
+    const senderName = (data.senderName || data.name || from.split('@')[0] || 'External Contact').trim();
+    const parentEmailId = data.parentEmailId || data.threadId || null;
+
+    if (!from || !bodyContent) {
+      return res.status(400).json({ message: 'Sender email (from) and message body are required' });
+    }
+
+    console.log(`[INBOUND EMAIL WEBHOOK] Received email from ${from} to ${to} subject: "${rawSubject}"`);
+
+    // Clean subject to match original thread (e.g. "Re: Leave Application" -> "Leave Application")
+    const normalizedSubject = rawSubject.replace(/^(re|fwd|fw|aw|antw):\s*/i, '').trim();
+
+    let parentLog = null;
+
+    if (parentEmailId) {
+      try {
+        parentLog = await EmailLog.findById(parentEmailId);
+      } catch (_) {}
+    }
+
+    if (!parentLog && normalizedSubject) {
+      // Find latest matching outbound email by subject and participant email
+      parentLog = await EmailLog.findOne({
+        $or: [
+          { subject: new RegExp(normalizedSubject.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i') },
+          { recipientEmail: new RegExp(from, 'i') },
+          { fromEmail: new RegExp(to, 'i') }
+        ]
+      }).sort({ createdAt: -1 });
+    }
+
+    const replySubDoc = {
+      senderEmail: from,
+      senderName,
+      recipientEmail: to,
+      subject: rawSubject,
+      body: bodyContent,
+      direction: 'inbound',
+      receivedAt: new Date(),
+      source: 'n8n_inbound_webhook',
+      n8nDetails: data
+    };
+
+    if (parentLog) {
+      parentLog.replies.push(replySubDoc);
+      parentLog.isRead = false; // Mark unread notification for user
+      await parentLog.save();
+    }
+
+    // Also create standalone Inbound EmailLog so it appears in the Inbox view
+    const newInboundLog = await EmailLog.create({
+      sender: parentLog?.sender || null,
+      senderName,
+      senderEmail: from,
+      senderDesignation: 'External / Reply',
+      fromEmail: from,
+      recipientEmail: to || 'hr@aotms.com',
+      subject: rawSubject,
+      body: bodyContent,
+      templateId: parentLog?.templateId || 'inbound_reply',
+      sentVia: 'n8n Inbound Webhook',
+      status: 'Received',
+      direction: 'inbound',
+      isReply: true,
+      parentEmail: parentLog?._id || null,
+      isRead: false,
+      n8nDetails: data
+    });
+
+    res.json({
+      success: true,
+      message: 'Inbound reply processed and saved to thread',
+      logId: newInboundLog._id,
+      parentThreadId: parentLog?._id || null
+    });
+  } catch (err) {
+    console.error('[INBOUND EMAIL WEBHOOK ERROR]:', err);
+    res.status(500).json({ message: 'Error processing inbound reply: ' + err.message });
+  }
+});
+
+// PATCH /api/email/logs/:id/read — Mark email thread as read
+router.patch('/logs/:id/read', protect, async (req, res) => {
+  try {
+    const log = await EmailLog.findByIdAndUpdate(req.params.id, { isRead: true }, { new: true });
+    res.json({ success: true, log });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// GET /api/email/logs — Fetch email history. MD/Executive tracks all staff; staff sees own logs + incoming replies
 router.get('/logs', protect, async (req, res) => {
   try {
     const userDesig = String(req.user?.designation || '').trim().toUpperCase();
@@ -333,24 +536,42 @@ router.get('/logs', protect, async (req, res) => {
 
     const filter = {};
     if (!isMD) {
-      filter.sender = req.user._id;
+      filter.$or = [
+        { sender: req.user._id },
+        { recipientEmail: new RegExp(`^${req.user.email}$`, 'i') },
+        { fromEmail: new RegExp(`^${req.user.email}$`, 'i') }
+      ];
     } else if (req.query.employeeId && req.query.employeeId !== 'all') {
       filter.sender = req.query.employeeId;
     }
 
     if (req.query.search) {
       const s = req.query.search.trim();
-      filter.$or = [
-        { recipientEmail: new RegExp(s, 'i') },
-        { fromEmail: new RegExp(s, 'i') },
-        { subject: new RegExp(s, 'i') },
-        { senderName: new RegExp(s, 'i') }
+      const searchRegex = new RegExp(s, 'i');
+      const searchCond = [
+        { recipientEmail: searchRegex },
+        { fromEmail: searchRegex },
+        { subject: searchRegex },
+        { senderName: searchRegex },
+        { 'replies.body': searchRegex },
+        { 'replies.senderName': searchRegex }
       ];
+
+      if (filter.$or) {
+        filter.$and = [{ $or: filter.$or }, { $or: searchCond }];
+        delete filter.$or;
+      } else {
+        filter.$or = searchCond;
+      }
     }
 
     const logs = await EmailLog.find(filter)
-      .sort({ createdAt: -1 })
+      .sort({ updatedAt: -1, createdAt: -1 })
       .limit(200);
+
+    const totalSent = logs.filter(l => l.direction === 'outbound').length;
+    const totalInbox = logs.filter(l => l.direction === 'inbound' || (l.replies && l.replies.length > 0)).length;
+    const unreadCount = logs.filter(l => l.isRead === false).length;
 
     // Compute stats for Managing Director
     let stats = null;
@@ -367,7 +588,9 @@ router.get('/logs', protect, async (req, res) => {
         totalSent: totalCount,
         todaySent: todayCount,
         leaveRequests: leaveCount,
-        activeSenders: uniqueSenders.length
+        activeSenders: uniqueSenders.length,
+        totalInbox,
+        unreadCount
       };
     }
 
@@ -375,6 +598,9 @@ router.get('/logs', protect, async (req, res) => {
       success: true,
       isManagingDirector: isMD,
       stats,
+      unreadCount,
+      totalInbox,
+      totalSent,
       logs
     });
   } catch (err) {
