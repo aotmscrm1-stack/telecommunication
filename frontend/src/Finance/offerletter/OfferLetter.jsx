@@ -373,41 +373,41 @@ export const OfferLetterDocument = forwardRef(({ invoiceData = {}, isPreview = f
       <div className="offer-letter-page" style={pageContainerStyle}>
         <div style={{ position: 'absolute', top: 12, right: 16, fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>Page 3 of 4</div>
 
-        <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 18, textDecoration: 'underline', marginBottom: 24, marginTop: 4, letterSpacing: '0.5px' }}>
+        <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 19, textDecoration: 'underline', marginBottom: 26, marginTop: 4, letterSpacing: '0.5px' }}>
           TERMS & CONDITIONS OF EMPLOYMENT
         </div>
 
-        <div style={{ lineHeight: 1.82, fontSize: 15, color: '#1f2937' }}>
-          <div style={{ marginBottom: 22 }}>
-            <div style={{ fontSize: 15.8, fontWeight: 700, marginBottom: 6 }}>1. Probation & Confirmation</div>
+        <div style={{ lineHeight: 1.85, fontSize: 15.8, color: '#1f2937' }}>
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: 16.8, fontWeight: 700, marginBottom: 6 }}>1. Probation & Confirmation</div>
             <p style={{ margin: '0', textAlign: 'justify' }}>
               Your probation period will be from {probationPeriod}. During this probation period, your performance, technical proficiency, attendance, and professional conduct will be continuously evaluated by management. Upon successful completion of probation, your employment with the company will be confirmed in writing. Management reserves the right to extend the probation period if deemed necessary.
             </p>
           </div>
 
-          <div style={{ marginBottom: 22 }}>
-            <div style={{ fontSize: 15.8, fontWeight: 700, marginBottom: 6 }}>2. Work Timings & Hours</div>
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: 16.8, fontWeight: 700, marginBottom: 6 }}>2. Work Timings & Hours</div>
             <p style={{ margin: '0', textAlign: 'justify' }}>
               Your standard work timings will be {workTimings}, Monday through Saturday. You may be required to work additional hours or shifts depending on operational, client delivery, or project milestones.
             </p>
           </div>
 
-          <div style={{ marginBottom: 22 }}>
-            <div style={{ fontSize: 15.8, fontWeight: 700, marginBottom: 6 }}>3. Leave Policy & Public Holidays</div>
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: 16.8, fontWeight: 700, marginBottom: 6 }}>3. Leave Policy & Public Holidays</div>
             <p style={{ margin: '0', textAlign: 'justify' }}>
               You will be entitled to paid leave and public holidays in accordance with the Company HR Leave Policy. Unauthorized absence exceeding 3 consecutive working days without prior approval will be considered abandonment of employment and subject to disciplinary action.
             </p>
           </div>
 
-          <div style={{ marginBottom: 22 }}>
-            <div style={{ fontSize: 15.8, fontWeight: 700, marginBottom: 6 }}>4. Confidentiality & Non-Disclosure (NDA)</div>
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: 16.8, fontWeight: 700, marginBottom: 6 }}>4. Confidentiality & Non-Disclosure (NDA)</div>
             <p style={{ margin: '0', textAlign: 'justify' }}>
               You shall maintain strict confidentiality regarding all company proprietary software, source codes, database schemas, client contracts, trade secrets, financial records, and operational strategies. You shall not disclose, duplicate, or transfer any company data or intellectual property to any third party during or after your employment.
             </p>
           </div>
 
-          <div style={{ marginBottom: 22 }}>
-            <div style={{ fontSize: 15.8, fontWeight: 700, marginBottom: 6 }}>5. Professional Conduct & Conflict of Interest</div>
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: 16.8, fontWeight: 700, marginBottom: 6 }}>5. Professional Conduct & Conflict of Interest</div>
             <p style={{ margin: '0', textAlign: 'justify' }}>
               During your employment with AOTMS Global Private Limited, you shall devote your full business time, attention, and effort to company duties. You shall not engage in any secondary employment, freelancing, consulting, or business activities that conflict with the company's business interests.
             </p>
