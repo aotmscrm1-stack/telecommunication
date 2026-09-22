@@ -756,17 +756,37 @@ ${user?.designation || 'Staff'}`
                     <div style={{ fontSize: 12, color: TEXT_MUTED }}>
                       {selectedEmail.createdAt ? new Date(selectedEmail.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'Recently'}
                     </div>
-                    <span
-                      style={{
-                        fontSize: 11, fontWeight: 600,
-                        color: selectedEmail.status === 'Failed' ? '#dc2626' : '#16a34a',
-                        background: selectedEmail.status === 'Failed' ? '#fef2f2' : '#f0fdf4',
-                        border: `1px solid ${selectedEmail.status === 'Failed' ? '#fecaca' : '#bbf7d0'}`,
-                        padding: '2px 8px', borderRadius: 10, display: 'inline-block', marginTop: 4
-                      }}
-                    >
-                      {selectedEmail.status || 'Delivered'}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const el = document.getElementById('inline-reply-textarea');
+                          if (el) {
+                            el.focus();
+                            el.scrollIntoView({ behavior: 'smooth' });
+                          }
+                        }}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 5,
+                          padding: '3px 10px', background: WHITE, border: `1px solid ${BORDER_LIGHT}`,
+                          borderRadius: 14, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', color: GMAIL_BLUE
+                        }}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+                        Reply
+                      </button>
+                      <span
+                        style={{
+                          fontSize: 11, fontWeight: 600,
+                          color: selectedEmail.status === 'Failed' ? '#dc2626' : '#16a34a',
+                          background: selectedEmail.status === 'Failed' ? '#fef2f2' : '#f0fdf4',
+                          border: `1px solid ${selectedEmail.status === 'Failed' ? '#fecaca' : '#bbf7d0'}`,
+                          padding: '2px 8px', borderRadius: 10, display: 'inline-block'
+                        }}
+                      >
+                        {selectedEmail.status || 'Delivered'}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -974,6 +994,7 @@ ${user?.designation || 'Staff'}`
                 </div>
 
                 <textarea
+                  id="inline-reply-textarea"
                   rows={3}
                   placeholder={`Write your reply to ${selectedEmail.direction === 'inbound' ? selectedEmail.fromEmail : (selectedEmail.recipientEmail || selectedEmail.fromEmail)}...`}
                   value={inlineReplyText}

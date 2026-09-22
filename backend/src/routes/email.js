@@ -352,25 +352,40 @@ router.post('/reply', protect, async (req, res) => {
     // 1. Try n8n webhook
     if (process.env.N8N_WEBHOOK_URL) {
       try {
+        console.log(`[EMAIL REPLY] Disagreeing event to email:send for n8n switch node to ${process.env.N8N_WEBHOOK_URL} for ${replyRecipient}`);
         const n8nRes = await axios.post(process.env.N8N_WEBHOOK_URL, {
-          event: 'email:reply',
+          event: 'email:send', // Match n8n Switch node rule: "email:send"
           payload: {
             parentEmailId: parentLog._id,
             fromEmail: senderEmail,
             senderEmail,
+            from: senderEmail,
             recipientEmail: replyRecipient,
+            receiptEmail: replyRecipient,
             toEmail: replyRecipient,
+            to: replyRecipient,
             subject: replySubject,
             emailBody: replyBody,
             body: replyBody,
+            message: replyBody,
+            isReply: true,
             sentBy: req.user?.name || req.user?.email || 'Staff',
             timestamp: new Date().toISOString()
           }
         }, { timeout: 15000 });
-        success = true;
-        n8nDetails = n8nRes.data;
+
+        const d = n8nRes.data;
+        if (d && (d.errorMessage || d.error || d.status === 'error' || d.success === false)) {
+          const errMsg = d.errorMessage || (typeof d.error === 'string' ? d.error : JSON.stringify(d.error)) || d.message || 'n8n workflow error';
+          console.warn('[Email Reply n8n Warning]:', errMsg);
+          n8nDetails = d;
+        } else {
+          success = true;
+          sentVia = 'n8n Automation Webhook';
+          n8nDetails = d || null;
+        }
       } catch (err) {
-        console.warn('[Email Reply Webhook Warning]:', err.message);
+        console.error('[Email Reply Webhook Error]:', err.response?.data || err.message);
       }
     }
 
