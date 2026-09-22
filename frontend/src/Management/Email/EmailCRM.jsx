@@ -1431,9 +1431,9 @@ ${user?.designation || 'Staff'}`
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 700, color: '#b91c1c' }}>n8n Webhook Dispatch Error Detected:</div>
                       <div style={{ marginTop: 2, fontWeight: 500 }}>{sentError}</div>
-                      {/access token|token|gmail|credential/i.test(sentError) && (
+                      {/not registered|404|inactive/i.test(sentError) && (
                         <div style={{ marginTop: 6, padding: '6px 10px', background: '#fee2e2', borderRadius: 4, fontSize: 11.5, color: '#7f1d1d' }}>
-                          💡 <strong>Action Required:</strong> The Gmail OAuth2 credential is disconnected or expired in n8n. Please open your n8n workflow (<strong>AOTMS CRM - WhatsApp & HR Email Automation</strong>), double-click <strong>Send HR Email (Gmail)</strong>, and click <strong>Reconnect</strong> to authorize with Google.
+                          💡 <strong>Action Required:</strong> The n8n workflow is currently <strong>Inactive (OFF)</strong>. Whenever you edit or paste a workflow in n8n, it switches to Inactive. Please open n8n and toggle the <strong>Active switch to ON</strong> (or click <strong>Publish</strong>) in the top-right corner!
                         </div>
                       )}
                     </div>

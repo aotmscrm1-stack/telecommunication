@@ -210,6 +210,9 @@ router.post('/send', protect, async (req, res) => {
             if (rData.errorMessage) extractedMsg = rData.errorMessage;
             else if (rData.message) extractedMsg = rData.message;
             else if (rData.error) extractedMsg = typeof rData.error === 'string' ? rData.error : JSON.stringify(rData.error);
+            if (rData.hint) {
+              extractedMsg = `${extractedMsg} (${rData.hint})`;
+            }
             else if (rData.errorDetails?.rawErrorMessage) {
               extractedMsg = Array.isArray(rData.errorDetails.rawErrorMessage)
                 ? rData.errorDetails.rawErrorMessage.join('; ')
