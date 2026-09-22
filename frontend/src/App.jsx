@@ -34,6 +34,7 @@ import PermissionTemplates from './pages/PermissionTemplates';
 import Billing from './pages/Billing';
 import Payslip from './Finance/Payslip';
 import Invoice from './Finance/Invoice';
+import OfferLetter from './Finance/offerletter/OfferLetter';
 import Landing from './pages/landing_pages/Landing';
 import LiveEmployeeTracking from './Management/Attedence/LiveEmployee/LiveEmployeeTracking';
 import AttendanceRecords from './Management/Attedence/AttendanceRecords';
@@ -153,7 +154,7 @@ export default function App() {
             <Route path="my-preferences" element={<MyPreferences />} />
             <Route path="whatsapp" element={<StaffRestrictedRoute><WhatsApp /></StaffRestrictedRoute>} />
             <Route path="email" element={<EmailCRM />} />
-            <Route path="offer-letter" element={<AdminRoute><Invoice /></AdminRoute>} />
+            <Route path="offer-letter" element={<AdminRoute><OfferLetter /></AdminRoute>} />
             <Route path="payslips" element={<AdminRoute><Payslip /></AdminRoute>} />
             <Route path="payslip" element={<Navigate to="/payslips" replace />} />
             <Route path="quotation" element={<AdminRoute><Invoice /></AdminRoute>} />
