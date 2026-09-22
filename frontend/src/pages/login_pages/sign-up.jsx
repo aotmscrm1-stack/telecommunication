@@ -504,24 +504,28 @@ body.lamp-page-active {
 .phone-prefix-tag {
   position: absolute;
   left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
+  bottom: 13px;
+  height: 20px;
+  display: flex;
+  align-items: center;
   font-size: 14px;
   font-weight: 700;
   color: #94a3b8;
   pointer-events: none;
   user-select: none;
   z-index: 5;
+  transform: translateZ(10px);
 }
 
-.phone-input-field {
-  padding-left: 50px !important;
+.field input.phone-input-field,
+.field input.has-prefix {
+  padding-left: 52px !important;
   letter-spacing: 0.06em;
   cursor: text !important;
   user-select: text !important;
 }
 
-/* Eye toggle button (exact Login.jsx implementation) */
+/* Eye toggle button (exact Login.jsx implementation with 3D depth) */
 .eye-toggle {
   position: absolute;
   right: 10px;
@@ -536,19 +540,28 @@ body.lamp-page-active {
   align-items: center;
   justify-content: center;
   color: #94a3b8;
-  transition: color .2s ease, background .2s ease;
-  z-index: 3;
+  transition: color .2s ease, background .2s ease, transform .2s ease;
+  z-index: 20;
+  transform: translateZ(35px);
   padding: 0;
   margin: 0;
   line-height: 1;
 }
 .eye-toggle:hover {
   color: var(--orange-bright);
-  background: rgba(249, 115, 22, 0.12);
+  background: rgba(249, 115, 22, 0.15);
+  transform: translateZ(40px) scale(1.05);
 }
-.eye-toggle:active { transform: scale(0.94); }
-.eye-toggle:focus { outline: none; color: var(--orange-bright); }
-.eye-toggle svg { pointer-events: none; }
+.eye-toggle:active {
+  transform: translateZ(32px) scale(0.94);
+}
+.eye-toggle:focus {
+  outline: none;
+  color: var(--orange-bright);
+}
+.eye-toggle svg {
+  pointer-events: none;
+}
 
 /* Glowing focus dot */
 .field::after {
@@ -1541,28 +1554,26 @@ export default function SignUp() {
                 </div>
 
                 {/* Contact Number: Strictly 10 digits allowed, prefix has pointer-events: none */}
-                <div className="field">
+                <div className="field field-with-prefix">
                   <label htmlFor="ph">
                     <span>Contact Number (10 Digits) *</span>
                     <span style={{ fontSize: '10px', color: formData.phone.length === 10 ? '#22c55e' : '#94a3b8' }}>
                       {formData.phone.length}/10 {formData.phone.length === 10 ? '✓' : ''}
                     </span>
                   </label>
-                  <div style={{ position: 'relative' }}>
-                    <span className="phone-prefix-tag">
-                      +91
-                    </span>
-                    <input
-                      id="ph"
-                      type="tel"
-                      className="phone-input-field"
-                      placeholder="9876543210"
-                      value={formData.phone}
-                      onChange={handlePhoneChange}
-                      maxLength={10}
-                      required
-                    />
-                  </div>
+                  <span className="phone-prefix-tag">
+                    +91
+                  </span>
+                  <input
+                    id="ph"
+                    type="tel"
+                    className="has-prefix phone-input-field"
+                    placeholder="9876543210"
+                    value={formData.phone}
+                    onChange={handlePhoneChange}
+                    maxLength={10}
+                    required
+                  />
                 </div>
 
                 <button type="submit" className="sign-in-btn">
@@ -1605,6 +1616,7 @@ export default function SignUp() {
                     type="button"
                     className="eye-toggle"
                     onClick={() => setShowPassword((v) => !v)}
+                    onMouseDown={(e) => e.preventDefault()}
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? <EyeOffIcon /> : <EyeIcon />}
@@ -1626,6 +1638,7 @@ export default function SignUp() {
                     type="button"
                     className="eye-toggle"
                     onClick={() => setShowConfirmPassword((v) => !v)}
+                    onMouseDown={(e) => e.preventDefault()}
                     aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
                   >
                     {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
