@@ -50,9 +50,9 @@ export default function EmailCRM() {
   const [composeMinimized, setComposeMinimized] = useState(false);
   const [composeMaximized, setComposeMaximized] = useState(false);
 
-  // Compose Fields: From & To are both editable
-  const [fromEmail, setFromEmail] = useState(user?.email || 'user@aotms.com');
-  const [recipientEmail, setRecipientEmail] = useState('hr@aotms.com');
+  // Compose Fields: From & To are both editable for ANY customer email
+  const [fromEmail, setFromEmail] = useState(user?.email || '');
+  const [recipientEmail, setRecipientEmail] = useState('');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
 
@@ -105,7 +105,9 @@ export default function EmailCRM() {
     const empPhone = u?.phone || '+91 9876543210';
 
     setSelectedTemplateId(tmpl.id);
-    if (!recipientEmail) setRecipientEmail('hr@aotms.com');
+    if (tmpl.id === 'leave_template' && !recipientEmail) {
+      setRecipientEmail('hr@aotms.com');
+    }
 
     let subj = tmpl.subject || '';
     subj = subj
@@ -1359,7 +1361,7 @@ ${user?.designation || 'Staff'}`
                 <input
                   value={recipientEmail}
                   onChange={e => setRecipientEmail(e.target.value)}
-                  placeholder="Recipients"
+                  placeholder="Customer email address (e.g. client@example.com)"
                   style={{ flex: 1, border: 'none', outline: 'none', fontSize: 13, color: TEXT_MAIN }}
                 />
                 <div style={{ display: 'flex', gap: 6 }}>

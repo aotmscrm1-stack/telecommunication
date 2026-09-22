@@ -7,6 +7,9 @@ const replySubSchema = new mongoose.Schema({
   subject: { type: String, default: '' },
   body: { type: String, default: '' },
   direction: { type: String, enum: ['inbound', 'outbound'], default: 'inbound' },
+  messageId: { type: String, default: '' },
+  inReplyTo: { type: String, default: '' },
+  references: { type: String, default: '' },
   receivedAt: { type: Date, default: Date.now },
   source: { type: String, default: 'n8n_webhook' },
   n8nDetails: { type: mongoose.Schema.Types.Mixed, default: null }
@@ -30,6 +33,9 @@ const emailLogSchema = new mongoose.Schema({
   direction: { type: String, enum: ['outbound', 'inbound'], default: 'outbound' },
   isReply: { type: Boolean, default: false },
   parentEmail: { type: mongoose.Schema.Types.ObjectId, ref: 'EmailLog', default: null },
+  messageId: { type: String, default: '' },
+  inReplyTo: { type: String, default: '' },
+  references: { type: String, default: '' },
   replies: [replySubSchema],
   isRead: { type: Boolean, default: true },
   n8nDetails: { type: mongoose.Schema.Types.Mixed, default: null }
@@ -40,5 +46,6 @@ emailLogSchema.index({ recipientEmail: 1, createdAt: -1 });
 emailLogSchema.index({ fromEmail: 1, createdAt: -1 });
 emailLogSchema.index({ createdAt: -1 });
 emailLogSchema.index({ direction: 1, createdAt: -1 });
+emailLogSchema.index({ messageId: 1 });
 
 module.exports = mongoose.model('EmailLog', emailLogSchema);

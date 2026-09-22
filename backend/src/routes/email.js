@@ -136,7 +136,8 @@ router.post('/send', protect, async (req, res) => {
       req.body.senderEmail ||
       req.body.sender ||
       req.user?.email ||
-      'hr@aotms.com'
+      process.env.DEFAULT_FROM_EMAIL ||
+      'admin@aotms.com'
     ).trim();
 
     const emailSubject = (req.body.subject || req.body.title || 'Notification from AOTMS CRM').trim();
@@ -340,9 +341,9 @@ router.post('/reply', protect, async (req, res) => {
       return res.status(404).json({ message: 'Original email thread not found.' });
     }
 
-    const replyRecipient = (toEmail || parentLog.recipientEmail || parentLog.fromEmail || '').trim();
+    const replyRecipient = (toEmail || (parentLog.direction === 'inbound' ? parentLog.fromEmail : parentLog.recipientEmail) || '').trim();
     const replySubject = subject || (parentLog.subject.startsWith('Re:') ? parentLog.subject : `Re: ${parentLog.subject}`);
-    const senderEmail = req.user?.email || parentLog.fromEmail || 'hr@aotms.com';
+    const senderEmail = (req.body.fromEmail || req.user?.email || parentLog.fromEmail || process.env.DEFAULT_FROM_EMAIL || 'admin@aotms.com').trim();
     const replyBody = body.trim();
 
     let success = false;
@@ -450,41 +451,64 @@ router.post('/reply', protect, async (req, res) => {
   }
 });
 
-// POST /api/email/inbound-reply — Webhook for n8n to ingest incoming replies and incoming emails
-router.post('/inbound-reply', async (req, res) => {
+// Core Inbound Email Handler for GoDaddy IMAP & n8n webhooks
+async function handleInboundEmail(req, res) {
   try {
     const data = req.body.payload || req.body.body || req.body;
-    const from = (data.from || data.fromEmail || data.senderEmail || data.sender || '').trim();
-    const to = (data.to || data.toEmail || data.recipientEmail || data.recipient || '').trim();
-    const rawSubject = (data.subject || data.title || 'Re: No Subject').trim();
+    const from = (data.fromEmail || data.from || data.senderEmail || data.sender || '').trim();
+    const to = (data.toEmail || data.to || data.recipientEmail || data.recipient || data.mailbox || '').trim();
+    const rawSubject = (data.subject || data.title || 'No Subject').trim();
     const bodyContent = (data.body || data.text || data.html || data.message || data.content || '').trim();
     const senderName = (data.senderName || data.name || from.split('@')[0] || 'External Contact').trim();
+    const messageId = (data.messageId || '').trim();
+    const inReplyTo = (data.inReplyTo || '').trim();
+    const references = (data.references || '').trim();
     const parentEmailId = data.parentEmailId || data.threadId || null;
 
-    if (!from || !bodyContent) {
-      return res.status(400).json({ message: 'Sender email (from) and message body are required' });
+    if (!from || (!bodyContent && !rawSubject)) {
+      return res.status(400).json({ message: 'Sender email (from) and message content are required' });
     }
 
-    console.log(`[INBOUND EMAIL WEBHOOK] Received email from ${from} to ${to} subject: "${rawSubject}"`);
+    console.log(`[INCOMING GODADDY EMAIL] From: "${from}", To: "${to}", Subject: "${rawSubject}", MessageId: "${messageId}"`);
 
     // Clean subject to match original thread (e.g. "Re: Leave Application" -> "Leave Application")
     const normalizedSubject = rawSubject.replace(/^(re|fwd|fw|aw|antw):\s*/i, '').trim();
 
     let parentLog = null;
 
+    // 1. Match by parentEmailId if explicitly provided
     if (parentEmailId) {
       try {
         parentLog = await EmailLog.findById(parentEmailId);
       } catch (_) {}
     }
 
-    if (!parentLog && normalizedSubject) {
-      // Find latest matching outbound email by subject and participant email
+    // 2. Match by inReplyTo / references (RFC 2822 exact email threading)
+    if (!parentLog && inReplyTo) {
       parentLog = await EmailLog.findOne({
         $or: [
-          { subject: new RegExp(normalizedSubject.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i') },
-          { recipientEmail: new RegExp(from, 'i') },
-          { fromEmail: new RegExp(to, 'i') }
+          { messageId: inReplyTo },
+          { 'replies.messageId': inReplyTo }
+        ]
+      });
+    }
+
+    if (!parentLog && references) {
+      parentLog = await EmailLog.findOne({
+        $or: [
+          { messageId: references },
+          { 'replies.messageId': references }
+        ]
+      });
+    }
+
+    // 3. Fallback: match by normalized subject and participant email
+    if (!parentLog && normalizedSubject) {
+      parentLog = await EmailLog.findOne({
+        $or: [
+          { subject: new RegExp(`^${normalizedSubject.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+          { subject: new RegExp(normalizedSubject.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i'), recipientEmail: new RegExp(from, 'i') },
+          { subject: new RegExp(normalizedSubject.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i'), fromEmail: new RegExp(to, 'i') }
         ]
       }).sort({ createdAt: -1 });
     }
@@ -496,46 +520,78 @@ router.post('/inbound-reply', async (req, res) => {
       subject: rawSubject,
       body: bodyContent,
       direction: 'inbound',
-      receivedAt: new Date(),
-      source: 'n8n_inbound_webhook',
+      messageId,
+      inReplyTo,
+      references,
+      receivedAt: data.receivedAt ? new Date(data.receivedAt) : new Date(),
+      source: 'godaddy_imap_n8n',
       n8nDetails: data
     };
 
     if (parentLog) {
       parentLog.replies.push(replySubDoc);
-      parentLog.isRead = false; // Mark unread notification for user
+      parentLog.isRead = false; // Mark unread notification in CRM
       await parentLog.save();
     }
 
-    // Also create standalone Inbound EmailLog so it appears in the Inbox view
+    // Also create/record standalone Inbound EmailLog so it appears in CRM "Inbox & Replies"
     const newInboundLog = await EmailLog.create({
       sender: parentLog?.sender || null,
       senderName,
       senderEmail: from,
-      senderDesignation: 'External / Reply',
+      senderDesignation: 'Customer / External',
       fromEmail: from,
-      recipientEmail: to || 'hr@aotms.com',
+      recipientEmail: to,
       subject: rawSubject,
       body: bodyContent,
-      templateId: parentLog?.templateId || 'inbound_reply',
-      sentVia: 'n8n Inbound Webhook',
+      templateId: parentLog?.templateId || 'inbound_godaddy',
+      sentVia: 'GoDaddy IMAP via n8n',
       status: 'Received',
       direction: 'inbound',
-      isReply: true,
+      isReply: !!parentLog,
       parentEmail: parentLog?._id || null,
+      messageId,
+      inReplyTo,
+      references,
       isRead: false,
       n8nDetails: data
     });
 
     res.json({
       success: true,
-      message: 'Inbound reply processed and saved to thread',
+      message: 'Incoming email successfully processed and synced to CRM inbox',
       logId: newInboundLog._id,
       parentThreadId: parentLog?._id || null
     });
   } catch (err) {
-    console.error('[INBOUND EMAIL WEBHOOK ERROR]:', err);
-    res.status(500).json({ message: 'Error processing inbound reply: ' + err.message });
+    console.error('[INCOMING EMAIL WEBHOOK ERROR]:', err);
+    res.status(500).json({ message: 'Error processing incoming email: ' + err.message });
+  }
+}
+
+// POST /api/email/incoming — Endpoint called by n8n "Save Incoming Email to CRM" node
+router.post('/incoming', handleInboundEmail);
+
+// POST /api/email/inbound-reply — Backward-compatible endpoint for inbound replies
+router.post('/inbound-reply', handleInboundEmail);
+
+// POST /api/email/mark-read — Endpoint called by n8n "Mark Email Read - CRM" node
+router.post('/mark-read', async (req, res) => {
+  try {
+    const data = req.body.payload || req.body;
+    const targetId = data.emailId || data.id;
+    const msgId = data.messageId;
+    let log = null;
+
+    if (targetId) {
+      log = await EmailLog.findByIdAndUpdate(targetId, { isRead: true }, { new: true });
+    } else if (msgId) {
+      log = await EmailLog.findOneAndUpdate({ messageId: msgId }, { isRead: true }, { new: true });
+    }
+
+    res.json({ success: true, message: 'Email marked as read in CRM', log });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 });
 
