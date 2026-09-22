@@ -13,6 +13,48 @@ router.get('/', protect, authorize('manager', 'admin', 'employee', 'caller'), as
   }
 });
 
+// GET /api/users/approvals — List all registrations for admin/manager review
+router.get('/approvals', protect, authorize('manager', 'admin'), async (req, res) => {
+  try {
+    const users = await User.find({})
+      .select('-password')
+      .populate('approvedBy', 'name email designation')
+      .sort({ createdAt: -1 });
+    res.json({ ok: true, users });
+  } catch (err) {
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+// PUT /api/users/:id/approval-status — Accept or Reject user registration
+router.put('/:id/approval-status', protect, authorize('manager', 'admin'), async (req, res) => {
+  try {
+    const { status, reason } = req.body;
+    if (!['accepted', 'rejected', 'pending'].includes(status)) {
+      return res.status(400).json({ ok: false, message: 'Invalid approval status: must be accepted, rejected, or pending' });
+    }
+    const targetUser = await User.findById(req.params.id);
+    if (!targetUser) return res.status(404).json({ ok: false, message: 'User not found' });
+    if (targetUser.role === 'admin' && req.user.role !== 'admin') {
+      return res.status(403).json({ ok: false, message: 'Cannot modify approval status of administrator accounts' });
+    }
+
+    targetUser.approvalStatus = status;
+    targetUser.approvedBy = req.user._id;
+    targetUser.approvedAt = new Date();
+    if (reason !== undefined) targetUser.rejectionReason = reason;
+
+    await targetUser.save();
+    res.json({
+      ok: true,
+      message: `User ${targetUser.name} has been ${status === 'accepted' ? 'accepted' : status === 'rejected' ? 'rejected' : 'marked as pending'}.`,
+      user: targetUser.toJSON()
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
 // POST /api/users
 router.post('/', protect, authorize('manager', 'admin'), async (req, res) => {
   try {

@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Layout from './components/Layout/Layout';
 import Login from './pages/login_pages/Login';
+import SignUp from './pages/login_pages/sign-up';
 import Dashboard from './components/dashboard/Dashboard';
 import AllLeads from './Marketing/AllLeads/AllLeads';
 import AddLead from './Marketing/AddLead';
@@ -36,10 +37,11 @@ import Invoice from './Finance/Invoice';
 import Landing from './pages/landing_pages/Landing';
 import LiveEmployeeTracking from './Management/Attedence/LiveEmployee/LiveEmployeeTracking';
 import AttendanceRecords from './Management/Attedence/AttendanceRecords';
+import Accept from './components/dashboard/accept';
 
 import { isCEO, isHR, isLimitedStaff, canViewDashboard } from './utils/permissions';
 
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoute = ({ children, allowPending = false }) => {
   const { user, loading } = useAuth();
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -49,13 +51,21 @@ const ProtectedRoute = ({ children }) => {
       </div>
     </div>
   );
-  return user ? children : <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (!allowPending && user.role !== 'admin' && (user.approvalStatus === 'pending' || user.approvalStatus === 'rejected')) {
+    return <Navigate to="/accept" replace />;
+  }
+  return children;
 };
 
 const PublicRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return null;
-  return user ? <Navigate to={canViewDashboard(user) ? "/dashboard" : "/tasks"} replace /> : children;
+  if (!user) return children;
+  if (user.role !== 'admin' && (user.approvalStatus === 'pending' || user.approvalStatus === 'rejected')) {
+    return <Navigate to="/accept" replace />;
+  }
+  return <Navigate to={canViewDashboard(user) ? "/dashboard" : "/tasks"} replace />;
 };
 
 // Route guard: Only CEO and HR are allowed to view Dashboard. Remaining staff are redirected to /tasks
@@ -106,6 +116,9 @@ const RootRedirect = () => {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
+  if (user.role !== 'admin' && (user.approvalStatus === 'pending' || user.approvalStatus === 'rejected')) {
+    return <Navigate to="/accept" replace />;
+  }
   return <Navigate to={canViewDashboard(user) ? "/dashboard" : "/tasks"} replace />;
 };
 
@@ -117,7 +130,11 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+          <Route path="/signup" element={<PublicRoute><SignUp /></PublicRoute>} />
+          <Route path="/sign-up" element={<PublicRoute><SignUp /></PublicRoute>} />
+          <Route path="/accept" element={<ProtectedRoute allowPending={true}><Accept /></ProtectedRoute>} />
           <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+            <Route path="accept" element={<AdminRoute><Accept /></AdminRoute>} />
             <Route path="dashboard" element={<DashboardRoute><Dashboard /></DashboardRoute>} />
             <Route path="billing" element={<AdminRoute><Billing /></AdminRoute>} />
             <Route path="leads" element={<StaffRestrictedRoute><AllLeads /></StaffRestrictedRoute>} />

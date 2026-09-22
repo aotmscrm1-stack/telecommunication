@@ -28,6 +28,8 @@ import {
   Play,
   Square,
   AlertCircle,
+  AlertTriangle,
+  Timer,
   Loader2,
   Sparkles,
   ShieldCheck,
@@ -143,6 +145,7 @@ export default function AttendanceRecords() {
   const [sessionLoading, setSessionLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null); // 'START' | 'BREAK' | 'RESUME' | 'STOP' | null
   const [actionStatusMsg, setActionStatusMsg] = useState(null); // { type: 'success' | 'error', message: string }
+  const [nineHourWarningModal, setNineHourWarningModal] = useState(null); // { open: boolean, completedHms: string, remainingHms: string, percent: number }
 
   // Date and filter states
   const [selectedDate, setSelectedDate] = useState(getTodayIso());
@@ -494,7 +497,35 @@ export default function AttendanceRecords() {
     }
   };
 
-  const handleStopAttendance = async () => {
+  const handleStopAttendance = async (overrideOptions = {}) => {
+    // 9 Hours Validation Check: 9 * 3600 = 32,400 seconds
+    const NINE_HOURS_SEC = 9 * 3600;
+    const currentTotalSec = liveSessionMetrics.totalLoginSec || 0;
+
+    if (currentTotalSec < NINE_HOURS_SEC && !overrideOptions.force) {
+      const remainingSec = NINE_HOURS_SEC - currentTotalSec;
+      const remHours = Math.floor(remainingSec / 3600);
+      const remMins = Math.floor((remainingSec % 3600) / 60);
+      const remSecs = remainingSec % 60;
+      const remHms = `${String(remHours).padStart(2, '0')}:${String(remMins).padStart(2, '0')}:${String(remSecs).padStart(2, '0')}`;
+
+      // Set visible error message required by user
+      setActionStatusMsg({
+        type: 'error',
+        message: '9 hours are not complete. Please you can complete it in End Attendance.',
+      });
+
+      // Show dedicated 9-hour alert modal
+      setNineHourWarningModal({
+        open: true,
+        completedHms: liveSessionMetrics.totalHms,
+        remainingHms: remHms,
+        percent: liveSessionMetrics.percentToNineHours,
+      });
+
+      return;
+    }
+
     if (!window.confirm('Are you sure you want to end your attendance session for today?')) return;
     try {
       setActionLoading('STOP');
@@ -510,9 +541,10 @@ export default function AttendanceRecords() {
           location.accuracy = pos.coords.accuracy;
         } catch (geoErr) {}
       }
-      const res = await attendanceAPI.stop(location);
+      const res = await attendanceAPI.stop({ ...location, force: overrideOptions.force || false });
       if (res.data?.ok) {
-        setActionStatusMsg({ type: 'success', message: 'Attendance completed and saved to MongoDB!' });
+        setActionStatusMsg({ type: 'success', message: 'Attendance completed and saved to MongoDB! 9:00:00 hours recorded.' });
+        setNineHourWarningModal(null);
         await fetchCurrentSession();
         await fetchData();
       } else {
@@ -529,6 +561,8 @@ export default function AttendanceRecords() {
   const liveSessionMetrics = useMemo(() => {
     const sessionData = currentSession?.attendance;
     const sessionStatus = currentSession?.status || 'NOT_STARTED';
+    const NINE_HOURS_SEC = 9 * 3600; // 32,400 seconds = 09:00:00
+    const ONE_HOUR_BREAK_SEC = 1 * 3600; // 3,600 seconds = 01:00:00
 
     if (!sessionData || sessionStatus === 'NOT_STARTED' || !sessionData.startTime) {
       return {
@@ -536,6 +570,14 @@ export default function AttendanceRecords() {
         workHms: '00:00:00',
         breakHms: '00:00:00',
         totalHms: '00:00:00',
+        totalLoginSec: 0,
+        isNineHoursComplete: false,
+        remainingLoginSec: NINE_HOURS_SEC,
+        remainingHms: '09:00:00',
+        percentToNineHours: 0,
+        completedBreaksSec: 0,
+        isBreakOverOneHour: false,
+        breakRemainingHms: '01:00:00',
         breakCount: 0,
         activeBreakDurationHms: '00:00:00',
         startTimeFormatted: '—',
@@ -559,6 +601,13 @@ export default function AttendanceRecords() {
 
     const totalElapsedSec = Math.max(0, Math.floor((currentNow - startMs) / 1000));
     const startTimeFormatted = formatTime12h(sessionData.startTime);
+    const totalLoginSec = totalElapsedSec;
+    const isNineHoursComplete = totalLoginSec >= NINE_HOURS_SEC;
+    const remainingLoginSec = Math.max(0, NINE_HOURS_SEC - totalLoginSec);
+    const remainingHms = formatHms(remainingLoginSec);
+    const percentToNineHours = Math.min(100, Math.round((totalLoginSec / NINE_HOURS_SEC) * 100));
+    const isBreakOverOneHour = completedBreaksSec > ONE_HOUR_BREAK_SEC;
+    const breakRemainingHms = formatHms(Math.max(0, ONE_HOUR_BREAK_SEC - completedBreaksSec));
 
     if (sessionStatus === 'COMPLETED') {
       const finalWork = sessionData.actualWorkSeconds || Math.max(0, (sessionData.durationSeconds || 0) - completedBreaksSec);
@@ -567,6 +616,14 @@ export default function AttendanceRecords() {
         workHms: formatHms(finalWork),
         breakHms: formatHms(sessionData.totalBreakSeconds || completedBreaksSec),
         totalHms: formatHms(sessionData.durationSeconds || totalElapsedSec),
+        totalLoginSec,
+        isNineHoursComplete,
+        remainingLoginSec,
+        remainingHms,
+        percentToNineHours,
+        completedBreaksSec,
+        isBreakOverOneHour,
+        breakRemainingHms,
         breakCount: breaks.length,
         activeBreakDurationHms: '00:00:00',
         startTimeFormatted,
@@ -585,6 +642,14 @@ export default function AttendanceRecords() {
         workHms: formatHms(workSecAtBreakStart),
         breakHms: formatHms(totalBreakSec),
         totalHms: formatHms(totalElapsedSec),
+        totalLoginSec,
+        isNineHoursComplete,
+        remainingLoginSec,
+        remainingHms,
+        percentToNineHours,
+        completedBreaksSec: totalBreakSec,
+        isBreakOverOneHour: totalBreakSec > ONE_HOUR_BREAK_SEC,
+        breakRemainingHms: formatHms(Math.max(0, ONE_HOUR_BREAK_SEC - totalBreakSec)),
         breakCount: breaks.length,
         activeBreakDurationHms: formatHms(curBreakSec),
         startTimeFormatted,
@@ -598,6 +663,14 @@ export default function AttendanceRecords() {
       workHms: formatHms(netWorkSec),
       breakHms: formatHms(completedBreaksSec),
       totalHms: formatHms(totalElapsedSec),
+      totalLoginSec,
+      isNineHoursComplete,
+      remainingLoginSec,
+      remainingHms,
+      percentToNineHours,
+      completedBreaksSec,
+      isBreakOverOneHour,
+      breakRemainingHms,
       breakCount: breaks.length,
       activeBreakDurationHms: '00:00:00',
       startTimeFormatted,
@@ -774,7 +847,7 @@ export default function AttendanceRecords() {
                 </span>
               )}
               <span style={{ background: '#fff7ed', color: '#ea580c', border: '1px solid #fed7aa', fontSize: 11, fontWeight: 600, padding: '2px 9px', borderRadius: 12 }}>
-                {user?.designation || 'Staff'} • {user?.name}
+                {user?.displayName || user?.designation || 'Staff'} • {user?.name}
               </span>
             </div>
           </div>
@@ -1088,7 +1161,7 @@ export default function AttendanceRecords() {
               <div style={{ fontSize: 12.5, color: TEXT_MUTED, marginTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span>Employee: <strong style={{ color: TEXT_MAIN }}>{user?.name || 'Staff'}</strong></span>
                 <span>•</span>
-                <span>Role: <strong style={{ color: '#ea580c' }}>{user?.designation || 'Team Member'}</strong></span>
+                <span>Role: <strong style={{ color: '#ea580c' }}>{user?.displayName || user?.designation || 'Team Member'}</strong></span>
                 {liveSessionMetrics.startTimeFormatted !== '—' && (
                   <>
                     <span>•</span>
@@ -1193,6 +1266,53 @@ export default function AttendanceRecords() {
                 <span style={{ fontSize: 10, color: '#c2410c', opacity: 0.85 }}>(Autosaved)</span>
               </div>
             )}
+
+            {/* Daily Shift Target & Claim: 9:00:00 Hours (8h work + 1h break) */}
+            <div style={{
+              width: '100%',
+              maxWidth: 260,
+              marginTop: 10,
+              paddingTop: 10,
+              borderTop: '1px dashed #e2e8f0',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 5
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11, fontWeight: 700 }}>
+                <span style={{ color: '#475569', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Timer size={13} color="#2563eb" /> Daily Claim: <strong>9:00:00h</strong>
+                </span>
+                <span style={{ color: liveSessionMetrics.isNineHoursComplete ? '#16a34a' : '#ea580c', fontWeight: 800 }}>
+                  {liveSessionMetrics.percentToNineHours}%
+                </span>
+              </div>
+
+              {/* Animated 9-Hour Progress Bar */}
+              <div style={{ width: '100%', height: 6, background: '#f1f5f9', borderRadius: 10, overflow: 'hidden', position: 'relative' }}>
+                <div
+                  style={{
+                    width: `${liveSessionMetrics.percentToNineHours}%`,
+                    height: '100%',
+                    background: liveSessionMetrics.isNineHoursComplete
+                      ? 'linear-gradient(90deg, #22c55e, #16a34a)'
+                      : 'linear-gradient(90deg, #f97316 0%, #38bdf8 50%, #2563eb 100%)',
+                    borderRadius: 10,
+                    transition: 'width 0.5s ease',
+                  }}
+                />
+              </div>
+
+              {/* Sub-status badges */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, color: '#64748b', fontWeight: 600, marginTop: 1 }}>
+                <span>Login: <strong style={{ color: '#0f172a' }}>{liveSessionMetrics.totalHms}</strong></span>
+                <span>Break: <strong style={{ color: liveSessionMetrics.isBreakOverOneHour ? '#dc2626' : '#ea580c' }}>{liveSessionMetrics.breakHms}/1h</strong></span>
+                {liveSessionMetrics.isNineHoursComplete ? (
+                  <span style={{ color: '#16a34a', fontWeight: 800 }}>✓ Reached</span>
+                ) : (
+                  <span style={{ color: '#ea580c', fontWeight: 700 }}>-{liveSessionMetrics.remainingHms}</span>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Right: Action Buttons (White, Orange, Blue Theme) */}
@@ -1949,7 +2069,7 @@ export default function AttendanceRecords() {
               color: '#334155'
             }}>
               <User size={15} color="#3b82f6" />
-              <span>Personal Records: <strong style={{ color: TEXT_MAIN }}>{user?.name}</strong> ({user?.designation || 'Staff'})</span>
+              <span>Personal Records: <strong style={{ color: TEXT_MAIN }}>{user?.name}</strong> ({user?.displayName || user?.designation || 'Staff'})</span>
             </div>
           )}
 
@@ -2946,6 +3066,215 @@ export default function AttendanceRecords() {
                 selectedEmployeeId={mapModalRecord.employeeId}
                 showRouteTrail={true}
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ──── 9. 9-Hour Incomplete Warning Modal ───────────────────────────────────────────────────────── */}
+      {nineHourWarningModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.72)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: 20,
+            animation: 'fadeIn 0.2s ease',
+          }}
+          onClick={() => setNineHourWarningModal(null)}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: 24,
+              width: '100%',
+              maxWidth: 520,
+              boxShadow: '0 25px 50px -12px rgba(234, 88, 12, 0.28), 0 0 0 1px rgba(254, 215, 170, 0.5)',
+              overflow: 'hidden',
+              position: 'relative',
+              textAlign: 'center',
+              border: '2px solid #fed7aa',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Top gradient stripe */}
+            <div
+              style={{
+                height: 6,
+                background: 'linear-gradient(90deg, #ea580c 0%, #f97316 50%, #fb923c 100%)',
+              }}
+            />
+
+            <div style={{ padding: '32px 28px 26px' }}>
+              {/* Pulsing Warning Icon */}
+              <div
+                style={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)',
+                  border: '2px solid #fed7aa',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 16px',
+                  boxShadow: '0 0 24px rgba(249, 115, 22, 0.25)',
+                }}
+              >
+                <AlertTriangle size={36} color="#ea580c" />
+              </div>
+
+              {/* Modal Title & Requirement Headline */}
+              <h3 style={{ margin: '0 0 6px', fontSize: 21, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>
+                9 Hours Attendance Incomplete
+              </h3>
+
+              <div
+                style={{
+                  background: '#fff7ed',
+                  border: '1.5px solid #fed7aa',
+                  borderRadius: 12,
+                  padding: '12px 16px',
+                  margin: '14px 0 16px',
+                  color: '#c2410c',
+                  fontSize: 14,
+                  fontWeight: 800,
+                  lineHeight: 1.4,
+                  boxShadow: '0 2px 8px rgba(234, 88, 12, 0.08)',
+                }}
+              >
+                9 hours are not complete. Please you can complete it in End Attendance.
+              </div>
+
+              <p style={{ margin: '0 0 20px', fontSize: 13, color: '#64748b', lineHeight: 1.5 }}>
+                Daily full shift policy requires a total of <strong>9:00:00 Hours</strong> login time reached every day (inclusive of 1-hour break allowance). You cannot end your shift until 9 hours are complete.
+              </p>
+
+              {/* Time Breakdown Cards */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: 12,
+                  marginBottom: 18,
+                  textAlign: 'left',
+                }}
+              >
+                <div
+                  style={{
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: 14,
+                    padding: '12px 14px',
+                  }}
+                >
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Completed Login
+                  </div>
+                  <div style={{ fontSize: 18, fontWeight: 900, color: '#0f172a', fontFamily: 'monospace', marginTop: 4 }}>
+                    {nineHourWarningModal.completedHms}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#2563eb', fontWeight: 600, marginTop: 2 }}>
+                    Goal: 09:00:00 Hours
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    background: '#fff7ed',
+                    border: '1px solid #fed7aa',
+                    borderRadius: 14,
+                    padding: '12px 14px',
+                  }}
+                >
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#c2410c', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Time Remaining
+                  </div>
+                  <div style={{ fontSize: 18, fontWeight: 900, color: '#ea580c', fontFamily: 'monospace', marginTop: 4 }}>
+                    {nineHourWarningModal.remainingHms}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#ea580c', fontWeight: 600, marginTop: 2 }}>
+                    {nineHourWarningModal.percent}% Claim Reached
+                  </div>
+                </div>
+              </div>
+
+              {/* Progress Bar inside modal */}
+              <div style={{ marginBottom: 22, textAlign: 'left' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                  <span>Daily Shift Progress</span>
+                  <span style={{ color: '#ea580c', fontWeight: 800 }}>{nineHourWarningModal.percent}% Complete</span>
+                </div>
+                <div style={{ width: '100%', height: 8, background: '#f1f5f9', borderRadius: 8, overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      width: `${nineHourWarningModal.percent}%`,
+                      height: '100%',
+                      background: 'linear-gradient(90deg, #f97316 0%, #ea580c 100%)',
+                      borderRadius: 8,
+                      transition: 'width 0.4s ease',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setNineHourWarningModal(null)}
+                  style={{
+                    width: '100%',
+                    background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: 12,
+                    padding: '13px 20px',
+                    fontSize: 14,
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    boxShadow: '0 4px 14px rgba(37, 99, 235, 0.3)',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <Play size={16} fill="#ffffff" /> Continue Attendance (Keep Working)
+                </button>
+
+                {/* Emergency Override for Admin / Managers */}
+                {(user?.role === 'admin' || user?.role === 'manager' || isManagingDirector(user)) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm('ADMIN OVERRIDE: Are you sure you want to force end attendance early before 9 hours?')) {
+                        handleStopAttendance({ force: true });
+                      }
+                    }}
+                    style={{
+                      width: '100%',
+                      background: '#ffffff',
+                      color: '#64748b',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: 12,
+                      padding: '10px 16px',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    Early Clock Out (Admin Override)
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

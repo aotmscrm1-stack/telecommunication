@@ -27,6 +27,8 @@ api.interceptors.response.use(
 export const authAPI = {
   login: (data) => api.post('/auth/login', data),
   register: (data) => api.post('/auth/register', data),
+  sendRegistrationOtp: (data) => api.post('/auth/send-registration-otp', data),
+  uploadAvatar: (data) => api.post('/auth/upload-avatar', data),
   me: () => api.get('/auth/me'),
   updateProfile: (data) => api.put('/auth/profile', data),
   changePassword: (data) => api.post('/auth/change-password', data),
@@ -95,6 +97,8 @@ export const reportsAPI = {
 
 export const usersAPI = {
   getAll: () => api.get('/users'),
+  getApprovals: () => api.get('/users/approvals'),
+  updateApprovalStatus: (id, data) => api.put(`/users/${id}/approval-status`, data),
   getPreferences: () => api.get('/users/preferences'),
   updatePreferences: (data) => api.put('/users/preferences', data),
   create: (data) => api.post('/users', data),

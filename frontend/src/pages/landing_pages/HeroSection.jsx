@@ -12,6 +12,7 @@ const EASE = [0.22, 1, 0.36, 1];
 
 /* ─────────────────────────────────────────────────────────
    ORANGE → PURPLE FULL-SCREEN GRADIENT THEME
+   WHITE-MIXED TEXT COLORS for maximum readability
    ───────────────────────────────────────────────────────── */
 const C = {
   /* Gradient stops */
@@ -21,11 +22,24 @@ const C = {
   purpleMid:    '#7c3aed',
   purpleBottom: '#4c1d95',
 
-  /* Accents */
-  white:        '#ffffff',
-  textSoft:     'rgba(255, 255, 255, 0.82)',
-  textMuted:    'rgba(255, 255, 255, 0.60)',
+  /* ── Professional Executive Text & Accent Palette ── */
+  whitePure:    '#ffffff',                     // 100% pure white — headings
+  whiteBright:  'rgba(255, 255, 255, 0.98)',   // 98% — emphasized text
+  whiteSoft:    'rgba(255, 255, 255, 0.94)',   // 94% — description & body
+  whiteMuted:   'rgba(255, 255, 255, 0.82)',   // 82% — secondary text
+  whiteFaint:   'rgba(255, 255, 255, 0.65)',   // 65% — tertiary/labels
 
+  /* Executive Dark Contrast */
+  slateDark:    '#0f172a',                     // Crisp deep obsidian for primary button text
+  slateDeep:    '#090d16',                     // Executive dark
+  champagneGold:'#fef08a',                     // Luminous champagne cursor & gradient
+
+  /* Legacy aliases (kept for compatibility) */
+  white:        '#ffffff',
+  textSoft:     'rgba(255, 255, 255, 0.94)',
+  textMuted:    'rgba(255, 255, 255, 0.82)',
+
+  /* Accents */
   orange:       '#fb923c',
   orangeLt:     '#fdba74',
   orangeGlow:   'rgba(251, 146, 60, 0.55)',
@@ -47,10 +61,6 @@ export function HeroSection() {
         width: '100%',
         minHeight: '100vh',
         overflow: 'hidden',
-        /* ══════════════════════════════════════════════
-           FULL-SCREEN ORANGE → PURPLE GRADIENT
-           (no border, no rounded corners, full bleed)
-           ══════════════════════════════════════════════ */
         background: `
           linear-gradient(
             180deg,
@@ -89,55 +99,51 @@ export function HeroSection() {
       />
 
       {/* ══════════════════════════════════════════════
-          DECORATIVE ICONS
+          DECORATIVE ICONS — pure white
           ══════════════════════════════════════════════ */}
       <div
         style={{
           position: 'absolute',
           inset: 0,
           pointerEvents: 'none',
-          opacity: 0.14,
+          opacity: 0.16,
         }}
       >
-        {/* Video camera */}
         <motion.div
           animate={{ y: [0, -8, 0] }}
           transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-          style={{ position: 'absolute', top: '26%', right: '18%', color: '#fff' }}
+          style={{ position: 'absolute', top: '26%', right: '18%', color: C.whitePure }}
         >
           <Video size={isMobile ? 40 : 64} strokeWidth={1.2} />
         </motion.div>
 
-        {/* Message square */}
         <motion.div
           animate={{ y: [0, 6, 0] }}
           transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-          style={{ position: 'absolute', top: '42%', right: '26%', color: '#fff' }}
+          style={{ position: 'absolute', top: '42%', right: '26%', color: C.whitePure }}
         >
           <MessageSquare size={isMobile ? 36 : 58} strokeWidth={1.2} />
         </motion.div>
 
-        {/* Globe */}
         <motion.div
           animate={{ y: [0, -6, 0] }}
           transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
-          style={{ position: 'absolute', top: '58%', right: '20%', color: '#fff' }}
+          style={{ position: 'absolute', top: '58%', right: '20%', color: C.whitePure }}
         >
           <Globe size={isMobile ? 42 : 68} strokeWidth={1.2} />
         </motion.div>
 
-        {/* Coffee cup */}
         <motion.div
           animate={{ y: [0, 6, 0] }}
           transition={{ duration: 7.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
-          style={{ position: 'absolute', top: '62%', right: '32%', color: '#fff' }}
+          style={{ position: 'absolute', top: '62%', right: '32%', color: C.whitePure }}
         >
           <Coffee size={isMobile ? 34 : 54} strokeWidth={1.2} />
         </motion.div>
 
-        {/* Small dot indicator — top-left */}
+        {/* Small dot indicator — pure white */}
         <motion.div
-          animate={{ opacity: [0.4, 1, 0.4] }}
+          animate={{ opacity: [0.5, 1, 0.5] }}
           transition={{ duration: 2.5, repeat: Infinity }}
           style={{
             position: 'absolute',
@@ -146,7 +152,7 @@ export function HeroSection() {
             width: 24,
             height: 24,
             borderRadius: '50%',
-            border: '1.5px solid rgba(255, 255, 255, 0.7)',
+            border: `1.5px solid ${C.whitePure}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -157,7 +163,7 @@ export function HeroSection() {
               width: 6,
               height: 6,
               borderRadius: '50%',
-              background: '#ffffff',
+              background: C.whitePure,
             }}
           />
         </motion.div>
@@ -220,7 +226,9 @@ export function HeroSection() {
           boxSizing: 'border-box',
         }}
       >
-        {/* Badge — "What's New" */}
+        {/* ══════════════════════════════════════════════
+            BADGE — Executive glass pill
+            ══════════════════════════════════════════════ */}
         <motion.div
           initial={{ y: 12, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -229,80 +237,93 @@ export function HeroSection() {
             display: 'inline-flex',
             alignItems: 'center',
             gap: 10,
-            padding: '6px 16px 6px 6px',
+            padding: '5px 16px 5px 6px',
             borderRadius: 9999,
-            background: 'rgba(255, 255, 255, 0.15)',
-            border: '1px solid rgba(255, 255, 255, 0.30)',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
+            background: 'rgba(255, 255, 255, 0.16)',
+            border: '1px solid rgba(255, 255, 255, 0.35)',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.16)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
             marginBottom: isMobile ? 20 : 26,
           }}
         >
+          {/* "What's New" pill — executive deep slate text on pure white */}
           <span
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              padding: '3px 10px',
+              padding: '4px 11px',
               borderRadius: 9999,
-              background: '#ffffff',
-              color: '#ea580c',
-              fontSize: 10.5,
+              background: C.whitePure,
+              color: C.slateDark,
+              fontSize: 11,
               fontWeight: 800,
               letterSpacing: '0.06em',
               textTransform: 'uppercase',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.12)',
             }}
           >
             What's New
           </span>
+
+          {/* Badge description — pure luminous white text */}
           <span
             style={{
-              color: '#ffffff',
-              fontSize: 12.5,
-              fontWeight: 500,
-              letterSpacing: '-0.005em',
+              color: C.whitePure,
+              fontSize: 13,
+              fontWeight: 600,
+              letterSpacing: '-0.01em',
+              textShadow: '0 1px 4px rgba(0, 0, 0, 0.2)',
             }}
           >
             AI-Powered CRM Platform
           </span>
-          <span style={{ fontSize: 12 }}>✨</span>
+
+          <span style={{ fontSize: 13, filter: 'drop-shadow(0 0 4px rgba(255, 255, 255, 0.6))' }}>✨</span>
         </motion.div>
 
-        {/* Heading */}
+        {/* ══════════════════════════════════════════════
+            HEADING — pure white for max contrast
+            ══════════════════════════════════════════════ */}
         <motion.h1
           initial={{ y: 26, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.65, duration: 1.0, ease: EASE }}
           style={{
             fontSize: isMobile
-              ? 'clamp(28px, 7.5vw, 38px)'
-              : 'clamp(42px, 4.6vw, 62px)',
-            fontWeight: 800,
+              ? 'clamp(30px, 8vw, 42px)'
+              : 'clamp(44px, 4.8vw, 66px)',
+            fontWeight: 850,
             lineHeight: 1.12,
-            letterSpacing: '-0.025em',
+            letterSpacing: '-0.03em',
             margin: 0,
             marginBottom: isMobile ? 18 : 24,
             fontFamily:
-              '"Bricolage Grotesque", "Manrope", "Inter", system-ui, sans-serif',
-            color: '#ffffff',
+              '"Bricolage Grotesque", "Plus Jakarta Sans", "Inter", system-ui, sans-serif',
+            color: C.whitePure,
             minHeight: isMobile ? '2.4em' : '2.3em',
-            textShadow: '0 4px 30px rgba(0, 0, 0, 0.15)',
+            textShadow: '0 4px 28px rgba(0, 0, 0, 0.28), 0 1px 3px rgba(0, 0, 0, 0.3)',
           }}
         >
+          {/* Line 1 — PURE CRISP WHITE */}
           <span
             style={{
               display: 'block',
-              color: '#ffffff',
+              color: C.whitePure,
               whiteSpace: isMobile ? 'normal' : 'nowrap',
+              textShadow: '0 4px 30px rgba(0, 0, 0, 0.25)',
             }}
           >
             Manage Your CRM Pipeline
           </span>
 
+          {/* Line 2 — typing with radiant champagne gold to diamond-white */}
           <span
             style={{
               display: 'block',
               minHeight: '1.15em',
               whiteSpace: isMobile ? 'normal' : 'nowrap',
+              marginTop: 4,
             }}
           >
             <TextType
@@ -326,28 +347,33 @@ export function HeroSection() {
           </span>
         </motion.h1>
 
-        {/* Description */}
+        {/* ══════════════════════════════════════════════
+            DESCRIPTION — bright high-contrast white
+            ══════════════════════════════════════════════ */}
         <motion.p
           initial={{ y: 18, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.85, duration: 0.95, ease: EASE }}
           style={{
-            color: C.textSoft,
-            fontSize: isMobile ? 13.5 : 'clamp(14px, 1.05vw, 16px)',
-            lineHeight: 1.6,
-            maxWidth: 600,
+            color: C.whiteSoft,
+            fontSize: isMobile ? 14 : 'clamp(15px, 1.1vw, 17.5px)',
+            lineHeight: 1.7,
+            maxWidth: 640,
             margin: 0,
             marginBottom: isMobile ? 30 : 38,
             fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
-            fontWeight: 400,
-            letterSpacing: '-0.005em',
+            fontWeight: 450,
+            letterSpacing: '-0.01em',
+            textShadow: '0 2px 14px rgba(0, 0, 0, 0.22)',
           }}
         >
           The unified CRM for telecom & enterprise sales teams — pipeline, live leads,
           follow-ups, and analytics, all in one intelligent workspace.
         </motion.p>
 
-        {/* Buttons */}
+        {/* ══════════════════════════════════════════════
+            BUTTONS — executive contrast
+            ══════════════════════════════════════════════ */}
         <motion.div
           initial={{ y: 18, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -355,40 +381,37 @@ export function HeroSection() {
           style={{
             display: 'flex',
             flexDirection: isMobile ? 'column' : 'row',
-            gap: 12,
+            gap: 14,
             width: '100%',
             maxWidth: isMobile ? 320 : 'none',
             justifyContent: 'center',
             alignItems: 'center',
           }}
         >
-          {/* ═══════════════════════════════════════════
-             PRIMARY — SOLID WHITE pill with orange text
-             & orange arrow circle (pops hard on gradient)
-             ═══════════════════════════════════════════ */}
+          {/* PRIMARY — solid WHITE pill with EXECUTIVE OBSIDIAN text */}
           <motion.button
             onClick={() => navigate('/login')}
             whileHover={{
               y: -3,
-              boxShadow: '0 20px 44px rgba(255, 255, 255, 0.40)',
+              boxShadow: '0 20px 48px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.8)',
             }}
             whileTap={{ scale: 0.97 }}
             transition={{ duration: 0.28, ease: EASE }}
             style={{
-              padding: isMobile ? '14px 22px' : '14px 18px 14px 28px',
+              padding: isMobile ? '14px 22px' : '13px 18px 13px 28px',
               borderRadius: 9999,
               border: 'none',
-              background: '#ffffff',
-              color: '#ea580c',
-              fontWeight: 800,
-              fontSize: isMobile ? 14 : 14.5,
+              background: C.whitePure,
+              color: C.slateDark,
+              fontWeight: 750,
+              fontSize: isMobile ? 14 : 15,
               cursor: 'pointer',
-              boxShadow: '0 12px 30px rgba(0, 0, 0, 0.20)',
+              boxShadow: '0 12px 32px rgba(0, 0, 0, 0.22), 0 2px 6px rgba(0, 0, 0, 0.12)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: 12,
-              letterSpacing: '-0.005em',
+              letterSpacing: '-0.01em',
               fontFamily: '"Inter", system-ui, sans-serif',
             }}
           >
@@ -398,48 +421,47 @@ export function HeroSection() {
                 width: 32,
                 height: 32,
                 borderRadius: '50%',
-                background: 'linear-gradient(135deg, #f97316, #c2410c)',
+                background: `linear-gradient(135deg, ${C.slateDark}, #1e293b)`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#ffffff',
-                boxShadow: '0 4px 14px rgba(234, 88, 12, 0.45)',
+                color: C.whitePure,
+                boxShadow: '0 4px 12px rgba(15, 23, 42, 0.4)',
               }}
             >
               <ArrowUpRight size={16} strokeWidth={2.6} />
             </span>
           </motion.button>
 
-          {/* ═══════════════════════════════════════════
-             SECONDARY — TRANSLUCENT glass pill with
-             PURPLE play button
-             ═══════════════════════════════════════════ */}
+          {/* SECONDARY — frosted glass pill with PURE WHITE text */}
           <motion.button
             onClick={() => navigate('/demo')}
             whileHover={{
               y: -3,
               background: 'rgba(255, 255, 255, 0.22)',
               borderColor: 'rgba(255, 255, 255, 0.75)',
+              boxShadow: '0 16px 36px rgba(0, 0, 0, 0.25)',
             }}
             whileTap={{ scale: 0.97 }}
             transition={{ duration: 0.28, ease: EASE }}
             style={{
-              padding: isMobile ? '14px 22px' : '14px 28px 14px 18px',
+              padding: isMobile ? '14px 22px' : '13px 26px 13px 18px',
               borderRadius: 9999,
-              border: '1.5px solid rgba(255, 255, 255, 0.55)',
+              border: '1.5px solid rgba(255, 255, 255, 0.45)',
               background: 'rgba(255, 255, 255, 0.12)',
-              color: '#ffffff',
-              fontWeight: 800,
-              fontSize: isMobile ? 14 : 14.5,
+              color: C.whitePure,
+              fontWeight: 700,
+              fontSize: isMobile ? 14 : 15,
               cursor: 'pointer',
-              backdropFilter: 'blur(14px)',
-              WebkitBackdropFilter: 'blur(14px)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: 12,
-              letterSpacing: '-0.005em',
+              letterSpacing: '-0.01em',
               fontFamily: '"Inter", system-ui, sans-serif',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
             }}
           >
             <span
@@ -447,18 +469,58 @@ export function HeroSection() {
                 width: 32,
                 height: 32,
                 borderRadius: '50%',
-                background: 'linear-gradient(135deg, #c084fc, #7c3aed)',
+                background: 'rgba(255, 255, 255, 0.22)',
+                border: '1px solid rgba(255, 255, 255, 0.4)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#ffffff',
-                boxShadow: '0 4px 14px rgba(124, 58, 237, 0.5)',
+                color: C.whitePure,
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
               }}
             >
-              <Play size={14} fill="#ffffff" strokeWidth={0} />
+              <Play size={13} fill={C.whitePure} strokeWidth={0} />
             </span>
             Watch Demo
           </motion.button>
+        </motion.div>
+
+        {/* ══════════════════════════════════════════════
+            TRUST / SOCIAL PROOF MICRO-BAR
+            ══════════════════════════════════════════════ */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.18, duration: 0.8 }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexWrap: 'wrap',
+            gap: isMobile ? 12 : 24,
+            marginTop: 22,
+            color: 'rgba(255, 255, 255, 0.78)',
+            fontSize: isMobile ? 12 : 13,
+            fontWeight: 500,
+            letterSpacing: '0.01em',
+          }}
+        >
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+            <span
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: '50%',
+                background: '#34d399',
+                display: 'inline-block',
+                boxShadow: '0 0 10px #34d399',
+              }}
+            />
+            Enterprise Grade
+          </span>
+          <span style={{ opacity: 0.4 }}>•</span>
+          <span>No credit card required</span>
+          <span style={{ opacity: 0.4 }}>•</span>
+          <span>99.9% Pipeline Uptime</span>
         </motion.div>
       </motion.div>
 
@@ -488,7 +550,7 @@ export function HeroSection() {
             overflow: 'hidden',
             boxShadow: `
               0 40px 100px rgba(0, 0, 0, 0.50),
-              0 0 0 1px rgba(255, 255, 255, 0.18)
+              0 0 0 1px rgba(255, 255, 255, 0.22)
             `,
             transformStyle: 'preserve-3d',
             willChange: 'transform',
@@ -526,27 +588,30 @@ export function HeroSection() {
       </motion.div>
 
       {/* ══════════════════════════════════════════════
-          TYPING CURSOR STYLING
+          TYPING CURSOR & TEXT GRADIENT — Executive Sheen
           ══════════════════════════════════════════════ */}
       <style>{`
         .hero-typing-line {
           background: linear-gradient(
-            120deg,
-            #fdba74 0%,
-            #fb923c 45%,
+            135deg,
+            #ffffff 0%,
+            #fff7ed 25%,
+            #fef08a 60%,
             #ffffff 100%
           );
           -webkit-background-clip: text;
           background-clip: text;
           -webkit-text-fill-color: transparent;
           color: transparent;
-          font-weight: 800;
-          letter-spacing: -0.025em;
+          font-weight: 850;
+          letter-spacing: -0.03em;
+          filter: drop-shadow(0 4px 18px rgba(0, 0, 0, 0.30));
         }
         .hero-cursor {
-          color: #fdba74 !important;
+          color: #fef08a !important;
           font-weight: 300;
-          -webkit-text-fill-color: #fdba74 !important;
+          -webkit-text-fill-color: #fef08a !important;
+          filter: drop-shadow(0 0 8px rgba(254, 240, 138, 0.85));
         }
       `}</style>
     </section>

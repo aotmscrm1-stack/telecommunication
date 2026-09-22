@@ -1,6 +1,8 @@
 const express = require('express');
 const axios = require('axios');
 const Lead = require('../models/Lead');
+const User = require('../models/User');
+const EmailLog = require('../models/EmailLog');
 const { protect } = require('../middleware/auth');
 
 const router = express.Router();
@@ -117,34 +119,110 @@ router.delete('/templates/:id', protect, async (req, res) => {
 // POST /api/email/send — Sends Email via n8n Webhook or direct Nodemailer/SMTP
 router.post('/send', protect, async (req, res) => {
   try {
-    const senderEmail = req.body.fromEmail || req.user?.email || 'hr@aotms.com';
-    const { recipientEmail, subject, body, templateId } = req.body;
+    const targetRecipient = (
+      req.body.recipientEmail ||
+      req.body.receiptEmail ||
+      req.body.toEmail ||
+      req.body.to ||
+      req.body.recipient ||
+      req.body.receiverEmail ||
+      req.body.email ||
+      ''
+    ).trim();
 
-    if (!recipientEmail || !subject || !body) {
+    const senderEmail = (
+      req.body.fromEmail ||
+      req.body.from ||
+      req.body.senderEmail ||
+      req.body.sender ||
+      req.user?.email ||
+      'hr@aotms.com'
+    ).trim();
+
+    const emailSubject = (req.body.subject || req.body.title || 'Notification from AOTMS CRM').trim();
+    const emailBody = (req.body.body || req.body.emailBody || req.body.message || req.body.content || '').trim();
+    const templateId = req.body.templateId || 'custom';
+
+    if (!targetRecipient || !emailSubject || !emailBody) {
       return res.status(400).json({ message: 'Recipient Email, Subject, and Message Body are required.' });
     }
 
-    let sentVia = 'Secure Email Service';
+    let sentVia = 'n8n Automation Webhook';
     let success = false;
+    let n8nDetails = null;
+    let n8nError = null;
 
-    // 1. Dispatch via webhook service if configured
+    // 1. Dispatch via n8n webhook service if configured
     if (process.env.N8N_WEBHOOK_URL) {
       try {
-        await axios.post(process.env.N8N_WEBHOOK_URL, {
+        const n8nRes = await axios.post(process.env.N8N_WEBHOOK_URL, {
           event: 'email:send',
           payload: {
             fromEmail: senderEmail,
-            recipientEmail,
-            subject,
-            emailBody: body,
-            templateId: templateId || 'custom',
+            senderEmail,
+            from: senderEmail,
+            recipientEmail: targetRecipient,
+            receiptEmail: targetRecipient,
+            toEmail: targetRecipient,
+            to: targetRecipient,
+            subject: emailSubject,
+            emailBody: emailBody,
+            body: emailBody,
+            message: emailBody,
+            templateId,
             sentBy: req.user?.name || req.user?.email || 'Staff',
-            timestamp: new Date()
+            timestamp: new Date().toISOString()
           }
-        });
-        success = true;
+        }, { timeout: 15000 });
+
+        const d = n8nRes.data;
+        // Detect if n8n returned an error inside a 200 payload
+        if (d && (d.errorMessage || d.error || d.status === 'error' || d.success === false)) {
+          const errMsg = d.errorMessage || (typeof d.error === 'string' ? d.error : JSON.stringify(d.error)) || d.message || 'n8n workflow error';
+          const nodeName = d.n8nDetails?.nodeName || '';
+          n8nError = {
+            message: nodeName ? `${errMsg} (in node: "${nodeName}")` : errMsg,
+            status: 500,
+            nodeName,
+            raw: d
+          };
+        } else {
+          success = true;
+          sentVia = 'n8n Automation Webhook';
+          n8nDetails = d || null;
+        }
       } catch (err) {
-        console.warn('[Email Webhook Warning]:', err.message);
+        console.error('[Email Webhook Error]:', err.response?.data || err.message);
+        const rData = err.response?.data;
+        let extractedMsg = '';
+        let nodeName = '';
+
+        if (rData && typeof rData === 'object') {
+          if (rData.errorMessage) extractedMsg = rData.errorMessage;
+          else if (rData.message) extractedMsg = rData.message;
+          else if (rData.error) extractedMsg = typeof rData.error === 'string' ? rData.error : JSON.stringify(rData.error);
+          else if (rData.errorDetails?.rawErrorMessage) {
+            extractedMsg = Array.isArray(rData.errorDetails.rawErrorMessage)
+              ? rData.errorDetails.rawErrorMessage.join('; ')
+              : String(rData.errorDetails.rawErrorMessage);
+          }
+          if (rData.n8nDetails?.nodeName) {
+            nodeName = rData.n8nDetails.nodeName;
+          }
+        }
+
+        if (!extractedMsg) {
+          extractedMsg = err.message || 'Webhook communication failure';
+        }
+
+        const fullMsg = nodeName ? `${extractedMsg} (at node: "${nodeName}")` : extractedMsg;
+
+        n8nError = {
+          message: fullMsg,
+          status: err.response?.status || 500,
+          nodeName,
+          raw: rData || err.message
+        };
       }
     }
 
@@ -163,13 +241,14 @@ router.post('/send', protect, async (req, res) => {
         });
 
         await transporter.sendMail({
-          from: `"AOTMS HR" <${senderEmail}>`,
-          to: recipientEmail,
-          subject,
-          text: body,
+          from: `"${req.user?.name || 'AOTMS HR'}" <${senderEmail}>`,
+          to: targetRecipient,
+          replyTo: senderEmail,
+          subject: emailSubject,
+          text: emailBody,
           html: `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111; padding: 20px; background: #fafafa; border-radius: 8px;">
             <div style="background: #ffffff; padding: 24px; border: 1px solid #e5e7eb; border-radius: 8px;">
-              ${body.replace(/\n/g, '<br/>')}
+              ${emailBody.replace(/\n/g, '<br/>')}
             </div>
             <div style="margin-top: 16px; font-size: 12px; color: #6b7280; text-align: center;">
               Sent via AOTMS Platform · ${senderEmail}
@@ -178,29 +257,153 @@ router.post('/send', protect, async (req, res) => {
         });
         sentVia = 'SMTP Mailer';
         success = true;
+        n8nError = null; // Clear error since fallback succeeded
       } catch (smtpErr) {
         console.warn('[SMTP Fallback Warning]:', smtpErr.message);
       }
     }
 
-    if (!success) {
-      sentVia = 'Direct Delivery Service';
-      console.log(`[Email Dispatch]: From ${senderEmail} to ${recipientEmail} | Subject: ${subject}`);
+    // Determine final status
+    const isLeave = templateId === 'leave_template' || /leave|absence|permission/i.test(emailSubject);
+    const finalStatus = success ? 'Delivered' : (n8nError ? 'Failed' : 'Sent');
+    const finalErrorMsg = n8nError ? n8nError.message : '';
+
+    // Save Email Log in database for audit trail & Managing Director tracking
+    let savedLog = null;
+    try {
+      savedLog = await EmailLog.create({
+        sender: req.user?._id,
+        senderName: req.user?.name || 'Staff',
+        senderEmail: req.user?.email || senderEmail,
+        senderDesignation: req.user?.designation || 'Staff',
+        fromEmail: senderEmail,
+        recipientEmail: targetRecipient,
+        subject: emailSubject,
+        body: emailBody,
+        templateId,
+        sentVia: success ? sentVia : 'n8n Automation Webhook (Failed)',
+        status: finalStatus,
+        errorMessage: finalErrorMsg,
+        isLeaveRequest: isLeave,
+        trackedByMD: true,
+        n8nDetails: n8nDetails || (n8nError ? n8nError.raw : null)
+      });
+    } catch (logErr) {
+      console.warn('[EmailLog Save Warning]:', logErr.message);
+    }
+
+    // IF n8n reported an error and no SMTP fallback succeeded -> RETURN PROPER ERROR TO FRONTEND
+    if (!success && n8nError) {
+      return res.status(502).json({
+        success: false,
+        errorType: 'N8N_WEBHOOK_ERROR',
+        message: `n8n Webhook Error: ${n8nError.message}`,
+        error: n8nError.message,
+        nodeName: n8nError.nodeName,
+        details: n8nError.raw,
+        log: savedLog
+      });
     }
 
     res.json({
       success: true,
-      message: `Email sent successfully to ${recipientEmail}`,
+      message: `Email sent successfully to ${targetRecipient}`,
+      log: savedLog,
       details: {
         fromEmail: senderEmail,
-        recipientEmail,
-        subject,
+        recipientEmail: targetRecipient,
+        receiptEmail: targetRecipient,
+        toEmail: targetRecipient,
+        subject: emailSubject,
         sentVia,
+        n8nDetails,
         timestamp: new Date()
       }
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+});
+
+// GET /api/email/logs — Fetch email history. MD/Executive tracks all staff; staff sees own logs
+router.get('/logs', protect, async (req, res) => {
+  try {
+    const userDesig = String(req.user?.designation || '').trim().toUpperCase();
+    const isMD = userDesig === 'MANAGING DIRECTOR' || userDesig === 'MD' || userDesig === 'CEO' || req.user?.role === 'admin' || req.user?.name?.toLowerCase().trim() === 'ameen';
+
+    const filter = {};
+    if (!isMD) {
+      filter.sender = req.user._id;
+    } else if (req.query.employeeId && req.query.employeeId !== 'all') {
+      filter.sender = req.query.employeeId;
+    }
+
+    if (req.query.search) {
+      const s = req.query.search.trim();
+      filter.$or = [
+        { recipientEmail: new RegExp(s, 'i') },
+        { fromEmail: new RegExp(s, 'i') },
+        { subject: new RegExp(s, 'i') },
+        { senderName: new RegExp(s, 'i') }
+      ];
+    }
+
+    const logs = await EmailLog.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(200);
+
+    // Compute stats for Managing Director
+    let stats = null;
+    if (isMD) {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+
+      const totalCount = await EmailLog.countDocuments();
+      const todayCount = await EmailLog.countDocuments({ createdAt: { $gte: todayStart } });
+      const leaveCount = await EmailLog.countDocuments({ isLeaveRequest: true });
+      const uniqueSenders = await EmailLog.distinct('sender');
+
+      stats = {
+        totalSent: totalCount,
+        todaySent: todayCount,
+        leaveRequests: leaveCount,
+        activeSenders: uniqueSenders.length
+      };
+    }
+
+    res.json({
+      success: true,
+      isManagingDirector: isMD,
+      stats,
+      logs
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message, logs: [] });
+  }
+});
+
+// GET /api/email/tracking-users — List users for Managing Director filter dropdown
+router.get('/tracking-users', protect, async (req, res) => {
+  try {
+    const userDesig = String(req.user?.designation || '').trim().toUpperCase();
+    const isMD = userDesig === 'MANAGING DIRECTOR' || userDesig === 'MD' || userDesig === 'CEO' || req.user?.role === 'admin' || req.user?.name?.toLowerCase().trim() === 'ameen';
+
+    if (!isMD) {
+      return res.json({
+        users: [{
+          _id: req.user._id,
+          name: req.user.name,
+          designation: req.user.designation,
+          email: req.user.email
+        }]
+      });
+    }
+
+    const users = await User.find({ isActive: { $ne: false } }, 'name email designation role employeeId')
+      .sort({ name: 1 });
+    res.json({ users });
+  } catch (err) {
+    res.status(500).json({ message: err.message, users: [] });
   }
 });
 

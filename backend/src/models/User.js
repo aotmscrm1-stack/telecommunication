@@ -3,6 +3,8 @@ const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
+  firstName: { type: String, trim: true, default: '' },
+  lastName: { type: String, trim: true, default: '' },
   email: { type: String, required: true, unique: true, lowercase: true },
   password: { type: String, required: true, minlength: 6 },
   role: { type: String, enum: ['employee', 'caller', 'manager', 'admin'], default: 'employee' },
@@ -11,9 +13,20 @@ const userSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: true },
   phone: { type: String, default: '' },
   designation: { type: String, default: '', trim: true },
+  displayName: { type: String, default: '', trim: true },
+  bloodGroup: { type: String, default: '', trim: true },
+  address: { type: String, default: '', trim: true },
   department: { type: String, default: '', trim: true },
   officeLocation: { type: String, default: '', trim: true },
   joiningDate: { type: Date, default: null },
+  approvalStatus: {
+    type: String,
+    enum: ['pending', 'accepted', 'rejected'],
+    default: 'accepted',
+  },
+  approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  approvedAt: { type: Date },
+  rejectionReason: { type: String, default: '', trim: true },
   preferences: {
     type: Object,
     default: {

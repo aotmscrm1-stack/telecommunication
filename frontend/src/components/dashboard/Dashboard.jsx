@@ -23,8 +23,9 @@ import {
   FaHeadset, FaBriefcase, FaHandshake, FaMicrophone, FaVideo,
   FaPause, FaLaptopCode, FaSatelliteDish, FaChevronDown, FaBoltLightning,
   FaInbox, FaPaperPlane, FaFilterCircleXmark, FaStar, FaListUl, FaTableList,
-  FaEnvelope, FaUser, FaCopy, FaBookmark, FaEllipsis,
+  FaEnvelope, FaUser, FaCopy, FaBookmark, FaEllipsis, FaTrash,
 } from 'react-icons/fa6';
+import { canDelete } from '../../utils/permissions';
 
 /* ─────────────────────────────────────────────────────────
    HELPERS
@@ -155,11 +156,20 @@ const T = {
    ───────────────────────────────────────────────────────── */
 function TeamMembersCard({
   employees = [],
+  isAdmin = false,
+  canDeleteUser = false,
   onSelectEmployee,
   onMapEmployee,
+  onUpdateApproval,
+  onDeleteEmployee,
 }) {
   const [startIndex, setStartIndex] = useState(0);
   const [menuOpenId, setMenuOpenId] = useState(null);
+  const [filterTab, setFilterTab] = useState('all'); // 'all' | 'pending' | 'accepted' | 'rejected'
+  const [processingId, setProcessingId] = useState(null);
+  const [rejectModalEmp, setRejectModalEmp] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [deleteModalEmp, setDeleteModalEmp] = useState(null);
 
   const fallbackEmployees = [
     {
@@ -171,6 +181,7 @@ function TeamMembersCard({
       avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=240&auto=format&fit=crop&q=80',
       email: 'jaiden.k@aotms.com',
       phone: '+91 98765 43210',
+      approvalStatus: 'accepted',
     },
     {
       _id: 'tm-2',
@@ -181,6 +192,7 @@ function TeamMembersCard({
       avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=240&auto=format&fit=crop&q=80',
       email: 'norris.s@aotms.com',
       phone: '+91 98765 43211',
+      approvalStatus: 'accepted',
     },
     {
       _id: 'tm-3',
@@ -191,6 +203,7 @@ function TeamMembersCard({
       avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=240&auto=format&fit=crop&q=80',
       email: 'savanah.h@aotms.com',
       phone: '+91 98765 43212',
+      approvalStatus: 'accepted',
     },
     {
       _id: 'tm-4',
@@ -201,48 +214,20 @@ function TeamMembersCard({
       avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=240&auto=format&fit=crop&q=80',
       email: 'marcus.v@aotms.com',
       phone: '+91 98765 43213',
-    },
-    {
-      _id: 'tm-5',
-      name: 'Elena Rostova',
-      role: 'Enterprise Sales',
-      department: 'Sales',
-      assignedProjects: 8,
-      avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=240&auto=format&fit=crop&q=80',
-      email: 'elena.r@aotms.com',
-      phone: '+91 98765 43214',
-    },
-    {
-      _id: 'tm-6',
-      name: 'Devon Lane',
-      role: 'VoIP Telephony Lead',
-      department: 'Outreach',
-      assignedProjects: 6,
-      avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=240&auto=format&fit=crop&q=80',
-      email: 'devon.l@aotms.com',
-      phone: '+91 98765 43215',
-    },
-    {
-      _id: 'tm-7',
-      name: 'Courtney Henry',
-      role: 'Client Success Manager',
-      department: 'Operations',
-      assignedProjects: 3,
-      avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=240&auto=format&fit=crop&q=80',
-      email: 'courtney.h@aotms.com',
-      phone: '+91 98765 43216',
+      approvalStatus: 'accepted',
     },
   ];
 
-  const list = useMemo(() => {
-    // Show real-time employees from database with live data and real names
+  const fullList = useMemo(() => {
     if (employees && employees.length > 0) {
       const realList = employees.map((e, idx) => {
         const fb = fallbackEmployees[idx % fallbackEmployees.length];
         return {
           _id: e._id || `emp-${idx}`,
           name: e.name || fb.name,
+          displayName: e.displayName || e.name || fb.name,
           role: e.designation || e.role || fb.role,
+          designation: e.designation || fb.role,
           department: e.department || fb.department,
           assignedProjects: e.assignedProjects 
             ? e.assignedProjects 
@@ -250,14 +235,14 @@ function TeamMembersCard({
                 ? Math.max(1, Math.min(9, Math.round(e.calls.today.count / 3))) 
                 : ((idx * 2 + 3) % 8 + 1)),
           avatar: (e.avatar && typeof e.avatar === 'string' && e.avatar.trim() !== '') ? e.avatar : fb.avatar,
-          email: e.email || `${e.name?.toLowerCase().replace(/\s+/g, '.')}@aotms.com`,
+          email: e.email || `${(e.name || fb.name).toLowerCase().replace(/\s+/g, '.')}@aotms.com`,
           phone: e.phone || '+91 98765 43210',
           status: e.status || (e.isOnline ? 'Online' : 'Active'),
+          approvalStatus: e.approvalStatus || e.raw?.approvalStatus || 'pending',
           raw: e,
         };
       });
 
-      // Pad up to at least 4 cards if fewer exist in DB so the 4-card carousel is always full
       if (realList.length < 4) {
         const padded = [...realList];
         for (let i = realList.length; i < 4; i++) {
@@ -270,46 +255,153 @@ function TeamMembersCard({
     return fallbackEmployees;
   }, [employees]);
 
-  const total = list.length;
-  // Always display 4 cards in the viewport
+  // Overall counts for size metrics
+  const totalCount = fullList.length;
+  const pendingCount = useMemo(() => fullList.filter(e => e.approvalStatus === 'pending').length, [fullList]);
+  const acceptedCount = useMemo(() => fullList.filter(e => e.approvalStatus === 'accepted').length, [fullList]);
+  const rejectedCount = useMemo(() => fullList.filter(e => e.approvalStatus === 'rejected').length, [fullList]);
+
+  // Filter list by selected tab
+  const filteredList = useMemo(() => {
+    if (filterTab === 'pending') return fullList.filter(e => e.approvalStatus === 'pending');
+    if (filterTab === 'accepted') return fullList.filter(e => e.approvalStatus === 'accepted');
+    if (filterTab === 'rejected') return fullList.filter(e => e.approvalStatus === 'rejected');
+    return fullList;
+  }, [fullList, filterTab]);
+
+  const activeTotal = filteredList.length;
+
+  // Carousel pagination
   const visibleCards = useMemo(() => {
+    if (activeTotal === 0) return [];
+    const count = Math.min(4, activeTotal);
     const cards = [];
-    const count = Math.min(4, total);
     for (let i = 0; i < count; i++) {
-      cards.push(list[(startIndex + i) % total]);
+      cards.push(filteredList[(startIndex + i) % activeTotal]);
     }
     return cards;
-  }, [list, startIndex, total]);
+  }, [filteredList, startIndex, activeTotal]);
 
   const handleNext = () => {
-    setStartIndex((prev) => (prev + 1) % total);
+    if (activeTotal <= 1) return;
+    setStartIndex((prev) => (prev + 1) % activeTotal);
   };
 
   const handlePrev = () => {
-    setStartIndex((prev) => (prev - 1 + total) % total);
+    if (activeTotal <= 1) return;
+    setStartIndex((prev) => (prev - 1 + activeTotal) % activeTotal);
+  };
+
+  // Quick Accept on Dashboard
+  const handleQuickAccept = async (emp, e) => {
+    e?.stopPropagation();
+    if (!onUpdateApproval || !emp._id || String(emp._id).startsWith('tm-')) return;
+    setProcessingId(emp._id);
+    try {
+      await onUpdateApproval(emp._id, 'accepted');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  // Quick Reject Trigger
+  const handleOpenReject = (emp, e) => {
+    e?.stopPropagation();
+    setRejectModalEmp(emp);
+    setRejectReason('');
+  };
+
+  // Confirm Reject
+  const handleConfirmReject = async () => {
+    if (!rejectModalEmp || !onUpdateApproval) return;
+    setProcessingId(rejectModalEmp._id);
+    try {
+      await onUpdateApproval(rejectModalEmp._id, 'rejected', rejectReason);
+      setRejectModalEmp(null);
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  // Confirm Delete Permanently
+  const handleConfirmDelete = async () => {
+    if (!deleteModalEmp || !onDeleteEmployee) return;
+    setProcessingId(deleteModalEmp._id);
+    try {
+      await onDeleteEmployee(deleteModalEmp._id);
+      setDeleteModalEmp(null);
+    } finally {
+      setProcessingId(null);
+    }
   };
 
   return (
     <div
-      className="rounded-[28px] p-6 sm:p-7 transition-all duration-300 relative bg-gradient-to-br from-orange-50/60 via-white to-sky-50/60 border border-slate-200/80 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.04)]"
+      className="rounded-[28px] p-6 sm:p-7 transition-all duration-300 relative border border-slate-200/80 shadow-[0_4px_24px_-2px_rgba(0,0,0,0.04)]"
       style={{
-        background: 'linear-gradient(135deg, rgba(255, 247, 237, 0.65) 0%, #ffffff 50%, rgba(240, 249, 255, 0.65) 100%)',
+        background: 'linear-gradient(135deg, rgba(255, 247, 237, 0.7) 0%, #ffffff 45%, rgba(240, 249, 255, 0.7) 100%)',
       }}
     >
-      {/* ── HEADER: Team Members with accent underline ───── */}
-      <div className="flex items-center justify-between mb-8 sm:mb-9">
+      {/* ── HEADER: Team Members with Tab Filters & Size ───── */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
         <div>
-          <h2 className="text-[20px] sm:text-[22px] font-normal text-slate-800 tracking-normal m-0">
-            Team Members
-          </h2>
-          <div className="w-10 h-0.5 bg-slate-300 rounded-full mt-1.5" />
+          <div className="flex items-center gap-3">
+            <h2 className="text-[20px] sm:text-[22px] font-bold text-slate-800 tracking-tight m-0">
+              Team Members
+            </h2>
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200/80">
+              {totalCount} Total Staff
+            </span>
+          </div>
+          <div className="flex items-center gap-2 mt-1.5">
+            <div className="w-10 h-0.5 bg-orange-500 rounded-full" />
+            <span className="text-[12px] text-slate-500 font-medium">
+              Live database member profiles & administrator approvals
+            </span>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <span className="text-[12px] font-medium text-slate-400 hidden sm:inline">
-            Showing {startIndex + 1}–{Math.min(startIndex + 4, total)} of {total}
-          </span>
-          {total > 4 && (
+        {/* Filters & Carousel controls */}
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Filter Pills */}
+          <div className="flex items-center p-1 bg-white/90 rounded-2xl border border-slate-200 shadow-xs">
+            <button
+              onClick={() => { setFilterTab('all'); setStartIndex(0); }}
+              className={`px-3 py-1.5 rounded-xl text-[11.5px] font-bold transition-all cursor-pointer ${
+                filterTab === 'all'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              All ({totalCount})
+            </button>
+            <button
+              onClick={() => { setFilterTab('pending'); setStartIndex(0); }}
+              className={`px-3 py-1.5 rounded-xl text-[11.5px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                filterTab === 'pending'
+                  ? 'bg-amber-500 text-white shadow-xs'
+                  : 'text-amber-700 hover:bg-amber-50'
+              }`}
+            >
+              {pendingCount > 0 && (
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+              )}
+              <span>Pending ({pendingCount})</span>
+            </button>
+            <button
+              onClick={() => { setFilterTab('accepted'); setStartIndex(0); }}
+              className={`px-3 py-1.5 rounded-xl text-[11.5px] font-bold transition-all cursor-pointer ${
+                filterTab === 'accepted'
+                  ? 'bg-sky-600 text-white shadow-xs'
+                  : 'text-sky-700 hover:bg-sky-50'
+              }`}
+            >
+              Accepted ({acceptedCount})
+            </button>
+          </div>
+
+          {/* Carousel Arrows */}
+          {activeTotal > 4 && (
             <div className="flex items-center gap-1.5">
               <motion.button
                 whileHover={{ scale: 1.1 }}
@@ -334,129 +426,395 @@ function TeamMembersCard({
         </div>
       </div>
 
+      {/* Empty State when filter yields 0 cards */}
+      {activeTotal === 0 && (
+        <div className="py-12 text-center bg-white/70 rounded-3xl border border-slate-200/80">
+          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-500 grid place-items-center mx-auto mb-3">
+            <FaCircleCheck className="w-6 h-6" />
+          </div>
+          <h4 className="text-[15px] font-bold text-slate-800 m-0">
+            {filterTab === 'pending' ? 'No pending approval requests!' : 'No members found for this filter.'}
+          </h4>
+          <p className="text-[12px] text-slate-500 mt-1 mb-0">
+            {filterTab === 'pending'
+              ? 'All registered staff members have already been reviewed and accepted.'
+              : 'Switch back to "All" to view the complete roster.'}
+          </p>
+        </div>
+      )}
+
       {/* ── CARDS ROW (4 CARDS + ROUND PLUS BUTTON) ───── */}
-      <div className="flex items-center gap-4 sm:gap-5 overflow-x-auto pt-10 pb-3 px-1 scrollbar-none">
-        <AnimatePresence mode="popLayout" initial={false}>
-          {visibleCards.map((emp) => (
-            <motion.div
-              key={emp._id}
-              layout
-              initial={{ opacity: 0, x: 28, scale: 0.94 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: -28, scale: 0.94 }}
-              transition={{ type: 'spring', stiffness: 350, damping: 28 }}
-              whileHover={{
-                y: -5,
-                boxShadow: '0 16px 32px -8px rgba(2, 132, 199, 0.08), 0 2px 8px rgba(249, 115, 22, 0.08)',
-                borderColor: '#fed7aa',
-              }}
-              onClick={() => onSelectEmployee?.(emp.raw || emp)}
-              className="relative bg-white rounded-[24px] pt-10 sm:pt-11 px-5 pb-5 flex-1 min-w-[215px] sm:min-w-[235px] border border-slate-100/90 shadow-[0_2px_14px_rgba(0,0,0,0.04)] cursor-pointer transition-all duration-200 group flex flex-col justify-between"
-              style={{ background: '#ffffff' }}
-            >
-              {/* Overlapping Avatar Circle with Increased Size */}
-              <div className="absolute -top-8 sm:-top-9 left-5 w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-full border-[4px] border-white shadow-[0_8px_20px_rgba(0,0,0,0.12)] bg-gradient-to-tr from-orange-400 to-sky-500 shrink-0">
-                <div className="w-full h-full rounded-full overflow-hidden">
-                  <img
-                    src={emp.avatar}
-                    alt={emp.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      e.target.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center bg-gradient-to-tr from-orange-500 to-sky-500 text-white"><svg class="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 448 512"><path d="M224 256A128 128 0 1 0 224 0a128 128 0 1 0 0 256zm-45.7 48C79.8 304 0 383.8 0 482.3 0 498.7 13.3 512 29.7 512h388.6c16.4 0 29.7-13.3 29.7-29.7 0-98.5-79.8-178.3-178.3-178.3h-91.4z"/></svg></div>`;
-                    }}
-                  />
-                </div>
-                {/* Mini Profile Theme Icon Badge */}
-                <div
-                  className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center shadow-xs"
-                  style={{ background: '#ea580c' }}
-                  title="Team Member Profile"
+      {activeTotal > 0 && (
+        <div className="flex items-stretch gap-4 sm:gap-5 overflow-x-auto pt-10 pb-3 px-1 scrollbar-none">
+          <AnimatePresence mode="popLayout" initial={false}>
+            {visibleCards.map((emp) => {
+              const isPending = emp.approvalStatus === 'pending';
+              const isAccepted = emp.approvalStatus === 'accepted';
+              const isRejected = emp.approvalStatus === 'rejected';
+
+              return (
+                <motion.div
+                  key={emp._id}
+                  layout
+                  initial={{ opacity: 0, x: 28, scale: 0.94 }}
+                  animate={{ opacity: 1, x: 0, scale: 1 }}
+                  exit={{ opacity: 0, x: -28, scale: 0.94 }}
+                  transition={{ type: 'spring', stiffness: 350, damping: 28 }}
+                  whileHover={{
+                    y: -5,
+                    boxShadow: isPending
+                      ? '0 18px 36px -8px rgba(245, 158, 11, 0.18), 0 2px 8px rgba(249, 115, 22, 0.08)'
+                      : '0 16px 32px -8px rgba(2, 132, 199, 0.10), 0 2px 8px rgba(249, 115, 22, 0.08)',
+                    borderColor: isPending ? '#f59e0b' : '#fed7aa',
+                  }}
+                  onClick={() => onSelectEmployee?.(emp.raw || emp)}
+                  className={`relative rounded-[24px] pt-10 sm:pt-11 px-5 pb-5 flex-1 min-w-[235px] sm:min-w-[255px] shadow-[0_2px_14px_rgba(0,0,0,0.04)] cursor-pointer transition-all duration-200 group flex flex-col justify-between ${
+                    isPending
+                      ? 'bg-gradient-to-b from-amber-50/50 to-white border-2 border-amber-300'
+                      : 'bg-white border border-slate-100/90'
+                  }`}
+                  style={{ background: isPending ? 'linear-gradient(180deg, rgba(254, 243, 199, 0.25) 0%, #ffffff 100%)' : '#ffffff' }}
                 >
-                  <FaUser className="w-2.5 h-2.5 text-white" />
-                </div>
-              </div>
-
-              {/* Top Right Three-Dots Button */}
-              <div className="flex justify-end mb-2">
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setMenuOpenId(menuOpenId === emp._id ? null : emp._id);
-                    }}
-                    className="p-1 rounded-full text-orange-400 hover:text-orange-600 hover:bg-orange-50 cursor-pointer transition-colors"
-                    title="Options"
-                  >
-                    <FaEllipsis className="w-4 h-4 text-orange-500" />
-                  </button>
-
-                  {/* Dropdown Menu */}
-                  {menuOpenId === emp._id && (
+                  {/* Overlapping Avatar Circle with Increased Size */}
+                  <div className={`absolute -top-8 sm:-top-9 left-5 w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-full border-[4px] border-white shadow-[0_8px_20px_rgba(0,0,0,0.12)] shrink-0 overflow-hidden ${
+                    isPending ? 'ring-2 ring-amber-400' : 'bg-gradient-to-tr from-orange-400 to-sky-500'
+                  }`}>
+                    <img
+                      src={emp.avatar}
+                      alt={emp.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center bg-gradient-to-tr from-orange-500 to-sky-500 text-white font-bold text-lg">${emp.name?.[0]?.toUpperCase() || 'U'}</div>`;
+                      }}
+                    />
+                    {/* Mini Profile Status Badge */}
                     <div
-                      onClick={(e) => e.stopPropagation()}
-                      className="absolute right-0 top-7 w-36 bg-white rounded-xl shadow-xl border border-slate-100 py-1 z-30 text-[11.5px] font-medium animate-in fade-in zoom-in-95"
+                      className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center shadow-xs"
+                      style={{ background: isPending ? '#f59e0b' : isAccepted ? '#0284c7' : '#ef4444' }}
+                      title={`Status: ${emp.approvalStatus}`}
                     >
-                      <button
-                        onClick={() => {
-                          setMenuOpenId(null);
-                          onSelectEmployee?.(emp.raw || emp);
-                        }}
-                        className="w-full text-left px-3 py-1.5 hover:bg-orange-50 hover:text-orange-600 transition-colors cursor-pointer flex items-center gap-2 text-slate-700"
-                      >
-                        <FaUser className="w-3 h-3 text-orange-500" /> View Profile
-                      </button>
-                      <button
-                        onClick={() => {
-                          setMenuOpenId(null);
-                          onMapEmployee?.(emp.raw || emp);
-                        }}
-                        className="w-full text-left px-3 py-1.5 hover:bg-sky-50 hover:text-sky-600 transition-colors cursor-pointer flex items-center gap-2 text-slate-700"
-                      >
-                        <FaLocationDot className="w-3 h-3 text-sky-500" /> Live Location
-                      </button>
+                      {isPending ? (
+                        <FaClock className="w-2.5 h-2.5 text-white" />
+                      ) : isAccepted ? (
+                        <FaCheck className="w-2.5 h-2.5 text-white" />
+                      ) : (
+                        <FaXmark className="w-2.5 h-2.5 text-white" />
+                      )}
                     </div>
-                  )}
+                  </div>
+
+                  {/* Top Right Status Badge & Menu */}
+                  <div className="flex items-center justify-end gap-2 mb-2">
+                    {/* Approval Status Badge */}
+                    {isPending ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                        Pending
+                      </span>
+                    ) : isAccepted ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200">
+                        <FaCircleCheck className="w-2.5 h-2.5 text-sky-600" />
+                        Accepted
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                        <FaXmark className="w-2.5 h-2.5 text-rose-600" />
+                        Rejected
+                      </span>
+                    )}
+
+                    {/* Three-Dots Menu */}
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMenuOpenId(menuOpenId === emp._id ? null : emp._id);
+                        }}
+                        className="p-1 rounded-full text-slate-400 hover:text-orange-600 hover:bg-orange-50 cursor-pointer transition-colors"
+                        title="Options"
+                      >
+                        <FaEllipsis className="w-4 h-4" />
+                      </button>
+
+                      {menuOpenId === emp._id && (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="absolute right-0 top-7 w-40 bg-white rounded-xl shadow-xl border border-slate-100 py-1 z-30 text-[11.5px] font-medium animate-in fade-in zoom-in-95"
+                        >
+                          <button
+                            onClick={() => {
+                              setMenuOpenId(null);
+                              onSelectEmployee?.(emp.raw || emp);
+                            }}
+                            className="w-full text-left px-3 py-1.5 hover:bg-orange-50 hover:text-orange-600 transition-colors cursor-pointer flex items-center gap-2 text-slate-700"
+                          >
+                            <FaUser className="w-3 h-3 text-orange-500" /> View Profile
+                          </button>
+                          <button
+                            onClick={() => {
+                              setMenuOpenId(null);
+                              onMapEmployee?.(emp.raw || emp);
+                            }}
+                            className="w-full text-left px-3 py-1.5 hover:bg-sky-50 hover:text-sky-600 transition-colors cursor-pointer flex items-center gap-2 text-slate-700"
+                          >
+                            <FaLocationDot className="w-3 h-3 text-sky-500" /> Live Location
+                          </button>
+                          {isAdmin && isAccepted && (
+                            <button
+                              onClick={(e) => {
+                                setMenuOpenId(null);
+                                handleOpenReject(emp, e);
+                              }}
+                              className="w-full text-left px-3 py-1.5 hover:bg-orange-50 hover:text-orange-600 transition-colors cursor-pointer flex items-center gap-2 text-orange-600 border-t border-slate-100"
+                            >
+                              <FaXmark className="w-3 h-3 text-orange-500" /> Revoke / Reject
+                            </button>
+                          )}
+                          {canDeleteUser && emp.role !== 'admin' && !String(emp._id).startsWith('tm-') && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setMenuOpenId(null);
+                                setDeleteModalEmp(emp);
+                              }}
+                              className="w-full text-left px-3 py-1.5 hover:bg-rose-50 hover:text-rose-600 transition-colors cursor-pointer flex items-center gap-2 text-rose-600 border-t border-slate-100 font-semibold"
+                            >
+                              <FaTrash className="w-3 h-3 text-rose-500" /> Delete Permanently
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Profile Info: Name, Designation & Email */}
+                  <div className="mt-1">
+                    <h4 className="text-[16px] sm:text-[17px] font-bold text-slate-900 group-hover:text-orange-500 tracking-tight transition-colors m-0 truncate" title={emp.name}>
+                      {emp.name}
+                    </h4>
+                    <p className="text-[12.5px] font-semibold text-orange-600 mt-0.5 mb-1.5 truncate" title={emp.role}>
+                      {emp.role}
+                    </p>
+                    {/* Email display with icon */}
+                    <div className="flex items-center gap-1.5 text-[11.5px] text-slate-500 truncate" title={emp.email}>
+                      <FaEnvelope className="w-3 h-3 text-slate-400 shrink-0" />
+                      <span className="truncate">{emp.email}</span>
+                    </div>
+                  </div>
+
+                  {/* ── ACTION SECTION: ACCEPT / REJECT ON DASHBOARD ── */}
+                  <div className="mt-3.5 pt-3 border-t border-slate-100">
+                    {isAdmin && isPending ? (
+                      <div className="flex items-center gap-2">
+                        {/* ACCEPT BUTTON (ReactBits Style: White/Orange/Blue Shimmer) */}
+                        <motion.button
+                          whileHover={{ scale: 1.05, y: -1, boxShadow: '0 8px 20px -2px rgba(2, 132, 199, 0.4), 0 3px 10px -1px rgba(249, 115, 22, 0.3)' }}
+                          whileTap={{ scale: 0.94 }}
+                          disabled={processingId === emp._id}
+                          onClick={(e) => handleQuickAccept(emp, e)}
+                          className="relative overflow-hidden group flex-1 py-2 px-3 rounded-xl text-white text-[12px] font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all disabled:opacity-50"
+                          style={{
+                            background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 40%, #ea580c 85%, #f97316 100%)',
+                            border: '1px solid rgba(255, 255, 255, 0.3)',
+                            boxShadow: '0 4px 14px -2px rgba(2, 132, 199, 0.35), 0 2px 6px -1px rgba(249, 115, 22, 0.25)',
+                          }}
+                          title="Accept User Profile"
+                        >
+                          <span
+                            style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: '-100%',
+                              width: '60%',
+                              height: '100%',
+                              background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent)',
+                              transform: 'skewX(-20deg)',
+                              transition: 'left 0.6s ease',
+                              pointerEvents: 'none',
+                            }}
+                            className="group-hover:left-[140%]"
+                          />
+                          {processingId === emp._id ? (
+                            <FaRotate className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <>
+                              <FaCheck className="w-3 h-3" />
+                              <span>Accept</span>
+                            </>
+                          )}
+                        </motion.button>
+
+                        {/* REJECT BUTTON */}
+                        <motion.button
+                          whileHover={{ scale: 1.03 }}
+                          whileTap={{ scale: 0.95 }}
+                          disabled={processingId === emp._id}
+                          onClick={(e) => handleOpenReject(emp, e)}
+                          className="py-2 px-3 rounded-xl bg-white hover:bg-orange-50 text-orange-600 border border-orange-200 hover:border-orange-300 text-[12px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-all disabled:opacity-50"
+                          title="Reject User Profile"
+                        >
+                          <FaXmark className="w-3 h-3" />
+                          <span>Reject</span>
+                        </motion.button>
+                      </div>
+                    ) : isAccepted ? (
+                      <div className="flex items-center justify-between text-[11.5px]">
+                        <div className="flex items-center gap-1.5 text-sky-700 font-bold">
+                          <FaUserCheck className="w-3.5 h-3.5 text-sky-600" />
+                          <span>Active Member</span>
+                        </div>
+                        <span className="text-slate-500 font-medium">
+                          {emp.assignedProjects} Projects
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between text-[11.5px]">
+                        <span className="text-rose-600 font-bold">Rejected</span>
+                        {isAdmin && (
+                          <button
+                            onClick={(e) => handleQuickAccept(emp, e)}
+                            className="text-blue-600 font-bold hover:underline cursor-pointer"
+                          >
+                            Re-accept
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+
+          {/* ── ROUND PLUS BUTTON (NEXT EMPLOYEE / MOVE LEFT) ───── */}
+          {activeTotal > 4 && (
+            <div className="shrink-0 pl-1 self-center">
+              <motion.button
+                whileHover={{ scale: 1.1, x: 2 }}
+                whileTap={{ scale: 0.92 }}
+                onClick={handleNext}
+                className="w-14 h-14 sm:w-15 sm:h-15 rounded-full bg-white border border-orange-200 shadow-[0_4px_16px_rgba(249,115,22,0.12)] hover:shadow-lg hover:border-orange-400 text-orange-500 hover:text-orange-600 flex items-center justify-center cursor-pointer transition-all shrink-0 group"
+                title="Next Employee (Move Left)"
+              >
+                <FaPlus className="w-5.5 h-5.5 text-orange-500 group-hover:rotate-90 transition-transform duration-300" />
+              </motion.button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── REJECT CONFIRMATION MODAL ── */}
+      <AnimatePresence>
+        {rejectModalEmp && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-rose-200"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-600 grid place-items-center font-bold shrink-0">
+                  <FaXmark className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-[16px] font-bold text-slate-900 m-0">Reject Registration</h3>
+                  <p className="text-[12px] text-slate-500 m-0">{rejectModalEmp.name} ({rejectModalEmp.email})</p>
                 </div>
               </div>
 
-              {/* Name and Role (Updated Typography & Sizing) */}
-              <div className="mt-1">
-                <h4 className="text-[16px] sm:text-[17px] font-bold text-blue-600 group-hover:text-orange-500 tracking-tight transition-colors m-0 truncate" title={emp.name}>
-                  {emp.name}
-                </h4>
-                <p className="text-[12.5px] font-medium text-slate-400 mt-1 mb-4 truncate" title={emp.role}>
-                  {emp.role}
-                </p>
+              <p className="text-[13px] text-slate-600 mb-3">
+                Are you sure you want to reject this profile request? They will be notified to contact the administrator.
+              </p>
+
+              <div className="mb-4">
+                <label className="block text-[11.5px] font-bold text-slate-600 uppercase mb-1">
+                  Reason (Optional)
+                </label>
+                <textarea
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="e.g., Incomplete verification documents, Please contact HR..."
+                  rows={3}
+                  className="w-full p-3 text-[12.5px] rounded-xl border border-slate-200 focus:border-rose-400 focus:outline-none bg-slate-50"
+                />
               </div>
 
-              {/* Bottom Bag Icon & Assigned Project */}
-              <div className="flex items-center gap-2 pt-2 border-t border-slate-50 mt-auto">
-                <div className="w-5 h-5 rounded-md bg-orange-50 border border-orange-200/80 flex items-center justify-center text-orange-500 shrink-0 shadow-2xs">
-                  <FaBriefcase className="w-2.5 h-2.5 text-orange-500" />
-                </div>
-                <span className="text-[12px] font-medium text-slate-600 truncate">
-                  {emp.assignedProjects} Assigned project
-                </span>
+              <div className="flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setRejectModalEmp(null)}
+                  className="px-4 py-2 rounded-xl text-[12.5px] font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmReject}
+                  disabled={processingId === rejectModalEmp._id}
+                  className="px-4 py-2 rounded-xl text-[12.5px] font-bold bg-rose-600 hover:bg-rose-700 text-white cursor-pointer transition flex items-center gap-2 shadow-sm"
+                >
+                  {processingId === rejectModalEmp._id ? <FaRotate className="w-3 h-3 animate-spin" /> : <FaXmark className="w-3 h-3" />}
+                  <span>Confirm Rejection</span>
+                </button>
               </div>
             </motion.div>
-          ))}
-        </AnimatePresence>
+          </div>
+        )}
+      </AnimatePresence>
 
-        {/* ── ROUND PLUS BUTTON (NEXT EMPLOYEE / MOVE LEFT) ───── */}
-        <div className="shrink-0 pl-1">
-          <motion.button
-            whileHover={{ scale: 1.1, x: 2 }}
-            whileTap={{ scale: 0.92 }}
-            onClick={handleNext}
-            className="w-14 h-14 sm:w-15 sm:h-15 rounded-full bg-white border border-orange-200 shadow-[0_4px_16px_rgba(249,115,22,0.12)] hover:shadow-lg hover:border-orange-400 text-orange-500 hover:text-orange-600 flex items-center justify-center cursor-pointer transition-all shrink-0 group"
-            title="Next Employee (Move Left)"
-          >
-            <FaPlus className="w-5.5 h-5.5 text-orange-500 group-hover:rotate-90 transition-transform duration-300" />
-          </motion.button>
-        </div>
-      </div>
+      {/* ──── DELETE PERMANENTLY CONFIRMATION MODAL ──── */}
+      <AnimatePresence>
+        {deleteModalEmp && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl border border-rose-200"
+            >
+              <div className="flex items-center gap-3.5 mb-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-rose-100 text-rose-600 grid place-items-center font-bold shrink-0">
+                  <FaTrash className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-[17px] font-bold text-slate-900 m-0">Delete Profile Permanently?</h3>
+                  <p className="text-[12px] text-slate-500 m-0">{deleteModalEmp.name} ({deleteModalEmp.email})</p>
+                </div>
+              </div>
+
+              <p className="text-[13px] text-slate-600 leading-relaxed mb-4">
+                Are you sure you want to permanently delete the profile for <strong>{deleteModalEmp.name}</strong>?
+              </p>
+
+              <div className="bg-rose-50 border border-rose-200 rounded-xl p-3.5 mb-5 text-[11.5px] text-rose-800 leading-relaxed">
+                <strong>Notice:</strong> This action completely removes their profile record from MongoDB. Their login credentials, approval status, and profile image association will be wiped permanently.
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDeleteModalEmp(null)}
+                  className="px-4 py-2 rounded-xl text-[12.5px] font-bold text-slate-600 hover:bg-slate-100 cursor-pointer transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={processingId === deleteModalEmp._id}
+                  onClick={handleConfirmDelete}
+                  className="px-4 py-2.5 rounded-xl text-[12.5px] font-bold bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white cursor-pointer transition flex items-center gap-2 shadow-sm disabled:opacity-50"
+                >
+                  {processingId === deleteModalEmp._id ? <FaRotate className="w-3.5 h-3.5 animate-spin" /> : <FaTrash className="w-3.5 h-3.5" />}
+                  <span>Delete Permanently</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -1238,6 +1596,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [fetchError, setFetchError] = useState(null);
+  const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
 
   const [employeesActivityData, setEmployeesActivityData] = useState({
     dates: {}, office: {}, totalEmployees: 0, activeEmployees: 0, employees: [],
@@ -1263,6 +1622,11 @@ export default function Dashboard() {
       if (statsRes?.data) setStats(statsRes.data);
 
       if (isAdmin || isSuperAdmin) {
+        usersAPI.getApprovals().then(res => {
+          const pending = (res.data?.data || []).filter(u => u.approvalStatus === 'pending');
+          setPendingApprovalsCount(pending.length);
+        }).catch(() => {});
+
         const [adminRes, usersRes, activityRes] = await Promise.all([
           reportsAPI.adminAnalysis().catch(() => ({ data: null })),
           usersAPI.getAll().catch(e => { throw new Error(`users: ${e.response?.data?.message || e.message}`); }),
@@ -1332,6 +1696,63 @@ export default function Dashboard() {
 
   const [savedCards, setSavedCards] = useState({ leads: true, demos: true, velocity: true });
   const toggleSaveCard = (id) => setSavedCards(prev => ({ ...prev, [id]: !prev[id] }));
+
+  // Live approval handler directly from Dashboard cards
+  const handleApprovalStatusChange = async (userId, status, reason = '') => {
+    try {
+      await usersAPI.updateApprovalStatus(userId, { status, reason });
+      
+      // Update local employees list immediately for real-time reactivity
+      setEmployeesActivityData(prev => {
+        const updated = (prev.employees || []).map(emp => {
+          if (String(emp._id) === String(userId)) {
+            return {
+              ...emp,
+              approvalStatus: status,
+              rejectionReason: reason || null,
+            };
+          }
+          return emp;
+        });
+        return {
+          ...prev,
+          employees: updated,
+        };
+      });
+
+      // Update pending badge count
+      setPendingApprovalsCount(prev => {
+        if (status === 'accepted' || status === 'rejected') {
+          return Math.max(0, prev - 1);
+        }
+        return prev;
+      });
+
+      // Background sync
+      usersAPI.getApprovals().then(res => {
+        const pending = (res.data?.data || []).filter(u => u.approvalStatus === 'pending');
+        setPendingApprovalsCount(pending.length);
+      }).catch(() => {});
+    } catch (err) {
+      console.error('Failed to update approval status:', err);
+      alert(err.response?.data?.message || 'Failed to update user approval status');
+    }
+  };
+
+  // Live permanent delete handler directly from Dashboard cards
+  const handleDeleteEmployee = async (userId) => {
+    try {
+      await usersAPI.delete(userId);
+      setEmployeesActivityData(prev => ({
+        ...prev,
+        totalEmployees: Math.max(0, (prev.totalEmployees || 1) - 1),
+        employees: (prev.employees || []).filter(emp => String(emp._id) !== String(userId)),
+      }));
+    } catch (err) {
+      console.error('Failed to permanently delete user:', err);
+      alert(err.response?.data?.message || 'Failed to delete user profile');
+    }
+  };
 
   // ── 5 REAL-TIME REPLICATED DATA CARDS ──
   const realtimeModuleCards = useMemo(() => {
@@ -1496,6 +1917,45 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* ── PENDING APPROVALS ALERT BANNER FOR ADMIN/MANAGER ── */}
+        {isAdmin && pendingApprovalsCount > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border shadow-sm transition-all"
+            style={{
+              background: 'linear-gradient(135deg, rgba(254, 243, 199, 0.75) 0%, rgba(255, 237, 213, 0.75) 100%)',
+              borderColor: '#f59e0b',
+            }}
+          >
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-md font-bold shrink-0">
+                <FaUserCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-[14px] font-bold text-amber-950 m-0 flex items-center gap-2">
+                  <span>{pendingApprovalsCount} User Registration{pendingApprovalsCount > 1 ? 's' : ''} Pending Approval</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10.5px] font-extrabold bg-amber-500 text-white animate-pulse">
+                    Action Needed
+                  </span>
+                </h4>
+                <p className="text-[12px] text-amber-800 m-0 mt-0.5">
+                  New users are awaiting administrator acceptance before accessing the telecommunication CRM.
+                </p>
+              </div>
+            </div>
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => navigate('/accept')}
+              className="px-4 py-2 rounded-xl text-[12.5px] font-bold bg-amber-600 hover:bg-amber-700 text-white cursor-pointer transition shadow-md shrink-0 flex items-center gap-2"
+            >
+              <span>Review & Accept</span>
+              <FaArrowUpRightFromSquare className="w-3 h-3" />
+            </motion.button>
+          </motion.div>
+        )}
+
         {/* ── REAL-TIME MODULES CARD GRID (5 COLUMNS) ───── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3.5 mb-6">
           {realtimeModuleCards.map((card) => {
@@ -1616,8 +2076,12 @@ export default function Dashboard() {
         <div className="mb-6">
           <TeamMembersCard
             employees={filteredActivityEmployees}
+            isAdmin={isAdmin}
+            canDeleteUser={canDelete(user)}
             onSelectEmployee={setDetailModalEmployee}
             onMapEmployee={setMapModalEmployee}
+            onUpdateApproval={handleApprovalStatusChange}
+            onDeleteEmployee={handleDeleteEmployee}
           />
         </div>
 

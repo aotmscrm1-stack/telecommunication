@@ -77,6 +77,14 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(mongoSanitize());
 
+// ── URL Normalization (Handle duplicated /api/api prefixes) ─────────────────
+app.use((req, res, next) => {
+  if (req.url.startsWith('/api/api/')) {
+    req.url = req.url.replace(/^\/api\/api\//, '/api/');
+  }
+  next();
+});
+
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
@@ -96,6 +104,7 @@ app.use('/api/bulk-import', apiLimiter, require('./routes/bulkImport'));
 app.use('/api/integrations', require('./routes/integrations'));
 app.use('/api/notifications', apiLimiter, require('./routes/notifications'));
 app.use('/api/email', apiLimiter, require('./routes/email'));
+app.use('/api/api/email', apiLimiter, require('./routes/email'));
 
 // ── Uploads static folder ───────────────────────────────────────────────────
 app.use('/uploads', (req, res, next) => {

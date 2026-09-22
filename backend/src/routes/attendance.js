@@ -315,6 +315,27 @@ router.post('/stop', protect, async (req, res) => {
       return res.status(400).json({ ok: false, message: 'No active attendance session found to stop' });
     }
 
+    // ── 9 Hours Full Shift Check (9:00:00 = 32,400 seconds) ──
+    const startMs = new Date(attendance.startTime).getTime();
+    const totalDurationSec = Math.max(0, Math.floor((now.getTime() - startMs) / 1000));
+    const NINE_HOURS_SEC = 9 * 3600; // 32,400 seconds
+
+    if (totalDurationSec < NINE_HOURS_SEC && !req.body.force) {
+      const remainingSec = NINE_HOURS_SEC - totalDurationSec;
+      const remHours = Math.floor(remainingSec / 3600);
+      const remMins = Math.floor((remainingSec % 3600) / 60);
+      const remSecs = remainingSec % 60;
+      const remHms = `${String(remHours).padStart(2, '0')}:${String(remMins).padStart(2, '0')}:${String(remSecs).padStart(2, '0')}`;
+      return res.status(400).json({
+        ok: false,
+        code: 'NINE_HOURS_INCOMPLETE',
+        completedSeconds: totalDurationSec,
+        remainingSeconds: remainingSec,
+        remainingHms: remHms,
+        message: '9 hours are not complete. Please you can complete it in End Attendance.',
+      });
+    }
+
     // If employee was currently on break when stopping, automatically close the active break
     if (attendance.status === 'ON_BREAK' && Array.isArray(attendance.breaks)) {
       attendance.breaks.forEach((b) => {

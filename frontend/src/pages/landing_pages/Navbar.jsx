@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+// src/components/Navbar.jsx
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
@@ -58,42 +59,6 @@ export const BLUE_THEME = {
     800: '#56a5ff',
     900: '#aad2ff',
   },
-  prussian_blue_deep: {
-    DEFAULT: '#001845',
-    100: '#00050e',
-    200: '#000a1d',
-    300: '#000f2b',
-    400: '#001439',
-    500: '#001845',
-    600: '#00389f',
-    700: '#0056f7',
-    800: '#508dff',
-    900: '#a7c6ff',
-  },
-  prussian_blue_dark: {
-    DEFAULT: '#001233',
-    100: '#00040a',
-    200: '#000714',
-    300: '#000b1f',
-    400: '#000e29',
-    500: '#001233',
-    600: '#00328f',
-    700: '#0052eb',
-    800: '#4788ff',
-    900: '#a3c3ff',
-  },
-  twilight_indigo: {
-    DEFAULT: '#33415c',
-    100: '#0a0d12',
-    200: '#141a25',
-    300: '#1e2737',
-    400: '#29344a',
-    500: '#33415c',
-    600: '#4d628b',
-    700: '#7186b1',
-    800: '#a0aecb',
-    900: '#d0d7e5',
-  },
   blue_slate: {
     DEFAULT: '#5c677d',
     100: '#131519',
@@ -106,88 +71,50 @@ export const BLUE_THEME = {
     800: '#bcc2ce',
     900: '#dee0e6',
   },
-  slate_grey: {
-    DEFAULT: '#7d8597',
-    100: '#191a1f',
-    200: '#31353d',
-    300: '#4a4f5c',
-    400: '#62697a',
-    500: '#7d8597',
-    600: '#979dab',
-    700: '#b1b6c0',
-    800: '#cbced5',
-    900: '#e5e7ea',
-  },
-  lavender_grey: {
-    DEFAULT: '#979dac',
-    100: '#1d1f24',
-    200: '#393d47',
-    300: '#565c6b',
-    400: '#737a8e',
-    500: '#979dac',
-    600: '#abb0bc',
-    700: '#c0c4cd',
-    800: '#d5d7dd',
-    900: '#eaebee',
-  },
 };
 
 /* ─────────────────────────────────────────────────────────
-   Each link has its own refined theme from the palette
+   ORANGE HOVER THEME — every link shares the same warm glow
    ───────────────────────────────────────────────────────── */
+const ORANGE = {
+  DEFAULT:  '#f97316',
+  LIGHT:    '#fb923c',
+  LIGHTER:  '#fdba74',
+  DEEP:     '#ea580c',
+  GLOW:     'rgba(249, 115, 22, 0.55)',
+  GLOW_SOFT:'rgba(249, 115, 22, 0.30)',
+  SURFACE:  'rgba(249, 115, 22, 0.14)',
+  TEXT:     '#7c2d12',
+};
+
 const NAV_LINKS = [
-  {
-    label: 'Home',
-    path: '/',
-    hoverBg: 'linear-gradient(135deg, #c3e0fe, #87c2fd)', // smart_blue 900 -> 800
-    hoverText: '#022950', // smart_blue 200
-  },
-  {
-    label: 'About',
-    path: '/about',
-    hoverBg: 'linear-gradient(135deg, #bcddfe, #79bbfc)', // sapphire 900 -> 800
-    hoverText: '#012242', // sapphire 200
-  },
-  {
-    label: 'Services',
-    path: '/services',
-    hoverBg: 'linear-gradient(135deg, #b4d8fe, #68b0fd)', // regal_navy 900 -> 800
-    hoverText: '#011932', // regal_navy 200
-  },
-  {
-    label: 'Pricing',
-    path: '/pricing',
-    hoverBg: 'linear-gradient(135deg, #aad2ff, #56a5ff)', // prussian_blue 900 -> 800
-    hoverText: '#001023', // prussian_blue 200
-  },
-  {
-    label: 'Contact',
-    path: '/contact',
-    hoverBg: 'linear-gradient(135deg, #d0d7e5, #a0aecb)', // twilight_indigo 900 -> 800
-    hoverText: '#141a25', // twilight_indigo 200
-  },
+  { label: 'Home',     path: '/' },
+  { label: 'About',    path: '/about' },
+  { label: 'Services', path: '/services' },
+  { label: 'Pricing',  path: '/pricing' },
+  { label: 'Contact',  path: '/contact' },
 ];
 
 /* ─────────────────────────────────────────────────────────
-   THEME TOKENS — Crisp White Container with Smart Blue Edge
+   THEME TOKENS — White Container with Orange glow on hover
    ───────────────────────────────────────────────────────── */
 const C = {
-  // Container — White color plan with Smart Blue edge
+  // Container — pure white
   pillBg: '#ffffff',
-  pillBorder: BLUE_THEME.smart_blue.DEFAULT, // #0466c8
-  pillShadow: '0 8px 30px rgba(0, 0, 0, 0.08), 0 0 18px rgba(4, 102, 200, 0.35)',
+  pillBorder: 'rgba(4, 102, 200, 0.12)',
+  pillShadow: '0 8px 30px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(4, 102, 200, 0.06)',
 
-  // Idle and Active text
-  idleText: BLUE_THEME.blue_slate.DEFAULT, // #5c677d
-  activeText: BLUE_THEME.smart_blue[200],   // #022950
+  // Idle / Active text
+  idleText: BLUE_THEME.blue_slate.DEFAULT,
+  activeText: BLUE_THEME.smart_blue[200],
 
-  // Active indicator — subtle Smart Blue tint & border
-  activeBg: 'rgba(4, 102, 200, 0.12)',
+  // Active indicator
+  activeBg: 'rgba(4, 102, 200, 0.10)',
   activeBorder: 'rgba(4, 102, 200, 0.22)',
 
   // Brand / CTA
-  brandMark1: BLUE_THEME.smart_blue.DEFAULT, // #0466c8
-  brandMark2: BLUE_THEME.sapphire.DEFAULT,   // #0353a4
+  brandMark1: BLUE_THEME.smart_blue.DEFAULT,
+  brandMark2: BLUE_THEME.sapphire.DEFAULT,
   ctaText: '#ffffff',
 };
 
@@ -196,6 +123,18 @@ export function Navbar() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [hoveredPath, setHoveredPath] = useState(null);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 25);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const activePath = location.pathname;
 
@@ -210,11 +149,22 @@ export function Navbar() {
         left: 0,
         right: 0,
         zIndex: 50,
-        background: 'none',
-        backgroundColor: 'transparent',
-        padding: '20px clamp(20px, 5vw, 60px)',
+        background: isScrolled ? 'rgba(255, 255, 255, 0.96)' : 'transparent',
+        backgroundColor: isScrolled ? 'rgba(255, 255, 255, 0.96)' : 'transparent',
+        backdropFilter: isScrolled ? 'blur(16px)' : 'none',
+        WebkitBackdropFilter: isScrolled ? 'blur(16px)' : 'none',
+        borderBottom: isScrolled
+          ? '1px solid rgba(226, 232, 240, 0.85)'
+          : '1px solid transparent',
+        boxShadow: isScrolled
+          ? '0 4px 24px -2px rgba(0, 0, 0, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.04)'
+          : 'none',
+        padding: isScrolled
+          ? '12px clamp(20px, 5vw, 60px)'
+          : '20px clamp(20px, 5vw, 60px)',
         display: 'flex',
         justifyContent: 'center',
+        transition: 'background-color 0.35s ease, padding 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease',
       }}
     >
       <div
@@ -227,76 +177,122 @@ export function Navbar() {
           gap: 24,
         }}
       >
-        {/* ── Brand logo ─────────────────────────── */}
+        {/* ══════════════════════════════════════════════
+            BRAND LOGO — sleek adaptive tile
+            ══════════════════════════════════════════════ */}
         <motion.div
           onClick={() => navigate('/')}
-          whileHover={{ scale: 1.02 }}
+          whileHover={{
+            scale: 1.03,
+            y: -1,
+          }}
           whileTap={{ scale: 0.97 }}
-          transition={{ duration: 0.25, ease: EASE }}
+          transition={{ duration: 0.28, ease: EASE }}
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 12,
+            justifyContent: 'center',
             cursor: 'pointer',
             flexShrink: 0,
+            background: isScrolled ? 'transparent' : '#ffffff',
+            borderRadius: 14,
+            padding: isScrolled ? '6px 10px' : '8px 14px',
+            border: isScrolled ? '1px solid transparent' : `1px solid ${C.pillBorder}`,
+            boxShadow: isScrolled
+              ? 'none'
+              : `0 6px 20px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(4, 102, 200, 0.06)`,
+            transition: 'box-shadow .3s ease, background .3s ease, border-color .3s ease, padding .3s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.boxShadow = `
+              0 0 0 2px ${ORANGE.DEFAULT},
+              0 0 18px ${ORANGE.GLOW},
+              0 8px 24px ${ORANGE.GLOW_SOFT}
+            `;
+            if (isScrolled) {
+              e.currentTarget.style.background = '#ffffff';
+              e.currentTarget.style.borderColor = ORANGE.DEFAULT;
+            }
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.boxShadow = isScrolled
+              ? 'none'
+              : `0 6px 20px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(4, 102, 200, 0.06)`;
+            if (isScrolled) {
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.borderColor = 'transparent';
+            }
           }}
         >
           <img
             src={aotmsLogo}
             alt="AOTMS"
             style={{
-              height: 38,
+              height: 33,
               width: 'auto',
               objectFit: 'contain',
+              display: 'block',
             }}
           />
         </motion.div>
 
-        {/* ── Center: White pill nav ─────────────── */}
+        {/* ── Center: Adaptive pill nav ─────────────── */}
         <div
           className="hidden lg:flex"
           style={{
             alignItems: 'center',
-            background: C.pillBg,
-            border: `1px solid ${C.pillBorder}`,
+            background: isScrolled ? 'rgba(241, 245, 249, 0.85)' : C.pillBg,
+            border: isScrolled ? '1px solid rgba(226, 232, 240, 0.95)' : `1px solid ${C.pillBorder}`,
             borderRadius: 9999,
-            padding: 6,
-            boxShadow: C.pillShadow,
+            padding: 5,
+            boxShadow: isScrolled ? '0 2px 8px rgba(0, 0, 0, 0.04)' : C.pillShadow,
             gap: 2,
+            transition: 'background .3s ease, border-color .3s ease, box-shadow .3s ease',
           }}
         >
           {NAV_LINKS.map((link) => {
             const isActive = activePath === link.path;
             const isHovered = hoveredPath === link.path;
+
             return (
               <motion.button
                 key={link.path}
                 onClick={() => navigate(link.path)}
                 onMouseEnter={() => setHoveredPath(link.path)}
                 onMouseLeave={() => setHoveredPath(null)}
+                whileHover={{ y: -1 }}
                 whileTap={{ scale: 0.96 }}
                 transition={{ duration: 0.22, ease: EASE }}
                 style={{
                   position: 'relative',
-                  border: 'none',
-                  background: 'transparent',
+                  border: isHovered && !isActive
+                    ? `1.5px solid ${ORANGE.DEFAULT}`
+                    : '1.5px solid transparent',
+                  background: isHovered && !isActive
+                    ? 'rgba(249, 115, 22, 0.08)'
+                    : 'transparent',
                   cursor: 'pointer',
-                  padding: '9px 20px',
+                  padding: '8px 18px',
                   fontSize: 13.5,
                   fontWeight: isActive || isHovered ? 700 : 500,
                   letterSpacing: '-0.005em',
                   color: isHovered
-                    ? link.hoverText
+                    ? BLUE_THEME.smart_blue.DEFAULT
                     : isActive
                       ? C.activeText
-                      : C.idleText,
+                      : isScrolled
+                        ? '#334155'
+                        : C.idleText,
                   borderRadius: 9999,
-                  transition: 'color .25s ease',
+                  boxShadow: isHovered && !isActive
+                    ? `0 0 14px ${ORANGE.GLOW_SOFT}`
+                    : 'none',
+                  transition: 'all .25s ease',
                   fontFamily: '"Inter", system-ui, sans-serif',
                   zIndex: 1,
                 }}
               >
-                {/* Active — subtle neutral background */}
+                {/* Active — subtle blue pill */}
                 {isActive && (
                   <motion.span
                     layoutId="nav-pill-active"
@@ -312,24 +308,6 @@ export function Navbar() {
                   />
                 )}
 
-                {/* Hover — this link's unique color */}
-                {!isActive && isHovered && (
-                  <motion.span
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    transition={{ duration: 0.25, ease: EASE }}
-                    style={{
-                      position: 'absolute',
-                      inset: 0,
-                      borderRadius: 9999,
-                      background: link.hoverBg,
-                      zIndex: -1,
-                      boxShadow: '0 4px 14px rgba(0, 0, 0, 0.08)',
-                    }}
-                  />
-                )}
-
                 {link.label}
               </motion.button>
             );
@@ -341,11 +319,15 @@ export function Navbar() {
           <motion.button
             whileHover={{
               scale: 1.04,
-              y: -1,
-              boxShadow: '0 12px 28px rgba(4, 102, 200, 0.45)',
+              y: -2,
+              boxShadow: `
+                0 0 0 2px ${ORANGE.DEFAULT},
+                0 0 20px ${ORANGE.GLOW},
+                0 10px 26px ${ORANGE.GLOW_SOFT}
+              `,
             }}
             whileTap={{ scale: 0.96 }}
-            transition={{ duration: 0.25, ease: EASE }}
+            transition={{ duration: 0.28, ease: EASE }}
             onClick={() => navigate('/get-started')}
             className="hidden sm:inline-flex"
             style={{
@@ -359,31 +341,43 @@ export function Navbar() {
               cursor: 'pointer',
               boxShadow: '0 6px 18px rgba(4, 102, 200, 0.35)',
               fontFamily: '"Inter", system-ui, sans-serif',
+              transition: 'box-shadow .3s ease',
             }}
           >
             Get Started
           </motion.button>
 
-          <button
+          <motion.button
             onClick={() => setMobileOpen((o) => !o)}
+            whileHover={{
+              scale: 1.08,
+              boxShadow: `
+                0 0 0 2px ${ORANGE.DEFAULT},
+                0 0 18px ${ORANGE.GLOW},
+                0 8px 22px ${ORANGE.GLOW_SOFT}
+              `,
+            }}
+            whileTap={{ scale: 0.94 }}
+            transition={{ duration: 0.25, ease: EASE }}
             className="lg:hidden"
             style={{
               width: 40,
               height: 40,
               borderRadius: 9999,
-              border: `1px solid ${C.pillBorder}`,
-              background: C.pillBg,
+              border: isScrolled ? '1px solid rgba(226, 232, 240, 0.9)' : `1px solid ${C.pillBorder}`,
+              background: isScrolled ? 'rgba(241, 245, 249, 0.85)' : C.pillBg,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: C.activeText,
-              boxShadow: C.pillShadow,
+              boxShadow: isScrolled ? '0 2px 8px rgba(0, 0, 0, 0.04)' : C.pillShadow,
+              transition: 'background .3s ease, border-color .3s ease',
             }}
             aria-label="Toggle menu"
           >
             {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
+          </motion.button>
         </div>
       </div>
 
@@ -402,11 +396,11 @@ export function Navbar() {
               left: 'clamp(20px, 5vw, 60px)',
               right: 'clamp(20px, 5vw, 60px)',
               overflow: 'hidden',
-              background: C.pillBg,
-              border: `1px solid ${C.pillBorder}`,
+              background: '#ffffff',
+              border: '1px solid rgba(226, 232, 240, 0.9)',
               borderRadius: 20,
               marginTop: 8,
-              boxShadow: C.pillShadow,
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.12)',
             }}
           >
             <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -423,25 +417,33 @@ export function Navbar() {
                       padding: '13px 18px',
                       borderRadius: 12,
                       background: isActive ? C.activeBg : 'transparent',
-                      border: isActive ? `1px solid ${C.activeBorder}` : '1px solid transparent',
+                      border: isActive
+                        ? `1px solid ${C.activeBorder}`
+                        : '1px solid transparent',
                       cursor: 'pointer',
                       textAlign: 'left',
                       fontSize: 14.5,
                       fontWeight: isActive ? 700 : 500,
                       color: isActive ? C.activeText : C.idleText,
-                      transition: 'all .2s ease',
+                      transition: 'all .25s ease',
                       fontFamily: '"Inter", system-ui, sans-serif',
                     }}
                     onMouseEnter={(e) => {
                       if (!isActive) {
-                        e.currentTarget.style.background = link.hoverBg;
-                        e.currentTarget.style.color = link.hoverText;
+                        e.currentTarget.style.background = 'rgba(249, 115, 22, 0.08)';
+                        e.currentTarget.style.color = BLUE_THEME.smart_blue.DEFAULT;
+                        e.currentTarget.style.border = `1px solid ${ORANGE.DEFAULT}`;
+                        e.currentTarget.style.boxShadow = `
+                          0 0 14px ${ORANGE.GLOW_SOFT}
+                        `;
                       }
                     }}
                     onMouseLeave={(e) => {
                       if (!isActive) {
                         e.currentTarget.style.background = 'transparent';
                         e.currentTarget.style.color = C.idleText;
+                        e.currentTarget.style.border = '1px solid transparent';
+                        e.currentTarget.style.boxShadow = 'none';
                       }
                     }}
                   >
@@ -454,6 +456,13 @@ export function Navbar() {
                 onClick={() => {
                   navigate('/get-started');
                   setMobileOpen(false);
+                }}
+                whileHover={{
+                  boxShadow: `
+                    0 0 0 2px ${ORANGE.DEFAULT},
+                    0 0 22px ${ORANGE.GLOW},
+                    0 14px 32px ${ORANGE.GLOW_SOFT}
+                  `,
                 }}
                 whileTap={{ scale: 0.97 }}
                 style={{
@@ -468,6 +477,7 @@ export function Navbar() {
                   cursor: 'pointer',
                   boxShadow: '0 6px 18px rgba(4, 102, 200, 0.35)',
                   fontFamily: '"Inter", system-ui, sans-serif',
+                  transition: 'box-shadow .3s ease',
                 }}
               >
                 Get Started

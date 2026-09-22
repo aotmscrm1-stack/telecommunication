@@ -1,13 +1,17 @@
 import React from 'react';
 import Navbar from './Navbar';
 import HeroSection from './HeroSection';
+import FeaturesSection from './FeaturesSection';
+import IntegrationsSection from './IntegrationsSection';
+import PricingSection from './PricingSection';
+import Footer from './Footer';
 
 export default function Landing() {
   return (
     <div className="nk-landing-root">
       {/* Dynamic Font & Responsive Styles */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
         * {
           box-sizing: border-box;
@@ -15,15 +19,14 @@ export default function Landing() {
 
         .nk-landing-root {
           min-height: 100vh;
-          width: 100vw;
-          background-color: #000806;
-          color: #ffffff;
+          width: 100%;
+          background-color: #ffffff;
+          color: #0f172a;
           font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
           display: flex;
           flex-direction: column;
-          justify-content: space-between;
           position: relative;
-          overflow: hidden;
+          overflow-x: hidden;
           margin: 0;
           padding: 0;
         }
@@ -339,6 +342,12 @@ export default function Landing() {
 
       {/* Segregated Hero Section */}
       <HeroSection />
+
+      {/* Content Sections */}
+      <FeaturesSection />
+      <IntegrationsSection />
+      <PricingSection />
+      <Footer />
     </div>
   );
 }

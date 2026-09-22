@@ -724,7 +724,7 @@ function AddTaskModal({ type, onClose, onCreated }) {
                     <option key={u._id} value={u._id}>
                       {u._id === 'all'
                         ? 'All'
-                        : `${u.name}${u._id === currentUser?._id ? ' (You)' : (u.designation ? ` (${u.designation})` : '')}`}
+                        : `${u.name}${u._id === currentUser?._id ? ' (You)' : (u.displayName || u.designation ? ` (${u.displayName || u.designation})` : '')}`}
                     </option>
                   ))}
                 </select>
@@ -740,7 +740,7 @@ function AddTaskModal({ type, onClose, onCreated }) {
                     <option key={u._id} value={u._id}>
                       {u._id === 'all'
                         ? 'All'
-                        : `${u.name}${u._id === currentUser?._id ? ' (You)' : (u.designation ? ` (${u.designation})` : '')}`}
+                        : `${u.name}${u._id === currentUser?._id ? ' (You)' : (u.displayName || u.designation ? ` (${u.displayName || u.designation})` : '')}`}
                     </option>
                   ))}
                 </select>

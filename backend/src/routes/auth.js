@@ -4,23 +4,269 @@ const crypto = require('crypto');
 const axios = require('axios');
 const User = require('../models/User');
 const { protect } = require('../middleware/auth');
+const { uploadToCloudinary } = require('../utils/cloudinary');
 
 const router = express.Router();
 
 const signToken = (id) =>
-  jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE });
+  jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE || '7d' });
+
+// In-memory OTP storage for registration
+const registrationOtpStore = new Map();
+
+// Helper to send OTP via webhook or SMTP
+async function sendOtpNotification(email, otp, firstName = 'User') {
+  let sent = false;
+
+  // 1. Try n8n webhook if configured
+  const webhookUrl = process.env.N8N_WEBHOOK_URL || process.env.N8N_FORGOT_PASSWORD_WORKFLOW_ID;
+  if (webhookUrl) {
+    try {
+      await axios.post(webhookUrl, {
+        event: 'registration_otp',
+        email,
+        name: firstName,
+        otp,
+        expiresInMinutes: 10,
+      }, { timeout: 8000 });
+      sent = true;
+    } catch (e) {
+      console.warn('[AUTH] n8n webhook OTP delivery failed:', e.message);
+    }
+  }
+
+  // 2. Try SMTP if configured
+  if (!sent && process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    try {
+      const nodemailer = require('nodemailer');
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT || 587),
+        secure: Number(process.env.SMTP_PORT) === 465,
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      });
+
+      await transporter.sendMail({
+        from: `"AOTMS Security" <${process.env.SMTP_USER}>`,
+        to: email,
+        subject: `Your AOTMS Verification Code: ${otp}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #0f1420; color: #ffffff; padding: 32px; border-radius: 12px; border: 1px solid #1e293b;">
+            <h2 style="color: #f97316; margin-top: 0; font-size: 24px;">Welcome to AOTMS!</h2>
+            <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6;">
+              Hello <strong>${firstName}</strong>,<br/>
+              Use the 6-digit verification code below to complete your registration.
+            </p>
+            <div style="margin: 28px 0; text-align: center;">
+              <span style="display: inline-block; font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #f97316; background: rgba(249, 115, 22, 0.12); padding: 14px 28px; border-radius: 8px; border: 1px dashed #f97316;">
+                ${otp}
+              </span>
+            </div>
+            <p style="color: #94a3b8; font-size: 13px;">This code is valid for <strong>10 minutes</strong>. Do not share this code with anyone.</p>
+            <hr style="border: 0; border-top: 1px solid #334155; margin: 24px 0;" />
+            <p style="color: #64748b; font-size: 12px; margin: 0; text-align: center;">AOTMS Telecom CRM Platform</p>
+          </div>
+        `,
+      });
+      sent = true;
+    } catch (e) {
+      console.warn('[AUTH] SMTP OTP delivery failed:', e.message);
+    }
+  }
+
+  // Always log for transparency
+  console.log(`[AUTH OTP] Registration OTP for ${email}: ${otp}`);
+  return sent;
+}
+
+// POST /api/auth/send-registration-otp
+router.post('/send-registration-otp', async (req, res) => {
+  try {
+    const { email, firstName } = req.body;
+    if (!email || !email.trim()) {
+      return res.status(400).json({ message: 'Valid email is required' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const existing = await User.findOne({ email: cleanEmail });
+    if (existing) {
+      return res.status(400).json({ message: 'This email is already registered. Please login.' });
+    }
+
+    // Generate 6-digit numeric OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    registrationOtpStore.set(cleanEmail, {
+      otp,
+      expiresAt: Date.now() + 10 * 60 * 1000,
+      firstName: firstName || 'Colleague',
+    });
+
+    await sendOtpNotification(cleanEmail, otp, firstName);
+
+    res.json({
+      success: true,
+      message: `A 6-digit verification code has been generated for ${cleanEmail}.`,
+      debugOtp: otp, // Available for development/testing convenience
+    });
+  } catch (err) {
+    console.error('[AUTH OTP Error]:', err);
+    res.status(500).json({ message: 'Failed to send OTP: ' + err.message });
+  }
+});
+
+// POST /api/auth/upload-avatar
+router.post('/upload-avatar', async (req, res) => {
+  try {
+    const { image } = req.body;
+    if (!image) {
+      return res.status(400).json({ message: 'Image data is required' });
+    }
+
+    const cloudUrl = await uploadToCloudinary(image, 'aotms_avatars');
+    if (!cloudUrl) {
+      return res.status(500).json({ message: 'Failed to upload image to Cloudinary' });
+    }
+
+    res.json({ url: cloudUrl });
+  } catch (err) {
+    console.error('[Avatar Upload Error]:', err);
+    res.status(500).json({ message: 'Upload failed: ' + err.message });
+  }
+});
 
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, role, phone } = req.body;
-    const existing = await User.findOne({ email });
-    if (existing) return res.status(400).json({ message: 'Email already in use' });
-    const user = await User.create({ name, email, password, role: role || 'employee', phone });
+    const {
+      firstName,
+      lastName,
+      email,
+      employeeId,
+      designation,
+      displayName,
+      role,
+      bloodGroup,
+      phone,
+      address,
+      avatar,
+      password,
+      otp,
+    } = req.body;
+
+    // 1. Mandatory Field Validations
+    if (!avatar || !avatar.trim()) {
+      return res.status(400).json({ message: 'Profile/Logo image is mandatory. Please select and crop your image.' });
+    }
+    if (!firstName || !firstName.trim()) {
+      return res.status(400).json({ message: 'First Name is mandatory' });
+    }
+    if (!lastName || !lastName.trim()) {
+      return res.status(400).json({ message: 'Last Name is mandatory' });
+    }
+    if (!email || !email.trim()) {
+      return res.status(400).json({ message: 'Email address is mandatory' });
+    }
+    if (!employeeId || !employeeId.trim()) {
+      return res.status(400).json({ message: 'ID (Employee/Staff ID) is mandatory' });
+    }
+    if (!designation || !designation.trim()) {
+      return res.status(400).json({ message: 'Designation is mandatory' });
+    }
+    if (!role || !role.trim()) {
+      return res.status(400).json({ message: 'Role is mandatory' });
+    }
+    if (!bloodGroup || !bloodGroup.trim()) {
+      return res.status(400).json({ message: 'Blood Group is mandatory' });
+    }
+
+    // Contact number validation: Strictly 10 digits
+    const cleanPhone = String(phone || '').replace(/\D/g, '');
+    if (cleanPhone.length !== 10) {
+      return res.status(400).json({ message: 'Contact Number must be exactly 10 digits (no more, no less)' });
+    }
+
+    if (!address || !address.trim()) {
+      return res.status(400).json({ message: 'Address is mandatory' });
+    }
+    if (!password || password.length < 6) {
+      return res.status(400).json({ message: 'Password is mandatory and must be at least 6 characters' });
+    }
+
+    // OTP validation
+    const cleanEmail = email.trim().toLowerCase();
+    const storedOtpData = registrationOtpStore.get(cleanEmail);
+
+    if (!otp || !String(otp).trim()) {
+      return res.status(400).json({ message: 'OTP verification code is mandatory' });
+    }
+
+    if (!storedOtpData || Date.now() > storedOtpData.expiresAt) {
+      return res.status(400).json({ message: 'OTP verification code has expired. Please request a new code.' });
+    }
+
+    if (String(storedOtpData.otp).trim() !== String(otp).trim()) {
+      return res.status(400).json({ message: 'Invalid OTP code. Please check and try again.' });
+    }
+
+    // Check duplicate email
+    const existing = await User.findOne({ email: cleanEmail });
+    if (existing) {
+      return res.status(400).json({ message: 'An account with this email already exists.' });
+    }
+
+    // Check duplicate employee ID
+    const existingId = await User.findOne({ employeeId: employeeId.trim() });
+    if (existingId) {
+      return res.status(400).json({ message: `Staff ID "${employeeId.trim()}" is already assigned to another user.` });
+    }
+
+    // 2. Upload avatar to Cloudinary if it's base64 data
+    let finalAvatarUrl = avatar;
+    if (avatar.startsWith('data:image')) {
+      const uploadedUrl = await uploadToCloudinary(avatar, 'aotms_avatars');
+      if (uploadedUrl) {
+        finalAvatarUrl = uploadedUrl;
+      }
+    }
+
+    // Clear the OTP store for this email
+    registrationOtpStore.delete(cleanEmail);
+
+    const fullName = `${firstName.trim()} ${lastName.trim()}`;
+
+    // 3. Create User in MongoDB
+    const user = await User.create({
+      name: fullName,
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      email: cleanEmail,
+      password,
+      role: role.trim(),
+      employeeId: employeeId.trim(),
+      designation: designation.trim(),
+      displayName: (displayName || designation).trim(),
+      bloodGroup: bloodGroup.trim(),
+      phone: cleanPhone,
+      address: address.trim(),
+      avatar: finalAvatarUrl,
+      isActive: true,
+      approvalStatus: role.trim() === 'admin' ? 'accepted' : 'pending',
+    });
+
     const token = signToken(user._id);
-    res.status(201).json({ token, user });
+
+    res.status(201).json({
+      success: true,
+      message: 'Account created successfully!',
+      token,
+      user,
+    });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error('[Register Error]:', err);
+    res.status(500).json({ message: err.message || 'Registration failed' });
   }
 });
 
@@ -51,6 +297,8 @@ router.put('/profile', protect, async (req, res) => {
   try {
     const updates = {};
     if (req.body.name) updates.name = req.body.name;
+    if (req.body.displayName) updates.displayName = req.body.displayName;
+    if (req.body.designation) updates.designation = req.body.designation;
     if (req.body.phone) updates.phone = req.body.phone;
     if (req.body.password) {
       const user = await User.findById(req.user._id).select('+password');

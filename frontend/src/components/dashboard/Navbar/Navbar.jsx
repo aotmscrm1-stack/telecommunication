@@ -11,7 +11,7 @@ import {
   FaReceipt, FaCalendarCheck, FaLocationDot, FaPeopleGroup, FaClock,
   FaBan, FaUserGear, FaKey, FaPlug, FaCircleInfo, FaCoins, FaSitemap,
   FaCode, FaBell, FaChevronDown, FaBars, FaXmark, FaRightFromBracket,
-  FaUser, FaLock
+  FaUser, FaLock, FaUserCheck
 } from 'react-icons/fa6';
 import { isCEO, isHR, isLimitedStaff, canViewDashboard, normalizeDesignation } from '../../../utils/permissions';
 
@@ -106,16 +106,16 @@ const navbarGlowStyles = `
   }
 
   .nav-glow-text {
-    color: #0f172a;
+    color: #0284c7;
     transition: color .25s ease, text-shadow .25s ease;
   }
 
   .nav-glow-text:hover {
-    color: #ea580c;
+    color: #0284c7 !important;
   }
 
   .nav-glow-accent-text {
-    background: linear-gradient(90deg, #ea580c, #f97316, #0284c7, #0369a1, #ea580c);
+    background: linear-gradient(90deg, #0284c7, #0369a1, #38bdf8, #0284c7);
     background-size: 200% auto;
     -webkit-background-clip: text;
     background-clip: text;
@@ -132,9 +132,8 @@ const navbarGlowStyles = `
   }
 
   .nav-glow-btn:hover {
-    box-shadow:
-      0 0 12px rgba(249, 115, 22, 0.35),
-      0 0 24px rgba(249, 115, 22, 0.15);
+    border-color: #f97316 !important;
+    box-shadow: 0 0 10px rgba(249, 115, 22, 0.35);
     transform: translateY(-1px);
   }
 
@@ -148,39 +147,39 @@ const navbarGlowStyles = `
       0 0 10px rgba(249, 115, 22, 0.45),
       0 0 20px rgba(249, 115, 22, 0.20),
       inset 0 0 6px rgba(249, 115, 22, 0.10);
-    border-color: rgba(249, 115, 22, 0.7) !important;
+    border-color: #f97316 !important;
   }
 
   .nav-glow-icon-btn:hover svg {
-    filter: drop-shadow(0 0 5px rgba(249, 115, 22, 0.7));
-    color: #ea580c !important;
+    filter: drop-shadow(0 0 5px rgba(2, 132, 199, 0.5));
+    color: #0284c7 !important;
   }
 
   .nav-dropdown-glow {
     box-shadow:
       0 20px 50px rgba(15, 23, 42, 0.12),
-      0 0 0 1px rgba(249, 115, 22, 0.35),
+      0 0 0 1.5px #f97316,
       0 8px 30px rgba(249, 115, 22, 0.12);
   }
 
   .nav-dropdown-item-glow {
     transition: all .2s ease;
+    border: 1px solid transparent;
   }
 
   .nav-dropdown-item-glow:hover {
-    background: rgba(249, 115, 22, 0.08) !important;
-    box-shadow:
-      inset 0 0 10px rgba(249, 115, 22, 0.08),
-      0 0 8px rgba(249, 115, 22, 0.12);
+    background: rgba(2, 132, 199, 0.05) !important;
+    border-color: #f97316 !important;
+    box-shadow: inset 0 0 8px rgba(249, 115, 22, 0.08);
   }
 
   .nav-dropdown-item-glow:hover svg {
-    filter: drop-shadow(0 0 5px rgba(249, 115, 22, 0.7));
-    color: #ea580c !important;
+    filter: drop-shadow(0 0 4px rgba(2, 132, 199, 0.5));
+    color: #0284c7 !important;
   }
 
   .nav-dropdown-item-glow:hover span {
-    color: #ea580c !important;
+    color: #0284c7 !important;
   }
 
   .nav-pulse-bell {
@@ -465,7 +464,7 @@ export default function Navbar() {
   const roleLabel = user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Employee';
 
   const isLimited = isLimitedStaff(user);
-  const displayDesignation = user?.designation || roleLabel;
+  const displayDesignation = user?.displayName || user?.designation || roleLabel;
 
   // Designation Navigation Rules:
   // 1. CEO & HR: Full navigation, Dashboard shown under Information.
@@ -522,6 +521,7 @@ export default function Navbar() {
       { label: 'Idle Leads', path: '/stale-leads', icon: FaClock },
       { label: 'Blocklist', path: '/blocklist', icon: FaBan },
       { label: 'Users', path: '/users', icon: FaUserGear },
+      { label: 'Approvals', path: '/accept', icon: FaUserCheck },
     ]},
     { title: 'Developer', icon: FaCode, items: [
       { label: 'Access Tokens', path: '/access-tokens', icon: FaKey },
@@ -646,44 +646,34 @@ export default function Navbar() {
                         }}
                         className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all nav-glow-btn"
                         style={{
-                          background: (isOpen || isGroupActive) ? C.orangeSoft : 'transparent',
-                          color: (isOpen || isGroupActive) ? C.orange : C.textSoft,
+                          background: (isOpen || isGroupActive) ? C.blueSoft : 'transparent',
+                          color: C.blue,
                           border: `1px solid ${(isOpen || isGroupActive) ? C.orange : 'transparent'}`,
                           boxShadow: (isOpen || isGroupActive) ? `0 0 10px ${C.orangeGlow}` : 'none',
                         }}
                         onMouseEnter={(e) => {
                           if (!isOpen && !isGroupActive) {
-                            e.currentTarget.style.background = C.orangeSoft;
-                            e.currentTarget.style.color = C.orange;
-                            e.currentTarget.style.borderColor = C.borderHover;
-                            const icon = e.currentTarget.querySelector('.nav-group-icon');
-                            if (icon) icon.style.color = C.orange;
+                            e.currentTarget.style.borderColor = C.orange;
                           }
                         }}
                         onMouseLeave={(e) => {
                           if (!isOpen && !isGroupActive) {
-                            e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.color = C.textSoft;
                             e.currentTarget.style.borderColor = 'transparent';
-                            const icon = e.currentTarget.querySelector('.nav-group-icon');
-                            if (icon) icon.style.color = C.blue;
                           }
                         }}
                       >
                         <GroupIcon
                           className="nav-group-icon w-3.5 h-3.5 transition-colors duration-200"
                           style={{
-                            color: (isOpen || isGroupActive) ? C.orange : C.blue,
-                            filter: (isOpen || isGroupActive)
-                              ? `drop-shadow(0 0 4px ${C.orangeGlow})`
-                              : `drop-shadow(0 0 3px ${C.blueGlow})`
+                            color: C.blue,
+                            filter: `drop-shadow(0 0 3px ${C.blueGlow})`
                           }}
                         />
-                        <span className="tracking-wide">{group.title}</span>
+                        <span className="tracking-wide" style={{ color: C.blue }}>{group.title}</span>
                         {group.items.length > 1 && (
                           <FaChevronDown
                             className={`w-3 h-3 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-                            style={{ color: (isOpen || isGroupActive) ? C.orange : C.textMuted }}
+                            style={{ color: C.blue }}
                           />
                         )}
                       </motion.button>
@@ -715,23 +705,33 @@ export default function Navbar() {
                                       setActiveDropdown(null);
                                       navigate(item.path);
                                     }}
-                                    className={`flex items-center gap-3 px-4 py-2.5 text-xs font-medium cursor-pointer transition-all nav-dropdown-item-glow ${
+                                    className={`flex items-center gap-3 px-4 py-2.5 text-xs font-medium cursor-pointer transition-all nav-dropdown-item-glow mx-1 rounded-xl ${
                                       active ? 'border-l-4' : ''
                                     }`}
                                     style={{
-                                      color: active ? C.orange : C.text,
-                                      borderLeftColor: active ? C.orange : 'transparent',
-                                      background: active ? C.orangeSoft : 'transparent',
+                                      color: C.blue,
+                                      border: `1px solid ${active ? C.orange : 'transparent'}`,
+                                      background: active ? C.blueSoft : 'transparent',
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      if (!active) {
+                                        e.currentTarget.style.borderColor = C.orange;
+                                      }
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      if (!active) {
+                                        e.currentTarget.style.borderColor = 'transparent';
+                                      }
                                     }}
                                   >
                                     <ItemIcon
                                       className="w-4 h-4 transition-colors"
                                       style={{
-                                        color: active ? C.orange : C.blue,
-                                        filter: active ? `drop-shadow(0 0 4px ${C.orangeGlow})` : 'none',
+                                        color: C.blue,
+                                        filter: `drop-shadow(0 0 3px ${C.blueGlow})`,
                                       }}
                                     />
-                                    <span>{item.label}</span>
+                                    <span style={{ color: C.blue }}>{item.label}</span>
                                   </div>
                                 );
                               })}
@@ -772,11 +772,11 @@ export default function Navbar() {
                     onClick={() => { setShowNotifications(prev => !prev); setShowProfile(false); }}
                     className="w-9 h-9 rounded-full flex items-center justify-center transition-all relative nav-glow-icon-btn"
                     style={{
-                      background: showNotifications ? C.orangeSoft : C.bgSoft,
+                      background: showNotifications ? C.blueSoft : C.bgSoft,
                       border: `1px solid ${showNotifications ? C.orange : C.border}`,
                     }}
                   >
-                    <FaBell className="w-4 h-4 transition-colors" style={{ color: showNotifications ? C.orange : C.blue }} />
+                    <FaBell className="w-4 h-4 transition-colors" style={{ color: C.blue }} />
                     {unreadCount > 0 && (
                       <span
                         className="w-2.5 h-2.5 rounded-full absolute top-1 right-1 border-2"
@@ -808,7 +808,7 @@ export default function Navbar() {
                         <div className="p-3 flex items-center justify-between"
                              style={{ background: C.bgSoft, borderBottom: `1px solid ${C.border}` }}>
                           <div className="flex items-center gap-2">
-                            <span className="font-semibold text-xs nav-glow-text" style={{ color: C.text }}>Notifications</span>
+                            <span className="font-semibold text-xs" style={{ color: C.blue }}>Notifications</span>
                             {unreadCount > 0 && (
                               <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full"
                                     style={{ background: C.orange, color: '#ffffff', boxShadow: `0 0 10px ${C.orangeGlow}` }}>
@@ -819,7 +819,7 @@ export default function Navbar() {
                           {unreadCount > 0 && (
                             <button onClick={markAllRead}
                                     className="text-[11px] font-semibold hover:underline"
-                                    style={{ color: C.orange }}>
+                                    style={{ color: C.blue }}>
                               Mark all read
                             </button>
                           )}
@@ -841,9 +841,9 @@ export default function Navbar() {
                                   if (target) navigate(target);
                                   setShowNotifications(false);
                                 }}
-                                className="p-3 flex gap-2.5 cursor-pointer transition-all nav-dropdown-item-glow"
+                                className="p-3 flex gap-2.5 cursor-pointer transition-all nav-dropdown-item-glow border border-transparent rounded-xl"
                                 style={{
-                                  background: n.read ? 'transparent' : 'rgba(249, 115, 22, 0.06)',
+                                  background: n.read ? 'transparent' : 'rgba(2, 132, 199, 0.04)',
                                   borderBottom: `1px solid ${C.border}`,
                                 }}
                               >
@@ -856,7 +856,7 @@ export default function Navbar() {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center justify-between gap-1 mb-0.5">
-                                    <span className="text-xs font-semibold truncate" style={{ color: C.text }}>{n.title}</span>
+                                    <span className="text-xs font-semibold truncate" style={{ color: C.blue }}>{n.title}</span>
                                     <span className="text-[10px] shrink-0" style={{ color: C.textMuted }}>{n.time}</span>
                                   </div>
                                   <p className="text-[11px] line-clamp-2 leading-snug" style={{ color: C.textSoft }}>{n.message}</p>
@@ -878,25 +878,34 @@ export default function Navbar() {
                     onClick={() => { setShowProfile(prev => !prev); setShowNotifications(false); }}
                     className="flex items-center gap-2.5 p-1.5 pr-3 rounded-2xl transition-all nav-glow-icon-btn"
                     style={{
-                      background: showProfile ? C.orangeSoft : C.bgSoft,
+                      background: showProfile ? C.blueSoft : C.bgSoft,
                       border: `1px solid ${showProfile ? C.orange : C.border}`,
                     }}
                   >
-                    <div className="w-8 h-8 rounded-xl font-semibold text-xs flex items-center justify-center"
+                    <div className="w-8 h-8 rounded-xl font-semibold text-xs flex items-center justify-center overflow-hidden shrink-0"
                          style={{
                            background: `linear-gradient(135deg, ${C.blue}, ${C.blueDk}, ${C.orange})`,
                            boxShadow: `0 0 12px ${C.blueGlow}`,
                            color: '#ffffff',
                          }}>
-                      {initials}
+                      {user?.avatar ? (
+                        <img
+                          src={user.avatar}
+                          alt={user?.name || 'User'}
+                          className="w-full h-full object-cover"
+                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                        />
+                      ) : (
+                        initials
+                      )}
                     </div>
                     {!isMobile && (
                       <div className="text-left leading-tight hidden xl:block">
-                        <div className="text-xs font-semibold truncate max-w-[100px] nav-glow-text" style={{ color: C.text }}>{user?.name || 'User'}</div>
-                        <div className="text-[9px] font-bold uppercase tracking-wider nav-glow-accent-text">{displayDesignation}</div>
+                        <div className="text-xs font-semibold truncate max-w-[100px]" style={{ color: C.blue }}>{user?.name || 'User'}</div>
+                        <div className="text-[9px] font-bold uppercase tracking-wider" style={{ color: C.blueDk }}>{displayDesignation}</div>
                       </div>
                     )}
-                    <FaChevronDown className="w-3 h-3 transition-colors" style={{ color: showProfile ? C.orange : C.blue }} />
+                    <FaChevronDown className="w-3 h-3 transition-colors" style={{ color: C.blue }} />
                   </motion.button>
 
                   <AnimatePresence>
@@ -915,22 +924,41 @@ export default function Navbar() {
                         }}
                       >
                         <div className="h-0.5 w-full -mt-3 mb-2.5 -mx-3 px-3" style={{ background: `linear-gradient(90deg, ${C.orange}, ${C.orangeLt}, ${C.blue})` }} />
-                        <div className="p-3 rounded-xl mb-2"
+                        <div className="p-3 rounded-xl mb-2 flex items-center gap-3"
                              style={{ background: C.bgSoft, border: `1px solid ${C.border}` }}>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="font-semibold text-sm truncate" style={{ color: C.text }}>{user?.name || 'User'}</span>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                                  style={{ background: C.orangeSoft, color: C.orange, border: `1px solid ${C.orange}` }}>
-                              PRO
-                            </span>
+                          <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 flex items-center justify-center font-bold text-xs"
+                               style={{
+                                 background: `linear-gradient(135deg, ${C.blue}, ${C.blueDk}, ${C.orange})`,
+                                 boxShadow: `0 0 12px ${C.blueGlow}`,
+                                 color: '#ffffff',
+                               }}>
+                            {user?.avatar ? (
+                              <img
+                                src={user.avatar}
+                                alt={user?.name || 'User'}
+                                className="w-full h-full object-cover"
+                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                              />
+                            ) : (
+                              initials
+                            )}
                           </div>
-                          <div className="inline-block text-[10px] font-semibold rounded-full px-2 py-0.2 mb-1.5 nav-glow-accent-text">
-                            {displayDesignation}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-0.5">
+                              <span className="font-semibold text-sm truncate" style={{ color: C.blue }}>{user?.name || 'User'}</span>
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                                    style={{ background: C.orangeSoft, color: C.orange, border: `1px solid ${C.orange}` }}>
+                                PRO
+                              </span>
+                            </div>
+                            <div className="inline-block text-[10px] font-semibold rounded-full px-1.5 py-0.2 mb-1" style={{ color: C.blueDk }}>
+                              {displayDesignation}
+                            </div>
+                            <p className="text-[11px] truncate flex items-center gap-1.5 font-medium" style={{ color: C.blue }}>
+                              <FaUser className="w-3 h-3 shrink-0" style={{ color: C.blue }} />
+                              <span className="truncate">{user?.email || 'user@example.com'}</span>
+                            </p>
                           </div>
-                          <p className="text-[11px] truncate flex items-center gap-1.5 font-medium" style={{ color: C.textSoft }}>
-                            <FaUser className="w-3 h-3" style={{ color: C.blue }} />
-                            {user?.email || 'user@example.com'}
-                          </p>
                         </div>
 
                         <div className="space-y-0.5">
@@ -940,11 +968,11 @@ export default function Navbar() {
                               onClick={item.onClick}
                               className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium cursor-pointer transition-all nav-dropdown-item-glow"
                               style={{
-                                color: item.danger ? '#ef4444' : C.textSoft,
+                                color: item.danger ? '#ef4444' : C.blue,
                               }}
                             >
                               <span style={{ color: item.danger ? '#ef4444' : C.blue }}>{item.icon}</span>
-                              {item.label}
+                              <span style={{ color: item.danger ? '#ef4444' : C.blue }}>{item.label}</span>
                             </div>
                           ))}
                         </div>
@@ -1007,8 +1035,8 @@ export default function Navbar() {
                   <div key={group.title} className="p-3 rounded-2xl"
                        style={{ background: C.bgSoft, border: `1px solid ${C.border}` }}>
                     <div className="flex items-center gap-2 text-xs font-bold uppercase mb-2"
-                         style={{ color: C.orange }}>
-                      <GroupIcon className="w-4 h-4" style={{ color: C.orange }} />
+                         style={{ color: C.blue }}>
+                      <GroupIcon className="w-4 h-4" style={{ color: C.blue }} />
                       <span>{group.title}</span>
                     </div>
                     <div className="grid grid-cols-2 gap-1.5">
@@ -1027,11 +1055,17 @@ export default function Navbar() {
                               style={{
                                 background: '#ffffff',
                                 border: `1px solid ${C.border}`,
-                                color: C.textSoft,
+                                color: C.blue,
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.borderColor = C.orange;
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.borderColor = C.border;
                               }}
                             >
                               <ItemIcon className="w-3.5 h-3.5 transition-colors" style={{ color: C.blue }} />
-                              <span className="truncate">{item.label}</span>
+                              <span className="truncate" style={{ color: C.blue }}>{item.label}</span>
                             </div>
                           );
                         })}
