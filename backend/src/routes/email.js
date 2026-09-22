@@ -352,11 +352,17 @@ router.post('/reply', protect, async (req, res) => {
     // 1. Try n8n webhook
     if (process.env.N8N_WEBHOOK_URL) {
       try {
-        console.log(`[EMAIL REPLY] Disagreeing event to email:send for n8n switch node to ${process.env.N8N_WEBHOOK_URL} for ${replyRecipient}`);
+        const gmailMessageId = parentLog.n8nDetails?.id || parentLog.n8nDetails?.messageId || '';
+        const gmailThreadId = parentLog.n8nDetails?.threadId || '';
+        console.log(`[EMAIL REPLY] Dispatching email:reply to ${process.env.N8N_WEBHOOK_URL} for ${replyRecipient} (Gmail MessageId: ${gmailMessageId || 'N/A'})`);
+
         const n8nRes = await axios.post(process.env.N8N_WEBHOOK_URL, {
-          event: 'email:send', // Match n8n Switch node rule: "email:send"
+          event: 'email:reply',
           payload: {
             parentEmailId: parentLog._id,
+            messageId: gmailMessageId,
+            id: gmailMessageId,
+            threadId: gmailThreadId,
             fromEmail: senderEmail,
             senderEmail,
             from: senderEmail,
@@ -537,6 +543,25 @@ router.post('/inbound-reply', async (req, res) => {
 router.patch('/logs/:id/read', protect, async (req, res) => {
   try {
     const log = await EmailLog.findByIdAndUpdate(req.params.id, { isRead: true }, { new: true });
+
+    // Also notify n8n to mark as read in Gmail if messageId exists
+    if (process.env.N8N_WEBHOOK_URL && log) {
+      const msgId = log.n8nDetails?.id || log.n8nDetails?.messageId;
+      if (msgId) {
+        axios.post(process.env.N8N_WEBHOOK_URL, {
+          event: 'email:markRead',
+          payload: {
+            id: log._id,
+            messageId: msgId,
+            threadId: log.n8nDetails?.threadId || '',
+            timestamp: new Date().toISOString()
+          }
+        }, { timeout: 8000 }).catch(err => {
+          console.warn('[MarkRead n8n Webhook Notice]:', err.message);
+        });
+      }
+    }
+
     res.json({ success: true, log });
   } catch (err) {
     res.status(500).json({ message: err.message });
