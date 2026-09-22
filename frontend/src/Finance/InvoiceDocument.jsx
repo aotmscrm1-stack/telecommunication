@@ -2,6 +2,7 @@ import React, { forwardRef } from 'react';
 import atmLogoImg from '../assets/atm-logo.jpeg';
 import logoImg from '../assets/aotms-global-logo.png';
 import paymentQrImg from '../assets/payment-qr.png';
+import aotmsStampImg from '../assets/image-removebg-preview.png';
 import { numberToWords } from '../utils/numberToWords';
 
 export const InvoiceDocument = forwardRef(({ invoiceData, documentType = 'invoice', isPreview = false }, ref) => {
@@ -747,17 +748,25 @@ export const InvoiceDocument = forwardRef(({ invoiceData, documentType = 'invoic
     backgroundColor: '#ffffff',
     color: '#000000',
     fontFamily: "'Segoe UI', 'Helvetica Neue', Arial, sans-serif",
-    fontSize: '12.5px',
+    fontSize: '12px',
     lineHeight: '1.45',
-    padding: isPreview ? '24px 28px' : '36px 40px',
+    width: '210mm',
+    minHeight: '297mm',
+    height: '297mm',
+    maxWidth: '100%',
     boxSizing: 'border-box',
-    border: '2px solid #000000',
+    padding: '14mm 18mm',
+    border: '1.5px solid #000000',
     borderRadius: '0px',
-    marginBottom: '28px',
+    marginBottom: isPreview ? '28px' : '0px',
     pageBreakAfter: 'always',
+    pageBreakInside: 'avoid',
     position: 'relative',
-    background: '#fff',
-    boxShadow: isPreview ? '0 4px 14px rgba(0,0,0,0.08)' : 'none',
+    background: '#ffffff',
+    boxShadow: isPreview ? '0 6px 20px rgba(0,0,0,0.08)' : 'none',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'flex-start',
   };
 
   const headerStyle = {
@@ -767,85 +776,85 @@ export const InvoiceDocument = forwardRef(({ invoiceData, documentType = 'invoic
     justifyContent: 'center',
     borderBottom: '1.5px solid #000000',
     paddingBottom: '12px',
-    marginBottom: '20px',
+    marginBottom: '16px',
     textAlign: 'center',
   };
 
   return (
-    <div ref={ref} className="pdf-5page-container" style={{ width: '100%', maxWidth: '820px', margin: '0 auto' }}>
+    <div ref={ref} className="pdf-5page-container" style={{ width: '210mm', maxWidth: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
 
       {/* ── PAGE 1 OF 5 ────────────────────────────────────────────────── */}
       <div style={pageContainerStyle}>
-        <div style={{ position: 'absolute', top: 12, right: 16, fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>Page 1 of 5</div>
+        <div style={{ position: 'absolute', top: 12, right: 16, fontSize: 10, color: '#9ca3af', fontWeight: 500 }}>Page 1 of 5</div>
 
         <div style={headerStyle}>
           <img
             src={logoImg}
             alt="AOTMS Global Logo"
-            style={{ height: 50, objectFit: 'contain', marginBottom: 6, display: 'block' }}
+            style={{ height: 48, objectFit: 'contain', marginBottom: 6, display: 'block' }}
             onError={(e) => { e.target.src = atmLogoImg; }}
           />
-          <div style={{ textAlign: 'center', fontSize: 12.5, color: '#111827' }}>
-            <span><strong>Phone:</strong> +91 80199-42233</span>
+          <div style={{ textAlign: 'center', fontSize: 12, color: '#111827' }}>
+            <span>Phone: +91 80199-42233</span>
             <span style={{ margin: '0 10px', color: '#9ca3af' }}>|</span>
-            <span><strong>Email:</strong> <a href="mailto:hr@aotms.com" style={{ color: '#2563eb', textDecoration: 'underline' }}>hr@aotms.com</a></span>
+            <span>Email: <a href="mailto:hr@aotms.com" style={{ color: '#2563eb', textDecoration: 'none' }}>hr@aotms.com</a></span>
           </div>
         </div>
 
         {/* Title: OFFER LETTER */}
-        <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-          <span style={{ fontSize: '18px', fontWeight: '800', textDecoration: 'underline', color: '#000000', letterSpacing: '1px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '14px' }}>
+          <span style={{ fontSize: '16px', fontWeight: 600, textDecoration: 'underline', color: '#000000', letterSpacing: '0.5px' }}>
             OFFER LETTER
           </span>
         </div>
 
-        <div style={{ marginBottom: 18, marginTop: 10 }}>
-          <div style={{ fontSize: 13, color: '#111' }}>To,</div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#000' }}>{clientName}</div>
+        <div style={{ marginBottom: 14, marginTop: 6 }}>
+          <div style={{ fontSize: 12.5, color: '#111' }}>To,</div>
+          <div style={{ fontSize: 13, color: '#000' }}>{clientName}</div>
         </div>
 
-        <div style={{ marginBottom: 20, textAlign: 'justify' }}>
-          <div style={{ fontWeight: 700, marginBottom: 10, fontSize: 14 }}>Dear {shortName},</div>
-          <p style={{ margin: '0 0 12px 0' }}>
-            We are pleased to offer you the position of <strong>"{designation}"</strong> From <strong>{offerDate}</strong> on the following terms and conditions. Subject to the terms and conditions hereinafter provided, <strong>AOTMS Global Private Limited</strong> hereby hires you for the purpose of rendering Professional Services to the company. Your salary will commence as of the first day you begin actual work at the Company, which will be considered the first day of employment with the Company.
+        <div style={{ marginBottom: 16, textAlign: 'justify', lineHeight: 1.55 }}>
+          <div style={{ marginBottom: 8, fontSize: 13 }}>Dear {shortName},</div>
+          <p style={{ margin: '0 0 10px 0' }}>
+            We are pleased to offer you the position of "{designation}" from {offerDate} on the following terms and conditions. Subject to the terms and conditions hereinafter provided, AOTMS Global Private Limited hereby hires you for the purpose of rendering Professional Services to the company. Your salary will commence as of the first day you begin actual work at the Company, which will be considered the first day of employment with the Company.
           </p>
-          <p style={{ margin: '0 0 12px 0' }}>
+          <p style={{ margin: '0 0 10px 0' }}>
             This offer of employment is made based upon your representations of proficiency and technical skills and your ability to handle an assignment/ job independently.
           </p>
-          <p style={{ margin: '0 0 16px 0' }}>
-            Your gross compensation (C2C) shall be <strong>Rs {fmtCurrency(annualCtc)} ({annualWords})</strong> per Annum. Annual Gross Compensation includes employer's contribution to Provident Fund and any other benefits, as applicable. All compensation will be paid to you after deduction of tax at source, in accordance with applicable law. You will be solely liable for your personal tax liabilities, as per applicable law, both in India and abroad.
+          <p style={{ margin: '0 0 14px 0' }}>
+            Your gross compensation (C2C) shall be Rs {fmtCurrency(annualCtc)} ({annualWords}) per Annum. Annual Gross Compensation includes employer's contribution to Provident Fund and any other benefits, as applicable. All compensation will be paid to you after deduction of tax at source, in accordance with applicable law. You will be solely liable for your personal tax liabilities, as per applicable law, both in India and abroad.
           </p>
         </div>
 
         {/* COMPENSATION PLAN Table */}
-        <div style={{ border: '1.5px solid #000000', marginTop: 10 }}>
-          <div style={{ textAlign: 'center', fontWeight: 800, fontSize: 13.5, textTransform: 'uppercase', padding: '6px', borderBottom: '1.5px solid #000000', background: '#f3f4f6' }}>
+        <div style={{ border: '1px solid #000000', marginTop: 6 }}>
+          <div style={{ textAlign: 'center', fontWeight: 600, fontSize: 12.5, textTransform: 'uppercase', padding: '5px', borderBottom: '1px solid #000000', background: '#f3f4f6' }}>
             COMPENSATION PLAN
           </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11.5 }}>
             <tbody>
-              <tr style={{ borderBottom: '1.5px solid #000000' }}>
-                <td style={{ padding: '7px 12px', fontWeight: 700, width: '40%', borderRight: '1.5px solid #000000' }}>Name</td>
-                <td colSpan={2} style={{ padding: '7px 12px', fontWeight: 700 }}>{clientName}</td>
+              <tr style={{ borderBottom: '1px solid #000000' }}>
+                <td style={{ padding: '6px 12px', width: '40%', borderRight: '1px solid #000000' }}>Name</td>
+                <td colSpan={2} style={{ padding: '6px 12px' }}>{clientName}</td>
               </tr>
-              <tr style={{ borderBottom: '1.5px solid #000000' }}>
-                <td style={{ padding: '7px 12px', fontWeight: 700, borderRight: '1.5px solid #000000' }}>Designation</td>
-                <td colSpan={2} style={{ padding: '7px 12px' }}>{designation}</td>
+              <tr style={{ borderBottom: '1px solid #000000' }}>
+                <td style={{ padding: '6px 12px', borderRight: '1px solid #000000' }}>Designation</td>
+                <td colSpan={2} style={{ padding: '6px 12px' }}>{designation}</td>
               </tr>
-              <tr style={{ fontWeight: 700, borderBottom: '1.5px solid #000000', background: '#e5e7eb' }}>
-                <td style={{ padding: '7px 12px', borderRight: '1.5px solid #000000' }}>Components Category</td>
-                <td style={{ padding: '7px 12px', textAlign: 'right', borderRight: '1.5px solid #000000', width: '30%' }}>Monthly</td>
-                <td style={{ padding: '7px 12px', textAlign: 'right', width: '30%' }}>Annual</td>
+              <tr style={{ borderBottom: '1px solid #000000', background: '#e5e7eb', fontWeight: 600 }}>
+                <td style={{ padding: '6px 12px', borderRight: '1px solid #000000' }}>Components Category</td>
+                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #000000', width: '30%' }}>Monthly</td>
+                <td style={{ padding: '6px 12px', textAlign: 'right', width: '30%' }}>Annual</td>
               </tr>
-              <tr style={{ fontWeight: 700, borderBottom: '1.5px solid #000000' }}>
-                <td style={{ padding: '7px 12px', borderRight: '1.5px solid #000000' }}>Total Gross CTC</td>
-                <td style={{ padding: '7px 12px', textAlign: 'right', borderRight: '1.5px solid #000000' }}>{fmtCurrency(monthlyCtc)}</td>
-                <td style={{ padding: '7px 12px', textAlign: 'right' }}>{fmtCurrency(annualCtc)}</td>
+              <tr style={{ borderBottom: '1px solid #000000' }}>
+                <td style={{ padding: '6px 12px', borderRight: '1px solid #000000', fontWeight: 600 }}>Total Gross CTC</td>
+                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #000000', fontWeight: 600 }}>{fmtCurrency(monthlyCtc)}</td>
+                <td style={{ padding: '6px 12px', textAlign: 'right', fontWeight: 600 }}>{fmtCurrency(annualCtc)}</td>
               </tr>
-              <tr style={{ borderBottom: '1.5px solid #000000' }}>
-                <td style={{ padding: '6px 12px', borderRight: '1.5px solid #000000' }}>Basic Salary</td>
-                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1.5px solid #000000' }}>{fmtCurrency(basicMonthly)}</td>
-                <td style={{ padding: '6px 12px', textAlign: 'right' }}>{fmtCurrency(basicAnnual)}</td>
+              <tr style={{ borderBottom: '1px solid #000000' }}>
+                <td style={{ padding: '5px 12px', borderRight: '1px solid #000000' }}>Basic Salary</td>
+                <td style={{ padding: '5px 12px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(basicMonthly)}</td>
+                <td style={{ padding: '5px 12px', textAlign: 'right' }}>{fmtCurrency(basicAnnual)}</td>
               </tr>
             </tbody>
           </table>
@@ -854,95 +863,95 @@ export const InvoiceDocument = forwardRef(({ invoiceData, documentType = 'invoic
 
       {/* ── PAGE 2 OF 5 ────────────────────────────────────────────────── */}
       <div style={pageContainerStyle}>
-        <div style={{ position: 'absolute', top: 12, right: 16, fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>Page 2 of 5</div>
+        <div style={{ position: 'absolute', top: 12, right: 16, fontSize: 10, color: '#9ca3af', fontWeight: 500 }}>Page 2 of 5</div>
 
         <div style={headerStyle}>
           <img
             src={logoImg}
             alt="AOTMS Global Logo"
-            style={{ height: 50, objectFit: 'contain', marginBottom: 6, display: 'block' }}
+            style={{ height: 48, objectFit: 'contain', marginBottom: 6, display: 'block' }}
             onError={(e) => { e.target.src = atmLogoImg; }}
           />
-          <div style={{ textAlign: 'center', fontSize: 12.5, color: '#111827' }}>
-            <span><strong>Phone:</strong> +91 80199-42233</span>
+          <div style={{ textAlign: 'center', fontSize: 12, color: '#111827' }}>
+            <span>Phone: +91 80199-42233</span>
             <span style={{ margin: '0 10px', color: '#9ca3af' }}>|</span>
-            <span><strong>Email:</strong> <a href="mailto:hr@aotms.com" style={{ color: '#2563eb', textDecoration: 'underline' }}>hr@aotms.com</a></span>
+            <span>Email: <a href="mailto:hr@aotms.com" style={{ color: '#2563eb', textDecoration: 'none' }}>hr@aotms.com</a></span>
           </div>
         </div>
 
-        <div style={{ border: '1.5px solid #000000', marginBottom: 24 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+        <div style={{ border: '1px solid #000000', marginBottom: 20 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11.5 }}>
             <tbody>
-              <tr style={{ borderBottom: '1.5px solid #000000' }}>
-                <td style={{ padding: '6px 12px', width: '40%', borderRight: '1.5px solid #000000' }}>HRA</td>
-                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1.5px solid #000000', width: '30%' }}>{fmtCurrency(hraMonthly)}</td>
-                <td style={{ padding: '6px 12px', textAlign: 'right', width: '30%' }}>{fmtCurrency(hraAnnual)}</td>
+              <tr style={{ borderBottom: '1px solid #000000' }}>
+                <td style={{ padding: '5px 12px', width: '40%', borderRight: '1px solid #000000' }}>HRA</td>
+                <td style={{ padding: '5px 12px', textAlign: 'right', borderRight: '1px solid #000000', width: '30%' }}>{fmtCurrency(hraMonthly)}</td>
+                <td style={{ padding: '5px 12px', textAlign: 'right', width: '30%' }}>{fmtCurrency(hraAnnual)}</td>
               </tr>
-              <tr style={{ borderBottom: '1.5px solid #000000' }}>
-                <td style={{ padding: '6px 12px', borderRight: '1.5px solid #000000' }}>Medical</td>
-                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1.5px solid #000000' }}>{fmtCurrency(medicalMonthly)}</td>
-                <td style={{ padding: '6px 12px', textAlign: 'right' }}>{fmtCurrency(medicalAnnual)}</td>
+              <tr style={{ borderBottom: '1px solid #000000' }}>
+                <td style={{ padding: '5px 12px', borderRight: '1px solid #000000' }}>Medical</td>
+                <td style={{ padding: '5px 12px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(medicalMonthly)}</td>
+                <td style={{ padding: '5px 12px', textAlign: 'right' }}>{fmtCurrency(medicalAnnual)}</td>
               </tr>
-              <tr style={{ borderBottom: '1.5px solid #000000' }}>
-                <td style={{ padding: '6px 12px', borderRight: '1.5px solid #000000' }}>Conveyance</td>
-                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1.5px solid #000000' }}>{fmtCurrency(conveyanceMonthly)}</td>
-                <td style={{ padding: '6px 12px', textAlign: 'right' }}>{fmtCurrency(conveyanceAnnual)}</td>
+              <tr style={{ borderBottom: '1px solid #000000' }}>
+                <td style={{ padding: '5px 12px', borderRight: '1px solid #000000' }}>Conveyance</td>
+                <td style={{ padding: '5px 12px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(conveyanceMonthly)}</td>
+                <td style={{ padding: '5px 12px', textAlign: 'right' }}>{fmtCurrency(conveyanceAnnual)}</td>
               </tr>
-              <tr style={{ borderBottom: '1.5px solid #000000' }}>
-                <td style={{ padding: '6px 12px', borderRight: '1.5px solid #000000' }}>Food Transport Allowance</td>
-                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1.5px solid #000000' }}>{fmtCurrency(foodMonthly)}</td>
-                <td style={{ padding: '6px 12px', textAlign: 'right' }}>{fmtCurrency(foodAnnual)}</td>
+              <tr style={{ borderBottom: '1px solid #000000' }}>
+                <td style={{ padding: '5px 12px', borderRight: '1px solid #000000' }}>Food Transport Allowance</td>
+                <td style={{ padding: '5px 12px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(foodMonthly)}</td>
+                <td style={{ padding: '5px 12px', textAlign: 'right' }}>{fmtCurrency(foodAnnual)}</td>
               </tr>
-              <tr style={{ borderBottom: '1.5px solid #000000' }}>
-                <td style={{ padding: '6px 12px', borderRight: '1.5px solid #000000' }}>Incentive</td>
-                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1.5px solid #000000' }}>{fmtCurrency(incentiveMonthly)}</td>
-                <td style={{ padding: '6px 12px', textAlign: 'right' }}>{fmtCurrency(incentiveAnnual)}</td>
+              <tr style={{ borderBottom: '1px solid #000000' }}>
+                <td style={{ padding: '5px 12px', borderRight: '1px solid #000000' }}>Incentive</td>
+                <td style={{ padding: '5px 12px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(incentiveMonthly)}</td>
+                <td style={{ padding: '5px 12px', textAlign: 'right' }}>{fmtCurrency(incentiveAnnual)}</td>
               </tr>
-              <tr style={{ borderBottom: '1.5px solid #000000' }}>
-                <td style={{ padding: '6px 12px', borderRight: '1.5px solid #000000' }}>Dearness Allowance</td>
-                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1.5px solid #000000' }}>{fmtCurrency(daMonthly)}</td>
-                <td style={{ padding: '6px 12px', textAlign: 'right' }}>{fmtCurrency(daAnnual)}</td>
+              <tr style={{ borderBottom: '1px solid #000000' }}>
+                <td style={{ padding: '5px 12px', borderRight: '1px solid #000000' }}>Dearness Allowance</td>
+                <td style={{ padding: '5px 12px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(daMonthly)}</td>
+                <td style={{ padding: '5px 12px', textAlign: 'right' }}>{fmtCurrency(daAnnual)}</td>
               </tr>
 
               {/* Custom Earnings */}
               {customEarnings.map((earn, idx) => (
-                <tr key={idx} style={{ borderBottom: '1.5px solid #000000' }}>
-                  <td style={{ padding: '6px 12px', borderRight: '1.5px solid #000000' }}>{earn.name}</td>
-                  <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1.5px solid #000000' }}>{fmtCurrency(earn.monthly)}</td>
-                  <td style={{ padding: '6px 12px', textAlign: 'right' }}>{fmtCurrency(earn.annual || (earn.monthly * 12))}</td>
+                <tr key={idx} style={{ borderBottom: '1px solid #000000' }}>
+                  <td style={{ padding: '5px 12px', borderRight: '1px solid #000000' }}>{earn.name}</td>
+                  <td style={{ padding: '5px 12px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(earn.monthly)}</td>
+                  <td style={{ padding: '5px 12px', textAlign: 'right' }}>{fmtCurrency(earn.annual || (earn.monthly * 12))}</td>
                 </tr>
               ))}
 
               {/* Net Earnings */}
-              <tr style={{ fontWeight: 800, background: '#f3f4f6' }}>
-                <td style={{ padding: '8px 12px', borderRight: '1.5px solid #000000' }}>Net Earnings</td>
-                <td style={{ padding: '8px 12px', textAlign: 'right', borderRight: '1.5px solid #000000' }}>{fmtCurrency(netMonthly)}</td>
-                <td style={{ padding: '8px 12px', textAlign: 'right' }}>{fmtCurrency(netAnnual)}</td>
+              <tr style={{ background: '#f3f4f6', fontWeight: 600 }}>
+                <td style={{ padding: '7px 12px', borderRight: '1px solid #000000' }}>Net Earnings</td>
+                <td style={{ padding: '7px 12px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(netMonthly)}</td>
+                <td style={{ padding: '7px 12px', textAlign: 'right' }}>{fmtCurrency(netAnnual)}</td>
               </tr>
             </tbody>
           </table>
         </div>
 
-        <div style={{ marginTop: 20 }}>
-          <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 8, textDecoration: 'underline' }}>Deductions Breakdown</div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, border: '1.5px solid #000000' }}>
+        <div style={{ marginTop: 14 }}>
+          <div style={{ fontWeight: 600, fontSize: 12.5, marginBottom: 8, textDecoration: 'underline' }}>Deductions Breakdown</div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11.5, border: '1px solid #000000' }}>
             <tbody>
-              <tr style={{ borderBottom: '1.5px solid #000000' }}>
-                <td style={{ padding: '6px 12px', width: '40%', borderRight: '1.5px solid #000000' }}>Professional Tax (PT)</td>
-                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1.5px solid #000000', width: '30%' }}>{fmtCurrency(ptMonthly)}</td>
-                <td style={{ padding: '6px 12px', textAlign: 'right', width: '30%' }}>{fmtCurrency(ptAnnual)}</td>
+              <tr style={{ borderBottom: '1px solid #000000' }}>
+                <td style={{ padding: '5px 12px', width: '40%', borderRight: '1px solid #000000' }}>Professional Tax (PT)</td>
+                <td style={{ padding: '5px 12px', textAlign: 'right', borderRight: '1px solid #000000', width: '30%' }}>{fmtCurrency(ptMonthly)}</td>
+                <td style={{ padding: '5px 12px', textAlign: 'right', width: '30%' }}>{fmtCurrency(ptAnnual)}</td>
               </tr>
               {customDeductions.map((ded, idx) => (
-                <tr key={idx} style={{ borderBottom: '1.5px solid #000000' }}>
-                  <td style={{ padding: '6px 12px', borderRight: '1.5px solid #000000' }}>{ded.name}</td>
-                  <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1.5px solid #000000' }}>{fmtCurrency(ded.monthly)}</td>
-                  <td style={{ padding: '6px 12px', textAlign: 'right' }}>{fmtCurrency(ded.annual || (ded.monthly * 12))}</td>
+                <tr key={idx} style={{ borderBottom: '1px solid #000000' }}>
+                  <td style={{ padding: '5px 12px', borderRight: '1px solid #000000' }}>{ded.name}</td>
+                  <td style={{ padding: '5px 12px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(ded.monthly)}</td>
+                  <td style={{ padding: '5px 12px', textAlign: 'right' }}>{fmtCurrency(ded.annual || (ded.monthly * 12))}</td>
                 </tr>
               ))}
-              <tr style={{ fontWeight: 800, background: '#fee2e2' }}>
-                <td style={{ padding: '7px 12px', borderRight: '1.5px solid #000000' }}>Total Deductions</td>
-                <td style={{ padding: '7px 12px', textAlign: 'right', borderRight: '1.5px solid #000000' }}>{fmtCurrency(totalDeductionsMonthly)}</td>
-                <td style={{ padding: '7px 12px', textAlign: 'right' }}>{fmtCurrency(totalDeductionsAnnual)}</td>
+              <tr style={{ background: '#fee2e2', fontWeight: 600 }}>
+                <td style={{ padding: '6px 12px', borderRight: '1px solid #000000' }}>Total Deductions</td>
+                <td style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(totalDeductionsMonthly)}</td>
+                <td style={{ padding: '6px 12px', textAlign: 'right' }}>{fmtCurrency(totalDeductionsAnnual)}</td>
               </tr>
             </tbody>
           </table>
@@ -951,51 +960,51 @@ export const InvoiceDocument = forwardRef(({ invoiceData, documentType = 'invoic
 
       {/* ── PAGE 3 OF 5 ────────────────────────────────────────────────── */}
       <div style={pageContainerStyle}>
-        <div style={{ position: 'absolute', top: 12, right: 16, fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>Page 3 of 5</div>
+        <div style={{ position: 'absolute', top: 12, right: 16, fontSize: 10, color: '#9ca3af', fontWeight: 500 }}>Page 3 of 5</div>
 
         <div style={headerStyle}>
           <img
             src={logoImg}
             alt="AOTMS Global Logo"
-            style={{ height: 50, objectFit: 'contain', marginBottom: 6, display: 'block' }}
+            style={{ height: 48, objectFit: 'contain', marginBottom: 6, display: 'block' }}
             onError={(e) => { e.target.src = atmLogoImg; }}
           />
-          <div style={{ textAlign: 'center', fontSize: 12.5, color: '#111827' }}>
-            <span><strong>Phone:</strong> +91 80199-42233</span>
+          <div style={{ textAlign: 'center', fontSize: 12, color: '#111827' }}>
+            <span>Phone: +91 80199-42233</span>
             <span style={{ margin: '0 10px', color: '#9ca3af' }}>|</span>
-            <span><strong>Email:</strong> <a href="mailto:hr@aotms.com" style={{ color: '#2563eb', textDecoration: 'underline' }}>hr@aotms.com</a></span>
+            <span>Email: <a href="mailto:hr@aotms.com" style={{ color: '#2563eb', textDecoration: 'none' }}>hr@aotms.com</a></span>
           </div>
         </div>
 
-        <div style={{ textAlign: 'center', fontWeight: 800, fontSize: 15, textDecoration: 'underline', marginBottom: 20 }}>
+        <div style={{ textAlign: 'center', fontWeight: 600, fontSize: 14, textDecoration: 'underline', marginBottom: 16 }}>
           TERMS & CONDITIONS OF EMPLOYMENT
         </div>
 
-        <div style={{ lineHeight: 1.6, fontSize: 13 }}>
-          <div style={{ marginBottom: 16 }}>
-            <strong style={{ fontSize: 13.5 }}>1. Probation & Confirmation</strong>
-            <p style={{ margin: '4px 0 0 0', textAlign: 'justify' }}>
-              Your probation period will be from <strong>{probationPeriod}</strong>. During this probation period, your performance, technical proficiency, attendance, and professional conduct will be continuously evaluated by management. Upon successful completion of probation, your employment with the company will be confirmed in writing. Management reserves the right to extend the probation period if deemed necessary.
+        <div style={{ lineHeight: 1.6, fontSize: 12, color: '#1f2937' }}>
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 3 }}>1. Probation & Confirmation</div>
+            <p style={{ margin: '0', textAlign: 'justify' }}>
+              Your probation period will be from {probationPeriod}. During this probation period, your performance, technical proficiency, attendance, and professional conduct will be continuously evaluated by management. Upon successful completion of probation, your employment with the company will be confirmed in writing. Management reserves the right to extend the probation period if deemed necessary.
             </p>
           </div>
 
-          <div style={{ marginBottom: 16 }}>
-            <strong style={{ fontSize: 13.5 }}>2. Work Timings & Hours</strong>
-            <p style={{ margin: '4px 0 0 0', textAlign: 'justify' }}>
-              Your standard work timings will be <strong>{workTimings}</strong>, Monday through Saturday. You may be required to work additional hours or shifts depending on operational, client delivery, or project milestones.
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 3 }}>2. Work Timings & Hours</div>
+            <p style={{ margin: '0', textAlign: 'justify' }}>
+              Your standard work timings will be {workTimings}, Monday through Saturday. You may be required to work additional hours or shifts depending on operational, client delivery, or project milestones.
             </p>
           </div>
 
-          <div style={{ marginBottom: 16 }}>
-            <strong style={{ fontSize: 13.5 }}>3. Leave Policy & Public Holidays</strong>
-            <p style={{ margin: '4px 0 0 0', textAlign: 'justify' }}>
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 3 }}>3. Leave Policy & Public Holidays</div>
+            <p style={{ margin: '0', textAlign: 'justify' }}>
               You will be entitled to paid leave and public holidays in accordance with the Company HR Leave Policy. Unauthorized absence exceeding 3 consecutive working days without prior approval will be considered abandonment of employment and subject to disciplinary action.
             </p>
           </div>
 
-          <div style={{ marginBottom: 16 }}>
-            <strong style={{ fontSize: 13.5 }}>4. Confidentiality & Non-Disclosure (NDA)</strong>
-            <p style={{ margin: '4px 0 0 0', textAlign: 'justify' }}>
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 3 }}>4. Confidentiality & Non-Disclosure (NDA)</div>
+            <p style={{ margin: '0', textAlign: 'justify' }}>
               You shall maintain strict confidentiality regarding all company proprietary software, source codes, database schemas, client contracts, trade secrets, financial records, and operational strategies. You shall not disclose, duplicate, or transfer any company data or intellectual property to any third party during or after your employment.
             </p>
           </div>
@@ -1004,47 +1013,47 @@ export const InvoiceDocument = forwardRef(({ invoiceData, documentType = 'invoic
 
       {/* ── PAGE 4 OF 5 ────────────────────────────────────────────────── */}
       <div style={pageContainerStyle}>
-        <div style={{ position: 'absolute', top: 12, right: 16, fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>Page 4 of 5</div>
+        <div style={{ position: 'absolute', top: 12, right: 16, fontSize: 10, color: '#9ca3af', fontWeight: 500 }}>Page 4 of 5</div>
 
         <div style={headerStyle}>
           <img
             src={logoImg}
             alt="AOTMS Global Logo"
-            style={{ height: 50, objectFit: 'contain', marginBottom: 6, display: 'block' }}
+            style={{ height: 48, objectFit: 'contain', marginBottom: 6, display: 'block' }}
             onError={(e) => { e.target.src = atmLogoImg; }}
           />
-          <div style={{ textAlign: 'center', fontSize: 12.5, color: '#111827' }}>
-            <span><strong>Phone:</strong> +91 80199-42233</span>
+          <div style={{ textAlign: 'center', fontSize: 12, color: '#111827' }}>
+            <span>Phone: +91 80199-42233</span>
             <span style={{ margin: '0 10px', color: '#9ca3af' }}>|</span>
-            <span><strong>Email:</strong> <a href="mailto:hr@aotms.com" style={{ color: '#2563eb', textDecoration: 'underline' }}>hr@aotms.com</a></span>
+            <span>Email: <a href="mailto:hr@aotms.com" style={{ color: '#2563eb', textDecoration: 'none' }}>hr@aotms.com</a></span>
           </div>
         </div>
 
-        <div style={{ lineHeight: 1.6, fontSize: 13 }}>
-          <div style={{ marginBottom: 16 }}>
-            <strong style={{ fontSize: 13.5 }}>5. Professional Conduct & Conflict of Interest</strong>
-            <p style={{ margin: '4px 0 0 0', textAlign: 'justify' }}>
+        <div style={{ lineHeight: 1.6, fontSize: 12, color: '#1f2937' }}>
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 3 }}>5. Professional Conduct & Conflict of Interest</div>
+            <p style={{ margin: '0', textAlign: 'justify' }}>
               During your employment with AOTMS Global Private Limited, you shall devote your full business time, attention, and effort to company duties. You shall not engage in any secondary employment, freelancing, consulting, or business activities that conflict with the company's business interests.
             </p>
           </div>
 
-          <div style={{ marginBottom: 16 }}>
-            <strong style={{ fontSize: 13.5 }}>6. Termination & Notice Period</strong>
-            <p style={{ margin: '4px 0 0 0', textAlign: 'justify' }}>
-              Post confirmation, either party may terminate employment by providing <strong>30 days written notice</strong> or gross salary in lieu thereof. During probation, the notice period required by either party shall be <strong>15 days</strong>. In case of gross misconduct, breach of confidentiality, fraud, or violation of company policies, the Company reserves the right to terminate employment immediately without notice or compensation.
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 3 }}>6. Termination & Notice Period</div>
+            <p style={{ margin: '0', textAlign: 'justify' }}>
+              Post confirmation, either party may terminate employment by providing 30 days written notice or gross salary in lieu thereof. During probation, the notice period required by either party shall be 15 days. In case of gross misconduct, breach of confidentiality, fraud, or violation of company policies, the Company reserves the right to terminate employment immediately without notice or compensation.
             </p>
           </div>
 
-          <div style={{ marginBottom: 16 }}>
-            <strong style={{ fontSize: 13.5 }}>7. Return of Company Property</strong>
-            <p style={{ margin: '4px 0 0 0', textAlign: 'justify' }}>
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 3 }}>7. Return of Company Property</div>
+            <p style={{ margin: '0', textAlign: 'justify' }}>
               Upon termination of employment for any reason, you shall immediately surrender to the company all assigned laptops, access cards, documents, software credentials, customer databases, and physical/digital assets in your possession.
             </p>
           </div>
 
-          <div style={{ marginBottom: 16 }}>
-            <strong style={{ fontSize: 13.5 }}>8. Governing Law & Jurisdiction</strong>
-            <p style={{ margin: '4px 0 0 0', textAlign: 'justify' }}>
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 3 }}>8. Governing Law & Jurisdiction</div>
+            <p style={{ margin: '0', textAlign: 'justify' }}>
               This offer letter and employment contract shall be governed by and construed in accordance with the laws of India. Any disputes shall be subject to the exclusive jurisdiction of courts situated at Vijayawada, Andhra Pradesh.
             </p>
           </div>
@@ -1053,29 +1062,29 @@ export const InvoiceDocument = forwardRef(({ invoiceData, documentType = 'invoic
 
       {/* ── PAGE 5 OF 5 ────────────────────────────────────────────────── */}
       <div style={pageContainerStyle}>
-        <div style={{ position: 'absolute', top: 12, right: 16, fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>Page 5 of 5</div>
+        <div style={{ position: 'absolute', top: 12, right: 16, fontSize: 10, color: '#9ca3af', fontWeight: 500 }}>Page 5 of 5</div>
 
         <div style={headerStyle}>
           <img
             src={logoImg}
             alt="AOTMS Global Logo"
-            style={{ height: 50, objectFit: 'contain', marginBottom: 6, display: 'block' }}
+            style={{ height: 48, objectFit: 'contain', marginBottom: 6, display: 'block' }}
             onError={(e) => { e.target.src = atmLogoImg; }}
           />
-          <div style={{ textAlign: 'center', fontSize: 12.5, color: '#111827' }}>
-            <span><strong>Phone:</strong> +91 80199-42233</span>
+          <div style={{ textAlign: 'center', fontSize: 12, color: '#111827' }}>
+            <span>Phone: +91 80199-42233</span>
             <span style={{ margin: '0 10px', color: '#9ca3af' }}>|</span>
-            <span><strong>Email:</strong> <a href="mailto:hr@aotms.com" style={{ color: '#2563eb', textDecoration: 'underline' }}>hr@aotms.com</a></span>
+            <span>Email: <a href="mailto:hr@aotms.com" style={{ color: '#2563eb', textDecoration: 'none' }}>hr@aotms.com</a></span>
           </div>
         </div>
 
-        <div style={{ fontWeight: 800, fontSize: 14, textDecoration: 'underline', marginBottom: 12 }}>
+        <div style={{ fontWeight: 600, fontSize: 13, textDecoration: 'underline', marginBottom: 10 }}>
           JOINING FORMALITIES & DOCUMENT CHECKLIST
         </div>
-        <p style={{ margin: '0 0 12px 0', fontSize: 12.5 }}>
-          Please submit self-attested copies of the following documents on or before your joining date (<strong>{offerDate}</strong>):
+        <p style={{ margin: '0 0 10px 0', fontSize: 12 }}>
+          Please submit self-attested copies of the following documents on or before your joining date ({offerDate}):
         </p>
-        <ul style={{ margin: '0 0 20px 20px', padding: 0, fontSize: 12.5, lineHeight: 1.7 }}>
+        <ul style={{ margin: '0 0 16px 20px', padding: 0, fontSize: 11.5, lineHeight: 1.65 }}>
           <li>Educational Certificates (SSCC/10th, Intermediate/12th, Graduation Degree & Marksheets)</li>
           <li>Previous Employer Relieving Letter & Service Certificate (if applicable)</li>
           <li>Last 3 Months Salary Slips / Bank Statement (if applicable)</li>
@@ -1084,29 +1093,56 @@ export const InvoiceDocument = forwardRef(({ invoiceData, documentType = 'invoic
           <li>Cancelled Cheque or Bank Passbook copy for salary account setup</li>
         </ul>
 
-        <div style={{ border: '1.5px solid #000000', padding: 16, background: '#f9fafb', marginBottom: 30 }}>
-          <div style={{ fontWeight: 800, fontSize: 13.5, textDecoration: 'underline', marginBottom: 8 }}>
+        <div style={{ border: '1px solid #000000', padding: 14, background: '#f9fafb', marginBottom: 20 }}>
+          <div style={{ fontWeight: 600, fontSize: 12.5, textDecoration: 'underline', marginBottom: 6 }}>
             ACCEPTANCE OF OFFER & DECLARATION
           </div>
-          <p style={{ margin: '0 0 14px 0', fontSize: 12.5, lineHeight: 1.5, textAlign: 'justify' }}>
-            I, <strong>{clientName}</strong>, hereby accept the offer of employment as <strong>"{designation}"</strong> with AOTMS Global Private Limited on the terms and conditions outlined in this offer letter (Pages 1 to 5). I confirm that I will join duty on <strong>{offerDate}</strong> and agree to abide by all the rules, regulations, policies, and procedures of the company as amended from time to time.
+          <p style={{ margin: '0 0 12px 0', fontSize: 11.5, lineHeight: 1.5, textAlign: 'justify' }}>
+            I, {clientName}, hereby accept the offer of employment as "{designation}" with AOTMS Global Private Limited on the terms and conditions outlined in this offer letter (Pages 1 to 5). I confirm that I will join duty on {offerDate} and agree to abide by all the rules, regulations, policies, and procedures of the company as amended from time to time.
           </p>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginTop: 24, paddingTop: 16, borderTop: '1.5px solid #000000' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginTop: 18, paddingTop: 14, borderTop: '1px solid #000000' }}>
             <div>
-              <div style={{ fontSize: 12, color: '#4b5563', marginBottom: 28 }}>Candidate Signature: ______________________</div>
-              <div style={{ fontWeight: 700, fontSize: 13 }}>Name: {clientName}</div>
-              <div style={{ fontSize: 12, color: '#4b5563', marginTop: 4 }}>Date: ________________________</div>
-              <div style={{ fontSize: 12, color: '#4b5563', marginTop: 4 }}>Place: ________________________</div>
+              <div style={{ fontSize: 11.5, color: '#4b5563', marginBottom: 24 }}>Candidate Signature: ______________________</div>
+              <div style={{ fontSize: 12, color: '#000' }}>Name: {clientName}</div>
+              <div style={{ fontSize: 11.5, color: '#4b5563', marginTop: 3 }}>Date: ________________________</div>
+              <div style={{ fontSize: 11.5, color: '#4b5563', marginTop: 3 }}>Place: ________________________</div>
             </div>
 
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontWeight: 800, fontSize: 13, color: '#000000' }}>For AOTMS GLOBAL PRIVATE LIMITED</div>
-              <div style={{ fontFamily: "'Brush Script MT', cursive", fontSize: 24, color: '#0f172a', fontWeight: 'bold', margin: '8px 0' }}>
-                Deenaz Shaik
+            <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+              <div style={{ fontSize: 12, color: '#000000' }}>For AOTMS GLOBAL PRIVATE LIMITED</div>
+
+              {/* Official AOTMS Stamp reflected Upper of Deenaz Shaik Name */}
+              <div style={{ position: 'relative', margin: '4px 0 2px', width: 92, height: 92 }}>
+                <img
+                  src={aotmsStampImg}
+                  alt="AOTMS Stamp"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain',
+                    display: 'block',
+                  }}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '52%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%) rotate(-7deg)',
+                    fontFamily: "'Brush Script MT', cursive",
+                    fontSize: 22,
+                    color: '#0f172a',
+                    whiteSpace: 'nowrap',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  Deenaz Shaik
+                </div>
               </div>
-              <div style={{ fontWeight: 700, fontSize: 13, color: '#1e293b' }}>Deenaz Shaik</div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#475569' }}>HR Manager</div>
+
+              <div style={{ fontSize: 12.5, color: '#1e293b' }}>Deenaz Shaik</div>
+              <div style={{ fontSize: 11.5, color: '#475569' }}>HR Manager</div>
             </div>
           </div>
         </div>

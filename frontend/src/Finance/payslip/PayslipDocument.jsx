@@ -196,9 +196,6 @@ export const PayslipDocument = forwardRef(({ payslip, isPreview = false }, ref) 
 
             <span style={{ fontWeight: 'normal', whiteSpace: 'nowrap' }}>PF No:</span>
             <span style={{ whiteSpace: 'nowrap' }}>{valOrBlank(payslip.pf_number)}</span>
-
-            <span style={{ fontWeight: 'normal', whiteSpace: 'nowrap' }}>PF UAN:</span>
-            <span style={{ whiteSpace: 'nowrap' }}>{valOrBlank(payslip.uan_number)}</span>
           </div>
         </div>
 

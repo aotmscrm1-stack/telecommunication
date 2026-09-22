@@ -272,15 +272,20 @@ export default function Invoice() {
 
     try {
       const element = targetRef.current;
-      const cleanName = (clientName || 'Jayaveer').replace(/[^a-zA-Z0-9]+/g, '_');
-      const filename = `AOTMS_Invoice_Compensation_${cleanName}.pdf`;
+      const cleanName = (clientName || 'Candidate').replace(/[^a-zA-Z0-9]+/g, '_');
+      const filename = form.doc_type === 'offer'
+        ? `AOTMS_Offer_Letter_${cleanName}.pdf`
+        : form.doc_type === 'quotation'
+        ? `AOTMS_Quotation_${cleanName}.pdf`
+        : `AOTMS_Tax_Invoice_${cleanName}.pdf`;
 
       const opt = {
-        margin: [8, 8, 8, 8],
+        margin: [0, 0, 0, 0],
         filename: filename,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        html2canvas: { scale: 2, useCORS: true, logging: false, scrollY: 0, scrollX: 0 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
       };
 
       await html2pdf().set(opt).from(element).save();

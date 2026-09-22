@@ -208,12 +208,6 @@ router.post('/', protect, async (req, res) => {
     if (!pan_number?.trim()) {
       return res.status(400).json({ message: 'PAN Number is required' });
     }
-    if (!pf_number?.trim()) {
-      return res.status(400).json({ message: 'PF Number is required' });
-    }
-    if (!uan_number?.trim()) {
-      return res.status(400).json({ message: 'PF UAN Number is required' });
-    }
     if (!payslip_month?.trim()) {
       return res.status(400).json({ message: 'Payslip Month is required' });
     }
@@ -239,8 +233,8 @@ router.post('/', protect, async (req, res) => {
       bank_name: bank_name.trim(),
       bank_account_number: bank_account_number.trim(),
       pan_number: pan_number.trim(),
-      pf_number: pf_number.trim(),
-      uan_number: uan_number.trim(),
+      pf_number: pf_number ? pf_number.trim() : '',
+      uan_number: uan_number ? uan_number.trim() : '',
       payslip_month: cleanPayslipMonth(payslip_month),
       ...calculated,
       createdBy: req.user._id,

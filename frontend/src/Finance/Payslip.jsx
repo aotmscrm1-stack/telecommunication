@@ -386,14 +386,6 @@ export default function Payslip() {
       setErrorMessage('Please enter PAN Number');
       return;
     }
-    if (!form.pf_number?.trim()) {
-      setErrorMessage('Please enter PF Number');
-      return;
-    }
-    if (!form.uan_number?.trim()) {
-      setErrorMessage('Please enter PF UAN Number');
-      return;
-    }
     if (!form.payslip_month?.trim()) {
       setErrorMessage('Please enter Payslip Month');
       return;
@@ -891,28 +883,15 @@ export default function Payslip() {
                         />
                       </div>
                       <div>
-                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>PF Number *</label>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>PF Number</label>
                         <input
                           type="text"
-                          required
                           value={form.pf_number || ''}
                           onChange={e => setForm({ ...form, pf_number: e.target.value })}
-                          placeholder="AP/VJA/0012345/000/0001"
+                          placeholder="AP/VJA/0012345/000/0001 (Optional)"
                           style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, fontFamily: 'monospace' }}
                         />
                       </div>
-                    </div>
-
-                    <div>
-                      <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>PF UAN (Universal Account Number) *</label>
-                      <input
-                        type="text"
-                        required
-                        value={form.uan_number || ''}
-                        onChange={e => setForm({ ...form, uan_number: e.target.value })}
-                        placeholder="101234567890"
-                        style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, fontFamily: 'monospace' }}
-                      />
                     </div>
                   </div>
                 </div>
