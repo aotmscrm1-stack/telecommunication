@@ -18,8 +18,8 @@ const registrationOtpStore = new Map();
 async function sendOtpNotification(email, otp, firstName = 'User') {
   let sent = false;
 
-  // 1. Try n8n webhook if configured
-  const webhookUrl = process.env.N8N_WEBHOOK_URL || process.env.N8N_FORGOT_PASSWORD_WORKFLOW_ID;
+  // 1. Try n8n OTP webhook if configured
+  const webhookUrl = process.env.N8N_OTP_WEBHOOK_URL || process.env.N8N_WEBHOOK_URL || process.env.N8N_FORGOT_PASSWORD_WORKFLOW_ID;
   if (webhookUrl) {
     try {
       await axios.post(webhookUrl, {
@@ -30,8 +30,26 @@ async function sendOtpNotification(email, otp, firstName = 'User') {
         expiresInMinutes: 10,
       }, { timeout: 8000 });
       sent = true;
+      console.log(`[AUTH] Sent OTP to n8n webhook: ${webhookUrl}`);
     } catch (e) {
-      console.warn('[AUTH] n8n webhook OTP delivery failed:', e.message);
+      console.warn(`[AUTH] n8n webhook OTP delivery to ${webhookUrl} failed:`, e.message);
+      // If it was webhook-test and failed, try active production URL as fallback
+      if (webhookUrl.includes('/webhook-test/')) {
+        const prodUrl = webhookUrl.replace('/webhook-test/', '/webhook/');
+        try {
+          await axios.post(prodUrl, {
+            event: 'registration_otp',
+            email,
+            name: firstName,
+            otp,
+            expiresInMinutes: 10,
+          }, { timeout: 8000 });
+          sent = true;
+          console.log(`[AUTH] Successfully sent OTP to production n8n webhook fallback: ${prodUrl}`);
+        } catch (err2) {
+          console.warn(`[AUTH] production n8n webhook fallback also failed:`, err2.message);
+        }
+      }
     }
   }
 
@@ -108,8 +126,7 @@ router.post('/send-registration-otp', async (req, res) => {
 
     res.json({
       success: true,
-      message: `A 6-digit verification code has been generated for ${cleanEmail}.`,
-      debugOtp: otp, // Available for development/testing convenience
+      message: `A 6-digit verification code has been sent to ${cleanEmail}. Please check your inbox.`,
     });
   } catch (err) {
     console.error('[AUTH OTP Error]:', err);
