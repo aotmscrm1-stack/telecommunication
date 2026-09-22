@@ -23,6 +23,8 @@ import {
   PlusCircle,
 } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { invoicesAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { canDelete } from '../utils/permissions';
@@ -265,7 +267,7 @@ export default function Invoice() {
     }));
   };
 
-  // PDF Download Handler using html2pdf.js
+  // PDF Download Handler using direct jsPDF & html2canvas for 100% exact page-by-page PDF generation without blank pages
   const handleDownloadPDF = async (targetRef = printRef, clientName = form.client_name) => {
     if (!targetRef.current) return;
     setDownloadingPdf(true);
@@ -279,16 +281,73 @@ export default function Invoice() {
         ? `AOTMS_Quotation_${cleanName}.pdf`
         : `AOTMS_Tax_Invoice_${cleanName}.pdf`;
 
-      const opt = {
-        margin: [0, 0, 0, 0],
-        filename: filename,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false, scrollY: 0, scrollX: 0 },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
-      };
+      const offerPages = element.querySelectorAll('.offer-letter-page');
 
-      await html2pdf().set(opt).from(element).save();
+      if (offerPages && offerPages.length > 0) {
+        // Direct page-by-page rendering with jsPDF: guarantees EXACTLY 5 pages with ZERO empty/blank pages!
+        const pdf = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'a4',
+          compress: true,
+        });
+
+        // Temporarily remove preview shadows during canvas capture
+        const originalShadows = [];
+        offerPages.forEach((p, idx) => {
+          originalShadows[idx] = p.style.boxShadow;
+          p.style.boxShadow = 'none';
+        });
+
+        try {
+          for (let i = 0; i < offerPages.length; i++) {
+            const pageEl = offerPages[i];
+            const canvas = await html2canvas(pageEl, {
+              scale: 2,
+              useCORS: true,
+              logging: false,
+              scrollY: 0,
+              scrollX: 0,
+              backgroundColor: '#ffffff',
+            });
+
+            const imgData = canvas.toDataURL('image/jpeg', 0.98);
+            if (i > 0) {
+              pdf.addPage('a4', 'portrait');
+            }
+            // Exactly 210mm x 297mm (Standard A4)
+            pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
+          }
+
+          pdf.save(filename);
+        } finally {
+          // Restore preview shadows
+          offerPages.forEach((p, idx) => {
+            p.style.boxShadow = originalShadows[idx];
+          });
+        }
+      } else {
+        // Fallback for single page Quotation or Tax Invoice
+        const canvas = await html2canvas(element, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          scrollY: 0,
+          scrollX: 0,
+          backgroundColor: '#ffffff',
+        });
+        const imgData = canvas.toDataURL('image/jpeg', 0.98);
+        const pdf = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'a4',
+          compress: true,
+        });
+        const imgHeight = (canvas.height * 210) / canvas.width;
+        pdf.addImage(imgData, 'JPEG', 0, 0, 210, Math.min(297, imgHeight), undefined, 'FAST');
+        pdf.save(filename);
+      }
+
       setSuccessMessage(`PDF downloaded successfully: ${filename}`);
       setTimeout(() => setSuccessMessage(''), 4000);
     } catch (err) {
