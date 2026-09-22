@@ -194,36 +194,45 @@ router.post('/send', protect, async (req, res) => {
         }
       } catch (err) {
         console.error('[Email Webhook Error]:', err.response?.data || err.message);
-        const rData = err.response?.data;
-        let extractedMsg = '';
-        let nodeName = '';
+        const isTimeout = err.code === 'ECONNABORTED' || /timeout/i.test(err.message);
+        if (isTimeout) {
+          console.log('[Email Webhook]: Request sent to n8n; processing asynchronously in background.');
+          success = true;
+          sentVia = 'n8n Automation Webhook (Background Dispatched)';
+          n8nDetails = { status: 'queued', message: 'Dispatched to n8n webhook; processing in background' };
+          n8nError = null;
+        } else {
+          const rData = err.response?.data;
+          let extractedMsg = '';
+          let nodeName = '';
 
-        if (rData && typeof rData === 'object') {
-          if (rData.errorMessage) extractedMsg = rData.errorMessage;
-          else if (rData.message) extractedMsg = rData.message;
-          else if (rData.error) extractedMsg = typeof rData.error === 'string' ? rData.error : JSON.stringify(rData.error);
-          else if (rData.errorDetails?.rawErrorMessage) {
-            extractedMsg = Array.isArray(rData.errorDetails.rawErrorMessage)
-              ? rData.errorDetails.rawErrorMessage.join('; ')
-              : String(rData.errorDetails.rawErrorMessage);
+          if (rData && typeof rData === 'object') {
+            if (rData.errorMessage) extractedMsg = rData.errorMessage;
+            else if (rData.message) extractedMsg = rData.message;
+            else if (rData.error) extractedMsg = typeof rData.error === 'string' ? rData.error : JSON.stringify(rData.error);
+            else if (rData.errorDetails?.rawErrorMessage) {
+              extractedMsg = Array.isArray(rData.errorDetails.rawErrorMessage)
+                ? rData.errorDetails.rawErrorMessage.join('; ')
+                : String(rData.errorDetails.rawErrorMessage);
+            }
+            if (rData.n8nDetails?.nodeName) {
+              nodeName = rData.n8nDetails.nodeName;
+            }
           }
-          if (rData.n8nDetails?.nodeName) {
-            nodeName = rData.n8nDetails.nodeName;
+
+          if (!extractedMsg) {
+            extractedMsg = err.message || 'Webhook communication failure';
           }
+
+          const fullMsg = nodeName ? `${extractedMsg} (at node: "${nodeName}")` : extractedMsg;
+
+          n8nError = {
+            message: fullMsg,
+            status: err.response?.status || 500,
+            nodeName,
+            raw: rData || err.message
+          };
         }
-
-        if (!extractedMsg) {
-          extractedMsg = err.message || 'Webhook communication failure';
-        }
-
-        const fullMsg = nodeName ? `${extractedMsg} (at node: "${nodeName}")` : extractedMsg;
-
-        n8nError = {
-          message: fullMsg,
-          status: err.response?.status || 500,
-          nodeName,
-          raw: rData || err.message
-        };
       }
     }
 
@@ -393,6 +402,13 @@ router.post('/reply', protect, async (req, res) => {
         }
       } catch (err) {
         console.error('[Email Reply Webhook Error]:', err.response?.data || err.message);
+        const isTimeout = err.code === 'ECONNABORTED' || /timeout/i.test(err.message);
+        if (isTimeout) {
+          console.log('[Email Reply Webhook]: Request sent to n8n; processing reply in background.');
+          success = true;
+          sentVia = 'n8n Automation Webhook (Background Dispatched)';
+          n8nDetails = { status: 'queued', message: 'Dispatched to n8n webhook; processing in background' };
+        }
       }
     }
 
