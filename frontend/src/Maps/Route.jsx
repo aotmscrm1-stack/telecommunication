@@ -8,44 +8,32 @@ import {
   RouteProgress,
   MapControls,
 } from "@/components/ui/map";
-import { Car, Play, Pause, RotateCcw } from "lucide-react";
+import { Play, Pause, RotateCcw, Building2, User, Navigation2, CheckCircle2 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 
-const routeCoordinates = [
-  [-122.394, 37.7953],
-  [-122.3952, 37.7967],
-  [-122.397, 37.7986],
-  [-122.3975, 37.7992],
-  [-122.3976, 37.7993],
-  [-122.3981, 37.799],
-  [-122.3984, 37.7989],
-  [-122.4066, 37.7979],
-  [-122.4071, 37.7981],
-  [-122.4072, 37.7982],
-  [-122.4072, 37.7984],
-  [-122.4082, 37.8034],
-  [-122.4064, 37.8037],
-  [-122.4063, 37.8036],
-  [-122.4063, 37.8034],
-  [-122.4067, 37.8032],
-  [-122.4067, 37.803],
-  [-122.4067, 37.8028],
-  [-122.4064, 37.8025],
-  [-122.4062, 37.802],
-  [-122.406, 37.8019],
-  [-122.4058, 37.8018],
-  [-122.4056, 37.8018],
-  [-122.4055, 37.8019],
-  [-122.4054, 37.8021],
-  [-122.4056, 37.8025],
+// Real-world route between AOTMS Office HQ (Pothuri Towers) and Field Agent (Benz Circle corridor)
+const officeToEmployeeRoute = [
+  [80.6480, 16.5062], // 1. Office HQ - Pothuri Towers
+  [80.6486, 16.5058],
+  [80.6495, 16.5049],
+  [80.6508, 16.5037],
+  [80.6515, 16.5029],
+  [80.6521, 16.5020],
+  [80.6528, 16.5012],
+  [80.6534, 16.5002],
+  [80.6540, 16.4990],
+  [80.6545, 16.4975], // 10. Employee Destination - Benz Circle
 ];
 
 export function RouteProgressExample() {
-  const [progress, setProgress] = useState(0.45);
+  const [progress, setProgress] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [attendanceStarted, setAttendanceStarted] = useState(false);
+  const [cameraFocus, setCameraFocus] = useState("route"); // 'office', 'employee', 'route'
   const timerRef = useRef(null);
 
+  // Playback timer for animated route progress
   useEffect(() => {
     if (isPlaying) {
       timerRef.current = setInterval(() => {
@@ -54,7 +42,7 @@ export function RouteProgressExample() {
             setIsPlaying(false);
             return 1;
           }
-          return Math.min(1, prev + 0.01);
+          return Math.min(1, prev + 0.012);
         });
       }, 50);
     } else {
@@ -65,111 +53,196 @@ export function RouteProgressExample() {
     };
   }, [isPlaying]);
 
+  // Handle "Start Attendance" action
+  const handleStartAttendance = () => {
+    setAttendanceStarted(true);
+    setProgress(0);
+    setIsPlaying(true);
+  };
+
+  const handleReset = () => {
+    setIsPlaying(false);
+    setProgress(0);
+    setAttendanceStarted(false);
+  };
+
+  const centerCoords =
+    cameraFocus === "office"
+      ? [80.6480, 16.5062]
+      : cameraFocus === "employee"
+      ? [80.6545, 16.4975]
+      : [80.6512, 16.5018];
+
+  const centerZoom = cameraFocus === "route" ? 14.2 : 16.0;
+
   return (
-    <div className="relative h-[460px] w-full rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-md bg-slate-900">
-      <Map center={[-122.4008, 37.7996]} zoom={14.2}>
-        <MapControls position="top-right" showZoom showCompass showFullscreen />
+    <div className="w-full space-y-4 font-sans select-none">
+      {/* ── TOP ACTION BAR: Start Attendance & Route Camera Shift ── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-white rounded-2xl border border-slate-200 shadow-sm">
+        {/* Left: Start Attendance & Route Controls */}
+        <div className="flex items-center gap-2.5">
+          <Button
+            onClick={handleStartAttendance}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all shadow-sm ${
+              attendanceStarted
+                ? "bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 text-white shadow-orange-500/20"
+                : "bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 text-white shadow-blue-500/20"
+            }`}
+          >
+            <Play className="size-3.5 fill-white" />
+            <span>{attendanceStarted ? "Replay Route" : "Start Attendance Route"}</span>
+          </Button>
 
-        <MapRoute
-          coordinates={routeCoordinates}
-          progress={progress}
-          color="#94a3b8"
-          width={5}
-          opacity={0.7}
-          dashArray={[0.5, 1.5]}
-        >
-          <RouteProgress color="#3b82f6" width={5} opacity={1} />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsPlaying(!isPlaying)}
+            className="flex items-center gap-1.5 text-xs text-slate-700 border-slate-200 hover:bg-slate-50 rounded-xl"
+          >
+            {isPlaying ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
+            <span>{isPlaying ? "Pause" : "Play"}</span>
+          </Button>
 
-          {/* Start marker */}
-          <RouteMarker at="start">
-            <MarkerContent>
-              <div className="size-4 rounded-full border-2 border-slate-900 bg-emerald-400 shadow-lg ring-2 ring-emerald-500/50" />
-            </MarkerContent>
-            <MarkerLabel position="bottom" className="bg-slate-900/90 text-emerald-400 px-2 py-0.5 rounded-full text-[10px] font-bold">
-              START
-            </MarkerLabel>
-          </RouteMarker>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleReset}
+            className="p-2 text-slate-500 hover:text-slate-800 border-slate-200 rounded-xl"
+            title="Reset Route"
+          >
+            <RotateCcw className="size-3.5" />
+          </Button>
+        </div>
 
-          {/* Dynamic Car Marker along progress */}
-          <RouteMarker at="progress">
-            <MarkerContent>
-              <div className="grid size-7 place-items-center rounded-full bg-blue-600 shadow-xl ring-2 ring-white border border-blue-400 hover:scale-110 transition-transform">
-                <Car className="size-3.5 text-white" />
-              </div>
-            </MarkerContent>
-            <MarkerLabel
-              position="top"
-              className="bg-slate-900/90 text-blue-400 border border-blue-500/40 rounded-md px-2 py-0.5 font-mono text-[11px] font-bold shadow-md"
-            >
-              {Math.round(progress * 100)}%
-            </MarkerLabel>
-          </RouteMarker>
+        {/* Center: Shift Camera (Office to Employee / Employee to Office) */}
+        <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/80">
+          <button
+            onClick={() => setCameraFocus("office")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              cameraFocus === "office"
+                ? "bg-white text-sky-700 shadow-xs border border-sky-200"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <Building2 className="size-3.5 text-sky-600" />
+            <span>Office HQ</span>
+          </button>
 
-          {/* End marker */}
-          <RouteMarker at="end">
-            <MarkerContent>
-              <div className="size-4 rounded-full border-2 border-slate-900 bg-red-500 shadow-lg ring-2 ring-red-500/50" />
-            </MarkerContent>
-            <MarkerLabel position="bottom" className="bg-slate-900/90 text-red-400 px-2 py-0.5 rounded-full text-[10px] font-bold">
-              DESTINATION
-            </MarkerLabel>
-          </RouteMarker>
-        </MapRoute>
-      </Map>
+          <button
+            onClick={() => setCameraFocus("route")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              cameraFocus === "route"
+                ? "bg-white text-slate-800 shadow-xs border border-slate-200"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <span>Full Route</span>
+          </button>
 
-      {/* Control panel for route progress simulation */}
-      <div className="bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 absolute bottom-3 left-3 w-64 rounded-xl p-3 shadow-xl backdrop-blur-md z-10 space-y-2">
-        <div className="flex items-center justify-between text-xs">
-          <span className="font-semibold text-slate-800 dark:text-slate-200">Trip Simulation</span>
-          <span className="font-mono text-blue-600 dark:text-blue-400 font-bold tabular-nums">
+          <button
+            onClick={() => setCameraFocus("employee")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              cameraFocus === "employee"
+                ? "bg-white text-orange-600 shadow-xs border border-orange-200"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <User className="size-3.5 text-orange-600" />
+            <span>Employee</span>
+          </button>
+        </div>
+
+        {/* Right: Progress Slider & Distance Metric */}
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="w-36">
+            <Slider
+              value={[progress]}
+              min={0}
+              max={1}
+              step={0.01}
+              onValueChange={(val) => setProgress(val[0])}
+            />
+          </div>
+          <span className="text-xs font-mono font-semibold text-slate-700 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200">
             {Math.round(progress * 100)}%
           </span>
         </div>
+      </div>
 
-        <Slider
-          value={[progress]}
-          onValueChange={([val]) => {
-            setProgress(val);
-            if (isPlaying) setIsPlaying(false);
-          }}
-          min={0}
-          max={1}
-          step={0.01}
-          aria-label="Route progress"
-        />
+      {/* ── MAP CONTAINER WITH CLEAN MAP ICON PINS (No Blurry Waves) ── */}
+      <div className="relative h-[480px] w-full rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-white">
+        <Map center={centerCoords} zoom={centerZoom} style="https://tiles.openfreemap.org/styles/bright">
+          <MapControls position="top-right" showZoom showCompass />
 
-        <div className="flex items-center justify-between pt-1">
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-7 text-xs px-2.5 gap-1 border-slate-300 dark:border-slate-700"
-            onClick={() => setIsPlaying(!isPlaying)}
+          {/* Office to Employee Animated Route */}
+          <MapRoute
+            coordinates={officeToEmployeeRoute}
+            progress={progress}
+            color="#cbd5e1"
+            width={6}
+            opacity={0.8}
+            dashArray={[1, 1.5]}
           >
-            {isPlaying ? (
-              <>
-                <Pause className="size-3 text-amber-500 fill-amber-500" />
-                <span>Pause</span>
-              </>
-            ) : (
-              <>
-                <Play className="size-3 text-emerald-500 fill-emerald-500" />
-                <span>Animate</span>
-              </>
-            )}
-          </Button>
+            {/* Active Neon Route Progress Line */}
+            <RouteProgress color="#0284c7" width={6} opacity={0.95} />
 
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 text-xs px-2 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
-            onClick={() => {
-              setIsPlaying(false);
-              setProgress(0);
-            }}
-          >
-            <RotateCcw className="size-3 mr-1" />
-            Reset
-          </Button>
+            {/* ── 1. START POINT: Office HQ (Map Icon Style Pin - Cool Blue) ── */}
+            <RouteMarker at="start">
+              <MarkerContent>
+                <div className="relative flex flex-col items-center group cursor-pointer select-none">
+                  {/* Map Pin Teardrop Body */}
+                  <div className="relative size-10 rounded-full bg-sky-600 border-2 border-white shadow-lg flex items-center justify-center transition-transform group-hover:scale-110">
+                    <Building2 className="size-5 text-white stroke-[2.2]" />
+                  </div>
+                  {/* Pin Point Tip */}
+                  <div className="-mt-1.5 size-3 bg-sky-600 rotate-45 border-r-2 border-b-2 border-white shadow-xs" />
+                </div>
+              </MarkerContent>
+              <MarkerLabel position="bottom" className="mt-1 bg-white text-sky-800 border border-sky-200 px-2 py-0.5 rounded-full text-[10px] font-bold shadow-xs">
+                OFFICE HQ
+              </MarkerLabel>
+            </RouteMarker>
+
+            {/* ── 2. MOVING VEHICLE / COMMUTE (Navigation Map Icon) ── */}
+            <RouteMarker at="progress">
+              <MarkerContent>
+                <div className="grid size-9 place-items-center rounded-xl bg-gradient-to-tr from-sky-500 to-blue-600 shadow-xl border-2 border-white transition-transform hover:scale-110">
+                  <Navigation2 className="size-4 text-white rotate-45" />
+                </div>
+              </MarkerContent>
+              <MarkerLabel position="top" className="mb-1 bg-white text-sky-700 border border-sky-200 px-2 py-0.5 rounded-full text-[9.5px] font-bold shadow-xs">
+                {Math.round(progress * 100)}% Transit
+              </MarkerLabel>
+            </RouteMarker>
+
+            {/* ── 3. DESTINATION: Employee Location (Map Icon Style Pin - Calm Orange) ── */}
+            <RouteMarker at="end">
+              <MarkerContent>
+                <div className="relative flex flex-col items-center group cursor-pointer select-none">
+                  {/* Map Pin Teardrop Body */}
+                  <div className="relative size-10 rounded-full bg-orange-500 border-2 border-white shadow-lg flex items-center justify-center transition-transform group-hover:scale-110">
+                    <User className="size-5 text-white stroke-[2.2]" />
+                  </div>
+                  {/* Pin Point Tip */}
+                  <div className="-mt-1.5 size-3 bg-orange-500 rotate-45 border-r-2 border-b-2 border-white shadow-xs" />
+                </div>
+              </MarkerContent>
+              <MarkerLabel position="bottom" className="mt-1 bg-white text-orange-700 border border-orange-200 px-2 py-0.5 rounded-full text-[10px] font-bold shadow-xs">
+                EMPLOYEE
+              </MarkerLabel>
+            </RouteMarker>
+          </MapRoute>
+        </Map>
+
+        {/* Bottom Floating Telemetry Overlay */}
+        <div className="absolute bottom-3 left-3 z-10 pointer-events-none">
+          <div className="bg-white/95 backdrop-blur-md border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-mono shadow-sm flex items-center gap-3">
+            <span className="text-sky-700 font-semibold">FROM: AOTMS HQ (Pothuri Towers)</span>
+            <span className="text-slate-300">➔</span>
+            <span className="text-orange-600 font-semibold">TO: Field Employee</span>
+            <span className="text-slate-300">|</span>
+            <span className="text-slate-700 font-bold">1.4 km Route</span>
+          </div>
         </div>
       </div>
     </div>
