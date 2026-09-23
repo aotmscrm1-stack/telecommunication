@@ -37,6 +37,23 @@ const emailLogSchema = new mongoose.Schema({
   inReplyTo: { type: String, default: '' },
   references: { type: String, default: '' },
   replies: [replySubSchema],
+  attachments: [{
+    name: { type: String, default: '' },
+    size: { type: Number, default: 0 },
+    type: { type: String, default: '' },
+    url: { type: String, default: '' },
+    base64: { type: String, default: '' }
+  }],
+  driveLinks: [{
+    title: { type: String, default: '' },
+    url: { type: String, default: '' }
+  }],
+  photos: [{
+    name: { type: String, default: '' },
+    url: { type: String, default: '' },
+    size: { type: Number, default: 0 }
+  }],
+  html: { type: String, default: '' },
   isRead: { type: Boolean, default: true },
   n8nDetails: { type: mongoose.Schema.Types.Mixed, default: null }
 }, { timestamps: true });

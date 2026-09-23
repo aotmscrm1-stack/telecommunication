@@ -63,6 +63,23 @@ export default function EmailCRM() {
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
 
+  // Gmail Style Enhancements: Attachments, Links, Drive, Photos & Preview Mode
+  const [composeTab, setComposeTab] = useState('write'); // 'write' | 'preview'
+  const [attachments, setAttachments] = useState([]);
+  const [driveLinks, setDriveLinks] = useState([]);
+  const [photos, setPhotos] = useState([]);
+  const [formattingOpen, setFormattingOpen] = useState(false);
+  const [linkModalOpen, setLinkModalOpen] = useState(false);
+  const [linkText, setLinkText] = useState('');
+  const [linkUrl, setLinkUrl] = useState('');
+  const [driveModalOpen, setDriveModalOpen] = useState(false);
+  const [driveTitle, setDriveTitle] = useState('');
+  const [driveUrl, setDriveUrl] = useState('');
+  const [photoModalOpen, setPhotoModalOpen] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState('');
+  const [postSendPreviewModal, setPostSendPreviewModal] = useState(false);
+  const [lastSentEmail, setLastSentEmail] = useState(null);
+
   // Send state & feedback
   const [sending, setSending] = useState(false);
   const [sentSuccess, setSentSuccess] = useState('');
@@ -289,6 +306,196 @@ ${user?.designation || 'Staff'}`
     });
   };
 
+  // File size formatting helper
+  const formatFileSize = (bytes) => {
+    if (!bytes) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  };
+
+  // Generate HTML representation of email
+  const generateEmailHtml = (textBody, atts = [], drives = [], imgs = []) => {
+    let htmlContent = (textBody || '').replace(/\n/g, '<br/>');
+
+    // Replace Markdown-style links [text](url) with HTML <a href="url">text</a>
+    htmlContent = htmlContent.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" style="color: #1a73e8; text-decoration: underline;">$1</a>');
+
+    let extraSections = '';
+
+    if (imgs.length > 0) {
+      extraSections += `
+        <div style="margin-top: 18px; border-top: 1px solid #e5e7eb; padding-top: 12px;">
+          <div style="font-size: 12px; font-weight: 700; color: #4b5563; margin-bottom: 8px;">📷 Photos (${imgs.length})</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+            ${imgs.map(img => `
+              <div style="border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; max-width: 260px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+                <img src="${img.dataUrl || img.url}" alt="${img.name || 'Photo'}" style="width: 100%; height: auto; display: block; max-height: 200px; object-fit: cover;" />
+                ${img.name ? `<div style="padding: 4px 8px; font-size: 11px; color: #6b7280; background: #f9fafb;">${img.name}</div>` : ''}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    if (drives.length > 0) {
+      extraSections += `
+        <div style="margin-top: 18px; border-top: 1px solid #e5e7eb; padding-top: 12px;">
+          <div style="font-size: 12px; font-weight: 700; color: #4b5563; margin-bottom: 8px;">📁 Google Drive Files (${drives.length})</div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            ${drives.map(d => `
+              <a href="${d.url}" target="_blank" rel="noopener noreferrer" style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; text-decoration: none; color: #0f172a; font-size: 13px; font-weight: 600;">
+                <span style="font-size: 18px;">📁</span>
+                <span>${d.title || d.url}</span>
+                <span style="font-size: 11px; background: #e2e8f0; padding: 2px 8px; border-radius: 4px; color: #475569; margin-left: auto;">Open in Google Drive ➔</span>
+              </a>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    if (atts.length > 0) {
+      extraSections += `
+        <div style="margin-top: 18px; border-top: 1px solid #e5e7eb; padding-top: 12px;">
+          <div style="font-size: 12px; font-weight: 700; color: #4b5563; margin-bottom: 8px;">📎 Attachments (${atts.length})</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            ${atts.map(f => `
+              <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 12px; color: #1e293b;">
+                <span style="font-size: 16px;">📄</span>
+                <span style="font-weight: 600;">${f.name}</span>
+                <span style="color: #64748b; font-size: 11px;">(${formatFileSize(f.size)})</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <div style="font-family: Roboto, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #202124;">
+        <div>${htmlContent}</div>
+        ${extraSections}
+        <div style="margin-top: 24px; padding-top: 12px; border-top: 1px solid #f1f3f4; font-size: 11px; color: #9aa0a6;">
+          Sent via AOTMS CRM · Direct GoDaddy Delivery
+        </div>
+      </div>
+    `;
+  };
+
+  // Attach File Handler
+  const handleFileUpload = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setAttachments((prev) => [
+          ...prev,
+          {
+            id: Date.now() + Math.random().toString(36).substring(2, 7),
+            name: file.name,
+            size: file.size,
+            type: file.type || 'application/octet-stream',
+            dataUrl: event.target.result,
+          },
+        ]);
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  };
+
+  // Photos File Upload Handler
+  const handlePhotoUpload = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setPhotos((prev) => [
+          ...prev,
+          {
+            id: Date.now() + Math.random().toString(36).substring(2, 7),
+            name: file.name,
+            size: file.size,
+            url: '',
+            dataUrl: event.target.result,
+          },
+        ]);
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+    setPhotoModalOpen(false);
+  };
+
+  // Add Web URL Photo
+  const handleAddPhotoUrl = () => {
+    if (!photoUrl.trim()) return;
+    setPhotos((prev) => [
+      ...prev,
+      {
+        id: Date.now() + Math.random().toString(36).substring(2, 7),
+        name: 'Web Image',
+        size: 0,
+        url: photoUrl.trim(),
+        dataUrl: photoUrl.trim(),
+      },
+    ]);
+    setPhotoUrl('');
+    setPhotoModalOpen(false);
+  };
+
+  // Add Link Handler
+  const handleAddLink = () => {
+    if (!linkUrl.trim()) return;
+    const displayText = linkText.trim() || linkUrl.trim();
+    const formatted = `[${displayText}](${linkUrl.trim()})`;
+    setBody((prev) => (prev ? `${prev} ${formatted}` : formatted));
+    setLinkText('');
+    setLinkUrl('');
+    setLinkModalOpen(false);
+  };
+
+  // Add Google Drive Link Handler
+  const handleAddDriveLink = () => {
+    if (!driveUrl.trim()) return;
+    const title = driveTitle.trim() || 'Google Drive File';
+    setDriveLinks((prev) => [
+      ...prev,
+      {
+        id: Date.now() + Math.random().toString(36).substring(2, 7),
+        title,
+        url: driveUrl.trim(),
+      },
+    ]);
+    setBody((prev) => `${prev ? prev + '\n' : ''}📁 [${title}](${driveUrl.trim()})`);
+    setDriveTitle('');
+    setDriveUrl('');
+    setDriveModalOpen(false);
+  };
+
+  // Formatting helpers
+  const applyFormatting = (prefix, suffix = '') => {
+    const textarea = document.getElementById('gmail-compose-textarea');
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selected = body.substring(start, end);
+    const replacement = prefix + (selected || 'text') + (suffix || prefix);
+    const newBody = body.substring(0, start) + replacement + body.substring(end);
+    setBody(newBody);
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + prefix.length, start + prefix.length + (selected ? selected.length : 4));
+    }, 50);
+  };
+
   const handleSendEmail = async () => {
     if (!fromEmail.trim()) {
       setSentError('Please enter a valid "From Email" sender address.');
@@ -307,6 +514,8 @@ ${user?.designation || 'Staff'}`
     setSentSuccess('');
     setSending(true);
 
+    const generatedHtml = generateEmailHtml(body, attachments, driveLinks, photos);
+
     try {
       // Background auto-tracking for Managing Director / Admin without showing banner to user
       const res = await api.post('/email/send', {
@@ -314,21 +523,52 @@ ${user?.designation || 'Staff'}`
         recipientEmail: recipientEmail.trim(),
         subject: subject.trim(),
         body: body.trim(),
+        html: generatedHtml,
+        attachmentsList: attachments.map((a) => ({
+          name: a.name,
+          size: a.size,
+          type: a.type,
+          url: a.url || '',
+          base64: a.dataUrl || '',
+        })),
+        driveLinks,
+        photos,
         templateId: selectedTemplateId,
         trackMD: true, // Always automatically logged in portal
       });
 
+      const sentLog = res.data?.log || {
+        fromEmail: fromEmail.trim(),
+        recipientEmail: recipientEmail.trim(),
+        subject: subject.trim(),
+        body: body.trim(),
+        html: generatedHtml,
+        attachments: [...attachments],
+        driveLinks: [...driveLinks],
+        photos: [...photos],
+        status: 'Delivered',
+        sentVia: 'GoDaddy SMTP via n8n Automation',
+        createdAt: new Date().toISOString(),
+      };
+
+      setLastSentEmail(sentLog);
       const succMsg = res.data?.message || `Email sent successfully to ${recipientEmail}`;
       setSentSuccess(succMsg);
 
-      // Close compose modal after brief display
-      setTimeout(() => {
-        setComposeOpen(false);
-        setSentSuccess('');
-      }, 1500);
+      // Close compose modal and immediately show Sent Preview Modal!
+      setComposeOpen(false);
+      setPostSendPreviewModal(true);
+
+      // Reset compose fields
+      setRecipientEmail('');
+      setSubject('');
+      setBody('');
+      setAttachments([]);
+      setDriveLinks([]);
+      setPhotos([]);
+      setComposeTab('write');
 
       fetchEmailLogs(selectedEmployeeFilter, searchQuery);
-
     } catch (err) {
       const resData = err.response?.data;
       const detectedMsg =
@@ -822,9 +1062,34 @@ ${user?.designation || 'Staff'}`
                     {selectedEmail.createdAt ? new Date(selectedEmail.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : ''}
                   </span>
                 </div>
-                <div style={{ fontSize: 13.5, color: TEXT_MAIN, lineHeight: 1.7, whiteSpace: 'pre-wrap', fontFamily: 'monospace', background: '#fafbfc', padding: 20, borderRadius: 8, border: `1px solid ${BORDER_LIGHT}` }}>
-                  {selectedEmail.body || '(No message content recorded)'}
-                </div>
+                {selectedEmail.html ? (
+                  <div
+                    style={{ fontSize: 13.5, color: TEXT_MAIN, lineHeight: 1.7, background: '#fafbfc', padding: 20, borderRadius: 8, border: `1px solid ${BORDER_LIGHT}` }}
+                    dangerouslySetInnerHTML={{ __html: selectedEmail.html }}
+                  />
+                ) : (
+                  <div style={{ fontSize: 13.5, color: TEXT_MAIN, lineHeight: 1.7, whiteSpace: 'pre-wrap', background: '#fafbfc', padding: 20, borderRadius: 8, border: `1px solid ${BORDER_LIGHT}` }}>
+                    {selectedEmail.body || '(No message content recorded)'}
+                  </div>
+                )}
+
+                {/* Display any Attached Files if present */}
+                {selectedEmail.attachments && selectedEmail.attachments.length > 0 && !selectedEmail.html && (
+                  <div style={{ marginTop: 12, padding: 14, background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: TEXT_MUTED, marginBottom: 8 }}>
+                      📎 Attached Documents ({selectedEmail.attachments.length}):
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {selectedEmail.attachments.map((att, idx) => (
+                        <div key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: WHITE, border: '1px solid #cbd5e1', borderRadius: 6, fontSize: 12, color: '#334155' }}>
+                          <span>📄</span>
+                          <span style={{ fontWeight: 600 }}>{att.name}</span>
+                          {att.size && <span style={{ color: '#64748b', fontSize: 11 }}>({formatFileSize(att.size)})</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* ── REPLY STREAM: Notification Style Mail Cards ────────── */}
@@ -1295,13 +1560,45 @@ ${user?.designation || 'Staff'}`
             onClick={() => { if (composeMinimized) setComposeMinimized(false); }}
             style={{
               background: '#f2f6fc', borderBottom: `1px solid ${BORDER_LIGHT}`,
-              padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               cursor: 'pointer', flexShrink: 0
             }}
           >
-            <div style={{ fontSize: 13.5, fontWeight: 600, color: TEXT_MAIN }}>
-              New Message — Email
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ fontSize: 13.5, fontWeight: 600, color: TEXT_MAIN }}>
+                New Message
+              </div>
+              {/* Write vs Preview Mode Toggle Tabs */}
+              <div style={{ display: 'flex', background: '#e8eaed', borderRadius: 16, padding: 2 }}>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setComposeTab('write'); }}
+                  style={{
+                    padding: '3px 10px', fontSize: 11.5, fontWeight: 600, border: 'none',
+                    borderRadius: 14, cursor: 'pointer',
+                    background: composeTab === 'write' ? WHITE : 'transparent',
+                    color: composeTab === 'write' ? GMAIL_BLUE : TEXT_MUTED,
+                    boxShadow: composeTab === 'write' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none'
+                  }}
+                >
+                  ✏️ Write
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setComposeTab('preview'); }}
+                  style={{
+                    padding: '3px 10px', fontSize: 11.5, fontWeight: 600, border: 'none',
+                    borderRadius: 14, cursor: 'pointer',
+                    background: composeTab === 'preview' ? WHITE : 'transparent',
+                    color: composeTab === 'preview' ? GMAIL_BLUE : TEXT_MUTED,
+                    boxShadow: composeTab === 'preview' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none'
+                  }}
+                >
+                  👁️ Preview
+                </button>
+              </div>
             </div>
+
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               {/* Minimize */}
               <button
@@ -1405,19 +1702,173 @@ ${user?.designation || 'Staff'}`
                 </select>
               </div>
 
-              {/* MESSAGE TEXTAREA */}
-              <div style={{ flex: 1, padding: 16, display: 'flex', flexDirection: 'column' }}>
-                <textarea
-                  value={body}
-                  onChange={e => setBody(e.target.value)}
-                  placeholder="Write your email body..."
-                  style={{
-                    flex: 1, width: '100%', border: 'none', outline: 'none',
-                    resize: 'none', fontSize: 13, lineHeight: 1.6,
-                    fontFamily: 'Roboto, monospace', color: TEXT_MAIN
-                  }}
-                />
-              </div>
+              {/* RICH FORMATTING ROW (WHEN OPEN) */}
+              {formattingOpen && composeTab === 'write' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 16px', background: '#f8fafc', borderBottom: `1px solid #e2e8f0` }}>
+                  <button type="button" onClick={() => applyFormatting('<b>', '</b>')} style={{ padding: '3px 8px', fontWeight: 800, background: WHITE, border: '1px solid #cbd5e1', borderRadius: 4, cursor: 'pointer' }} title="Bold">B</button>
+                  <button type="button" onClick={() => applyFormatting('<i>', '</i>')} style={{ padding: '3px 8px', fontStyle: 'italic', background: WHITE, border: '1px solid #cbd5e1', borderRadius: 4, cursor: 'pointer' }} title="Italic">I</button>
+                  <button type="button" onClick={() => applyFormatting('<u>', '</u>')} style={{ padding: '3px 8px', textDecoration: 'underline', background: WHITE, border: '1px solid #cbd5e1', borderRadius: 4, cursor: 'pointer' }} title="Underline">U</button>
+                  <button type="button" onClick={() => applyFormatting('\n• ')} style={{ padding: '3px 8px', background: WHITE, border: '1px solid #cbd5e1', borderRadius: 4, cursor: 'pointer', fontSize: 11 }} title="Bullet List">• List</button>
+                  <button type="button" onClick={() => applyFormatting('\n1. ')} style={{ padding: '3px 8px', background: WHITE, border: '1px solid #cbd5e1', borderRadius: 4, cursor: 'pointer', fontSize: 11 }} title="Numbered List">1. List</button>
+                  <button type="button" onClick={() => applyFormatting('\n> ')} style={{ padding: '3px 8px', background: WHITE, border: '1px solid #cbd5e1', borderRadius: 4, cursor: 'pointer', fontSize: 11 }} title="Quote">Quote</button>
+                </div>
+              )}
+
+              {/* WRITE MODE vs LIVE PREVIEW MODE */}
+              {composeTab === 'write' ? (
+                <div style={{ flex: 1, padding: 16, display: 'flex', flexDirection: 'column' }}>
+                  <textarea
+                    id="gmail-compose-textarea"
+                    value={body}
+                    onChange={e => setBody(e.target.value)}
+                    placeholder="Write your email message..."
+                    style={{
+                      flex: 1, width: '100%', minHeight: 180, border: 'none', outline: 'none',
+                      resize: 'none', fontSize: 13, lineHeight: 1.6,
+                      fontFamily: 'Roboto, monospace', color: TEXT_MAIN
+                    }}
+                  />
+
+                  {/* ATTACHED FILES CHIPS */}
+                  {attachments.length > 0 && (
+                    <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px dashed #e2e8f0' }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_MUTED, marginBottom: 6 }}>
+                        📎 Attached Files ({attachments.length}):
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {attachments.map((att) => (
+                          <div
+                            key={att.id}
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 6,
+                              padding: '4px 10px', background: '#f1f5f9', border: '1px solid #cbd5e1',
+                              borderRadius: 16, fontSize: 11.5, color: '#334155'
+                            }}
+                          >
+                            <span>📄</span>
+                            <span style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>
+                              {att.name}
+                            </span>
+                            <span style={{ fontSize: 10.5, color: '#64748b' }}>({formatFileSize(att.size)})</span>
+                            <button
+                              type="button"
+                              onClick={() => setAttachments(prev => prev.filter(a => a.id !== att.id))}
+                              style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', padding: '0 2px', fontSize: 12 }}
+                              title="Remove file"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* GOOGLE DRIVE ATTACHMENTS */}
+                  {driveLinks.length > 0 && (
+                    <div style={{ marginTop: 10 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_MUTED, marginBottom: 6 }}>
+                        📁 Google Drive Links ({driveLinks.length}):
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {driveLinks.map((drive) => (
+                          <div
+                            key={drive.id}
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 6,
+                              padding: '4px 10px', background: '#ecfdf5', border: '1px solid #a7f3d0',
+                              borderRadius: 16, fontSize: 11.5, color: '#065f46'
+                            }}
+                          >
+                            <span>📁</span>
+                            <a href={drive.url} target="_blank" rel="noopener noreferrer" style={{ color: '#047857', fontWeight: 600, textDecoration: 'none' }}>
+                              {drive.title}
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => setDriveLinks(prev => prev.filter(d => d.id !== drive.id))}
+                              style={{ border: 'none', background: 'none', color: '#047857', cursor: 'pointer', padding: '0 2px', fontSize: 12 }}
+                              title="Remove Drive link"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* PHOTOS ATTACHMENTS STRIP */}
+                  {photos.length > 0 && (
+                    <div style={{ marginTop: 10 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_MUTED, marginBottom: 6 }}>
+                        📷 Attached Photos ({photos.length}):
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        {photos.map((photo) => (
+                          <div
+                            key={photo.id}
+                            style={{
+                              position: 'relative', width: 68, height: 68, borderRadius: 8,
+                              overflow: 'hidden', border: '1px solid #e2e8f0', background: '#f8fafc'
+                            }}
+                          >
+                            <img
+                              src={photo.dataUrl || photo.url}
+                              alt={photo.name}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setPhotos(prev => prev.filter(p => p.id !== photo.id))}
+                              style={{
+                                position: 'absolute', top: 2, right: 2, width: 18, height: 18,
+                                borderRadius: '50%', background: 'rgba(0,0,0,0.6)', color: WHITE,
+                                border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10
+                              }}
+                              title="Remove photo"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* LIVE PREVIEW MODE */
+                <div style={{ flex: 1, padding: 18, background: '#fafbfc', overflowY: 'auto' }}>
+                  <div style={{ background: WHITE, borderRadius: 10, padding: 20, border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+                    {/* Header in Preview */}
+                    <div style={{ borderBottom: '1px solid #f1f3f4', paddingBottom: 14, marginBottom: 16 }}>
+                      <div style={{ fontSize: 17, fontWeight: 700, color: TEXT_MAIN, marginBottom: 8 }}>
+                        {subject || '(No Subject)'}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: TEXT_MUTED }}>
+                        <div>
+                          <span>From: </span>
+                          <strong style={{ color: TEXT_MAIN }}>{fromEmail}</strong>
+                          <span style={{ margin: '0 8px' }}>•</span>
+                          <span>To: </span>
+                          <strong style={{ color: TEXT_MAIN }}>{recipientEmail || '(No Recipient Specified)'}</strong>
+                        </div>
+                        <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: 10, fontWeight: 600 }}>
+                          Live Preview
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Rendered HTML Message */}
+                    <div
+                      style={{ fontSize: 13.5, lineHeight: 1.7, color: TEXT_MAIN, minHeight: 120 }}
+                      dangerouslySetInnerHTML={{
+                        __html: generateEmailHtml(body, attachments, driveLinks, photos)
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
 
               {/* Banners if error / success */}
               {sentError && (
@@ -1442,9 +1893,10 @@ ${user?.designation || 'Staff'}`
                 </div>
               )}
 
-              {/* BOTTOM ACTION TOOLBAR */}
-              <div style={{ padding: '12px 16px', borderTop: `1px solid #f1f3f4`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: WHITE }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              {/* BOTTOM GMAIL-STYLE ACTION TOOLBAR */}
+              <div style={{ padding: '10px 16px', borderTop: `1px solid #f1f3f4`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: WHITE }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {/* Send Button */}
                   <button
                     disabled={sending}
                     onClick={handleSendEmail}
@@ -1452,7 +1904,7 @@ ${user?.designation || 'Staff'}`
                       display: 'flex', alignItems: 'center', gap: 8,
                       background: sending ? '#93c5fd' : GMAIL_BLUE,
                       color: WHITE, border: 'none', borderRadius: 20,
-                      padding: '8px 24px', fontSize: 13, fontWeight: 600,
+                      padding: '8px 22px', fontSize: 13, fontWeight: 600,
                       cursor: sending ? 'not-allowed' : 'pointer',
                       boxShadow: '0 1px 3px rgba(0,0,0,0.15)'
                     }}
@@ -1463,24 +1915,374 @@ ${user?.designation || 'Staff'}`
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                   </button>
 
-                  <span style={{ fontSize: 11, color: TEXT_MUTED }}>
-                    Recipient: {recipientEmail}
-                  </span>
+                  {/* Formatting Options (A) */}
+                  <button
+                    type="button"
+                    onClick={() => setFormattingOpen(!formattingOpen)}
+                    style={{
+                      padding: 6, background: formattingOpen ? '#e8f0fe' : 'none',
+                      border: 'none', borderRadius: 4, cursor: 'pointer', color: formattingOpen ? GMAIL_BLUE : TEXT_MUTED
+                    }}
+                    title="Formatting options"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 20h16"/><path d="M14 4l-4 12"/><path d="M10 4l4 12"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+                  </button>
+
+                  {/* Attach Files (Paperclip) */}
+                  <label
+                    style={{
+                      padding: 6, background: 'none', border: 'none', borderRadius: 4,
+                      cursor: 'pointer', color: TEXT_MUTED, display: 'flex', alignItems: 'center'
+                    }}
+                    title="Attach files (PDF, Word, Excel, Docs)"
+                  >
+                    <input
+                      type="file"
+                      multiple
+                      onChange={handleFileUpload}
+                      style={{ display: 'none' }}
+                    />
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                  </label>
+
+                  {/* Insert Link (ft ft-link) */}
+                  <button
+                    type="button"
+                    onClick={() => setLinkModalOpen(true)}
+                    style={{ padding: 6, background: 'none', border: 'none', borderRadius: 4, cursor: 'pointer', color: TEXT_MUTED }}
+                    title="Insert link (ft ft-link)"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                  </button>
+
+                  {/* Google Drive (fa-brands fa-google-drive) */}
+                  <button
+                    type="button"
+                    onClick={() => setDriveModalOpen(true)}
+                    style={{ padding: 6, background: 'none', border: 'none', borderRadius: 4, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                    title="Insert files using Drive (fa-brands fa-google-drive)"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                      <path d="M7.71 3.5L1.15 15l3.43 6 6.55-11.5L7.71 3.5z" fill="#0066DA"/>
+                      <path d="M16.29 3.5H7.71l6.55 11.5h8.59L16.29 3.5z" fill="#00AC47"/>
+                      <path d="M22.85 15H9.69l-3.43 6h13.16l3.43-6z" fill="#EA4335"/>
+                      <path d="M14.26 15L7.71 3.5 4.58 9 11.13 20.5l3.13-5.5z" fill="#FFBA00"/>
+                    </svg>
+                  </button>
+
+                  {/* Insert Photo (ti ti-photo) */}
+                  <button
+                    type="button"
+                    onClick={() => setPhotoModalOpen(true)}
+                    style={{ padding: 6, background: 'none', border: 'none', borderRadius: 4, cursor: 'pointer', color: TEXT_MUTED }}
+                    title="Insert photo (ti ti-photo)"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="15" y1="8" x2="15.01" y2="8"/><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M4 15l4-4a3 5 0 0 1 3 0l5 5"/><path d="M14 14l1-1a3 5 0 0 1 3 0l2 2"/></svg>
+                  </button>
                 </div>
 
-                {/* Discard / Trash Button */}
-                <button
-                  onClick={() => setComposeOpen(false)}
-                  title="Discard draft"
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: TEXT_MUTED, padding: 6, borderRadius: '50%' }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#f1f3f4'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {/* Quick Toggle Preview Mode */}
+                  <button
+                    type="button"
+                    onClick={() => setComposeTab(composeTab === 'write' ? 'preview' : 'write')}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px',
+                      background: composeTab === 'preview' ? GMAIL_BLUE_LIGHT : '#f1f3f4',
+                      border: 'none', borderRadius: 14, fontSize: 11.5, fontWeight: 600,
+                      color: composeTab === 'preview' ? GMAIL_BLUE : TEXT_MUTED, cursor: 'pointer'
+                    }}
+                    title="Toggle Preview Mode"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <span>{composeTab === 'preview' ? 'Edit' : 'Preview'}</span>
+                  </button>
+
+                  {/* Discard / Trash Button */}
+                  <button
+                    onClick={() => setComposeOpen(false)}
+                    title="Discard draft"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: TEXT_MUTED, padding: 6, borderRadius: '50%' }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#f1f3f4'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  </button>
+                </div>
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── 4B. INSERT LINK MODAL (ft ft-link) ───────────────────────────── */}
+      {linkModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(32,33,36,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10050, padding: 16 }}>
+          <div style={{ background: WHITE, borderRadius: 12, width: 440, maxWidth: '96%', padding: 22, boxShadow: '0 12px 32px rgba(0,0,0,0.25)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: TEXT_MAIN, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>🔗</span> Insert Link
+              </div>
+              <button onClick={() => setLinkModalOpen(false)} style={{ background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', color: TEXT_MUTED }}>✕</button>
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: TEXT_MAIN, display: 'block', marginBottom: 4 }}>Text to display</label>
+              <input
+                value={linkText}
+                onChange={e => setLinkText(e.target.value)}
+                placeholder="e.g., Click here to visit website"
+                style={{ width: '100%', padding: '8px 12px', border: `1px solid ${BORDER_LIGHT}`, borderRadius: 6, fontSize: 13, outline: 'none' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 18 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: TEXT_MAIN, display: 'block', marginBottom: 4 }}>Web URL (Link Target)</label>
+              <input
+                value={linkUrl}
+                onChange={e => setLinkUrl(e.target.value)}
+                placeholder="https://example.com"
+                style={{ width: '100%', padding: '8px 12px', border: `1px solid ${BORDER_LIGHT}`, borderRadius: 6, fontSize: 13, outline: 'none' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => setLinkModalOpen(false)}
+                style={{ padding: '8px 14px', background: 'none', border: `1px solid ${BORDER_LIGHT}`, borderRadius: 6, fontSize: 12, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleAddLink}
+                style={{ padding: '8px 18px', background: GMAIL_BLUE, color: WHITE, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+              >
+                Insert Link
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 4C. GOOGLE DRIVE MODAL (fa-brands fa-google-drive) ────────────── */}
+      {driveModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(32,33,36,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10050, padding: 16 }}>
+          <div style={{ background: WHITE, borderRadius: 12, width: 460, maxWidth: '96%', padding: 22, boxShadow: '0 12px 32px rgba(0,0,0,0.25)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: TEXT_MAIN, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M7.71 3.5L1.15 15l3.43 6 6.55-11.5L7.71 3.5z" fill="#0066DA"/>
+                  <path d="M16.29 3.5H7.71l6.55 11.5h8.59L16.29 3.5z" fill="#00AC47"/>
+                  <path d="M22.85 15H9.69l-3.43 6h13.16l3.43-6z" fill="#EA4335"/>
+                  <path d="M14.26 15L7.71 3.5 4.58 9 11.13 20.5l3.13-5.5z" fill="#FFBA00"/>
+                </svg>
+                Insert files using Google Drive
+              </div>
+              <button onClick={() => setDriveModalOpen(false)} style={{ background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', color: TEXT_MUTED }}>✕</button>
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: TEXT_MAIN, display: 'block', marginBottom: 4 }}>File or Folder Name</label>
+              <input
+                value={driveTitle}
+                onChange={e => setDriveTitle(e.target.value)}
+                placeholder="e.g., Company Profile 2026.pdf"
+                style={{ width: '100%', padding: '8px 12px', border: `1px solid ${BORDER_LIGHT}`, borderRadius: 6, fontSize: 13, outline: 'none' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 18 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: TEXT_MAIN, display: 'block', marginBottom: 4 }}>Google Drive Shareable Link</label>
+              <input
+                value={driveUrl}
+                onChange={e => setDriveUrl(e.target.value)}
+                placeholder="https://drive.google.com/file/d/..."
+                style={{ width: '100%', padding: '8px 12px', border: `1px solid ${BORDER_LIGHT}`, borderRadius: 6, fontSize: 13, outline: 'none' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => setDriveModalOpen(false)}
+                style={{ padding: '8px 14px', background: 'none', border: `1px solid ${BORDER_LIGHT}`, borderRadius: 6, fontSize: 12, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleAddDriveLink}
+                style={{ padding: '8px 18px', background: '#0f9d58', color: WHITE, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+              >
+                Attach Drive File
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 4D. INSERT PHOTO MODAL (ti ti-photo) ─────────────────────────── */}
+      {photoModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(32,33,36,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10050, padding: 16 }}>
+          <div style={{ background: WHITE, borderRadius: 12, width: 440, maxWidth: '96%', padding: 22, boxShadow: '0 12px 32px rgba(0,0,0,0.25)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: TEXT_MAIN, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>📷</span> Insert Photo
+              </div>
+              <button onClick={() => setPhotoModalOpen(false)} style={{ background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', color: TEXT_MUTED }}>✕</button>
+            </div>
+
+            {/* Option 1: Upload from Computer */}
+            <div style={{ marginBottom: 16, padding: 14, background: '#f8fafc', borderRadius: 8, border: '1px dashed #cbd5e1', textAlign: 'center' }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: TEXT_MAIN, marginBottom: 4 }}>Upload image from computer</div>
+              <div style={{ fontSize: 11.5, color: TEXT_MUTED, marginBottom: 10 }}>Supports PNG, JPG, GIF, WebP</div>
+              <label style={{ display: 'inline-flex', padding: '6px 16px', background: GMAIL_BLUE, color: WHITE, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                Browse Images
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handlePhotoUpload}
+                  style={{ display: 'none' }}
+                />
+              </label>
+            </div>
+
+            <div style={{ textAlign: 'center', fontSize: 12, color: TEXT_MUTED, margin: '8px 0' }}>— OR —</div>
+
+            {/* Option 2: Image Web URL */}
+            <div style={{ marginBottom: 18 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: TEXT_MAIN, display: 'block', marginBottom: 4 }}>Image Web URL</label>
+              <input
+                value={photoUrl}
+                onChange={e => setPhotoUrl(e.target.value)}
+                placeholder="https://example.com/banner.png"
+                style={{ width: '100%', padding: '8px 12px', border: `1px solid ${BORDER_LIGHT}`, borderRadius: 6, fontSize: 13, outline: 'none' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => setPhotoModalOpen(false)}
+                style={{ padding: '8px 14px', background: 'none', border: `1px solid ${BORDER_LIGHT}`, borderRadius: 6, fontSize: 12, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleAddPhotoUrl}
+                style={{ padding: '8px 18px', background: GMAIL_BLUE, color: WHITE, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+              >
+                Insert Photo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 4E. POST-SEND PREVIEW MODAL (SHOWN AUTOMATICALLY AFTER SENDING) ── */}
+      {postSendPreviewModal && lastSentEmail && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(32,33,36,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10060, padding: 16 }}>
+          <div style={{ background: WHITE, borderRadius: 14, width: 720, maxWidth: '96%', maxHeight: '90vh', overflowY: 'auto', padding: 26, boxShadow: '0 16px 40px rgba(0,0,0,0.3)', border: `1px solid ${BORDER_LIGHT}` }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, paddingBottom: 14, borderBottom: `1px solid ${BORDER_LIGHT}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#dcfce7', color: '#15803d', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
+                  ✓
+                </div>
+                <div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: TEXT_MAIN }}>
+                    Email Dispatched Successfully
+                  </div>
+                  <div style={{ fontSize: 12, color: '#16a34a', fontWeight: 600 }}>
+                    Delivered via GoDaddy SMTP Automation (n8n Webhook)
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setPostSendPreviewModal(false)}
+                style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: TEXT_MUTED, padding: 4 }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Email Metadata Card */}
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '14px 18px', marginBottom: 18, fontSize: 12.5, lineHeight: 1.6 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
+                <div>
+                  <span style={{ color: TEXT_MUTED }}>Subject: </span>
+                  <strong style={{ color: TEXT_MAIN }}>{lastSentEmail.subject}</strong>
+                </div>
+                <div>
+                  <span style={{ color: TEXT_MUTED }}>From: </span>
+                  <span style={{ color: GMAIL_BLUE, fontWeight: 600 }}>{lastSentEmail.fromEmail || lastSentEmail.from}</span>
+                </div>
+                <div>
+                  <span style={{ color: TEXT_MUTED }}>To: </span>
+                  <span style={{ color: TEXT_MAIN, fontWeight: 600 }}>{lastSentEmail.recipientEmail || lastSentEmail.to}</span>
+                </div>
+                <div>
+                  <span style={{ color: TEXT_MUTED }}>Sent Date: </span>
+                  <span>{new Date(lastSentEmail.createdAt || Date.now()).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Formatted Email Content Preview */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>
+                Recipient Inbox Preview
+              </div>
+              <div
+                style={{
+                  background: WHITE, border: '1px solid #e2e8f0', borderRadius: 10,
+                  padding: 22, boxShadow: '0 1px 3px rgba(0,0,0,0.05)', fontSize: 13.5, lineHeight: 1.7
+                }}
+                dangerouslySetInnerHTML={{
+                  __html: lastSentEmail.html || (lastSentEmail.body || '').replace(/\n/g, '<br/>')
+                }}
+              />
+            </div>
+
+            {/* Footer Action Buttons */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: `1px solid ${BORDER_LIGHT}`, paddingTop: 14 }}>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(lastSentEmail.body || '');
+                  alert('Email text copied to clipboard!');
+                }}
+                style={{ padding: '8px 16px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 12, fontWeight: 600, color: '#334155', cursor: 'pointer' }}
+              >
+                📋 Copy Content
+              </button>
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPostSendPreviewModal(false);
+                    setComposeOpen(true);
+                  }}
+                  style={{ padding: '8px 18px', background: WHITE, border: `1px solid ${BORDER_LIGHT}`, borderRadius: 8, fontSize: 12.5, fontWeight: 600, color: GMAIL_BLUE, cursor: 'pointer' }}
+                >
+                  ✉️ Compose Another
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPostSendPreviewModal(false)}
+                  style={{ padding: '8px 22px', background: GMAIL_BLUE, color: WHITE, border: 'none', borderRadius: 8, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
