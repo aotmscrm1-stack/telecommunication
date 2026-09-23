@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { followupsAPI, leadsAPI, usersAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { formatISTDateTime } from '../utils/dateFormat';
-import { canDelete as checkCanDelete } from '../utils/permissions';
+import { canDelete as checkCanDelete, filterTeamDropdownUsers } from '../utils/permissions';
 
 
 const PURPLE = '#0891b2';
@@ -771,9 +771,12 @@ export default function Tasks() {
 
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
-  // Load team members for dropdown (all roles)
+  // Load team members for dropdown (only HR, CTO, Managing Director)
   useEffect(() => {
-    usersAPI.getAll().then(r => setTeamUsers(r.data.users || [])).catch(() => {});
+    usersAPI.getAll().then(r => {
+      const all = r.data.users || [];
+      setTeamUsers(filterTeamDropdownUsers(all));
+    }).catch(() => {});
   }, []);
 
   // Close team dropdown on outside click
@@ -1038,7 +1041,7 @@ export default function Tasks() {
                   style={{ padding: '8px 14px', fontSize: 13, cursor: 'pointer', color: !teamMemberFilter ? PURPLE : TEXT_MAIN, fontWeight: !teamMemberFilter ? 700 : 400, background: !teamMemberFilter ? '#e0f7ff' : 'transparent' }}
                   onMouseEnter={e => e.currentTarget.style.background = '#e0f7ff'}
                   onMouseLeave={e => e.currentTarget.style.background = !teamMemberFilter ? '#e0f7ff' : 'transparent'}
-                >All Members</div>
+                >All (HR, CTO, MD)</div>
                 {teamUsers.map(u => (
                   <div
                     key={u._id}
@@ -1050,7 +1053,10 @@ export default function Tasks() {
                     <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#e0f7ff', color: PURPLE, fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       {u.name.slice(0,2).toUpperCase()}
                     </div>
-                    {u.name}
+                    <div>
+                      <div style={{ fontWeight: 600 }}>{u.name}</div>
+                      {u.designation && <div style={{ fontSize: 10.5, color: TEXT_MUTED }}>{u.designation}</div>}
+                    </div>
                   </div>
                 ))}
               </div>

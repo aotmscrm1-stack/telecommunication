@@ -147,3 +147,46 @@ export const getTaskAssignorOptions = (currentUser, users = []) => {
   return list;
 };
 
+/**
+ * Filter team users for Todo / Task Team dropdown.
+ * Only users who are HR, CTO, or Managing Director (or CEO) are allowed.
+ * All other designations (Developers, Trainers, Digital Marketing, Callers, etc.) are strictly removed.
+ */
+export const isTeamDropdownMember = (user) => {
+  if (!user) return false;
+  const d = normalizeDesignation(user);
+  const name = String(user.name || '').trim().toLowerCase();
+
+  // 1. Managing Director / MD / CEO
+  if (d === 'MANAGING DIRECTOR' || d === 'MD' || d === 'CEO') return true;
+  if (name === 'ameen' || name.includes('ameen')) return true;
+
+  // 2. CTO
+  if (d === 'CTO' || d === 'CHIEF TECHNOLOGY OFFICER') return true;
+  if (name === 'rabbani' || name.includes('rabbani')) return true;
+
+  // 3. HR
+  if (d === 'HR' || d === 'HUMAN RESOURCES' || d.startsWith('HR ') || d.endsWith(' HR')) return true;
+  if (name === 'deenaz' || name === 'bhavani') return true;
+
+  return false;
+};
+
+export const filterTeamDropdownUsers = (users = []) => {
+  if (!Array.isArray(users)) return [];
+  return users.filter(isTeamDropdownMember);
+};
+
+export const getTeamDropdownUsersWithFallback = (users = []) => {
+  const filtered = filterTeamDropdownUsers(users);
+  if (filtered.length > 0) return filtered;
+
+  // Fallback defaults if no users found in current local database
+  return [
+    { _id: 'md_ameen', name: 'Ameen', designation: 'Managing Director' },
+    { _id: 'cto_rabbani', name: 'Rabbani', designation: 'CTO' },
+    { _id: 'hr_deenaz', name: 'Deenaz', designation: 'HR' },
+    { _id: 'hr_bhavani', name: 'Bhavani', designation: 'HR' }
+  ];
+};
+

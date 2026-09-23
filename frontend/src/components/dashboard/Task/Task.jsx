@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { followupsAPI, leadsAPI, usersAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import { formatISTDateTime } from '../../../utils/dateFormat';
-import { isLimitedStaff, isDeveloper, getTaskAssignorOptions } from '../../../utils/permissions';
+import { isLimitedStaff, isDeveloper, getTaskAssignorOptions, filterTeamDropdownUsers } from '../../../utils/permissions';
 
 // Theme Palette Constants
 const COLOR_DEEP_BLUE = '#023047';
@@ -914,7 +914,10 @@ export default function Task() {
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
   useEffect(() => {
-    usersAPI.getAll().then(r => setTeamUsers(r.data.users || [])).catch(() => {});
+    usersAPI.getAll().then(r => {
+      const all = r.data.users || [];
+      setTeamUsers(filterTeamDropdownUsers(all));
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -1308,7 +1311,7 @@ export default function Task() {
                   onClick={() => { setTeamMemberFilter(''); setShowTeamDrop(false); }}
                   style={{ padding: '9px 14px', fontSize: 13, cursor: 'pointer', color: !teamMemberFilter ? COLOR_BLUE_GREEN : COLOR_DEEP_BLUE, fontWeight: 500, background: !teamMemberFilter ? COLOR_SKY_SURFACE : 'transparent' }}
                 >
-                  All Members
+                  All (HR, CTO, MD)
                 </div>
                 {teamUsers.map(u => (
                   <div
@@ -1319,7 +1322,10 @@ export default function Task() {
                     <div style={{ width: 22, height: 22, borderRadius: '50%', background: COLOR_SKY_SURFACE, color: COLOR_DEEP_BLUE, fontSize: 10, fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       {u.name.slice(0, 2).toUpperCase()}
                     </div>
-                    {u.name}
+                    <div>
+                      <div style={{ fontWeight: 500 }}>{u.name}</div>
+                      {u.designation && <div style={{ fontSize: 11, color: COLOR_MUTED }}>{u.designation}</div>}
+                    </div>
                   </div>
                 ))}
               </div>
