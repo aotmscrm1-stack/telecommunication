@@ -615,6 +615,82 @@ export default function LiveMap({
     }
   }, [isHistoryMode, historyPoints, mapLoaded]);
 
+  // ── 8B. Live Office-to-Employee Blue Route (Visible Online, Hidden Offline, Meters Distance) ──
+  const liveRouteLayersRef = useRef([]);
+
+  useEffect(() => {
+    if (!mapLoaded || !mapRef.current || isHistoryMode) return;
+    const map = mapRef.current;
+
+    liveRouteLayersRef.current.forEach((id) => {
+      try {
+        if (map.getLayer(id)) map.removeLayer(id);
+        if (map.getSource(id)) map.removeSource(id);
+      } catch (e) {}
+    });
+    liveRouteLayersRef.current = [];
+
+    if (!selectedEmployee?.location) return;
+
+    const loc = selectedEmployee.location;
+    const rawStatus = (loc.trackingStatus || 'OFFLINE').toUpperCase();
+    const isOffline = rawStatus === 'OFFLINE' || rawStatus === 'DISCONNECTED';
+
+    // Offline: route is NOT visible
+    if (isOffline) return;
+
+    const lat = loc.latitude;
+    const lng = loc.longitude;
+    if (!isValidCoordinates(lat, lng)) return;
+
+    const p1 = officeLngLat;
+    const p2 = [Number(lng), Number(lat)];
+    const mid = [
+      p1[0] + (p2[0] - p1[0]) * 0.5 + 0.0015,
+      p1[1] + (p2[1] - p1[1]) * 0.5 - 0.0008,
+    ];
+    const coordinates = [p1, mid, p2];
+
+    const sourceId = 'live-office-route-source';
+    const casingId = 'live-office-route-casing';
+    const lineId = 'live-office-route-line';
+
+    map.addSource(sourceId, {
+      type: 'geojson',
+      data: {
+        type: 'Feature',
+        properties: {},
+        geometry: { type: 'LineString', coordinates },
+      },
+    });
+
+    map.addLayer({
+      id: casingId,
+      type: 'line',
+      source: sourceId,
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: {
+        'line-color': '#38bdf8',
+        'line-width': 8,
+        'line-opacity': 0.35,
+      },
+    });
+
+    map.addLayer({
+      id: lineId,
+      type: 'line',
+      source: sourceId,
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: {
+        'line-color': '#0284c7',
+        'line-width': 4.5,
+        'line-opacity': 0.95,
+      },
+    });
+
+    liveRouteLayersRef.current = [casingId, lineId, sourceId];
+  }, [mapLoaded, selectedEmployee, officeLngLat, isHistoryMode]);
+
   // ── 9. Camera Controls ────────────────────────────────────────────────────
   const zoomIn = () => mapRef.current?.zoomIn({ duration: 300 });
   const zoomOut = () => mapRef.current?.zoomOut({ duration: 300 });

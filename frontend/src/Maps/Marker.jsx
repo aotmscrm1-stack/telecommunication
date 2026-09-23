@@ -5,7 +5,6 @@ import {
   MarkerContent,
   MarkerPopup,
   MapRoute,
-  RouteProgress,
   MapControls,
 } from "@/components/ui/map";
 import { Card } from "@/components/ui/card";
@@ -18,12 +17,26 @@ import {
   Play,
   RotateCcw,
   Power,
-  MapPin,
   ArrowLeftRight,
 } from "lucide-react";
 
 // Office HQ Coordinates (Pothuri Towers, Vijayawada)
 const OFFICE_COORDS = { lng: 80.6480, lat: 16.5062 };
+
+// Calculate accurate geographical distance in meters (Haversine formula)
+function calculateMeters(lat1, lon1, lat2, lon2) {
+  const R = 6371000; // meters
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(R * c);
+}
 
 export function DraggableMarkerExample() {
   // Employee draggable coordinates (initially near Benz Circle)
@@ -35,24 +48,45 @@ export function DraggableMarkerExample() {
   // Attendance & Live Location Status: ONLINE, MOVE, STOPPED, OFFLINE
   const [isAttendanceStarted, setIsAttendanceStarted] = useState(true);
   const [trackingStatus, setTrackingStatus] = useState("MOVE"); // Default active simulation
-  const [speed, setSpeed] = useState(28);
-  const [cameraCenter, setCameraCenter] = useState([employeeMarker.lng, employeeMarker.lat]);
+  const [speed, setSpeed] = useState(32);
+  const [cameraCenter, setCameraCenter] = useState([80.6432, 16.5091]);
   const [cameraZoom, setCameraZoom] = useState(13.8);
 
-  // Generate multi-point curve between Office and Employee
+  // Generate multi-point curved route between Office and Employee
   const routeCoordinates = useMemo(() => {
     const p1 = [OFFICE_COORDS.lng, OFFICE_COORDS.lat];
     const p2 = [employeeMarker.lng, employeeMarker.lat];
     const mid1 = [
-      p1[0] + (p2[0] - p1[0]) * 0.35 + 0.002,
-      p1[1] + (p2[1] - p1[1]) * 0.35,
+      p1[0] + (p2[0] - p1[0]) * 0.35 + 0.0018,
+      p1[1] + (p2[1] - p1[1]) * 0.35 - 0.0008,
     ];
     const mid2 = [
-      p1[0] + (p2[0] - p1[0]) * 0.7 - 0.001,
-      p1[1] + (p2[1] - p1[1]) * 0.7,
+      p1[0] + (p2[0] - p1[0]) * 0.7 - 0.0012,
+      p1[1] + (p2[1] - p1[1]) * 0.7 + 0.0015,
     ];
     return [p1, mid1, mid2, p2];
   }, [employeeMarker]);
+
+  // Route Midpoint for Distance Badge
+  const routeMidPoint = useMemo(() => {
+    if (!routeCoordinates || routeCoordinates.length < 2) return null;
+    return routeCoordinates[1];
+  }, [routeCoordinates]);
+
+  // Calculate live cumulative meter distance along the route
+  const distanceInMeters = useMemo(() => {
+    let total = 0;
+    for (let i = 1; i < routeCoordinates.length; i++) {
+      const [lon1, lat1] = routeCoordinates[i - 1];
+      const [lon2, lat2] = routeCoordinates[i];
+      total += calculateMeters(lat1, lon1, lat2, lon2);
+    }
+    return total;
+  }, [routeCoordinates]);
+
+  // VISIBILITY RULE: Route is visible when Attendance is started AND status is ONLINE, MOVE, or STOPPED.
+  // When OFFLINE: Route is NOT visible.
+  const isRouteVisible = isAttendanceStarted && trackingStatus !== "OFFLINE";
 
   // Handle "Start Attendance" toggle
   const handleToggleAttendance = () => {
@@ -67,7 +101,7 @@ export function DraggableMarkerExample() {
     }
   };
 
-  // Immediate Status Change
+  // Immediate Status Change (Online, Move, Stopped, Offline)
   const handleStatusChange = (status) => {
     if (!isAttendanceStarted && status !== "OFFLINE") {
       setIsAttendanceStarted(true);
@@ -95,6 +129,8 @@ export function DraggableMarkerExample() {
     setEmployeeMarker({ lng: 80.6385, lat: 16.5120 });
     setCameraCenter([80.6432, 16.5091]);
     setCameraZoom(13.8);
+    setTrackingStatus("MOVE");
+    setIsAttendanceStarted(true);
   };
 
   return (
@@ -152,50 +188,54 @@ export function DraggableMarkerExample() {
 
         {/* Right: Status Switcher (Online, Move, Stopped, Offline) */}
         <div className="flex items-center gap-1.5 overflow-x-auto">
-          <span className="text-xs text-slate-400 mr-1 hidden sm:inline">Live Mode:</span>
+          <span className="text-xs text-slate-400 mr-1 hidden sm:inline">Status:</span>
 
+          {/* Online (Blue) */}
           <button
             onClick={() => handleStatusChange("ONLINE")}
             className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all border cursor-pointer ${
               trackingStatus === "ONLINE"
-                ? "bg-sky-50 text-sky-700 border-sky-300 font-semibold shadow-2xs"
+                ? "bg-sky-50 text-sky-700 border-sky-400 font-bold shadow-2xs"
                 : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
             }`}
           >
-            Online (Blue)
+            Online (Route Visible)
           </button>
 
+          {/* Move (Transit) */}
           <button
             onClick={() => handleStatusChange("MOVE")}
             className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all border cursor-pointer ${
               trackingStatus === "MOVE"
-                ? "bg-sky-500 text-white border-sky-600 font-semibold shadow-2xs"
+                ? "bg-sky-500 text-white border-sky-600 font-bold shadow-2xs"
                 : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
             }`}
           >
-            Move (Transit)
+            Move (Route Visible)
           </button>
 
+          {/* Stopped (Calm Orange) */}
           <button
             onClick={() => handleStatusChange("STOPPED")}
             className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all border cursor-pointer ${
               trackingStatus === "STOPPED"
-                ? "bg-orange-50 text-orange-700 border-orange-300 font-semibold shadow-2xs"
+                ? "bg-orange-50 text-orange-700 border-orange-400 font-bold shadow-2xs"
                 : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
             }`}
           >
-            Stopped (Orange)
+            Stopped (Route Visible)
           </button>
 
+          {/* Offline (Route Hidden) */}
           <button
             onClick={() => handleStatusChange("OFFLINE")}
             className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all border cursor-pointer ${
               trackingStatus === "OFFLINE"
-                ? "bg-slate-100 text-slate-700 border-slate-300 font-semibold"
+                ? "bg-slate-800 text-white border-slate-900 font-bold shadow-2xs"
                 : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
             }`}
           >
-            Offline
+            Offline (Route Hidden)
           </button>
 
           <button
@@ -208,23 +248,47 @@ export function DraggableMarkerExample() {
         </div>
       </div>
 
-      {/* ── MAP CONTAINER: Clean Map Icons Style (No Blurry Surrounding Waves) ── */}
-      <Card className="h-[490px] p-0 overflow-hidden relative border-slate-200 shadow-sm bg-white">
+      {/* ── MAP CONTAINER ── */}
+      <Card className="h-[500px] p-0 overflow-hidden relative border-slate-200 shadow-sm bg-white">
         <Map center={cameraCenter} zoom={cameraZoom} style="https://tiles.openfreemap.org/styles/bright">
           <MapControls position="top-right" showZoom showCompass />
 
-          {/* Animated Route Line from Office to Employee (Visible when Attendance Started) */}
-          {isAttendanceStarted && (
-            <MapRoute
-              coordinates={routeCoordinates}
-              progress={1}
-              color="#cbd5e1"
-              width={5}
-              opacity={0.7}
-              dashArray={[1, 1.5]}
-            >
-              <RouteProgress color="#0284c7" width={4} opacity={0.9} />
-            </MapRoute>
+          {/* ── VIBRANT BLUE ROUTE (Office to Employee): Visible Online, Hidden Offline ── */}
+          {isRouteVisible && (
+            <>
+              {/* Outer Cyan Halo Glow for Route Line */}
+              <MapRoute
+                id="route-halo"
+                coordinates={routeCoordinates}
+                color="#38bdf8"
+                width={10}
+                opacity={0.35}
+              />
+
+              {/* Bold Vibrant Blue Route Line */}
+              <MapRoute
+                id="route-main"
+                coordinates={routeCoordinates}
+                color="#0284c7"
+                width={5}
+                opacity={0.98}
+              />
+            </>
+          )}
+
+          {/* ── ROUTE DISTANCE BADGE IN METERS (Visible when route is active) ── */}
+          {isRouteVisible && routeMidPoint && (
+            <MapMarker longitude={routeMidPoint[0]} latitude={routeMidPoint[1]}>
+              <MarkerContent>
+                <div className="bg-white/95 backdrop-blur-md border-2 border-sky-500 text-sky-900 px-3 py-1 rounded-full shadow-lg text-[11px] font-bold font-mono flex items-center gap-1.5 pointer-events-none select-none -translate-y-2 whitespace-nowrap">
+                  <span className="size-2 rounded-full bg-sky-500 animate-pulse shrink-0" />
+                  <span>
+                    {distanceInMeters.toLocaleString()} METERS
+                    {distanceInMeters >= 1000 ? ` (${(distanceInMeters / 1000).toFixed(2)} km)` : ""}
+                  </span>
+                </div>
+              </MarkerContent>
+            </MapMarker>
           )}
 
           {/* ── 1. OFFICE HQ MARKER: Clean Teardrop Map Pin (Cool Blue) ── */}
@@ -240,6 +304,10 @@ export function DraggableMarkerExample() {
                 </div>
                 {/* Pin Tip */}
                 <div className="-mt-1 size-2.5 bg-sky-600 rotate-45 border-r border-b border-white" />
+                {/* Label */}
+                <div className="mt-1 px-2 py-0.5 rounded-full bg-white border border-sky-200 text-sky-800 text-[10px] font-bold shadow-xs">
+                  OFFICE HQ
+                </div>
               </div>
             </MarkerContent>
             <MarkerPopup>
@@ -253,7 +321,7 @@ export function DraggableMarkerExample() {
             </MarkerPopup>
           </MapMarker>
 
-          {/* ── 2. EMPLOYEE MARKER: Clean Teardrop Map Pin (Orange & Blue, No Blurry Waves) ── */}
+          {/* ── 2. EMPLOYEE DRAGGABLE MARKER: Clean Map Pin Style (Online/Move/Stopped/Offline) ── */}
           <MapMarker
             draggable
             longitude={employeeMarker.lng}
@@ -264,7 +332,7 @@ export function DraggableMarkerExample() {
           >
             <MarkerContent>
               <div className="cursor-move group relative flex flex-col items-center select-none">
-                {/* Clean Teardrop Map Icon Pin (Crisp, High-End Style) */}
+                {/* Clean Teardrop Map Icon Pin */}
                 <div
                   className={`size-10 rounded-full border-2 border-white shadow-lg flex items-center justify-center transition-transform group-hover:scale-110 ${
                     trackingStatus === "ONLINE"
@@ -300,8 +368,8 @@ export function DraggableMarkerExample() {
                   }`}
                 />
 
-                {/* Micro Label Tag (No Blurry Surrounding Rings) */}
-                <div className="mt-1 px-2 py-0.5 rounded-full bg-white border border-slate-200 shadow-xs flex items-center gap-1.5 whitespace-nowrap text-[10px] font-semibold text-slate-800">
+                {/* Micro Label Tag with Live Status & Meter Distance */}
+                <div className="mt-1 px-2.5 py-0.5 rounded-full bg-white border border-slate-200 shadow-xs flex items-center gap-1.5 whitespace-nowrap text-[10px] font-semibold text-slate-800">
                   <span
                     className={`size-1.5 rounded-full ${
                       trackingStatus === "ONLINE"
@@ -314,19 +382,19 @@ export function DraggableMarkerExample() {
                     }`}
                   />
                   <span>
-                    {trackingStatus === "ONLINE" && "Office • Online"}
-                    {trackingStatus === "MOVE" && `${speed} km/h • Moving`}
-                    {trackingStatus === "STOPPED" && "Stopped • Idle"}
-                    {trackingStatus === "OFFLINE" && "Offline"}
+                    {trackingStatus === "ONLINE" && `Online • ${distanceInMeters}m to HQ`}
+                    {trackingStatus === "MOVE" && `${speed} km/h • ${distanceInMeters}m`}
+                    {trackingStatus === "STOPPED" && `Stopped • ${distanceInMeters}m`}
+                    {trackingStatus === "OFFLINE" && "Offline (Route Hidden)"}
                   </span>
                 </div>
               </div>
             </MarkerContent>
 
             <MarkerPopup>
-              <div className="space-y-2 p-1 min-w-[190px]">
+              <div className="space-y-2 p-1 min-w-[200px]">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
-                  <div className="font-semibold text-xs text-slate-900">Field Agent</div>
+                  <div className="font-semibold text-xs text-slate-900">Field Employee</div>
                   <span
                     className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${
                       trackingStatus === "ONLINE"
@@ -350,6 +418,12 @@ export function DraggableMarkerExample() {
                     </strong>
                   </div>
                   <div className="flex justify-between text-slate-600">
+                    <span>Distance to Office:</span>
+                    <strong className="text-sky-700 font-mono">
+                      {isRouteVisible ? `${distanceInMeters.toLocaleString()} meters` : "Hidden (Offline)"}
+                    </strong>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
                     <span>Coordinates:</span>
                     <span className="font-mono text-[11px] text-slate-800 font-semibold">
                       {employeeMarker.lat.toFixed(4)}, {employeeMarker.lng.toFixed(4)}
@@ -362,16 +436,16 @@ export function DraggableMarkerExample() {
                 </div>
 
                 <p className="text-[10px] text-slate-400 italic pt-1">
-                  Drag pin to move employee and update route line.
+                  Drag pin to move employee and watch live blue route and meters update.
                 </p>
               </div>
             </MarkerPopup>
           </MapMarker>
         </Map>
 
-        {/* Bottom Floating Telemetry Overlay (Cool Blue & Calm Orange) */}
+        {/* Bottom Floating Telemetry Overlay */}
         <div className="absolute bottom-3 left-3 z-10 pointer-events-none">
-          <div className="bg-white/95 backdrop-blur-md border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm text-xs font-mono flex items-center gap-3">
+          <div className="bg-white/95 backdrop-blur-md border border-slate-200 rounded-xl px-3.5 py-1.5 shadow-sm text-xs font-mono flex items-center gap-3">
             <span className="text-sky-700 font-semibold">
               OFFICE: [{OFFICE_COORDS.lat.toFixed(3)}, {OFFICE_COORDS.lng.toFixed(3)}]
             </span>
@@ -380,8 +454,8 @@ export function DraggableMarkerExample() {
               EMPLOYEE: [{employeeMarker.lat.toFixed(3)}, {employeeMarker.lng.toFixed(3)}]
             </span>
             <span className="text-slate-300">|</span>
-            <span className="text-slate-700 font-bold">
-              {isAttendanceStarted ? "ROUTE LINKED" : "UNLINKED"}
+            <span className={isRouteVisible ? "text-sky-600 font-bold" : "text-slate-400 font-bold"}>
+              {isRouteVisible ? `BLUE ROUTE ACTIVE (${distanceInMeters.toLocaleString()} METERS)` : "ROUTE HIDDEN (OFFLINE)"}
             </span>
           </div>
         </div>
