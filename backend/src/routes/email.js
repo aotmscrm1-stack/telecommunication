@@ -514,6 +514,46 @@ function extractSenderName(raw) {
   return '';
 }
 
+// Helper to strip previous quoted message history (e.g., 'On [date] ... wrote:') from email replies
+function stripQuotedEmailHistory(rawText) {
+  if (!rawText || typeof rawText !== 'string') return '';
+  let text = rawText.trim();
+
+  // If text starts with 'On [date] ... wrote:' (bottom-posting or nested forwarded reply), strip leading header
+  text = text.replace(/^\s*On\s+.+?(?:wrote|wrote:|said):\s*[\r\n]+/i, '').trim();
+
+  // Common email client reply delimiters
+  const quoteDelimiters = [
+    // Standard 'On Wed, Sep 23, 2026 at 10:43 AM ... wrote:'
+    /\r?\n\s*On\s+.+?(?:wrote|wrote:|said):\s*[\r\n]/i,
+    // Outlook style '-----Original Message-----'
+    /\r?\n\s*-+\s*Original Message\s*-+/i,
+    // Outlook 'From: ... Sent: ... To: ... Subject: ...'
+    /\r?\n\s*From:\s+.+?\r?\n\s*(?:Sent|Date):\s+/i,
+    // Horizontal divider lines
+    /\r?\n\s*_{10,}\s*[\r\n]/,
+    /\r?\n\s*-{10,}\s*[\r\n]/,
+    // Signature dashes '-- '
+    /\r?\n\s*--\s*[\r\n]/
+  ];
+
+  for (const delimiter of quoteDelimiters) {
+    const matchIndex = text.search(delimiter);
+    if (matchIndex !== -1) {
+      text = text.substring(0, matchIndex);
+    }
+  }
+
+  // Also remove lines starting with '>' (traditional RFC quotation marks)
+  text = text
+    .split(/\r?\n/)
+    .filter(line => !line.trim().startsWith('>'))
+    .join('\n')
+    .trim();
+
+  return text || rawText.trim();
+}
+
 // Core Inbound Email Handler for GoDaddy IMAP & n8n webhooks
 async function handleInboundEmail(req, res) {
   try {
@@ -527,7 +567,8 @@ async function handleInboundEmail(req, res) {
     const from = extractEmailAddress(data.fromEmail || data.from || data.senderEmail || data.sender) || 'customer@external.com';
     const to = extractEmailAddress(data.toEmail || data.to || data.recipientEmail || data.recipient || data.mailbox) || '';
     const rawSubject = (data.subject || data.title || 'No Subject').trim();
-    const bodyContent = (data.body || data.textPlain || data.text || data.html || data.message || data.content || '(No message body recorded)').trim();
+    const rawBody = (data.body || data.textPlain || data.text || data.html || data.message || data.content || '(No message body recorded)').trim();
+    const bodyContent = stripQuotedEmailHistory(rawBody);
     const senderName = (data.senderName || data.name || extractSenderName(data.from) || from.split('@')[0] || 'Customer').trim();
     const messageId = (data.messageId || data.headers?.['message-id'] || '').trim();
     const inReplyTo = (data.inReplyTo || data.headers?.['in-reply-to'] || '').trim();
