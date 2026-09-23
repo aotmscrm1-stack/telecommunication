@@ -9,15 +9,17 @@ const router = express.Router();
 
 const MessageTemplate = require('../models/MessageTemplate');
 
-const LEAVE_TEMPLATE = {
-  id: 'leave_template',
-  name: '1. Leave template',
-  category: 'Leave Application',
+const DEFAULT_BUSINESS_TEMPLATE = {
+  id: 'business_notification',
+  name: '1. Professional Communication',
+  category: 'General Communication',
   fromEmail: 'hr@aotms.com',
-  subject: 'Leave Application - {{employee_name}} ({{designation}})',
-  body: `Respected HR Team,
+  subject: 'Official Notification - {{employee_name}} ({{designation}})',
+  body: `Dear Team / Client,
 
-I am writing this email to formally request leave of absence.
+I hope this email finds you well.
+
+I am writing to share an important update regarding our operations.
 
 Employee Details:
 • Name: {{employee_name}}
@@ -25,16 +27,7 @@ Employee Details:
 • Email: {{email}}
 • Contact: {{phone}}
 
-Leave Details:
-• Leave Type: Casual / Sick Leave
-• From Date: [DD/MM/YYYY]
-• To Date: [DD/MM/YYYY]
-• Total Days: [1 Day]
-• Reason: [Specify reason for leave]
-
-I will ensure that all my pending tasks and responsibilities are properly handled and handed over prior to my leave. I will remain reachable on phone or email for any critical updates.
-
-Kindly approve my leave request.
+Please review and feel free to reach out if you have any questions or require additional details.
 
 Thank you.
 
@@ -43,7 +36,7 @@ Sincerely,
 {{designation}}`,
 };
 
-// GET /api/email/templates — 1. Leave template + custom templates
+// GET /api/email/templates — 1. Default template + custom templates
 router.get('/templates', protect, async (req, res) => {
   try {
     const custom = await MessageTemplate.find({ type: 'email' })
@@ -61,9 +54,9 @@ router.get('/templates', protect, async (req, res) => {
       createdBy: t.createdBy,
     }));
 
-    res.json({ templates: [LEAVE_TEMPLATE, ...formattedCustom] });
+    res.json({ templates: [DEFAULT_BUSINESS_TEMPLATE, ...formattedCustom] });
   } catch (err) {
-    res.status(500).json({ message: err.message, templates: [LEAVE_TEMPLATE] });
+    res.status(500).json({ message: err.message, templates: [DEFAULT_BUSINESS_TEMPLATE] });
   }
 });
 
@@ -277,7 +270,6 @@ router.post('/send', protect, async (req, res) => {
     }
 
     // Determine final status
-    const isLeave = templateId === 'leave_template' || /leave|absence|permission/i.test(emailSubject);
     const finalStatus = success ? 'Delivered' : (n8nError ? 'Failed' : 'Sent');
     const finalErrorMsg = n8nError ? n8nError.message : '';
 
@@ -297,7 +289,7 @@ router.post('/send', protect, async (req, res) => {
         sentVia: success ? sentVia : 'n8n Automation Webhook (Failed)',
         status: finalStatus,
         errorMessage: finalErrorMsg,
-        isLeaveRequest: isLeave,
+        isLeaveRequest: false,
         trackedByMD: true,
         direction: 'outbound',
         isRead: true,
@@ -789,13 +781,11 @@ router.get('/logs', protect, async (req, res) => {
 
       const totalCount = await EmailLog.countDocuments();
       const todayCount = await EmailLog.countDocuments({ createdAt: { $gte: todayStart } });
-      const leaveCount = await EmailLog.countDocuments({ isLeaveRequest: true });
       const uniqueSenders = await EmailLog.distinct('sender');
 
       stats = {
         totalSent: totalCount,
         todaySent: todayCount,
-        leaveRequests: leaveCount,
         activeSenders: uniqueSenders.length,
         totalInbox,
         unreadCount

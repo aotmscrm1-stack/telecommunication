@@ -38,12 +38,12 @@ export default function EmailCRM() {
   const { user } = useAuth();
   const isMD = isManagingDirector(user) || isExecutive(user);
 
-  // Active Navigation Tab: 'sent', 'leaves', 'inbox', 'templates', 'admin_audit'
+  // Active Navigation Tab: 'sent', 'inbox', 'templates', 'admin_audit'
   const [activeFolder, setActiveFolder] = useState('sent');
 
   // Templates
   const [templates, setTemplates] = useState([]);
-  const [selectedTemplateId, setSelectedTemplateId] = useState('leave_template');
+  const [selectedTemplateId, setSelectedTemplateId] = useState('general_template');
 
   // Gmail Floating Compose State
   const [composeOpen, setComposeOpen] = useState(false);
@@ -105,9 +105,6 @@ export default function EmailCRM() {
     const empPhone = u?.phone || '+91 9876543210';
 
     setSelectedTemplateId(tmpl.id);
-    if (tmpl.id === 'leave_template' && !recipientEmail) {
-      setRecipientEmail('hr@aotms.com');
-    }
 
     let subj = tmpl.subject || '';
     subj = subj
@@ -136,14 +133,16 @@ export default function EmailCRM() {
       })
       .catch(() => {
         const fallback = {
-          id: 'leave_template',
-          name: '1. Leave template',
-          category: 'Leave Application',
+          id: 'general_template',
+          name: '1. Professional Communication',
+          category: 'General Communication',
           fromEmail: 'hr@aotms.com',
-          subject: `Leave Application - ${user?.name || 'Employee'} (${user?.designation || 'Staff'})`,
-          body: `Respected HR Team,
+          subject: `Official Notification - ${user?.name || 'Staff'} (${user?.designation || 'Team'})`,
+          body: `Dear Team / Client,
 
-I am writing this email to formally request leave of absence.
+I hope this email finds you well.
+
+I am writing to share an important update regarding our operations.
 
 Employee Details:
 • Name: ${user?.name || 'Employee'}
@@ -151,16 +150,7 @@ Employee Details:
 • Email: ${user?.email || fromEmail}
 • Contact: ${user?.phone || '+91 9876543210'}
 
-Leave Details:
-• Leave Type: Casual / Sick Leave
-• From Date: [DD/MM/YYYY]
-• To Date: [DD/MM/YYYY]
-• Total Days: [1 Day]
-• Reason: [Specify reason for leave]
-
-I will ensure that all my pending tasks and responsibilities are properly handled and handed over prior to my leave. I will remain reachable on phone or email for any critical updates.
-
-Kindly approve my leave request.
+Please review and feel free to reach out if you have any questions or require additional details.
 
 Thank you.
 
@@ -406,9 +396,6 @@ ${user?.designation || 'Staff'}`
     if (activeFolder === 'sent') {
       return log.direction !== 'inbound';
     }
-    if (activeFolder === 'leaves') {
-      return log.isLeaveRequest || /leave|absence|permission/i.test(log.subject);
-    }
     if (activeFolder === 'admin_audit' && isMD) {
       return true;
     }
@@ -417,7 +404,6 @@ ${user?.designation || 'Staff'}`
 
   const inboxRepliesCount = logs.filter(l => !(l.isReply && l.parentEmail) && (l.direction === 'inbound' || (l.replies && l.replies.length > 0))).length;
   const unreadRepliesCount = logs.filter(l => !(l.isReply && l.parentEmail) && l.isRead === false).length;
-  const leaveRequestsCount = logs.filter(l => !(l.isReply && l.parentEmail) && (l.isLeaveRequest || /leave|absence|permission/i.test(l.subject))).length;
   const sentCount = logs.filter(l => !(l.isReply && l.parentEmail) && l.direction !== 'inbound').length;
 
   return (
@@ -573,21 +559,6 @@ ${user?.designation || 'Staff'}`
             <span style={{ fontSize: 12, fontWeight: 600, color: TEXT_MUTED }}>{sentCount}</span>
           </div>
 
-          {/* Folder Item: Leave Requests */}
-          <div
-            onClick={() => { setActiveFolder('leaves'); setSelectedEmail(null); }}
-            style={getSidebarItemStyle(activeFolder === 'leaves')}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={ORANGE_PRIMARY} strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-              <span>Leave Requests</span>
-            </div>
-            {leaveRequestsCount > 0 && (
-              <span style={{ fontSize: 11, fontWeight: 700, background: ORANGE_PRIMARY, color: WHITE, padding: '1px 7px', borderRadius: 10 }}>
-                {leaveRequestsCount}
-              </span>
-            )}
-          </div>
 
           {/* Folder Item: Templates */}
           <div
@@ -634,7 +605,7 @@ ${user?.designation || 'Staff'}`
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 {/* React Bits SplitText component */}
                 <SplitText
-                  text={activeFolder === 'leaves' ? 'Leave Requests History' : activeFolder === 'admin_audit' ? 'Admin Audit Trail & Staff Records' : activeFolder === 'templates' ? 'Email Templates' : 'My Sent Emails & Leave Requests History'}
+                  text={activeFolder === 'inbox' ? 'Inbox & Incoming Conversations' : activeFolder === 'admin_audit' ? 'Admin Audit Trail & Staff Records' : activeFolder === 'templates' ? 'Email Templates' : 'My Sent Emails & Communications'}
                   className="font-bold text-gray-800"
                   delay={25}
                   duration={0.6}
@@ -646,7 +617,7 @@ ${user?.designation || 'Staff'}`
                 </span>
               </div>
               <div style={{ fontSize: 12, color: TEXT_MUTED, marginTop: 2 }}>
-                {activeFolder === 'leaves' ? 'All formal leave applications submitted to HR and management' : activeFolder === 'admin_audit' ? 'Official communications logged and accessible for Managing Director' : 'Dispatched messages with delivery verification and permanent logging'}
+                {activeFolder === 'inbox' ? 'All inbound client replies and received communications' : activeFolder === 'admin_audit' ? 'Official communications logged and accessible for Managing Director' : 'Dispatched messages with delivery verification and permanent logging'}
               </div>
             </div>
 
@@ -729,7 +700,7 @@ ${user?.designation || 'Staff'}`
                   style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', color: GMAIL_BLUE, fontSize: 13, fontWeight: 600, padding: 0 }}
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-                  Back to {activeFolder === 'leaves' ? 'Leave Requests' : 'Sent'}
+                  Back to {activeFolder === 'inbox' ? 'Inbox' : 'Sent'}
                 </button>
               </div>
 
@@ -737,11 +708,6 @@ ${user?.designation || 'Staff'}`
               <div style={{ borderBottom: `1px solid ${BORDER_LIGHT}`, paddingBottom: 16, marginBottom: 20 }}>
                 <div style={{ fontSize: 20, fontWeight: 600, color: TEXT_MAIN, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
                   {selectedEmail.subject}
-                  {selectedEmail.isLeaveRequest && (
-                    <span style={{ fontSize: 11, fontWeight: 600, background: ORANGE_LIGHT, color: ORANGE_PRIMARY, border: `1px solid ${ORANGE_BORDER}`, padding: '2px 8px', borderRadius: 4 }}>
-                      Leave Application
-                    </span>
-                  )}
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1150,7 +1116,7 @@ ${user?.designation || 'Staff'}`
                 <div style={{ padding: 60, textAlign: 'center', color: TEXT_MUTED }}>
                   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#dadce0" strokeWidth="1.5" style={{ margin: '0 auto 12px' }}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
                   <div style={{ fontSize: 15, fontWeight: 500 }}>No messages found</div>
-                  <div style={{ fontSize: 12.5, marginTop: 4 }}>Click "+ Compose" to send an official email or leave application.</div>
+                  <div style={{ fontSize: 12.5, marginTop: 4 }}>Click "+ Compose" to send an email.</div>
                 </div>
               ) : (
                 <div>
@@ -1236,12 +1202,6 @@ ${user?.designation || 'Staff'}`
                           </span>
                         )}
 
-                        {/* Category Tag if leave request */}
-                        {log.isLeaveRequest && (
-                          <span style={{ fontSize: 10.5, fontWeight: 600, color: ORANGE_PRIMARY, background: ORANGE_LIGHT, border: `1px solid ${ORANGE_BORDER}`, padding: '2px 8px', borderRadius: 4, marginRight: 10, flexShrink: 0 }}>
-                            Leave
-                          </span>
-                        )}
 
                         {/* Status Pill */}
                         {log.status === 'Failed' ? (
@@ -1309,7 +1269,7 @@ ${user?.designation || 'Staff'}`
             }}
           >
             <div style={{ fontSize: 13.5, fontWeight: 600, color: TEXT_MAIN }}>
-              New Message — {selectedTemplateId === 'leave_template' ? 'Leave Application' : 'Email'}
+              New Message — Email
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               {/* Minimize */}
@@ -1419,7 +1379,7 @@ ${user?.designation || 'Staff'}`
                 <textarea
                   value={body}
                   onChange={e => setBody(e.target.value)}
-                  placeholder="Write your email body or leave application details..."
+                  placeholder="Write your email body..."
                   style={{
                     flex: 1, width: '100%', border: 'none', outline: 'none',
                     resize: 'none', fontSize: 13, lineHeight: 1.6,
@@ -1509,7 +1469,7 @@ ${user?.designation || 'Staff'}`
                 <label style={{ fontSize: 12, fontWeight: 500, display: 'block', marginBottom: 4 }}>Template Name</label>
                 <input
                   required
-                  placeholder="e.g., Casual Leave, Half-Day Request"
+                  placeholder="e.g., Client Followup, Weekly Update"
                   value={newTmplName}
                   onChange={e => setNewTmplName(e.target.value)}
                   style={{ width: '100%', padding: '8px 12px', border: `1px solid ${BORDER_LIGHT}`, borderRadius: 6, fontSize: 13, outline: 'none' }}
@@ -1519,7 +1479,7 @@ ${user?.designation || 'Staff'}`
               <div style={{ marginBottom: 12 }}>
                 <label style={{ fontSize: 12, fontWeight: 500, display: 'block', marginBottom: 4 }}>Subject Line</label>
                 <input
-                  placeholder="e.g., Leave Application - {{employee_name}}"
+                  placeholder="e.g., Update Regarding Project"
                   value={newTmplSubject}
                   onChange={e => setNewTmplSubject(e.target.value)}
                   style={{ width: '100%', padding: '8px 12px', border: `1px solid ${BORDER_LIGHT}`, borderRadius: 6, fontSize: 13, outline: 'none' }}
