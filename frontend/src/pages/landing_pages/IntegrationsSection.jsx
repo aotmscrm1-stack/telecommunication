@@ -235,7 +235,7 @@ export const IntegrationsSection = () => {
 
   return (
     <section
-      id="integrations"
+      id="services"
       style={{
         padding: '100px 24px 120px',
         background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 40%, #ffffff 100%)',
@@ -243,6 +243,7 @@ export const IntegrationsSection = () => {
         overflow: 'hidden',
       }}
     >
+      <div id="integrations" style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }} />
       {/* Subtle Background Glow Rings */}
       <div
         style={{

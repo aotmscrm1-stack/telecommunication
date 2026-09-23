@@ -1,15 +1,9 @@
-// src/components/Navbar.jsx
-import React, { useState, useEffect, useRef } from 'react';
+// src/pages/landing_pages/Navbar.jsx
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { Menu, X, ChevronDown } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Menu, X } from 'lucide-react';
 import aotmsLogo from '../../assets/aotms-global-logo.png';
-import {
-  FaPhoneVolume, FaListCheck, FaUsers, FaBullhorn,
-  FaWhatsapp, FaTrophy, FaChartPie, FaFileInvoiceDollar,
-  FaReceipt, FaCalendarCheck, FaLocationDot,
-  FaEnvelopeOpenText, FaUserCheck,
-} from 'react-icons/fa6';
 
 const EASE = [0.22, 1, 0.36, 1];
 
@@ -59,62 +53,25 @@ export const BLUE_THEME = {
    ORANGE HOVER THEME
    ───────────────────────────────────────────────────────── */
 const ORANGE = {
-  DEFAULT:  '#f97316',
-  LIGHT:    '#fb923c',
-  LIGHTER:  '#fdba74',
-  DEEP:     '#ea580c',
-  GLOW:     'rgba(249, 115, 22, 0.55)',
-  GLOW_SOFT:'rgba(249, 115, 22, 0.30)',
-  SURFACE:  'rgba(249, 115, 22, 0.14)',
-  TEXT:     '#7c2d12',
+  DEFAULT: '#f97316',
+  LIGHT: '#fb923c',
+  LIGHTER: '#fdba74',
+  DEEP: '#ea580c',
+  GLOW: 'rgba(249, 115, 22, 0.55)',
+  GLOW_SOFT: 'rgba(249, 115, 22, 0.30)',
+  SURFACE: 'rgba(249, 115, 22, 0.14)',
+  TEXT: '#7c2d12',
 };
 
 /* ═══════════════════════════════════════════════════════════
-   NAVIGATION
-   Home → About → Services (dropdown) → Pricing → Contact
+   NAVIGATION ITEMS (Landing Page Single-Page Smooth Scroll)
    ═══════════════════════════════════════════════════════════ */
-const NAV_LINKS = [
-  { label: 'Home',     path: '/' },
-  { label: 'About',    path: '/about' },
-  {
-    label: 'Services',
-    path: '/services',
-    isDropdown: true,
-    sections: [
-      {
-        heading: 'CRM Core',
-        items: [
-          { label: 'Call Followups',    path: '/tasks?tab=Call+Followups', icon: FaPhoneVolume },
-          { label: 'Todo List',         path: '/tasks?tab=Todo',           icon: FaListCheck },
-          { label: 'Leads',             path: '/leads',                    icon: FaUsers },
-          { label: 'Campaigns',         path: '/campaigns',                icon: FaBullhorn },
-          { label: 'WhatsApp Messages', path: '/whatsapp',                 icon: FaWhatsapp },
-          { label: 'Leader Board',      path: '/leaderboard',              icon: FaTrophy },
-          { label: 'Reports',           path: '/reports',                  icon: FaChartPie },
-        ],
-      },
-      {
-        heading: 'Finance',
-        items: [
-          { label: 'Offer Letter', path: '/offer-letter', icon: FaFileInvoiceDollar },
-          { label: 'Payslip',      path: '/payslips',     icon: FaReceipt },
-          { label: 'Quotation',    path: '/quotation',    icon: FaFileInvoiceDollar },
-          { label: 'Invoice',      path: '/invoice',      icon: FaReceipt },
-        ],
-      },
-      {
-        heading: 'Management',
-        items: [
-          { label: 'Attendance',    path: '/admin/attendance-records', icon: FaCalendarCheck },
-          { label: 'Live Tracking', path: '/admin/employee-tracking',  icon: FaLocationDot },
-          { label: 'Email CRM',     path: '/email',                    icon: FaEnvelopeOpenText },
-          { label: 'Approve Leads', path: '/accept',                   icon: FaUserCheck },
-        ],
-      },
-    ],
-  },
-  { label: 'Pricing',  path: '/pricing' },
-  { label: 'Contact',  path: '/contact' },
+const NAV_ITEMS = [
+  { label: 'Home', id: 'home' },
+  { label: 'About', id: 'about' },
+  { label: 'Services', id: 'services' },
+  { label: 'Pricing', id: 'pricing' },
+  { label: 'Contact', id: 'contact' },
 ];
 
 /* ─────────────────────────────────────────────────────────
@@ -138,19 +95,29 @@ const C = {
 
 export function Navbar() {
   const navigate = useNavigate();
-  const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [hoveredPath, setHoveredPath] = useState(null);
+  const [hoveredId, setHoveredId] = useState(null);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [activeDropdown, setActiveDropdown] = useState(null);
-  const [mobileExpanded, setMobileExpanded] = useState(null);
+  const [activeSection, setActiveSection] = useState('home');
 
-  const dropdownRef = useRef(null);
-  const hoverTimeoutRef = useRef(null);
-
+  // Track scroll position to update navbar style & highlight active section
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 25);
+
+      const scrollPosition = window.scrollY + 220;
+      const sectionIds = ['home', 'about', 'services', 'pricing', 'contact'];
+
+      for (let i = sectionIds.length - 1; i >= 0; i--) {
+        const el = document.getElementById(sectionIds[i]);
+        if (el) {
+          const top = el.offsetTop;
+          if (scrollPosition >= top) {
+            setActiveSection(sectionIds[i]);
+            break;
+          }
+        }
+      }
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
@@ -159,54 +126,14 @@ export function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  /* Close dropdown on outside click */
-  useEffect(() => {
-    const handler = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setActiveDropdown(null);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  const activePath = location.pathname;
-
-  const isGroupActive = (link) => {
-    const allItems = link.sections
-      ? link.sections.flatMap(s => s.items)
-      : (link.items || []);
-    if (allItems.length === 0) return activePath === link.path;
-    return allItems.some(item => {
-      const basePath = item.path.split('?')[0];
-      return activePath === basePath || activePath.startsWith(basePath + '/');
-    });
-  };
-
-  const handleGroupEnter = (label, isDropdown) => {
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-      hoverTimeoutRef.current = null;
+  // Smooth scroll handler
+  const handleNavClick = (sectionId) => {
+    setActiveSection(sectionId);
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
     }
-    setHoveredPath(label);
-    if (isDropdown) {
-      setActiveDropdown(label);
-    }
-  };
-
-  const handleGroupLeave = () => {
-    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-    hoverTimeoutRef.current = setTimeout(() => {
-      setHoveredPath(null);
-      setActiveDropdown(null);
-    }, 120);
-  };
-
-  const handleDropdownEnter = () => {
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-      hoverTimeoutRef.current = null;
-    }
+    setMobileOpen(false);
   };
 
   return (
@@ -250,7 +177,7 @@ export function Navbar() {
       >
         {/* BRAND LOGO */}
         <motion.div
-          onClick={() => navigate('/')}
+          onClick={() => handleNavClick('home')}
           whileHover={{ scale: 1.03, y: -1 }}
           whileTap={{ scale: 0.97 }}
           transition={{ duration: 0.28, ease: EASE }}
@@ -302,9 +229,8 @@ export function Navbar() {
           />
         </motion.div>
 
-        {/* CENTER NAV */}
+        {/* CENTER NAV PILL */}
         <div
-          ref={dropdownRef}
           className="hidden lg:flex"
           style={{
             alignItems: 'center',
@@ -315,272 +241,72 @@ export function Navbar() {
             boxShadow: isScrolled ? '0 2px 8px rgba(0, 0, 0, 0.04)' : C.pillShadow,
             gap: 2,
             transition: 'background .3s ease, border-color .3s ease, box-shadow .3s ease',
-            /* Important: allow centered dropdown to escape pill bounds */
             position: 'relative',
           }}
         >
-          {NAV_LINKS.map((link) => {
-            const isActive = activePath === link.path;
-            const groupActive = isGroupActive(link);
-            const isHovered = hoveredPath === link.label;
-            const isOpen = activeDropdown === link.label;
+          {NAV_ITEMS.map((item) => {
+            const isActive = activeSection === item.id;
+            const isHovered = hoveredId === item.id;
 
-            /* Simple link */
-            if (!link.isDropdown) {
-              return (
-                <motion.button
-                  key={link.path}
-                  onClick={() => navigate(link.path)}
-                  onMouseEnter={() => handleGroupEnter(link.label, false)}
-                  onMouseLeave={handleGroupLeave}
-                  whileHover={{ y: -1 }}
-                  whileTap={{ scale: 0.96 }}
-                  transition={{ duration: 0.22, ease: EASE }}
-                  style={{
-                    position: 'relative',
-                    border: isHovered && !isActive
-                      ? `1.5px solid ${ORANGE.DEFAULT}`
-                      : '1.5px solid transparent',
-                    background: isHovered && !isActive
-                      ? 'rgba(249, 115, 22, 0.08)'
-                      : 'transparent',
-                    cursor: 'pointer',
-                    padding: '8px 18px',
-                    fontSize: 13.5,
-                    fontWeight: isActive || isHovered ? 700 : 500,
-                    letterSpacing: '-0.005em',
-                    color: isHovered
-                      ? BLUE_THEME.smart_blue.DEFAULT
-                      : isActive
-                        ? C.activeText
-                        : isScrolled
-                          ? '#334155'
-                          : C.idleText,
-                    borderRadius: 9999,
-                    boxShadow: isHovered && !isActive
-                      ? `0 0 14px ${ORANGE.GLOW_SOFT}`
-                      : 'none',
-                    transition: 'all .25s ease',
-                    fontFamily: '"Inter", system-ui, sans-serif',
-                    zIndex: 1,
-                  }}
-                >
-                  {isActive && (
-                    <motion.span
-                      layoutId="nav-pill-active"
-                      transition={{ duration: 0.4, ease: EASE }}
-                      style={{
-                        position: 'absolute',
-                        inset: 0,
-                        borderRadius: 9999,
-                        background: C.activeBg,
-                        border: `1px solid ${C.activeBorder}`,
-                        zIndex: -1,
-                      }}
-                    />
-                  )}
-                  {link.label}
-                </motion.button>
-              );
-            }
-
-            /* Services dropdown */
             return (
-              <div
-                key={link.label}
-                className="relative"
-                onMouseEnter={() => handleGroupEnter(link.label, true)}
-                onMouseLeave={handleGroupLeave}
+              <motion.button
+                key={item.id}
+                onClick={() => handleNavClick(item.id)}
+                onMouseEnter={() => setHoveredId(item.id)}
+                onMouseLeave={() => setHoveredId(null)}
+                whileHover={{ y: -1 }}
+                whileTap={{ scale: 0.96 }}
+                transition={{ duration: 0.22, ease: EASE }}
+                style={{
+                  position: 'relative',
+                  border: isHovered && !isActive
+                    ? `1.5px solid ${ORANGE.DEFAULT}`
+                    : '1.5px solid transparent',
+                  background: isHovered && !isActive
+                    ? 'rgba(249, 115, 22, 0.08)'
+                    : 'transparent',
+                  cursor: 'pointer',
+                  padding: '8px 20px',
+                  fontSize: 13.5,
+                  fontWeight: isActive || isHovered ? 700 : 500,
+                  letterSpacing: '-0.005em',
+                  color: isHovered
+                    ? BLUE_THEME.smart_blue.DEFAULT
+                    : isActive
+                      ? C.activeText
+                      : isScrolled
+                        ? '#334155'
+                        : C.idleText,
+                  borderRadius: 9999,
+                  boxShadow: isHovered && !isActive
+                    ? `0 0 14px ${ORANGE.GLOW_SOFT}`
+                    : 'none',
+                  transition: 'all .25s ease',
+                  fontFamily: '"Inter", system-ui, sans-serif',
+                  zIndex: 1,
+                }}
               >
-                <motion.button
-                  onClick={() => {
-                    setActiveDropdown(isOpen ? null : link.label);
-                  }}
-                  whileHover={{ y: -1 }}
-                  whileTap={{ scale: 0.96 }}
-                  transition={{ duration: 0.22, ease: EASE }}
-                  style={{
-                    position: 'relative',
-                    border: (isHovered || isOpen) && !groupActive
-                      ? `1.5px solid ${ORANGE.DEFAULT}`
-                      : groupActive
-                        ? `1.5px solid ${C.activeBorder}`
-                        : '1.5px solid transparent',
-                    background: (isHovered || isOpen) && !groupActive
-                      ? 'rgba(249, 115, 22, 0.08)'
-                      : groupActive
-                        ? C.activeBg
-                        : 'transparent',
-                    cursor: 'pointer',
-                    padding: '8px 18px',
-                    fontSize: 13.5,
-                    fontWeight: groupActive || isHovered || isOpen ? 700 : 500,
-                    letterSpacing: '-0.005em',
-                    color: (isHovered || isOpen)
-                      ? BLUE_THEME.smart_blue.DEFAULT
-                      : groupActive
-                        ? C.activeText
-                        : isScrolled
-                          ? '#334155'
-                          : C.idleText,
-                    borderRadius: 9999,
-                    boxShadow: (isHovered || isOpen) && !groupActive
-                      ? `0 0 14px ${ORANGE.GLOW_SOFT}`
-                      : 'none',
-                    transition: 'all .25s ease',
-                    fontFamily: '"Inter", system-ui, sans-serif',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    zIndex: 1,
-                  }}
-                >
-                  {link.label}
-                  <ChevronDown
-                    size={13}
+                {isActive && (
+                  <motion.span
+                    layoutId="nav-pill-active"
+                    transition={{ duration: 0.35, ease: EASE }}
                     style={{
-                      transition: 'transform .25s ease',
-                      transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                      position: 'absolute',
+                      inset: 0,
+                      borderRadius: 9999,
+                      background: C.activeBg,
+                      border: `1px solid ${C.activeBorder}`,
+                      zIndex: -1,
                     }}
                   />
-                </motion.button>
-
-                {/* ══════════════════════════════════════════
-                    SERVICES DROPDOWN — CENTERED ON SCREEN
-                    Fixed positioning so it always stays
-                    centered horizontally in the viewport
-                    ══════════════════════════════════════════ */}
-                <AnimatePresence>
-                  {isOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 8, scale: 0.96 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                      transition={{ duration: 0.18, ease: EASE }}
-                      onMouseEnter={handleDropdownEnter}
-                      onMouseLeave={handleGroupLeave}
-                      style={{
-                        position: 'fixed',
-                        /* CENTER HORIZONTALLY IN VIEWPORT */
-                        top: 88,
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        width: 720,
-                        maxWidth: '92vw',
-                        background: '#ffffff',
-                        borderRadius: 16,
-                        border: '1px solid rgba(226, 232, 240, 0.95)',
-                        boxShadow: `
-                          0 20px 40px rgba(15, 23, 42, 0.14),
-                          0 4px 12px rgba(15, 23, 42, 0.06)
-                        `,
-                        padding: 16,
-                        zIndex: 100,
-                        overflow: 'hidden',
-                      }}
-                    >
-                      {/* 3 columns with section headings */}
-                      <div
-                        style={{
-                          display: 'grid',
-                          gridTemplateColumns: 'repeat(3, 1fr)',
-                          gap: 20,
-                        }}
-                      >
-                        {link.sections.map((section) => (
-                          <div key={section.heading}>
-                            {/* Section heading inside dropdown */}
-                            <div
-                              style={{
-                                fontSize: 10.5,
-                                fontWeight: 800,
-                                letterSpacing: '0.14em',
-                                textTransform: 'uppercase',
-                                color: BLUE_THEME.smart_blue.DEFAULT,
-                                padding: '4px 8px 8px',
-                                borderBottom: '1px solid rgba(226, 232, 240, 0.9)',
-                                marginBottom: 8,
-                              }}
-                            >
-                              {section.heading}
-                            </div>
-
-                            {/* Items */}
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                              {section.items.map((item) => {
-                                const ItemIcon = item.icon;
-                                const itemBase = item.path.split('?')[0];
-                                const itemActive = activePath === itemBase || activePath.startsWith(itemBase + '/');
-
-                                return (
-                                  <button
-                                    key={item.path}
-                                    onClick={() => {
-                                      setActiveDropdown(null);
-                                      navigate(item.path);
-                                    }}
-                                    style={{
-                                      width: '100%',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: 10,
-                                      padding: '9px 11px',
-                                      background: itemActive ? C.activeBg : 'transparent',
-                                      border: `1px solid ${itemActive ? C.activeBorder : 'transparent'}`,
-                                      borderRadius: 8,
-                                      cursor: 'pointer',
-                                      fontFamily: '"Inter", system-ui, sans-serif',
-                                      fontSize: 12.5,
-                                      fontWeight: itemActive ? 700 : 500,
-                                      color: itemActive ? C.activeText : C.idleText,
-                                      textAlign: 'left',
-                                      transition: 'all .2s ease',
-                                    }}
-                                    onMouseEnter={(e) => {
-                                      if (!itemActive) {
-                                        e.currentTarget.style.background = 'rgba(249, 115, 22, 0.08)';
-                                        e.currentTarget.style.color = BLUE_THEME.smart_blue.DEFAULT;
-                                        e.currentTarget.style.border = `1px solid ${ORANGE.DEFAULT}`;
-                                        e.currentTarget.style.boxShadow = `0 0 10px ${ORANGE.GLOW_SOFT}`;
-                                        e.currentTarget.style.transform = 'translateX(3px)';
-                                      }
-                                    }}
-                                    onMouseLeave={(e) => {
-                                      if (!itemActive) {
-                                        e.currentTarget.style.background = 'transparent';
-                                        e.currentTarget.style.color = C.idleText;
-                                        e.currentTarget.style.border = '1px solid transparent';
-                                        e.currentTarget.style.boxShadow = 'none';
-                                        e.currentTarget.style.transform = 'translateX(0)';
-                                      }
-                                    }}
-                                  >
-                                    {ItemIcon && (
-                                      <ItemIcon
-                                        size={14}
-                                        style={{
-                                          color: itemActive ? C.activeText : BLUE_THEME.smart_blue.DEFAULT,
-                                          flexShrink: 0,
-                                        }}
-                                      />
-                                    )}
-                                    <span>{item.label}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+                )}
+                {item.label}
+              </motion.button>
             );
           })}
         </div>
 
-        {/* RIGHT: CTA + Mobile toggle */}
+        {/* RIGHT: CTA + Mobile hamburger toggle */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
           <motion.button
             whileHover={{
@@ -594,7 +320,7 @@ export function Navbar() {
             }}
             whileTap={{ scale: 0.96 }}
             transition={{ duration: 0.28, ease: EASE }}
-            onClick={() => navigate('/get-started')}
+            onClick={() => navigate('/login')}
             className="hidden sm:inline-flex"
             style={{
               padding: '10px 22px',
@@ -647,14 +373,14 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* Mobile dropdown */}
+      {/* MOBILE DRAWER */}
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
             initial={{ height: 0, opacity: 0, y: -8 }}
             animate={{ height: 'auto', opacity: 1, y: 0 }}
             exit={{ height: 0, opacity: 0, y: -8 }}
-            transition={{ duration: 0.35, ease: EASE }}
+            transition={{ duration: 0.32, ease: EASE }}
             className="lg:hidden"
             style={{
               position: 'absolute',
@@ -671,169 +397,36 @@ export function Navbar() {
               overflowY: 'auto',
             }}
           >
-            <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {NAV_LINKS.map((link) => {
-                const isActive = activePath === link.path;
-                const groupActive = isGroupActive(link);
-                const isExpanded = mobileExpanded === link.label;
-
-                if (!link.isDropdown) {
-                  return (
-                    <button
-                      key={link.path}
-                      onClick={() => {
-                        navigate(link.path);
-                        setMobileOpen(false);
-                      }}
-                      style={{
-                        padding: '13px 18px',
-                        borderRadius: 12,
-                        background: isActive ? C.activeBg : 'transparent',
-                        border: isActive ? `1px solid ${C.activeBorder}` : '1px solid transparent',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        fontSize: 14.5,
-                        fontWeight: isActive ? 700 : 500,
-                        color: isActive ? C.activeText : C.idleText,
-                        transition: 'all .25s ease',
-                        fontFamily: '"Inter", system-ui, sans-serif',
-                      }}
-                    >
-                      {link.label}
-                    </button>
-                  );
-                }
+            <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {NAV_ITEMS.map((item) => {
+                const isActive = activeSection === item.id;
 
                 return (
-                  <div key={link.label}>
-                    <button
-                      onClick={() => setMobileExpanded(isExpanded ? null : link.label)}
-                      style={{
-                        width: '100%',
-                        padding: '13px 18px',
-                        borderRadius: 12,
-                        background: groupActive ? C.activeBg : 'transparent',
-                        border: groupActive ? `1px solid ${C.activeBorder}` : '1px solid transparent',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        fontSize: 14.5,
-                        fontWeight: groupActive || isExpanded ? 700 : 500,
-                        color: groupActive || isExpanded ? C.activeText : C.idleText,
-                        transition: 'all .25s ease',
-                        fontFamily: '"Inter", system-ui, sans-serif',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                      }}
-                    >
-                      <span>{link.label}</span>
-                      <ChevronDown
-                        size={15}
-                        style={{
-                          transition: 'transform .3s ease',
-                          transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                        }}
-                      />
-                    </button>
-
-                    <AnimatePresence>
-                      {isExpanded && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.25, ease: EASE }}
-                          style={{ overflow: 'hidden' }}
-                        >
-                          <div style={{ paddingLeft: 12, paddingTop: 8 }}>
-                            {link.sections.map((section) => (
-                              <div key={section.heading} style={{ marginBottom: 8 }}>
-                                <div
-                                  style={{
-                                    fontSize: 10.5,
-                                    fontWeight: 800,
-                                    letterSpacing: '0.14em',
-                                    textTransform: 'uppercase',
-                                    color: BLUE_THEME.smart_blue.DEFAULT,
-                                    padding: '4px 10px 6px',
-                                    borderBottom: '1px solid rgba(226, 232, 240, 0.9)',
-                                    marginBottom: 4,
-                                  }}
-                                >
-                                  {section.heading}
-                                </div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                  {section.items.map((item) => {
-                                    const ItemIcon = item.icon;
-                                    const itemBase = item.path.split('?')[0];
-                                    const itemActive = activePath === itemBase || activePath.startsWith(itemBase + '/');
-
-                                    return (
-                                      <button
-                                        key={item.path}
-                                        onClick={() => {
-                                          navigate(item.path);
-                                          setMobileOpen(false);
-                                          setMobileExpanded(null);
-                                        }}
-                                        style={{
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          gap: 10,
-                                          padding: '9px 14px',
-                                          background: itemActive ? C.activeBg : 'transparent',
-                                          border: `1px solid ${itemActive ? C.activeBorder : 'transparent'}`,
-                                          borderRadius: 10,
-                                          cursor: 'pointer',
-                                          fontFamily: '"Inter", system-ui, sans-serif',
-                                          fontSize: 13,
-                                          fontWeight: itemActive ? 700 : 500,
-                                          color: itemActive ? C.activeText : C.idleText,
-                                          textAlign: 'left',
-                                          transition: 'all .2s ease',
-                                        }}
-                                        onMouseEnter={(e) => {
-                                          if (!itemActive) {
-                                            e.currentTarget.style.background = 'rgba(249, 115, 22, 0.08)';
-                                            e.currentTarget.style.color = BLUE_THEME.smart_blue.DEFAULT;
-                                            e.currentTarget.style.border = `1px solid ${ORANGE.DEFAULT}`;
-                                          }
-                                        }}
-                                        onMouseLeave={(e) => {
-                                          if (!itemActive) {
-                                            e.currentTarget.style.background = 'transparent';
-                                            e.currentTarget.style.color = C.idleText;
-                                            e.currentTarget.style.border = '1px solid transparent';
-                                          }
-                                        }}
-                                      >
-                                        {ItemIcon && (
-                                          <ItemIcon
-                                            size={14}
-                                            style={{
-                                              color: itemActive ? C.activeText : BLUE_THEME.smart_blue.DEFAULT,
-                                              flexShrink: 0,
-                                            }}
-                                          />
-                                        )}
-                                        <span>{item.label}</span>
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
+                  <button
+                    key={item.id}
+                    onClick={() => handleNavClick(item.id)}
+                    style={{
+                      padding: '13px 18px',
+                      borderRadius: 12,
+                      background: isActive ? C.activeBg : 'transparent',
+                      border: isActive ? `1px solid ${C.activeBorder}` : '1px solid transparent',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      fontSize: 14.5,
+                      fontWeight: isActive ? 700 : 500,
+                      color: isActive ? C.activeText : C.idleText,
+                      transition: 'all .25s ease',
+                      fontFamily: '"Inter", system-ui, sans-serif',
+                    }}
+                  >
+                    {item.label}
+                  </button>
                 );
               })}
 
               <motion.button
                 onClick={() => {
-                  navigate('/get-started');
+                  navigate('/login');
                   setMobileOpen(false);
                 }}
                 whileHover={{
