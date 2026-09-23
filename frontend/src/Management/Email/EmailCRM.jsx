@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
-import { canDelete, isManagingDirector, isExecutive } from '../../utils/permissions';
+import { canDelete, isManagingDirector, isExecutive, canAccessEmailBlast } from '../../utils/permissions';
 import SplitText from '../../components/ui/SplitText';
 import ShinyText from '../../components/ui/ShinyText';
+import BulkEmailBlast from './BulkEmailBlast';
 
 // Axios instance with sanitized baseURL
 const rawBaseUrl = import.meta.env.VITE_API_URL || '';
@@ -37,9 +38,15 @@ const SIDEBAR_ACTIVE   = '#d3e3fd';
 export default function EmailCRM() {
   const { user } = useAuth();
   const isMD = isManagingDirector(user) || isExecutive(user);
+  const isBlastAllowed = canAccessEmailBlast(user);
 
-  // Active Navigation Tab: 'sent', 'inbox', 'templates', 'admin_audit'
-  const [activeFolder, setActiveFolder] = useState('sent');
+  // Active Navigation Tab: 'sent', 'inbox', 'templates', 'admin_audit', 'blast'
+  const [activeFolder, setActiveFolder] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('folder') || params.get('tab');
+    if (tab === 'blast') return 'blast';
+    return 'sent';
+  });
 
   // Templates
   const [templates, setTemplates] = useState([]);
@@ -572,6 +579,24 @@ ${user?.designation || 'Staff'}`
             <span style={{ fontSize: 12, fontWeight: 600, color: TEXT_MUTED }}>{templates.length}</span>
           </div>
 
+          {/* Folder Item: Email Blast (Exclusively CTO, HR, Managing Director) */}
+          {isBlastAllowed && (
+            <div
+              onClick={() => { setActiveFolder('blast'); setSelectedEmail(null); }}
+              style={getSidebarItemStyle(activeFolder === 'blast')}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                </svg>
+                <span style={{ fontWeight: activeFolder === 'blast' ? 700 : 500 }}>Email Blast</span>
+              </div>
+              <span style={{ fontSize: 9.5, fontWeight: 700, background: '#dbeafe', color: '#1d4ed8', padding: '1px 6px', borderRadius: 10 }}>
+                AI-Mail
+              </span>
+            </div>
+          )}
+
           {/* Folder Item: Admin Audit Records (Automatically available for MD / Admin) */}
           {isMD && (
             <div
@@ -597,7 +622,12 @@ ${user?.designation || 'Staff'}`
           </div>
         </div>
 
-        {/* ── 3. CONTENT AREA: GMAIL STYLE MESSAGE LIST & REACT BITS HEADER ─── */}
+        {/* ── 3. CONTENT AREA: GMAIL STYLE MESSAGE LIST OR BULK EMAIL BLAST ─── */}
+        {activeFolder === 'blast' ? (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <BulkEmailBlast />
+          </div>
+        ) : (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#f8fafd', overflow: 'hidden' }}>
           {/* Header Banner using React Bits SplitText & ShinyText */}
           <div style={{ background: WHITE, padding: '14px 24px', borderBottom: `1px solid ${BORDER_LIGHT}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
@@ -1226,6 +1256,7 @@ ${user?.designation || 'Staff'}`
             </div>
           )}
         </div>
+        )}
       </div>
 
       {/* ── 4. GMAIL FLOATING DOCKED COMPOSE WINDOW ──────────────────────── */}

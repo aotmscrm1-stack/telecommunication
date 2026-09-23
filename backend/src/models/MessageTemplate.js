@@ -8,6 +8,7 @@ const messageTemplateSchema = new mongoose.Schema({
   // so existing WhatsApp/Email templates are completely unaffected.
   subject: { type: String, default: '' },
   bodyFormat: { type: String, enum: ['text', 'html'], default: 'text' },
+  imageUrl: { type: String, default: '' },
   isShared: { type: Boolean, default: false },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
 

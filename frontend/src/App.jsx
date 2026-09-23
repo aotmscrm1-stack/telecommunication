@@ -39,8 +39,9 @@ import Landing from './pages/landing_pages/Landing';
 import LiveEmployeeTracking from './Management/Attedence/LiveEmployee/LiveEmployeeTracking';
 import AttendanceRecords from './Management/Attedence/AttendanceRecords';
 import Accept from './components/dashboard/accept';
+import BulkEmailBlast from './Management/Email/BulkEmailBlast';
 
-import { isCEO, isHR, isLimitedStaff, canViewDashboard } from './utils/permissions';
+import { isCEO, isHR, isLimitedStaff, canViewDashboard, canAccessEmailBlast } from './utils/permissions';
 
 const ProtectedRoute = ({ children, allowPending = false }) => {
   const { user, loading } = useAuth();
@@ -113,6 +114,17 @@ const StaffRestrictedRoute = ({ children }) => {
   return children;
 };
 
+// Route guard for Bulk Email Blast — strictly CTO, HR, and Managing Director (or CEO/Executive)
+const BlastRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  if (canAccessEmailBlast(user)) {
+    return children;
+  }
+  return <Navigate to="/tasks" replace />;
+};
+
 const RootRedirect = () => {
   const { user, loading } = useAuth();
   if (loading) return null;
@@ -154,6 +166,7 @@ export default function App() {
             <Route path="my-preferences" element={<MyPreferences />} />
             <Route path="whatsapp" element={<StaffRestrictedRoute><WhatsApp /></StaffRestrictedRoute>} />
             <Route path="email" element={<EmailCRM />} />
+            <Route path="email-blast" element={<BlastRoute><BulkEmailBlast /></BlastRoute>} />
             <Route path="offer-letter" element={<AdminRoute><OfferLetter /></AdminRoute>} />
             <Route path="payslips" element={<AdminRoute><Payslip /></AdminRoute>} />
             <Route path="payslip" element={<Navigate to="/payslips" replace />} />

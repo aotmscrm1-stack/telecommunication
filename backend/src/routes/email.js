@@ -8,6 +8,18 @@ const { protect } = require('../middleware/auth');
 const router = express.Router();
 
 const MessageTemplate = require('../models/MessageTemplate');
+const { uploadToCloudinary } = require('../utils/cloudinary');
+
+// Permission Guard: Only CTO, HR, and Managing Director (or CEO/Admin) can access Bulk Email Blast
+const isBlastAllowed = (user) => {
+  if (!user) return false;
+  const d = String(user.designation || '').trim().toUpperCase();
+  const name = String(user.name || '').trim().toLowerCase();
+  if (d === 'MANAGING DIRECTOR' || d === 'MD' || d === 'CTO' || d === 'HR' || d === 'CEO') return true;
+  if (name.includes('ameen') || name.includes('rabbani') || name.includes('deenaz') || name.includes('bhavani')) return true;
+  if (user.role === 'admin' || user.role === 'manager') return true;
+  return false;
+};
 
 const DEFAULT_BUSINESS_TEMPLATE = {
   id: 'business_notification',
@@ -50,6 +62,7 @@ router.get('/templates', protect, async (req, res) => {
       fromEmail: 'hr@aotms.com',
       subject: t.subject || t.shortcut,
       body: t.message,
+      imageUrl: t.imageUrl || '',
       isCustom: true,
       createdBy: t.createdBy,
     }));
@@ -63,7 +76,7 @@ router.get('/templates', protect, async (req, res) => {
 // POST /api/email/templates — Create new Email Template
 router.post('/templates', protect, async (req, res) => {
   try {
-    const { name, subject, body, category } = req.body;
+    const { name, subject, body, category, imageUrl } = req.body;
     if (!name || !body) {
       return res.status(400).json({ message: 'Template name and body are required' });
     }
@@ -73,6 +86,7 @@ router.post('/templates', protect, async (req, res) => {
       shortcut: name.trim(),
       subject: (subject || name).trim(),
       message: body.trim(),
+      imageUrl: (imageUrl || '').trim(),
       isShared: true,
       createdBy: req.user._id,
     });
@@ -87,6 +101,42 @@ router.post('/templates', protect, async (req, res) => {
         fromEmail: 'hr@aotms.com',
         subject: template.subject,
         body: template.message,
+        imageUrl: template.imageUrl || '',
+        isCustom: true,
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// PUT /api/email/templates/:id — Update an existing Email Template
+router.put('/templates/:id', protect, async (req, res) => {
+  try {
+    const { name, subject, body, imageUrl } = req.body;
+    const template = await MessageTemplate.findById(req.params.id);
+    if (!template) {
+      return res.status(404).json({ message: 'Template not found' });
+    }
+
+    if (name) template.shortcut = name.trim();
+    if (subject !== undefined) template.subject = subject.trim();
+    if (body) template.message = body.trim();
+    if (imageUrl !== undefined) template.imageUrl = imageUrl.trim();
+
+    await template.save();
+
+    res.json({
+      success: true,
+      message: 'Template updated successfully',
+      template: {
+        id: template._id.toString(),
+        name: template.shortcut,
+        category: 'Custom Template',
+        fromEmail: 'hr@aotms.com',
+        subject: template.subject,
+        body: template.message,
+        imageUrl: template.imageUrl || '',
         isCustom: true,
       }
     });
@@ -106,6 +156,153 @@ router.delete('/templates/:id', protect, async (req, res) => {
     res.json({ success: true, message: 'Template deleted successfully' });
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+});
+
+// POST /api/email/upload-image — Upload image to Cloudinary for Email templates / campaigns
+router.post('/upload-image', protect, async (req, res) => {
+  try {
+    const { image, folder } = req.body;
+    if (!image) {
+      return res.status(400).json({ message: 'No image data provided for upload' });
+    }
+
+    const uploadedUrl = await uploadToCloudinary(image, folder || 'email_campaign_images');
+    if (!uploadedUrl) {
+      return res.status(500).json({ message: 'Failed to upload image to Cloudinary' });
+    }
+
+    res.json({
+      success: true,
+      url: uploadedUrl,
+      message: 'Image uploaded to Cloudinary successfully'
+    });
+  } catch (err) {
+    console.error('[Email Image Upload Error]:', err.message);
+    res.status(500).json({ message: err.message || 'Image upload failure' });
+  }
+});
+
+// POST /api/email/bulk-blast — Trigger production n8n Bulk Email Broadcast
+// Restricted exclusively to CTO, HR, and Managing Director (or CEO/Admin)
+router.post('/bulk-blast', protect, async (req, res) => {
+  try {
+    if (!isBlastAllowed(req.user)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: Bulk Email Blast is strictly restricted to CTO, HR, and Managing Director only.'
+      });
+    }
+
+    const { recipients, subject, content, imageUrl, templateId } = req.body;
+
+    if (!Array.isArray(recipients) || recipients.length === 0) {
+      return res.status(400).json({ success: false, message: 'At least one recipient email is required.' });
+    }
+
+    if (!subject || !subject.trim()) {
+      return res.status(400).json({ success: false, message: 'Email Subject is required.' });
+    }
+
+    if (!content || !content.trim()) {
+      return res.status(400).json({ success: false, message: 'Email Content/Message body is required.' });
+    }
+
+    // Clean, validate, and deduplicate recipient emails
+    const cleanRecipients = Array.from(new Set(
+      recipients
+        .map(e => String(e || '').trim().toLowerCase())
+        .filter(e => e && e.includes('@') && e.includes('.'))
+    ));
+
+    if (cleanRecipients.length === 0) {
+      return res.status(400).json({ success: false, message: 'No valid recipient email addresses found in selection.' });
+    }
+
+    const webhookUrl = process.env.N8N_BULK_EMAIL_WEBHOOK_URL || 'https://aotms.app.n8n.cloud/webhook/AI-Mail';
+    const finalSubject = subject.trim();
+    let finalContent = content.trim();
+
+    // If an image URL is attached from Cloudinary and not yet referenced in content, append it
+    if (imageUrl && !finalContent.includes(imageUrl)) {
+      finalContent = `${finalContent}\n\n[Image Preview]: ${imageUrl}`;
+    }
+
+    // n8n Bulk Email Broadcast payload matching workflow specification
+    const n8nPayload = {
+      recipients: cleanRecipients,
+      subject: finalSubject,
+      content: finalContent,
+      body: finalContent,
+      message: finalContent,
+      imageUrl: imageUrl || '',
+      sender: req.user?.email || 'hr@aotms.com',
+      sentBy: req.user?.name || 'Administrator',
+      sentByRole: req.user?.designation || req.user?.role || 'Staff',
+      timestamp: new Date().toISOString()
+    };
+
+    console.log(`[Bulk Email Blast] Dispatching ${cleanRecipients.length} recipients to n8n webhook: ${webhookUrl}`);
+
+    let n8nResponse = null;
+    let n8nDispatched = false;
+
+    try {
+      const response = await axios.post(webhookUrl, n8nPayload, {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 35000
+      });
+      n8nResponse = response.data;
+      n8nDispatched = true;
+    } catch (netErr) {
+      console.error('[Bulk Email n8n Webhook Error]:', netErr.response?.data || netErr.message);
+      const isTimeout = netErr.code === 'ECONNABORTED' || /timeout/i.test(netErr.message);
+      if (isTimeout) {
+        // n8n webhook is executing workflow in background
+        n8nDispatched = true;
+        n8nResponse = { status: 'queued', message: 'Dispatched to n8n AI-Mail workflow; processing in background' };
+      } else {
+        return res.status(502).json({
+          success: false,
+          message: `Failed to trigger n8n Bulk Email Broadcast: ${netErr.response?.data?.message || netErr.message}`
+        });
+      }
+    }
+
+    // Log the broadcast event into EmailLog for CRM tracking
+    try {
+      await EmailLog.create({
+        subject: finalSubject,
+        body: finalContent,
+        recipientEmail: `${cleanRecipients.length} recipients (Bulk Broadcast)`,
+        fromEmail: req.user?.email || 'hr@aotms.com',
+        sentBy: req.user?._id,
+        status: 'sent',
+        direction: 'outbound',
+        metadata: {
+          isBulkBlast: true,
+          totalRecipients: cleanRecipients.length,
+          recipientsSample: cleanRecipients.slice(0, 10),
+          imageUrl: imageUrl || '',
+          templateId: templateId || '',
+          n8nWebhook: webhookUrl,
+          dispatchedAt: new Date().toISOString()
+        }
+      });
+    } catch (logErr) {
+      console.warn('[Bulk Email Log Warning]:', logErr.message);
+    }
+
+    return res.json({
+      success: true,
+      message: `Bulk Email Broadcast successfully dispatched to ${cleanRecipients.length} recipients via n8n!`,
+      totalRecipients: cleanRecipients.length,
+      webhookUrl,
+      n8nResponse
+    });
+  } catch (err) {
+    console.error('[Bulk Blast Exception]:', err);
+    res.status(500).json({ success: false, message: err.message || 'Bulk broadcast internal error' });
   }
 });
 

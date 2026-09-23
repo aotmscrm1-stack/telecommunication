@@ -59,6 +59,17 @@ export const isLimitedStaff = (user) => {
 };
 
 /**
+ * Email Blast & Broadcast Access Guard:
+ * Strictly restricted to CTO, HR, and Managing Director (or CEO/Executive).
+ * Developers, Trainers, and Digital Marketing are strictly excluded.
+ */
+export const canAccessEmailBlast = (user) => {
+  if (!user) return false;
+  if (isDeveloper(user) || isTrainer(user) || isDigitalMarketing(user)) return false;
+  return isManagingDirector(user) || isCTO(user) || isHR(user) || isExecutive(user);
+};
+
+/**
  * Delete Action Guard:
  * - HR designation: Delete options are NOT showing (strictly false).
  * - CEO / Admin / Manager: Delete options are showing.
