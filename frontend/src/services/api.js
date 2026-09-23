@@ -140,6 +140,15 @@ export const emailCampaignsAPI = {
   delete: (id) => api.delete(`/email-campaigns/${id}`),
 };
 
+export const emailBlastAPI = {
+  getTemplates: () => api.get('/email/templates'),
+  createTemplate: (data) => api.post('/email/templates', data),
+  updateTemplate: (id, data) => api.put(`/email/templates/${id}`, data),
+  deleteTemplate: (id) => api.delete(`/email/templates/${id}`),
+  uploadImage: (image, folder) => api.post('/email/upload-image', { image, folder }),
+  triggerBulkBlast: (data) => api.post('/email/bulk-blast', data),
+};
+
 export const bulkImportAPI = {
   preview: (formData) => api.post('/bulk-import/preview', formData),
   import: (formData) => api.post('/bulk-import/import', formData),

@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { followupsAPI, leadsAPI, usersAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import { formatISTDateTime } from '../../../utils/dateFormat';
-import { isLimitedStaff, isDeveloper, getTaskAssignorOptions } from '../../../utils/permissions';
+import { isLimitedStaff, isDeveloper, getTaskAssignorOptions, filterTeamDropdownUsers } from '../../../utils/permissions';
 
 // Theme Palette Constants
 const COLOR_DEEP_BLUE = '#023047';
@@ -815,7 +815,17 @@ export default function Task() {
     }
   }, [searchParams, isLimited, activeTab]);
 
-  const [forFilter, setForFilter] = useState(() => (currentUser?.role === 'admin' || currentUser?.role === 'manager') ? 'Team' : 'Me');
+  const [forFilter, setForFilter] = useState(() => {
+    if (isLimitedStaff(currentUser)) return 'Me';
+    return (currentUser?.role === 'admin' || currentUser?.role === 'manager') ? 'Team' : 'Me';
+  });
+
+  useEffect(() => {
+    if (isLimitedStaff(currentUser) && forFilter !== 'Me') {
+      setForFilter('Me');
+    }
+  }, [currentUser, forFilter]);
+
   const [dueFilter, setDueFilter] = useState(null);
   const [statusFilter, setStatusFilter] = useState(['pending', 'late', 'cancelled']);
   const [historyMode, setHistoryMode] = useState(false);
@@ -914,7 +924,10 @@ export default function Task() {
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
   useEffect(() => {
-    usersAPI.getAll().then(r => setTeamUsers(r.data.users || [])).catch(() => {});
+    usersAPI.getAll().then(r => {
+      const all = r.data.users || [];
+      setTeamUsers(filterTeamDropdownUsers(all));
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -1275,56 +1288,61 @@ export default function Task() {
           >
             My {activeTab === 'Todo' ? 'Todos' : 'Tasks'}
           </button>
-          <div ref={teamDropRef} style={{ position: 'relative' }}>
-            <button
-              onClick={() => { setForFilter('Team'); setShowTeamDrop(p => !p); }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '6px 14px',
-                borderRadius: 6,
-                border: 'none',
-                background: forFilter === 'Team' ? COLOR_BLUE_GREEN : COLOR_SKY_SURFACE,
-                color: forFilter === 'Team' ? '#fff' : COLOR_DEEP_BLUE,
-                fontSize: 13,
-                fontWeight: 500,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              {teamMemberFilter ? (teamUsers.find(u => u._id === teamMemberFilter)?.name || 'Team') : 'Team'}
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points={showTeamDrop ? '18 15 12 9 6 15' : '6 9 12 15 18 9'}/>
-              </svg>
-            </button>
-            {showTeamDrop && (
-              <div style={{
-                position: 'absolute', top: '115%', left: 0, zIndex: 300,
-                background: '#fff', border: `1px solid ${COLOR_BORDER}`, borderRadius: 8,
-                boxShadow: '0 8px 24px rgba(2, 48, 71, 0.12)', minWidth: 200, padding: '6px 0'
-              }}>
-                <div
-                  onClick={() => { setTeamMemberFilter(''); setShowTeamDrop(false); }}
-                  style={{ padding: '9px 14px', fontSize: 13, cursor: 'pointer', color: !teamMemberFilter ? COLOR_BLUE_GREEN : COLOR_DEEP_BLUE, fontWeight: 500, background: !teamMemberFilter ? COLOR_SKY_SURFACE : 'transparent' }}
-                >
-                  All Members
-                </div>
-                {teamUsers.map(u => (
+          {!isLimitedStaff(currentUser) && (
+            <div ref={teamDropRef} style={{ position: 'relative' }}>
+              <button
+                onClick={() => { setForFilter('Team'); setShowTeamDrop(p => !p); }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 14px',
+                  borderRadius: 6,
+                  border: 'none',
+                  background: forFilter === 'Team' ? COLOR_BLUE_GREEN : COLOR_SKY_SURFACE,
+                  color: forFilter === 'Team' ? '#fff' : COLOR_DEEP_BLUE,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                {teamMemberFilter ? (teamUsers.find(u => u._id === teamMemberFilter)?.name || 'Team') : 'Team'}
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <polyline points={showTeamDrop ? '18 15 12 9 6 15' : '6 9 12 15 18 9'}/>
+                </svg>
+              </button>
+              {showTeamDrop && (
+                <div style={{
+                  position: 'absolute', top: '115%', left: 0, zIndex: 300,
+                  background: '#fff', border: `1px solid ${COLOR_BORDER}`, borderRadius: 8,
+                  boxShadow: '0 8px 24px rgba(2, 48, 71, 0.12)', minWidth: 200, padding: '6px 0'
+                }}>
                   <div
-                    key={u._id}
-                    onClick={() => { setTeamMemberFilter(u._id); setShowTeamDrop(false); }}
-                    style={{ padding: '9px 14px', fontSize: 13, cursor: 'pointer', color: teamMemberFilter === u._id ? COLOR_BLUE_GREEN : COLOR_DEEP_BLUE, fontWeight: 400, background: teamMemberFilter === u._id ? COLOR_SKY_SURFACE : 'transparent', display: 'flex', alignItems: 'center', gap: 8 }}
+                    onClick={() => { setTeamMemberFilter(''); setShowTeamDrop(false); }}
+                    style={{ padding: '9px 14px', fontSize: 13, cursor: 'pointer', color: !teamMemberFilter ? COLOR_BLUE_GREEN : COLOR_DEEP_BLUE, fontWeight: 500, background: !teamMemberFilter ? COLOR_SKY_SURFACE : 'transparent' }}
                   >
-                    <div style={{ width: 22, height: 22, borderRadius: '50%', background: COLOR_SKY_SURFACE, color: COLOR_DEEP_BLUE, fontSize: 10, fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      {u.name.slice(0, 2).toUpperCase()}
-                    </div>
-                    {u.name}
+                    All (HR, CTO, MD)
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                  {teamUsers.map(u => (
+                    <div
+                      key={u._id}
+                      onClick={() => { setTeamMemberFilter(u._id); setShowTeamDrop(false); }}
+                      style={{ padding: '9px 14px', fontSize: 13, cursor: 'pointer', color: teamMemberFilter === u._id ? COLOR_BLUE_GREEN : COLOR_DEEP_BLUE, fontWeight: 400, background: teamMemberFilter === u._id ? COLOR_SKY_SURFACE : 'transparent', display: 'flex', alignItems: 'center', gap: 8 }}
+                    >
+                      <div style={{ width: 22, height: 22, borderRadius: '50%', background: COLOR_SKY_SURFACE, color: COLOR_DEEP_BLUE, fontSize: 10, fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {u.name.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 500 }}>{u.name}</div>
+                        {u.designation && <div style={{ fontSize: 11, color: COLOR_MUTED }}>{u.designation}</div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div style={{ width: 1, height: 22, background: COLOR_BORDER }} />

@@ -1,0 +1,103 @@
+{
+  "name": "Bulk Email Broadcast",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "AI-Mail",
+        "options": {}
+      },
+      "id": "4ccf86fe-bc06-48cc-98a5-69877cf0fa89",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        128,
+        -80
+      ],
+      "webhookId": "admin-bulk-email-trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || {};\nconst recipients = Array.isArray(body.recipients) ? body.recipients : [];\nconst subject = body.subject || 'Official Notification from AOTMS';\nconst content = body.content || body.message || body.body || '';\nconst imageUrl = body.imageUrl || '';\nconst html = body.html || '';\n\n// Generate clean responsive HTML with Cloudinary image banner\nconst finalHtml = html || `\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n</head>\n<body style=\"font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #f8fafc;\">\n  <div style=\"max-width: 600px; margin: 24px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 16px rgba(0,0,0,0.05);\">\n    ${imageUrl ? `<img src=\"${imageUrl}\" alt=\"Banner\" style=\"width: 100%; max-height: 340px; object-fit: cover; display: block; border-bottom: 1px solid #f1f5f9;\" />` : ''}\n    <div style=\"padding: 30px 26px;\">\n      <h2 style=\"font-size: 19px; font-weight: 700; color: #0f172a; margin: 0 0 16px 0;\">${subject}</h2>\n      <div style=\"font-size: 15px; line-height: 1.65; color: #334155; white-space: pre-wrap; word-break: break-word;\">${content}</div>\n    </div>\n    <div style=\"padding: 16px 26px; background-color: #f8fafc; border-top: 1px solid #f1f5f9; text-align: center; font-size: 12px; color: #94a3b8;\">\n      Official Communication • AOTMS CRM\n    </div>\n  </div>\n</body>\n</html>\n`.trim();\n\n// Split into individual recipient items for Gmail node iteration\nreturn recipients.map(email => {\n  const cleanEmail = typeof email === 'string' ? email.trim() : (email.email || '');\n  return {\n    json: {\n      email: cleanEmail,\n      subject,\n      content,\n      imageUrl,\n      html: finalHtml\n    }\n  };\n});"
+      },
+      "id": "1050a6b6-324d-4ead-9d23-79aaf45847f4",
+      "name": "Split Recipients",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        336,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.html || $json.content }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        544,
+        -80
+      ],
+      "id": "758a8818-0a36-49cb-b118-ba739b8bc10a",
+      "name": "Send a message",
+      "webhookId": "62af9408-49a6-4f92-8a16-fc8bb3b70049",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "vdRL6AC22oUUgGKm",
+          "name": "Gmail account 8"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Split Recipients",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Recipients": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "dcec558a-7ad4-4523-9a65-35f9f2198345",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ac53766b75ba98327cb8367953362c144cd1e7b33149a3b252d1556380af54e8"
+  },
+  "nodeGroups": [],
+  "id": "eJb2vYt8TuNYIcZu",
+  "tags": []
+}

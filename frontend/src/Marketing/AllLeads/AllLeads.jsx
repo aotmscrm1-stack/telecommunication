@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { FiUserPlus, FiLink, FiChevronRight } from 'react-icons/fi';
 import { RiFileExcel2Line } from 'react-icons/ri';
-import { canDelete } from '../../utils/permissions';
+import { canDelete, canAccessEmailBlast } from '../../utils/permissions';
 
 
 /* ─────────────────────────────────────────────────────────
@@ -315,6 +315,21 @@ export default function AllLeads() {
             <Download className="w-4 h-4" />
             Export CSV
           </button>
+
+          {canAccessEmailBlast(user) && (
+            <button
+              onClick={() => navigate('/email-blast')}
+              style={{
+                background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+                color: '#ffffff',
+                boxShadow: '0 4px 14px rgba(37,99,235,0.25)'
+              }}
+              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl text-white shadow-sm transition-all hover:brightness-105 hover:translate-y-[-1px]"
+            >
+              <Mail className="w-4 h-4" />
+              Email Blast
+            </button>
+          )}
 
           {/* Add Lead Dropdown Button */}
           <div style={{ position: 'relative' }}>

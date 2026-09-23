@@ -955,7 +955,6 @@ export default function SignUp() {
   const [otpTimer, setOtpTimer] = useState(60);
   const [canResendOtp, setCanResendOtp] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
-  const [debugOtpCode, setDebugOtpCode] = useState('');
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
 
   // Crop Modal State
@@ -1217,7 +1216,7 @@ export default function SignUp() {
 
     setIsLoading(true);
     try {
-      const res = await authAPI.sendRegistrationOtp({
+      await authAPI.sendRegistrationOtp({
         email: formData.email.trim(),
         firstName: formData.firstName.trim()
       });
@@ -1225,9 +1224,6 @@ export default function SignUp() {
       setOtpTimer(60);
       setCanResendOtp(false);
       setOtpCode('');
-      if (res.data?.debugOtp) {
-        setDebugOtpCode(res.data.debugOtp);
-      }
       setStep(4);
     } catch (err) {
       setErrorMsg(err.response?.data?.message || 'Failed to send verification OTP code. Please try again.');
@@ -1241,15 +1237,12 @@ export default function SignUp() {
     setOtpLoading(true);
     setErrorMsg('');
     try {
-      const res = await authAPI.sendRegistrationOtp({
+      await authAPI.sendRegistrationOtp({
         email: formData.email.trim(),
         firstName: formData.firstName.trim()
       });
       setOtpTimer(60);
       setCanResendOtp(false);
-      if (res.data?.debugOtp) {
-        setDebugOtpCode(res.data.debugOtp);
-      }
     } catch (err) {
       setErrorMsg(err.response?.data?.message || 'Failed to resend code');
     } finally {
@@ -1714,27 +1707,6 @@ export default function SignUp() {
                         autoFocus
                       />
                     </div>
-
-                    {/* Developer code badge */}
-                    {debugOtpCode && (
-                      <div
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          background: 'rgba(249, 115, 22, 0.12)',
-                          border: '1px dashed #f97316',
-                          borderRadius: '8px',
-                          padding: '6px 14px',
-                          fontSize: '12px',
-                          color: '#fb923c',
-                          marginBottom: '16px'
-                        }}
-                      >
-                        <span>Dev Code:</span>
-                        <strong>{debugOtpCode}</strong>
-                      </div>
-                    )}
 
                     <button type="submit" className="sign-in-btn" disabled={otpLoading}>
                       {otpLoading ? 'Verifying...' : 'Verify & Create Account'}
