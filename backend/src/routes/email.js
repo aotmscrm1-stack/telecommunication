@@ -221,20 +221,48 @@ router.post('/bulk-blast', protect, async (req, res) => {
 
     const webhookUrl = process.env.N8N_BULK_EMAIL_WEBHOOK_URL || 'https://aotms.app.n8n.cloud/webhook/AI-Mail';
     const finalSubject = subject.trim();
-    let finalContent = content.trim();
+    const cleanBodyText = content.trim();
 
-    // If an image URL is attached from Cloudinary and not yet referenced in content, append it
-    if (imageUrl && !finalContent.includes(imageUrl)) {
-      finalContent = `${finalContent}\n\n[Image Preview]: ${imageUrl}`;
-    }
+    // Professional responsive HTML layout with embedded Cloudinary banner
+    const htmlEmail = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #f8fafc; }
+    .email-container { max-width: 600px; margin: 24px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 16px rgba(0,0,0,0.05); }
+    .banner-img { width: 100%; max-height: 340px; object-fit: cover; display: block; border-bottom: 1px solid #f1f5f9; }
+    .content-box { padding: 30px 26px; }
+    .subject-title { font-size: 19px; font-weight: 700; color: #0f172a; margin: 0 0 16px 0; }
+    .message-text { font-size: 15px; line-height: 1.65; color: #334155; white-space: pre-wrap; word-break: break-word; }
+    .footer { padding: 16px 26px; background-color: #f8fafc; border-top: 1px solid #f1f5f9; text-align: center; font-size: 12px; color: #94a3b8; }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    ${imageUrl ? `<img src="${imageUrl}" alt="Banner" class="banner-img" />` : ''}
+    <div class="content-box">
+      <h2 class="subject-title">${finalSubject}</h2>
+      <div class="message-text">${cleanBodyText}</div>
+    </div>
+    <div class="footer">
+      Official Communication • AOTMS CRM
+    </div>
+  </div>
+</body>
+</html>
+`.trim();
 
     // n8n Bulk Email Broadcast payload matching workflow specification
     const n8nPayload = {
       recipients: cleanRecipients,
       subject: finalSubject,
-      content: finalContent,
-      body: finalContent,
-      message: finalContent,
+      content: cleanBodyText,
+      html: htmlEmail,
+      body: cleanBodyText,
+      message: cleanBodyText,
       imageUrl: imageUrl || '',
       sender: req.user?.email || 'hr@aotms.com',
       sentBy: req.user?.name || 'Administrator',
@@ -273,7 +301,7 @@ router.post('/bulk-blast', protect, async (req, res) => {
     try {
       await EmailLog.create({
         subject: finalSubject,
-        body: finalContent,
+        body: cleanBodyText,
         recipientEmail: `${cleanRecipients.length} recipients (Bulk Broadcast)`,
         fromEmail: req.user?.email || 'hr@aotms.com',
         sentBy: req.user?._id,
