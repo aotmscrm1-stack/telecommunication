@@ -315,26 +315,39 @@ ${user?.designation || 'Staff'}`
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
 
-  // Generate HTML representation of email
+  // Generate HTML representation of email with full download options & hosted cloud media
   const generateEmailHtml = (textBody, atts = [], drives = [], imgs = []) => {
     let htmlContent = (textBody || '').replace(/\n/g, '<br/>');
 
     // Replace Markdown-style links [text](url) with HTML <a href="url">text</a>
-    htmlContent = htmlContent.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" style="color: #1a73e8; text-decoration: underline;">$1</a>');
+    htmlContent = htmlContent.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color: #1a73e8; text-decoration: underline; font-weight: 500;">$1</a>');
 
     let extraSections = '';
 
     if (imgs.length > 0) {
       extraSections += `
-        <div style="margin-top: 18px; border-top: 1px solid #e5e7eb; padding-top: 12px;">
-          <div style="font-size: 12px; font-weight: 700; color: #4b5563; margin-bottom: 8px;">📷 Photos (${imgs.length})</div>
-          <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-            ${imgs.map(img => `
-              <div style="border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; max-width: 260px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
-                <img src="${img.dataUrl || img.url}" alt="${img.name || 'Photo'}" style="width: 100%; height: auto; display: block; max-height: 200px; object-fit: cover;" />
-                ${img.name ? `<div style="padding: 4px 8px; font-size: 11px; color: #6b7280; background: #f9fafb;">${img.name}</div>` : ''}
-              </div>
-            `).join('')}
+        <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0;">
+          <div style="font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+            <span class="material-symbols-outlined">photo_camera</span> Photos (${imgs.length})
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 14px;">
+            ${imgs.map(img => {
+              const photoHref = img.downloadUrl || img.url || img.dataUrl || '#';
+              const photoSrc = img.url || img.dataUrl;
+              return `
+                <div style="border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; max-width: 320px; background: #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.06);">
+                  <a href="${photoHref}" target="_blank" rel="noopener noreferrer" style="display: block; text-decoration: none;">
+                    <img src="${photoSrc}" alt="${img.name || 'Photo'}" style="width: 100%; height: auto; display: block; max-height: 220px; object-fit: contain; background: #f8fafc;" />
+                  </a>
+                  <div style="padding: 10px 12px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                    <span style="font-size: 12px; font-weight: 600; color: #334155; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 170px;" title="${img.name || 'Photo'}">${img.name || 'Photo'}</span>
+                    <a href="${photoHref}" download="${img.name || 'photo'}" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 5px 12px; background: #1a73e8; color: #ffffff; text-decoration: none; border-radius: 4px; font-size: 11.5px; font-weight: 600;">
+                      ⬇️ Download
+                    </a>
+                  </div>
+                </div>
+              `;
+            }).join('')}
           </div>
         </div>
       `;
@@ -342,14 +355,23 @@ ${user?.designation || 'Staff'}`
 
     if (drives.length > 0) {
       extraSections += `
-        <div style="margin-top: 18px; border-top: 1px solid #e5e7eb; padding-top: 12px;">
-          <div style="font-size: 12px; font-weight: 700; color: #4b5563; margin-bottom: 8px;">📁 Google Drive Files (${drives.length})</div>
-          <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0;">
+          <div style="font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+            📁 Google Drive Files (${drives.length})
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
             ${drives.map(d => `
-              <a href="${d.url}" target="_blank" rel="noopener noreferrer" style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; text-decoration: none; color: #0f172a; font-size: 13px; font-weight: 600;">
-                <span style="font-size: 18px;">📁</span>
-                <span>${d.title || d.url}</span>
-                <span style="font-size: 11px; background: #e2e8f0; padding: 2px 8px; border-radius: 4px; color: #475569; margin-left: auto;">Open in Google Drive ➔</span>
+              <a href="${d.url}" target="_blank" rel="noopener noreferrer" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; text-decoration: none; color: #0f172a; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <span style="font-size: 20px;">📁</span>
+                  <div>
+                    <div style="font-size: 13.5px; font-weight: 600; color: #1e293b;">${d.title || d.url}</div>
+                    <div style="font-size: 11px; color: #64748b;">Google Drive File Link</div>
+                  </div>
+                </div>
+                <span style="display: inline-block; padding: 6px 14px; background: #2563eb; color: #ffffff; border-radius: 6px; font-size: 12px; font-weight: 600;">
+                  Open in Google Drive ➔
+                </span>
               </a>
             `).join('')}
           </div>
@@ -359,16 +381,35 @@ ${user?.designation || 'Staff'}`
 
     if (atts.length > 0) {
       extraSections += `
-        <div style="margin-top: 18px; border-top: 1px solid #e5e7eb; padding-top: 12px;">
-          <div style="font-size: 12px; font-weight: 700; color: #4b5563; margin-bottom: 8px;">📎 Attachments (${atts.length})</div>
-          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-            ${atts.map(f => `
-              <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 12px; color: #1e293b;">
-                <span style="font-size: 16px;">📄</span>
-                <span style="font-weight: 600;">${f.name}</span>
-                <span style="color: #64748b; font-size: 11px;">(${formatFileSize(f.size)})</span>
-              </div>
-            `).join('')}
+        <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0;">
+          <div style="font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+            📎 Attached Files (${atts.length})
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            ${atts.map(f => {
+              const fileHref = f.downloadUrl || f.url || '#';
+              return `
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                  <div style="display: flex; align-items: center; gap: 12px;">
+                    <span style="font-size: 24px;">📄</span>
+                    <div>
+                      <div style="font-size: 13.5px; font-weight: 600; color: #0f172a;">${f.name}</div>
+                      <div style="font-size: 11.5px; color: #64748b;">${formatFileSize(f.size)} · Document Attachment</div>
+                    </div>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    ${f.url ? `
+                      <a href="${f.url}" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 7px 14px; background: #ffffff; color: #1a73e8; border: 1px solid #1a73e8; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: 600;">
+                        👁️ View
+                      </a>
+                    ` : ''}
+                    <a href="${fileHref}" download="${f.name}" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 7px 16px; background: #1a73e8; color: #ffffff; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: 600; box-shadow: 0 1px 2px rgba(26,115,232,0.3);">
+                      ⬇️ Download File
+                    </a>
+                  </div>
+                </div>
+              `;
+            }).join('')}
           </div>
         </div>
       `;
@@ -385,48 +426,123 @@ ${user?.designation || 'Staff'}`
     `;
   };
 
-  // Attach File Handler
+  // Attach File Handler — Immediately uploads to Cloudinary storage
   const handleFileUpload = (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
     files.forEach((file) => {
+      const tempId = Date.now() + Math.random().toString(36).substring(2, 7);
+      setAttachments((prev) => [
+        ...prev,
+        {
+          id: tempId,
+          name: file.name,
+          size: file.size,
+          type: file.type || 'application/octet-stream',
+          isUploading: true,
+        },
+      ]);
+
       const reader = new FileReader();
-      reader.onload = (event) => {
-        setAttachments((prev) => [
-          ...prev,
-          {
-            id: Date.now() + Math.random().toString(36).substring(2, 7),
-            name: file.name,
-            size: file.size,
-            type: file.type || 'application/octet-stream',
-            dataUrl: event.target.result,
-          },
-        ]);
+      reader.onload = async (event) => {
+        const base64Data = event.target.result;
+        try {
+          const res = await api.post('/email/upload-file', {
+            file: base64Data,
+            fileName: file.name,
+            folder: 'email_attachments',
+          });
+          if (res.data?.success && res.data?.url) {
+            setAttachments((prev) =>
+              prev.map((item) =>
+                item.id === tempId
+                  ? {
+                      ...item,
+                      url: res.data.url,
+                      downloadUrl: res.data.downloadUrl || res.data.url,
+                      dataUrl: res.data.url,
+                      isUploading: false,
+                    }
+                  : item
+              )
+            );
+          } else {
+            setAttachments((prev) =>
+              prev.map((item) =>
+                item.id === tempId ? { ...item, dataUrl: base64Data, isUploading: false } : item
+              )
+            );
+          }
+        } catch (err) {
+          console.error('File upload error:', err);
+          setAttachments((prev) =>
+            prev.map((item) =>
+              item.id === tempId ? { ...item, dataUrl: base64Data, isUploading: false } : item
+            )
+          );
+        }
       };
       reader.readAsDataURL(file);
     });
     e.target.value = '';
   };
 
-  // Photos File Upload Handler
+  // Photos File Upload Handler — Immediately uploads to Cloudinary storage
   const handlePhotoUpload = (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
     files.forEach((file) => {
+      const tempId = Date.now() + Math.random().toString(36).substring(2, 7);
+      setPhotos((prev) => [
+        ...prev,
+        {
+          id: tempId,
+          name: file.name,
+          size: file.size,
+          isUploading: true,
+        },
+      ]);
+
       const reader = new FileReader();
-      reader.onload = (event) => {
-        setPhotos((prev) => [
-          ...prev,
-          {
-            id: Date.now() + Math.random().toString(36).substring(2, 7),
-            name: file.name,
-            size: file.size,
-            url: '',
-            dataUrl: event.target.result,
-          },
-        ]);
+      reader.onload = async (event) => {
+        const base64Data = event.target.result;
+        try {
+          const res = await api.post('/email/upload-file', {
+            file: base64Data,
+            fileName: file.name,
+            folder: 'email_photos',
+          });
+          if (res.data?.success && res.data?.url) {
+            setPhotos((prev) =>
+              prev.map((item) =>
+                item.id === tempId
+                  ? {
+                      ...item,
+                      url: res.data.url,
+                      downloadUrl: res.data.downloadUrl || res.data.url,
+                      dataUrl: res.data.url,
+                      isUploading: false,
+                    }
+                  : item
+              )
+            );
+          } else {
+            setPhotos((prev) =>
+              prev.map((item) =>
+                item.id === tempId ? { ...item, dataUrl: base64Data, isUploading: false } : item
+              )
+            );
+          }
+        } catch (err) {
+          console.error('Photo upload error:', err);
+          setPhotos((prev) =>
+            prev.map((item) =>
+              item.id === tempId ? { ...item, dataUrl: base64Data, isUploading: false } : item
+            )
+          );
+        }
       };
       reader.readAsDataURL(file);
     });
@@ -514,9 +630,59 @@ ${user?.designation || 'Staff'}`
     setSentSuccess('');
     setSending(true);
 
-    const generatedHtml = generateEmailHtml(body, attachments, driveLinks, photos);
-
     try {
+      // 1. Ensure all attachments are uploaded to Cloudinary
+      let readyAttachments = [...attachments];
+      for (let i = 0; i < readyAttachments.length; i++) {
+        const a = readyAttachments[i];
+        if ((!a.url || a.url.startsWith('data:')) && (a.dataUrl || a.base64)) {
+          try {
+            const upRes = await api.post('/email/upload-file', {
+              file: a.dataUrl || a.base64,
+              fileName: a.name,
+              folder: 'email_attachments',
+            });
+            if (upRes.data?.success && upRes.data?.url) {
+              readyAttachments[i] = {
+                ...a,
+                url: upRes.data.url,
+                downloadUrl: upRes.data.downloadUrl || upRes.data.url,
+                dataUrl: '',
+              };
+            }
+          } catch (upErr) {
+            console.error('Attachment upload error:', upErr);
+          }
+        }
+      }
+
+      // 2. Ensure all photos are uploaded to Cloudinary
+      let readyPhotos = [...photos];
+      for (let i = 0; i < readyPhotos.length; i++) {
+        const p = readyPhotos[i];
+        if ((!p.url || p.url.startsWith('data:')) && (p.dataUrl || p.base64)) {
+          try {
+            const upRes = await api.post('/email/upload-file', {
+              file: p.dataUrl || p.base64,
+              fileName: p.name,
+              folder: 'email_photos',
+            });
+            if (upRes.data?.success && upRes.data?.url) {
+              readyPhotos[i] = {
+                ...p,
+                url: upRes.data.url,
+                downloadUrl: upRes.data.downloadUrl || upRes.data.url,
+                dataUrl: '',
+              };
+            }
+          } catch (upErr) {
+            console.error('Photo upload error:', upErr);
+          }
+        }
+      }
+
+      const generatedHtml = generateEmailHtml(body, readyAttachments, driveLinks, readyPhotos);
+
       // Background auto-tracking for Managing Director / Admin without showing banner to user
       const res = await api.post('/email/send', {
         fromEmail: fromEmail.trim(),
@@ -524,15 +690,15 @@ ${user?.designation || 'Staff'}`
         subject: subject.trim(),
         body: body.trim(),
         html: generatedHtml,
-        attachmentsList: attachments.map((a) => ({
+        attachmentsList: readyAttachments.map((a) => ({
           name: a.name,
           size: a.size,
           type: a.type,
           url: a.url || '',
-          base64: a.dataUrl || '',
+          downloadUrl: a.downloadUrl || a.url || '',
         })),
         driveLinks,
-        photos,
+        photos: readyPhotos,
         templateId: selectedTemplateId,
         trackMD: true, // Always automatically logged in portal
       });
@@ -543,9 +709,9 @@ ${user?.designation || 'Staff'}`
         subject: subject.trim(),
         body: body.trim(),
         html: generatedHtml,
-        attachments: [...attachments],
+        attachments: [...readyAttachments],
         driveLinks: [...driveLinks],
-        photos: [...photos],
+        photos: [...readyPhotos],
         status: 'Delivered',
         sentVia: 'GoDaddy SMTP via n8n Automation',
         createdAt: new Date().toISOString(),
@@ -1073,20 +1239,105 @@ ${user?.designation || 'Staff'}`
                   </div>
                 )}
 
-                {/* Display any Attached Files if present */}
-                {selectedEmail.attachments && selectedEmail.attachments.length > 0 && !selectedEmail.html && (
-                  <div style={{ marginTop: 12, padding: 14, background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: TEXT_MUTED, marginBottom: 8 }}>
+                {/* Display Attached Files & Media with Download Buttons */}
+                {selectedEmail.attachments && selectedEmail.attachments.length > 0 && (
+                  <div style={{ marginTop: 14, padding: 16, background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 700, color: '#334155', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
                       📎 Attached Documents ({selectedEmail.attachments.length}):
                     </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                      {selectedEmail.attachments.map((att, idx) => (
-                        <div key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: WHITE, border: '1px solid #cbd5e1', borderRadius: 6, fontSize: 12, color: '#334155' }}>
-                          <span>📄</span>
-                          <span style={{ fontWeight: 600 }}>{att.name}</span>
-                          {att.size && <span style={{ color: '#64748b', fontSize: 11 }}>({formatFileSize(att.size)})</span>}
-                        </div>
-                      ))}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                      {selectedEmail.attachments.map((att, idx) => {
+                        const fileLink = att.downloadUrl || att.url || att.base64;
+                        return (
+                          <div
+                            key={idx}
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', justifyContent: 'space-between',
+                              gap: 12, padding: '8px 14px', background: WHITE,
+                              border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 12, color: '#1e293b',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontSize: 18 }}>📄</span>
+                              <div>
+                                <div style={{ fontWeight: 600, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {att.name}
+                                </div>
+                                {att.size && <div style={{ color: '#64748b', fontSize: 10.5 }}>{formatFileSize(att.size)}</div>}
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              {fileLink && (
+                                <a
+                                  href={fileLink}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{ padding: '4px 10px', background: '#f1f5f9', color: '#1a73e8', borderRadius: 4, textDecoration: 'none', fontSize: 11, fontWeight: 600 }}
+                                >
+                                  View
+                                </a>
+                              )}
+                              {fileLink && (
+                                <a
+                                  href={fileLink}
+                                  download={att.name || 'document'}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{ padding: '4px 10px', background: '#1a73e8', color: WHITE, borderRadius: 4, textDecoration: 'none', fontSize: 11, fontWeight: 600 }}
+                                >
+                                  ⬇️ Download
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Display Photos with Download Buttons */}
+                {selectedEmail.photos && selectedEmail.photos.length > 0 && (
+                  <div style={{ marginTop: 14, padding: 16, background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 700, color: '#334155', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      📷 Attached Photos ({selectedEmail.photos.length}):
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+                      {selectedEmail.photos.map((photo, idx) => {
+                        const photoLink = photo.downloadUrl || photo.url || photo.dataUrl;
+                        return (
+                          <div
+                            key={idx}
+                            style={{
+                              border: '1px solid #cbd5e1', borderRadius: 8, overflow: 'hidden',
+                              background: WHITE, maxWidth: 200, boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+                            }}
+                          >
+                            <img
+                              src={photo.url || photo.dataUrl}
+                              alt={photo.name || 'Photo'}
+                              style={{ width: '100%', height: 120, objectFit: 'cover' }}
+                            />
+                            <div style={{ padding: '8px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                              <span style={{ fontSize: 11, color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 90 }}>
+                                {photo.name || 'Photo'}
+                              </span>
+                              {photoLink && (
+                                <a
+                                  href={photoLink}
+                                  download={photo.name || 'photo'}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{ padding: '3px 8px', background: '#1a73e8', color: WHITE, borderRadius: 4, textDecoration: 'none', fontSize: 10.5, fontWeight: 600 }}
+                                >
+                                  ⬇️ Download
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -1581,7 +1832,7 @@ ${user?.designation || 'Staff'}`
                     boxShadow: composeTab === 'write' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none'
                   }}
                 >
-                  ✏️ Write
+                   Write
                 </button>
                 <button
                   type="button"
@@ -1594,7 +1845,7 @@ ${user?.designation || 'Staff'}`
                     boxShadow: composeTab === 'preview' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none'
                   }}
                 >
-                  👁️ Preview
+                   Preview
                 </button>
               </div>
             </div>

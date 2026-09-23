@@ -183,6 +183,37 @@ router.post('/upload-image', protect, async (req, res) => {
   }
 });
 
+// POST /api/email/upload-file — Upload any email attachment or photo to Cloudinary
+router.post('/upload-file', protect, async (req, res) => {
+  try {
+    const { file, fileName, folder } = req.body;
+    if (!file) {
+      return res.status(400).json({ message: 'No file data provided for upload' });
+    }
+
+    const uploadedUrl = await uploadToCloudinary(file, folder || 'email_attachments', fileName);
+    if (!uploadedUrl) {
+      return res.status(500).json({ message: 'Failed to upload file to Cloudinary' });
+    }
+
+    let downloadUrl = uploadedUrl;
+    if (uploadedUrl.includes('/upload/')) {
+      downloadUrl = uploadedUrl.replace('/upload/', '/upload/fl_attachment/');
+    }
+
+    res.json({
+      success: true,
+      url: uploadedUrl,
+      downloadUrl,
+      fileName: fileName || 'attachment',
+      message: 'File uploaded to Cloudinary successfully'
+    });
+  } catch (err) {
+    console.error('[Email File Upload Error]:', err.message);
+    res.status(500).json({ message: err.message || 'File upload failure' });
+  }
+});
+
 // POST /api/email/bulk-blast — Trigger production n8n Bulk Email Broadcast
 // Restricted exclusively to CTO, HR, and Managing Director (or CEO/Admin)
 router.post('/bulk-blast', protect, async (req, res) => {
@@ -366,12 +397,66 @@ router.post('/send', protect, async (req, res) => {
       return res.status(400).json({ message: 'Recipient Email, Subject, and Message Body are required.' });
     }
 
+    // 1. Auto-upload any base64 photos to Cloudinary so receiver inboxes (Gmail/Outlook) never get broken image icons
+    let processedPhotos = Array.isArray(req.body.photos) ? [...req.body.photos] : [];
+    for (let i = 0; i < processedPhotos.length; i++) {
+      const p = processedPhotos[i];
+      const dataStr = p.dataUrl || p.url || '';
+      if (dataStr && dataStr.startsWith('data:')) {
+        const cloudUrl = await uploadToCloudinary(dataStr, 'email_photos', p.name || `photo_${Date.now()}`);
+        if (cloudUrl) {
+          let downloadUrl = cloudUrl;
+          if (cloudUrl.includes('/upload/')) {
+            downloadUrl = cloudUrl.replace('/upload/', '/upload/fl_attachment/');
+          }
+          processedPhotos[i] = {
+            ...p,
+            url: cloudUrl,
+            downloadUrl,
+            dataUrl: '',
+          };
+        }
+      }
+    }
+
+    // 2. Auto-upload any base64 attachments to Cloudinary so receiver inboxes have direct download links
+    let processedAttachments = Array.isArray(req.body.attachmentsList) ? [...req.body.attachmentsList] : (Array.isArray(req.body.attachments) ? [...req.body.attachments] : []);
+    for (let i = 0; i < processedAttachments.length; i++) {
+      const a = processedAttachments[i];
+      const dataStr = a.base64 || a.dataUrl || a.url || '';
+      if (dataStr && dataStr.startsWith('data:')) {
+        const cloudUrl = await uploadToCloudinary(dataStr, 'email_attachments', a.name || `attachment_${Date.now()}`);
+        if (cloudUrl) {
+          let downloadUrl = cloudUrl;
+          if (cloudUrl.includes('/upload/')) {
+            downloadUrl = cloudUrl.replace('/upload/', '/upload/fl_attachment/');
+          }
+          processedAttachments[i] = {
+            ...a,
+            url: cloudUrl,
+            downloadUrl,
+            base64: '',
+            dataUrl: '',
+          };
+        }
+      }
+    }
+
+    // 3. Sanitized HTML: ensure any base64 dataUrl images that were just uploaded get replaced with their Cloudinary URLs
+    let finalHtml = req.body.html || emailBody.replace(/\n/g, '<br/>');
+    processedPhotos.forEach(p => {
+      if (p.url && p.name) {
+        // If data:image was in the html, replace it with the secure Cloudinary url
+        finalHtml = finalHtml.replace(/src=["']data:image\/[^"']+["']/i, `src="${p.url}"`);
+      }
+    });
+
     let sentVia = 'n8n Automation Webhook';
     let success = false;
     let n8nDetails = null;
     let n8nError = null;
 
-    // 1. Dispatch via n8n webhook service if configured
+    // 4. Dispatch via n8n webhook service if configured
     if (process.env.N8N_WEBHOOK_URL) {
       try {
         const n8nRes = await axios.post(process.env.N8N_WEBHOOK_URL, {
@@ -388,11 +473,11 @@ router.post('/send', protect, async (req, res) => {
             emailBody: emailBody,
             body: emailBody,
             message: emailBody,
-            html: req.body.html || emailBody.replace(/\n/g, '<br/>'),
-            attachments: req.body.attachments || '',
-            fileAttachments: req.body.fileAttachments || '',
+            html: finalHtml,
+            attachments: processedAttachments,
+            fileAttachments: processedAttachments,
             driveLinks: req.body.driveLinks || [],
-            photos: req.body.photos || [],
+            photos: processedPhotos,
             templateId,
             sentBy: req.user?.name || req.user?.email || 'Staff',
             timestamp: new Date().toISOString()
@@ -515,10 +600,10 @@ router.post('/send', protect, async (req, res) => {
         recipientEmail: targetRecipient,
         subject: emailSubject,
         body: emailBody,
-        html: req.body.html || emailBody.replace(/\n/g, '<br/>'),
-        attachments: req.body.attachmentsList || req.body.attachments || [],
+        html: finalHtml,
+        attachments: processedAttachments,
         driveLinks: req.body.driveLinks || [],
-        photos: req.body.photos || [],
+        photos: processedPhotos,
         templateId,
         sentVia: success ? sentVia : 'n8n Automation Webhook (Failed)',
         status: finalStatus,
