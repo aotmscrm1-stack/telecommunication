@@ -32,6 +32,7 @@ export const Footer = () => {
 
   return (
     <footer
+      id="contact"
       style={{
         position: 'relative',
         background: 'linear-gradient(180deg, #0b1120 0%, #070a12 100%)',

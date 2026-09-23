@@ -203,7 +203,7 @@ export const FeaturesSection = () => {
 
   return (
     <section
-      id="features"
+      id="about"
       className="lp-features-section"
       style={{
         padding: '100px 24px 110px',
@@ -213,6 +213,7 @@ export const FeaturesSection = () => {
         position: 'relative',
       }}
     >
+      <div id="features" style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }} />
       {/* ══════════════════════════════════════════════
           SECTION HEADER
           ══════════════════════════════════════════════ */}

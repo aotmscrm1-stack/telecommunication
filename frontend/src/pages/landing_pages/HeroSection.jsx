@@ -56,6 +56,7 @@ export function HeroSection() {
 
   return (
     <section
+      id="home"
       style={{
         position: 'relative',
         width: '100%',

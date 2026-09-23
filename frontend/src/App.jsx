@@ -32,8 +32,9 @@ import CustomActions from './pages/CustomActions';
 import WorkspacePreferences from './pages/WorkspacePreferences';
 import PermissionTemplates from './pages/PermissionTemplates';
 import Billing from './pages/Billing';
-import Payslip from './Finance/Payslip';
-import Invoice from './Finance/Invoice';
+import Payslip from './Finance/payslip/Payslip';
+import Invoice from './Finance/invoice/Invoice';
+import Quotation from './Finance/quotation/Quotation';
 import OfferLetter from './Finance/offerletter/OfferLetter';
 import Landing from './pages/landing_pages/Landing';
 import LiveEmployeeTracking from './Management/Attedence/LiveEmployee/LiveEmployeeTracking';
@@ -171,7 +172,7 @@ export default function App() {
             <Route path="offer-letter" element={<AdminRoute><OfferLetter /></AdminRoute>} />
             <Route path="payslips" element={<AdminRoute><Payslip /></AdminRoute>} />
             <Route path="payslip" element={<Navigate to="/payslips" replace />} />
-            <Route path="quotation" element={<AdminRoute><Invoice /></AdminRoute>} />
+            <Route path="quotation" element={<AdminRoute><Quotation /></AdminRoute>} />
             <Route path="invoice" element={<AdminRoute><Invoice /></AdminRoute>} />
             <Route path="invoices" element={<Navigate to="/invoice" replace />} />
             <Route path="users" element={<AdminRoute><Users /></AdminRoute>} />

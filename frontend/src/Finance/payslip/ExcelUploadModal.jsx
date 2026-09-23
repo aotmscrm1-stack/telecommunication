@@ -132,7 +132,7 @@ export default function ExcelUploadModal({ isOpen, onClose, onImportSuccess }) {
   });
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto" style={{ fontFamily: "'Inter', sans-serif" }}>
       <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[92vh] flex flex-col overflow-hidden animate-scaleIn border border-gray-200">
         {/* ── Modal Header ────────────────────────────────────────────── */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
@@ -345,7 +345,7 @@ export default function ExcelUploadModal({ isOpen, onClose, onImportSuccess }) {
                               !row.isValid ? 'bg-rose-50/30' : ''
                             }`}
                           >
-                            <td className="py-2.5 px-3 font-mono text-gray-500 font-bold">
+                            <td className="py-2.5 px-3 text-gray-500 font-bold">
                               #{row.rowNumber}
                             </td>
                             <td className="py-2.5 px-3">
@@ -362,16 +362,16 @@ export default function ExcelUploadModal({ isOpen, onClose, onImportSuccess }) {
                             <td className="py-2.5 px-3 font-semibold text-gray-900">
                               {row.data.employee_name || '—'}
                             </td>
-                            <td className="py-2.5 px-3 font-mono font-medium text-indigo-600">
+                            <td className="py-2.5 px-3 font-medium text-indigo-600">
                               {row.data.employee_id || '—'}
                             </td>
                             <td className="py-2.5 px-3 text-gray-700">
                               {row.data.payslip_month || '—'}
                             </td>
-                            <td className="py-2.5 px-3 text-right font-mono font-medium text-gray-900">
+                            <td className="py-2.5 px-3 text-right font-medium text-gray-900">
                               ₹{Number(row.data.gross_salary || 0).toLocaleString('en-IN')}
                             </td>
-                            <td className="py-2.5 px-3 text-right font-mono font-bold text-emerald-600">
+                            <td className="py-2.5 px-3 text-right font-bold text-emerald-600">
                               {row.isValid
                                 ? `₹${Number(row.calculated?.net_salary || 0).toLocaleString('en-IN')}`
                                 : '—'}

@@ -22,12 +22,12 @@ import {
   Save,
   Edit3,
 } from 'lucide-react';
-import { payslipsAPI } from '../services/api';
-import { useAuth } from '../context/AuthContext';
-import { canDelete } from '../utils/permissions';
-import { numberToWords } from '../utils/numberToWords';
-import PayslipDocument from './payslip/PayslipDocument';
-import ExcelUploadModal from './payslip/ExcelUploadModal';
+import { payslipsAPI } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import { canDelete } from '../../utils/permissions';
+import { numberToWords } from '../../utils/numberToWords';
+import PayslipDocument from './PayslipDocument';
+import ExcelUploadModal from './ExcelUploadModal';
 
 // Month options generator
 const MONTH_NAMES = [
@@ -519,7 +519,7 @@ export default function Payslip() {
   const fmt = (v) => (v !== undefined && v !== null && v !== '' ? Number(v).toLocaleString('en-IN') : '0');
 
   return (
-    <div style={{ padding: '24px 32px', backgroundColor: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
+    <div style={{ padding: '24px 32px', backgroundColor: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box', fontFamily: "'Inter', sans-serif" }}>
       
       {/* ── Top Header Toolbar ──────────────────────────────────────────────── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
@@ -748,11 +748,11 @@ export default function Payslip() {
           )}
 
           {/* Main Form Builder & Live Preview Split View */}
-          <div style={{ display: 'grid', gridTemplateColumns: previewMode === 'fullscreen' ? '1fr' : '480px 1fr', gap: 24, alignItems: 'start' }}>
+          <div className={`grid gap-6 ${previewMode === 'split' ? 'lg:grid-cols-12' : 'grid-cols-1'}`}>
 
             {/* Left Form Controls */}
             {previewMode !== 'fullscreen' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <div className={previewMode === 'split' ? 'lg:col-span-6 space-y-5' : 'space-y-5'}>
                 
                 {/* Card 1: Employee & Employment Details */}
                 <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
@@ -781,7 +781,7 @@ export default function Payslip() {
                           value={form.employee_id || ''}
                           onChange={e => setForm({ ...form, employee_id: e.target.value })}
                           placeholder="e.g. AOTMS-EMP-104"
-                          style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, fontFamily: 'monospace' }}
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
                         />
                       </div>
                     </div>
@@ -865,7 +865,7 @@ export default function Payslip() {
                           value={form.bank_account_number || ''}
                           onChange={e => setForm({ ...form, bank_account_number: e.target.value })}
                           placeholder="Enter account number"
-                          style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, fontFamily: 'monospace' }}
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
                         />
                       </div>
                     </div>
@@ -879,7 +879,7 @@ export default function Payslip() {
                           value={form.pan_number || ''}
                           onChange={e => setForm({ ...form, pan_number: e.target.value.toUpperCase() })}
                           placeholder="ABCDE1234F"
-                          style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, fontFamily: 'monospace', textTransform: 'uppercase' }}
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, textTransform: 'uppercase' }}
                         />
                       </div>
                       <div>
@@ -889,7 +889,7 @@ export default function Payslip() {
                           value={form.pf_number || ''}
                           onChange={e => setForm({ ...form, pf_number: e.target.value })}
                           placeholder="AP/VJA/0012345/000/0001 (Optional)"
-                          style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, fontFamily: 'monospace' }}
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
                         />
                       </div>
                     </div>
@@ -1019,28 +1019,40 @@ export default function Payslip() {
             )}
 
             {/* Right Live Preview Sticky Panel */}
-            <div style={{ position: 'sticky', top: 24 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0f172a', color: '#ffffff', padding: '12px 20px', borderRadius: '12px 12px 0 0' }}>
-                <div style={{ fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Eye size={18} style={{ color: '#38bdf8' }} /> Live Payslip Preview
+            <div className="lg:col-span-6">
+              <div className="sticky top-6 space-y-3">
+                <div className="flex items-center justify-between bg-white px-4 py-2.5 rounded-xl border border-slate-200/80 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
+                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Live Payslip Preview</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {grossNum > 0 && (
+                      <span className="text-xs bg-blue-50 text-blue-700 font-bold px-2.5 py-1 rounded-lg border border-blue-200">
+                        Net: ₹{fmt(netSalary)}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setPreviewMode(previewMode === 'split' ? 'fullscreen' : 'split')}
+                      className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-all"
+                    >
+                      {previewMode === 'split' ? 'Full Width' : 'Split View'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDownloadPayslip}
+                      disabled={saving}
+                      className="px-3 py-1 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold rounded-lg flex items-center gap-1 shadow-sm"
+                    >
+                      <Download size={12} /> PDF
+                    </button>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  {grossNum > 0 && (
-                    <span style={{ fontSize: 12, background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '4px 10px', borderRadius: 6, fontWeight: 700 }}>
-                      Net: ₹{fmt(netSalary)}
-                    </span>
-                  )}
-                  <button
-                    onClick={() => setPreviewMode(previewMode === 'split' ? 'fullscreen' : 'split')}
-                    style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}
-                  >
-                    {previewMode === 'split' ? 'Full Width' : 'Split View'}
-                  </button>
-                </div>
-              </div>
 
-              <div style={{ padding: 16, backgroundColor: '#f1f5f9', overflowX: 'auto', border: '1px solid #e2e8f0', borderTop: 'none', borderRadius: '0 0 12px 12px' }}>
-                <PayslipDocument ref={printRef} payslip={draftPayslip} isPreview={true} />
+                <div className="p-2 sm:p-4 bg-slate-100/70 border border-slate-200 rounded-2xl shadow-inner">
+                  <PayslipDocument ref={printRef} payslip={draftPayslip} isPreview={true} />
+                </div>
               </div>
             </div>
 
@@ -1116,7 +1128,7 @@ export default function Payslip() {
                   {history.map((slip, idx) => (
                     <tr key={slip._id || idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
                       <td style={{ padding: '12px 16px', fontWeight: 700, color: '#0f172a' }}>{slip.employee_name}</td>
-                      <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontWeight: 600, color: '#2563eb' }}>{slip.employee_id}</td>
+                      <td style={{ padding: '12px 16px', fontWeight: 600, color: '#2563eb' }}>{slip.employee_id}</td>
                       <td style={{ padding: '12px 16px', fontWeight: 600, color: '#334155' }}>{slip.payslip_month}</td>
                       <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 700, color: '#0f172a' }}>₹{fmt(slip.gross_salary)}</td>
                       <td style={{ padding: '12px 16px', textAlign: 'center' }}>
