@@ -13,6 +13,7 @@ import {
   RefreshCw,
   X,
   Briefcase,
+  Plus,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -114,24 +115,23 @@ export const OfferLetterDocument = forwardRef(({ invoiceData = {}, isPreview = f
   const pageContainerStyle = {
     backgroundColor: '#ffffff',
     color: '#000000',
-    fontFamily: "'Segoe UI', 'Helvetica Neue', Arial, sans-serif",
-    fontSize: '14px',
-    lineHeight: '1.7',
-    width: '210mm',
-    minHeight: '296.5mm',
-    height: '296.5mm',
-    maxWidth: '100%',
+    fontFamily: "'Inter', sans-serif",
+    fontSize: isPreview ? '13px' : '14px',
+    lineHeight: '1.65',
+    width: '100%',
+    maxWidth: '820px',
+    minHeight: isPreview ? 'auto' : '296.5mm',
     boxSizing: 'border-box',
-    padding: '12mm 18mm 12mm 18mm',
+    padding: isPreview ? '22px 26px' : '12mm 18mm',
     border: '1.5px solid #000000',
     borderRadius: '0px',
-    marginBottom: isPreview ? '28px' : '0px',
+    marginBottom: isPreview ? '24px' : '0px',
     pageBreakAfter: 'always',
     pageBreakInside: 'avoid',
     breakAfter: 'page',
     position: 'relative',
     background: '#ffffff',
-    boxShadow: isPreview ? '0 6px 20px rgba(0,0,0,0.08)' : 'none',
+    boxShadow: isPreview ? '0 4px 14px rgba(0,0,0,0.08)' : 'none',
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'flex-start',
@@ -149,7 +149,7 @@ export const OfferLetterDocument = forwardRef(({ invoiceData = {}, isPreview = f
   };
 
   return (
-    <div ref={ref} className="pdf-4page-container" style={{ width: '210mm', maxWidth: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
+    <div ref={ref} className="pdf-4page-container" style={{ width: '100%', maxWidth: '820px', margin: '0 auto', boxSizing: 'border-box' }}>
 
       {/* ── PAGE 1 OF 4: OFFER LETTER & GROSS CTC ───────────────────────── */}
       <div className="offer-letter-page" style={pageContainerStyle}>
@@ -422,7 +422,7 @@ export const OfferLetterDocument = forwardRef(({ invoiceData = {}, isPreview = f
       </div>
 
       {/* ── PAGE 4 OF 4: TERMS (PART 2), CHECKLIST & DECLARATION ────────── */}
-      <div className="offer-letter-page" style={{ ...pageContainerStyle, pageBreakAfter: 'avoid', breakAfter: 'avoid' }}>
+      <div className="offer-letter-page" style={{ ...pageContainerStyle, pageBreakAfter: 'avoid', breakAfter: 'avoid', marginBottom: '0px' }}>
         <div style={{ position: 'absolute', top: 12, right: 16, fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>Page 4 of 4</div>
 
         <div style={{ lineHeight: 1.72, fontSize: 14, color: '#1f2937', marginTop: 4 }}>
@@ -726,184 +726,156 @@ export default function OfferLetter() {
   };
 
   return (
-    <div style={{ padding: '24px 32px', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
-
-      {/* ── Top Header Toolbar ──────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
+    <div className="space-y-6 pb-16" style={{ fontFamily: "'Inter', sans-serif" }}>
+      {/* ── Top Header & Tab Navigation ────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
         <div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="flex items-center gap-3">
             <span style={{ padding: 8, borderRadius: 10, background: '#eff6ff', color: '#1d4ed8', display: 'flex' }}>
               <Briefcase size={24} />
             </span>
-            Offer Letter Generator
+            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">
+              Offer Letter Generator
+            </h1>
           </div>
-          <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>
-            Create custom salary offer letters, compensation plans, and download A4 5-page PDF documents.
-          </div>
+          <p className="text-sm text-slate-500 mt-1">
+            Create custom salary offer letters, compensation plans, and download A4 4-page PDF documents.
+          </p>
         </div>
 
-        {/* Tab & Action Controls */}
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <div style={{ background: '#e2e8f0', padding: 3, borderRadius: 8, display: 'flex', gap: 2 }}>
+        {/* Tab Switcher & Quick Actions */}
+        <div className="flex items-center gap-2">
+          <div className="flex p-1 bg-slate-100 rounded-xl border border-slate-200">
             <button
               onClick={() => setActiveTab('create')}
-              style={{
-                padding: '8px 16px', borderRadius: 6, border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                background: activeTab === 'create' ? '#ffffff' : 'transparent',
-                color: activeTab === 'create' ? '#0f172a' : '#64748b',
-                boxShadow: activeTab === 'create' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                transition: 'all 0.15s'
-              }}
+              className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
+                activeTab === 'create'
+                  ? 'bg-white text-blue-700 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
             >
               Form Builder
             </button>
             <button
               onClick={() => setActiveTab('history')}
-              style={{
-                padding: '8px 16px', borderRadius: 6, border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                background: activeTab === 'history' ? '#ffffff' : 'transparent',
-                color: activeTab === 'history' ? '#0f172a' : '#64748b',
-                boxShadow: activeTab === 'history' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                transition: 'all 0.15s'
-              }}
+              className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
+                activeTab === 'history'
+                  ? 'bg-white text-blue-700 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
             >
               Saved Records ({history.length})
             </button>
           </div>
 
           {activeTab === 'create' && (
-            <>
-              <button
-                onClick={() => setForm(SAMPLE_OFFER_LETTER)}
-                style={{
-                  padding: '9px 14px', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe',
-                  borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6
-                }}
-                title="Fill sample details from Jayaveer Offer Letter"
-              >
-                <Sparkles size={15} /> Sample Offer Letter
-              </button>
-
-              <button
-                onClick={handleSaveInvoice}
-                disabled={saving}
-                style={{
-                  padding: '9px 16px', background: '#0284c7', color: '#ffffff', border: 'none',
-                  borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6
-                }}
-              >
-                {saving ? <RefreshCw size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
-                Save Record
-              </button>
-
-              <button
-                onClick={() => handleDownloadPDF(printRef)}
-                disabled={downloadingPdf}
-                style={{
-                  padding: '9px 18px', background: '#059669', color: '#ffffff', border: 'none',
-                  borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
-                  boxShadow: '0 2px 4px rgba(5,150,105,0.2)'
-                }}
-              >
-                {downloadingPdf ? <RefreshCw size={15} className="animate-spin" /> : <Download size={15} />}
-                Download PDF
-              </button>
-            </>
+            <button
+              type="button"
+              onClick={() => setForm(SAMPLE_OFFER_LETTER)}
+              className="px-3 py-2 text-xs font-semibold bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-200 rounded-xl flex items-center gap-1.5 transition-all"
+              title="Fill sample details from Jayaveer Offer Letter"
+            >
+              <Sparkles size={15} /> Sample Offer Letter
+            </button>
           )}
         </div>
       </div>
 
-      {/* Notifications */}
+      {/* ── Alerts ─────────────────────────────────────────────────────────── */}
       {successMessage && (
-        <div style={{ background: '#ecfdf5', border: '1px solid #6ee7b7', color: '#047857', padding: '12px 16px', borderRadius: 8, marginBottom: 20, fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <CheckCircle2 size={18} /> {successMessage}
+        <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl flex items-center gap-3 text-sm animate-fade-in shadow-sm">
+          <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+          <span>{successMessage}</span>
         </div>
       )}
       {errorMessage && (
-        <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#b91c1c', padding: '12px 16px', borderRadius: 8, marginBottom: 20, fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <AlertCircle size={18} /> {errorMessage}
+        <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl flex items-center gap-3 text-sm animate-fade-in shadow-sm">
+          <AlertCircle size={18} className="text-rose-600 shrink-0" />
+          <span>{errorMessage}</span>
         </div>
       )}
 
-      {/* ── CREATE TAB: BUILDER & LIVE PREVIEW ──────────────────────────────── */}
+      {/* ── Tab 1: CREATE / EDIT OFFER LETTER ──────────────────────────────── */}
       {activeTab === 'create' && (
-        <div style={{ display: 'grid', gridTemplateColumns: previewMode === 'fullscreen' ? '1fr' : '440px 1fr', gap: 24, alignItems: 'start' }}>
-
-          {/* Left Form Controls */}
-          {previewMode !== 'fullscreen' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-
+        <div className={`grid gap-6 ${previewMode === 'split' ? 'lg:grid-cols-12' : 'grid-cols-1'}`}>
+          {/* Left Form Controls (6 cols in split) */}
+          <div className={previewMode === 'split' ? 'lg:col-span-6 space-y-5' : 'space-y-5'}>
+            <form onSubmit={(e) => { e.preventDefault(); handleSaveInvoice(); }} className="space-y-5">
+              
               {/* Card 1: Candidate / Recipient Details */}
-              <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <User size={18} style={{ color: '#0284c7' }} /> Candidate Details
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                    <User size={18} className="text-blue-600" /> Candidate Details
+                  </h2>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div className="space-y-3">
                   <div>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Candidate Name *</label>
+                    <label className="text-xs font-semibold text-slate-600 mb-1 block">Candidate Name *</label>
                     <input
                       type="text"
                       value={form.client_name || ''}
                       onChange={e => setForm({ ...form, client_name: e.target.value })}
                       placeholder="e.g. Candidate Name"
-                      style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 font-medium"
+                      required
                     />
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Designation</label>
+                      <label className="text-xs font-semibold text-slate-600 mb-1 block">Designation</label>
                       <input
                         type="text"
                         value={form.designation || ''}
                         onChange={e => setForm({ ...form, designation: e.target.value })}
                         placeholder="Developer"
-                        style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
                     <div>
-                      <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Offer Date</label>
+                      <label className="text-xs font-semibold text-slate-600 mb-1 block">Offer Date</label>
                       <input
                         type="text"
                         value={form.offer_date || ''}
                         onChange={e => setForm({ ...form, offer_date: e.target.value })}
                         placeholder="20th July 2026"
-                        style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Email</label>
+                    <label className="text-xs font-semibold text-slate-600 mb-1 block">Email</label>
                     <input
                       type="email"
                       value={form.email || ''}
                       onChange={e => setForm({ ...form, email: e.target.value })}
                       placeholder="jayaveer@aotms.com"
-                      style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Probation Period</label>
+                      <label className="text-xs font-semibold text-slate-600 mb-1 block">Probation Period</label>
                       <input
                         type="text"
                         value={form.probation_period || '01 FEB 2026 To 01 MAY 2026'}
                         onChange={e => setForm({ ...form, probation_period: e.target.value })}
                         placeholder="01 FEB 2026 To 01 MAY 2026"
-                        style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
                     <div>
-                      <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Standard Work Timings</label>
+                      <label className="text-xs font-semibold text-slate-600 mb-1 block">Standard Work Timings</label>
                       <input
                         type="text"
                         value={form.work_timings || '9:30am to 06:30pm'}
                         onChange={e => setForm({ ...form, work_timings: e.target.value })}
                         placeholder="9:30am to 06:30pm"
-                        style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
                   </div>
@@ -911,268 +883,369 @@ export default function OfferLetter() {
               </div>
 
               {/* Card 2: Annual CTC & Salary Calculations */}
-              <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <IndianRupee size={18} style={{ color: '#059669' }} /> Annual CTC & Financial Breakdown
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                    <IndianRupee size={18} className="text-emerald-600" /> Annual CTC &amp; Financial Breakdown
+                  </h2>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div className="space-y-3">
                   <div>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Total Annual CTC (₹) *</label>
+                    <label className="text-xs font-semibold text-slate-600 mb-1 block">Total Annual CTC (₹) *</label>
                     <input
                       type="number"
                       value={form.annual_ctc || ''}
                       onChange={e => updateAnnualCtc(e.target.value)}
                       placeholder="e.g. 240000"
-                      style={{ width: '100%', padding: '10px 14px', borderRadius: 6, border: '2px solid #059669', fontSize: 15, fontWeight: 700, color: '#047857' }}
+                      className="w-full px-3 py-2.5 text-base border-2 border-emerald-500 rounded-lg focus:ring-2 focus:ring-emerald-500 font-bold text-emerald-700"
+                      required
                     />
-                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
+                    <div className="text-xs text-slate-500 mt-1">
                       Monthly CTC: ₹{Number(form.monthly_ctc || 0).toLocaleString('en-IN')}
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, background: '#f8fafc', padding: 12, borderRadius: 8 }}>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
                     <div>
-                      <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Basic Salary (Monthly)</span>
-                      <strong style={{ fontSize: 13, color: '#1e293b' }}>₹{Number(form.basic_salary || 0).toLocaleString('en-IN')}</strong>
+                      <span className="text-[11px] text-slate-500 block font-medium">Basic Salary</span>
+                      <strong className="text-xs text-slate-800">₹{Number(form.basic_salary || 0).toLocaleString('en-IN')}</strong>
                     </div>
                     <div>
-                      <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>HRA (Monthly)</span>
-                      <strong style={{ fontSize: 13, color: '#1e293b' }}>₹{Number(form.hra || 0).toLocaleString('en-IN')}</strong>
+                      <span className="text-[11px] text-slate-500 block font-medium">HRA</span>
+                      <strong className="text-xs text-slate-800">₹{Number(form.hra || 0).toLocaleString('en-IN')}</strong>
                     </div>
                     <div>
-                      <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Medical Allowance</span>
-                      <strong style={{ fontSize: 13, color: '#1e293b' }}>₹{Number(form.medical_allowance || 0).toLocaleString('en-IN')}</strong>
+                      <span className="text-[11px] text-slate-500 block font-medium">Medical</span>
+                      <strong className="text-xs text-slate-800">₹{Number(form.medical_allowance || 0).toLocaleString('en-IN')}</strong>
                     </div>
                     <div>
-                      <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Conveyance</span>
-                      <strong style={{ fontSize: 13, color: '#1e293b' }}>₹{Number(form.conveyance || 0).toLocaleString('en-IN')}</strong>
+                      <span className="text-[11px] text-slate-500 block font-medium">Conveyance</span>
+                      <strong className="text-xs text-slate-800">₹{Number(form.conveyance || 0).toLocaleString('en-IN')}</strong>
                     </div>
                     <div>
-                      <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Food Transport</span>
-                      <strong style={{ fontSize: 13, color: '#1e293b' }}>₹{Number(form.food_transport_allowance || 1350).toLocaleString('en-IN')}</strong>
+                      <span className="text-[11px] text-slate-500 block font-medium">Food Transport</span>
+                      <strong className="text-xs text-slate-800">₹{Number(form.food_transport_allowance || 1350).toLocaleString('en-IN')}</strong>
                     </div>
                     <div>
-                      <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Incentive</span>
-                      <strong style={{ fontSize: 13, color: '#1e293b' }}>₹{Number(form.incentive || 0).toLocaleString('en-IN')}</strong>
+                      <span className="text-[11px] text-slate-500 block font-medium">Incentive</span>
+                      <strong className="text-xs text-slate-800">₹{Number(form.incentive || 0).toLocaleString('en-IN')}</strong>
                     </div>
                     <div>
-                      <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Dearness Allowance</span>
-                      <strong style={{ fontSize: 13, color: '#1e293b' }}>₹{Number(form.dearness_allowance || 3450).toLocaleString('en-IN')}</strong>
+                      <span className="text-[11px] text-slate-500 block font-medium">Dearness (DA)</span>
+                      <strong className="text-xs text-slate-800">₹{Number(form.dearness_allowance || 3450).toLocaleString('en-IN')}</strong>
+                    </div>
+                    <div>
+                      <span className="text-[11px] text-slate-500 block font-medium">Prof. Tax (PT)</span>
+                      <strong className="text-xs text-rose-700">₹{Number(form.professional_tax || 200).toLocaleString('en-IN')}</strong>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Card 3: Custom Earnings & Deductions */}
-              <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#047857' }}>Custom Earnings</span>
-                  <button onClick={addCustomEarning} style={{ background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', padding: '4px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-                    + Add Earning
-                  </button>
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                    <FileText size={18} className="text-blue-600" /> Custom Allowances &amp; Deductions
+                  </h2>
                 </div>
 
-                {(form.custom_earnings || []).map((earn, idx) => (
-                  <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-                    <input
-                      type="text"
-                      placeholder="Allowance Name"
-                      value={earn.name}
-                      onChange={e => {
-                        const updated = [...form.custom_earnings];
-                        updated[idx].name = e.target.value;
-                        setForm({ ...form, custom_earnings: updated });
-                      }}
-                      style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
-                    />
-                    <input
-                      type="number"
-                      placeholder="Monthly ₹"
-                      value={earn.monthly}
-                      onChange={e => {
-                        const updated = [...form.custom_earnings];
-                        const m = Number(e.target.value) || 0;
-                        updated[idx].monthly = m;
-                        updated[idx].annual = m * 12;
-                        setForm({ ...form, custom_earnings: updated });
-                      }}
-                      style={{ width: 90, padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
-                    />
-                    <button onClick={() => removeCustomEarning(idx)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}>
-                      <X size={16} />
-                    </button>
-                  </div>
-                ))}
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-xs font-bold text-emerald-700">Custom Earnings</span>
+                      <button
+                        type="button"
+                        onClick={addCustomEarning}
+                        className="px-2.5 py-1 text-xs font-semibold bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200 rounded-lg flex items-center gap-1 transition-all"
+                      >
+                        <Plus size={13} /> Add Earning
+                      </button>
+                    </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, marginBottom: 8 }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#b91c1c' }}>Custom Deductions</span>
-                  <button onClick={addCustomDeduction} style={{ background: '#fef2f2', color: '#b91c1c', border: '1px solid #fca5a5', padding: '4px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-                    + Add Deduction
-                  </button>
+                    {(form.custom_earnings || []).length === 0 ? (
+                      <p className="text-xs text-slate-400 italic">No custom earnings added</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {(form.custom_earnings || []).map((earn, idx) => (
+                          <div key={idx} className="flex gap-2 items-center">
+                            <input
+                              type="text"
+                              placeholder="Allowance Name"
+                              value={earn.name}
+                              onChange={e => {
+                                const updated = [...form.custom_earnings];
+                                updated[idx].name = e.target.value;
+                                setForm({ ...form, custom_earnings: updated });
+                              }}
+                              className="flex-1 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            />
+                            <input
+                              type="number"
+                              placeholder="Monthly ₹"
+                              value={earn.monthly}
+                              onChange={e => {
+                                const updated = [...form.custom_earnings];
+                                const m = Number(e.target.value) || 0;
+                                updated[idx].monthly = m;
+                                updated[idx].annual = m * 12;
+                                setForm({ ...form, custom_earnings: updated });
+                              }}
+                              className="w-24 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeCustomEarning(idx)}
+                              className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-all"
+                            >
+                              <X size={15} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-100">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-xs font-bold text-rose-700">Custom Deductions</span>
+                      <button
+                        type="button"
+                        onClick={addCustomDeduction}
+                        className="px-2.5 py-1 text-xs font-semibold bg-rose-50 text-rose-800 hover:bg-rose-100 border border-rose-200 rounded-lg flex items-center gap-1 transition-all"
+                      >
+                        <Plus size={13} /> Add Deduction
+                      </button>
+                    </div>
+
+                    {(form.custom_deductions || []).length === 0 ? (
+                      <p className="text-xs text-slate-400 italic">No custom deductions added</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {(form.custom_deductions || []).map((ded, idx) => (
+                          <div key={idx} className="flex gap-2 items-center">
+                            <input
+                              type="text"
+                              placeholder="Deduction Name"
+                              value={ded.name}
+                              onChange={e => {
+                                const updated = [...form.custom_deductions];
+                                updated[idx].name = e.target.value;
+                                setForm({ ...form, custom_deductions: updated });
+                              }}
+                              className="flex-1 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            />
+                            <input
+                              type="number"
+                              placeholder="Monthly ₹"
+                              value={ded.monthly}
+                              onChange={e => {
+                                const updated = [...form.custom_deductions];
+                                const m = Number(e.target.value) || 0;
+                                updated[idx].monthly = m;
+                                updated[idx].annual = m * 12;
+                                setForm({ ...form, custom_deductions: updated });
+                              }}
+                              className="w-24 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeCustomDeduction(idx)}
+                              className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-all"
+                            >
+                              <X size={15} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-
-                {(form.custom_deductions || []).map((ded, idx) => (
-                  <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-                    <input
-                      type="text"
-                      placeholder="Deduction Name"
-                      value={ded.name}
-                      onChange={e => {
-                        const updated = [...form.custom_deductions];
-                        updated[idx].name = e.target.value;
-                        setForm({ ...form, custom_deductions: updated });
-                      }}
-                      style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
-                    />
-                    <input
-                      type="number"
-                      placeholder="Monthly ₹"
-                      value={ded.monthly}
-                      onChange={e => {
-                        const updated = [...form.custom_deductions];
-                        const m = Number(e.target.value) || 0;
-                        updated[idx].monthly = m;
-                        updated[idx].annual = m * 12;
-                        setForm({ ...form, custom_deductions: updated });
-                      }}
-                      style={{ width: 90, padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
-                    />
-                    <button onClick={() => removeCustomDeduction(idx)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}>
-                      <X size={16} />
-                    </button>
-                  </div>
-                ))}
               </div>
 
-            </div>
-          )}
-
-          {/* Right Live Interactive Preview */}
-          <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: 12, overflow: 'hidden', boxShadow: '0 4px 16px rgba(0,0,0,0.06)' }}>
-            <div style={{ background: '#0f172a', padding: '12px 20px', color: '#ffffff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Eye size={18} style={{ color: '#38bdf8' }} /> Live 4-Page A4 Preview
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center gap-3 pt-2">
                 <button
-                  onClick={() => setPreviewMode(previewMode === 'split' ? 'fullscreen' : 'split')}
-                  style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}
+                  type="submit"
+                  disabled={saving}
+                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50"
                 >
-                  {previewMode === 'split' ? 'Full Width' : 'Split View'}
+                  {saving ? <RefreshCw className="animate-spin" size={16} /> : <CheckCircle2 size={16} />}
+                  Save Offer Letter Record
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleDownloadPDF(printRef)}
+                  disabled={downloadingPdf}
+                  className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm rounded-xl shadow-md transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  {downloadingPdf ? <RefreshCw className="animate-spin" size={16} /> : <Download size={16} />}
+                  Download 4-Page PDF
                 </button>
               </div>
-            </div>
-
-            <div style={{ padding: 16, backgroundColor: '#f1f5f9', overflowX: 'auto' }}>
-              <OfferLetterDocument ref={printRef} invoiceData={form} isPreview={true} />
-            </div>
+            </form>
           </div>
 
+          {/* Right Preview Pane (6 cols in split) */}
+          <div className="lg:col-span-6">
+            <div className="sticky top-6 space-y-3">
+              <div className="flex items-center justify-between bg-white px-4 py-2.5 rounded-xl border border-slate-200/80 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
+                  <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Live Offer Letter Preview</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewMode(previewMode === 'split' ? 'fullscreen' : 'split')}
+                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-all"
+                  >
+                    {previewMode === 'split' ? 'Full Width' : 'Split View'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadPDF(printRef)}
+                    disabled={downloadingPdf}
+                    className="px-3 py-1 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold rounded-lg flex items-center gap-1 shadow-sm"
+                  >
+                    <Download size={12} /> PDF
+                  </button>
+                </div>
+              </div>
+
+              {/* Printable Live Offer Letter Preview Container without excess grey side spacing */}
+              <div className="p-2 sm:p-4 bg-slate-100/70 border border-slate-200 rounded-2xl shadow-inner">
+                <OfferLetterDocument ref={printRef} invoiceData={form} isPreview={true} />
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* ── HISTORY TAB: SAVED OFFER LETTERS RECORDS ────────────────────────── */}
+      {/* ── Tab 2: SAVED OFFER LETTERS RECORDS ────────────────────────── */}
       {activeTab === 'history' && (
-        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 16 }}>
-            <div style={{ position: 'relative', width: 320 }}>
-              <Search size={18} style={{ position: 'absolute', left: 12, top: 11, color: '#94a3b8' }} />
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="relative w-full sm:w-80">
+              <Search size={18} className="absolute left-3.5 top-3 text-slate-400" />
               <input
                 type="text"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search candidate name or offer no..."
-                style={{ width: '100%', padding: '9px 12px 9px 38px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}
+                className="w-full pl-10 pr-4 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500"
               />
             </div>
+            <button
+              onClick={loadHistory}
+              className="px-4 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl flex items-center gap-2 transition-all self-start sm:self-auto"
+            >
+              <RefreshCw size={14} className={loadingHistory ? 'animate-spin' : ''} /> Refresh Records
+            </button>
           </div>
 
-          {loadingHistory && <div style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>Loading records...</div>}
+          {loadingHistory && (
+            <div className="text-center py-12 text-slate-400 flex items-center justify-center gap-2 text-sm">
+              <RefreshCw className="animate-spin" size={18} /> Loading records...
+            </div>
+          )}
 
           {!loadingHistory && history.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '60px 20px', color: '#64748b' }}>
-              <FileText size={48} style={{ color: '#cbd5e1', marginBottom: 12 }} />
-              <div style={{ fontSize: 16, fontWeight: 700, color: '#334155' }}>No Saved Offer Letters Found</div>
-              <div style={{ fontSize: 13, marginTop: 4 }}>Generate and save an offer letter document from the Form Builder tab.</div>
+            <div className="text-center py-16 text-slate-400">
+              <FileText size={48} className="mx-auto text-slate-300 mb-3" />
+              <div className="text-base font-semibold text-slate-700">No Saved Offer Letters Found</div>
+              <div className="text-xs text-slate-400 mt-1">Generate and save an offer letter document from the Form Builder tab.</div>
             </div>
           )}
 
           {!loadingHistory && history.length > 0 && (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-              <thead>
-                <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', textAlign: 'left', color: '#475569' }}>
-                  <th style={{ padding: '12px 16px' }}>Offer No.</th>
-                  <th style={{ padding: '12px 16px' }}>Candidate Name</th>
-                  <th style={{ padding: '12px 16px' }}>Designation</th>
-                  <th style={{ padding: '12px 16px' }}>Annual CTC</th>
-                  <th style={{ padding: '12px 16px' }}>Offer Date</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {history.map((inv, idx) => (
-                  <tr key={inv._id || idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '12px 16px', fontWeight: 700, color: '#0f172a' }}>{inv.invoice_number}</td>
-                    <td style={{ padding: '12px 16px', fontWeight: 600, color: '#1e293b' }}>{inv.client_name}</td>
-                    <td style={{ padding: '12px 16px', color: '#475569' }}>{inv.designation}</td>
-                    <td style={{ padding: '12px 16px', fontWeight: 700, color: '#059669' }}>₹{Number(inv.annual_ctc || 0).toLocaleString('en-IN')}</td>
-                    <td style={{ padding: '12px 16px', color: '#64748b' }}>{inv.offer_date || new Date(inv.createdAt).toLocaleDateString()}</td>
-                    <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                        <button
-                          onClick={() => { setSelectedInvoice(inv); setShowPreviewModal(true); }}
-                          style={{ padding: '6px 12px', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
-                        >
-                          <Eye size={14} /> View
-                        </button>
-                        {canDelete(user) && (
-                          <button
-                            onClick={() => handleDeleteInvoice(inv._id)}
-                            style={{ padding: '6px 10px', background: '#fef2f2', color: '#b91c1c', border: '1px solid #fca5a5', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        )}
-                      </div>
-                    </td>
+            <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <table className="w-full text-left text-sm text-slate-600">
+                <thead className="bg-slate-50 text-xs uppercase font-bold text-slate-500 border-b border-slate-200">
+                  <tr>
+                    <th className="px-4 py-3">Offer No.</th>
+                    <th className="px-4 py-3">Candidate Name</th>
+                    <th className="px-4 py-3">Designation</th>
+                    <th className="px-4 py-3">Annual CTC</th>
+                    <th className="px-4 py-3">Offer Date</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {history.map((inv, idx) => (
+                    <tr key={inv._id || idx} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="px-4 py-3.5 font-bold text-slate-900 text-xs">{inv.invoice_number}</td>
+                      <td className="px-4 py-3.5 font-semibold text-slate-800">{inv.client_name}</td>
+                      <td className="px-4 py-3.5 text-slate-600">{inv.designation}</td>
+                      <td className="px-4 py-3.5 font-bold text-emerald-600">₹{Number(inv.annual_ctc || 0).toLocaleString('en-IN')}</td>
+                      <td className="px-4 py-3.5 text-slate-500 text-xs">{inv.offer_date || new Date(inv.createdAt).toLocaleDateString()}</td>
+                      <td className="px-4 py-3.5 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => { setSelectedInvoice(inv); setShowPreviewModal(true); }}
+                            className="px-3 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 text-xs font-semibold rounded-lg flex items-center gap-1 transition-all"
+                          >
+                            <Eye size={13} /> View
+                          </button>
+                          {canDelete(user) && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteInvoice(inv._id)}
+                              className="p-1.5 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-lg transition-all"
+                              title="Delete Record"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}
 
       {/* ── PREVIEW MODAL FOR HISTORICAL OFFER LETTERS ──────────────────────── */}
       {showPreviewModal && selectedInvoice && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15,23,42,0.6)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div style={{ background: '#ffffff', borderRadius: 16, width: '100%', maxWidth: 880, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
-            <div style={{ background: '#0f172a', padding: '16px 24px', color: '#ffffff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: 16, fontWeight: 700 }}>
-                Offer Letter: {selectedInvoice.invoice_number} - {selectedInvoice.client_name}
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-fade-in border border-slate-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-slate-800 text-sm">
+                  Offer Letter: <span className="text-blue-700">{selectedInvoice.invoice_number}</span> — {selectedInvoice.client_name}
+                </span>
               </div>
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <div className="flex items-center gap-3">
                 <button
+                  type="button"
                   onClick={() => handleDownloadPDF(modalPrintRef, selectedInvoice.client_name)}
                   disabled={downloadingPdf}
-                  style={{ padding: '7px 14px', background: '#059669', color: '#ffffff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+                  className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-sm transition-all"
                 >
-                  <Download size={14} /> Download PDF
+                  <Download size={13} /> Download PDF
                 </button>
-                <button onClick={() => setShowPreviewModal(false)} style={{ background: 'none', border: 'none', color: '#ffffff', cursor: 'pointer' }}>
-                  <X size={20} />
+                <button
+                  type="button"
+                  onClick={() => setShowPreviewModal(false)}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-lg transition-all"
+                >
+                  <X size={18} />
                 </button>
               </div>
             </div>
 
-            <div style={{ padding: 24, overflowY: 'auto', background: '#f1f5f9' }}>
+            <div className="p-4 sm:p-6 overflow-y-auto bg-slate-100/70">
               <OfferLetterDocument ref={modalPrintRef} invoiceData={selectedInvoice} isPreview={true} />
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }

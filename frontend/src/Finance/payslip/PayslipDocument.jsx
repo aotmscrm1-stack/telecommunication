@@ -53,7 +53,7 @@ export const PayslipDocument = forwardRef(({ payslip, isPreview = false }, ref) 
         margin: '0 auto',
         backgroundColor: '#ffffff',
         color: '#000000',
-        fontFamily: "'Segoe UI', 'Helvetica Neue', Arial, sans-serif",
+        fontFamily: "'Inter', sans-serif",
         fontSize: isPreview ? '10px' : '11px',
         lineHeight: 1.35,
         padding: isPreview ? '10px 8px' : '16px 16px',
@@ -98,7 +98,7 @@ export const PayslipDocument = forwardRef(({ payslip, isPreview = false }, ref) 
           {/* Centered Address */}
           <div
             style={{
-              fontFamily: "'Segoe UI', 'Helvetica Neue', Arial, sans-serif",
+              fontFamily: "'Inter', sans-serif",
               fontSize: isPreview ? '9.5px' : '11px',
               fontWeight: 'bold',
               color: '#111111',
@@ -123,7 +123,7 @@ export const PayslipDocument = forwardRef(({ payslip, isPreview = false }, ref) 
             fontSize: isPreview ? '11px' : '12px',
             lineHeight: '1.2',
             letterSpacing: '0.2px',
-            fontFamily: "'Segoe UI', 'Helvetica Neue', Arial, sans-serif",
+            fontFamily: "'Inter', sans-serif",
           }}
         >
           Payslip for the month of {formatDisplayMonth(payslip.payslip_month)}
@@ -135,7 +135,7 @@ export const PayslipDocument = forwardRef(({ payslip, isPreview = false }, ref) 
             display: 'grid',
             gridTemplateColumns: '52% 48%',
             fontSize: isPreview ? '9.5px' : '10.5px',
-            fontFamily: "'Segoe UI', 'Helvetica Neue', Arial, sans-serif",
+            fontFamily: "'Inter', sans-serif",
             lineHeight: 1.4,
           }}
         >
@@ -362,7 +362,7 @@ export const PayslipDocument = forwardRef(({ payslip, isPreview = false }, ref) 
               color: '#333333',
               fontStyle: 'italic',
               letterSpacing: '0.2px',
-              fontFamily: "'Segoe UI', 'Helvetica Neue', Arial, sans-serif",
+              fontFamily: "'Inter', sans-serif",
               backgroundColor: '#fafafa',
             }}
           >
