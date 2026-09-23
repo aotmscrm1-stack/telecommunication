@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { attendanceAPI, trackingAPI, usersAPI } from '../../services/api';
+import geoTracker from '../../services/geoTracker';
 import LiveMap from '../../components/tracking/LiveMap';
 import { isManagingDirector } from '../../utils/permissions';
 import SplitText from '../../components/ui/SplitText';
@@ -447,6 +448,7 @@ export default function AttendanceRecords() {
       const res = await attendanceAPI.start(location);
       if (res.data?.ok) {
         setActionStatusMsg({ type: 'success', message: 'Attendance started successfully! Live timer running.' });
+        geoTracker.startTracking().catch((err) => console.warn('[Attendance GeoTracker start]:', err.message));
         await fetchCurrentSession();
         await fetchData();
       } else {
@@ -544,6 +546,7 @@ export default function AttendanceRecords() {
       const res = await attendanceAPI.stop({ ...location, force: overrideOptions.force || false });
       if (res.data?.ok) {
         setActionStatusMsg({ type: 'success', message: 'Attendance completed and saved to MongoDB! 9:00:00 hours recorded.' });
+        geoTracker.stopTracking().catch((err) => console.warn('[Attendance GeoTracker stop]:', err.message));
         setNineHourWarningModal(null);
         await fetchCurrentSession();
         await fetchData();
