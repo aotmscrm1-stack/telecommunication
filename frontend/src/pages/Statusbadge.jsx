@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { followupsAPI, leadsAPI, usersAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { formatISTDateTime } from '../utils/dateFormat';
-import { canDelete as checkCanDelete, filterTeamDropdownUsers } from '../utils/permissions';
+import { canDelete as checkCanDelete, filterTeamDropdownUsers, isLimitedStaff } from '../utils/permissions';
 
 
 const PURPLE = '#0891b2';
@@ -672,6 +672,12 @@ export default function Tasks() {
     }
   }, [searchParams]);
   const [forFilter, setForFilter] = useState('Me');
+
+  useEffect(() => {
+    if (isLimitedStaff(currentUser) && forFilter !== 'Me') {
+      setForFilter('Me');
+    }
+  }, [currentUser, forFilter]);
   const [dueFilter, setDueFilter] = useState(null);
   // Completed ("done") tasks are no longer mixed into the active list — they
   // live under the History view instead (see historyMode below).
@@ -1009,59 +1015,61 @@ export default function Tasks() {
             </svg>
             Me
           </button>
-          <div ref={teamDropRef} style={{ position: 'relative' }}>
-            <button
-              onClick={() => { setForFilter('Team'); setShowTeamDrop(p => !p); }}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 5,
-                padding: '5px 11px', borderRadius: 6,
-                border: forFilter === 'Team' ? 'none' : '1px solid #bae6fd',
-                background: forFilter === 'Team' ? GRADIENT : '#e0f7ff',
-                color: forFilter === 'Team' ? '#fff' : TEXT_MAIN,
-                fontSize: 12, fontWeight: 600, cursor: 'pointer'
-              }}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={forFilter === 'Team' ? '#fff' : PURPLE} strokeWidth="2">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-              </svg>
-              {teamMemberFilter ? (teamUsers.find(u => u._id === teamMemberFilter)?.name || 'Team') : 'Team'}
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={forFilter === 'Team' ? '#fff' : '#aaa'} strokeWidth="2.5">
-                <polyline points={showTeamDrop ? '18 15 12 9 6 15' : '6 9 12 15 18 9'}/>
-              </svg>
-            </button>
-            {showTeamDrop && (
-              <div style={{
-                position: 'absolute', top: '110%', left: 0, zIndex: 300,
-                background: '#fff', border: '1px solid #bae6fd', borderRadius: 10,
-                boxShadow: '0 8px 24px rgba(91,63,199,0.13)', minWidth: 180, padding: '6px 0'
-              }}>
-                <div
-                  onClick={() => { setTeamMemberFilter(''); setShowTeamDrop(false); }}
-                  style={{ padding: '8px 14px', fontSize: 13, cursor: 'pointer', color: !teamMemberFilter ? PURPLE : TEXT_MAIN, fontWeight: !teamMemberFilter ? 700 : 400, background: !teamMemberFilter ? '#e0f7ff' : 'transparent' }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#e0f7ff'}
-                  onMouseLeave={e => e.currentTarget.style.background = !teamMemberFilter ? '#e0f7ff' : 'transparent'}
-                >All (HR, CTO, MD)</div>
-                {teamUsers.map(u => (
+          {!isLimitedStaff(currentUser) && (
+            <div ref={teamDropRef} style={{ position: 'relative' }}>
+              <button
+                onClick={() => { setForFilter('Team'); setShowTeamDrop(p => !p); }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  padding: '5px 11px', borderRadius: 6,
+                  border: forFilter === 'Team' ? 'none' : '1px solid #bae6fd',
+                  background: forFilter === 'Team' ? GRADIENT : '#e0f7ff',
+                  color: forFilter === 'Team' ? '#fff' : TEXT_MAIN,
+                  fontSize: 12, fontWeight: 600, cursor: 'pointer'
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={forFilter === 'Team' ? '#fff' : PURPLE} strokeWidth="2">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+                {teamMemberFilter ? (teamUsers.find(u => u._id === teamMemberFilter)?.name || 'Team') : 'Team'}
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={forFilter === 'Team' ? '#fff' : '#aaa'} strokeWidth="2.5">
+                  <polyline points={showTeamDrop ? '18 15 12 9 6 15' : '6 9 12 15 18 9'}/>
+                </svg>
+              </button>
+              {showTeamDrop && (
+                <div style={{
+                  position: 'absolute', top: '110%', left: 0, zIndex: 300,
+                  background: '#fff', border: '1px solid #bae6fd', borderRadius: 10,
+                  boxShadow: '0 8px 24px rgba(91,63,199,0.13)', minWidth: 180, padding: '6px 0'
+                }}>
                   <div
-                    key={u._id}
-                    onClick={() => { setTeamMemberFilter(u._id); setShowTeamDrop(false); }}
-                    style={{ padding: '8px 14px', fontSize: 13, cursor: 'pointer', color: teamMemberFilter === u._id ? PURPLE : TEXT_MAIN, fontWeight: teamMemberFilter === u._id ? 700 : 400, background: teamMemberFilter === u._id ? '#e0f7ff' : 'transparent', display: 'flex', alignItems: 'center', gap: 8 }}
+                    onClick={() => { setTeamMemberFilter(''); setShowTeamDrop(false); }}
+                    style={{ padding: '8px 14px', fontSize: 13, cursor: 'pointer', color: !teamMemberFilter ? PURPLE : TEXT_MAIN, fontWeight: !teamMemberFilter ? 700 : 400, background: !teamMemberFilter ? '#e0f7ff' : 'transparent' }}
                     onMouseEnter={e => e.currentTarget.style.background = '#e0f7ff'}
-                    onMouseLeave={e => e.currentTarget.style.background = teamMemberFilter === u._id ? '#e0f7ff' : 'transparent'}
-                  >
-                    <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#e0f7ff', color: PURPLE, fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      {u.name.slice(0,2).toUpperCase()}
+                    onMouseLeave={e => e.currentTarget.style.background = !teamMemberFilter ? '#e0f7ff' : 'transparent'}
+                  >All (HR, CTO, MD)</div>
+                  {teamUsers.map(u => (
+                    <div
+                      key={u._id}
+                      onClick={() => { setTeamMemberFilter(u._id); setShowTeamDrop(false); }}
+                      style={{ padding: '8px 14px', fontSize: 13, cursor: 'pointer', color: teamMemberFilter === u._id ? PURPLE : TEXT_MAIN, fontWeight: teamMemberFilter === u._id ? 700 : 400, background: teamMemberFilter === u._id ? '#e0f7ff' : 'transparent', display: 'flex', alignItems: 'center', gap: 8 }}
+                      onMouseEnter={e => e.currentTarget.style.background = '#e0f7ff'}
+                      onMouseLeave={e => e.currentTarget.style.background = teamMemberFilter === u._id ? '#e0f7ff' : 'transparent'}
+                    >
+                      <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#e0f7ff', color: PURPLE, fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {u.name.slice(0,2).toUpperCase()}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{u.name}</div>
+                        {u.designation && <div style={{ fontSize: 10.5, color: TEXT_MUTED }}>{u.designation}</div>}
+                      </div>
                     </div>
-                    <div>
-                      <div style={{ fontWeight: 600 }}>{u.name}</div>
-                      {u.designation && <div style={{ fontSize: 10.5, color: TEXT_MUTED }}>{u.designation}</div>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div style={{ width: 1, height: 20, background: '#bae6fd' }} />
