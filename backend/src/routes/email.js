@@ -9,6 +9,8 @@ const router = express.Router();
 
 const MessageTemplate = require('../models/MessageTemplate');
 const { uploadToCloudinary } = require('../utils/cloudinary');
+const { ImapFlow } = require('imapflow');
+const { simpleParser } = require('mailparser');
 
 // Permission Guard: Only CTO, HR, and Managing Director (or CEO/Admin) can access Bulk Email Blast
 const isBlastAllowed = (user) => {
@@ -803,9 +805,11 @@ router.post('/reply', protect, async (req, res) => {
   }
 });
 
-// POST /api/email/sync — Triggers manual/active sync of email records & refreshes counts
+// POST /api/email/sync — Triggers real GoDaddy IMAP synchronization & fetches incoming data
 router.post('/sync', protect, async (req, res) => {
   try {
+    const syncResult = await syncGoDaddyMail(req.user, 50);
+
     const userDesig = String(req.user?.designation || '').trim().toUpperCase();
     const isMD = userDesig === 'MANAGING DIRECTOR' || userDesig === 'MD' || userDesig === 'CEO' || req.user?.role === 'admin' || req.user?.name?.toLowerCase().trim() === 'ameen';
 
@@ -823,11 +827,14 @@ router.post('/sync', protect, async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Email data synchronized successfully',
+      message: syncResult.message || 'Email data synchronized successfully',
+      syncedCount: syncResult.synced || 0,
+      threadedCount: syncResult.threaded || 0,
       syncedAt: new Date().toISOString(),
       stats: { totalLogs, unreadCount }
     });
   } catch (err) {
+    console.error('[SYNC ENDPOINT ERROR]:', err);
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -908,6 +915,152 @@ function stripQuotedEmailHistory(rawText) {
     .trim();
 
   return text || rawText.trim();
+}
+
+// GoDaddy Mail IMAP Synchronizer
+async function syncGoDaddyMail(user, limit = 50) {
+  const imapHost = user?.smtpConfig?.imapHost || (user?.smtpConfig?.host ? user.smtpConfig.host.replace('smtpout', 'imap') : null) || process.env.IMAP_HOST || 'imap.secureserver.net';
+  const imapPort = Number(user?.smtpConfig?.imapPort || 993);
+  const imapUser = user?.smtpConfig?.user || (user?.email && user.email.includes('@aotms.com') ? user.email : null) || process.env.SMTP_USER || 'jayaveer@aotms.com';
+  const imapPass = user?.smtpConfig?.pass || process.env.SMTP_PASS || 'Aotms@2026';
+
+  if (!imapUser || !imapPass) {
+    return { success: false, synced: 0, message: 'No GoDaddy mail credentials configured' };
+  }
+
+  const client = new ImapFlow({
+    host: imapHost,
+    port: imapPort,
+    secure: true,
+    auth: { user: imapUser, pass: imapPass },
+    tls: { rejectUnauthorized: false },
+    logger: false
+  });
+
+  let syncedCount = 0;
+  let threadedCount = 0;
+
+  try {
+    await client.connect();
+    const lock = await client.getMailboxLock('INBOX');
+    try {
+      const status = await client.status('INBOX', { messages: true });
+      const totalMessages = status.messages || 0;
+      if (totalMessages === 0) {
+        return { success: true, synced: 0, threaded: 0, message: 'GoDaddy INBOX is empty' };
+      }
+
+      const startSeq = Math.max(1, totalMessages - limit + 1);
+      for await (const msg of client.fetch({ seq: `${startSeq}:*` }, { envelope: true, source: true })) {
+        try {
+          const parsed = await simpleParser(msg.source);
+          const messageId = (parsed.messageId || '').trim();
+
+          // Check if already synced in EmailLog or replies
+          if (messageId) {
+            const alreadyExists = await EmailLog.findOne({
+              $or: [
+                { messageId: messageId },
+                { 'replies.messageId': messageId }
+              ]
+            });
+            if (alreadyExists) continue;
+          }
+
+          const fromEmail = parsed.from?.value?.[0]?.address || extractEmailAddress(parsed.from?.text) || '';
+          const toEmail = parsed.to?.value?.[0]?.address || extractEmailAddress(parsed.to?.text) || imapUser;
+          const senderName = parsed.from?.value?.[0]?.name || extractSenderName(parsed.from?.text) || (fromEmail ? fromEmail.split('@')[0] : 'Sender');
+          const rawSubject = (parsed.subject || 'No Subject').trim();
+          const inReplyTo = (parsed.inReplyTo || '').trim();
+          const references = (Array.isArray(parsed.references) ? parsed.references.join(' ') : (parsed.references || '')).trim();
+          const rawBody = (parsed.text || parsed.html || '(No content)').trim();
+          const bodyContent = stripQuotedEmailHistory(rawBody);
+          const date = parsed.date || new Date();
+
+          const normalizedSubject = rawSubject.replace(/^(re|fwd|fw|aw|antw):\s*/i, '').trim();
+
+          let parentLog = null;
+          if (inReplyTo) {
+            parentLog = await EmailLog.findOne({
+              $or: [{ messageId: inReplyTo }, { 'replies.messageId': inReplyTo }]
+            });
+          }
+          if (!parentLog && references) {
+            parentLog = await EmailLog.findOne({
+              $or: [{ messageId: references }, { 'replies.messageId': references }]
+            });
+          }
+          if (!parentLog && normalizedSubject) {
+            parentLog = await EmailLog.findOne({
+              $or: [
+                { subject: new RegExp(`^${normalizedSubject.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+                { subject: new RegExp(normalizedSubject.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i'), recipientEmail: new RegExp(fromEmail, 'i') },
+                { subject: new RegExp(normalizedSubject.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i'), fromEmail: new RegExp(toEmail, 'i') }
+              ]
+            }).sort({ createdAt: -1 });
+          }
+
+          if (parentLog) {
+            parentLog.replies.push({
+              senderEmail: fromEmail,
+              senderName,
+              recipientEmail: toEmail,
+              subject: rawSubject,
+              body: bodyContent,
+              direction: 'inbound',
+              messageId,
+              inReplyTo,
+              references,
+              receivedAt: date,
+              source: 'godaddy_imap'
+            });
+            parentLog.isRead = false;
+            parentLog.status = 'Received';
+            await parentLog.save();
+            threadedCount++;
+            syncedCount++;
+          } else {
+            await EmailLog.create({
+              senderName,
+              senderEmail: fromEmail,
+              senderDesignation: 'External / Client',
+              fromEmail: fromEmail,
+              recipientEmail: toEmail,
+              subject: rawSubject,
+              body: bodyContent,
+              templateId: 'godaddy_inbox',
+              sentVia: 'GoDaddy IMAP Sync',
+              status: 'Received',
+              direction: 'inbound',
+              isReply: false,
+              parentEmail: null,
+              messageId,
+              inReplyTo,
+              references,
+              isRead: false,
+              createdAt: date,
+              sender: user?._id || null
+            });
+            syncedCount++;
+          }
+        } catch (msgErr) {
+          console.warn('[GoDaddy IMAP Message Error]:', msgErr.message);
+        }
+      }
+    } finally {
+      lock.release();
+    }
+    await client.logout();
+    return {
+      success: true,
+      synced: syncedCount,
+      threaded: threadedCount,
+      message: `Successfully synced ${syncedCount} emails from GoDaddy (${threadedCount} threaded replies)`
+    };
+  } catch (err) {
+    console.error('[GoDaddy IMAP Sync Error]:', err.message);
+    return { success: false, synced: 0, message: err.message };
+  }
 }
 
 // Core Inbound Email Handler for GoDaddy IMAP & n8n webhooks
