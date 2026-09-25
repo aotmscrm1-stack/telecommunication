@@ -519,21 +519,23 @@ export default function Payslip() {
   const fmt = (v) => (v !== undefined && v !== null && v !== '' ? Number(v).toLocaleString('en-IN') : '0');
 
   return (
-    <div style={{ padding: '24px 32px', backgroundColor: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box', fontFamily: "'Inter', sans-serif" }}>
-      
-      {/* ── Top Header Toolbar ──────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
-        <div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ padding: 8, borderRadius: 10, background: '#eff6ff', color: '#1d4ed8', display: 'flex' }}>
-              <FileText size={24} />
-            </span>
-            Salary Payslip Generator
+    <div className="min-h-screen bg-slate-50/70" style={{ boxSizing: 'border-box', fontFamily: "'Inter', sans-serif" }}>
+      <div className="max-w-6xl mx-auto w-full px-3 sm:px-6 py-4 sm:py-6 space-y-5 pb-16">
+        {/* ── Top Header Toolbar ──────────────────────────────────────────────── */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+          <div>
+            <div className="flex items-center gap-3">
+              <span style={{ padding: 8, borderRadius: 10, background: '#eff6ff', color: '#1d4ed8', display: 'flex' }}>
+                <FileText size={24} />
+              </span>
+              <h1 className="text-2xl font-bold text-slate-800 tracking-tight">
+                Salary Payslip Generator
+              </h1>
+            </div>
+            <p className="text-sm text-slate-500 mt-1">
+              Official employee salary slips generator with Excel bulk import, automated statutory calculations & PDF export.
+            </p>
           </div>
-          <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>
-            Official employee salary slips generator with Excel bulk import, automated statutory calculations & PDF export.
-          </div>
-        </div>
 
         {/* Tab & Action Controls */}
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -1259,6 +1261,8 @@ export default function Payslip() {
           </div>
         </div>
       )}
+
+      </div>
 
       {/* ── Modal: Excel Bulk Upload ─────────────────────────────────────────── */}
       <ExcelUploadModal

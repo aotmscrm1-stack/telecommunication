@@ -218,6 +218,101 @@ router.post('/:id/whatsapp/send-template', protect, async (req, res) => {
   }
 });
 
+// ── GET /api/integrations/whatsapp/templates — list all templates (Meta + DB + Fallbacks) ──
+router.get('/whatsapp/templates', async (req, res) => {
+  try {
+    const MessageTemplate = require('../models/MessageTemplate');
+    let integration = await Integration.findOne({ type: 'whatsapp_cloud', status: 'active' });
+    if (!integration) integration = await Integration.findOne({ type: 'whatsapp_cloud' });
+
+    let templates = [];
+    const accessToken = integration?.config?.accessToken || process.env.META_WA_ACCESS_TOKEN;
+    const phoneId = integration?.config?.phoneNumberId || process.env.META_WA_PHONE_NUMBER_ID;
+    const dbWabaId = integration?.config?.wabaId;
+    const wabaId = (dbWabaId && dbWabaId !== phoneId) ? dbWabaId : (process.env.META_WA_WABA_ID || dbWabaId || phoneId);
+
+    if (accessToken && wabaId) {
+      try {
+        const metaTemplates = await whatsapp.getTemplates(wabaId, accessToken);
+        if (Array.isArray(metaTemplates) && metaTemplates.length > 0) {
+          templates = metaTemplates;
+        }
+      } catch (metaErr) {
+        console.warn('Meta templates fetch error, using DB templates:', metaErr.message);
+      }
+    }
+
+    const dbTemplates = await MessageTemplate.find({
+      $or: [
+        { type: 'whatsapp' },
+        { metaTemplateName: { $exists: true, $ne: '' } },
+        { shortcut: { $exists: true, $ne: '' } }
+      ]
+    }).sort({ createdAt: -1 });
+
+    const combined = [...templates];
+    dbTemplates.forEach(dt => {
+      const exists = combined.some(t => t.name === dt.shortcut || t.name === dt.metaTemplateName);
+      if (!exists) {
+        combined.push({
+          id: dt._id,
+          name: dt.metaTemplateName || dt.shortcut,
+          status: dt.waStatus || 'APPROVED',
+          category: dt.category || 'MARKETING',
+          language: dt.language || 'en_US',
+          body_text: dt.message,
+          components: dt.components || []
+        });
+      }
+    });
+
+    if (combined.length === 0) {
+      combined.push(
+        {
+          id: 'tmpl_welcome',
+          name: 'welcome_message',
+          status: 'APPROVED',
+          category: 'MARKETING',
+          language: 'en_US',
+          header_type: 'TEXT',
+          header_text: 'Welcome to AOTMS',
+          body_text: 'Hello {{1}}, welcome to AOTMS! We are thrilled to connect with you regarding our programs and services.',
+          footer_text: 'AOTMS Team',
+          buttons: [{ text: 'Visit Website' }]
+        },
+        {
+          id: 'tmpl_update',
+          name: 'general_announcement',
+          status: 'APPROVED',
+          category: 'UTILITY',
+          language: 'en_US',
+          header_type: 'TEXT',
+          header_text: 'Special Announcement',
+          body_text: 'Dear {{1}}, we have exciting new updates and opportunities for you. Feel free to reply to this message for details!',
+          footer_text: 'AOTMS Official',
+          buttons: [{ text: 'Chat with Us' }]
+        },
+        {
+          id: 'tmpl_followup',
+          name: 'course_followup',
+          status: 'APPROVED',
+          category: 'MARKETING',
+          language: 'en_US',
+          header_type: 'TEXT',
+          header_text: 'Program Follow-up',
+          body_text: 'Hi {{1}}, this is a follow-up reminder from AOTMS. Are you ready to enroll and take the next step?',
+          footer_text: 'Admissions Desk',
+          buttons: [{ text: 'Yes, Enroll Now' }]
+        }
+      );
+    }
+
+    res.json({ success: true, templates: combined });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 router.get('/:id/whatsapp/templates', protect, async (req, res) => {
   try {
     const integration = await Integration.findById(req.params.id);

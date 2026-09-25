@@ -256,7 +256,7 @@ export default function Invoice() {
   };
 
   return (
-    <div className="space-y-6 pb-16" style={{ fontFamily: "'Inter', sans-serif" }}>
+    <div className="max-w-6xl mx-auto w-full px-3 sm:px-6 py-4 sm:py-6 space-y-5 pb-16" style={{ fontFamily: "'Inter', sans-serif" }}>
       {/* ── Top Header & Tab Navigation ────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
         <div>

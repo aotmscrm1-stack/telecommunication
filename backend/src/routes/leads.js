@@ -643,4 +643,167 @@ router.get('/by-caller/:callerId', protect, authorize('manager', 'admin'), async
   }
 });
 
+// POST /api/leads/whatsapp-blast - execute WhatsApp Blast to leads or contacts
+router.post('/whatsapp-blast', async (req, res) => {
+  try {
+    const { template_name, language, lead_ids, contact_ids, sample_values, recipient_type } = req.body;
+    const ids = Array.isArray(lead_ids) && lead_ids.length > 0 ? lead_ids : (Array.isArray(contact_ids) ? contact_ids : []);
+    
+    if (ids.length === 0) {
+      return res.status(400).json({ success: false, message: 'No recipients provided for WhatsApp blast.' });
+    }
+
+    const Integration = require('../models/Integration');
+    const Contact = require('../models/Contact');
+    const whatsappService = require('../services/integrations/whatsapp');
+    const { toIndiaE164 } = require('../utils/phone');
+
+    let recipients = [];
+    if (recipient_type === 'contacts') {
+      recipients = await Contact.find({
+        $or: [
+          { _id: { $in: ids.filter(id => id.match(/^[0-9a-fA-F]{24}$/)) } },
+          { phone: { $in: ids } }
+        ]
+      }).lean();
+      if (recipients.length === 0) {
+        recipients = await Lead.find({ _id: { $in: ids } }).lean();
+      }
+    } else {
+      recipients = await Lead.find({ _id: { $in: ids } }).lean();
+      if (recipients.length === 0) {
+        recipients = await Contact.find({
+          $or: [
+            { _id: { $in: ids.filter(id => id.match(/^[0-9a-fA-F]{24}$/)) } },
+            { phone: { $in: ids } }
+          ]
+        }).lean();
+      }
+    }
+
+    if (recipients.length === 0) {
+      return res.status(404).json({ success: false, message: 'Selected recipients could not be found.' });
+    }
+
+    let integration = await Integration.findOne({ type: 'whatsapp_cloud', status: 'active' });
+    if (!integration) integration = await Integration.findOne({ type: 'whatsapp_cloud' });
+
+    const phoneId = integration?.config?.phoneNumberId || process.env.META_WA_PHONE_NUMBER_ID;
+    const accessToken = integration?.config?.accessToken || process.env.META_WA_ACCESS_TOKEN;
+    const dbWabaId = integration?.config?.wabaId;
+    const wabaId = (dbWabaId && dbWabaId !== phoneId) ? dbWabaId : (process.env.META_WA_WABA_ID || dbWabaId || phoneId);
+
+    const template = await whatsappService.findOrFetchTemplate(template_name, wabaId, accessToken);
+    const metaTemplateName = template?.metaTemplateName || String(template_name || 'hello_world').trim().toLowerCase().replace(/[^a-z0-9_]+/g, '_');
+    const languageCode = language || template?.language || 'en_US';
+
+    let successful = 0;
+    let failed = 0;
+    const errors = [];
+
+    for (const item of recipients) {
+      const rawPhone = item.phone || item.mobile;
+      if (!rawPhone) {
+        failed++;
+        errors.push({ name: item.name, error: 'Missing phone number' });
+        continue;
+      }
+
+      const toPhone = toIndiaE164(rawPhone);
+      if (!toPhone) {
+        failed++;
+        errors.push({ name: item.name, phone: rawPhone, error: 'Invalid phone format' });
+        continue;
+      }
+
+      try {
+        if (phoneId && accessToken) {
+          const sendComponents = await whatsappService.buildTemplateComponents(
+            template,
+            { name: item.name, phone: toPhone, email: item.email, identity: item.identity },
+            null,
+            null,
+            phoneId,
+            accessToken
+          );
+
+          await whatsappService.sendTemplateMessage(
+            phoneId,
+            accessToken,
+            toPhone,
+            metaTemplateName,
+            languageCode,
+            sendComponents
+          );
+        }
+        successful++;
+      } catch (sendErr) {
+        console.warn(`WhatsApp blast error for ${item.name} (${toPhone}):`, sendErr.response?.data || sendErr.message);
+        if (phoneId && accessToken) {
+          try {
+            const fallbackText = template?.message || `Hello ${item.name || ''}, greetings from AOTMS!`;
+            await whatsappService.sendTextMessage(phoneId, accessToken, toPhone, fallbackText);
+            successful++;
+            continue;
+          } catch (textErr) {
+            // fallback error
+          }
+        }
+        failed++;
+        errors.push({ name: item.name, phone: toPhone, error: sendErr.response?.data?.error?.message || sendErr.message });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `WhatsApp blast dispatched to ${successful} ${recipient_type || 'recipients'}!${failed > 0 ? ` (${failed} failed)` : ''}`,
+      successful,
+      failed,
+      errors
+    });
+  } catch (err) {
+    console.error('WhatsApp Blast dispatch failure:', err);
+    res.status(500).json({ success: false, message: err.message || 'WhatsApp Blast dispatch failed.' });
+  }
+});
+
+// POST /api/leads/send-single-whatsapp
+router.post('/send-single-whatsapp', async (req, res) => {
+  try {
+    const { phone, template_name, message } = req.body;
+    if (!phone) {
+      return res.status(400).json({ success: false, message: 'Phone number is required.' });
+    }
+
+    const { toIndiaE164 } = require('../utils/phone');
+    const Integration = require('../models/Integration');
+    const whatsappService = require('../services/integrations/whatsapp');
+
+    const toPhone = toIndiaE164(phone);
+    if (!toPhone) {
+      return res.status(400).json({ success: false, message: 'Invalid 10-digit mobile number.' });
+    }
+
+    let integration = await Integration.findOne({ type: 'whatsapp_cloud', status: 'active' });
+    if (!integration) integration = await Integration.findOne({ type: 'whatsapp_cloud' });
+
+    const phoneId = integration?.config?.phoneNumberId || process.env.META_WA_PHONE_NUMBER_ID;
+    const accessToken = integration?.config?.accessToken || process.env.META_WA_ACCESS_TOKEN;
+
+    if (phoneId && accessToken) {
+      const template = await whatsappService.findOrFetchTemplate(template_name, integration?.config?.wabaId, accessToken);
+      if (template) {
+        const sendComponents = await whatsappService.buildTemplateComponents(template, { phone: toPhone });
+        await whatsappService.sendTemplateMessage(phoneId, accessToken, toPhone, template.metaTemplateName || template_name, template.language || 'en_US', sendComponents);
+      } else {
+        await whatsappService.sendTextMessage(phoneId, accessToken, toPhone, message || 'Hello from AOTMS WhatsApp Blast Studio!');
+      }
+    }
+
+    res.json({ success: true, message: `Test message dispatched to +91 ${phone}!` });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message || 'Failed to send test message.' });
+  }
+});
+
 module.exports = router;

@@ -294,6 +294,7 @@ export default function AttendanceRecords() {
           name: r.employeeName || 'Employee',
           code: r.employeeCode || 'EMP-001',
           email: r.email || '',
+          avatar: r.avatar || '',
           status: r.status,
         });
       }
@@ -308,6 +309,7 @@ export default function AttendanceRecords() {
           name: u.name,
           code: u.employeeId || `EMP-${String(idx + 1).padStart(3, '0')}`,
           email: u.email || '',
+          avatar: u.avatar || '',
           status: 'NOT_STARTED',
         });
       }
@@ -802,22 +804,133 @@ export default function AttendanceRecords() {
     }
   };
 
+  // Fast map of employee avatars from system users or records
+  const userAvatarMap = useMemo(() => {
+    const map = new Map();
+    systemUsers.forEach((u) => {
+      const uid = u._id?.toString() || u.id?.toString();
+      if (uid && u.avatar) map.set(uid, u.avatar);
+    });
+    records.forEach((r) => {
+      if (r.employeeId && r.avatar) map.set(r.employeeId.toString(), r.avatar);
+    });
+    if (user?._id && user?.avatar) {
+      map.set(user._id.toString(), user.avatar);
+    }
+    return map;
+  }, [systemUsers, records, user]);
+
+  // Universal sharp employee avatar renderer with picture and fallback initials
+  const renderEmployeeAvatar = (recOrEmp, size = 36, showStatusDot = false) => {
+    const name = recOrEmp?.employeeName || recOrEmp?.name || 'Staff';
+    const id = (recOrEmp?.employeeId || recOrEmp?.id || recOrEmp?._id || '')?.toString();
+    const avatarUrl = recOrEmp?.avatar || userAvatarMap.get(id) || (id === user?._id?.toString() ? user?.avatar : '');
+    const firstLetter = (name.charAt(0) || 'E').toUpperCase();
+    const status = recOrEmp?.status || 'NOT_STARTED';
+    const badge = getStatusBadge(status);
+
+    return (
+      <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
+        <div
+          style={{
+            width: size,
+            height: size,
+            borderRadius: 10,
+            background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+            border: '1.5px solid #bfdbfe',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+            boxShadow: '0 1px 3px rgba(37,99,235,0.08)',
+          }}
+        >
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={name}
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                if (e.currentTarget.nextSibling) {
+                  e.currentTarget.nextSibling.style.display = 'flex';
+                }
+              }}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : null}
+          <div
+            style={{
+              display: avatarUrl ? 'none' : 'flex',
+              width: '100%',
+              height: '100%',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 700,
+              fontSize: Math.max(11, Math.round(size * 0.38)),
+              color: '#1d4ed8',
+              background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+            }}
+          >
+            {firstLetter}
+          </div>
+        </div>
+        {showStatusDot && (
+          <span
+            title={badge.label}
+            style={{
+              position: 'absolute',
+              bottom: -2,
+              right: -2,
+              width: Math.max(8, Math.round(size * 0.28)),
+              height: Math.max(8, Math.round(size * 0.28)),
+              borderRadius: '50%',
+              background: badge.dot,
+              border: '2px solid #ffffff',
+              boxShadow: '0 0 4px rgba(0,0,0,0.15)',
+            }}
+          />
+        )}
+      </div>
+    );
+  };
+
   return (
-    <div style={{ padding: '24px 32px', maxWidth: 1600, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 22 }}>
+    <div className="attendance-records-outer" style={{ padding: '12px 18px', maxWidth: 1400, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16, width: '100%', boxSizing: 'border-box' }}>
+      <style>{`
+        @media (max-width: 1200px) {
+          .attendance-records-outer { padding: 10px 14px !important; }
+          .attendance-kpi-grid { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)) !important; gap: 10px !important; }
+        }
+        @media (max-width: 900px) {
+          .attendance-top-header { flex-direction: column !important; align-items: stretch !important; gap: 12px !important; padding: 14px 16px !important; }
+          .attendance-live-card-body { flex-direction: column !important; align-items: stretch !important; gap: 14px !important; }
+          .attendance-stopwatch-hud { min-width: 0 !important; width: 100% !important; }
+          .attendance-actions-wrap { justify-content: flex-start !important; }
+          .attendance-kpi-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+        }
+        @media (max-width: 640px) {
+          .attendance-records-outer { padding: 8px 10px !important; gap: 12px !important; }
+          .attendance-kpi-grid { grid-template-columns: 1fr !important; }
+          .attendance-filters-row { flex-direction: column !important; align-items: stretch !important; }
+          .attendance-search-box { min-width: 0 !important; width: 100% !important; }
+          .attendance-table-wrap { border-radius: 10px !important; }
+        }
+      `}</style>
       
       {/* ──── 1. Top Header & Title Bar ────────────────────────────────────────────────────────────────────────────────── */}
       <div
+        className="attendance-top-header"
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
-          gap: 16,
+          gap: 14,
           background: '#ffffff',
-          padding: '20px 28px',
-          borderRadius: 18,
+          padding: '16px 22px',
+          borderRadius: 16,
           border: `1px solid ${BORDER}`,
-          boxShadow: '0 2px 12px rgba(15, 23, 42, 0.03)',
+          boxShadow: '0 2px 10px rgba(15, 23, 42, 0.03)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -998,16 +1111,17 @@ export default function AttendanceRecords() {
 
       {/* ──── 1.5. Live Interactive Attendance & Action Card (White, Orange, Blue Theme) ──── */}
       <div
+        className="attendance-live-card"
         style={{
           background: liveSessionMetrics.status === 'ON_BREAK'
             ? 'linear-gradient(135deg, #ffffff 0%, #fffbf7 40%, #fff7ed 100%)'
             : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
-          borderRadius: 22,
+          borderRadius: 18,
           border: `2px solid ${liveSessionMetrics.status === 'ON_BREAK' ? '#fdba74' : '#bfdbfe'}`,
           boxShadow: liveSessionMetrics.status === 'ON_BREAK'
-            ? '0 14px 34px -4px rgba(249, 115, 22, 0.16), 0 0 0 1px rgba(251, 146, 60, 0.2)'
-            : '0 10px 25px -5px rgba(37, 99, 235, 0.1), 0 4px 10px rgba(0, 0, 0, 0.03)',
-          padding: '24px 28px',
+            ? '0 10px 28px -4px rgba(249, 115, 22, 0.14), 0 0 0 1px rgba(251, 146, 60, 0.15)'
+            : '0 8px 20px -5px rgba(37, 99, 235, 0.08), 0 2px 6px rgba(0, 0, 0, 0.02)',
+          padding: '18px 22px',
           position: 'relative',
           overflow: 'hidden',
           transition: 'all 0.3s ease',
@@ -1027,31 +1141,11 @@ export default function AttendanceRecords() {
           }}
         />
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20 }}>
+        <div className="attendance-live-card-body" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
           
-          {/* Left: User Identity & Live Status Pill */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div
-              style={{
-                width: 54,
-                height: 54,
-                borderRadius: 16,
-                background: liveSessionMetrics.status === 'ON_BREAK'
-                  ? 'linear-gradient(135deg, #fff7ed, #ffedd5)'
-                  : 'linear-gradient(135deg, #eff6ff, #dbeafe)',
-                border: `1.5px solid ${liveSessionMetrics.status === 'ON_BREAK' ? '#fed7aa' : '#bfdbfe'}`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 26,
-                boxShadow: '0 4px 10px rgba(0,0,0,0.04)',
-              }}
-            >
-              {liveSessionMetrics.status === 'ON_DUTY' && <Activity size={26} color="#2563eb" />}
-              {liveSessionMetrics.status === 'ON_BREAK' && <Coffee size={26} color="#ea580c" />}
-              {liveSessionMetrics.status === 'COMPLETED' && <CheckCircle2 size={26} color="#2563eb" />}
-              {liveSessionMetrics.status === 'NOT_STARTED' && <Clock size={26} color="#2563eb" />}
-            </div>
+          {/* Left: User Identity & Profile Picture & Status */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            {renderEmployeeAvatar({ ...user, employeeName: user?.name, status: liveSessionMetrics.status }, 50, true)}
 
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -1065,7 +1159,7 @@ export default function AttendanceRecords() {
                       ease="power3.out"
                       style={{
                         margin: 0,
-                        fontSize: 19,
+                        fontSize: 18,
                         fontWeight: 700,
                         color: '#ea580c',
                         letterSpacing: '-0.015em',
@@ -1074,7 +1168,7 @@ export default function AttendanceRecords() {
                     />
                   </div>
                 ) : (
-                  <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: TEXT_MAIN, letterSpacing: '-0.01em' }}>
+                  <h3 style={{ margin: 0, fontSize: 16.5, fontWeight: 700, color: TEXT_MAIN, letterSpacing: '-0.01em' }}>
                     {liveSessionMetrics.status === 'ON_DUTY'
                       ? 'Active Work Shift'
                       : liveSessionMetrics.status === 'COMPLETED'
@@ -1092,14 +1186,14 @@ export default function AttendanceRecords() {
                     background: '#eff6ff',
                     color: '#1d4ed8',
                     border: '1px solid #bfdbfe',
-                    fontSize: 11.5,
+                    fontSize: 11,
                     fontWeight: 700,
-                    padding: '3px 10px',
+                    padding: '3px 9px',
                     borderRadius: 20,
                     letterSpacing: '0.04em',
                     textTransform: 'uppercase'
                   }}>
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#2563eb', display: 'inline-block', boxShadow: '0 0 8px #2563eb' }} />
+                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#2563eb', display: 'inline-block', boxShadow: '0 0 8px #2563eb' }} />
                     Live On Duty
                   </span>
                 )}
@@ -1111,14 +1205,14 @@ export default function AttendanceRecords() {
                     background: '#fff7ed',
                     color: '#ea580c',
                     border: '1px solid #fed7aa',
-                    fontSize: 11.5,
+                    fontSize: 11,
                     fontWeight: 700,
-                    padding: '3px 10px',
+                    padding: '3px 9px',
                     borderRadius: 20,
                     letterSpacing: '0.04em',
                     textTransform: 'uppercase'
                   }}>
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f97316', display: 'inline-block', boxShadow: '0 0 8px #f97316' }} />
+                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#f97316', display: 'inline-block', boxShadow: '0 0 8px #f97316' }} />
                     Paused On Break (Autosaved)
                   </span>
                 )}
@@ -1130,14 +1224,14 @@ export default function AttendanceRecords() {
                     background: '#eff6ff',
                     color: '#1d4ed8',
                     border: '1px solid #bfdbfe',
-                    fontSize: 11.5,
-                    fontWeight: 800,
-                    padding: '3px 10px',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    padding: '3px 9px',
                     borderRadius: 20,
                     letterSpacing: '0.04em',
                     textTransform: 'uppercase'
                   }}>
-                    <CheckCircle2 size={13} color="#2563eb" />
+                    <CheckCircle2 size={12} color="#2563eb" />
                     Completed
                   </span>
                 )}
@@ -1149,9 +1243,9 @@ export default function AttendanceRecords() {
                     background: '#f8fafc',
                     color: '#475569',
                     border: '1px solid #cbd5e1',
-                    fontSize: 11.5,
+                    fontSize: 11,
                     fontWeight: 700,
-                    padding: '3px 10px',
+                    padding: '3px 9px',
                     borderRadius: 20,
                     letterSpacing: '0.04em',
                     textTransform: 'uppercase'
@@ -1161,14 +1255,14 @@ export default function AttendanceRecords() {
                 )}
               </div>
 
-              <div style={{ fontSize: 12.5, color: TEXT_MUTED, marginTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ fontSize: 12, color: TEXT_MUTED, marginTop: 3, display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
                 <span>Employee: <strong style={{ color: TEXT_MAIN }}>{user?.name || 'Staff'}</strong></span>
                 <span>•</span>
                 <span>Role: <strong style={{ color: '#ea580c' }}>{user?.displayName || user?.designation || 'Team Member'}</strong></span>
                 {liveSessionMetrics.startTimeFormatted !== '—' && (
                   <>
                     <span>•</span>
-                    <span>Clock In: <strong style={{ color: '#2563eb' }}>{liveSessionMetrics.startTimeFormatted}</strong></span>
+                    <span>Clock In: <strong style={{ color: '#2563eb', fontVariantNumeric: 'tabular-nums' }}>{liveSessionMetrics.startTimeFormatted}</strong></span>
                   </>
                 )}
               </div>
@@ -1177,6 +1271,7 @@ export default function AttendanceRecords() {
 
           {/* Center / Main: High-Tech Digital Stopwatch HUD (Hours : Min : Sec) */}
           <div
+            className="attendance-stopwatch-hud"
             style={{
               display: 'flex',
               flexDirection: 'column',
@@ -1185,13 +1280,13 @@ export default function AttendanceRecords() {
               background: '#ffffff',
               border: `1.5px solid ${liveSessionMetrics.status === 'ON_BREAK' ? '#fed7aa' : '#bfdbfe'}`,
               borderRadius: 14,
-              padding: '12px 28px',
+              padding: '10px 22px',
               boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.02), 0 2px 8px rgba(0,0,0,0.03)',
-              minWidth: 260,
+              minWidth: 230,
             }}
           >
             <div style={{
-              fontSize: 11,
+              fontSize: 10.5,
               fontWeight: 800,
               textTransform: 'uppercase',
               letterSpacing: '0.12em',
@@ -1209,21 +1304,22 @@ export default function AttendanceRecords() {
               )}
             </div>
 
-            {/* Live 00:00:00 Counter */}
+            {/* Live 00:00:00 Counter - Sharp Tabular Numbers */}
             <div
               style={{
                 fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-                fontSize: 'clamp(28px, 3.5vw, 42px)',
-                fontWeight: 900,
-                letterSpacing: '0.06em',
+                fontSize: 'clamp(26px, 3.2vw, 38px)',
+                fontWeight: 800,
+                letterSpacing: '0.04em',
                 lineHeight: 1.1,
-                marginTop: 4,
+                marginTop: 3,
+                fontVariantNumeric: 'tabular-nums',
                 color: liveSessionMetrics.status === 'ON_BREAK'
                   ? '#ea580c'
                   : liveSessionMetrics.status === 'ON_DUTY'
                   ? '#1d4ed8'
                   : '#0f172a',
-                textShadow: liveSessionMetrics.status === 'ON_DUTY' ? '0 0 18px rgba(37, 99, 235, 0.2)' : 'none',
+                textShadow: liveSessionMetrics.status === 'ON_DUTY' ? '0 0 16px rgba(37, 99, 235, 0.18)' : 'none',
               }}
             >
               {liveSessionMetrics.workHms}
@@ -1234,13 +1330,13 @@ export default function AttendanceRecords() {
               display: 'flex',
               justifyContent: 'space-between',
               width: '100%',
-              maxWidth: 220,
-              fontSize: 10,
+              maxWidth: 200,
+              fontSize: 9.5,
               fontWeight: 800,
               color: TEXT_MUTED,
               letterSpacing: '0.08em',
               marginTop: 2,
-              padding: '0 6px',
+              padding: '0 4px',
             }}>
               <span>HOURS</span>
               <span>MIN</span>
@@ -1251,47 +1347,47 @@ export default function AttendanceRecords() {
             {liveSessionMetrics.status === 'ON_BREAK' && (
               <div
                 style={{
-                  marginTop: 8,
+                  marginTop: 6,
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 6,
+                  gap: 5,
                   background: '#fff7ed',
                   border: '1px solid #fed7aa',
-                  borderRadius: 12,
-                  padding: '4px 10px',
+                  borderRadius: 10,
+                  padding: '3px 8px',
                   color: '#ea580c',
-                  fontSize: 11.5,
+                  fontSize: 11,
                   fontWeight: 700,
                 }}
               >
-                <Coffee size={12} color="#ea580c" />
-                <span>Break: <strong style={{ fontFamily: 'monospace' }}>{liveSessionMetrics.activeBreakDurationHms}</strong></span>
-                <span style={{ fontSize: 10, color: '#c2410c', opacity: 0.85 }}>(Autosaved)</span>
+                <Coffee size={11} color="#ea580c" />
+                <span>Break: <strong style={{ fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{liveSessionMetrics.activeBreakDurationHms}</strong></span>
+                <span style={{ fontSize: 9.5, color: '#c2410c', opacity: 0.85 }}>(Autosaved)</span>
               </div>
             )}
 
-            {/* Daily Shift Target & Claim: 9:00:00 Hours (8h work + 1h break) */}
+            {/* Daily Shift Target & Claim: 9:00:00 Hours */}
             <div style={{
               width: '100%',
-              maxWidth: 260,
-              marginTop: 10,
-              paddingTop: 10,
+              maxWidth: 240,
+              marginTop: 8,
+              paddingTop: 8,
               borderTop: '1px dashed #e2e8f0',
               display: 'flex',
               flexDirection: 'column',
-              gap: 5
+              gap: 4
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11, fontWeight: 700 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10.5, fontWeight: 700 }}>
                 <span style={{ color: '#475569', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <Timer size={13} color="#2563eb" /> Daily Claim: <strong>9:00:00h</strong>
+                  <Timer size={12} color="#2563eb" /> Daily Claim: <strong style={{ fontVariantNumeric: 'tabular-nums' }}>9:00:00h</strong>
                 </span>
-                <span style={{ color: liveSessionMetrics.isNineHoursComplete ? '#16a34a' : '#ea580c', fontWeight: 800 }}>
+                <span style={{ color: liveSessionMetrics.isNineHoursComplete ? '#16a34a' : '#ea580c', fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
                   {liveSessionMetrics.percentToNineHours}%
                 </span>
               </div>
 
               {/* Animated 9-Hour Progress Bar */}
-              <div style={{ width: '100%', height: 6, background: '#f1f5f9', borderRadius: 10, overflow: 'hidden', position: 'relative' }}>
+              <div style={{ width: '100%', height: 5, background: '#f1f5f9', borderRadius: 10, overflow: 'hidden', position: 'relative' }}>
                 <div
                   style={{
                     width: `${liveSessionMetrics.percentToNineHours}%`,
@@ -1306,20 +1402,20 @@ export default function AttendanceRecords() {
               </div>
 
               {/* Sub-status badges */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, color: '#64748b', fontWeight: 600, marginTop: 1 }}>
-                <span>Login: <strong style={{ color: '#0f172a' }}>{liveSessionMetrics.totalHms}</strong></span>
-                <span>Break: <strong style={{ color: liveSessionMetrics.isBreakOverOneHour ? '#dc2626' : '#ea580c' }}>{liveSessionMetrics.breakHms}/1h</strong></span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 9.5, color: '#64748b', fontWeight: 600, marginTop: 1 }}>
+                <span>Login: <strong style={{ color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>{liveSessionMetrics.totalHms}</strong></span>
+                <span>Break: <strong style={{ color: liveSessionMetrics.isBreakOverOneHour ? '#dc2626' : '#ea580c', fontVariantNumeric: 'tabular-nums' }}>{liveSessionMetrics.breakHms}/1h</strong></span>
                 {liveSessionMetrics.isNineHoursComplete ? (
                   <span style={{ color: '#16a34a', fontWeight: 800 }}>✓ Reached</span>
                 ) : (
-                  <span style={{ color: '#ea580c', fontWeight: 700 }}>-{liveSessionMetrics.remainingHms}</span>
+                  <span style={{ color: '#ea580c', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>-{liveSessionMetrics.remainingHms}</span>
                 )}
               </div>
             </div>
           </div>
 
           {/* Right: Action Buttons (White, Orange, Blue Theme) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div className="attendance-actions-wrap" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             {liveSessionMetrics.status === 'NOT_STARTED' && (
               <button
                 onClick={handleStartAttendance}
@@ -1328,22 +1424,22 @@ export default function AttendanceRecords() {
                   background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
                   color: '#ffffff',
                   border: 'none',
-                  borderRadius: 12,
-                  padding: '12px 26px',
-                  fontSize: 13.5,
-                  fontWeight: 800,
+                  borderRadius: 10,
+                  padding: '10px 22px',
+                  fontSize: 13,
+                  fontWeight: 700,
                   cursor: actionLoading ? 'wait' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
-                  boxShadow: '0 4px 14px rgba(37, 99, 235, 0.35)',
+                  boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)',
                   transition: 'all 0.15s ease',
                 }}
               >
                 {actionLoading === 'START' ? (
-                  <><Loader2 size={16} className="animate-spin" /> Starting Session...</>
+                  <><Loader2 size={15} className="animate-spin" /> Starting...</>
                 ) : (
-                  <><Play size={16} fill="#ffffff" /> Start Attendance</>
+                  <><Play size={15} fill="#ffffff" /> Start Attendance</>
                 )}
               </button>
             )}
@@ -1359,22 +1455,22 @@ export default function AttendanceRecords() {
                     background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
                     color: '#ffffff',
                     border: 'none',
-                    borderRadius: 12,
-                    padding: '12px 22px',
-                    fontSize: 13.5,
-                    fontWeight: 800,
+                    borderRadius: 10,
+                    padding: '10px 18px',
+                    fontSize: 13,
+                    fontWeight: 700,
                     cursor: actionLoading ? 'wait' : 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 8,
-                    boxShadow: '0 4px 14px rgba(249, 115, 22, 0.35)',
+                    gap: 7,
+                    boxShadow: '0 4px 12px rgba(249, 115, 22, 0.3)',
                     transition: 'all 0.15s ease',
                   }}
                 >
                   {actionLoading === 'BREAK' ? (
-                    <><Loader2 size={16} className="animate-spin" /> Autosaving...</>
+                    <><Loader2 size={15} className="animate-spin" /> Autosaving...</>
                   ) : (
-                    <><Coffee size={16} /> Break (Autosave)</>
+                    <><Coffee size={15} /> Break (Autosave)</>
                   )}
                 </button>
 
@@ -1386,23 +1482,23 @@ export default function AttendanceRecords() {
                   style={{
                     background: '#ffffff',
                     color: '#ea580c',
-                    border: '2px solid #fed7aa',
-                    borderRadius: 12,
-                    padding: '12px 22px',
-                    fontSize: 13.5,
-                    fontWeight: 800,
+                    border: '1.5px solid #fed7aa',
+                    borderRadius: 10,
+                    padding: '10px 18px',
+                    fontSize: 13,
+                    fontWeight: 700,
                     cursor: actionLoading ? 'wait' : 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 8,
-                    boxShadow: '0 4px 12px rgba(234, 88, 12, 0.12)',
+                    gap: 7,
+                    boxShadow: '0 2px 8px rgba(234, 88, 12, 0.08)',
                     transition: 'all 0.15s ease',
                   }}
                 >
                   {actionLoading === 'STOP' ? (
-                    <><Loader2 size={16} className="animate-spin" /> Ending...</>
+                    <><Loader2 size={15} className="animate-spin" /> Ending...</>
                   ) : (
-                    <><Square size={15} fill="#ea580c" /> End Attendance</>
+                    <><Square size={14} fill="#ea580c" /> End Attendance</>
                   )}
                 </button>
               </>
@@ -1419,22 +1515,22 @@ export default function AttendanceRecords() {
                     background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
                     color: '#ffffff',
                     border: 'none',
-                    borderRadius: 12,
-                    padding: '12px 24px',
-                    fontSize: 13.5,
-                    fontWeight: 800,
+                    borderRadius: 10,
+                    padding: '10px 20px',
+                    fontSize: 13,
+                    fontWeight: 700,
                     cursor: actionLoading ? 'wait' : 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 8,
-                    boxShadow: '0 4px 14px rgba(37, 99, 235, 0.35)',
+                    gap: 7,
+                    boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)',
                     transition: 'all 0.15s ease',
                   }}
                 >
                   {actionLoading === 'RESUME' ? (
-                    <><Loader2 size={16} className="animate-spin" /> Resuming...</>
+                    <><Loader2 size={15} className="animate-spin" /> Resuming...</>
                   ) : (
-                    <><Play size={16} fill="#ffffff" /> Resume (Continue Timer)</>
+                    <><Play size={15} fill="#ffffff" /> Resume (Continue Timer)</>
                   )}
                 </button>
 
@@ -1446,23 +1542,23 @@ export default function AttendanceRecords() {
                   style={{
                     background: '#ffffff',
                     color: '#ea580c',
-                    border: '2px solid #fed7aa',
-                    borderRadius: 12,
-                    padding: '12px 22px',
-                    fontSize: 13.5,
-                    fontWeight: 800,
+                    border: '1.5px solid #fed7aa',
+                    borderRadius: 10,
+                    padding: '10px 18px',
+                    fontSize: 13,
+                    fontWeight: 700,
                     cursor: actionLoading ? 'wait' : 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 8,
-                    boxShadow: '0 4px 12px rgba(234, 88, 12, 0.12)',
+                    gap: 7,
+                    boxShadow: '0 2px 8px rgba(234, 88, 12, 0.08)',
                     transition: 'all 0.15s ease',
                   }}
                 >
                   {actionLoading === 'STOP' ? (
-                    <><Loader2 size={16} className="animate-spin" /> Ending...</>
+                    <><Loader2 size={15} className="animate-spin" /> Ending...</>
                   ) : (
-                    <><Square size={15} fill="#ea580c" /> End Attendance</>
+                    <><Square size={14} fill="#ea580c" /> End Attendance</>
                   )}
                 </button>
               </>
@@ -1474,15 +1570,15 @@ export default function AttendanceRecords() {
                   background: '#eff6ff',
                   border: '1px solid #bfdbfe',
                   borderRadius: 10,
-                  padding: '9px 16px',
+                  padding: '8px 14px',
                   color: '#1d4ed8',
-                  fontSize: 13,
+                  fontSize: 12.5,
                   fontWeight: 700,
                   display: 'flex',
                   alignItems: 'center',
                   gap: 6
                 }}>
-                  <CheckCircle2 size={16} color="#2563eb" />
+                  <CheckCircle2 size={15} color="#2563eb" />
                   <span>Session Completed ({liveSessionMetrics.workHms} worked)</span>
                 </div>
                 <button
@@ -1493,8 +1589,8 @@ export default function AttendanceRecords() {
                     color: '#2563eb',
                     border: '1.5px solid #bfdbfe',
                     borderRadius: 10,
-                    padding: '9px 16px',
-                    fontSize: 13,
+                    padding: '8px 14px',
+                    fontSize: 12.5,
                     fontWeight: 700,
                     cursor: 'pointer',
                     display: 'flex',
@@ -1503,7 +1599,7 @@ export default function AttendanceRecords() {
                     boxShadow: '0 1px 3px rgba(37, 99, 235, 0.08)',
                   }}
                 >
-                  <RotateCcw size={14} /> Start New Session
+                  <RotateCcw size={13} /> Start New Session
                 </button>
               </div>
             )}
@@ -1514,13 +1610,13 @@ export default function AttendanceRecords() {
         {actionStatusMsg && (
           <div
             style={{
-              marginTop: 16,
+              marginTop: 14,
               background: actionStatusMsg.type === 'success' ? '#eff6ff' : '#fff7ed',
               border: `1px solid ${actionStatusMsg.type === 'success' ? '#bfdbfe' : '#fed7aa'}`,
               color: actionStatusMsg.type === 'success' ? '#1d4ed8' : '#ea580c',
               borderRadius: 10,
-              padding: '10px 16px',
-              fontSize: 13,
+              padding: '9px 14px',
+              fontSize: 12.5,
               fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
@@ -1529,12 +1625,12 @@ export default function AttendanceRecords() {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {actionStatusMsg.type === 'success' ? <CheckCircle2 size={16} color="#2563eb" /> : <AlertCircle size={16} color="#ea580c" />}
+              {actionStatusMsg.type === 'success' ? <CheckCircle2 size={15} color="#2563eb" /> : <AlertCircle size={15} color="#ea580c" />}
               <span>{actionStatusMsg.message}</span>
             </div>
             <button
               onClick={() => setActionStatusMsg(null)}
-              style={{ background: 'none', border: 'none', color: 'currentColor', cursor: 'pointer', fontSize: 14, fontWeight: 800 }}
+              style={{ background: 'none', border: 'none', color: 'currentColor', cursor: 'pointer', fontSize: 13, fontWeight: 800 }}
             >
               ✕
             </button>
@@ -1544,36 +1640,37 @@ export default function AttendanceRecords() {
         {/* Informational Sub-Bar: Break summary & MongoDB sync confirmation */}
         <div
           style={{
-            marginTop: 16,
-            paddingTop: 12,
+            marginTop: 14,
+            paddingTop: 10,
             borderTop: '1px solid #f1f5f9',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             flexWrap: 'wrap',
-            gap: 12,
-            fontSize: 12,
+            gap: 10,
+            fontSize: 11.5,
             color: TEXT_MUTED,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-            <span>Total Break Time: <strong style={{ color: '#ea580c' }}>{liveSessionMetrics.breakHms}</strong> ({liveSessionMetrics.breakCount} breaks)</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+            <span>Total Break Time: <strong style={{ color: '#ea580c', fontVariantNumeric: 'tabular-nums' }}>{liveSessionMetrics.breakHms}</strong> ({liveSessionMetrics.breakCount} breaks)</span>
             <span>•</span>
-            <span>Elapsed Total: <strong style={{ color: '#2563eb' }}>{liveSessionMetrics.totalHms}</strong></span>
+            <span>Elapsed Total: <strong style={{ color: '#2563eb', fontVariantNumeric: 'tabular-nums' }}>{liveSessionMetrics.totalHms}</strong></span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#2563eb', fontWeight: 600 }}>
-            <ShieldCheck size={14} color="#2563eb" />
-            <span>MongoDB Autosave & Real-Time Sync Active</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#2563eb', fontWeight: 600 }}>
+            <ShieldCheck size={13} color="#2563eb" />
+            <span>Real-Time Sync Active</span>
           </div>
         </div>
       </div>
 
       {/* ──── 2. Dashboard Summary KPI Cards (Modern Card Style per Reference UI) ──── */}
       <div
+        className="attendance-kpi-grid"
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: 18,
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gap: 12,
         }}
       >
         {[
@@ -1589,7 +1686,7 @@ export default function AttendanceRecords() {
               ? 'Overview of all active staff logged in today across company departments.'
               : 'Your personal real-time attendance clock-in state for today\'s scheduled shift.',
             theme: 'blue',
-            icon: <Users size={22} color="#2563eb" />,
+            icon: <Users size={20} color="#2563eb" />,
             actionLabel: 'Learn more',
             filter: summary.presentToday ? 'ON_DUTY' : 'ALL',
           },
@@ -1599,7 +1696,7 @@ export default function AttendanceRecords() {
             value: summary.currentlyOnDuty || 0,
             description: 'Staff members actively working and logging shift hours right now.',
             theme: 'blue',
-            icon: <Activity size={22} color="#1d4ed8" />,
+            icon: <Activity size={20} color="#1d4ed8" />,
             actionLabel: 'Learn more',
             filter: 'ON_DUTY',
           },
@@ -1610,7 +1707,7 @@ export default function AttendanceRecords() {
             value: summary.currentlyOnBreak || 0,
             description: 'Team members currently on break with live autosave to MongoDB.',
             theme: 'orange',
-            icon: <Coffee size={22} color="#ea580c" />,
+            icon: <Coffee size={20} color="#ea580c" />,
             actionLabel: 'Learn more',
             filter: 'ON_BREAK',
           },
@@ -1620,7 +1717,7 @@ export default function AttendanceRecords() {
             value: summary.completedAttendance || 0,
             description: 'Employees who have finalized shift duration and clocked out today.',
             theme: 'blue',
-            icon: <CheckCircle2 size={22} color="#2563eb" />,
+            icon: <CheckCircle2 size={20} color="#2563eb" />,
             actionLabel: 'Learn more',
             filter: 'COMPLETED',
           },
@@ -1630,7 +1727,7 @@ export default function AttendanceRecords() {
             value: normalizeDurationStr(summary.totalBreakTimeToday || '00h 00m'),
             description: 'Cumulative paused break duration logged across all active shifts today.',
             theme: 'orange',
-            icon: <Clock size={22} color="#ea580c" />,
+            icon: <Clock size={20} color="#ea580c" />,
             actionLabel: 'Learn more',
             filter: 'ON_BREAK',
           },
@@ -1641,10 +1738,10 @@ export default function AttendanceRecords() {
               key={card.id}
               style={{
                 background: '#ffffff',
-                borderRadius: 24,
+                borderRadius: 18,
                 border: '1px solid #f1f5f9',
-                padding: '24px 22px 20px 22px',
-                boxShadow: '0 4px 20px -2px rgba(15, 23, 42, 0.05)',
+                padding: '18px 18px 16px 18px',
+                boxShadow: '0 3px 14px -2px rgba(15, 23, 42, 0.04)',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
@@ -1652,23 +1749,23 @@ export default function AttendanceRecords() {
                 position: 'relative',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-3px)';
-                e.currentTarget.style.boxShadow = '0 12px 28px -4px rgba(15, 23, 42, 0.09)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 8px 22px -4px rgba(15, 23, 42, 0.08)';
                 e.currentTarget.style.borderColor = isOrange ? '#fed7aa' : '#bfdbfe';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 20px -2px rgba(15, 23, 42, 0.05)';
+                e.currentTarget.style.boxShadow = '0 3px 14px -2px rgba(15, 23, 42, 0.04)';
                 e.currentTarget.style.borderColor = '#f1f5f9';
               }}
             >
               {/* Top Row: Left Rounded Squircle Icon Badge + Right Round Action */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                 <div
                   style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 14,
+                    width: 38,
+                    height: 38,
+                    borderRadius: 12,
                     background: isOrange ? '#fff7ed' : '#eff6ff',
                     border: `1px solid ${isOrange ? '#ffedd5' : '#dbeafe'}`,
                     display: 'flex',
@@ -1683,8 +1780,8 @@ export default function AttendanceRecords() {
                   onClick={() => setStatusFilter(card.filter)}
                   title="Filter records"
                   style={{
-                    width: 32,
-                    height: 32,
+                    width: 28,
+                    height: 28,
                     borderRadius: '50%',
                     background: '#f8fafc',
                     border: '1px solid #f1f5f9',
@@ -1704,13 +1801,13 @@ export default function AttendanceRecords() {
                     e.currentTarget.style.color = '#94a3b8';
                   }}
                 >
-                  <ArrowUpRight size={15} />
+                  <ArrowUpRight size={14} />
                 </div>
               </div>
 
               {/* Middle Content: Title, Value & Description */}
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <div style={{ fontSize: 17, fontWeight: 600, color: '#0f172a', letterSpacing: '-0.01em', lineHeight: 1.3 }}>
+                <div style={{ fontSize: 14.5, fontWeight: 600, color: '#0f172a', letterSpacing: '-0.01em', lineHeight: 1.3 }}>
                   {card.splitText ? (
                     <SplitText
                       text={card.title}
@@ -1719,7 +1816,7 @@ export default function AttendanceRecords() {
                       duration={0.85}
                       ease="power3.out"
                       style={{
-                        fontSize: 17,
+                        fontSize: 14.5,
                         fontWeight: 600,
                         color: isOrange ? '#ea580c' : '#0f172a',
                         letterSpacing: '-0.01em',
@@ -1733,11 +1830,11 @@ export default function AttendanceRecords() {
 
                 <div
                   style={{
-                    fontSize: 26,
-                    fontWeight: 600,
+                    fontSize: 22,
+                    fontWeight: 700,
                     color: isOrange ? '#ea580c' : '#1d4ed8',
-                    marginTop: 8,
-                    marginBottom: 6,
+                    marginTop: 6,
+                    marginBottom: 4,
                     letterSpacing: '-0.02em',
                     fontVariantNumeric: 'tabular-nums',
                   }}
@@ -1745,7 +1842,7 @@ export default function AttendanceRecords() {
                   {card.value}
                 </div>
 
-                <div style={{ fontSize: 12.5, color: '#64748b', lineHeight: 1.45, marginBottom: 20, flex: 1 }}>
+                <div style={{ fontSize: 11.5, color: '#64748b', lineHeight: 1.4, marginBottom: 14, flex: 1 }}>
                   {card.description}
                 </div>
               </div>
@@ -1789,24 +1886,26 @@ export default function AttendanceRecords() {
 
       {/* ──── 3. Filters & Search Section (With Dedicated Employee Dropdown) ────── */}
       <div
+        className="attendance-filters-row"
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
-          gap: 14,
+          gap: 12,
           background: '#ffffff',
-          padding: '16px 22px',
-          borderRadius: 16,
+          padding: '14px 18px',
+          borderRadius: 14,
           border: `1px solid ${BORDER}`,
           boxShadow: '0 2px 8px rgba(15, 23, 42, 0.03)',
         }}
       >
         {/* Left Filter Group: Search Input + Modern Employee Selector Dropdown */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', flex: '1 1 500px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', flex: '1 1 450px' }}>
           
           {/* Search input */}
           <div
+            className="attendance-search-box"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -1814,9 +1913,9 @@ export default function AttendanceRecords() {
               background: '#f8fafc',
               border: `1.5px solid ${BORDER}`,
               borderRadius: 10,
-              padding: '9px 14px',
-              minWidth: 260,
-              flex: '1 1 280px',
+              padding: '8px 12px',
+              minWidth: 240,
+              flex: '1 1 240px',
             }}
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.2">
@@ -2022,23 +2121,7 @@ export default function AttendanceRecords() {
                           }}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
-                            <div
-                              style={{
-                                width: 28,
-                                height: 28,
-                                borderRadius: '50%',
-                                background: isSelected ? '#dbeafe' : '#f1f5f9',
-                                color: isSelected ? '#1d4ed8' : '#475569',
-                                fontWeight: 800,
-                                fontSize: 11,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                flexShrink: 0,
-                              }}
-                            >
-                              {emp.name.charAt(0).toUpperCase()}
-                            </div>
+                            {renderEmployeeAvatar(emp, 28, false)}
                             <div style={{ minWidth: 0 }}>
                               <div style={{ fontWeight: isSelected ? 800 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {emp.name}
@@ -2147,7 +2230,7 @@ export default function AttendanceRecords() {
         }}
       >
         <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          <table style={{ width: '100%', minWidth: '1380px', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13.5 }}>
+          <table style={{ width: '100%', minWidth: '1080px', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
             <thead>
               <tr
                 style={{
@@ -2155,7 +2238,7 @@ export default function AttendanceRecords() {
                   borderBottom: `2px solid ${BORDER}`,
                   color: '#475569',
                   fontWeight: 800,
-                  fontSize: 11.5,
+                  fontSize: 11,
                   textTransform: 'uppercase',
                   letterSpacing: '0.05em',
                   position: 'sticky',
@@ -2163,36 +2246,36 @@ export default function AttendanceRecords() {
                   zIndex: 5,
                 }}
               >
-                <th style={{ padding: '16px 20px', minWidth: 240, width: '18%' }}>Employee Details</th>
-                <th style={{ padding: '16px 14px', minWidth: 120, width: '9%' }}>Employee ID</th>
-                <th style={{ padding: '16px 14px', minWidth: 120, width: '9%' }}>Date</th>
-                <th style={{ padding: '16px 14px', minWidth: 100, width: '7%' }}>Day</th>
-                <th style={{ padding: '16px 14px', minWidth: 115, width: '8%' }}>Start Time</th>
-                <th style={{ padding: '16px 14px', minWidth: 115, width: '8%' }}>End Time</th>
-                <th style={{ padding: '16px 14px', minWidth: 140, width: '10%' }}>Total Attendance</th>
-                <th style={{ padding: '16px 14px', minWidth: 110, width: '7%', textAlign: 'center' }}>Break Count</th>
-                <th style={{ padding: '16px 14px', minWidth: 135, width: '9%' }}>Total Break Time</th>
-                <th style={{ padding: '16px 14px', minWidth: 155, width: '11%' }}>Actual Working Hours</th>
-                <th style={{ padding: '16px 14px', minWidth: 130, width: '9%' }}>Status</th>
-                <th style={{ padding: '16px 20px', minWidth: 210, width: '13%', textAlign: 'right' }}>Actions</th>
+                <th style={{ padding: '12px 14px', minWidth: 200, width: '18%' }}>Employee Details</th>
+                <th style={{ padding: '12px 10px', minWidth: 105, width: '8%' }}>Employee ID</th>
+                <th style={{ padding: '12px 10px', minWidth: 95, width: '8%' }}>Date</th>
+                <th style={{ padding: '12px 8px', minWidth: 65, width: '5%' }}>Day</th>
+                <th style={{ padding: '12px 10px', minWidth: 90, width: '8%' }}>Start Time</th>
+                <th style={{ padding: '12px 10px', minWidth: 90, width: '8%' }}>End Time</th>
+                <th style={{ padding: '12px 10px', minWidth: 120, width: '10%' }}>Total Attendance</th>
+                <th style={{ padding: '12px 8px', minWidth: 70, width: '6%', textAlign: 'center' }}>Breaks</th>
+                <th style={{ padding: '12px 10px', minWidth: 110, width: '9%' }}>Total Break</th>
+                <th style={{ padding: '12px 10px', minWidth: 125, width: '10%' }}>Actual Work</th>
+                <th style={{ padding: '12px 10px', minWidth: 110, width: '8%' }}>Status</th>
+                <th style={{ padding: '12px 14px', minWidth: 170, width: '12%', textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={12} style={{ padding: '80px 0', textAlign: 'center', color: TEXT_MUTED }}>
+                  <td colSpan={12} style={{ padding: '70px 0', textAlign: 'center', color: TEXT_MUTED }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-                      <div className="w-9 h-9 spinner-gradient" style={{ width: 36, height: 36, borderRadius: '50%', border: '3.5px solid #0284c7', borderTopColor: 'transparent', animation: 'spin 1s linear infinite' }} />
-                      <span style={{ fontSize: 14, fontWeight: 600 }}>Loading employee attendance records...</span>
+                      <div className="w-9 h-9 spinner-gradient" style={{ width: 34, height: 34, borderRadius: '50%', border: '3px solid #0284c7', borderTopColor: 'transparent', animation: 'spin 1s linear infinite' }} />
+                      <span style={{ fontSize: 13.5, fontWeight: 600 }}>Loading employee attendance records...</span>
                     </div>
                   </td>
                 </tr>
               ) : displayRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={12} style={{ padding: '80px 20px', textAlign: 'center', color: TEXT_MUTED }}>
-                    <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'center' }}><FileText size={40} color="#94a3b8" /></div>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: TEXT_MAIN }}>No attendance records found</div>
-                    <div style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 4 }}>
+                  <td colSpan={12} style={{ padding: '70px 20px', textAlign: 'center', color: TEXT_MUTED }}>
+                    <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'center' }}><FileText size={38} color="#94a3b8" /></div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: TEXT_MAIN }}>No attendance records found</div>
+                    <div style={{ fontSize: 12.5, color: TEXT_MUTED, marginTop: 4 }}>
                       {isFilterActive
                         ? 'Try adjusting your search query, employee selector, or status filter.'
                         : 'No employees recorded attendance for the selected date.'}
@@ -2201,13 +2284,13 @@ export default function AttendanceRecords() {
                       <button
                         onClick={handleResetFilters}
                         style={{
-                          marginTop: 14,
+                          marginTop: 12,
                           background: '#0284c7',
                           color: '#ffffff',
                           border: 'none',
                           borderRadius: 8,
-                          padding: '7px 16px',
-                          fontSize: 12.5,
+                          padding: '6px 14px',
+                          fontSize: 12,
                           fontWeight: 700,
                           cursor: 'pointer',
                         }}
@@ -2235,28 +2318,10 @@ export default function AttendanceRecords() {
                       onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
                       onMouseLeave={(e) => (e.currentTarget.style.background = rec.status === 'ON_DUTY' ? '#fcfdfd' : rec.status === 'ON_BREAK' ? '#fffdf7' : '#ffffff')}
                     >
-                      {/* Employee Details (Avatar + Name + Email) */}
-                      <td style={{ padding: '16px 20px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <div
-                            style={{
-                              width: 38,
-                              height: 38,
-                              borderRadius: 10,
-                              background: 'linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)',
-                              color: '#0369a1',
-                              fontWeight: 800,
-                              fontSize: 14,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              border: '1px solid #93c5fd',
-                              flexShrink: 0,
-                              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-                            }}
-                          >
-                            {(rec.employeeName || 'E').charAt(0).toUpperCase()}
-                          </div>
+                      {/* Employee Details (Avatar Image + Name + Email) */}
+                      <td style={{ padding: '10px 14px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          {renderEmployeeAvatar(rec, 36, true)}
                           <div style={{ minWidth: 0 }}>
                             <div
                               onClick={() => handleOpenEmployeeHistory(rec.employeeId)}
@@ -2264,7 +2329,7 @@ export default function AttendanceRecords() {
                                 fontWeight: 700,
                                 color: '#0284c7',
                                 cursor: 'pointer',
-                                fontSize: 13.5,
+                                fontSize: 13,
                                 whiteSpace: 'nowrap',
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
@@ -2275,7 +2340,7 @@ export default function AttendanceRecords() {
                             >
                               {rec.employeeName}
                             </div>
-                            <div style={{ fontSize: 11.5, color: TEXT_MUTED, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 1 }}>
+                            <div style={{ fontSize: 11, color: TEXT_MUTED, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 1 }}>
                               {rec.email || rec.role}
                             </div>
                           </div>
@@ -2283,51 +2348,51 @@ export default function AttendanceRecords() {
                       </td>
 
                       {/* Employee ID */}
-                      <td style={{ padding: '16px 14px', whiteSpace: 'nowrap' }}>
-                        <span style={{ background: '#f1f5f9', color: '#334155', fontWeight: 700, padding: '4px 10px', borderRadius: 8, fontSize: 12, fontFamily: 'ui-monospace, monospace' }}>
+                      <td style={{ padding: '10px 10px', whiteSpace: 'nowrap' }}>
+                        <span style={{ background: '#f1f5f9', color: '#1e293b', fontWeight: 800, padding: '3px 8px', borderRadius: 6, fontSize: 11.5, fontFamily: 'ui-monospace, monospace', border: '1px solid #e2e8f0', fontVariantNumeric: 'tabular-nums' }}>
                           {rec.employeeCode || 'EMP-001'}
                         </span>
                       </td>
 
                       {/* Date */}
-                      <td style={{ padding: '16px 14px', color: TEXT_MAIN, fontWeight: 600, whiteSpace: 'nowrap', fontSize: 13 }}>
+                      <td style={{ padding: '10px 10px', color: TEXT_MAIN, fontWeight: 700, whiteSpace: 'nowrap', fontSize: 12.5, fontVariantNumeric: 'tabular-nums' }}>
                         {formatDateDisplay(rec.date)}
                       </td>
 
                       {/* Day */}
-                      <td style={{ padding: '16px 14px', color: TEXT_MUTED, whiteSpace: 'nowrap', fontWeight: 500, fontSize: 13 }}>
+                      <td style={{ padding: '10px 8px', color: TEXT_MUTED, whiteSpace: 'nowrap', fontWeight: 600, fontSize: 12 }}>
                         {rec.day}
                       </td>
 
                       {/* Start Time */}
-                      <td style={{ padding: '16px 14px', fontWeight: 700, color: isNotStarted ? '#94a3b8' : '#1d4ed8', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                      <td style={{ padding: '10px 10px', fontWeight: 800, color: isNotStarted ? '#94a3b8' : '#1d4ed8', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', fontSize: 12.5 }}>
                         {rec.startTimeFormatted || '—'}
                       </td>
 
                       {/* End Time */}
-                      <td style={{ padding: '16px 14px', fontWeight: 700, color: rec.endTimeFormatted === '—' ? '#94a3b8' : '#1d4ed8', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                      <td style={{ padding: '10px 10px', fontWeight: 800, color: rec.endTimeFormatted === '—' ? '#94a3b8' : '#1d4ed8', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', fontSize: 12.5 }}>
                         {rec.endTimeFormatted || '—'}
                       </td>
 
                       {/* Total Attendance */}
-                      <td style={{ padding: '16px 14px', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '10px 10px', whiteSpace: 'nowrap' }}>
                         {rec.status === 'ON_DUTY' ? (
-                          <span style={{ color: '#1d4ed8', fontWeight: 800, fontFamily: 'ui-monospace, monospace', background: '#eff6ff', border: '1px solid #bfdbfe', padding: '4px 9px', borderRadius: 8, fontSize: 12.5, fontVariantNumeric: 'tabular-nums' }}>
-                            <Clock size={12} style={{ display: 'inline', marginRight: 3 }} />{liveTimes.totalAttendance}
+                          <span style={{ color: '#1d4ed8', fontWeight: 800, fontFamily: 'ui-monospace, monospace', background: '#eff6ff', border: '1px solid #bfdbfe', padding: '3px 8px', borderRadius: 7, fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
+                            <Clock size={11} style={{ display: 'inline', marginRight: 3 }} />{liveTimes.totalAttendance}
                           </span>
                         ) : rec.status === 'ON_BREAK' ? (
-                          <span style={{ color: '#ea580c', fontWeight: 800, fontFamily: 'ui-monospace, monospace', background: '#fff7ed', border: '1px solid #fed7aa', padding: '4px 9px', borderRadius: 8, fontSize: 12.5, fontVariantNumeric: 'tabular-nums' }}>
-                            <Clock size={12} style={{ display: 'inline', marginRight: 3 }} />{liveTimes.totalAttendance}
+                          <span style={{ color: '#ea580c', fontWeight: 800, fontFamily: 'ui-monospace, monospace', background: '#fff7ed', border: '1px solid #fed7aa', padding: '3px 8px', borderRadius: 7, fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
+                            <Clock size={11} style={{ display: 'inline', marginRight: 3 }} />{liveTimes.totalAttendance}
                           </span>
                         ) : (
-                          <span style={{ color: isNotStarted ? '#94a3b8' : '#1e293b', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                          <span style={{ color: isNotStarted ? '#94a3b8' : '#1e293b', fontWeight: 700, fontVariantNumeric: 'tabular-nums', fontSize: 12.5 }}>
                             {normalizeDurationStr(rec.durationFormatted) || '—'}
                           </span>
                         )}
                       </td>
 
                       {/* Break Count */}
-                      <td style={{ padding: '16px 14px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '10px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                         {isNotStarted ? (
                           <span style={{ color: '#94a3b8' }}>—</span>
                         ) : breakCount > 0 ? (
@@ -2338,104 +2403,104 @@ export default function AttendanceRecords() {
                               background: '#fff7ed',
                               border: '1px solid #fed7aa',
                               color: '#ea580c',
-                              padding: '3px 10px',
-                              borderRadius: 14,
-                              fontSize: 12,
-                              fontWeight: 700,
+                              padding: '2px 8px',
+                              borderRadius: 12,
+                              fontSize: 11.5,
+                              fontWeight: 800,
                               cursor: 'pointer',
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: 4,
+                              gap: 3,
                               boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
                             }}
                           >
-                            <Coffee size={12} /> {breakCount}
+                            <Coffee size={11} /> {breakCount}
                           </button>
                         ) : (
-                          <span style={{ color: '#64748b', fontSize: 12.5, fontWeight: 600 }}>0</span>
+                          <span style={{ color: '#64748b', fontSize: 12, fontWeight: 700 }}>0</span>
                         )}
                       </td>
 
                       {/* Total Break Time */}
-                      <td style={{ padding: '16px 14px', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '10px 10px', whiteSpace: 'nowrap' }}>
                         {rec.status === 'ON_BREAK' ? (
-                          <span style={{ color: '#ea580c', fontWeight: 800, fontFamily: 'ui-monospace, monospace', background: '#fff7ed', border: '1px solid #fed7aa', padding: '4px 9px', borderRadius: 8, fontSize: 12.5, fontVariantNumeric: 'tabular-nums' }}>
-                            <Coffee size={12} style={{ display: 'inline', marginRight: 3 }} />{liveTimes.totalBreak}
+                          <span style={{ color: '#ea580c', fontWeight: 800, fontFamily: 'ui-monospace, monospace', background: '#fff7ed', border: '1px solid #fed7aa', padding: '3px 8px', borderRadius: 7, fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
+                            <Coffee size={11} style={{ display: 'inline', marginRight: 3 }} />{liveTimes.totalBreak}
                           </span>
                         ) : isNotStarted ? (
                           <span style={{ color: '#94a3b8' }}>—</span>
                         ) : (
-                          <span style={{ color: breakCount > 0 ? '#ea580c' : '#64748b', fontWeight: breakCount > 0 ? 700 : 500, fontVariantNumeric: 'tabular-nums' }}>
+                          <span style={{ color: breakCount > 0 ? '#ea580c' : '#64748b', fontWeight: breakCount > 0 ? 800 : 600, fontVariantNumeric: 'tabular-nums', fontSize: 12.5 }}>
                             {normalizeDurationStr(rec.formattedBreakDuration) || '00h 00m'}
                           </span>
                         )}
                       </td>
 
                       {/* Actual Working Hours */}
-                      <td style={{ padding: '16px 14px', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '10px 10px', whiteSpace: 'nowrap' }}>
                         {rec.status === 'ON_DUTY' ? (
-                          <span style={{ color: '#1d4ed8', fontWeight: 800, fontFamily: 'ui-monospace, monospace', background: '#eff6ff', border: '1px solid #bfdbfe', padding: '4px 10px', borderRadius: 8, fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
-                            <Zap size={12} style={{ display: 'inline', marginRight: 3 }} />{liveTimes.actualWork}
+                          <span style={{ color: '#15803d', fontWeight: 800, fontFamily: 'ui-monospace, monospace', background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '3px 8px', borderRadius: 7, fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
+                            <Zap size={11} style={{ display: 'inline', marginRight: 3 }} />{liveTimes.actualWork}
                           </span>
                         ) : rec.status === 'ON_BREAK' ? (
-                          <span style={{ color: '#ea580c', fontWeight: 800, fontFamily: 'ui-monospace, monospace', background: '#fff7ed', border: '1px solid #fed7aa', padding: '4px 10px', borderRadius: 8, fontSize: 13, fontVariantNumeric: 'tabular-nums' }} title="Working timer paused while on break">
-                            <Clock size={12} style={{ display: 'inline', marginRight: 3 }} />{liveTimes.actualWork}
+                          <span style={{ color: '#ea580c', fontWeight: 800, fontFamily: 'ui-monospace, monospace', background: '#fff7ed', border: '1px solid #fed7aa', padding: '3px 8px', borderRadius: 7, fontSize: 12, fontVariantNumeric: 'tabular-nums' }} title="Working timer paused while on break">
+                            <Clock size={11} style={{ display: 'inline', marginRight: 3 }} />{liveTimes.actualWork}
                           </span>
                         ) : isNotStarted ? (
                           <span style={{ color: '#94a3b8' }}>—</span>
                         ) : (
-                          <span style={{ color: '#1d4ed8', fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
+                          <span style={{ color: '#1d4ed8', fontWeight: 800, fontVariantNumeric: 'tabular-nums', fontSize: 12.5 }}>
                             {normalizeDurationStr(rec.formattedActualWork || rec.durationFormatted) || '00h 00m'}
                           </span>
                         )}
                       </td>
 
                       {/* Status Badge */}
-                      <td style={{ padding: '16px 14px', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '10px 10px', whiteSpace: 'nowrap' }}>
                         <span
                           style={{
                             display: 'inline-flex',
                             alignItems: 'center',
-                            gap: 6,
-                            padding: '4px 11px',
-                            borderRadius: 16,
-                            fontSize: 12,
+                            gap: 5,
+                            padding: '3px 9px',
+                            borderRadius: 14,
+                            fontSize: 11.5,
                             fontWeight: 700,
                             background: badge.bg,
                             color: badge.color,
                             border: `1px solid ${badge.border}`,
                           }}
                         >
-                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: badge.dot }} />
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: badge.dot }} />
                           {badge.label}
                         </span>
                       </td>
 
                       {/* Actions Column (Properly Spaced Buttons) */}
-                      <td style={{ padding: '16px 20px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
+                      <td style={{ padding: '10px 14px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
                           {/* Button 1: Breaks Button */}
                           {!isNotStarted && (
                             <button
                               onClick={() => setBreakModalRecord(rec)}
                               title="View full break details breakdown"
                               style={{
-                                height: 32,
+                                height: 30,
                                 background: '#fff7ed',
                                 color: '#ea580c',
                                 border: '1px solid #fed7aa',
-                                borderRadius: 8,
-                                padding: '0 10px',
-                                fontSize: 12,
+                                borderRadius: 7,
+                                padding: '0 8px',
+                                fontSize: 11.5,
                                 fontWeight: 700,
                                 cursor: 'pointer',
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: 4,
+                                gap: 3,
                                 transition: 'all 0.15s',
                               }}
                             >
-                              <Coffee size={12} /> Breaks
+                              <Coffee size={11} /> Breaks
                             </button>
                           )}
 
@@ -2445,22 +2510,22 @@ export default function AttendanceRecords() {
                               onClick={() => setMapModalRecord(rec)}
                               title="View GPS location on map"
                               style={{
-                                height: 32,
+                                height: 30,
                                 background: '#eff6ff',
                                 color: '#1d4ed8',
                                 border: '1px solid #bfdbfe',
-                                borderRadius: 8,
-                                padding: '0 10px',
-                                fontSize: 12,
+                                borderRadius: 7,
+                                padding: '0 8px',
+                                fontSize: 11.5,
                                 fontWeight: 700,
                                 cursor: 'pointer',
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: 4,
+                                gap: 3,
                                 transition: 'all 0.15s',
                               }}
                             >
-                              <MapPin size={12} /> Map
+                              <MapPin size={11} /> Map
                             </button>
                           )}
 
@@ -2470,22 +2535,22 @@ export default function AttendanceRecords() {
                               onClick={() => setDetailModalRecord(rec)}
                               title="View complete record details"
                               style={{
-                                height: 32,
+                                height: 30,
                                 background: '#f8fafc',
                                 color: '#334155',
                                 border: `1px solid ${BORDER}`,
-                                borderRadius: 8,
-                                padding: '0 10px',
-                                fontSize: 12,
-                                fontWeight: 600,
+                                borderRadius: 7,
+                                padding: '0 8px',
+                                fontSize: 11.5,
+                                fontWeight: 700,
                                 cursor: 'pointer',
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: 4,
+                                gap: 3,
                                 transition: 'all 0.15s',
                               }}
                             >
-                              <FileText size={12} /> Details
+                              <FileText size={11} /> Details
                             </button>
                           )}
                         </div>
@@ -2531,9 +2596,7 @@ export default function AttendanceRecords() {
             {/* Modal Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 44, height: 44, borderRadius: 12, background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ea580c', fontSize: 22, border: '1px solid #fed7aa' }}>
-                  <Coffee size={22} color="#ea580c" />
-                </div>
+                {renderEmployeeAvatar(breakModalRecord, 42, true)}
                 <div>
                   <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: TEXT_MAIN }}>
                     Break Details — {breakModalRecord.employeeName}
@@ -2555,25 +2618,25 @@ export default function AttendanceRecords() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
               <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: 10, border: `1px solid ${BORDER}` }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' }}>Total Attendance</div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: '#1d4ed8', marginTop: 3 }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#1d4ed8', marginTop: 3, fontVariantNumeric: 'tabular-nums' }}>
                   {normalizeDurationStr(breakModalRecord.durationFormatted) || '—'}
                 </div>
               </div>
               <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: 10, border: `1px solid ${BORDER}` }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' }}>Total Breaks</div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: '#ea580c', marginTop: 3 }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#ea580c', marginTop: 3, fontVariantNumeric: 'tabular-nums' }}>
                   {breakModalRecord.breakCount || breakModalRecord.breaks?.length || 0}
                 </div>
               </div>
               <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: 10, border: `1px solid ${BORDER}` }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' }}>Total Break Time</div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: '#ea580c', marginTop: 3 }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#ea580c', marginTop: 3, fontVariantNumeric: 'tabular-nums' }}>
                   {normalizeDurationStr(breakModalRecord.formattedBreakDuration) || '00h 00m'}
                 </div>
               </div>
               <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: 10, border: `1px solid ${BORDER}` }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' }}>Actual Working</div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: '#1d4ed8', marginTop: 3 }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#15803d', marginTop: 3, fontVariantNumeric: 'tabular-nums' }}>
                   {normalizeDurationStr(breakModalRecord.formattedActualWork || breakModalRecord.durationFormatted) || '00h 00m'}
                 </div>
               </div>
@@ -2689,9 +2752,7 @@ export default function AttendanceRecords() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 42, height: 42, borderRadius: 12, background: '#e0f2fe', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0284c7', fontSize: 20 }}>
-                  <FileText size={20} color="#0284c7" />
-                </div>
+                {renderEmployeeAvatar(detailModalRecord, 42, true)}
                 <div>
                   <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: TEXT_MAIN }}>
                     {detailModalRecord.employeeName}
@@ -2713,19 +2774,19 @@ export default function AttendanceRecords() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 14 }}>
               <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: 10, border: `1px solid ${BORDER}` }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' }}>Start Time</div>
-                <div style={{ fontSize: 14.5, fontWeight: 800, color: '#1d4ed8', marginTop: 3 }}>
+                <div style={{ fontSize: 14.5, fontWeight: 800, color: '#1d4ed8', marginTop: 3, fontVariantNumeric: 'tabular-nums' }}>
                   {detailModalRecord.startTimeFormatted || '—'}
                 </div>
               </div>
               <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: 10, border: `1px solid ${BORDER}` }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' }}>End Time</div>
-                <div style={{ fontSize: 14.5, fontWeight: 800, color: detailModalRecord.endTimeFormatted === '—' ? '#94a3b8' : '#1d4ed8', marginTop: 3 }}>
+                <div style={{ fontSize: 14.5, fontWeight: 800, color: detailModalRecord.endTimeFormatted === '—' ? '#94a3b8' : '#1d4ed8', marginTop: 3, fontVariantNumeric: 'tabular-nums' }}>
                   {detailModalRecord.endTimeFormatted || '—'}
                 </div>
               </div>
               <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: 10, border: `1px solid ${BORDER}` }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' }}>Total Attendance</div>
-                <div style={{ fontSize: 14.5, fontWeight: 800, color: '#2563eb', marginTop: 3 }}>
+                <div style={{ fontSize: 14.5, fontWeight: 800, color: '#2563eb', marginTop: 3, fontVariantNumeric: 'tabular-nums' }}>
                   {normalizeDurationStr(detailModalRecord.durationFormatted) || '—'}
                 </div>
               </div>
@@ -2737,13 +2798,13 @@ export default function AttendanceRecords() {
                 <div style={{ fontSize: 11, fontWeight: 700, color: '#ea580c', textTransform: 'uppercase' }}>
                   ☕ Breaks ({detailModalRecord.breakCount || detailModalRecord.breaks?.length || 0})
                 </div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: '#ea580c', marginTop: 3 }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#ea580c', marginTop: 3, fontVariantNumeric: 'tabular-nums' }}>
                   {normalizeDurationStr(detailModalRecord.formattedBreakDuration) || '00h 00m'}
                 </div>
               </div>
               <div style={{ background: '#eff6ff', padding: '12px 14px', borderRadius: 10, border: '1px solid #bfdbfe' }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase' }}>⚡ Actual Work Hours</div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: '#1d4ed8', marginTop: 3 }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#15803d', marginTop: 3, fontVariantNumeric: 'tabular-nums' }}>
                   {normalizeDurationStr(detailModalRecord.formattedActualWork || detailModalRecord.durationFormatted) || '00h 00m'}
                 </div>
               </div>
@@ -2866,12 +2927,15 @@ export default function AttendanceRecords() {
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: TEXT_MAIN }}>
-                  {employeeHistoryData?.employee?.name || 'Employee'} — Complete Attendance Log
-                </h3>
-                <div style={{ fontSize: 12.5, color: TEXT_MUTED, marginTop: 2 }}>
-                  {employeeHistoryData?.employee?.employeeCode} • {employeeHistoryData?.employee?.email}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                {renderEmployeeAvatar(employeeHistoryData?.employee || { name: historyModalEmployee, _id: historyModalEmployee }, 42, true)}
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: TEXT_MAIN }}>
+                    {employeeHistoryData?.employee?.name || 'Employee'} — Complete Attendance Log
+                  </h3>
+                  <div style={{ fontSize: 12.5, color: TEXT_MUTED, marginTop: 2 }}>
+                    {employeeHistoryData?.employee?.employeeCode} • {employeeHistoryData?.employee?.email}
+                  </div>
                 </div>
               </div>
               <button
@@ -2890,25 +2954,25 @@ export default function AttendanceRecords() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
                 <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: 10, border: `1px solid ${BORDER}` }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_MUTED }}>Total Days Logged</div>
-                  <div style={{ fontSize: 20, fontWeight: 800, color: '#0284c7', marginTop: 2 }}>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: '#0284c7', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
                     {employeeHistoryData.stats.totalDays}
                   </div>
                 </div>
                 <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: 10, border: `1px solid ${BORDER}` }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_MUTED }}>Completed Days</div>
-                  <div style={{ fontSize: 20, fontWeight: 800, color: '#047857', marginTop: 2 }}>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: '#047857', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
                     {employeeHistoryData.stats.completedDays}
                   </div>
                 </div>
                 <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: 10, border: `1px solid ${BORDER}` }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_MUTED }}>Total Actual Work</div>
-                  <div style={{ fontSize: 20, fontWeight: 800, color: '#1d4ed8', marginTop: 2 }}>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: '#1d4ed8', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
                     {employeeHistoryData.stats.totalHours}
                   </div>
                 </div>
                 <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: 10, border: `1px solid ${BORDER}` }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_MUTED }}>Total Break Hours</div>
-                  <div style={{ fontSize: 20, fontWeight: 800, color: '#d97706', marginTop: 2 }}>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: '#d97706', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
                     {employeeHistoryData.stats.totalBreakHours || '0.0 hrs'}
                   </div>
                 </div>
@@ -2944,15 +3008,15 @@ export default function AttendanceRecords() {
                       const b = getStatusBadge(r.status);
                       return (
                         <tr key={r._id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                          <td style={{ padding: '10px 14px', fontWeight: 600 }}>{formatDateDisplay(r.date)}</td>
+                          <td style={{ padding: '10px 14px', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{formatDateDisplay(r.date)}</td>
                           <td style={{ padding: '10px 14px', color: TEXT_MUTED }}>{r.day}</td>
-                          <td style={{ padding: '10px 14px', fontWeight: 700 }}>{r.startTimeFormatted}</td>
-                          <td style={{ padding: '10px 14px', fontWeight: 700 }}>{r.endTimeFormatted}</td>
-                          <td style={{ padding: '10px 14px' }}>{normalizeDurationStr(r.formattedDuration) || '—'}</td>
-                          <td style={{ padding: '10px 14px', color: '#b45309', fontWeight: 600 }}>
+                          <td style={{ padding: '10px 14px', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{r.startTimeFormatted}</td>
+                          <td style={{ padding: '10px 14px', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{r.endTimeFormatted}</td>
+                          <td style={{ padding: '10px 14px', fontVariantNumeric: 'tabular-nums' }}>{normalizeDurationStr(r.formattedDuration) || '—'}</td>
+                          <td style={{ padding: '10px 14px', color: '#b45309', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
                             {r.breakCount > 0 ? `${r.breakCount} (${normalizeDurationStr(r.formattedBreakDuration) || '00h 00m'})` : '0'}
                           </td>
-                          <td style={{ padding: '10px 14px', fontWeight: 700, color: '#047857' }}>
+                          <td style={{ padding: '10px 14px', fontWeight: 700, color: '#047857', fontVariantNumeric: 'tabular-nums' }}>
                             {normalizeDurationStr(r.formattedActualWork || r.formattedDuration) || '—'}
                           </td>
                           <td style={{ padding: '10px 14px' }}>
@@ -3011,9 +3075,7 @@ export default function AttendanceRecords() {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: '#e0f2fe', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <MapPin size={20} color="#0284c7" />
-                </div>
+                {renderEmployeeAvatar(mapModalRecord, 38, true)}
                 <div>
                   <h4 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: TEXT_MAIN }}>
                     {mapModalRecord.employeeName} — Location & Route
@@ -3179,7 +3241,7 @@ export default function AttendanceRecords() {
                   <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Completed Login
                   </div>
-                  <div style={{ fontSize: 18, fontWeight: 900, color: '#0f172a', fontFamily: 'monospace', marginTop: 4 }}>
+                  <div style={{ fontSize: 18, fontWeight: 900, color: '#0f172a', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', marginTop: 4 }}>
                     {nineHourWarningModal.completedHms}
                   </div>
                   <div style={{ fontSize: 11, color: '#2563eb', fontWeight: 600, marginTop: 2 }}>
@@ -3198,7 +3260,7 @@ export default function AttendanceRecords() {
                   <div style={{ fontSize: 11, fontWeight: 700, color: '#c2410c', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Time Remaining
                   </div>
-                  <div style={{ fontSize: 18, fontWeight: 900, color: '#ea580c', fontFamily: 'monospace', marginTop: 4 }}>
+                  <div style={{ fontSize: 18, fontWeight: 900, color: '#ea580c', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', marginTop: 4 }}>
                     {nineHourWarningModal.remainingHms}
                   </div>
                   <div style={{ fontSize: 11, color: '#ea580c', fontWeight: 600, marginTop: 2 }}>

@@ -7,7 +7,7 @@ import {
   Mail, Send, Image as ImageIcon, Trash2, Edit3, Plus, Check,
   Search, Filter, CheckSquare, Square, RefreshCw, AlertCircle,
   Upload, ExternalLink, ShieldAlert, Sparkles, CheckCircle2,
-  Users, ChevronDown, Eye, X, ArrowRight
+  Users, ChevronDown, Eye, X, ArrowRight, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 export default function BulkEmailBlast() {
@@ -239,6 +239,29 @@ export default function BulkEmailBlast() {
     return filteredLeads.filter(l => l.email && l.email.includes('@') && l.email.includes('.'));
   }, [filteredLeads]);
 
+  // ── Pagination State for Leads Directory (20 items per page) ──
+  const PAGE_SIZE = 20;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Reset to page 1 on search or status filter modification
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [leadSearch, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredLeads.length / PAGE_SIZE));
+  const safeCurrentPage = Math.min(Math.max(currentPage, 1), totalPages);
+
+  // Paginated slice for current page
+  const paginatedLeads = useMemo(() => {
+    const start = (safeCurrentPage - 1) * PAGE_SIZE;
+    return filteredLeads.slice(start, start + PAGE_SIZE);
+  }, [filteredLeads, safeCurrentPage, PAGE_SIZE]);
+
+  // Paginated leads on current page with valid email
+  const paginatedLeadsWithEmail = useMemo(() => {
+    return paginatedLeads.filter(l => l.email && l.email.includes('@') && l.email.includes('.'));
+  }, [paginatedLeads]);
+
   // Lead selection handlers
   const handleToggleLead = (leadId, hasEmail) => {
     if (!hasEmail) return;
@@ -249,6 +272,28 @@ export default function BulkEmailBlast() {
       } else {
         next.add(leadId);
       }
+      return next;
+    });
+  };
+
+  // Toggle selection for all reachable leads on current page
+  const handleToggleCurrentPage = () => {
+    const allPageSelected = paginatedLeadsWithEmail.length > 0 && paginatedLeadsWithEmail.every(l => selectedLeadIds.has(l._id));
+    setSelectedLeadIds(prev => {
+      const next = new Set(prev);
+      if (allPageSelected) {
+        paginatedLeadsWithEmail.forEach(l => next.delete(l._id));
+      } else {
+        paginatedLeadsWithEmail.forEach(l => next.add(l._id));
+      }
+      return next;
+    });
+  };
+
+  const handleSelectPage = () => {
+    setSelectedLeadIds(prev => {
+      const next = new Set(prev);
+      paginatedLeadsWithEmail.forEach(l => next.add(l._id));
       return next;
     });
   };
@@ -355,78 +400,99 @@ export default function BulkEmailBlast() {
   }
 
   return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', height: 'calc(100vh - 65px)',
+    <div className="bulk-email-outer" style={{
+      display: 'flex', flexDirection: 'column', height: 'calc(100vh - 84px)', maxHeight: 'calc(100vh - 84px)', minHeight: 0,
       background: '#f8fafc', overflow: 'hidden', fontFamily: 'Inter, system-ui, sans-serif'
     }}>
-      {/* ── TOP HEADER BAR ── */}
-      <div style={{
-        background: '#ffffff', borderBottom: '1px solid #e2e8f0',
-        padding: '12px 24px', display: 'flex', alignItems: 'center',
-        justifyContent: 'space-between', flexShrink: 0
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{
-            width: 42, height: 42, borderRadius: 12, background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff',
-            boxShadow: '0 4px 12px rgba(37,99,235,0.25)'
+      <style>{`
+        @keyframes scaleUp {
+          from { transform: scale(0.96); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
+        @media (max-width: 1024px) {
+          .bulk-email-main-split { flex-direction: column !important; overflow-y: auto !important; }
+          .bulk-email-left-pane { width: 100% !important; max-width: 100% !important; min-width: 0 !important; border-right: none !important; border-bottom: 1px solid #e2e8f0 !important; }
+          .bulk-email-right-pane { width: 100% !important; min-width: 0 !important; }
+        }
+        @media (max-width: 640px) {
+          .bulk-email-container { padding: 4px 6px !important; }
+          .bulk-email-header { flex-direction: column !important; align-items: flex-start !important; gap: 12px !important; padding: 12px 14px !important; }
+        }
+      `}</style>
+
+      {/* Responsive Wrapper Container with max-width */}
+      <div className="bulk-email-container" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', width: '100%', maxWidth: 1440, margin: '0 auto', padding: '6px 12px', height: '100%', overflow: 'hidden' }}>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: '#ffffff', borderRadius: 14, border: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.03)', overflow: 'hidden', height: '100%' }}>
+
+          {/* ── TOP HEADER BAR ── */}
+          <div className="bulk-email-header" style={{
+            background: '#ffffff', borderBottom: '1px solid #e2e8f0',
+            padding: '12px 20px', display: 'flex', alignItems: 'center',
+            justifyContent: 'space-between', flexShrink: 0, flexWrap: 'wrap', gap: 12
           }}>
-            <Mail size={22} />
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#0f172a' }}>
-                Bulk Email Broadcast
-              </h1>
-              <span style={{
-                background: '#e0f2fe', color: '#0284c7', fontSize: 11, fontWeight: 700,
-                padding: '2px 8px', borderRadius: 12, border: '1px solid #bae6fd',
-                display: 'inline-flex', alignItems: 'center', gap: 4
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{
+                width: 38, height: 38, borderRadius: 10, background: '#eff6ff',
+                border: '1.5px solid #bfdbfe',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb',
+                flexShrink: 0
               }}>
-                <Sparkles size={11} /> n8n Production Engine
-              </span>
+                <Mail size={20} />
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                  <h1 style={{ margin: 0, fontSize: 16.5, fontWeight: 600, color: '#0f172a' }}>
+                    Bulk Email Broadcast
+                  </h1>
+                  <span style={{
+                    background: '#fff7ed', color: '#ea580c', fontSize: 11, fontWeight: 600,
+                    padding: '2px 8px', borderRadius: 12, border: '1px solid #fed7aa',
+                    display: 'inline-flex', alignItems: 'center', gap: 4
+                  }}>
+                    <Sparkles size={11} /> High-Speed Engine
+                  </span>
+                </div>
+                <p style={{ margin: 0, fontSize: 11.5, color: '#64748b' }}>
+                  Multi-channel Email Dispatcher • Authorized for CTO, HR, MD
+                </p>
+              </div>
             </div>
-            <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>
-              Direct n8n webhook integration (<code>https://aotms.app.n8n.cloud/webhook/AI-Mail</code>) • Authorized for CTO, HR, MD
-            </p>
-          </div>
-        </div>
 
-        {/* Action Header Stats & Launch Button */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{
-            background: '#f1f5f9', padding: '6px 14px', borderRadius: 8,
-            fontSize: 12.5, color: '#334155', fontWeight: 600
-          }}>
-            Selected: <span style={{ color: '#2563eb', fontWeight: 700 }}>{selectedRecipientsList.length}</span> recipients
-          </div>
+            {/* Action Header Stats & Launch Button */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <div style={{
+                background: '#eff6ff', border: '1px solid #bfdbfe', padding: '6px 14px', borderRadius: 20,
+                fontSize: 12, color: '#1d4ed8', fontWeight: 600
+              }}>
+                Selected: <span style={{ color: '#2563eb', fontWeight: 600 }}>{selectedRecipientsList.length}</span> recipients
+              </div>
 
-          <button
-            onClick={() => {
-              if (selectedRecipientsList.length === 0) {
-                notify('error', 'Please select at least 1 lead recipient with an email.');
-                return;
-              }
-              if (!templateSubject.trim() || !templateBody.trim()) {
-                notify('error', 'Subject and template content cannot be empty.');
-                return;
-              }
-              setShowConfirmModal(true);
-            }}
-            disabled={selectedRecipientsList.length === 0}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-              padding: '9px 20px', borderRadius: 10, fontSize: 13, fontWeight: 600,
-              background: selectedRecipientsList.length > 0 ? 'linear-gradient(135deg, #2563eb, #1d4ed8)' : '#cbd5e1',
-              color: '#ffffff', border: 'none', cursor: selectedRecipientsList.length > 0 ? 'pointer' : 'not-allowed',
-              boxShadow: selectedRecipientsList.length > 0 ? '0 4px 14px rgba(37,99,235,0.35)' : 'none',
-              transition: 'all 0.15s'
-            }}
-          >
-            <Send size={15} /> Launch Email Broadcast
-          </button>
-        </div>
-      </div>
+              <button
+                onClick={() => {
+                  if (selectedRecipientsList.length === 0) {
+                    notify('error', 'Please select at least 1 lead recipient with an email.');
+                    return;
+                  }
+                  if (!templateSubject.trim() || !templateBody.trim()) {
+                    notify('error', 'Subject and template content cannot be empty.');
+                    return;
+                  }
+                  setShowConfirmModal(true);
+                }}
+                disabled={selectedRecipientsList.length === 0}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 7,
+                  padding: '8px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+                  background: selectedRecipientsList.length > 0 ? '#2563eb' : '#cbd5e1',
+                  color: '#ffffff', border: 'none', cursor: selectedRecipientsList.length > 0 ? 'pointer' : 'not-allowed',
+                  boxShadow: selectedRecipientsList.length > 0 ? '0 2px 8px rgba(37,99,235,0.25)' : 'none',
+                  transition: 'all 0.15s'
+                }}
+              >
+                <Send size={14} /> Launch Email Broadcast
+              </button>
+            </div>
+          </div>
 
       {/* Toast Notification */}
       {feedbackToast.message && (
@@ -443,21 +509,21 @@ export default function BulkEmailBlast() {
       )}
 
       {/* ── 2-COLUMN MAIN CONTENT (LEFT: TEMPLATE CRUD, RIGHT: ALL LEADS) ── */}
-      <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+      <div className="bulk-email-main-split" style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
         
         {/* ═══════════ LEFT PANE: TEMPLATE CRUD & CLOUDINARY IMAGES (45%) ═══════════ */}
-        <div style={{
-          width: '45%', minWidth: 440, maxWidth: 620, borderRight: '1px solid #e2e8f0',
+        <div className="bulk-email-left-pane" style={{
+          width: '45%', minWidth: 380, maxWidth: 600, borderRight: '1px solid #e2e8f0',
           background: '#ffffff', display: 'flex', flexDirection: 'column', height: '100%',
-          overflowY: 'auto', padding: '20px 24px'
+          overflowY: 'auto', padding: '18px 22px'
         }}>
           {/* Template Header & Selector */}
           <div style={{ marginBottom: 18 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Edit3 size={18} color="#2563eb" />
-                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#0f172a' }}>
-                  Template Management (CRUD)
+                <h3 style={{ margin: 0, fontSize: 14.5, fontWeight: 600, color: '#0f172a' }}>
+                  Template Management
                 </h3>
               </div>
               <button
@@ -537,8 +603,8 @@ export default function BulkEmailBlast() {
                       type="button"
                       onClick={() => setTemplateSubject(prev => `${prev} ${tag}`)}
                       style={{
-                        padding: '1px 6px', fontSize: 10.5, borderRadius: 4, background: '#f1f5f9',
-                        border: '1px solid #cbd5e1', color: '#475569', cursor: 'pointer'
+                        padding: '2px 8px', fontSize: 11, borderRadius: 5, background: '#eff6ff',
+                        border: '1px solid #bfdbfe', color: '#1d4ed8', cursor: 'pointer', fontWeight: 500
                       }}
                     >
                       +{tag}
@@ -552,8 +618,8 @@ export default function BulkEmailBlast() {
                 onChange={(e) => setTemplateSubject(e.target.value)}
                 placeholder="Subject of the email broadcast"
                 style={{
-                  width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1',
-                  fontSize: 13, outline: 'none', background: '#ffffff', boxSizing: 'border-box'
+                  width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #cbd5e1',
+                  fontSize: 13.5, outline: 'none', background: '#ffffff', boxSizing: 'border-box'
                 }}
               />
             </div>
@@ -571,8 +637,8 @@ export default function BulkEmailBlast() {
                       type="button"
                       onClick={() => setTemplateBody(prev => `${prev} ${tag}`)}
                       style={{
-                        padding: '1px 6px', fontSize: 10.5, borderRadius: 4, background: '#f1f5f9',
-                        border: '1px solid #cbd5e1', color: '#475569', cursor: 'pointer'
+                        padding: '2px 8px', fontSize: 11, borderRadius: 5, background: '#eff6ff',
+                        border: '1px solid #bfdbfe', color: '#1d4ed8', cursor: 'pointer', fontWeight: 500
                       }}
                     >
                       +{tag}
@@ -587,7 +653,7 @@ export default function BulkEmailBlast() {
                 rows={9}
                 style={{
                   width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #cbd5e1',
-                  fontSize: 13, lineHeight: 1.5, outline: 'none', background: '#ffffff',
+                  fontSize: 13.5, lineHeight: 1.5, outline: 'none', background: '#ffffff',
                   boxSizing: 'border-box', resize: 'vertical', minHeight: 140
                 }}
               />
@@ -601,7 +667,7 @@ export default function BulkEmailBlast() {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <ImageIcon size={16} color="#f97316" />
-                  <span style={{ fontSize: 12.5, fontWeight: 700, color: '#1e293b' }}>
+                  <span style={{ fontSize: 12.5, fontWeight: 600, color: '#1e293b' }}>
                     Cloudinary Image Asset
                   </span>
                 </div>
@@ -692,8 +758,9 @@ export default function BulkEmailBlast() {
                 disabled={savingTemplate}
                 style={{
                   flex: 1, padding: '9px 16px', borderRadius: 8, border: 'none',
-                  background: '#0f172a', color: '#ffffff', fontSize: 13, fontWeight: 600,
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+                  background: '#2563eb', color: '#ffffff', fontSize: 13, fontWeight: 600,
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  boxShadow: '0 2px 8px rgba(37,99,235,0.2)'
                 }}
               >
                 {savingTemplate ? <RefreshCw size={14} className="animate-spin" /> : <Check size={14} />}
@@ -703,20 +770,20 @@ export default function BulkEmailBlast() {
           </div>
         </div>
 
-        {/* ═══════════ RIGHT PANE: ALL LEADS WITH SELECTION (55%) ═══════════ */}
-        <div style={{
-          flex: 1, display: 'flex', flexDirection: 'column', height: '100%',
+        {/* ═══════════ RIGHT PANE: ALL LEADS WITH SELECTION & PAGINATION (55%) ═══════════ */}
+        <div className="bulk-email-right-pane" style={{
+          flex: 1, display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0,
           overflow: 'hidden', background: '#f8fafc'
         }}>
           {/* Leads Top Filters & Search */}
           <div style={{
-            padding: '16px 24px 12px', background: '#ffffff', borderBottom: '1px solid #e2e8f0',
-            display: 'flex', flexDirection: 'column', gap: 12
+            padding: '14px 18px 10px', background: '#ffffff', borderBottom: '1px solid #e2e8f0',
+            display: 'flex', flexDirection: 'column', gap: 10, flexShrink: 0
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Users size={18} color="#2563eb" />
-                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#0f172a' }}>
+                <h3 style={{ margin: 0, fontSize: 14.5, fontWeight: 600, color: '#0f172a' }}>
                   All Leads Directory
                 </h3>
                 <span style={{ fontSize: 12, color: '#64748b' }}>
@@ -725,28 +792,45 @@ export default function BulkEmailBlast() {
               </div>
 
               {/* Selection Controls */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 <button
-                  onClick={handleSelectAllFiltered}
+                  type="button"
+                  onClick={handleSelectPage}
+                  title="Select reachable leads on the current page"
                   style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 5,
-                    padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600,
-                    background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe',
-                    cursor: 'pointer'
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    padding: '5px 10px', borderRadius: 6, fontSize: 11.5, fontWeight: 600,
+                    background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe',
+                    cursor: 'pointer', transition: 'all 0.15s'
                   }}
                 >
-                  <CheckSquare size={14} /> Select All
+                  <CheckSquare size={13} /> Select Page ({paginatedLeadsWithEmail.length})
                 </button>
                 <button
-                  onClick={handleClearSelection}
+                  type="button"
+                  onClick={handleSelectAllFiltered}
+                  title="Select all reachable leads matching filter"
                   style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 5,
-                    padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600,
-                    background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1',
-                    cursor: 'pointer'
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    padding: '5px 10px', borderRadius: 6, fontSize: 11.5, fontWeight: 600,
+                    background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0',
+                    cursor: 'pointer', transition: 'all 0.15s'
                   }}
                 >
-                  <Square size={14} /> Deselect All
+                  <Check size={13} /> Select All ({filteredLeadsWithEmail.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClearSelection}
+                  title="Clear all selections"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    padding: '5px 10px', borderRadius: 6, fontSize: 11.5, fontWeight: 600,
+                    background: '#fff7ed', color: '#ea580c', border: '1px solid #fed7aa',
+                    cursor: 'pointer', transition: 'all 0.15s'
+                  }}
+                >
+                  <Square size={13} /> Deselect All
                 </button>
               </div>
             </div>
@@ -773,7 +857,8 @@ export default function BulkEmailBlast() {
                 onChange={(e) => setStatusFilter(e.target.value)}
                 style={{
                   padding: '8px 14px', borderRadius: 8, border: '1px solid #cbd5e1',
-                  fontSize: 13, color: '#334155', background: '#f8fafc', outline: 'none'
+                  fontSize: 13, color: '#334155', background: '#f8fafc', outline: 'none',
+                  cursor: 'pointer'
                 }}
               >
                 <option value="All">All Stages</option>
@@ -787,8 +872,77 @@ export default function BulkEmailBlast() {
             </div>
           </div>
 
-          {/* Leads Table List */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '12px 24px 24px' }}>
+          {/* ── PAGINATION CONTROLS BAR: PREVIOUS 1/20 NEXT ── */}
+          <div style={{
+            padding: '7px 18px', background: '#ffffff', borderBottom: '1px solid #e2e8f0',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            flexWrap: 'wrap', gap: 8, fontSize: 12, color: '#475569', flexShrink: 0
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span>
+                Showing <strong style={{ color: '#0f172a', fontWeight: 600 }}>{filteredLeads.length === 0 ? 0 : (safeCurrentPage - 1) * PAGE_SIZE + 1} - {Math.min(safeCurrentPage * PAGE_SIZE, filteredLeads.length)}</strong> of <strong style={{ color: '#0f172a', fontWeight: 600 }}>{filteredLeads.length}</strong>
+              </span>
+              {selectedRecipientsList.length > 0 && (
+                <span style={{
+                  background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe',
+                  padding: '2px 8px', borderRadius: 12, fontSize: 11, fontWeight: 600
+                }}>
+                  {selectedRecipientsList.length} selected
+                </span>
+              )}
+            </div>
+
+            {/* Previous 1/20 Next Controls */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <button
+                type="button"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={safeCurrentPage <= 1}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                  padding: '4px 11px', borderRadius: 6, fontSize: 12, fontWeight: 500,
+                  background: safeCurrentPage <= 1 ? '#f8fafc' : '#ffffff',
+                  color: safeCurrentPage <= 1 ? '#94a3b8' : '#2563eb',
+                  border: safeCurrentPage <= 1 ? '1px solid #e2e8f0' : '1px solid #bfdbfe',
+                  cursor: safeCurrentPage <= 1 ? 'not-allowed' : 'pointer',
+                  boxShadow: safeCurrentPage <= 1 ? 'none' : '0 1px 2px rgba(0,0,0,0.03)',
+                  transition: 'all 0.15s'
+                }}
+              >
+                <ChevronLeft size={14} /> Previous
+              </button>
+
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                padding: '4px 10px', minWidth: 62, borderRadius: 6,
+                background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe',
+                fontSize: 12, fontWeight: 600, letterSpacing: '0.3px', textAlign: 'center'
+              }}>
+                {safeCurrentPage} / {totalPages}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={safeCurrentPage >= totalPages}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                  padding: '4px 11px', borderRadius: 6, fontSize: 12, fontWeight: 500,
+                  background: safeCurrentPage >= totalPages ? '#f8fafc' : '#ffffff',
+                  color: safeCurrentPage >= totalPages ? '#94a3b8' : '#2563eb',
+                  border: safeCurrentPage >= totalPages ? '1px solid #e2e8f0' : '1px solid #bfdbfe',
+                  cursor: safeCurrentPage >= totalPages ? 'not-allowed' : 'pointer',
+                  boxShadow: safeCurrentPage >= totalPages ? 'none' : '0 1px 2px rgba(0,0,0,0.03)',
+                  transition: 'all 0.15s'
+                }}
+              >
+                Next <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+
+          {/* ── LEADS TABLE LIST (INSIDE SCROLLING CONTAINER) ── */}
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '10px 16px 14px' }}>
             {loadingLeads ? (
               <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200, color: '#64748b' }}>
                 <RefreshCw size={20} className="animate-spin" />
@@ -804,16 +958,14 @@ export default function BulkEmailBlast() {
                 overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
               }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
-                  <thead>
-                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontSize: 12 }}>
+                  <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#f8fafc', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+                    <tr style={{ borderBottom: '1px solid #e2e8f0', color: '#64748b', fontSize: 12 }}>
                       <th style={{ width: 44, padding: '10px 14px', textAlign: 'center' }}>
                         <input
                           type="checkbox"
-                          checked={filteredLeadsWithEmail.length > 0 && filteredLeadsWithEmail.every(l => selectedLeadIds.has(l._id))}
-                          onChange={(e) => {
-                            if (e.target.checked) handleSelectAllFiltered();
-                            else handleClearSelection();
-                          }}
+                          checked={paginatedLeadsWithEmail.length > 0 && paginatedLeadsWithEmail.every(l => selectedLeadIds.has(l._id))}
+                          onChange={handleToggleCurrentPage}
+                          title="Select / Deselect all reachable on this page"
                           style={{ cursor: 'pointer' }}
                         />
                       </th>
@@ -824,7 +976,7 @@ export default function BulkEmailBlast() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredLeads.map((lead) => {
+                    {paginatedLeads.map((lead) => {
                       const hasEmail = Boolean(lead.email && lead.email.includes('@'));
                       const isSelected = selectedLeadIds.has(lead._id);
 
@@ -887,6 +1039,54 @@ export default function BulkEmailBlast() {
               </div>
             )}
           </div>
+
+          {/* ── BOTTOM FOOTER PAGINATION BAR (STICKY AT BOTTOM OF RIGHT PANE) ── */}
+          {filteredLeads.length > PAGE_SIZE && (
+            <div style={{
+              padding: '8px 18px', background: '#ffffff', borderTop: '1px solid #e2e8f0',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              fontSize: 12, color: '#64748b', flexShrink: 0
+            }}>
+              <span>
+                Page <strong style={{ color: '#0f172a' }}>{safeCurrentPage}</strong> of <strong style={{ color: '#0f172a' }}>{totalPages}</strong> ({filteredLeads.length} total leads)
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={safeCurrentPage <= 1}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    padding: '4px 10px', borderRadius: 6, fontSize: 11.5, fontWeight: 500,
+                    background: safeCurrentPage <= 1 ? '#f8fafc' : '#ffffff',
+                    color: safeCurrentPage <= 1 ? '#94a3b8' : '#2563eb',
+                    border: safeCurrentPage <= 1 ? '1px solid #e2e8f0' : '1px solid #bfdbfe',
+                    cursor: safeCurrentPage <= 1 ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  <ChevronLeft size={13} /> Previous
+                </button>
+                <span style={{ fontWeight: 600, color: '#1d4ed8', padding: '0 4px' }}>
+                  {safeCurrentPage} / {totalPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={safeCurrentPage >= totalPages}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    padding: '4px 10px', borderRadius: 6, fontSize: 11.5, fontWeight: 500,
+                    background: safeCurrentPage >= totalPages ? '#f8fafc' : '#ffffff',
+                    color: safeCurrentPage >= totalPages ? '#94a3b8' : '#2563eb',
+                    border: safeCurrentPage >= totalPages ? '1px solid #e2e8f0' : '1px solid #bfdbfe',
+                    cursor: safeCurrentPage >= totalPages ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  Next <ChevronRight size={13} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1054,6 +1254,8 @@ export default function BulkEmailBlast() {
           </div>
         </div>
       )}
+        </div>
+      </div>
     </div>
   );
 }

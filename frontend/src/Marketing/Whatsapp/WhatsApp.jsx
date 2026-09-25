@@ -10,13 +10,21 @@ api.interceptors.request.use(cfg => {
   return cfg;
 });
 
-const GREEN      = '#25D366';
-const DARK_GREEN = '#128C7E';
-const PURPLE     = '#5b3fc7';
-const TEXT_MAIN  = '#2d2d6b';
-const TEXT_MUTED = '#888';
-const BORDER     = '#e5e2f5';
-const BG         = '#f8f7ff';
+const BLUE        = '#2563eb';
+const DARK_BLUE   = '#1d4ed8';
+const LIGHT_BLUE  = '#eff6ff';
+const ORANGE      = '#f97316';
+const DARK_ORANGE = '#ea580c';
+const LIGHT_ORANGE= '#fff7ed';
+const TEXT_MAIN   = '#0f172a';
+const TEXT_MUTED  = '#64748b';
+const BORDER      = '#e2e8f0';
+const BG          = '#f8fafc';
+
+// Compatibility aliases mapped to White, Orange & Blue theme
+const GREEN       = BLUE;
+const DARK_GREEN  = DARK_BLUE;
+const PURPLE      = BLUE;
 
 const NAV_ITEMS = [
   { key: 'inbox', label: 'Inbox',
@@ -45,13 +53,13 @@ function HamburgerMenu({ activeTab, onSelect }) {
         style={{
           width: 34, height: 34, display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center', gap: 4,
-          background: open ? '#f0ecff' : '#fff',
-          border: `1.5px solid ${open ? PURPLE : BORDER}`,
+          background: open ? LIGHT_BLUE : '#fff',
+          border: `1.5px solid ${open ? BLUE : BORDER}`,
           borderRadius: 8, cursor: 'pointer', padding: 0, transition: 'all 0.15s',
         }}
       >
         {[0,1,2].map(i => (
-          <span key={i} style={{ display: 'block', width: 15, height: 2, background: open ? PURPLE : '#555', borderRadius: 2 }} />
+          <span key={i} style={{ display: 'block', width: 15, height: 2, background: open ? BLUE : '#64748b', borderRadius: 2 }} />
         ))}
       </button>
 
@@ -59,7 +67,7 @@ function HamburgerMenu({ activeTab, onSelect }) {
         <div style={{
           position: 'absolute', top: 40, left: 0,
           background: '#fff', border: `1px solid ${BORDER}`,
-          borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+          borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
           zIndex: 400, minWidth: 200, overflow: 'hidden',
           animation: 'fadeDown 0.12s ease',
         }}>
@@ -70,20 +78,20 @@ function HamburgerMenu({ activeTab, onSelect }) {
               style={{
                 width: '100%', display: 'flex', alignItems: 'center', gap: 12,
                 padding: '11px 16px',
-                background: activeTab === item.key ? '#f0fdf4' : '#fff',
-                color: activeTab === item.key ? DARK_GREEN : TEXT_MAIN,
+                background: activeTab === item.key ? LIGHT_BLUE : '#fff',
+                color: activeTab === item.key ? DARK_BLUE : TEXT_MAIN,
                 border: 'none',
-                borderBottom: idx < NAV_ITEMS.length - 1 ? `1px solid #f5f5f5` : 'none',
+                borderBottom: idx < NAV_ITEMS.length - 1 ? `1px solid #f1f5f9` : 'none',
                 cursor: 'pointer', fontSize: 13,
-                fontWeight: activeTab === item.key ? 700 : 500,
+                fontWeight: activeTab === item.key ? 600 : 400,
                 textAlign: 'left', transition: 'background 0.1s',
               }}
               onMouseEnter={e => { if (activeTab !== item.key) e.currentTarget.style.background = BG; }}
               onMouseLeave={e => { if (activeTab !== item.key) e.currentTarget.style.background = '#fff'; }}
             >
-              <span style={{ color: activeTab === item.key ? GREEN : '#aaa', flexShrink: 0, display: 'flex' }}>{item.icon}</span>
+              <span style={{ color: activeTab === item.key ? BLUE : '#94a3b8', flexShrink: 0, display: 'flex' }}>{item.icon}</span>
               {item.label}
-              {activeTab === item.key && <span style={{ marginLeft: 'auto', width: 7, height: 7, borderRadius: '50%', background: GREEN }} />}
+              {activeTab === item.key && <span style={{ marginLeft: 'auto', width: 7, height: 7, borderRadius: '50%', background: ORANGE }} />}
             </button>
           ))}
         </div>
@@ -692,14 +700,31 @@ function InboxTab({ onSendTemplate }) {
   const [leads, setLeads] = useState([]);
   const [counts, setCounts] = useState({ all: 0, pending: 0, intervened: 0 });
   const [loadingList, setLoadingList] = useState(false);
+  const [contacts, setContacts] = useState([]);
+  const [selectedIdentity, setSelectedIdentity] = useState('ALL');
+  const [backendIdentities, setBackendIdentities] = useState([]);
 
   const [selectedId, setSelectedId] = useState(null);
   const [thread, setThread] = useState(null); // { lead, thread, withinWindow }
   const [loadingThread, setLoadingThread] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [sending, setSending] = useState(false);
-  const [templates, setTemplates] = useState([]);
   const scrollRef = useRef(null);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
+  const [templates, setTemplates] = useState([]);
+
+  const handleChatScroll = (e) => {
+    const el = e.target;
+    if (!el) return;
+    const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setShowScrollBottom(distanceToBottom > 100);
+  };
+
+  const scrollToBottom = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+    }
+  };
 
   // Fetch Templates for Rich Cards
   useEffect(() => {
@@ -711,12 +736,30 @@ function InboxTab({ onSendTemplate }) {
       .catch(() => {});
   }, []);
 
+  // Fetch Contacts for identity mapping & matching
+  const fetchContacts = async () => {
+    try {
+      const res = await api.get('/contacts');
+      setContacts(res.data?.contacts || []);
+    } catch {
+      // swallow
+    }
+  };
+
+  useEffect(() => {
+    fetchContacts();
+  }, []);
+
   const fetchLeads = async () => {
     setLoadingList(true);
     try {
       const res = await api.get('/whatsapp-inbox', { params: { tab, search } });
-      setLeads(res.data.leads || []);
+      const fetchedLeads = res.data.leads || [];
+      setLeads(fetchedLeads);
       setCounts(res.data.counts || { all: 0, pending: 0, intervened: 0 });
+      if (Array.isArray(res.data.existingIdentities)) {
+        setBackendIdentities(res.data.existingIdentities);
+      }
     } catch {
       // swallow — keep prior list on transient errors
     } finally {
@@ -725,6 +768,62 @@ function InboxTab({ onSendTemplate }) {
   };
 
   useEffect(() => { fetchLeads(); }, [tab, search]);
+
+  // Extract ONLY existing identities from contacts and leads
+  const existingIdentities = (() => {
+    const seen = new Set();
+    const list = [];
+
+    // 1. From backend
+    (backendIdentities || []).forEach(tag => {
+      const val = String(tag || '').trim();
+      const norm = val.toLowerCase();
+      if (val && norm !== 'all' && norm !== 'general' && !seen.has(norm)) {
+        seen.add(norm);
+        list.push(val);
+      }
+    });
+
+    // 2. From contacts
+    (contacts || []).forEach(c => {
+      const val = String(c.identity || '').trim();
+      const norm = val.toLowerCase();
+      if (val && norm !== 'all' && norm !== 'general' && !seen.has(norm)) {
+        seen.add(norm);
+        list.push(val);
+      }
+    });
+
+    // 3. From leads
+    (leads || []).forEach(l => {
+      const val = String(l.identity || l.customFields?.identity || l.customFields?.Identity || '').trim();
+      const norm = val.toLowerCase();
+      if (val && norm !== 'all' && norm !== 'general' && !seen.has(norm)) {
+        seen.add(norm);
+        list.push(val);
+      }
+    });
+
+    return list;
+  })();
+
+  const getLeadIdentity = (lead) => {
+    if (!lead) return '';
+    if (lead.identity && String(lead.identity).toLowerCase() !== 'general') return lead.identity;
+    const p10 = String(lead.phone || '').slice(-10);
+    const matched = contacts.find(c => String(c.phone || '').slice(-10) === p10);
+    if (matched?.identity && String(matched.identity).toLowerCase() !== 'general') return matched.identity;
+    if (lead.customFields?.identity) return lead.customFields.identity;
+    if (lead.customFields?.Identity) return lead.customFields.Identity;
+    return lead.identity || '';
+  };
+
+  // Filter displayed leads based on selectedIdentity and search
+  const displayedLeads = leads.filter(lead => {
+    if (selectedIdentity === 'ALL') return true;
+    const idTag = getLeadIdentity(lead);
+    return idTag.toLowerCase() === selectedIdentity.toLowerCase();
+  });
 
   const openThread = async (leadId) => {
     setSelectedId(leadId);
@@ -860,23 +959,40 @@ function InboxTab({ onSendTemplate }) {
     }
   };
 
-  const waStatusDot = (s) => s === 'pending' ? '#f59e0b' : s === 'intervened' ? GREEN : '#ccc';
+  const waStatusDot = (s) => s === 'pending' ? ORANGE : s === 'intervened' ? BLUE : '#cbd5e1';
 
   // Helper variable for tracking date headers across rendered messages
   let lastDateLabel = '';
 
   return (
-    <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+    <div style={{ display: 'flex', flex: 1, minHeight: 0, position: 'relative' }}>
+      <style>{`
+        .whatsapp-chat-scroll::-webkit-scrollbar {
+          width: 6px;
+        }
+        .whatsapp-chat-scroll::-webkit-scrollbar-track {
+          background: rgba(0, 0, 0, 0.03);
+        }
+        .whatsapp-chat-scroll::-webkit-scrollbar-thumb {
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 6px;
+        }
+        .whatsapp-chat-scroll::-webkit-scrollbar-thumb:hover {
+          background: rgba(0, 0, 0, 0.35);
+        }
+      `}</style>
+
       {/* Left: tabs + search + lead list */}
-      <div style={{ width: 320, borderRight: `1px solid ${BORDER}`, background: '#fff', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+      <div style={{ width: 330, borderRight: `1px solid ${BORDER}`, background: '#fff', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+        {/* Tabs: All / Pending / Intervened */}
         <div style={{ display: 'flex', borderBottom: `1px solid ${BORDER}` }}>
           {TABS.map(t => (
             <button key={t.key} onClick={() => { setTab(t.key); setSelectedId(null); setThread(null); }}
               style={{
                 flex: 1, padding: '12px 6px', border: 'none', background: 'none', cursor: 'pointer',
-                fontSize: 12.5, fontWeight: tab === t.key ? 700 : 500,
-                color: tab === t.key ? DARK_GREEN : TEXT_MUTED,
-                borderBottom: `2px solid ${tab === t.key ? GREEN : 'transparent'}`,
+                fontSize: 13, fontWeight: tab === t.key ? 600 : 400,
+                color: tab === t.key ? BLUE : TEXT_MUTED,
+                borderBottom: `2px solid ${tab === t.key ? BLUE : 'transparent'}`,
                 marginBottom: -1, transition: 'all 0.15s',
               }}>
               {t.label} ({counts[t.key] ?? 0})
@@ -884,162 +1000,331 @@ function InboxTab({ onSendTemplate }) {
           ))}
         </div>
 
-        <div style={{ padding: '10px 12px', borderBottom: `1px solid ${BORDER}` }}>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search lead(s)"
-            style={{ ...inputStyle, marginBottom: 0, fontSize: 12.5, padding: '8px 10px' }} />
+        {/* Search bar & Small Identity Filter Buttons */}
+        <div style={{ padding: '12px 14px 10px', borderBottom: `1px solid ${BORDER}`, display: 'flex', flexDirection: 'column', gap: 9, background: '#fff' }}>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search lead or contact..."
+            style={{ ...inputStyle, marginBottom: 0, fontSize: 13, padding: '8px 12px', borderRadius: 8, background: '#f8fafc', border: `1px solid ${BORDER}` }}
+          />
+
+          {/* Small Buttons: Contact Identity Filter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none' }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, flexShrink: 0, marginRight: 2 }}>
+              Identity:
+            </span>
+            <button
+              type="button"
+              onClick={() => setSelectedIdentity('ALL')}
+              style={{
+                padding: '3px 10px',
+                borderRadius: 6,
+                fontSize: 11.5,
+                fontWeight: selectedIdentity === 'ALL' ? 600 : 400,
+                background: selectedIdentity === 'ALL' ? BLUE : '#f1f5f9',
+                color: selectedIdentity === 'ALL' ? '#ffffff' : '#475569',
+                border: selectedIdentity === 'ALL' ? `1px solid ${BLUE}` : '1px solid #e2e8f0',
+                cursor: 'pointer',
+                flexShrink: 0,
+                transition: 'all 0.15s',
+              }}
+            >
+              All
+            </button>
+            {existingIdentities.map(idName => {
+              const isSelected = selectedIdentity.toLowerCase() === idName.toLowerCase();
+              return (
+                <button
+                  key={idName}
+                  type="button"
+                  onClick={() => setSelectedIdentity(idName)}
+                  style={{
+                    padding: '3px 10px',
+                    borderRadius: 6,
+                    fontSize: 11.5,
+                    fontWeight: isSelected ? 600 : 400,
+                    background: isSelected ? BLUE : '#f1f5f9',
+                    color: isSelected ? '#ffffff' : '#475569',
+                    border: isSelected ? `1px solid ${BLUE}` : '1px solid #e2e8f0',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {idName}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
+        {/* Contacts & Leads list */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          {loadingList && <div style={{ padding: 20, textAlign: 'center', color: TEXT_MUTED, fontSize: 12.5 }}>Loading…</div>}
-          {!loadingList && leads.length === 0 && (
-            <div style={{ padding: '40px 20px', textAlign: 'center', color: TEXT_MUTED, fontSize: 12.5 }}>
-              No leads in this tab yet.
+          {loadingList && <div style={{ padding: 24, textAlign: 'center', color: TEXT_MUTED, fontSize: 13 }}>Loading…</div>}
+          {!loadingList && displayedLeads.length === 0 && (
+            <div style={{ padding: '40px 20px', textAlign: 'center', color: TEXT_MUTED, fontSize: 13 }}>
+              {selectedIdentity !== 'ALL'
+                ? `No users found for "${selectedIdentity}".`
+                : 'No leads in this tab yet.'}
             </div>
           )}
-          {!loadingList && leads.map(lead => (
-            <div key={lead._id} onClick={() => openThread(lead._id)}
-              style={{
-                padding: '12px 14px', cursor: 'pointer',
-                background: selectedId === lead._id ? '#f0fdf4' : '#fff',
-                borderBottom: '1px solid #f5f5f5', borderLeft: `3px solid ${selectedId === lead._id ? GREEN : 'transparent'}`,
-              }}
-              onMouseEnter={e => { if (selectedId !== lead._id) e.currentTarget.style.background = BG; }}
-              onMouseLeave={e => { if (selectedId !== lead._id) e.currentTarget.style.background = '#fff'; }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: TEXT_MAIN }}>{lead.name || lead.phone}</span>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: waStatusDot(lead.waStatus), flexShrink: 0 }} />
+          {!loadingList && displayedLeads.map(lead => {
+            const leadIdentity = getLeadIdentity(lead);
+            const isSelected = selectedId === lead._id;
+            return (
+              <div key={lead._id} onClick={() => openThread(lead._id)}
+                style={{
+                  padding: '12px 14px', cursor: 'pointer',
+                  background: isSelected ? LIGHT_BLUE : '#fff',
+                  borderBottom: '1px solid #f1f5f9',
+                  borderLeft: `3px solid ${isSelected ? BLUE : 'transparent'}`,
+                  transition: 'background 0.1s ease',
+                }}
+                onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = '#f8fafc'; }}
+                onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = '#fff'; }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3, gap: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, overflow: 'hidden' }}>
+                    <span style={{ fontSize: 13.5, fontWeight: 600, color: TEXT_MAIN, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {lead.name || lead.phone}
+                    </span>
+                    {leadIdentity && (
+                      <span style={{
+                        fontSize: 11,
+                        fontWeight: 500,
+                        padding: '1px 6px',
+                        borderRadius: 4,
+                        background: LIGHT_BLUE,
+                        color: DARK_BLUE,
+                        border: '1px solid #bfdbfe',
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0
+                      }}>
+                        {leadIdentity}
+                      </span>
+                    )}
+                  </div>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: waStatusDot(lead.waStatus), flexShrink: 0 }} />
+                </div>
+                <div style={{ fontSize: 12, color: TEXT_MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {lead.lastWaMessagePreview || 'No messages yet'}
+                </div>
+                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                  {lead.lastWaMessageAt ? new Date(lead.lastWaMessageAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}
+                </div>
               </div>
-              <div style={{ fontSize: 11.5, color: TEXT_MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {lead.lastWaMessagePreview || 'No messages yet'}
-              </div>
-              <div style={{ fontSize: 10, color: '#aaa', marginTop: 2 }}>
-                {lead.lastWaMessageAt ? new Date(lead.lastWaMessageAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
-      {/* Right: chat thread */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: '#e9f5ee' }}>
+      {/* Right: chat thread & Preview mode with Authentic WhatsApp Theme Background */}
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        minWidth: 0,
+        position: 'relative',
+        backgroundColor: '#efeae2',
+        backgroundImage: 'radial-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 0)',
+        backgroundSize: '18px 18px',
+      }}>
         {!selectedId && (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: TEXT_MUTED, fontSize: 13 }}>
-            Select a lead to view the conversation
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: TEXT_MUTED, fontSize: 13.5, gap: 8 }}>
+            <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#fff', border: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: BLUE, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </div>
+            <span>Select a conversation to start chatting</span>
           </div>
         )}
 
         {selectedId && loadingThread && (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: TEXT_MUTED, fontSize: 13 }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: TEXT_MUTED, fontSize: 13.5 }}>
             Loading conversation…
           </div>
         )}
 
         {selectedId && !loadingThread && thread && (
           <>
-            <div style={{ background: '#fff', borderBottom: `1px solid ${BORDER}`, padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            {/* Top Chat Header */}
+            <div style={{ background: '#fff', borderBottom: `1px solid ${BORDER}`, padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 10 }}>
               <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: TEXT_MAIN }}>{thread.lead.name || thread.lead.phone}</div>
-                <div style={{ fontSize: 11.5, color: TEXT_MUTED }}>{thread.lead.phone}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: TEXT_MAIN }}>{thread.lead.name || thread.lead.phone}</div>
+                  {getLeadIdentity(thread.lead) && (
+                    <span style={{ fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 4, background: LIGHT_BLUE, color: DARK_BLUE, border: '1px solid #bfdbfe' }}>
+                      {getLeadIdentity(thread.lead)}
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: 12, color: TEXT_MUTED, marginTop: 1 }}>{thread.lead.phone}</div>
               </div>
               {thread.lead.waStatus === 'pending' && (
-                <span style={{ fontSize: 11, fontWeight: 700, background: '#fef3c7', color: '#d97706', borderRadius: 12, padding: '3px 10px', border: '1px solid #fde68a' }}>
+                <span style={{ fontSize: 11.5, fontWeight: 500, background: LIGHT_ORANGE, color: DARK_ORANGE, borderRadius: 12, padding: '3px 10px', border: '1px solid #fed7aa' }}>
                   ⏳ Pending Agent Reply
                 </span>
               )}
             </div>
 
-            <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '18px 24px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {/* Scrollable Message History Area */}
+            <div
+              ref={scrollRef}
+              onScroll={handleChatScroll}
+              className="whatsapp-chat-scroll"
+              style={{
+                flex: 1,
+                overflowY: 'auto',
+                scrollBehavior: 'smooth',
+                padding: '18px 24px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+              }}
+            >
               {thread.thread.length === 0 && (
-                <div style={{ textAlign: 'center', color: TEXT_MUTED, fontSize: 12.5, marginTop: 40 }}>No messages yet</div>
+                <div style={{ textAlign: 'center', color: TEXT_MUTED, fontSize: 13, marginTop: 40, background: '#fff', padding: '12px 20px', borderRadius: 10, maxWidth: 300, margin: '40px auto 0', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                  No messages yet. Send a greeting or template!
+                </div>
               )}
-              {thread.thread.map((m, i) => {
-                const isInbound = m.direction === 'inbound';
-                const currentDateLabel = getDateLabel(m.createdAt);
-                const showDateHeader = currentDateLabel && currentDateLabel !== lastDateLabel;
-                if (showDateHeader) {
-                  lastDateLabel = currentDateLabel;
-                }
+              {(() => {
+                let lastDateLabel = null;
+                return (thread.thread || []).map((m, i) => {
+                  const isInbound = m.direction === 'inbound';
+                  const currentDateLabel = getDateLabel(m.createdAt);
+                  const showDateHeader = currentDateLabel && currentDateLabel !== lastDateLabel;
+                  if (showDateHeader) {
+                    lastDateLabel = currentDateLabel;
+                  }
 
-                const matchedTmpl = templates.find(t => {
-                  if (!t || !m.description) return false;
-                  const cleanText = m.description.toLowerCase().trim();
-                  const tShortcut = (t.shortcut || '').toLowerCase().trim();
-                  const tName = (t.metaTemplateName || t.name || '').toLowerCase().trim();
-                  if (m.templateId && t.id === m.templateId) return true;
-                  if (m.templateName && (tShortcut === m.templateName.toLowerCase() || tName === m.templateName.toLowerCase())) return true;
-                  if (tShortcut && cleanText.includes(tShortcut)) return true;
-                  if (tName && cleanText.includes(tName)) return true;
-                  const tBody = (t.body || t.message || '').toLowerCase().trim().replace(/\{\{\d+\}\}/g, '').trim();
-                  if (tBody && tBody.length >= 4 && (cleanText.includes(tBody.slice(0, 15)) || tBody.includes(cleanText.slice(0, 15)))) return true;
-                  return false;
-                });
+                  const matchedTmpl = (templates || []).find(t => {
+                    if (!t || !m.description) return false;
+                    const cleanText = m.description.toLowerCase().trim();
+                    const tShortcut = (t.shortcut || '').toLowerCase().trim();
+                    const tName = (t.metaTemplateName || t.name || '').toLowerCase().trim();
+                    if (m.templateId && t.id === m.templateId) return true;
+                    if (m.templateName && (tShortcut === m.templateName.toLowerCase() || tName === m.templateName.toLowerCase())) return true;
+                    if (tShortcut && cleanText.includes(tShortcut)) return true;
+                    if (tName && cleanText.includes(tName)) return true;
+                    const tBody = (t.body || t.message || '').toLowerCase().trim().replace(/\{\{\d+\}\}/g, '').trim();
+                    if (tBody && tBody.length >= 4 && (cleanText.includes(tBody.slice(0, 15)) || tBody.includes(cleanText.slice(0, 15)))) return true;
+                    return false;
+                  });
 
-                const isTemplate = !!matchedTmpl || m.description?.startsWith('[Template:') || m.description?.startsWith('@') || m.isTemplate || (m.direction && (m.direction.includes('broadcast') || m.direction.includes('campaign') || m.direction === 'outbound'));
+                  const isTemplate = !!matchedTmpl || m.description?.startsWith('[Template:') || m.description?.startsWith('@') || m.isTemplate || (m.direction && (m.direction.includes('broadcast') || m.direction.includes('campaign') || m.direction === 'outbound'));
 
-                return (
-                  <div key={i} style={{ display: 'flex', flexDirection: 'column' }}>
-                    {/* Date Header: Today / Yesterday / 11 Sep 2026 */}
-                    {showDateHeader && (
-                      <div style={{ display: 'flex', justifyContent: 'center', margin: '14px 0 6px' }}>
-                        <span style={{
-                          fontSize: 11, fontWeight: 700, color: '#4b5563', background: '#ffffff',
-                          border: '1px solid #e5e7eb', padding: '3px 12px', borderRadius: 12,
-                          boxShadow: '0 1px 2px rgba(0,0,0,0.05)', letterSpacing: '0.2px'
+                  return (
+                    <div key={i} style={{ display: 'flex', flexDirection: 'column' }}>
+                      {/* Date Header: Today / Yesterday / 11 Sep 2026 */}
+                      {showDateHeader && (
+                        <div style={{ display: 'flex', justifyContent: 'center', margin: '14px 0 6px' }}>
+                          <span style={{
+                            fontSize: 11.5, fontWeight: 500, color: '#475569', background: '#ffffff',
+                            border: '1px solid #e2e8f0', padding: '3px 14px', borderRadius: 14,
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.06)', letterSpacing: '0.2px'
+                          }}>
+                            {currentDateLabel}
+                          </span>
+                        </div>
+                      )}
+
+                      <div style={{ display: 'flex', justifyContent: isInbound ? 'flex-start' : 'flex-end', margin: '2px 0' }}>
+                        <div style={{
+                          maxWidth: '72%', padding: '9px 13px',
+                          borderRadius: isInbound ? '10px 10px 10px 2px' : '10px 10px 2px 10px',
+                          background: isInbound ? '#ffffff' : '#e0f2fe',
+                          border: isInbound ? '1px solid rgba(0,0,0,0.06)' : '1px solid #bae6fd',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
+                          fontSize: 13.5, color: TEXT_MAIN, lineHeight: 1.55, fontWeight: 400
                         }}>
-                          {currentDateLabel}
-                        </span>
-                      </div>
-                    )}
-
-                    <div style={{ display: 'flex', justifyContent: isInbound ? 'flex-start' : 'flex-end', margin: '2px 0' }}>
-                      <div style={{
-                        maxWidth: '70%', padding: '8px 12px', borderRadius: 10,
-                        background: isInbound ? '#fff' : '#d9fdd3',
-                        boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
-                        fontSize: 13, color: '#111', lineHeight: 1.5,
-                      }}>
-                        {/* Rich Template Card or Plain Message */}
-                        {isTemplate ? (
-                          <RichTemplateMessageCard message={m} templates={templates} />
-                        ) : (
-                          <div>{m.description}</div>
-                        )}
-
-                        {/* Timestamp + Live Delivery Tick Status */}
-                        <div style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 4, textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2 }}>
-                          <span>{new Date(m.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
-                          {m.direction === 'outbound_broadcast' && <span style={{ marginLeft: 3 }}>· broadcast</span>}
-                          {m.direction === 'outbound_agent' && <span style={{ marginLeft: 3 }}>· agent</span>}
-                          {!isInbound && (
-                            <MessageTicks status={m.deliveryStatus || m.status || 'sent'} />
+                          {/* Rich Template Card or Plain Message */}
+                          {isTemplate ? (
+                            <RichTemplateMessageCard message={m} templates={templates || []} />
+                          ) : (
+                            <div style={{ wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{m.description}</div>
                           )}
+
+                          {/* Timestamp + Live Delivery Tick Status */}
+                          <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 4, textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 3 }}>
+                            <span>{new Date(m.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+                            {m.direction === 'outbound_broadcast' && <span style={{ marginLeft: 3 }}>· broadcast</span>}
+                            {m.direction === 'outbound_agent' && <span style={{ marginLeft: 3 }}>· agent</span>}
+                            {!isInbound && (
+                              <MessageTicks status={m.deliveryStatus || m.status || 'sent'} />
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                });
+              })()}
             </div>
 
-            <div style={{ background: '#fff', borderTop: `1px solid ${BORDER}`, padding: '12px 20px' }}>
+            {/* Floating Scroll to Bottom Button */}
+            {showScrollBottom && (
+              <button
+                type="button"
+                onClick={scrollToBottom}
+                title="Scroll to bottom"
+                style={{
+                  position: 'absolute',
+                  right: 24,
+                  bottom: 74,
+                  width: 38,
+                  height: 38,
+                  borderRadius: '50%',
+                  background: '#ffffff',
+                  color: BLUE,
+                  boxShadow: '0 4px 14px rgba(0,0,0,0.18)',
+                  border: '1px solid #e2e8f0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  zIndex: 25,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+            )}
+
+            {/* Bottom Chat Reply Input Area */}
+            <div style={{ background: '#fff', borderTop: `1px solid ${BORDER}`, padding: '12px 20px', zIndex: 10 }}>
               {thread.withinWindow ? (
                 <div style={{ display: 'flex', gap: 10 }}>
-                  <input value={replyText} onChange={e => setReplyText(e.target.value)}
+                  <input
+                    value={replyText}
+                    onChange={e => setReplyText(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' && !sending) sendReply(); }}
-                    placeholder="Type a reply…" style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
+                    placeholder="Type a message…"
+                    style={{ ...inputStyle, marginBottom: 0, flex: 1, fontSize: 13.5, padding: '9px 14px', borderRadius: 8, border: `1px solid #cbd5e1` }}
+                  />
                   <button onClick={sendReply} disabled={sending || !replyText.trim()}
-                    style={{ padding: '10px 20px', background: sending || !replyText.trim() ? '#ccc' : GREEN, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: sending || !replyText.trim() ? 'not-allowed' : 'pointer' }}>
+                    style={{
+                      padding: '10px 22px',
+                      background: sending || !replyText.trim() ? '#cbd5e1' : BLUE,
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: 8,
+                      fontSize: 13.5,
+                      fontWeight: 600,
+                      cursor: sending || !replyText.trim() ? 'not-allowed' : 'pointer',
+                      transition: 'background 0.15s ease'
+                    }}>
                     {sending ? 'Sending…' : 'Send'}
                   </button>
                 </div>
               ) : (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '10px 14px' }}>
-                  <span style={{ fontSize: 12.5, color: '#92400e' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, background: LIGHT_ORANGE, border: '1px solid #fed7aa', borderRadius: 8, padding: '10px 16px' }}>
+                  <span style={{ fontSize: 13, color: '#9a3412', fontWeight: 500 }}>
                     You can only send template messages because the 24hr window passed
                   </span>
                   <button onClick={() => onSendTemplate && onSendTemplate(thread.lead)}
-                    style={{ padding: '7px 16px', background: PURPLE, color: '#fff', border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                    style={{ padding: '8px 18px', background: BLUE, color: '#fff', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                     Send Template
                   </button>
                 </div>
@@ -1332,13 +1617,13 @@ function TemplatePreviewPanel({ template, sentCount, onDelete }) {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={PURPLE} strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
           </div>
           <div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: TEXT_MAIN, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ fontSize: 17, fontWeight: 600, color: TEXT_MAIN, display: 'flex', alignItems: 'center', gap: 10 }}>
               {t.name}
-              <span style={{ fontSize: 11, fontWeight: 700, borderRadius: 5, padding: '2px 8px', background: t.status === 'APPROVED' ? '#f0fdf4' : t.status === 'PENDING' ? '#fffbeb' : '#fef2f2', color: t.status === 'APPROVED' ? '#16a34a' : t.status === 'PENDING' ? '#d97706' : '#e53e3e' }}>
+              <span style={{ fontSize: 11, fontWeight: 600, borderRadius: 5, padding: '2px 8px', background: t.status === 'APPROVED' ? '#f0fdf4' : t.status === 'PENDING' ? '#fffbeb' : '#fef2f2', color: t.status === 'APPROVED' ? '#16a34a' : t.status === 'PENDING' ? '#d97706' : '#e53e3e' }}>
                 {t.status}
               </span>
             </div>
-            <span style={{ fontSize: 10.5, background: '#f0ecff', color: PURPLE, borderRadius: 5, padding: '2px 8px', fontWeight: 700, marginTop: 4, display: 'inline-block' }}>
+            <span style={{ fontSize: 10.5, background: LIGHT_BLUE, color: BLUE, borderRadius: 5, padding: '2px 8px', fontWeight: 600, marginTop: 4, display: 'inline-block' }}>
               {t.category} ({t.language?.split('_')[0] || 'en'})
             </span>
           </div>
@@ -1613,8 +1898,8 @@ function BroadcastsTab() {
             {history.map(b => (
               <div key={b._id} style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 10, padding: '14px 18px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: TEXT_MAIN }}>{b.name}</span>
-                  <span style={{ fontSize: 10, fontWeight: 700, borderRadius: 5, padding: '2px 8px', background: b.status === 'completed' ? '#f0fdf4' : b.status === 'failed' ? '#fef2f2' : '#fffbeb', color: b.status === 'completed' ? '#16a34a' : b.status === 'failed' ? '#e53e3e' : '#d97706' }}>{b.status}</span>
+                  <span style={{ fontSize: 13.5, fontWeight: 600, color: TEXT_MAIN }}>{b.name}</span>
+                  <span style={{ fontSize: 10.5, fontWeight: 600, borderRadius: 5, padding: '2px 8px', background: b.status === 'completed' ? '#f0fdf4' : b.status === 'failed' ? '#fef2f2' : '#fffbeb', color: b.status === 'completed' ? '#16a34a' : b.status === 'failed' ? '#e53e3e' : '#d97706' }}>{b.status}</span>
                 </div>
                 <div style={{ fontSize: 11.5, color: TEXT_MUTED }}>
                   {b.sentCount}/{b.recipientCount} sent · {b.failedCount} failed · {new Date(b.createdAt).toLocaleString('en-IN')}
@@ -1651,6 +1936,7 @@ export default function WhatsApp() {
           .wa-shell div[style*="display: flex"] > * { min-width: 0; }
           .wa-brand-text { display: none; }
           .wa-top-header { padding: 0 12px !important; gap: 8px !important; }
+          .wa-body-container { padding: 4px 6px !important; }
         }
       `}</style>
 
@@ -1658,14 +1944,14 @@ export default function WhatsApp() {
       <div className="wa-top-header" style={{ background: '#fff', borderBottom: `1px solid ${BORDER}`, padding: '0 24px', minHeight: 56, display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0, flexWrap: 'wrap' }}>
         {/* Brand */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-          <div style={{ width: 34, height: 34, background: '#f0fdf4', border: '1.5px solid #bbf7d0', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="2" strokeLinecap="round">
+          <div style={{ width: 34, height: 34, background: LIGHT_BLUE, border: '1.5px solid #bfdbfe', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={BLUE} strokeWidth="2" strokeLinecap="round">
               <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
             </svg>
           </div>
           <div className="wa-brand-text">
-            <div style={{ fontSize: 13, fontWeight: 700, color: TEXT_MAIN, lineHeight: 1.2 }}>WhatsApp CRM</div>
-            <div style={{ fontSize: 10, color: TEXT_MUTED }}>Business API</div>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: TEXT_MAIN, lineHeight: 1.2 }}>WhatsApp CRM</div>
+            <div style={{ fontSize: 10.5, color: ORANGE, fontWeight: 600 }}>Business Suite</div>
           </div>
         </div>
 
@@ -1676,14 +1962,16 @@ export default function WhatsApp() {
 
         {/* Active section breadcrumb */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ color: GREEN, display: 'flex' }}>{activeItem?.icon}</span>
-          <span style={{ fontSize: 14, fontWeight: 700, color: TEXT_MAIN }}>{activeItem?.label}</span>
+          <span style={{ color: BLUE, display: 'flex' }}>{activeItem?.icon}</span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: TEXT_MAIN }}>{activeItem?.label}</span>
         </div>
       </div>
 
-      {/* Content */}
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: activeTab === 'inbox' ? 'hidden' : 'auto' }}>
-        {renderTab()}
+      {/* Content wrapper with responsive max-width for neat fit across devices */}
+      <div className="wa-body-container" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', width: '100%', maxWidth: 1440, margin: '0 auto', padding: '10px 14px' }}>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: activeTab === 'inbox' ? 'hidden' : 'auto', background: '#fff', borderRadius: 14, border: `1px solid ${BORDER}`, boxShadow: '0 1px 4px rgba(0,0,0,0.03)' }}>
+          {renderTab()}
+        </div>
       </div>
     </div>
   );

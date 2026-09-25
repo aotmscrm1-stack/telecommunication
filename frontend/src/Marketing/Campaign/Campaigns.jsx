@@ -13,37 +13,40 @@ import {
 } from 'react-icons/fi';
 import { RiMegaphoneLine, RiFolderChartLine } from 'react-icons/ri';
 
-// ── Sunset Warm Marketing Palette (Harmonized with AllLeads & AddLead) ────────
-const O = {
-  primary:    '#ff8c42',
-  primary3:   '#ffb877',
-  deep:       '#e84a10',
-  darkest:    '#c23a05',
+// ── White, Blue, Orange Theme Design Tokens ──────────────────────────────────
+const T = {
+  white: '#ffffff',
+  bg: '#f8fafc',
+  bgCard: '#ffffff',
+  border: '#e2e8f0',
+  borderSoft: '#f1f5f9',
 
-  bg:         '#fff8f2',
-  bgSoft:     '#fff0e8',
-  bgSofter:   '#fff5ed',
+  text: '#1e293b',
+  textSecondary: '#475569',
+  muted: '#64748b',
+  subtle: '#94a3b8',
 
-  line:       '#ffe0cb',
-  lineSoft:   '#ffe4d5',
+  blue: '#2563eb',
+  blueHover: '#1d4ed8',
+  blueLight: '#eff6ff',
+  blueBorder: '#bfdbfe',
 
-  ink:        '#1f1206',
-  inkSoft:    '#6b5546',
-  muted:      '#8f7667',
+  orange: '#ea580c',
+  orangeHover: '#c2410c',
+  orangeLight: '#fff7ed',
+  orangeBorder: '#fed7aa',
 
-  success:    '#10b981',
-  successBg:  '#ecfdf5',
-  successLine:'#a7f3d0',
+  emerald: '#10b981',
+  emeraldLight: '#ecfdf5',
+  emeraldBorder: '#a7f3d0',
 
-  warning:    '#f59e0b',
-  warningBg:  '#fffbeb',
-  warningLine:'#fde68a',
+  amber: '#f59e0b',
+  amberLight: '#fffbeb',
+  amberBorder: '#fde68a',
 
-  error:      '#ef4444',
-  errorBg:    '#fef2f2',
-  errorLine:  '#fecaca',
-
-  white:      '#ffffff',
+  rose: '#f43f5e',
+  roseLight: '#fff1f2',
+  roseBorder: '#fecdd3',
 };
 
 // ── UI Helper Components ──────────────────────────────────────────────────────
@@ -64,33 +67,33 @@ function timeAgo(dateStr) {
   return `${Math.max(1, mins)}m ago`;
 }
 
-// Circular progress indicator with warm gradient
+// Circular progress indicator (Blue, Orange, Emerald)
 function ProgressCircle({ value = 0 }) {
   const r = 16;
   const circ = 2 * Math.PI * r;
   const pct = Math.min(100, Math.max(0, value));
   const dash = (pct / 100) * circ;
 
-  const color = pct === 100 ? O.success : pct >= 70 ? O.deep : pct >= 40 ? O.primary : '#fb7185';
-  const trackColor = pct === 100 ? O.successBg : O.bgSoft;
+  const color = pct === 100 ? T.emerald : pct >= 70 ? T.blue : pct >= 40 ? T.orange : T.rose;
+  const trackColor = '#f1f5f9';
 
   return (
     <div className="flex items-center gap-2">
-      <svg width="42" height="42" viewBox="0 0 42 42" className="flex-shrink-0">
-        <circle cx="21" cy="21" r={r} fill="none" stroke={trackColor} strokeWidth="3.5" />
+      <svg width="38" height="38" viewBox="0 0 38 38" className="flex-shrink-0">
+        <circle cx="19" cy="19" r={r} fill="none" stroke={trackColor} strokeWidth="3" />
         <circle
-          cx="21"
-          cy="21"
+          cx="19"
+          cy="19"
           r={r}
           fill="none"
           stroke={color}
-          strokeWidth="3.5"
+          strokeWidth="3"
           strokeDasharray={`${dash} ${circ - dash}`}
           strokeLinecap="round"
-          transform="rotate(-90 21 21)"
+          transform="rotate(-90 19 19)"
           style={{ transition: 'stroke-dasharray 0.5s ease' }}
         />
-        <text x="21" y="25" textAnchor="middle" fontSize="9" fill={color} fontWeight="800">
+        <text x="19" y="22" textAnchor="middle" fontSize="9" fill={color} fontWeight="500">
           {pct}%
         </text>
       </svg>
@@ -101,14 +104,14 @@ function ProgressCircle({ value = 0 }) {
 // Stacked Assignee Avatars
 function AssigneeAvatars({ callers }) {
   const avatarColors = [
-    { bg: '#fff0e8', text: O.deep, border: '#ffd8be' },
-    { bg: '#ecfdf5', text: '#059669', border: '#a7f3d0' },
-    { bg: '#eff6ff', text: '#2563eb', border: '#bfdbfe' },
-    { bg: '#fdf4ff', text: '#c026d3', border: '#f5d0fe' },
+    { bg: T.blueLight, text: T.blue, border: T.blueBorder },
+    { bg: T.orangeLight, text: T.orange, border: T.orangeBorder },
+    { bg: T.emeraldLight, text: '#059669', border: T.emeraldBorder },
+    { bg: '#f8fafc', text: '#475569', border: T.border },
   ];
 
   if (!callers || callers.length === 0) {
-    return <span className="text-xs text-stone-400 font-medium">—</span>;
+    return <span className="text-xs text-slate-400 font-normal">—</span>;
   }
 
   const shown = callers.slice(0, 4);
@@ -123,21 +126,20 @@ function AssigneeAvatars({ callers }) {
             key={c._id || i}
             title={c.name}
             style={{
-              width: 28,
-              height: 28,
+              width: 26,
+              height: 26,
               borderRadius: '50%',
               background: theme.bg,
               color: theme.text,
               border: `2px solid #ffffff`,
               outline: `1px solid ${theme.border}`,
               fontSize: 10,
-              fontWeight: 800,
+              fontWeight: 500,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              marginLeft: i === 0 ? 0 : -8,
+              marginLeft: i === 0 ? 0 : -7,
               zIndex: shown.length - i,
-              boxShadow: '0 2px 5px rgba(0,0,0,0.06)'
             }}
           >
             {c.name?.slice(0, 2).toUpperCase() || 'U'}
@@ -148,13 +150,13 @@ function AssigneeAvatars({ callers }) {
         <div
           style={{
             fontSize: 10,
-            fontWeight: 800,
-            color: O.deep,
-            background: O.bgSoft,
+            fontWeight: 500,
+            color: T.blue,
+            background: T.blueLight,
             borderRadius: 20,
-            padding: '2px 7px',
-            marginLeft: 6,
-            border: `1px solid ${O.line}`
+            padding: '1px 6px',
+            marginLeft: 5,
+            border: `1px solid ${T.blueBorder}`
           }}
         >
           +{extra}
@@ -183,11 +185,11 @@ function FilterDropdown({ label, options, value, onChange, icon }) {
       <button
         type="button"
         onClick={() => setOpen(p => !p)}
-        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all border shadow-sm"
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border shadow-xs"
         style={{
-          background: active ? O.bgSoft : '#ffffff',
-          borderColor: active ? O.deep : O.line,
-          color: active ? O.deep : O.inkSoft,
+          background: active ? T.blueLight : '#ffffff',
+          borderColor: active ? T.blue : T.border,
+          color: active ? T.blue : T.textSecondary,
         }}
       >
         {icon && <span className="opacity-80">{icon}</span>}
@@ -195,27 +197,27 @@ function FilterDropdown({ label, options, value, onChange, icon }) {
         {active ? (
           <span
             onClick={e => { e.stopPropagation(); onChange(''); }}
-            className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-orange-200/50 text-xs font-bold ml-0.5"
-            style={{ color: O.deep }}
+            className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-blue-100 text-xs font-medium ml-0.5"
+            style={{ color: T.blue }}
           >
             ×
           </span>
         ) : (
-          <FiChevronDown className="w-3.5 h-3.5 text-stone-400" />
+          <FiChevronDown className="w-3.5 h-3.5 text-slate-400" />
         )}
       </button>
 
       {open && (
         <div
-          className="absolute top-full left-0 mt-1.5 z-40 bg-white border rounded-xl shadow-xl p-1.5 min-w-[200px]"
-          style={{ borderColor: O.line, boxShadow: '0 12px 32px rgba(232, 74, 16, 0.12)' }}
+          className="absolute top-full left-0 mt-1.5 z-40 bg-white border rounded-xl shadow-lg p-1.5 min-w-[200px]"
+          style={{ borderColor: T.border }}
         >
           <div
             onClick={() => { onChange(''); setOpen(false); }}
-            className="px-3 py-2 rounded-lg text-xs font-bold cursor-pointer transition-colors"
+            className="px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors"
             style={{
-              color: !value ? O.deep : O.inkSoft,
-              background: !value ? O.bgSoft : 'transparent',
+              color: !value ? T.blue : T.muted,
+              background: !value ? T.blueLight : 'transparent',
             }}
           >
             All / Reset
@@ -228,17 +230,17 @@ function FilterDropdown({ label, options, value, onChange, icon }) {
               <div
                 key={optVal}
                 onClick={() => { onChange(optVal); setOpen(false); }}
-                className="px-3 py-2 rounded-lg text-xs font-semibold cursor-pointer transition-colors flex items-center justify-between"
+                className="px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors flex items-center justify-between"
                 style={{
-                  color: isSelected ? O.deep : O.ink,
-                  background: isSelected ? O.bgSoft : 'transparent',
+                  color: isSelected ? T.blue : T.text,
+                  background: isSelected ? T.blueLight : 'transparent',
                 }}
               >
                 <div className="flex items-center gap-2">
                   {opt.dot && <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: opt.dot }} />}
                   <span>{optLabel}</span>
                 </div>
-                {isSelected && <FiCheck className="w-3.5 h-3.5" style={{ color: O.deep }} />}
+                {isSelected && <FiCheck className="w-3.5 h-3.5" style={{ color: T.blue }} />}
               </div>
             );
           })}
@@ -249,7 +251,7 @@ function FilterDropdown({ label, options, value, onChange, icon }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CREATE CAMPAIGN MODAL (THEMED)
+// CREATE CAMPAIGN MODAL (WHITE, BLUE, ORANGE THEME)
 // ─────────────────────────────────────────────────────────────────────────────
 function CreateCampaignModal({ onClose, onSuccess }) {
   const [form, setForm] = useState({ name: '', description: '', priority: 'medium' });
@@ -275,64 +277,64 @@ function CreateCampaignModal({ onClose, onSuccess }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden border"
-        style={{ borderColor: O.line }}
+        className="bg-white rounded-2xl max-w-md w-full shadow-xl overflow-hidden border"
+        style={{ borderColor: T.border }}
       >
-        {/* Top Accent Gradient Bar */}
+        {/* Top Accent Gradient Bar (Orange to Blue) */}
         <div
           style={{
-            height: 5,
-            background: `linear-gradient(90deg, ${O.primary} 0%, ${O.deep} 50%, ${O.darkest} 100%)`
+            height: 4,
+            background: `linear-gradient(90deg, ${T.orange} 0%, ${T.blue} 100%)`
           }}
         />
 
-        <div className="p-6 md:p-7">
+        <div className="p-5 sm:p-6">
           {/* Header */}
-          <div className="flex items-center justify-between pb-4 border-b" style={{ borderColor: O.lineSoft }}>
+          <div className="flex items-center justify-between pb-3.5 border-b" style={{ borderColor: T.borderSoft }}>
             <div className="flex items-center gap-3">
               <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center shadow-sm"
-                style={{ background: O.bgSoft, border: `1px solid ${O.line}` }}
+                className="w-9 h-9 rounded-xl flex items-center justify-center"
+                style={{ background: T.orangeLight, border: `1px solid ${T.orangeBorder}` }}
               >
-                <RiMegaphoneLine className="w-5 h-5" style={{ color: O.deep }} />
+                <RiMegaphoneLine className="w-4 h-4" style={{ color: T.orange }} />
               </div>
               <div>
-                <h3 className="font-bold text-base" style={{ color: O.ink }}>
+                <h3 className="font-semibold text-sm sm:text-base text-slate-800">
                   Create New Campaign
                 </h3>
-                <p className="text-xs text-stone-500">Launch a target outreach audience</p>
+                <p className="text-xs text-slate-500 font-normal">Launch a target outreach audience</p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2 rounded-xl text-stone-400 hover:text-stone-700 hover:bg-orange-50 transition-colors"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
             >
-              <FiX className="w-5 h-5" />
+              <FiX className="w-4 h-4" />
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+          <form onSubmit={handleSubmit} className="mt-4 space-y-3.5">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5">
-                Campaign Name <span className="text-red-500">*</span>
+              <label className="block text-[11px] font-medium uppercase tracking-wider text-slate-500 mb-1">
+                Campaign Name <span className="text-rose-500">*</span>
               </label>
               <input
                 placeholder="e.g. Q4 Masterclass Outreach"
                 value={form.name}
                 onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                 required
-                className="w-full px-3.5 py-2.5 rounded-xl border text-sm font-medium bg-stone-50/70 focus:bg-white focus:outline-none transition-all"
-                style={{ borderColor: O.line }}
+                className="w-full px-3 py-2 rounded-lg border text-xs font-normal text-slate-800 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+                style={{ borderColor: T.border }}
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5">
+              <label className="block text-[11px] font-medium uppercase tracking-wider text-slate-500 mb-1">
                 Campaign Priority
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -345,15 +347,14 @@ function CreateCampaignModal({ onClose, onSuccess }) {
                     key={p.key}
                     type="button"
                     onClick={() => setForm(f => ({ ...f, priority: p.key }))}
-                    className="py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5"
+                    className="py-1.5 px-2.5 rounded-lg text-xs font-medium border transition-all flex items-center justify-center gap-1.5"
                     style={{
                       background: form.priority === p.key ? p.bg : '#ffffff',
-                      borderColor: form.priority === p.key ? p.color : O.line,
-                      color: form.priority === p.key ? p.color : O.inkSoft,
-                      boxShadow: form.priority === p.key ? `0 2px 8px ${p.border}` : 'none'
+                      borderColor: form.priority === p.key ? p.color : T.border,
+                      color: form.priority === p.key ? p.color : T.textSecondary,
                     }}
                   >
-                    <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: p.color }} />
                     {p.label}
                   </button>
                 ))}
@@ -361,7 +362,7 @@ function CreateCampaignModal({ onClose, onSuccess }) {
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5">
+              <label className="block text-[11px] font-medium uppercase tracking-wider text-slate-500 mb-1">
                 Description / Strategic Goal
               </label>
               <textarea
@@ -369,31 +370,27 @@ function CreateCampaignModal({ onClose, onSuccess }) {
                 rows={3}
                 value={form.description}
                 onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                className="w-full px-3.5 py-2.5 rounded-xl border text-sm font-medium bg-stone-50/70 focus:bg-white focus:outline-none transition-all resize-none"
-                style={{ borderColor: O.line }}
+                className="w-full px-3 py-2 rounded-lg border text-xs font-normal text-slate-800 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all resize-none"
+                style={{ borderColor: T.border }}
               />
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-4 border-t" style={{ borderColor: O.lineSoft }}>
+            <div className="flex items-center justify-end gap-2.5 pt-3.5 border-t" style={{ borderColor: T.borderSoft }}>
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2.5 rounded-xl border text-xs font-bold text-stone-600 hover:bg-stone-50 transition-colors"
-                style={{ borderColor: O.line }}
+                className="px-3.5 py-1.5 rounded-lg border text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                style={{ borderColor: T.border }}
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={saving || !form.name.trim()}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white shadow-md transition-all hover:brightness-105 active:scale-[0.98] disabled:opacity-60"
-                style={{
-                  background: `linear-gradient(135deg, ${O.primary} 0%, ${O.deep} 100%)`,
-                  boxShadow: '0 4px 16px rgba(232, 74, 16, 0.3)'
-                }}
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium text-white shadow-xs transition-all hover:bg-blue-700 active:scale-[0.98] disabled:opacity-60 bg-blue-600"
               >
-                {saving ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiPlus className="w-4 h-4" />}
-                {saving ? 'Creating Campaign...' : 'Create Campaign'}
+                {saving ? <FiRefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FiPlus className="w-3.5 h-3.5" />}
+                {saving ? 'Creating...' : 'Create Campaign'}
               </button>
             </div>
           </form>
@@ -404,7 +401,7 @@ function CreateCampaignModal({ onClose, onSuccess }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TRANSFER LEADS MODAL (THEMED)
+// TRANSFER LEADS MODAL (WHITE, BLUE, ORANGE THEME)
 // ─────────────────────────────────────────────────────────────────────────────
 function TransferLeadsModal({ onClose }) {
   const [callers, setCallers] = useState([]);
@@ -462,53 +459,52 @@ function TransferLeadsModal({ onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden border max-h-[90vh] flex flex-col"
-        style={{ borderColor: O.line }}
+        className="bg-white rounded-2xl max-w-lg w-full shadow-xl overflow-hidden border max-h-[90vh] flex flex-col"
+        style={{ borderColor: T.border }}
       >
-        <div style={{ height: 5, background: `linear-gradient(90deg, ${O.primary} 0%, ${O.deep} 100%)` }} />
+        <div style={{ height: 4, background: `linear-gradient(90deg, ${T.orange} 0%, ${T.blue} 100%)` }} />
 
-        <div className="p-6 pb-4 border-b flex items-center justify-between" style={{ borderColor: O.lineSoft }}>
+        <div className="p-4 sm:p-5 border-b flex items-center justify-between" style={{ borderColor: T.borderSoft }}>
           <div className="flex items-center gap-3">
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center shadow-sm"
-              style={{ background: O.bgSoft, border: `1px solid ${O.line}` }}
+              className="w-9 h-9 rounded-xl flex items-center justify-center"
+              style={{ background: T.orangeLight, border: `1px solid ${T.orangeBorder}` }}
             >
-              <FiShuffle className="w-5 h-5" style={{ color: O.deep }} />
+              <FiShuffle className="w-4 h-4" style={{ color: T.orange }} />
             </div>
             <div>
-              <h3 className="font-bold text-base" style={{ color: O.ink }}>
+              <h3 className="font-semibold text-sm sm:text-base text-slate-800">
                 Transfer Leads Between Callers
               </h3>
-              <p className="text-xs text-stone-500">Reassign calling queues in bulk</p>
+              <p className="text-xs text-slate-500 font-normal">Reassign calling queues in bulk</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg text-stone-400 hover:text-stone-700">
-            <FiX className="w-5 h-5" />
+          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+            <FiX className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto space-y-4 flex-1">
+        <div className="p-4 sm:p-5 overflow-y-auto space-y-3.5 flex-1">
           {result ? (
-            <div className="text-center py-6 space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto">
-                <FiCheckCircle className="w-7 h-7" />
+            <div className="text-center py-6 space-y-3">
+              <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto">
+                <FiCheckCircle className="w-6 h-6" />
               </div>
               <div>
-                <h4 className="font-bold text-lg text-emerald-700">Transfer Completed!</h4>
-                <p className="text-xs text-stone-600 mt-1">
-                  <strong style={{ color: O.deep }}>{result.modifiedCount}</strong> lead(s) transferred from{' '}
-                  <strong style={{ color: O.ink }}>{result.fromCaller}</strong> →{' '}
-                  <strong style={{ color: O.ink }}>{result.toCaller}</strong>
+                <h4 className="font-semibold text-base text-emerald-700">Transfer Completed</h4>
+                <p className="text-xs text-slate-600 font-normal mt-1">
+                  <span className="font-medium text-slate-800">{result.modifiedCount}</span> lead(s) transferred from{' '}
+                  <span className="font-medium text-slate-800">{result.fromCaller}</span> →{' '}
+                  <span className="font-medium text-slate-800">{result.toCaller}</span>
                 </p>
               </div>
               <button
                 onClick={onClose}
-                className="px-6 py-2 rounded-xl text-xs font-bold text-white shadow-sm"
-                style={{ background: `linear-gradient(135deg, ${O.primary} 0%, ${O.deep} 100%)` }}
+                className="px-5 py-1.5 rounded-lg text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-xs"
               >
                 Done
               </button>
@@ -517,14 +513,14 @@ function TransferLeadsModal({ onClose }) {
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5">
+                  <label className="block text-[11px] font-medium uppercase tracking-wider text-slate-500 mb-1">
                     Source Caller (From)
                   </label>
                   <select
                     value={fromCaller}
                     onChange={e => setFromCaller(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border text-xs bg-stone-50 focus:bg-white"
-                    style={{ borderColor: O.line }}
+                    className="w-full p-2 rounded-lg border text-xs text-slate-800 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    style={{ borderColor: T.border }}
                   >
                     <option value="">Select source caller...</option>
                     {callers.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
@@ -532,14 +528,14 @@ function TransferLeadsModal({ onClose }) {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5">
+                  <label className="block text-[11px] font-medium uppercase tracking-wider text-slate-500 mb-1">
                     Target Caller (To)
                   </label>
                   <select
                     value={toCaller}
                     onChange={e => setToCaller(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border text-xs bg-stone-50 focus:bg-white"
-                    style={{ borderColor: O.line }}
+                    className="w-full p-2 rounded-lg border text-xs text-slate-800 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    style={{ borderColor: T.border }}
                   >
                     <option value="">Select destination caller...</option>
                     {callers.filter(c => c._id !== fromCaller).map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
@@ -548,19 +544,19 @@ function TransferLeadsModal({ onClose }) {
               </div>
 
               {fromCaller && (
-                <div className="p-3 rounded-xl border bg-orange-50/50 flex items-center justify-between" style={{ borderColor: O.line }}>
-                  <span className="text-xs font-bold" style={{ color: O.deep }}>
+                <div className="p-3 rounded-xl border bg-orange-50/50 flex items-center justify-between" style={{ borderColor: T.orangeBorder }}>
+                  <span className="text-xs font-medium" style={{ color: T.orange }}>
                     {loadingLeads ? 'Loading assigned leads...' : `${fromLeads.length} leads assigned to selected caller`}
                   </span>
                   <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={() => setTransferMode('all')}
-                      className="px-2.5 py-1 rounded-lg text-xs font-bold border"
+                      className="px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors"
                       style={{
-                        background: transferMode === 'all' ? O.deep : '#ffffff',
-                        color: transferMode === 'all' ? '#ffffff' : O.inkSoft,
-                        borderColor: transferMode === 'all' ? O.deep : O.line
+                        background: transferMode === 'all' ? T.orange : '#ffffff',
+                        color: transferMode === 'all' ? '#ffffff' : T.textSecondary,
+                        borderColor: transferMode === 'all' ? T.orange : T.border
                       }}
                     >
                       All Leads
@@ -568,11 +564,11 @@ function TransferLeadsModal({ onClose }) {
                     <button
                       type="button"
                       onClick={() => setTransferMode('select')}
-                      className="px-2.5 py-1 rounded-lg text-xs font-bold border"
+                      className="px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors"
                       style={{
-                        background: transferMode === 'select' ? O.deep : '#ffffff',
-                        color: transferMode === 'select' ? '#ffffff' : O.inkSoft,
-                        borderColor: transferMode === 'select' ? O.deep : O.line
+                        background: transferMode === 'select' ? T.orange : '#ffffff',
+                        color: transferMode === 'select' ? '#ffffff' : T.textSecondary,
+                        borderColor: transferMode === 'select' ? T.orange : T.border
                       }}
                     >
                       Select Specific
@@ -582,10 +578,10 @@ function TransferLeadsModal({ onClose }) {
               )}
 
               {transferMode === 'select' && fromLeads.length > 0 && (
-                <div className="space-y-2 border rounded-xl p-3 max-h-48 overflow-y-auto" style={{ borderColor: O.lineSoft }}>
-                  <div className="flex justify-between items-center pb-2 border-b text-[11px] font-bold text-stone-500">
+                <div className="space-y-1.5 border rounded-xl p-3 max-h-48 overflow-y-auto" style={{ borderColor: T.borderSoft }}>
+                  <div className="flex justify-between items-center pb-2 border-b text-[11px] font-medium text-slate-500">
                     <span>{selectedLeads.length} selected</span>
-                    <button type="button" onClick={toggleAll} className="underline hover:text-stone-800">
+                    <button type="button" onClick={toggleAll} className="underline hover:text-slate-800">
                       {selectedLeads.length === fromLeads.length ? 'Deselect All' : 'Select All'}
                     </button>
                   </div>
@@ -593,30 +589,30 @@ function TransferLeadsModal({ onClose }) {
                     <div
                       key={lead._id}
                       onClick={() => toggleLead(lead._id)}
-                      className="p-2 rounded-lg flex items-center gap-2.5 cursor-pointer text-xs transition-colors"
-                      style={{ background: selectedLeads.includes(lead._id) ? O.bgSoft : '#ffffff' }}
+                      className="p-2 rounded-lg flex items-center gap-2.5 cursor-pointer text-xs transition-colors hover:bg-slate-50"
+                      style={{ background: selectedLeads.includes(lead._id) ? T.blueLight : '#ffffff' }}
                     >
                       <input
                         type="checkbox"
                         checked={selectedLeads.includes(lead._id)}
                         onChange={() => {}}
-                        className="rounded"
+                        className="rounded text-blue-600"
                       />
                       <div className="flex-1 truncate">
-                        <span className="font-bold" style={{ color: O.ink }}>{lead.name}</span>
-                        <span className="text-stone-400 text-[11px] ml-2">{lead.phone}</span>
+                        <span className="font-medium text-slate-800">{lead.name}</span>
+                        <span className="text-slate-400 text-[11px] ml-2 font-normal">{lead.phone}</span>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
 
-              <div className="flex justify-end gap-3 pt-3 border-t" style={{ borderColor: O.lineSoft }}>
+              <div className="flex justify-end gap-2.5 pt-3 border-t" style={{ borderColor: T.borderSoft }}>
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 rounded-xl border text-xs font-bold text-stone-600 hover:bg-stone-50"
-                  style={{ borderColor: O.line }}
+                  className="px-3.5 py-1.5 rounded-lg border text-xs font-medium text-slate-600 hover:bg-slate-50"
+                  style={{ borderColor: T.border }}
                 >
                   Cancel
                 </button>
@@ -624,8 +620,7 @@ function TransferLeadsModal({ onClose }) {
                   type="button"
                   onClick={handleTransfer}
                   disabled={saving || !fromCaller || !toCaller || (transferMode === 'select' && selectedLeads.length === 0)}
-                  className="px-5 py-2 rounded-xl text-xs font-bold text-white transition-all disabled:opacity-50"
-                  style={{ background: `linear-gradient(135deg, ${O.primary} 0%, ${O.deep} 100%)` }}
+                  className="px-4 py-1.5 rounded-lg text-xs font-medium text-white transition-all disabled:opacity-50 bg-blue-600 hover:bg-blue-700 shadow-xs"
                 >
                   {saving ? 'Transferring...' : 'Execute Transfer'}
                 </button>
@@ -639,7 +634,7 @@ function TransferLeadsModal({ onClose }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MAIN CAMPAIGNS COMPONENT
+// MAIN CAMPAIGNS COMPONENT (WHITE, BLUE, ORANGE)
 // ─────────────────────────────────────────────────────────────────────────────
 export default function Campaigns() {
   const navigate = useNavigate();
@@ -749,108 +744,102 @@ export default function Campaigns() {
   const activeCampaigns = campaigns.filter(c => (c.progress || 0) < 100).length;
 
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-5">
       {/* ── Top Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider" style={{ color: O.deep }}>
-            <RiMegaphoneLine className="w-4 h-4" /> Outreach Management
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+            <RiMegaphoneLine className="w-3.5 h-3.5" /> Outreach Management
           </div>
-          <div className="flex items-center gap-2.5 mt-1">
-            <h1 className="text-2xl md:text-3xl font-black" style={{ color: O.ink }}>
+          <div className="flex items-center gap-2.5 mt-1.5">
+            <h1 className="text-xl md:text-2xl font-semibold text-slate-800">
               Campaigns
             </h1>
             <button
               onClick={loadCampaigns}
               title="Refresh Campaigns"
-              className="p-1.5 rounded-xl border hover:bg-orange-50 transition-colors"
-              style={{ borderColor: O.line, color: O.deep }}
+              className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors"
             >
-              <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              <FiRefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             </button>
           </div>
-          <p className="text-xs md:text-sm text-stone-500 mt-0.5">
-            Organize lead lists, assign callers, and track calling progress across target batches.
+          <p className="text-xs text-slate-500 font-normal mt-0.5">
+            Organize student lists, assign callers, and track calling progress across target batches.
           </p>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-3">
+        {/* Action Buttons (Orange & Blue) */}
+        <div className="flex items-center gap-2.5">
           {(user?.role === 'manager' || user?.role === 'admin') && (
             <button
               onClick={() => setShowTransfer(true)}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-bold hover:bg-orange-50 transition-colors shadow-sm"
-              style={{ borderColor: O.line, color: O.deep, background: '#ffffff' }}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border text-xs font-medium text-orange-700 bg-orange-50/70 border-orange-200 hover:bg-orange-100 transition-colors shadow-xs"
             >
-              <FiShuffle className="w-4 h-4" /> Transfer Leads
+              <FiShuffle className="w-3.5 h-3.5" /> Transfer Leads
             </button>
           )}
 
           <button
             onClick={() => setShowCreate(true)}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white shadow-md transition-all hover:brightness-105 active:scale-[0.98]"
-            style={{
-              background: `linear-gradient(135deg, ${O.primary} 0%, ${O.deep} 100%)`,
-              boxShadow: '0 4px 16px rgba(232, 74, 16, 0.3)'
-            }}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition-all active:scale-[0.98]"
           >
-            <FiPlus className="w-4 h-4 stroke-[2.5]" /> Create New Campaign
+            <FiPlus className="w-3.5 h-3.5" /> Create New Campaign
           </button>
         </div>
       </div>
 
-      {/* ── Summary Stats Cards ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* ── Summary Stats Cards (White, Blue, Orange, Emerald) ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         {[
           {
             label: 'Total Campaigns',
             value: campaigns.length,
-            icon: <RiFolderChartLine className="w-5 h-5" style={{ color: O.deep }} />,
-            bg: O.bgSoft,
-            border: O.line,
+            icon: <RiFolderChartLine className="w-4.5 h-4.5 text-blue-600" />,
+            bg: T.blueLight,
+            border: T.blueBorder,
             suffix: ' Batches'
           },
           {
             label: 'Total Leads Assigned',
             value: fmtLeads(totalLeadsAll),
-            icon: <FiUsers className="w-5 h-5 text-blue-600" />,
-            bg: '#eff6ff',
-            border: '#bfdbfe',
+            icon: <FiUsers className="w-4.5 h-4.5 text-orange-600" />,
+            bg: T.orangeLight,
+            border: T.orangeBorder,
             suffix: ' Leads'
           },
           {
             label: 'Active Calling Drives',
             value: activeCampaigns,
-            icon: <FiActivity className="w-5 h-5 text-emerald-600" />,
-            bg: '#ecfdf5',
-            border: '#a7f3d0',
+            icon: <FiActivity className="w-4.5 h-4.5 text-emerald-600" />,
+            bg: T.emeraldLight,
+            border: T.emeraldBorder,
             suffix: ' In Progress'
           },
           {
             label: 'Average Completion',
             value: avgProgress,
-            icon: <FiTarget className="w-5 h-5 text-amber-600" />,
-            bg: '#fffbeb',
-            border: '#fde68a',
+            icon: <FiTarget className="w-4.5 h-4.5 text-blue-600" />,
+            bg: '#f1f5f9',
+            border: T.border,
             suffix: '%'
           },
         ].map((stat, i) => (
           <div
             key={i}
-            className="p-4 rounded-2xl border bg-white shadow-sm flex items-center gap-3.5 transition-transform hover:-translate-y-0.5"
-            style={{ borderColor: O.line }}
+            className="p-3.5 rounded-xl border bg-white shadow-xs flex items-center gap-3 transition-transform hover:-translate-y-0.5"
+            style={{ borderColor: T.border }}
           >
             <div
-              className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
               style={{ background: stat.bg, border: `1px solid ${stat.border}` }}
             >
               {stat.icon}
             </div>
             <div>
-              <div className="text-2xl font-black" style={{ color: O.ink }}>
+              <div className="text-xl font-semibold text-slate-800">
                 {stat.value}{stat.suffix.startsWith('%') ? '%' : ''}
               </div>
-              <div className="text-xs font-semibold text-stone-500">
+              <div className="text-xs font-normal text-slate-500">
                 {stat.label}
               </div>
             </div>
@@ -859,23 +848,22 @@ export default function Campaigns() {
       </div>
 
       {/* ── Filter & Search Bar ── */}
-      <div className="p-4 rounded-2xl border bg-white shadow-sm space-y-3" style={{ borderColor: O.line }}>
-        <div className="flex flex-wrap items-center gap-3">
+      <div className="p-3.5 rounded-xl border bg-white shadow-xs space-y-2.5" style={{ borderColor: T.border }}>
+        <div className="flex flex-wrap items-center gap-2.5">
           {/* Search Box */}
           <div
-            className="flex-1 min-w-[220px] flex items-center gap-2.5 px-3.5 py-2 rounded-xl border bg-stone-50/70 focus-within:bg-white focus-within:border-orange-500 transition-all"
-            style={{ borderColor: O.line }}
+            className="flex-1 min-w-[200px] flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-slate-50/70 focus-within:bg-white focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all"
+            style={{ borderColor: T.border }}
           >
-            <FiSearch className="w-4 h-4 text-stone-400 flex-shrink-0" />
+            <FiSearch className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search campaigns by title..."
-              className="w-full text-xs font-medium bg-transparent focus:outline-none"
-              style={{ color: O.ink }}
+              className="w-full text-xs font-normal text-slate-800 bg-transparent focus:outline-none"
             />
             {search && (
-              <button onClick={() => setSearch('')} className="text-stone-400 hover:text-stone-700">
+              <button onClick={() => setSearch('')} className="text-slate-400 hover:text-slate-700">
                 <FiX className="w-3.5 h-3.5" />
               </button>
             )}
@@ -934,7 +922,7 @@ export default function Campaigns() {
                 setCreatedByFilter('');
                 setSearch('');
               }}
-              className="text-xs font-bold px-3 py-2 rounded-xl text-stone-500 hover:text-stone-800 hover:bg-stone-50 transition-colors"
+              className="text-xs font-medium px-2.5 py-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
             >
               Reset Filters
             </button>
@@ -943,48 +931,48 @@ export default function Campaigns() {
 
         {/* Active Filter Chips */}
         {(priorityFilter || dateFilter || assigneeFilter || createdByFilter) && (
-          <div className="flex flex-wrap items-center gap-2 pt-2 border-t" style={{ borderColor: O.lineSoft }}>
-            <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">Active:</span>
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t" style={{ borderColor: T.borderSoft }}>
+            <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Active:</span>
             {priorityFilter && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100/70 text-orange-800 border border-orange-200">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
                 Priority: {priorityFilter}
-                <FiX className="w-3 h-3 cursor-pointer" onClick={() => setPriorityFilter('')} />
+                <FiX className="w-3 h-3 cursor-pointer hover:text-blue-900" onClick={() => setPriorityFilter('')} />
               </span>
             )}
             {dateFilter && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100/70 text-orange-800 border border-orange-200">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
                 Date: {dateFilter}
-                <FiX className="w-3 h-3 cursor-pointer" onClick={() => setDateFilter('')} />
+                <FiX className="w-3 h-3 cursor-pointer hover:text-blue-900" onClick={() => setDateFilter('')} />
               </span>
             )}
             {assigneeFilter && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100/70 text-orange-800 border border-orange-200">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
                 Assignee: {allAssignees.find(a => a._id === assigneeFilter)?.name || assigneeFilter}
-                <FiX className="w-3 h-3 cursor-pointer" onClick={() => setAssigneeFilter('')} />
+                <FiX className="w-3 h-3 cursor-pointer hover:text-blue-900" onClick={() => setAssigneeFilter('')} />
               </span>
             )}
             {createdByFilter && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100/70 text-orange-800 border border-orange-200">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
                 Creator: {allCreators.find(c => (c._id || c) === createdByFilter)?.name || createdByFilter}
-                <FiX className="w-3 h-3 cursor-pointer" onClick={() => setCreatedByFilter('')} />
+                <FiX className="w-3 h-3 cursor-pointer hover:text-blue-900" onClick={() => setCreatedByFilter('')} />
               </span>
             )}
           </div>
         )}
       </div>
 
-      {/* ── Campaigns Table ── */}
-      <div className="rounded-2xl border bg-white shadow-sm overflow-hidden" style={{ borderColor: O.line }}>
+      {/* ── Campaigns Table (White, Blue, Orange) ── */}
+      <div className="rounded-xl border bg-white shadow-xs overflow-hidden" style={{ borderColor: T.border }}>
         {loading ? (
           <div className="text-center py-16">
-            <FiRefreshCw className="w-8 h-8 animate-spin mx-auto mb-3" style={{ color: O.deep }} />
-            <p className="text-xs font-bold text-stone-500">Loading outreach campaigns...</p>
+            <FiRefreshCw className="w-7 h-7 animate-spin mx-auto mb-2 text-blue-600" />
+            <p className="text-xs font-medium text-slate-500">Loading outreach campaigns...</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr style={{ background: O.bgSofter, borderBottom: `1px solid ${O.line}` }}>
+                <tr style={{ background: '#f8fafc', borderBottom: `1px solid ${T.border}` }}>
                   {[
                     { label: 'Campaign Title', field: 'name' },
                     { label: 'Priority', field: 'priority' },
@@ -997,13 +985,12 @@ export default function Campaigns() {
                     <th
                       key={col.label || idx}
                       onClick={() => col.field && handleSort(col.field)}
-                      className={`py-3.5 px-4 font-bold uppercase tracking-wider whitespace-nowrap ${col.field ? 'cursor-pointer select-none hover:text-orange-600' : ''}`}
-                      style={{ color: sortField === col.field ? O.deep : O.inkSoft }}
+                      className={`py-3 px-4 font-medium text-[11px] uppercase tracking-wider whitespace-nowrap text-slate-500 ${col.field ? 'cursor-pointer select-none hover:text-blue-600' : ''}`}
                     >
                       <div className="flex items-center gap-1.5">
-                        <span>{col.label}</span>
+                        <span style={{ color: sortField === col.field ? T.blue : undefined }}>{col.label}</span>
                         {col.field && (
-                          <span className="text-stone-400">
+                          <span className="text-slate-400">
                             {sortField === col.field ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}
                           </span>
                         )}
@@ -1012,33 +999,33 @@ export default function Campaigns() {
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y" style={{ borderColor: O.lineSoft }}>
+              <tbody className="divide-y" style={{ borderColor: T.borderSoft }}>
                 {filtered.map((c) => (
                   <tr
                     key={c._id}
                     onClick={() => navigate(`/campaigns/${c._id}`)}
-                    className="hover:bg-orange-50/50 transition-colors cursor-pointer group"
+                    className="hover:bg-blue-50/30 transition-colors cursor-pointer group"
                   >
-                    {/* Name */}
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-3">
+                    {/* Name with Orange/Blue branding badge */}
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-2.5">
                         <div
-                          className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs shadow-sm flex-shrink-0"
+                          className="w-8 h-8 rounded-lg flex items-center justify-center font-medium text-xs shadow-2xs flex-shrink-0"
                           style={{
-                            background: O.bgSoft,
-                            color: O.deep,
-                            border: `1.5px solid ${O.line}`
+                            background: T.orangeLight,
+                            color: T.orange,
+                            border: `1px solid ${T.orangeBorder}`
                           }}
                         >
                           {c.name?.slice(0, 1).toUpperCase() || 'C'}
                         </div>
                         <div className="min-w-0">
-                          <div className="font-bold text-sm truncate flex items-center gap-1.5" style={{ color: O.ink }}>
+                          <div className="font-medium text-xs sm:text-sm text-slate-800 truncate flex items-center gap-1.5">
                             <span>{c.name}</span>
-                            <FiArrowUpRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-orange-500" />
+                            <FiArrowUpRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-blue-600" />
                           </div>
                           {c.description && (
-                            <p className="text-[11px] text-stone-500 truncate max-w-xs mt-0.5">
+                            <p className="text-[11px] text-slate-400 font-normal truncate max-w-xs mt-0.5">
                               {c.description}
                             </p>
                           )}
@@ -1047,10 +1034,10 @@ export default function Campaigns() {
                     </td>
 
                     {/* Priority */}
-                    <td className="py-4 px-4 whitespace-nowrap">
+                    <td className="py-3.5 px-4 whitespace-nowrap">
                       {c.priority ? (
                         <span
-                          className="px-2.5 py-1 rounded-full text-[11px] font-bold inline-flex items-center gap-1.5 capitalize"
+                          className="px-2.5 py-0.5 rounded-full text-[11px] font-medium inline-flex items-center gap-1.5 capitalize"
                           style={{
                             background: c.priority === 'high' ? '#fef2f2' : c.priority === 'medium' ? '#fffbeb' : '#ecfdf5',
                             color: c.priority === 'high' ? '#dc2626' : c.priority === 'medium' ? '#d97706' : '#059669',
@@ -1064,45 +1051,44 @@ export default function Campaigns() {
                           {c.priority}
                         </span>
                       ) : (
-                        <span className="text-stone-400 font-medium">—</span>
+                        <span className="text-slate-400 font-normal">—</span>
                       )}
                     </td>
 
                     {/* Assignee Avatars */}
-                    <td className="py-4 px-4 whitespace-nowrap">
+                    <td className="py-3.5 px-4 whitespace-nowrap">
                       <AssigneeAvatars callers={c.assignedCallers} />
                     </td>
 
                     {/* Total Leads */}
-                    <td className="py-4 px-4 whitespace-nowrap">
-                      <div className="font-bold text-sm" style={{ color: O.ink }}>
+                    <td className="py-3.5 px-4 whitespace-nowrap">
+                      <div className="font-medium text-xs sm:text-sm text-slate-800">
                         {fmtLeads(c.totalLeads || 0)}
                       </div>
-                      <div className="text-[11px] text-stone-400">
+                      <div className="text-[11px] text-slate-400 font-normal">
                         {c.called || 0} called
                       </div>
                     </td>
 
                     {/* Progress */}
-                    <td className="py-4 px-4 whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                    <td className="py-3.5 px-4 whitespace-nowrap" onClick={e => e.stopPropagation()}>
                       <ProgressCircle value={c.progress || 0} />
                     </td>
 
                     {/* Created On */}
-                    <td className="py-4 px-4 whitespace-nowrap">
-                      <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-stone-50 border border-stone-200/80 text-stone-600">
+                    <td className="py-3.5 px-4 whitespace-nowrap">
+                      <span className="px-2 py-0.5 rounded-md text-xs font-normal bg-slate-50 border border-slate-200 text-slate-500">
                         {timeAgo(c.createdAt)}
                       </span>
                     </td>
 
                     {/* Actions */}
-                    <td className="py-4 px-4 whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                    <td className="py-3.5 px-4 whitespace-nowrap" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => navigate(`/campaigns/${c._id}`)}
                           title="View Analytics & Detail"
-                          className="p-2 rounded-xl border hover:bg-orange-50 transition-colors"
-                          style={{ borderColor: O.line, color: O.deep }}
+                          className="p-1.5 rounded-lg border border-slate-200 hover:bg-blue-50 text-blue-600 transition-colors"
                         >
                           <FiBarChart2 className="w-3.5 h-3.5" />
                         </button>
@@ -1110,7 +1096,7 @@ export default function Campaigns() {
                           <button
                             onClick={(e) => handleDeleteCampaign(c, e)}
                             title="Delete Campaign"
-                            className="p-2 rounded-xl border hover:bg-red-50 text-red-600 border-red-200 transition-colors"
+                            className="p-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 text-rose-600 transition-colors"
                           >
                             <FiTrash2 className="w-3.5 h-3.5" />
                           </button>
@@ -1122,20 +1108,19 @@ export default function Campaigns() {
 
                 {!filtered.length && (
                   <tr>
-                    <td colSpan={7} className="py-16 text-center text-stone-400">
-                      <div className="w-14 h-14 rounded-2xl bg-orange-50 flex items-center justify-center mx-auto mb-3" style={{ border: `1px solid ${O.line}` }}>
-                        <RiMegaphoneLine className="w-6 h-6" style={{ color: O.deep }} />
+                    <td colSpan={7} className="py-14 text-center text-slate-400">
+                      <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center mx-auto mb-2.5">
+                        <RiMegaphoneLine className="w-5 h-5 text-blue-600" />
                       </div>
-                      <div className="font-bold text-sm text-stone-700">No campaigns found</div>
-                      <p className="text-xs text-stone-400 mt-1">
+                      <div className="font-medium text-sm text-slate-700">No campaigns found</div>
+                      <p className="text-xs text-slate-400 font-normal mt-1">
                         {search || priorityFilter || dateFilter || assigneeFilter || createdByFilter
                           ? 'Try adjusting your search criteria or active filters.'
                           : 'Create your first campaign to begin distributing leads!'}
                       </p>
                       <button
                         onClick={() => setShowCreate(true)}
-                        className="mt-4 px-4 py-2 rounded-xl text-xs font-bold text-white shadow-sm"
-                        style={{ background: `linear-gradient(135deg, ${O.primary} 0%, ${O.deep} 100%)` }}
+                        className="mt-3.5 px-3.5 py-1.5 rounded-lg text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-xs"
                       >
                         + Create First Campaign
                       </button>
@@ -1149,11 +1134,11 @@ export default function Campaigns() {
 
         {/* Footer info bar */}
         {!loading && filtered.length > 0 && (
-          <div className="px-6 py-3 border-t flex items-center justify-between text-xs text-stone-500 font-medium" style={{ borderColor: O.lineSoft, background: O.bgSofter }}>
+          <div className="px-4 py-2.5 border-t flex items-center justify-between text-xs text-slate-500 font-normal" style={{ borderColor: T.borderSoft, background: '#f8fafc' }}>
             <span>
-              Showing <strong style={{ color: O.deep }}>{filtered.length}</strong> of <strong>{campaigns.length}</strong> total campaigns
+              Showing <span className="font-medium text-slate-800">{filtered.length}</span> of <span className="font-medium text-slate-800">{campaigns.length}</span> total campaigns
             </span>
-            <span className="text-[11px] text-stone-400">
+            <span className="text-[11px] text-slate-400 font-normal">
               Click any row to view campaign leads & detail
             </span>
           </div>

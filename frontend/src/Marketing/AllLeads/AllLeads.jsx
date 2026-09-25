@@ -18,41 +18,51 @@ import { FiUserPlus, FiLink, FiChevronRight } from 'react-icons/fi';
 import { RiFileExcel2Line } from 'react-icons/ri';
 import { canDelete, canAccessEmailBlast } from '../../utils/permissions';
 
-
-/* ─────────────────────────────────────────────────────────
-   ORANGE MARKETING THEME (Harmonized with AddLead.jsx)
-   ───────────────────────────────────────────────────────── */
-const O = {
-  primary: '#ff8c42',
-  primary3: '#ffb877',
-  deep: '#e84a10',
-  darkest: '#c23a05',
-
-  bg: '#fff8f2',
-  bgSoft: '#fff0e8',
-  bgSofter: '#fff5ed',
-
-  line: '#ffe0cb',
-  lineSoft: '#ffe4d5',
-
-  ink: '#1f1206',
-  inkSoft: '#6b5546',
-  muted: '#a68a78',
-  error: '#e63946',
-  success: '#10b981',
+// ── White, Blue, Orange Theme Design Tokens ──────────────────────────────────
+const T = {
   white: '#ffffff',
+  bg: '#f8fafc',
+  border: '#e2e8f0',
+  borderSoft: '#f1f5f9',
+
+  text: '#1e293b',
+  textSecondary: '#475569',
+  muted: '#64748b',
+  subtle: '#94a3b8',
+
+  blue: '#2563eb',
+  blueHover: '#1d4ed8',
+  blueLight: '#eff6ff',
+  blueBorder: '#bfdbfe',
+
+  orange: '#ea580c',
+  orangeHover: '#c2410c',
+  orangeLight: '#fff7ed',
+  orangeBorder: '#fed7aa',
+
+  emerald: '#10b981',
+  emeraldLight: '#ecfdf5',
+  emeraldBorder: '#a7f3d0',
+
+  amber: '#f59e0b',
+  amberLight: '#fffbeb',
+  amberBorder: '#fde68a',
+
+  rose: '#f43f5e',
+  roseLight: '#fff1f2',
+  roseBorder: '#fecdd3',
 };
 
 const PALETTE_COLORS = [
-  O.primary,
-  O.deep,
-  '#f59e0b',
-  '#ec4899',
-  '#8b5cf6',
-  '#3b82f6',
-  '#10b981',
-  '#06b6d4',
-  '#f97316'
+  '#2563eb', // Blue
+  '#ea580c', // Orange
+  '#10b981', // Emerald
+  '#f59e0b', // Amber
+  '#6366f1', // Indigo
+  '#06b6d4', // Cyan
+  '#ec4899', // Pink
+  '#8b5cf6', // Violet
+  '#3b82f6', // Light Blue
 ];
 
 const FALLBACK_STATUSES = [
@@ -79,14 +89,15 @@ function RatingStars({ lead, onRate }) {
             type="button"
             onMouseEnter={() => setHoverRating(star)}
             onClick={() => onRate(lead, star)}
-            className="p-0.5 transition-transform hover:scale-125 focus:outline-none cursor-pointer"
+            className="p-0.5 transition-transform hover:scale-115 focus:outline-none cursor-pointer"
             title={`Set rating to ${star} star${star > 1 ? 's' : ''}`}
           >
             <Star
-              className={`w-4 h-4 transition-all duration-150 ${isFilled
-                  ? 'text-amber-400 fill-amber-400 drop-shadow-sm'
-                  : 'text-stone-300 hover:text-amber-200'
-                }`}
+              className={`w-3.5 h-3.5 transition-all duration-150 ${
+                isFilled
+                  ? 'text-amber-400 fill-amber-400 drop-shadow-2xs'
+                  : 'text-slate-200 hover:text-amber-200'
+              }`}
             />
           </button>
         );
@@ -250,566 +261,506 @@ export default function AllLeads() {
   const pages = Math.ceil(total / limit) || 1;
 
   return (
-    <div className="leads-shell flex flex-col" style={{ background: O.bg, minHeight: 'calc(100vh - 64px)', padding: '24px' }}>
-      <style>{`
-        @media (max-width: 640px) {
-          .leads-shell { height: auto !important; min-height: calc(100vh - 56px); padding: 12px !important; }
-        }
-      `}</style>
-
+    <div className="min-h-[calc(100vh-64px)] bg-slate-50/60 flex flex-col">
       {/* Floating Rating Toast */}
       {ratingToast && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 20 }}
-          style={{
-            position: 'fixed', bottom: 24, right: 24, zIndex: 9999,
-            background: O.darkest, color: '#ffffff',
-            borderRadius: 14, padding: '12px 20px', fontSize: 13, fontWeight: 600,
-            boxShadow: `0 12px 30px ${O.deep}44`,
-            display: 'flex', alignItems: 'center', gap: 8,
-            border: `1px solid ${O.primary}`
-          }}
+          className="fixed bottom-6 right-6 z-50 bg-slate-800 text-white rounded-xl px-4 py-2.5 text-xs font-medium shadow-lg flex items-center gap-2 border border-slate-700"
         >
-          <span style={{ color: '#fbbf24' }}>★</span> {ratingToast}
+          <span className="text-amber-400">★</span> {ratingToast}
         </motion.div>
       )}
 
-      {/* Page Header */}
-      <div className="flex items-center justify-between flex-shrink-0 pb-4 flex-wrap gap-3 mb-4"
-        style={{ borderBottom: `1px solid ${O.line}` }}>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-md"
-            style={{ background: `linear-gradient(135deg, ${O.primary}, ${O.deep})` }}>
-            <Users className="w-5 h-5" />
+      {/* Responsive Container (Decreased Width, Max 7xl, Perfect Screen Fit) */}
+      <div className="max-w-7xl mx-auto w-full px-3 sm:px-6 py-4 sm:py-5 flex flex-col flex-1 space-y-4">
+        {/* Page Header (White, Blue, Orange) */}
+        <div className="flex items-center justify-between flex-shrink-0 pb-3 border-b border-slate-200 flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white bg-blue-600 shadow-xs">
+              <Users className="w-4.5 h-4.5" />
+            </div>
+            <div>
+              <h1 className="text-lg sm:text-xl font-semibold text-slate-800 tracking-tight">All Leads</h1>
+              <p className="text-xs font-normal text-slate-500 mt-0.5">
+                <span className="font-medium text-slate-700">{total.toLocaleString()}</span> total customer leads in pipeline
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight" style={{ color: O.ink }}>All Leads</h1>
-            <p className="text-xs font-semibold mt-0.5" style={{ color: O.inkSoft }}>
-              {total.toLocaleString()} total customer leads in pipeline
-            </p>
-          </div>
-        </div>
 
-        {/* Top Header Buttons */}
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={() => setShowCharts(v => !v)}
-            style={{
-              background: showCharts ? `linear-gradient(135deg, ${O.primary}, ${O.deep})` : '#ffffff',
-              color: showCharts ? '#ffffff' : O.inkSoft,
-              borderColor: O.line,
-            }}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl border shadow-sm transition-all hover:translate-y-[-1px]"
-          >
-            <BarChart2 className="w-4 h-4" />
-            Charts & Analytics
-          </button>
-
-          <button
-            onClick={handleExport}
-            style={{ background: '#ffffff', color: O.inkSoft, borderColor: O.line }}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl border shadow-sm transition-all hover:bg-[#fff0e8]"
-          >
-            <Download className="w-4 h-4" />
-            Export CSV
-          </button>
-
-          {canAccessEmailBlast(user) && (
+          {/* Top Header Buttons */}
+          <div className="flex items-center gap-2 flex-wrap">
             <button
-              onClick={() => navigate('/email-blast')}
-              style={{
-                background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
-                color: '#ffffff',
-                boxShadow: '0 4px 14px rgba(37,99,235,0.25)'
-              }}
-              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl text-white shadow-sm transition-all hover:brightness-105 hover:translate-y-[-1px]"
+              onClick={() => setShowCharts(v => !v)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-all shadow-xs ${
+                showCharts
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+              }`}
             >
-              <Mail className="w-4 h-4" />
-              Email Blast
-            </button>
-          )}
-
-          {/* Add Lead Dropdown Button */}
-          <div style={{ position: 'relative' }}>
-            <button
-              onClick={() => setShowAddMenu(v => !v)}
-              style={{
-                background: `linear-gradient(135deg, ${O.primary}, ${O.deep})`,
-                boxShadow: `0 4px 14px ${O.deep}33`
-              }}
-              className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl text-white transition-all hover:brightness-105"
-            >
-              <Plus className="w-4 h-4" />
-              Add Lead
-              <ChevronDown className="w-3.5 h-3.5" />
+              <BarChart2 className="w-3.5 h-3.5" />
+              <span>{showCharts ? 'Hide Charts' : 'Charts & Analytics'}</span>
             </button>
 
-            {showAddMenu && (
-              <div
-                style={{
-                  position: 'absolute', right: 0, top: '118%', background: '#ffffff',
-                  border: `1px solid ${O.line}`, borderRadius: 16,
-                  boxShadow: '0 16px 40px -8px rgba(232, 74, 16, 0.2), 0 0 0 1px rgba(255, 224, 203, 0.5)',
-                  minWidth: 280, zIndex: 300, overflow: 'hidden',
-                  animation: 'fadeIn 0.15s ease-out'
-                }}
-                onMouseLeave={() => setShowAddMenu(false)}
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 shadow-xs transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Export CSV</span>
+            </button>
+
+            {canAccessEmailBlast(user) && (
+              <button
+                onClick={() => navigate('/email-blast')}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition-colors"
               >
-                <div style={{
-                  padding: '10px 16px', fontSize: 11, fontWeight: 700, color: O.muted,
-                  textTransform: 'uppercase', letterSpacing: '0.08em',
-                  borderBottom: `1px solid ${O.lineSoft}`, background: O.bgSofter,
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between'
-                }}>
-                  <span>Add Lead Options</span>
-                  <span style={{ fontSize: 10, background: O.bgSoft, color: O.deep, padding: '2px 7px', borderRadius: 10, fontWeight: 700 }}>3 Ways</span>
-                </div>
-                {[
-                  {
-                    label: 'Add Single Lead',
-                    desc: 'Quick manual lead entry form',
-                    to: '/leads/new',
-                    icon: <FiUserPlus className="w-4 h-4" style={{ color: O.deep }} />,
-                    bg: '#fff0e8',
-                    border: '#ffd6be',
-                  },
-                  {
-                    label: 'Bulk Import from Excel',
-                    desc: 'Upload .xlsx, .xls or .csv sheets',
-                    to: '/bulk-import',
-                    icon: <RiFileExcel2Line className="w-4 h-4 text-emerald-600" />,
-                    bg: '#ecfdf5',
-                    border: '#a7f3d0',
-                  },
-                  {
-                    label: 'Connect Integration',
-                    desc: 'Sync Meta, Webhooks & APIs',
-                    to: '/integrations',
-                    icon: <FiLink className="w-4 h-4 text-blue-600" />,
-                    bg: '#eff6ff',
-                    border: '#bfdbfe',
-                  },
-                ].map(item => (
-                  <div
-                    key={item.to}
-                    onClick={() => { setShowAddMenu(false); navigate(item.to); }}
-                    className="group transition-colors duration-150"
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 12,
-                      padding: '11px 16px', cursor: 'pointer',
-                      borderBottom: `1px solid ${O.lineSoft}`
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.background = O.bgSoft}
-                    onMouseLeave={e => e.currentTarget.style.background = '#ffffff'}
-                  >
-                    <div
-                      style={{
-                        width: 36, height: 36, borderRadius: 10,
-                        background: item.bg, border: `1px solid ${item.border}`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        flexShrink: 0
-                      }}
-                    >
-                      {item.icon}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: O.ink, lineHeight: 1.25 }}>
-                        {item.label}
-                      </div>
-                      <div style={{ fontSize: 11, color: O.muted, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {item.desc}
-                      </div>
-                    </div>
-                    <FiChevronRight className="w-4 h-4 text-gray-400 group-hover:translate-x-0.5 transition-transform" />
+                <Mail className="w-3.5 h-3.5" />
+                <span>Email Blast</span>
+              </button>
+            )}
+
+            {/* Add Lead Dropdown Button (Orange Theme) */}
+            <div className="relative">
+              <button
+                onClick={() => setShowAddMenu(v => !v)}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-lg text-white bg-orange-500 hover:bg-orange-600 shadow-xs transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Lead</span>
+                <ChevronDown className="w-3 h-3" />
+              </button>
+
+              {showAddMenu && (
+                <div
+                  className="absolute right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-xl shadow-lg min-w-[260px] z-50 overflow-hidden"
+                  onMouseLeave={() => setShowAddMenu(false)}
+                >
+                  <div className="px-3.5 py-2 text-[10px] font-medium text-slate-400 uppercase tracking-wider border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                    <span>Add Lead Options</span>
+                    <span className="text-[10px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded font-medium border border-orange-200">3 Ways</span>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Analytics Charts Panel */}
-      {showCharts && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0 }}
-          className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-shrink-0 pb-4"
-        >
-          <div className="bg-white rounded-2xl border p-5 shadow-sm" style={{ borderColor: O.line }}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-sm" style={{ color: O.ink }}>Lead Status Distribution</h3>
-              <span className="text-xs font-bold px-2.5 py-1 rounded-lg" style={{ background: O.bgSoft, color: O.deep }}>
-                Bar Visualization
-              </span>
-            </div>
-            {statsLoading ? (
-              <div className="flex justify-center items-center h-48">
-                <div className="w-7 h-7 rounded-full border-2 border-orange-500 border-t-transparent animate-spin" />
-              </div>
-            ) : statusStats.length === 0 ? (
-              <div className="flex items-center justify-center h-48 text-stone-400 text-xs">No chart metrics available</div>
-            ) : (
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={statusStats} margin={{ top: 5, right: 5, left: -20, bottom: 60 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={O.lineSoft} />
-                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: O.inkSoft }} angle={-30} textAnchor="end" interval={0} />
-                  <YAxis tick={{ fontSize: 11, fill: O.inkSoft }} />
-                  <Tooltip contentStyle={{ borderRadius: '12px', border: `1px solid ${O.line}`, fontSize: 12, color: O.ink }} />
-                  <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                    {statusStats.map((_, i) => <Cell key={i} fill={PALETTE_COLORS[i % PALETTE_COLORS.length]} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-
-          <div className="bg-white rounded-2xl border p-5 shadow-sm" style={{ borderColor: O.line }}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-sm" style={{ color: O.ink }}>Pipeline Ratio Breakdown</h3>
-              <span className="text-xs font-bold px-2.5 py-1 rounded-lg" style={{ background: O.bgSoft, color: O.deep }}>
-                Pie Visualization
-              </span>
-            </div>
-            {statsLoading ? (
-              <div className="flex justify-center items-center h-48">
-                <div className="w-7 h-7 rounded-full border-2 border-orange-500 border-t-transparent animate-spin" />
-              </div>
-            ) : statusStats.length === 0 ? (
-              <div className="flex items-center justify-center h-48 text-stone-400 text-xs">No chart metrics available</div>
-            ) : (
-              <>
-                <ResponsiveContainer width="100%" height={160}>
-                  <PieChart>
-                    <Pie
-                      data={statusStats}
-                      cx="50%" cy="50%"
-                      outerRadius={68} innerRadius={36}
-                      paddingAngle={2}
-                      dataKey="value"
+                  {[
+                    {
+                      label: 'Add Single Lead',
+                      desc: 'Quick manual lead entry form',
+                      to: '/leads/new',
+                      icon: <FiUserPlus className="w-3.5 h-3.5 text-orange-600" />,
+                      bg: T.orangeLight,
+                      border: T.orangeBorder,
+                    },
+                    {
+                      label: 'Bulk Import from Excel',
+                      desc: 'Upload .xlsx, .xls or .csv sheets',
+                      to: '/bulk-import',
+                      icon: <RiFileExcel2Line className="w-3.5 h-3.5 text-emerald-600" />,
+                      bg: T.emeraldLight,
+                      border: T.emeraldBorder,
+                    },
+                    {
+                      label: 'Connect Integration',
+                      desc: 'Sync Meta, Webhooks & APIs',
+                      to: '/integrations',
+                      icon: <FiLink className="w-3.5 h-3.5 text-blue-600" />,
+                      bg: T.blueLight,
+                      border: T.blueBorder,
+                    },
+                  ].map(item => (
+                    <div
+                      key={item.to}
+                      onClick={() => { setShowAddMenu(false); navigate(item.to); }}
+                      className="flex items-center gap-2.5 px-3.5 py-2.5 cursor-pointer border-b border-slate-100 hover:bg-slate-50 transition-colors last:border-b-0"
                     >
-                      {statusStats.map((_, i) => <Cell key={i} fill={PALETTE_COLORS[i % PALETTE_COLORS.length]} />)}
-                    </Pie>
-                    <Tooltip contentStyle={{ borderRadius: '12px', border: `1px solid ${O.line}`, fontSize: 12 }} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="grid grid-cols-2 gap-2 mt-3 max-h-24 overflow-y-auto pr-1">
-                  {statusStats.map((s, i) => (
-                    <div key={s.name} className="flex items-center gap-2 text-xs">
-                      <div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: PALETTE_COLORS[i % PALETTE_COLORS.length] }} />
-                      <span className="truncate text-stone-600 font-medium">{s.name}</span>
-                      <span className="font-bold ml-auto" style={{ color: O.ink }}>{s.value}</span>
+                      <div
+                        className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                        style={{ background: item.bg, border: `1px solid ${item.border}` }}
+                      >
+                        {item.icon}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-medium text-slate-800">
+                          {item.label}
+                        </div>
+                        <div className="text-[11px] text-slate-400 font-normal truncate">
+                          {item.desc}
+                        </div>
+                      </div>
+                      <FiChevronRight className="w-3.5 h-3.5 text-slate-300" />
                     </div>
                   ))}
                 </div>
-              </>
-            )}
-          </div>
-        </motion.div>
-      )}
-
-      {/* Main Container */}
-      <div className="flex flex-col md:flex-row items-stretch gap-4 flex-1 min-h-0">
-
-        {/* Filter View Sidebar Card */}
-        <div className="w-full md:w-56 flex-shrink-0 bg-white rounded-2xl border shadow-sm p-3.5 space-y-1 overflow-y-auto max-h-56 md:max-h-none"
-          style={{ borderColor: O.line }}>
-          <div className="text-[11px] font-bold uppercase tracking-wider px-2 mb-2.5" style={{ color: O.deep }}>
-            {isAdmin ? 'Pipeline Filters' : 'My Workspace'}
-          </div>
-          {filterOptions.map(opt => (
-            <button
-              key={opt.key}
-              onClick={() => setFilter(opt.key)}
-              className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all text-left ${filter === opt.key
-                  ? 'text-white shadow-sm'
-                  : 'text-stone-700 hover:bg-[#fff0e8]'
-                }`}
-              style={filter === opt.key ? { background: `linear-gradient(135deg, ${O.primary}, ${O.deep})` } : undefined}
-            >
-              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${filter === opt.key ? 'bg-white' : 'bg-stone-300'}`} />
-              {opt.label}
-            </button>
-          ))}
-
-          {/* Team Members List for Manager/Admin */}
-          {isAdmin && callers.length > 0 && (
-            <div className="mt-4 pt-3" style={{ borderTop: `1px solid ${O.lineSoft}` }}>
-              <div className="text-[11px] font-bold uppercase tracking-wider px-2 mb-2" style={{ color: O.deep }}>
-                Team Members
-              </div>
-              <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
-                {callers.map(c => (
-                  <button
-                    key={c._id}
-                    onClick={() => setFilter(c._id)}
-                    className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all text-left ${filter === c._id ? 'bg-[#fff0e8] text-[#c23a05] border border-[#ffe0cb]' : 'text-stone-700 hover:bg-[#fff0e8]'
-                      }`}
-                  >
-                    <div className="w-5 h-5 rounded-full text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0"
-                      style={{ background: O.primary }}>
-                      {c.name[0].toUpperCase()}
-                    </div>
-                    <span className="truncate">{c.name}</span>
-                  </button>
-                ))}
-              </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
 
-        {/* Main Leads Table Container */}
-        <div className="flex-1 min-w-0 bg-white rounded-2xl border shadow-sm flex flex-col overflow-hidden"
-          style={{ borderColor: O.line }}>
-
-          {/* Controls Bar: Search & Status / Source Filters */}
-          <div className="flex items-center gap-2.5 p-3 border-b flex-shrink-0 flex-wrap"
-            style={{ borderColor: O.line, background: '#ffffff' }}>
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-              <input
-                type="text"
-                placeholder="Search leads by name or phone..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-xs border rounded-xl focus:outline-none bg-[#fff8f2] text-stone-800 font-medium"
-                style={{ borderColor: O.line }}
-              />
+        {/* Analytics Charts Panel */}
+        {showCharts && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="grid grid-cols-1 lg:grid-cols-2 gap-3.5 flex-shrink-0"
+          >
+            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-xs sm:text-sm text-slate-800">Lead Status Distribution</h3>
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                  Bar Chart
+                </span>
+              </div>
+              {statsLoading ? (
+                <div className="flex justify-center items-center h-44">
+                  <div className="w-6 h-6 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
+                </div>
+              ) : statusStats.length === 0 ? (
+                <div className="flex items-center justify-center h-44 text-slate-400 text-xs font-normal">No chart metrics available</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={statusStats} margin={{ top: 5, right: 5, left: -20, bottom: 50 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#64748b' }} angle={-25} textAnchor="end" interval={0} />
+                    <YAxis tick={{ fontSize: 10, fill: '#64748b' }} />
+                    <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: 11, color: '#1e293b' }} />
+                    <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                      {statusStats.map((_, i) => <Cell key={i} fill={PALETTE_COLORS[i % PALETTE_COLORS.length]} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </div>
 
-            <select
-              value={status}
-              onChange={e => setStatus(e.target.value)}
-              className="text-xs font-bold border rounded-xl px-3 py-2 bg-[#fff8f2] text-stone-700 outline-none cursor-pointer"
-              style={{ borderColor: O.line }}
-            >
-              {statuses.map(s => <option key={s}>{s}</option>)}
-            </select>
+            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-xs sm:text-sm text-slate-800">Pipeline Ratio Breakdown</h3>
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-200">
+                  Ratio
+                </span>
+              </div>
+              {statsLoading ? (
+                <div className="flex justify-center items-center h-44">
+                  <div className="w-6 h-6 rounded-full border-2 border-orange-500 border-t-transparent animate-spin" />
+                </div>
+              ) : statusStats.length === 0 ? (
+                <div className="flex items-center justify-center h-44 text-slate-400 text-xs font-normal">No chart metrics available</div>
+              ) : (
+                <>
+                  <ResponsiveContainer width="100%" height={140}>
+                    <PieChart>
+                      <Pie
+                        data={statusStats}
+                        cx="50%" cy="50%"
+                        outerRadius={58} innerRadius={30}
+                        paddingAngle={2}
+                        dataKey="value"
+                      >
+                        {statusStats.map((_, i) => <Cell key={i} fill={PALETTE_COLORS[i % PALETTE_COLORS.length]} />)}
+                      </Pie>
+                      <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: 11 }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2 max-h-20 overflow-y-auto pr-1">
+                    {statusStats.map((s, i) => (
+                      <div key={s.name} className="flex items-center gap-1.5 text-xs">
+                        <div className="w-2 h-2 rounded-xs flex-shrink-0" style={{ background: PALETTE_COLORS[i % PALETTE_COLORS.length] }} />
+                        <span className="truncate text-slate-600 font-normal">{s.name}</span>
+                        <span className="font-medium text-slate-800 ml-auto">{s.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </motion.div>
+        )}
 
-            <select
-              value={source}
-              onChange={e => setSource(e.target.value)}
-              className="text-xs font-bold border rounded-xl px-3 py-2 bg-[#fff8f2] text-stone-700 outline-none cursor-pointer"
-              style={{ borderColor: O.line }}
-            >
-              {SOURCES.map(s => <option key={s}>{s}</option>)}
-            </select>
+        {/* Main Content Area (Sidebar + Table) */}
+        <div className="flex flex-col md:flex-row items-stretch gap-3.5 flex-1 min-h-0">
+          {/* Responsive Filter View Sidebar (Horizontal on Mobile, Vertical on Desktop) */}
+          <div className="w-full md:w-52 flex-shrink-0 bg-white rounded-xl border border-slate-200 shadow-xs p-2.5 sm:p-3 flex md:flex-col overflow-x-auto md:overflow-y-auto gap-1">
+            <div className="text-[10px] font-medium uppercase tracking-wider text-slate-400 px-2 py-1 hidden md:block">
+              {isAdmin ? 'Pipeline Filters' : 'My Workspace'}
+            </div>
+            {filterOptions.map(opt => (
+              <button
+                key={opt.key}
+                onClick={() => setFilter(opt.key)}
+                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-left whitespace-nowrap flex-shrink-0 md:flex-shrink ${
+                  filter === opt.key
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${filter === opt.key ? 'bg-white' : 'bg-slate-300'}`} />
+                {opt.label}
+              </button>
+            ))}
 
-            <button
-              onClick={fetchLeads}
-              className="p-2 rounded-xl border bg-white text-stone-600 hover:bg-[#fff0e8] transition-colors"
-              style={{ borderColor: O.line }}
-              title="Refresh leads list"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-orange-500' : ''}`} />
-            </button>
+            {/* Team Members List for Manager/Admin */}
+            {isAdmin && callers.length > 0 && (
+              <div className="md:mt-3 md:pt-2.5 md:border-t md:border-slate-100 flex md:flex-col gap-1 items-center md:items-stretch">
+                <div className="text-[10px] font-medium uppercase tracking-wider text-slate-400 px-2 py-1 hidden md:block">
+                  Team Members
+                </div>
+                <div className="flex md:flex-col overflow-x-auto md:overflow-y-auto md:max-h-44 gap-1 pr-1">
+                  {callers.map(c => (
+                    <button
+                      key={c._id}
+                      onClick={() => setFilter(c._id)}
+                      className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium transition-all text-left whitespace-nowrap flex-shrink-0 md:flex-shrink ${
+                        filter === c._id
+                          ? 'bg-orange-50 text-orange-700 border border-orange-200'
+                          : 'text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="w-4.5 h-4.5 rounded-full text-white flex items-center justify-center text-[9px] font-medium bg-orange-500 flex-shrink-0">
+                        {c.name[0]?.toUpperCase()}
+                      </div>
+                      <span className="truncate">{c.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Table Container */}
-          <div className="overflow-auto flex-1 min-h-0">
-            <table className="w-full text-left">
-              <thead className="sticky top-0 z-10 border-b" style={{ background: O.bgSofter, borderColor: O.line }}>
-                <tr>
-                  <th className="px-4 py-3 w-10">
-                    <input
-                      type="checkbox"
-                      checked={selected.length === leads.length && leads.length > 0}
-                      onChange={e => setSelected(e.target.checked ? leads.map(l => l._id) : [])}
-                      className="rounded border-stone-300 accent-orange-500"
-                    />
-                  </th>
-                  <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider" style={{ color: O.ink }}>Lead Name</th>
-                  <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider" style={{ color: O.ink }}>Status</th>
-                  <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider" style={{ color: O.ink }}>Rating</th>
-                  <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider" style={{ color: O.ink }}>Assignee</th>
-                  <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider" style={{ color: O.ink }}>Created Date</th>
-                  {(isAdmin || isCaller) && <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider" style={{ color: O.ink }}>Actions</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={isAdmin ? 7 : 6} className="px-4 py-16 text-center">
-                      <div className="w-8 h-8 rounded-full border-2 border-orange-500 border-t-transparent animate-spin mx-auto mb-2" />
-                      <div className="text-xs font-bold" style={{ color: O.deep }}>Loading leads...</div>
-                    </td>
-                  </tr>
-                ) : leads.length === 0 ? (
-                  <tr>
-                    <td colSpan={isAdmin ? 7 : 6} className="px-4 py-16 text-center">
-                      <div className="text-stone-300 mb-2">
-                        <Users className="w-10 h-10 mx-auto" />
-                      </div>
-                      <div className="text-xs font-semibold text-stone-400">No leads found in this view.</div>
-                      <button onClick={() => navigate('/leads/new')} className="mt-2 text-xs font-bold hover:underline" style={{ color: O.deep }}>
-                        + Add a new lead
-                      </button>
-                    </td>
-                  </tr>
-                ) : (
-                  leads.map(lead => (
-                    <tr
-                      key={lead._id}
-                      onClick={() => navigate(`/leads/${lead._id}`)}
-                      className="border-b transition-colors cursor-pointer group hover:bg-[#fff8f2]"
-                      style={{ borderColor: O.lineSoft }}
-                    >
-                      <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={selected.includes(lead._id)}
-                          onChange={e => setSelected(prev =>
-                            e.target.checked ? [...prev, lead._id] : prev.filter(id => id !== lead._id)
-                          )}
-                          className="rounded border-stone-300 accent-orange-500"
-                        />
-                      </td>
+          {/* Main Leads Table Container (White background with Slate border) */}
+          <div className="flex-1 min-w-0 bg-white rounded-xl border border-slate-200 shadow-xs flex flex-col overflow-hidden">
+            {/* Controls Bar: Search & Status / Source Filters */}
+            <div className="flex items-center gap-2 p-2.5 sm:p-3 border-b border-slate-200 flex-shrink-0 flex-wrap bg-white">
+              <div className="relative flex-1 min-w-[180px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search leads by name or phone..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-slate-50/70 text-slate-800 font-normal"
+                />
+              </div>
 
-                      {/* Lead Name */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2.5">
-                          <button
-                            onClick={e => toggleStar(lead, e)}
-                            className={`transition-colors flex-shrink-0 ${lead.isStarred ? 'text-amber-400' : 'text-stone-300 hover:text-amber-300'}`}
-                          >
-                            <Star className="w-4 h-4" fill={lead.isStarred ? 'currentColor' : 'none'} />
-                          </button>
-                          <div>
-                            <div className="font-bold text-xs" style={{ color: O.ink }}>{lead.name}</div>
-                            <div className="text-[11px] font-semibold" style={{ color: O.inkSoft }}>{lead.phone}</div>
-                          </div>
+              <select
+                value={status}
+                onChange={e => setStatus(e.target.value)}
+                className="text-xs font-medium border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 outline-none cursor-pointer hover:border-slate-300"
+              >
+                {statuses.map(s => <option key={s}>{s}</option>)}
+              </select>
+
+              <select
+                value={source}
+                onChange={e => setSource(e.target.value)}
+                className="text-xs font-medium border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 outline-none cursor-pointer hover:border-slate-300"
+              >
+                {SOURCES.map(s => <option key={s}>{s}</option>)}
+              </select>
+
+              <button
+                onClick={fetchLeads}
+                className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors"
+                title="Refresh leads list"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-blue-600' : ''}`} />
+              </button>
+            </div>
+
+            {/* Table Container */}
+            <div className="overflow-auto flex-1 min-h-0">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="sticky top-0 z-10 bg-slate-50/90 border-b border-slate-200 backdrop-blur-xs">
+                  <tr>
+                    <th className="px-3.5 py-2.5 w-10">
+                      <input
+                        type="checkbox"
+                        checked={selected.length === leads.length && leads.length > 0}
+                        onChange={e => setSelected(e.target.checked ? leads.map(l => l._id) : [])}
+                        className="rounded border-slate-300 accent-blue-600"
+                      />
+                    </th>
+                    <th className="px-3.5 py-2.5 text-[11px] font-medium uppercase tracking-wider text-slate-500">Lead Name</th>
+                    <th className="px-3.5 py-2.5 text-[11px] font-medium uppercase tracking-wider text-slate-500">Status</th>
+                    <th className="px-3.5 py-2.5 text-[11px] font-medium uppercase tracking-wider text-slate-500">Rating</th>
+                    <th className="px-3.5 py-2.5 text-[11px] font-medium uppercase tracking-wider text-slate-500">Assignee</th>
+                    <th className="px-3.5 py-2.5 text-[11px] font-medium uppercase tracking-wider text-slate-500">Created Date</th>
+                    {(isAdmin || isCaller) && <th className="px-3.5 py-2.5 text-[11px] font-medium uppercase tracking-wider text-slate-500">Actions</th>}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {loading ? (
+                    <tr>
+                      <td colSpan={isAdmin ? 7 : 6} className="px-4 py-16 text-center">
+                        <div className="w-7 h-7 rounded-full border-2 border-blue-600 border-t-transparent animate-spin mx-auto mb-2" />
+                        <div className="text-xs font-medium text-slate-500">Loading leads...</div>
+                      </td>
+                    </tr>
+                  ) : leads.length === 0 ? (
+                    <tr>
+                      <td colSpan={isAdmin ? 7 : 6} className="px-4 py-16 text-center">
+                        <div className="text-slate-300 mb-2">
+                          <Users className="w-9 h-9 mx-auto" />
                         </div>
+                        <div className="text-xs font-medium text-slate-500">No leads found in this view.</div>
+                        <button onClick={() => navigate('/leads/new')} className="mt-2 text-xs font-medium text-blue-600 hover:underline">
+                          + Add a new lead
+                        </button>
                       </td>
+                    </tr>
+                  ) : (
+                    leads.map(lead => (
+                      <tr
+                        key={lead._id}
+                        onClick={() => navigate(`/leads/${lead._id}`)}
+                        className="transition-colors cursor-pointer group hover:bg-blue-50/20"
+                      >
+                        <td className="px-3.5 py-2.5" onClick={e => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={selected.includes(lead._id)}
+                            onChange={e => setSelected(prev =>
+                              e.target.checked ? [...prev, lead._id] : prev.filter(id => id !== lead._id)
+                            )}
+                            className="rounded border-slate-300 accent-blue-600"
+                          />
+                        </td>
 
-                      {/* Status */}
-                      <td className="px-4 py-3">
-                        <StatusBadge status={lead.status} />
-                      </td>
-
-                      {/* Rating Component */}
-                      <td className="px-4 py-3">
-                        <RatingStars lead={lead} onRate={handleRatingUpdate} />
-                      </td>
-
-                      {/* Assignee */}
-                      <td className="px-4 py-3">
-                        {lead.assignedTo ? (
-                          <div className="flex items-center gap-1.5">
-                            <div className="w-5 h-5 rounded-full text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0"
-                              style={{ background: O.primary }}>
-                              {lead.assignedTo.name?.[0]?.toUpperCase() || '?'}
+                        {/* Lead Name */}
+                        <td className="px-3.5 py-2.5">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={e => toggleStar(lead, e)}
+                              className={`transition-colors flex-shrink-0 ${lead.isStarred ? 'text-amber-400' : 'text-slate-300 hover:text-amber-300'}`}
+                            >
+                              <Star className="w-3.5 h-3.5" fill={lead.isStarred ? 'currentColor' : 'none'} />
+                            </button>
+                            <div>
+                              <div className="font-medium text-xs text-slate-800">{lead.name}</div>
+                              <div className="text-[11px] font-normal text-slate-400">{lead.phone}</div>
                             </div>
-                            <span className="text-xs font-semibold text-stone-700 truncate max-w-28">{lead.assignedTo.name}</span>
-                          </div>
-                        ) : (
-                          <span className="text-xs font-medium text-stone-400">Unassigned</span>
-                        )}
-                      </td>
-
-                      {/* Created Date */}
-                      <td className="px-4 py-3 text-xs font-medium text-stone-500">
-                        {lead.createdAt ? format(new Date(lead.createdAt), 'd MMM yyyy') : '—'}
-                      </td>
-
-                      {/* Actions */}
-                      {(isAdmin || isCaller) && (
-                        <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            {isAdmin && (
-                              <button
-                                onClick={e => handleBlock(lead, e)}
-                                className="p-1.5 rounded-lg text-stone-400 hover:bg-amber-50 hover:text-amber-600 transition-colors"
-                                title="Block Lead"
-                              >
-                                <Ban className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                            {canDelete(user) && (
-                              <button
-                                onClick={e => handleDelete(lead._id, e)}
-                                className="p-1.5 rounded-lg text-stone-400 hover:bg-red-50 hover:text-red-600 transition-colors"
-                                title="Delete Lead"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
                           </div>
                         </td>
-                      )}
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
 
-          {/* Footer Controls & Pagination */}
-          <div className="flex items-center justify-between px-4 py-3 border-t flex-shrink-0 flex-wrap gap-2"
-            style={{ borderColor: O.line, background: '#ffffff' }}>
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-bold" style={{ color: O.inkSoft }}>
-                {total > 0 ? `${(page - 1) * limit + 1}–${Math.min(page * limit, total)} of ${total} leads` : '0 leads'}
-              </span>
+                        {/* Status */}
+                        <td className="px-3.5 py-2.5">
+                          <StatusBadge status={lead.status} />
+                        </td>
 
-              {/* Limit Selector */}
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-stone-400 font-medium">Limit:</span>
-                <select
-                  value={limit}
-                  onChange={e => setLimit(Number(e.target.value))}
-                  className="text-xs font-bold border rounded-lg px-2 py-1 bg-[#fff8f2] text-stone-700 outline-none cursor-pointer"
-                  style={{ borderColor: O.line }}
+                        {/* Rating Component */}
+                        <td className="px-3.5 py-2.5">
+                          <RatingStars lead={lead} onRate={handleRatingUpdate} />
+                        </td>
+
+                        {/* Assignee */}
+                        <td className="px-3.5 py-2.5">
+                          {lead.assignedTo ? (
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-4.5 h-4.5 rounded-full text-white flex items-center justify-center text-[9px] font-medium bg-orange-500 flex-shrink-0">
+                                {lead.assignedTo.name?.[0]?.toUpperCase() || '?'}
+                              </div>
+                              <span className="text-xs font-normal text-slate-700 truncate max-w-28">{lead.assignedTo.name}</span>
+                            </div>
+                          ) : (
+                            <span className="text-xs font-normal text-slate-400">—</span>
+                          )}
+                        </td>
+
+                        {/* Created Date */}
+                        <td className="px-3.5 py-2.5 text-xs font-normal text-slate-500 whitespace-nowrap">
+                          {lead.createdAt ? format(new Date(lead.createdAt), 'd MMM yyyy') : '—'}
+                        </td>
+
+                        {/* Actions */}
+                        {(isAdmin || isCaller) && (
+                          <td className="px-3.5 py-2.5 whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              {isAdmin && (
+                                <button
+                                  onClick={e => handleBlock(lead, e)}
+                                  className="p-1 rounded-md text-slate-400 hover:bg-amber-50 hover:text-amber-600 transition-colors"
+                                  title="Block Lead"
+                                >
+                                  <Ban className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              {canDelete(user) && (
+                                <button
+                                  onClick={e => handleDelete(lead._id, e)}
+                                  className="p-1 rounded-md text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                                  title="Delete Lead"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Footer Controls & Pagination */}
+            <div className="flex items-center justify-between px-3.5 py-2.5 border-t border-slate-200 flex-shrink-0 flex-wrap gap-2 bg-white">
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-normal text-slate-600">
+                  {total > 0 ? `${(page - 1) * limit + 1}–${Math.min(page * limit, total)} of ${total} leads` : '0 leads'}
+                </span>
+
+                {/* Limit Selector */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-slate-400 font-normal">Limit:</span>
+                  <select
+                    value={limit}
+                    onChange={e => setLimit(Number(e.target.value))}
+                    className="text-xs font-medium border border-slate-200 rounded-md px-2 py-0.5 bg-white text-slate-700 outline-none cursor-pointer"
+                  >
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Pagination Controls */}
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  className="p-1 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
-                  <option value={20}>20 per page</option>
-                  <option value={50}>50 per page</option>
-                  <option value={100}>100 per page</option>
-                </select>
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                </button>
+
+                {Array.from({ length: Math.min(5, pages) }, (_, i) => {
+                  const p = pages <= 5 ? i + 1 : page <= 3 ? i + 1 : page >= pages - 2 ? pages - 4 + i : page - 2 + i;
+                  return (
+                    <button
+                      key={p}
+                      onClick={() => setPage(p)}
+                      className={`w-6 h-6 rounded-md text-xs font-medium transition-all ${
+                        p === page
+                          ? 'bg-blue-600 text-white border border-blue-600'
+                          : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  );
+                })}
+
+                <button
+                  onClick={() => setPage(p => Math.min(pages, p + 1))}
+                  disabled={page >= pages}
+                  className="p-1 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
-
-            {/* Pagination Controls */}
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page <= 1}
-                className="p-1.5 rounded-lg border text-stone-600 hover:bg-[#fff0e8] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                style={{ borderColor: O.line }}
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-
-              {Array.from({ length: Math.min(5, pages) }, (_, i) => {
-                const p = pages <= 5 ? i + 1 : page <= 3 ? i + 1 : page >= pages - 2 ? pages - 4 + i : page - 2 + i;
-                return (
-                  <button
-                    key={p}
-                    onClick={() => setPage(p)}
-                    className="w-7 h-7 rounded-lg text-xs font-bold transition-all"
-                    style={{
-                      background: p === page ? `linear-gradient(135deg, ${O.primary}, ${O.deep})` : '#ffffff',
-                      color: p === page ? '#ffffff' : O.ink,
-                      border: `1px solid ${O.line}`
-                    }}
-                  >
-                    {p}
-                  </button>
-                );
-              })}
-
-              <button
-                onClick={() => setPage(p => Math.min(pages, p + 1))}
-                disabled={page >= pages}
-                className="p-1.5 rounded-lg border text-stone-600 hover:bg-[#fff0e8] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                style={{ borderColor: O.line }}
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
           </div>
-
         </div>
       </div>
     </div>

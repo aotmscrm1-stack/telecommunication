@@ -962,130 +962,136 @@ export default function LeadDetailsPage({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
-      className={embedded ? 'h-full bg-[#f1faee]/30 overflow-y-auto' : 'min-h-screen bg-[#f1faee]/30 pb-12'}
+      className={embedded ? 'h-full bg-slate-50/60 overflow-y-auto' : 'min-h-screen bg-slate-50/60 pb-12'}
     >
       {/* Top Navigation Banner */}
-      <div className="bg-white/95 border-b border-[#a8dadc] px-4 sm:px-6 py-4 flex items-center justify-between sticky top-0 z-40 backdrop-blur-md shadow-2xs">
-        <div className="flex items-center gap-3.5 min-w-0">
-          {showBackButton && (
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => (onBack ? onBack() : navigate('/leads'))}
-              className="w-9 h-9 rounded-xl border border-[#a8dadc] hover:bg-[#f1faee] flex items-center justify-center text-[#1d3557] transition-all shadow-2xs"
-            >
-              <ArrowLeft className="w-4.5 h-4.5" />
-            </motion.button>
-          )}
-          <div className="min-w-0">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h2 className="text-xl font-extrabold text-[#1d3557] truncate tracking-tight">{lead.name}</h2>
+      <div className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
+        <div className={`mx-auto flex items-center justify-between gap-3 px-3 sm:px-6 py-2.5 flex-wrap sm:flex-nowrap ${embedded ? 'w-full' : 'max-w-5xl'}`}>
+          <div className="flex items-center gap-2.5 min-w-0">
+            {showBackButton && (
               <motion.button
-                whileHover={{ scale: 1.25, rotate: 15 }}
-                whileTap={{ scale: 0.85 }}
-                onClick={handleToggleStar}
-                className="text-yellow-400 focus:outline-none"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => (onBack ? onBack() : navigate('/leads'))}
+                className="w-8 h-8 rounded-lg border border-slate-200 hover:bg-slate-50 flex items-center justify-center text-slate-700 transition-all flex-shrink-0"
               >
-                <Star className={`w-5 h-5 ${lead.isStarred ? 'fill-yellow-400 drop-shadow-xs' : 'text-gray-300'}`} />
+                <ArrowLeft className="w-4 h-4" />
               </motion.button>
+            )}
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-sm sm:text-base font-semibold text-slate-800 truncate tracking-tight">{lead.name}</h2>
+                <motion.button
+                  whileHover={{ scale: 1.2, rotate: 15 }}
+                  whileTap={{ scale: 0.85 }}
+                  onClick={handleToggleStar}
+                  className="text-amber-400 focus:outline-none"
+                >
+                  <Star className={`w-4 h-4 ${lead.isStarred ? 'fill-amber-400' : 'text-slate-300'}`} />
+                </motion.button>
 
-              {/* Status Badge */}
-              <StatusBadge status={lead.status} />
+                {/* Status Badge */}
+                <StatusBadge status={lead.status} />
 
-              {/* ── AI state badges ── */}
-              {isAILocked && (
-                <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full text-xs font-bold border border-emerald-200 shadow-2xs animate-pulse">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                  AI Calling Now
-                </span>
-              )}
-              {isAIQueued && (
-                <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full text-xs font-bold border border-blue-200 shadow-2xs">
-                  <Clock className="w-3 h-3 text-blue-500" />
-                  Queued for AI
-                </span>
-              )}
+                {/* ── AI state badges ── */}
+                {isAILocked && (
+                  <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full text-[11px] font-medium border border-emerald-200 animate-pulse">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                    AI Calling
+                  </span>
+                )}
+                {isAIQueued && (
+                  <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full text-[11px] font-medium border border-blue-200">
+                    <Clock className="w-3 h-3 text-blue-500" />
+                    AI Queued
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-400 font-mono font-normal mt-0.5">ID: {lead._id}</p>
             </div>
-            <p className="text-xs text-[#457b9d] font-mono font-medium mt-0.5 opacity-90">ID: {lead._id}</p>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2.5 flex-wrap justify-end">
-          {/* Initiate Call Button */}
-          <motion.button
-            whileHover={{ scale: 1.03, y: -1 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={() => setShowInitiateCallModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold transition-all shadow-xs"
-            title="Send call notification to mobile app"
-          >
-            <Phone className="w-4 h-4" />
-            <span className="hidden sm:inline">Initiate Call</span>
-          </motion.button>
-
-          {/* Send WhatsApp Template Button */}
-          <motion.button
-            whileHover={{ scale: 1.03, y: -1 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={() => setShowSendTemplateModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#457b9d] hover:bg-[#1d3557] text-white rounded-xl text-xs font-extrabold transition-all shadow-xs"
-            title="Send WhatsApp Template to student"
-          >
-            <MessageCircle className="w-4 h-4" />
-            <span className="hidden sm:inline">Send Template</span>
-          </motion.button>
-
-          {/* Status Dropdown */}
-          <select
-            value={lead.status}
-            onChange={e => handleStatusChange(e.target.value)}
-            className="text-xs font-bold border border-[#a8dadc] rounded-xl px-3 py-2 bg-[#f1faee] text-[#1d3557] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#457b9d] transition-all hover:border-[#457b9d]"
-          >
-            {statuses.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-
-          {canDelete(user) && (
+          <div className="flex items-center gap-2 flex-wrap justify-end flex-shrink-0">
+            {/* Initiate Call Button */}
             <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleDeleteLead}
-              className="w-9 h-9 rounded-xl border border-red-200 bg-red-50/50 hover:bg-red-50 text-[#e63946] flex items-center justify-center transition-all shadow-2xs"
-              title="Delete Lead"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setShowInitiateCallModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-medium transition-all shadow-xs"
+              title="Send call notification to mobile app"
             >
-              <Trash2 className="w-4 h-4" />
+              <Phone className="w-3.5 h-3.5" />
+              <span>Call</span>
             </motion.button>
-          )}
+
+            {/* Send WhatsApp Template Button */}
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setShowSendTemplateModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition-all shadow-xs"
+              title="Send WhatsApp Template to student"
+            >
+              <MessageCircle className="w-3.5 h-3.5" />
+              <span>WhatsApp</span>
+            </motion.button>
+
+            {/* Status Dropdown */}
+            <select
+              value={lead.status}
+              onChange={e => handleStatusChange(e.target.value)}
+              className="text-xs font-medium border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-700 cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all hover:border-slate-300"
+            >
+              {statuses.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+
+            {canDelete(user) && (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleDeleteLead}
+                className="w-8 h-8 rounded-lg border border-rose-200 bg-rose-50/50 hover:bg-rose-50 text-rose-600 flex items-center justify-center transition-all"
+                title="Delete Lead"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </motion.button>
+            )}
+          </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column */}
-        <div className="lg:col-span-4 space-y-6">
-          <div className="bg-white rounded-2xl border border-[#a8dadc] shadow-xs overflow-hidden transition-all hover:shadow-md">
-            <div className="p-4 sm:p-5 border-b border-gray-100 flex items-center justify-between bg-[#f1faee]/50">
-              <h3 className="font-extrabold text-[#1d3557] text-sm uppercase tracking-wider flex items-center gap-2">
-                <User className="w-4 h-4 text-[#457b9d]" /> Basic Information
-              </h3>
-              {!isEditingInfo ? (
-                <button
-                  onClick={() => setIsEditingInfo(true)}
-                  className="text-xs font-bold text-[#457b9d] hover:text-[#1d3557] transition-colors flex items-center gap-1 py-1 px-2.5 rounded-lg hover:bg-[#a8dadc]/30"
-                >
-                  <Edit3 className="w-3.5 h-3.5" /> Edit Info
-                </button>
-              ) : (
-                <button
-                  onClick={() => setIsEditingInfo(false)}
-                  className="text-xs font-bold text-[#e63946] hover:text-red-700 transition-colors flex items-center gap-1 py-1 px-2.5 rounded-lg hover:bg-red-50"
-                >
-                  <X className="w-3.5 h-3.5" /> Cancel
-                </button>
-              )}
-            </div>
-            <form onSubmit={handleSaveInfo}>
-              <div className="p-5 space-y-4">
-                {isEditingInfo ? (
-                  <div className="space-y-3.5">
+      <div className={`mx-auto ${embedded ? 'w-full px-2 sm:px-4 py-3 space-y-3.5' : 'max-w-5xl px-3 sm:px-6 py-4 space-y-3.5'}`}>
+        {isCalling && <CallTimer onStop={handleCallEnded} />}
+        <AIStateBanner lead={lead} />
+
+        {/* ─── 1. Basic Information (Full Container Width, Decreased Height, Responsive Multi-Col Grid) ─── */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+          <div className="p-3 sm:p-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+            <h3 className="font-semibold text-slate-800 text-xs sm:text-sm uppercase tracking-wider flex items-center gap-2">
+              <User className="w-4 h-4 text-blue-600" /> Basic Information
+            </h3>
+            {!isEditingInfo ? (
+              <button
+                onClick={() => setIsEditingInfo(true)}
+                className="text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors flex items-center gap-1 py-1 px-2.5 rounded-lg hover:bg-blue-50"
+              >
+                <Edit3 className="w-3.5 h-3.5" /> Edit Info
+              </button>
+            ) : (
+              <button
+                onClick={() => setIsEditingInfo(false)}
+                className="text-xs font-medium text-rose-600 hover:text-rose-800 transition-colors flex items-center gap-1 py-1 px-2.5 rounded-lg hover:bg-rose-50"
+              >
+                <X className="w-3.5 h-3.5" /> Cancel
+              </button>
+            )}
+          </div>
+
+          <form onSubmit={handleSaveInfo}>
+            <div className="p-3 sm:p-4">
+              {isEditingInfo ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                     {[
                       ['Full Name', 'name', 'text', true],
                       ['Phone Number', 'phone', 'text', true],
@@ -1098,12 +1104,12 @@ export default function LeadDetailsPage({
                       const locked = isPhoneField && !isSuperAdmin;
                       return (
                         <div key={field}>
-                          <label className="text-xs font-bold text-[#457b9d] uppercase tracking-wider mb-1 block">
-                            {label}{locked && <span className="normal-case font-medium text-gray-400"> (Super Admin only)</span>}
+                          <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1 block">
+                            {label}{locked && <span className="normal-case text-slate-400"> (Admin only)</span>}
                           </label>
                           <input
                             type={type}
-                            className={`input-field w-full border border-[#a8dadc] rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#457b9d] ${locked ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-white'}`}
+                            className={`w-full border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${locked ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white text-slate-800'}`}
                             value={editForm[field]}
                             onChange={e => setEditForm({ ...editForm, [field]: e.target.value })}
                             required={required}
@@ -1113,404 +1119,398 @@ export default function LeadDetailsPage({
                       );
                     })}
                     <div>
-                      <label className="text-xs font-bold text-[#457b9d] uppercase tracking-wider mb-1 block">Budget (INR)</label>
-                      <input type="number" className="input-field w-full border border-[#a8dadc] rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#457b9d]" value={editForm.budget} onChange={e => setEditForm({ ...editForm, budget: e.target.value })} placeholder="Enter budget amount" min={0} />
+                      <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1 block">Budget (INR)</label>
+                      <input type="number" className="w-full border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-800" value={editForm.budget} onChange={e => setEditForm({ ...editForm, budget: e.target.value })} placeholder="Budget" min={0} />
                     </div>
                     <div>
-                      <label className="text-xs font-bold text-[#457b9d] uppercase tracking-wider mb-1 block">Lead Source</label>
-                      <select className="input-field w-full border border-[#a8dadc] rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#457b9d]" value={editForm.leadSource} onChange={e => setEditForm({ ...editForm, leadSource: e.target.value })}>
+                      <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1 block">Lead Source</label>
+                      <select className="w-full border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-800" value={editForm.leadSource} onChange={e => setEditForm({ ...editForm, leadSource: e.target.value })}>
                         {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
                     </div>
                     {isAdmin && (
                       <>
                         <div>
-                          <label className="text-xs font-bold text-[#457b9d] uppercase tracking-wider mb-1 block">Assignee</label>
-                          <select className="input-field w-full border border-[#a8dadc] rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#457b9d]" value={editForm.assignedTo} onChange={e => setEditForm({ ...editForm, assignedTo: e.target.value })}>
+                          <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1 block">Assignee</label>
+                          <select className="w-full border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-800" value={editForm.assignedTo} onChange={e => setEditForm({ ...editForm, assignedTo: e.target.value })}>
                             <option value="">Unassigned</option>
                             {callers.map(u => <option key={u._id} value={u._id}>{u.name} ({u.role})</option>)}
                           </select>
                         </div>
                         <div>
-                          <label className="text-xs font-bold text-[#457b9d] uppercase tracking-wider mb-1 block">Campaign</label>
-                          <select className="input-field w-full border border-[#a8dadc] rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#457b9d]" value={editForm.campaign} onChange={e => setEditForm({ ...editForm, campaign: e.target.value })}>
+                          <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1 block">Campaign</label>
+                          <select className="w-full border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-800" value={editForm.campaign} onChange={e => setEditForm({ ...editForm, campaign: e.target.value })}>
                             <option value="">No Campaign</option>
                             {campaigns.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
                           </select>
                         </div>
                       </>
                     )}
+                  </div>
+                  <div className="flex justify-end pt-2">
                     <motion.button
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       type="submit"
                       disabled={savingInfo}
-                      className="w-full justify-center rounded-xl py-2.5 font-bold text-sm bg-[#457b9d] hover:bg-[#1d3557] text-white shadow-xs mt-4 flex items-center gap-2 transition-colors"
+                      className="px-4 py-2 rounded-lg font-medium text-xs bg-blue-600 hover:bg-blue-700 text-white shadow-xs flex items-center gap-1.5 transition-colors"
                     >
-                      <Save className="w-4 h-4" /> Save Details
+                      <Save className="w-3.5 h-3.5" /> Save Details
                     </motion.button>
-                  </div>
-                ) : (
-                  <div className="space-y-3.5">
-                    {[
-                      { icon: Phone, label: 'Phone', value: lead.phone, copyable: true },
-                      { icon: Phone, label: 'Alternate Phone', value: lead.alternatePhone || '—', copyable: !!lead.alternatePhone },
-                      { icon: Mail, label: 'Email', value: lead.email || '—' },
-                      { icon: MapPin, label: 'Location', value: lead.location || '—' },
-                      { icon: Award, label: 'Qualification', value: lead.lastQualification || '—' },
-                      { icon: IndianRupee, label: 'Budget', value: lead.budget ? `₹${lead.budget.toLocaleString()}` : '—' },
-                      { icon: Globe, label: 'Source', value: lead.leadSource },
-                      { icon: User, label: 'Campaign', value: lead.campaign?.name || 'None' },
-                      { icon: User, label: 'Assignee', value: lead.assignedTo?.name || 'Unassigned' },
-                    ].map(({ icon: Icon, label, value, copyable }) => (
-                      <div key={label} className="flex items-start gap-3 text-sm p-2 rounded-xl hover:bg-[#f1faee]/60 transition-colors">
-                        <div className="w-8 h-8 rounded-xl bg-[#f1faee] border border-[#a8dadc]/60 flex items-center justify-center flex-shrink-0 text-[#457b9d] mt-0.5">
-                          <Icon className="w-4 h-4" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[10px] font-extrabold text-[#457b9d] uppercase tracking-wider">{label}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <p className="font-bold text-[#1d3557] break-all">{value}</p>
-                            {copyable && value !== '—' && (
-                              <button
-                                type="button"
-                                onClick={() => copyToClipboard(value)}
-                                className="text-gray-400 hover:text-[#457b9d] transition-colors flex-shrink-0"
-                              >
-                                {copiedText === value ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    <div className="pt-3 border-t border-gray-100 flex items-center justify-between px-2">
-                      <span className="text-xs font-bold text-[#1d3557]">Rating</span>
-                      <div className="flex items-center gap-1">
-                        {[1, 2, 3, 4, 5].map(r => (
-                          <motion.button
-                            whileHover={{ scale: 1.25 }}
-                            whileTap={{ scale: 0.9 }}
-                            type="button"
-                            key={r}
-                            onClick={() => handleRatingChange(r)}
-                            className="focus:outline-none"
-                          >
-                            <Star className={`w-4.5 h-4.5 ${r <= lead.rating ? 'fill-yellow-400 text-yellow-400 drop-shadow-2xs' : 'text-gray-200'}`} />
-                          </motion.button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </form>
-          </div>
-        </div>
-
-        {/* Right Column */}
-        <div className="lg:col-span-8 space-y-6">
-          {isCalling && <CallTimer onStop={handleCallEnded} />}
-          <AIStateBanner lead={lead} />
-
-          {/* Course Section */}
-          <div className="bg-white rounded-2xl border border-[#a8dadc] shadow-xs overflow-hidden transition-all hover:shadow-md">
-            <div className="p-4 sm:p-5 border-b border-gray-100 bg-[#f1faee]/50 flex items-center justify-between">
-              <h3 className="font-extrabold text-[#1d3557] text-sm uppercase tracking-wider flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-[#457b9d]" /> Course Interest & Mode
-              </h3>
-            </div>
-            <div className="p-5">
-              {isEditingInfo ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-bold text-[#457b9d] uppercase tracking-wider mb-1 block">Course Target</label>
-                    <select
-                      className="input-field w-full border border-[#a8dadc] rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#457b9d]"
-                      value={editForm.courseInterest}
-                      onChange={e => {
-                        const selectedCourse = courses.find(c => c._id === e.target.value);
-                        setEditForm(prev => ({
-                          ...prev,
-                          courseInterest: e.target.value,
-                          budget: selectedCourse ? selectedCourse.cost : prev.budget,
-                        }));
-                      }}
-                    >
-                      <option value="">No Course Linked</option>
-                      {courses.map(c => <option key={c._id} value={c._id}>{c.name} (₹{c.cost.toLocaleString()})</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold text-[#457b9d] uppercase tracking-wider mb-1 block">Learning Mode</label>
-                    <select className="input-field w-full border border-[#a8dadc] rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#457b9d]" value={editForm.mode} onChange={e => setEditForm({ ...editForm, mode: e.target.value })}>
-                      <option value="">Select Mode</option>
-                      {MODES.map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                  <div className="md:col-span-2 bg-[#f1faee]/60 border border-[#a8dadc]/60 rounded-2xl p-5 flex gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-[#457b9d]/10 text-[#457b9d] flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <BookOpen className="w-6 h-6" />
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5">
+                  {[
+                    { icon: Phone, label: 'Phone', value: lead.phone, copyable: true },
+                    { icon: Phone, label: 'Alt Phone', value: lead.alternatePhone || '—', copyable: !!lead.alternatePhone },
+                    { icon: Mail, label: 'Email', value: lead.email || '—' },
+                    { icon: MapPin, label: 'Location', value: lead.location || '—' },
+                    { icon: Award, label: 'Qualification', value: lead.lastQualification || '—' },
+                    { icon: IndianRupee, label: 'Budget', value: lead.budget ? `₹${lead.budget.toLocaleString()}` : '—' },
+                    { icon: Globe, label: 'Source', value: lead.leadSource },
+                    { icon: User, label: 'Campaign', value: lead.campaign?.name || 'None' },
+                    { icon: User, label: 'Assignee', value: lead.assignedTo?.name || 'Unassigned' },
+                  ].map(({ icon: Icon, label, value, copyable }) => (
+                    <div key={label} className="p-2 sm:p-2.5 rounded-lg bg-slate-50/80 border border-slate-100 hover:border-blue-200 transition-colors min-w-0">
+                      <div className="flex items-center gap-1.5 text-blue-600 mb-1">
+                        <Icon className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider truncate">{label}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-xs font-medium text-slate-800 truncate" title={value}>{value}</span>
+                        {copyable && value !== '—' && (
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(value)}
+                            className="text-slate-400 hover:text-blue-600 transition-colors flex-shrink-0"
+                          >
+                            {copiedText === value ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-extrabold text-[#457b9d] uppercase tracking-widest">Selected Course</p>
-                      <h4 className="text-lg font-extrabold text-[#1d3557]">{lead.courseInterest?.name || 'No Course Selected'}</h4>
-                      {lead.courseInterest?.description && <p className="text-xs text-gray-600 leading-relaxed pt-1">{lead.courseInterest.description}</p>}
-                      {lead.courseInterest?.duration && (
-                        <div className="inline-flex items-center gap-1 bg-white border border-[#a8dadc] text-[10px] font-bold text-[#457b9d] px-2.5 py-0.5 rounded-full mt-2.5 shadow-2xs">
-                          <Clock className="w-3 h-3" /> {lead.courseInterest.duration}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="bg-emerald-50/40 border border-emerald-200/60 rounded-2xl p-5 flex flex-col justify-between">
-                    <div>
-                      <p className="text-[10px] font-extrabold text-emerald-700 uppercase tracking-widest">Course Fee</p>
-                      <h4 className="text-3xl font-extrabold text-emerald-900 mt-1">
-                        {lead.courseInterest?.cost ? `₹${lead.courseInterest.cost.toLocaleString()}` : '—'}
-                      </h4>
-                      {lead.budget > 0 && (
-                        <p className="text-xs text-emerald-700 mt-1 font-bold">Budget: ₹{lead.budget.toLocaleString()}</p>
-                      )}
-                    </div>
-                    <div className="pt-3 border-t border-emerald-200/40 mt-3 flex items-center justify-between">
-                      <span className="text-[10px] font-extrabold text-gray-400 uppercase">Learning Mode</span>
-                      {lead.mode ? (
-                        <span className="bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-2xs">{lead.mode}</span>
-                      ) : <span className="text-xs text-gray-400 italic">Not set</span>}
+                  ))}
+
+                  {/* Inline Rating tile */}
+                  <div className="p-2 sm:p-2.5 rounded-lg bg-slate-50/80 border border-slate-100 flex flex-col justify-center min-w-0">
+                    <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-1">Rating</span>
+                    <div className="flex items-center gap-0.5">
+                      {[1, 2, 3, 4, 5].map(r => (
+                        <motion.button
+                          whileHover={{ scale: 1.2 }}
+                          whileTap={{ scale: 0.9 }}
+                          type="button"
+                          key={r}
+                          onClick={() => handleRatingChange(r)}
+                          className="focus:outline-none"
+                        >
+                          <Star className={`w-3.5 h-3.5 ${r <= lead.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}`} />
+                        </motion.button>
+                      ))}
                     </div>
                   </div>
                 </div>
               )}
             </div>
-          </div>
+          </form>
+        </div>
 
-          {/* Quick Action Center */}
-          <div className="bg-white rounded-2xl border border-[#a8dadc] shadow-xs p-5 relative overflow-hidden transition-all hover:shadow-md">
-            {isBlocked && (
-              <div className="absolute inset-0 bg-red-50/95 z-10 flex flex-col items-center justify-center gap-2 rounded-2xl p-4 text-center">
-                <ShieldAlert className="w-8 h-8 text-[#e63946]" />
-                <span className="text-sm font-extrabold text-[#e63946]">Phone Number Blocked — Actions Disabled</span>
-                <span className="text-xs text-red-700">Unblock this lead to re-enable communication actions.</span>
+        {/* ─── Down: Course Interest & Mode (Fit on Screen Width) ─── */}
+        <div className="w-full bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+          <div className="p-3 sm:p-3.5 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between">
+            <h3 className="font-semibold text-slate-800 text-xs sm:text-sm uppercase tracking-wider flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-orange-600" /> Course Interest & Mode
+            </h3>
+          </div>
+          <div className="p-3 sm:p-4">
+            {isEditingInfo ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1 block">Course Target</label>
+                  <select
+                    className="w-full border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-800"
+                    value={editForm.courseInterest}
+                    onChange={e => {
+                      const selectedCourse = courses.find(c => c._id === e.target.value);
+                      setEditForm(prev => ({
+                        ...prev,
+                        courseInterest: e.target.value,
+                        budget: selectedCourse ? selectedCourse.cost : prev.budget,
+                      }));
+                    }}
+                  >
+                    <option value="">No Course Linked</option>
+                    {courses.map(c => <option key={c._id} value={c._id}>{c.name} (₹{c.cost.toLocaleString()})</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1 block">Learning Mode</label>
+                  <select className="w-full border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-800" value={editForm.mode} onChange={e => setEditForm({ ...editForm, mode: e.target.value })}>
+                    <option value="">Select Mode</option>
+                    {MODES.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-2 bg-orange-50/40 border border-orange-200/60 rounded-xl p-3 sm:p-3.5 flex gap-3 items-start">
+                  <div className="w-10 h-10 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <BookOpen className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-0.5">
+                    <p className="text-[10px] font-medium text-orange-600 uppercase tracking-wider">Selected Course</p>
+                    <h4 className="text-sm sm:text-base font-semibold text-slate-800 truncate">{lead.courseInterest?.name || 'No Course Selected'}</h4>
+                    {lead.courseInterest?.description && <p className="text-xs text-slate-500 line-clamp-2">{lead.courseInterest.description}</p>}
+                    {lead.courseInterest?.duration && (
+                      <div className="inline-flex items-center gap-1 bg-white border border-orange-200 text-[10px] font-medium text-orange-700 px-2.5 py-0.5 rounded-full mt-1">
+                        <Clock className="w-3 h-3" /> {lead.courseInterest.duration}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="bg-blue-50/40 border border-blue-200/60 rounded-xl p-3 sm:p-3.5 flex flex-col justify-between">
+                  <div>
+                    <p className="text-[10px] font-medium text-blue-600 uppercase tracking-wider">Course Fee</p>
+                    <h4 className="text-lg sm:text-xl font-semibold text-blue-900 mt-0.5">
+                      {lead.courseInterest?.cost ? `₹${lead.courseInterest.cost.toLocaleString()}` : '—'}
+                    </h4>
+                    {lead.budget > 0 && (
+                      <p className="text-xs text-blue-700 mt-0.5 font-medium">Budget: ₹{lead.budget.toLocaleString()}</p>
+                    )}
+                  </div>
+                  <div className="pt-2 border-t border-blue-200/50 mt-2 flex items-center justify-between text-xs">
+                    <span className="text-slate-400">Mode</span>
+                    <span className="font-medium text-blue-800 bg-blue-100 px-2.5 py-0.5 rounded-full text-[11px] uppercase tracking-wider">{lead.mode || 'N/A'}</span>
+                  </div>
+                </div>
               </div>
             )}
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-extrabold text-[#1d3557] text-sm uppercase tracking-wider">Quick Action Center</h3>
-              <button
-                onClick={handleBlockToggle}
-                disabled={blockingAction}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                  isBlocked ? 'bg-emerald-50 text-emerald-700 border border-emerald-300' : 'bg-red-50 text-[#e63946] border border-red-200 hover:bg-red-100'
-                }`}
-              >
-                {isBlocked ? 'Unblock Phone' : 'Block Phone'}
-              </button>
+          </div>
+        </div>
+
+        {/* ─── Down: Quick Action Center (Fit on Screen Width) ─── */}
+        <div className="w-full bg-white rounded-xl border border-slate-200 shadow-xs p-3.5 sm:p-4 relative overflow-hidden">
+          {isBlocked && (
+            <div className="absolute inset-0 bg-rose-50/95 z-10 flex flex-col items-center justify-center gap-1.5 rounded-xl p-4 text-center">
+              <ShieldAlert className="w-7 h-7 text-rose-600" />
+              <span className="text-xs font-semibold text-rose-700">Phone Number Blocked — Actions Disabled</span>
+              <span className="text-[11px] text-rose-600">Unblock this lead to re-enable communication actions.</span>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {[
-                { icon: Phone, label: 'CALL NOW', action: () => setShowInitiateCallModal(true), bg: 'bg-emerald-600 hover:bg-emerald-700 text-white', disabled: isBlocked },
-                { icon: MessageCircle, label: 'SEND TEMPLATE', action: () => setShowSendTemplateModal(true), bg: 'bg-[#457b9d] hover:bg-[#1d3557] text-white', disabled: isBlocked },
-                { icon: Clock, label: 'CALLBACK LATER', action: () => setShowCallbackModal(true), bg: 'bg-[#f1faee] hover:bg-[#a8dadc]/40 text-[#1d3557] border border-[#a8dadc]', disabled: isBlocked },
-                { icon: Plus, label: 'ADD NOTE', action: () => setShowNoteModal(true), bg: 'bg-[#f1faee] hover:bg-[#a8dadc]/40 text-[#457b9d] border border-[#a8dadc]', disabled: isBlocked },
-              ].map(({ icon: Icon, label, action, bg, disabled }) => (
-                <motion.button
-                  key={label}
-                  whileHover={{ scale: disabled ? 1 : 1.03, y: disabled ? 0 : -2 }}
-                  whileTap={{ scale: disabled ? 1 : 0.97 }}
-                  onClick={action}
-                  disabled={disabled}
-                  className={`flex flex-col items-center justify-center gap-2 py-3.5 px-3 rounded-2xl font-extrabold transition-all text-center shadow-xs ${bg} disabled:opacity-40 disabled:cursor-not-allowed`}
+          )}
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-slate-800 text-xs sm:text-sm uppercase tracking-wider flex items-center gap-2">
+              <Zap className="w-4 h-4 text-blue-600" /> Quick Action Center
+            </h3>
+            <button
+              onClick={handleBlockToggle}
+              disabled={blockingAction}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                isBlocked ? 'bg-emerald-50 text-emerald-700 border border-emerald-300' : 'bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100'
+              }`}
+            >
+              {isBlocked ? 'Unblock Phone' : 'Block Phone'}
+            </button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+            {[
+              { icon: Phone, label: 'CALL NOW', action: () => setShowInitiateCallModal(true), bg: 'bg-emerald-600 hover:bg-emerald-700 text-white', disabled: isBlocked },
+              { icon: MessageCircle, label: 'SEND TEMPLATE', action: () => setShowSendTemplateModal(true), bg: 'bg-blue-600 hover:bg-blue-700 text-white', disabled: isBlocked },
+              { icon: Clock, label: 'CALLBACK LATER', action: () => setShowCallbackModal(true), bg: 'bg-orange-50 hover:bg-orange-100 text-orange-800 border border-orange-200', disabled: isBlocked },
+              { icon: Plus, label: 'ADD NOTE', action: () => setShowNoteModal(true), bg: 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200', disabled: isBlocked },
+            ].map(({ icon: Icon, label, action, bg, disabled }) => (
+              <motion.button
+                key={label}
+                whileHover={{ scale: disabled ? 1 : 1.02, y: disabled ? 0 : -1 }}
+                whileTap={{ scale: disabled ? 1 : 0.98 }}
+                onClick={action}
+                disabled={disabled}
+                className={`flex flex-col items-center justify-center gap-1.5 py-3 px-2 rounded-xl font-medium transition-all text-center shadow-xs ${bg} disabled:opacity-40 disabled:cursor-not-allowed`}
+              >
+                <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="text-[10px] sm:text-xs tracking-wider uppercase font-medium">{label}</span>
+              </motion.button>
+            ))}
+          </div>
+          <div className="mt-3 flex justify-center">
+            <button
+              disabled={isBlocked}
+              onClick={() => setShowLogCallModal(true)}
+              className="text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline transition-colors disabled:opacity-40"
+            >
+              + Log call records manually
+            </button>
+          </div>
+        </div>
+
+        {/* ─── Down: Activity & Calling History ─── */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-3.5 sm:p-5">
+          <h3 className="font-semibold text-slate-800 text-xs sm:text-sm uppercase tracking-wider mb-3 pb-2.5 border-b border-slate-100 flex items-center gap-2">
+            <Clock className="w-4 h-4 text-slate-500" /> Activity & Calling History
+          </h3>
+
+          {/* Filter Tabs */}
+          <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-4">
+            {[
+              { key: 'all', label: 'All Activities' },
+              { key: 'call', label: 'Calls' },
+              { key: 'followup', label: 'Callback Later' },
+              { key: 'note', label: 'Notes' },
+            ].map(tab => {
+              let count = 0;
+              if (tab.key === 'all') count = (lead.activities?.length || 0) + leadFollowups.length;
+              else if (tab.key === 'followup') count = leadFollowups.length;
+              else count = lead.activities?.filter(a => a.type === tab.key).length || 0;
+
+              const isActive = activityFilter === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => setActivityFilter(tab.key)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    isActive ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  }`}
                 >
-                  <Icon className="w-5 h-5" />
-                  <span className="text-[10px] tracking-wider uppercase">{label}</span>
-                </motion.button>
-              ))}
-            </div>
-            <div className="mt-4 flex justify-center">
-              <button
-                disabled={isBlocked}
-                onClick={() => setShowLogCallModal(true)}
-                className="text-xs font-bold text-[#457b9d] hover:text-[#1d3557] hover:underline transition-colors disabled:opacity-40"
-              >
-                + Log call records manually
-              </button>
-            </div>
+                  {tab.label}
+                  <span className={`rounded-full px-1.5 py-0.2 text-[10px] font-medium ${
+                    isActive ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'
+                  }`}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
-          {/* Activity Timeline */}
-          <div className="bg-white rounded-2xl border border-[#a8dadc] shadow-xs p-6 transition-all hover:shadow-md">
-            <h3 className="font-extrabold text-[#1d3557] text-sm uppercase tracking-wider mb-4 pb-3 border-b border-gray-100">
-              Activity & Calling History
-            </h3>
-
-            {/* Filter Tabs */}
-            <div className="flex flex-wrap gap-2 mb-6">
-              {[
-                { key: 'all', label: 'All Activities' },
-                { key: 'call', label: 'Calls' },
-                { key: 'followup', label: 'Callback Later' },
-                { key: 'note', label: 'Notes' },
-              ].map(tab => {
-                let count = 0;
-                if (tab.key === 'all') count = (lead.activities?.length || 0) + leadFollowups.length;
-                else if (tab.key === 'followup') count = leadFollowups.length;
-                else count = lead.activities?.filter(a => a.type === tab.key).length || 0;
-
-                const isActive = activityFilter === tab.key;
-                return (
-                  <motion.button
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                    key={tab.key}
-                    onClick={() => setActivityFilter(tab.key)}
-                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                      isActive ? 'bg-[#1d3557] text-white shadow-xs' : 'bg-[#f1faee] text-[#457b9d] hover:bg-[#a8dadc]/40 border border-[#a8dadc]'
-                    }`}
-                  >
-                    {tab.label}
-                    <span className={`rounded-full px-2 py-0.2 text-[10px] font-extrabold ${
-                      isActive ? 'bg-white/25 text-white' : 'bg-[#a8dadc]/40 text-[#1d3557]'
-                    }`}>
-                      {count}
-                    </span>
-                  </motion.button>
-                );
-              })}
-            </div>
-
-            {/* Timeline Items */}
-            <div className="relative border-l-2 border-[#a8dadc]/60 ml-4 space-y-6">
-              {(() => {
-                if (activityFilter === 'followup') {
-                  if (leadFollowups.length === 0) {
-                    return (
-                      <div className="text-center py-10">
-                        <Clock className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-                        <p className="text-gray-400 text-sm font-medium">No callback scheduled yet.</p>
-                      </div>
-                    );
-                  }
-                  return leadFollowups.map((f, i) => (
-                    <motion.div
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.2, delay: i * 0.05 }}
-                      key={f._id || i}
-                      className="relative pl-6"
-                    >
-                      <div className="absolute -left-3.5 top-0 w-7 h-7 rounded-full bg-white border border-[#a8dadc] shadow-2xs flex items-center justify-center text-amber-500">
-                        <Clock className="w-4 h-4" />
-                      </div>
-                      <div className="bg-[#f1faee]/60 rounded-2xl p-4 border border-[#a8dadc] shadow-2xs">
-                        <div className="flex items-center justify-between gap-4 flex-wrap">
-                          <div className="font-extrabold text-sm text-[#1d3557]">📅 Callback Scheduled</div>
-                          <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
-                            f.status === 'upcoming' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
-                          }`}>
-                            {f.status === 'upcoming' ? '⏳ Upcoming' : '✅ Done'}
-                          </span>
-                        </div>
-                        {f.note && (
-                          <p className="text-xs text-gray-700 italic mt-2 bg-white border border-[#a8dadc]/50 rounded-xl p-2.5">"{f.note}"</p>
-                        )}
-                        <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-100 text-[10px] text-[#457b9d] font-bold">
-                          <span>ASSIGNED TO: {f.assignedTo?.name || 'Unassigned'}</span>
-                          {f.scheduledAt && <span>{format(new Date(f.scheduledAt), 'dd MMM yyyy, hh:mm a')}</span>}
-                        </div>
-                      </div>
-                    </motion.div>
-                  ));
-                }
-
-                const activityItems = activityFilter === 'all'
-                  ? (lead.activities || [])
-                  : (lead.activities || []).filter(a => a.type === activityFilter);
-
-                const followupItems = activityFilter === 'all'
-                  ? leadFollowups.map(f => ({
-                      _followup: true,
-                      _id: f._id,
-                      type: 'followup',
-                      description: f.note || 'Callback scheduled',
-                      createdAt: f.createdAt,
-                      scheduledAt: f.scheduledAt,
-                      status: f.status,
-                      performedBy: f.assignedTo,
-                    }))
-                  : [];
-
-                const allItems = [...activityItems, ...followupItems].sort(
-                  (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-                );
-
-                if (allItems.length === 0) {
+          {/* Timeline Items */}
+          <div className="relative border-l-2 border-slate-200 ml-3 sm:ml-4 space-y-4">
+            {(() => {
+              if (activityFilter === 'followup') {
+                if (leadFollowups.length === 0) {
                   return (
-                    <div className="text-center py-10">
-                      <Clock className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-                      <p className="text-gray-400 text-sm font-medium">No activity history logged yet.</p>
+                    <div className="text-center py-8">
+                      <Clock className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                      <p className="text-slate-400 text-xs font-normal">No callback scheduled yet.</p>
                     </div>
                   );
                 }
-
-                return allItems.map((a, i) => (
+                return leadFollowups.map((f, i) => (
                   <motion.div
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.2, delay: i * 0.04 }}
-                    key={a._id || i}
-                    className="relative pl-6"
+                    transition={{ duration: 0.2, delay: i * 0.05 }}
+                    key={f._id || i}
+                    className="relative pl-5"
                   >
-                    <div className="absolute -left-3.5 top-0 w-7 h-7 rounded-full bg-white border border-[#a8dadc] shadow-2xs flex items-center justify-center">
-                      {a._followup ? <Clock className="w-4 h-4 text-amber-500" /> : activityIcon(a.type)}
+                    <div className="absolute -left-3 top-0 w-6 h-6 rounded-full bg-white border border-slate-200 shadow-2xs flex items-center justify-center text-amber-500">
+                      <Clock className="w-3.5 h-3.5" />
                     </div>
-                    <div className="rounded-2xl p-4 bg-[#f1faee]/40 border border-[#a8dadc] shadow-2xs hover:border-[#457b9d] transition-colors">
+                    <div className="bg-slate-50/80 rounded-xl p-3 border border-slate-200 shadow-2xs">
                       <div className="flex items-center justify-between gap-4 flex-wrap">
-                        <div className="font-extrabold text-sm text-[#1d3557]">
-                          {a._followup ? (
-                            <span className="flex items-center gap-2">
-                              Callback Scheduled
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
-                                {a.status === 'upcoming' ? '⏳ Upcoming' : '✅ Done'}
-                              </span>
-                            </span>
-                          ) : a.type === 'call' ? (
-                            <span>Logged Call — {fmtDuration(a.callDuration)} ({a.callStatus?.toUpperCase() || 'CONNECTED'})</span>
-                          ) : a.type === 'status_change' ? (
-                            <span className="text-[#457b9d]">{a.description}</span>
-                          ) : (
-                            <span>{a.description}</span>
-                          )}
-                        </div>
-                        <span className="text-xs text-gray-400 font-semibold">{a.createdAt ? formatDistanceToNow(new Date(a.createdAt), { addSuffix: true }) : ''}</span>
+                        <div className="font-semibold text-xs sm:text-sm text-slate-800">📅 Callback Scheduled</div>
+                        <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                          f.status === 'upcoming' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
+                        }`}>
+                          {f.status === 'upcoming' ? '⏳ Upcoming' : '✅ Done'}
+                        </span>
                       </div>
-                      {a._followup && a.scheduledAt && (
-                        <p className="text-xs text-amber-800 font-bold mt-2 bg-amber-50 border border-amber-200 rounded-xl p-2.5">
-                          ⏰ Due: {format(new Date(a.scheduledAt), 'dd MMM yyyy, hh:mm a')}
-                        </p>
+                      {f.note && (
+                        <p className="text-xs text-slate-600 italic mt-1.5 bg-white border border-slate-200 rounded-lg p-2">"{f.note}"</p>
                       )}
-                      {!a._followup && a.type === 'call' && a.description && (
-                        <div className="mt-2 bg-white border border-[#a8dadc]/60 rounded-xl p-3">
-                          <p className="text-xs text-gray-700 italic">"{a.description}"</p>
-                          <button
-                            onClick={() => setRunCallIqActivityId(a._id)}
-                            className="mt-2 text-xs font-extrabold text-[#457b9d] hover:text-[#1d3557] flex items-center gap-1.5 transition-colors"
-                          >
-                            <Sparkles className="w-3.5 h-3.5" /> Run Call IQ Audit
-                          </button>
-                        </div>
-                      )}
-                      <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-100 text-[10px] text-[#457b9d] font-extrabold">
-                        <span>BY: {a.performedBy?.name || 'System / Unassigned'}</span>
-                        {a.createdAt && <span>{format(new Date(a.createdAt), 'dd MMM yyyy, hh:mm a')}</span>}
+                      <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-200/60 text-[10px] text-slate-500 font-medium">
+                        <span>ASSIGNED TO: {f.assignedTo?.name || 'Unassigned'}</span>
+                        {f.scheduledAt && <span>{format(new Date(f.scheduledAt), 'dd MMM yyyy, hh:mm a')}</span>}
                       </div>
                     </div>
                   </motion.div>
                 ));
-              })()}
-            </div>
+              }
+
+              const activityItems = activityFilter === 'all'
+                ? (lead.activities || [])
+                : (lead.activities || []).filter(a => a.type === activityFilter);
+
+              const followupItems = activityFilter === 'all'
+                ? leadFollowups.map(f => ({
+                    _followup: true,
+                    _id: f._id,
+                    type: 'followup',
+                    description: f.note || 'Callback scheduled',
+                    createdAt: f.createdAt,
+                    scheduledAt: f.scheduledAt,
+                    status: f.status,
+                    performedBy: f.assignedTo,
+                  }))
+                : [];
+
+              const allItems = [...activityItems, ...followupItems].sort(
+                (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+              );
+
+              if (allItems.length === 0) {
+                return (
+                  <div className="text-center py-8">
+                    <Clock className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <p className="text-slate-400 text-xs font-normal">No activity history logged yet.</p>
+                  </div>
+                );
+              }
+
+              return allItems.map((a, i) => (
+                <motion.div
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.2, delay: i * 0.04 }}
+                  key={a._id || i}
+                  className="relative pl-5"
+                >
+                  <div className="absolute -left-3 top-0 w-6 h-6 rounded-full bg-white border border-slate-200 shadow-2xs flex items-center justify-center">
+                    {a._followup ? <Clock className="w-3.5 h-3.5 text-amber-500" /> : activityIcon(a.type)}
+                  </div>
+                  <div className="rounded-xl p-3 bg-slate-50/80 border border-slate-200 shadow-2xs hover:border-blue-300 transition-colors">
+                    <div className="flex items-center justify-between gap-4 flex-wrap">
+                      <div className="font-semibold text-xs sm:text-sm text-slate-800">
+                        {a._followup ? (
+                          <span className="flex items-center gap-1.5">
+                            Callback Scheduled
+                            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                              {a.status === 'upcoming' ? '⏳ Upcoming' : '✅ Done'}
+                            </span>
+                          </span>
+                        ) : a.type === 'call' ? (
+                          <span>Logged Call — {fmtDuration(a.callDuration)} ({a.callStatus?.toUpperCase() || 'CONNECTED'})</span>
+                        ) : a.type === 'status_change' ? (
+                          <span className="text-blue-600">{a.description}</span>
+                        ) : (
+                          <span>{a.description}</span>
+                        )}
+                      </div>
+                      <span className="text-[11px] text-slate-400 font-medium">{a.createdAt ? formatDistanceToNow(new Date(a.createdAt), { addSuffix: true }) : ''}</span>
+                    </div>
+                    {a._followup && a.scheduledAt && (
+                      <p className="text-xs text-amber-800 font-medium mt-1.5 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                        ⏰ Due: {format(new Date(a.scheduledAt), 'dd MMM yyyy, hh:mm a')}
+                      </p>
+                    )}
+                    {!a._followup && a.type === 'call' && a.description && (
+                      <div className="mt-2 bg-white border border-slate-200 rounded-lg p-2.5">
+                        <p className="text-xs text-slate-600 italic">"{a.description}"</p>
+                        <button
+                          onClick={() => setRunCallIqActivityId(a._id)}
+                          className="mt-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" /> Run Call IQ Audit
+                        </button>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-200/60 text-[10px] text-slate-500 font-medium">
+                      <span>BY: {a.performedBy?.name || 'System / Unassigned'}</span>
+                      {a.createdAt && <span>{format(new Date(a.createdAt), 'dd MMM yyyy, hh:mm a')}</span>}
+                    </div>
+                  </div>
+                </motion.div>
+              ));
+            })()}
           </div>
         </div>
       </div>

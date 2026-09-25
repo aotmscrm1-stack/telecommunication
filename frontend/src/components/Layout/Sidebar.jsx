@@ -243,7 +243,8 @@ export default function Sidebar() {
 
               <NavItem to="/campaigns"        icon={Icons.campaigns}   label="Campaigns" />
               <NavItem to="/message-templates" icon={Icons.templates}  label="Message Templates" />
-              <NavItem to="/whatsapp-campaigns" icon={Icons.whatsappCampaign} label="WhatsApp Campaign" iconColor="#25D366" />
+              <NavItem to="/contacts" icon={Icons.whatsappCampaign} label="Contact" iconColor="#25D366" />
+              <NavItem to="/whatsapp-blast"   icon={Icons.blast}       label="WhatsApp Blast" iconColor="#25D366" />
               <NavItem to="/whatsapp"         icon={Icons.whatsapp}    label="WhatsApp" iconColor="#25D366" />
               <NavItem to="/leaderboard"      icon={Icons.leaderboard} label="Leaderboard" />
               <NavItem to="/reports"          icon={Icons.reports}     label="Reports" />

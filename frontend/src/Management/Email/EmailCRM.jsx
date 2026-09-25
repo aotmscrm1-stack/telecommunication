@@ -115,9 +115,6 @@ export default function EmailCRM() {
   const [creatingTmpl, setCreatingTmpl] = useState(false);
   const [createError, setCreateError] = useState('');
 
-  // Inbound Webhook Modal State (for n8n setup instructions)
-  const [showWebhookModal, setShowWebhookModal] = useState(false);
-
   // Initialize sender with user profile email
   useEffect(() => {
     if (user?.email && (!fromEmail || fromEmail === 'user@aotms.com')) {
@@ -763,7 +760,7 @@ ${user?.designation || 'Staff'}`
         resData?.error ||
         (resData?.details && typeof resData.details === 'string' ? resData.details : null) ||
         err.message ||
-        'Failed to dispatch email via n8n webhook';
+        'Failed to dispatch email';
 
       setSentError(detectedMsg);
       // Refresh logs so that the "Failed" log entry immediately appears in the list!
@@ -841,8 +838,26 @@ ${user?.designation || 'Staff'}`
   const sentCount = logs.filter(l => !(l.isReply && l.parentEmail) && l.direction !== 'inbound').length;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)', background: WHITE, color: TEXT_MAIN, fontFamily: 'Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif', overflow: 'hidden' }}>
-      {/* ── 1. GMAIL STYLE TOP SEARCH & APP BAR ────────────────────────── */}
+    <div className="email-crm-outer-shell" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 84px)', maxHeight: 'calc(100vh - 84px)', minHeight: 0, background: '#f8fafc', color: TEXT_MAIN, fontFamily: 'Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif', overflow: 'hidden' }}>
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @media (max-width: 768px) {
+          .email-crm-container { padding: 4px 6px !important; }
+          .email-crm-sidebar { width: 68px !important; padding: 12px 6px !important; }
+          .email-crm-sidebar span, .email-crm-sidebar .sidebar-badge { display: none !important; }
+          .email-crm-compose-btn { padding: 0 14px !important; width: 44px !important; height: 44px !important; border-radius: 12px !important; }
+          .email-crm-compose-text { display: none !important; }
+        }
+      `}</style>
+
+      {/* Responsive Wrapper Container with max-width */}
+      <div className="email-crm-container" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', width: '100%', maxWidth: 1440, margin: '0 auto', padding: '6px 12px', height: '100%', overflow: 'hidden' }}>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: WHITE, borderRadius: 14, border: `1px solid ${BORDER_LIGHT}`, boxShadow: '0 1px 4px rgba(0,0,0,0.03)', overflow: 'hidden', height: '100%' }}>
+
+          {/* ── 1. GMAIL STYLE TOP SEARCH & APP BAR ────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 20px', borderBottom: `1px solid ${BORDER_LIGHT}`, background: WHITE, flexShrink: 0, height: 56 }}>
         {/* Brand / Title */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 230 }}>
@@ -891,21 +906,28 @@ ${user?.designation || 'Staff'}`
           </div>
         </div>
 
-        {/* Right Status Badges & Webhook Config */}
+        {/* Right Status Badges & Sync Data Button */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
-            onClick={() => setShowWebhookModal(true)}
-            title="Incoming Email & Reply Webhook Setup"
+            onClick={handleSyncData}
+            disabled={isSyncing}
+            title="Sync latest email data & replies"
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
-              background: '#f3e8ff', color: '#6b21a8',
-              border: '1px solid #d8b4fe',
-              padding: '6px 12px', borderRadius: 20,
-              fontSize: 12, fontWeight: 600, cursor: 'pointer'
+              background: '#eff6ff', color: '#1d4ed8',
+              border: '1px solid #bfdbfe',
+              padding: '6px 14px', borderRadius: 20,
+              fontSize: 12, fontWeight: 600, cursor: isSyncing ? 'not-allowed' : 'pointer',
+              transition: 'all 0.15s ease'
             }}
           >
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#9333ea', display: 'inline-block' }}></span>
-            Inbound Webhook
+            <svg
+              width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
+              style={{ animation: isSyncing ? 'spin 1s linear infinite' : 'none' }}
+            >
+              <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+            {isSyncing ? 'Syncing...' : 'Sync Data'}
           </button>
 
           <button
@@ -928,12 +950,24 @@ ${user?.designation || 'Staff'}`
         </div>
       </div>
 
+      {/* Sync Success Notification Toast */}
+      {syncNotice && (
+        <div style={{ background: '#ecfdf5', borderBottom: '1px solid #a7f3d0', color: '#065f46', padding: '8px 24px', fontSize: 12.5, fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 100, transition: 'all 0.2s' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>✓</span>
+            <span>{syncNotice}</span>
+          </div>
+          <button onClick={() => setSyncNotice('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#065f46', fontSize: 14 }}>✕</button>
+        </div>
+      )}
+
       {/* ── 2. MAIN LAYOUT: GMAIL SIDEBAR + CONTENT PANE ────────────────── */}
       <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
         {/* Gmail Left Sidebar */}
-        <div style={{ width: 250, padding: '16px 12px', borderRight: `1px solid ${BORDER_LIGHT}`, background: WHITE, display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0, overflowY: 'auto' }}>
+        <div className="email-crm-sidebar" style={{ width: 250, padding: '16px 12px', borderRight: `1px solid ${BORDER_LIGHT}`, background: WHITE, display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0, overflowY: 'auto' }}>
           {/* Iconic Gmail "+ Compose" Pill Button */}
           <button
+            className="email-crm-compose-btn"
             onClick={() => {
               setComposeOpen(true);
               setComposeMinimized(false);
@@ -962,7 +996,7 @@ ${user?.designation || 'Staff'}`
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
-            Compose
+            <span className="email-crm-compose-text">Compose</span>
           </button>
 
           {/* Folder Item: Inbox & Replies */}
@@ -1051,7 +1085,7 @@ ${user?.designation || 'Staff'}`
 
         {/* ── 3. CONTENT AREA: GMAIL STYLE MESSAGE LIST OR BULK EMAIL BLAST ─── */}
         {activeFolder === 'blast' ? (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100%' }}>
             <BulkEmailBlast />
           </div>
         ) : (
@@ -1110,17 +1144,20 @@ ${user?.designation || 'Staff'}`
               )}
 
               <button
-                onClick={() => setShowWebhookModal(true)}
-                title="View incoming reply webhook instructions & payload schema for n8n"
+                onClick={handleSyncData}
+                disabled={isSyncing}
+                title="Sync latest email data & replies"
                 style={{
                   display: 'flex', alignItems: 'center', gap: 6,
-                  background: '#f5f3ff', color: '#7c3aed', border: '1px solid #ddd6fe', borderRadius: 8,
-                  padding: '7px 13px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: 8,
+                  padding: '7px 13px', fontSize: 12, fontWeight: 600, cursor: isSyncing ? 'not-allowed' : 'pointer',
                   transition: 'background 0.15s'
                 }}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                Webhook Setup
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: isSyncing ? 'spin 1s linear infinite' : 'none' }}>
+                  <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                </svg>
+                {isSyncing ? 'Syncing...' : 'Sync Data'}
               </button>
             </div>
           </div>
@@ -1226,10 +1263,10 @@ ${user?.designation || 'Staff'}`
                 <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '14px 18px', marginBottom: 18, color: '#991b1b', fontSize: 13 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, color: '#b91c1c' }}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                    n8n Webhook Dispatch Failed
+                    Email Dispatch Failed
                   </div>
                   <div style={{ marginTop: 6, fontWeight: 500 }}>
-                    {selectedEmail.errorMessage || 'Webhook execution encountered an error.'}
+                    {selectedEmail.errorMessage || 'Email dispatch encountered an error.'}
                   </div>
                   {/access token|token|gmail|credential/i.test(selectedEmail.errorMessage || '') && (
                     <div style={{ marginTop: 8, padding: '8px 12px', background: '#fee2e2', borderRadius: 6, fontSize: 12, color: '#7f1d1d' }}>
@@ -1376,9 +1413,24 @@ ${user?.designation || 'Staff'}`
                     </span>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: '#16a34a', fontWeight: 600 }}>
-                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#16a34a', display: 'inline-block' }}></span>
-                    Live Webhook Synced
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <button
+                      onClick={handleSyncData}
+                      disabled={isSyncing}
+                      title="Sync latest conversation data & replies"
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 5,
+                        background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe',
+                        borderRadius: 6, padding: '4px 11px', fontSize: 11.5, fontWeight: 600,
+                        cursor: isSyncing ? 'not-allowed' : 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" style={{ animation: isSyncing ? 'spin 1s linear infinite' : 'none' }}>
+                        <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                      </svg>
+                      {isSyncing ? 'Syncing...' : 'Sync Data'}
+                    </button>
                   </div>
                 </div>
 
@@ -1442,7 +1494,7 @@ ${user?.designation || 'Staff'}`
                                 {isInbound ? (
                                   <>
                                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
-                                    Incoming Reply (n8n Webhook)
+                                    Incoming Reply
                                   </>
                                 ) : (
                                   <>
@@ -1502,7 +1554,7 @@ ${user?.designation || 'Staff'}`
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                     <div>
                       <div style={{ fontWeight: 600, color: TEXT_MAIN }}>No replies recorded yet</div>
-                      <div>When the recipient replies via email or n8n webhook triggers an update, replies will appear right here automatically.</div>
+                      <div>When the recipient replies via email, replies will appear right here automatically.</div>
                     </div>
                   </div>
                 )}
@@ -2148,7 +2200,7 @@ ${user?.designation || 'Staff'}`
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                     <span style={{ fontSize: 16 }}>⚠️</span>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 700, color: '#b91c1c' }}>n8n Webhook Dispatch Error Detected:</div>
+                      <div style={{ fontWeight: 700, color: '#b91c1c' }}>Email Dispatch Error Detected:</div>
                       <div style={{ marginTop: 2, fontWeight: 500 }}>{sentError}</div>
                       {/not registered|404|inactive/i.test(sentError) && (
                         <div style={{ marginTop: 6, padding: '6px 10px', background: '#fee2e2', borderRadius: 4, fontSize: 11.5, color: '#7f1d1d' }}>
@@ -2470,7 +2522,7 @@ ${user?.designation || 'Staff'}`
                     Email Dispatched Successfully
                   </div>
                   <div style={{ fontSize: 12, color: '#16a34a', fontWeight: 600 }}>
-                    Delivered via GoDaddy SMTP Automation (n8n Webhook)
+                    Delivered via GoDaddy SMTP Automation
                   </div>
                 </div>
               </div>
@@ -2618,119 +2670,8 @@ ${user?.designation || 'Staff'}`
         </div>
       )}
 
-      {/* ── 6. INCOMING WEBHOOK SETUP MODAL (FOR N8N & AUTOMATIONS) ────── */}
-      {showWebhookModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(32,33,36,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: 16 }}>
-          <div style={{ background: WHITE, borderRadius: 14, width: 620, maxWidth: '96%', maxHeight: '90vh', overflowY: 'auto', padding: 26, boxShadow: '0 12px 36px rgba(0,0,0,0.25)', border: `1px solid ${BORDER_LIGHT}` }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 8, background: '#f5f3ff', color: '#7c3aed', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                </div>
-                <div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: TEXT_MAIN }}>Incoming Reply Webhook for n8n</div>
-                  <div style={{ fontSize: 12, color: TEXT_MUTED }}>Real-time message synchronization with automated thread linking</div>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowWebhookModal(false)}
-                style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: TEXT_MUTED, padding: 4 }}
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Notification explanation banner */}
-            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '12px 16px', marginBottom: 18, fontSize: 12.5, color: '#334155', lineHeight: 1.6 }}>
-              ⚡ <strong>How it works:</strong> Whenever an external recipient replies to your email, n8n (or any email trigger node) can send an HTTP POST request to this endpoint. The CRM automatically matches the thread by subject and sender, appending the incoming reply directly into the conversation stream in <strong>message notification style</strong>.
-            </div>
-
-            {/* Endpoint block */}
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 12, fontWeight: 700, color: TEXT_MAIN, display: 'block', marginBottom: 6 }}>
-                Webhook Endpoint URL
-              </label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, background: '#22c55e', color: WHITE, padding: '6px 10px', borderRadius: 6 }}>
-                  POST
-                </span>
-                <input
-                  readOnly
-                  value={`${window.location.origin}/api/email/inbound-reply`}
-                  style={{ flex: 1, padding: '8px 12px', border: `1px solid ${BORDER_LIGHT}`, borderRadius: 6, fontSize: 12.5, fontFamily: 'monospace', background: '#f8f9fa', outline: 'none' }}
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(`${window.location.origin}/api/email/inbound-reply`);
-                    alert('Endpoint URL copied to clipboard!');
-                  }}
-                  style={{ padding: '8px 14px', background: GMAIL_BLUE, color: WHITE, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-                >
-                  Copy URL
-                </button>
-              </div>
-            </div>
-
-            {/* Payload Schema for n8n */}
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                <label style={{ fontSize: 12, fontWeight: 700, color: TEXT_MAIN }}>
-                  Expected JSON Payload (n8n HTTP Request / Webhook Node)
-                </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const sample = JSON.stringify({
-                      from: "client@example.com",
-                      to: "support@company.com",
-                      subject: "Re: Your Email Subject",
-                      body: "Hello, this is my reply to your email.",
-                      senderName: "Client Name"
-                    }, null, 2);
-                    navigator.clipboard.writeText(sample);
-                    alert('Sample JSON copied to clipboard!');
-                  }}
-                  style={{ background: 'none', border: 'none', color: GMAIL_BLUE, fontSize: 11.5, fontWeight: 600, cursor: 'pointer' }}
-                >
-                  Copy Sample JSON
-                </button>
-              </div>
-              <pre style={{ background: '#1e293b', color: '#f8fafc', padding: '14px 16px', borderRadius: 8, fontSize: 12, lineHeight: 1.5, overflowX: 'auto', fontFamily: 'monospace', margin: 0 }}>
-{`{
-  "from": "client@example.com",
-  "to": "support@company.com",
-  "subject": "Re: Project Discussion",
-  "body": "Thank you for the message. I agree with the proposal and would like to move forward.",
-  "senderName": "Client Name"
-}`}
-              </pre>
-            </div>
-
-            {/* Field breakdown */}
-            <div style={{ background: '#fcfcfc', border: `1px solid ${BORDER_LIGHT}`, borderRadius: 8, padding: 14, marginBottom: 20, fontSize: 12 }}>
-              <div style={{ fontWeight: 700, color: TEXT_MAIN, marginBottom: 8 }}>Field Reference:</div>
-              <ul style={{ margin: 0, paddingLeft: 18, color: TEXT_MUTED, lineHeight: 1.6 }}>
-                <li><strong style={{ color: TEXT_MAIN }}>from</strong> (string, required): The email address of the person replying.</li>
-                <li><strong style={{ color: TEXT_MAIN }}>to</strong> (string, optional): Your email or CRM recipient address.</li>
-                <li><strong style={{ color: TEXT_MAIN }}>subject</strong> (string, required): The email subject (e.g. <code>Re: Project Discussion</code>).</li>
-                <li><strong style={{ color: TEXT_MAIN }}>body</strong> (string, required): The body of the reply message.</li>
-                <li><strong style={{ color: TEXT_MAIN }}>senderName</strong> (string, optional): Display name of the sender.</li>
-              </ul>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button
-                type="button"
-                onClick={() => setShowWebhookModal(false)}
-                style={{ padding: '8px 20px', background: GMAIL_BLUE, color: WHITE, border: 'none', borderRadius: 8, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}
-              >
-                Close
-              </button>
-            </div>
-          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -12,11 +12,11 @@ import Leaderboard from './Marketing/Leaderboard/Leaderboard';
 import Reports from './Marketing/Report/Reports';
 import Tasks from './components/dashboard/Task/Task';
 import Profile from './pages/Profile';
-import MessageTemplates from './Marketing/MessageTemplate/MessageTemplates';
 import Blocklist from './pages/Blocklist';
 import MyPreferences from './pages/MyPreferences';
 import WhatsApp from './Marketing/Whatsapp/WhatsApp';
-import WhatsAppCampaigns from './Marketing/WhatsappCampaign/WhatsAppCampaigns';
+import Contacts from './Marketing/WhatsappCampaign/Contact';
+import WhatsappBlast from './Marketing/WhatsappCampaign/Whatsapp_Blast';
 import EmailCRM from './Management/Email/EmailCRM';
 import Users from './pages/Users';
 import StaleLeads from './pages/StaleLeads';
@@ -164,9 +164,11 @@ export default function App() {
             <Route path="reports" element={<StaffRestrictedRoute><Reports /></StaffRestrictedRoute>} />
             <Route path="tasks" element={<Tasks />} />
             <Route path="profile" element={<Profile />} />
-            <Route path="message-templates" element={<StaffRestrictedRoute><MessageTemplates /></StaffRestrictedRoute>} />
-            <Route path="whatsapp-campaigns" element={<StaffRestrictedRoute><WhatsAppCampaigns /></StaffRestrictedRoute>} />
-            <Route path="whatsapp-campaign" element={<Navigate to="/whatsapp-campaigns" replace />} />
+            <Route path="contacts" element={<StaffRestrictedRoute><Contacts /></StaffRestrictedRoute>} />
+            <Route path="contact" element={<Navigate to="/contacts" replace />} />
+            <Route path="whatsapp-campaigns" element={<Navigate to="/contacts" replace />} />
+            <Route path="whatsapp-campaign" element={<Navigate to="/contacts" replace />} />
+            <Route path="whatsapp-blast" element={<StaffRestrictedRoute><WhatsappBlast /></StaffRestrictedRoute>} />
             <Route path="blocklist" element={<AdminRoute><Blocklist /></AdminRoute>} />
             <Route path="my-preferences" element={<MyPreferences />} />
             <Route path="whatsapp" element={<StaffRestrictedRoute><WhatsApp /></StaffRestrictedRoute>} />
