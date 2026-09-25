@@ -50,6 +50,17 @@ const userSchema = new mongoose.Schema({
   // Forgot / reset password
   passwordResetToken: { type: String, select: false },
   passwordResetExpires: { type: Date, select: false },
+  // Email & SMTP Mailer Configuration (e.g. GoDaddy, Titan)
+  smtpConfig: {
+    host: { type: String, default: '' },
+    port: { type: Number, default: 465 },
+    secure: { type: Boolean, default: true },
+    user: { type: String, default: '' },
+    pass: { type: String, default: '' },
+    fromEmail: { type: String, default: '' },
+    provider: { type: String, default: 'godaddy' },
+    isConfigured: { type: Boolean, default: false },
+  },
 }, { timestamps: true });
 
 userSchema.pre('save', async function (next) {

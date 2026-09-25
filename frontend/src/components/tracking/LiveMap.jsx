@@ -1,81 +1,71 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import {
-  GoogleMap,
-  useJsApiLoader,
-  CircleF,
-  PolylineF,
-  OverlayViewF,
-  OverlayView,
-  InfoWindowF,
-} from '@react-google-maps/api';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 import {
   OFFICE_LOCATION,
   OFFICE_COORDS_LNG_LAT,
-  STATUS_THEME,
   isValidCoordinates,
   calculateDistanceMeters,
 } from '../../config/trackingConfig';
 
-const GOOGLE_LIBRARIES = ['places', 'geometry'];
+// Initialize MapLibre web worker (self-hosted with fallback)
+if (typeof window !== 'undefined' && !maplibregl.getWorkerUrl()) {
+  try {
+    maplibregl.setWorkerUrl('/maplibre-gl-worker.mjs');
+  } catch (e) {
+    maplibregl.setWorkerUrl(
+      `https://unpkg.com/maplibre-gl@${maplibregl.getVersion()}/dist/maplibre-gl-worker.mjs`
+    );
+  }
+}
 
-const MAP_CONTAINER_STYLE = {
-  width: '100%',
-  height: '100%',
-};
-
-const DEFAULT_GOOGLE_MAP_OPTIONS = {
-  disableDefaultUI: false,
-  zoomControl: true,
-  mapTypeControl: true,
-  scaleControl: true,
-  streetViewControl: false,
-  rotateControl: true,
-  fullscreenControl: true,
-  styles: [
-    {
-      featureType: 'poi',
-      elementType: 'labels',
-      stylers: [{ visibility: 'simplified' }],
-    },
-    {
-      featureType: 'transit',
-      elementType: 'labels',
-      stylers: [{ visibility: 'off' }],
-    },
-  ],
-};
-
-const DEFAULT_MAPLIBRE_STYLE = {
-  version: 8,
-  sources: {
-    'osm-standard': {
-      type: 'raster',
-      tiles: [
-        import.meta.env.VITE_MAP_TILE_URL || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-      ],
-      tileSize: 256,
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
-    },
+// ─────────────────────────────────────────────────────────────────────────────
+// VECTOR MAP THEMES (Default 13.0x zoom as requested)
+// ─────────────────────────────────────────────────────────────────────────────
+const MAP_THEMES = {
+  bright: {
+    id: 'bright',
+    name: 'Clean Vector',
+    badge: 'Vector',
+    url: 'https://tiles.openfreemap.org/styles/bright',
+    pitch: 0,
+    bearing: 0,
+    zoom: 13.0,
   },
-  layers: [
-    {
-      id: 'osm-standard-layer',
-      type: 'raster',
-      source: 'osm-standard',
-      minzoom: 0,
-      maxzoom: 19,
-    },
-  ],
+  liberty3d: {
+    id: 'liberty3d',
+    name: '3D Liberty',
+    badge: '3D',
+    url: 'https://tiles.openfreemap.org/styles/liberty',
+    pitch: 60,
+    bearing: -20,
+    zoom: 13.0,
+  },
+  positron: {
+    id: 'positron',
+    name: 'Minimal Light',
+    badge: 'Light',
+    url: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+    pitch: 0,
+    bearing: 0,
+    zoom: 13.0,
+  },
+  darkmatter: {
+    id: 'darkmatter',
+    name: 'Midnight Dark',
+    badge: 'Night',
+    url: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+    pitch: 45,
+    bearing: 15,
+    zoom: 13.0,
+  },
 };
 
 /**
- * Generate a GeoJSON Polygon circle for MapLibre office geofence boundary
+ * Generate smooth GeoJSON circle for Office Geofence
  */
-function createGeoJsonCircle(centerLngLat, radiusInMeters, points = 64) {
+function createGeofencePolygon(centerLngLat, radiusInMeters, points = 64) {
   const coords = { latitude: centerLngLat[1], longitude: centerLngLat[0] };
   const km = radiusInMeters / 1000;
   const ret = [];
@@ -109,303 +99,21 @@ export default function LiveMap({
   showRouteTrail = true,
   onToggleRouteTrail = () => {},
 }) {
-  // Determine API key & Key Validity
-  const rawApiKey =
-    import.meta.env.VITE_GOOGLE_MAPS_API_KEY ||
-    officeConfig?.googleMapsApiKey ||
-    '';
-
-  const isValidGoogleKey =
-    typeof rawApiKey === 'string' &&
-    rawApiKey.trim().length > 10 &&
-    rawApiKey.trim().startsWith('AIza');
-
-  // Active Map Engine State ('google' vs 'osm')
-  const [activeEngine, setActiveEngine] = useState(isValidGoogleKey ? 'google' : 'osm');
-
-  // Sync activeEngine if valid Google Key becomes available
-  useEffect(() => {
-    if (isValidGoogleKey) {
-      setActiveEngine('google');
-    } else {
-      setActiveEngine('osm');
-    }
-  }, [isValidGoogleKey]);
-
-  return (
-    <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
-      {activeEngine === 'google' && isValidGoogleKey ? (
-        <GoogleMapsView
-          rawApiKey={rawApiKey.trim()}
-          employees={employees}
-          selectedEmployeeId={selectedEmployeeId}
-          onSelectEmployee={onSelectEmployee}
-          historyPoints={historyPoints}
-          historyBounds={historyBounds}
-          isHistoryMode={isHistoryMode}
-          officeConfig={officeConfig}
-          followEmployee={followEmployee}
-          onToggleEngine={() => setActiveEngine('osm')}
-        />
-      ) : (
-        <MapLibreView
-          employees={employees}
-          selectedEmployeeId={selectedEmployeeId}
-          onSelectEmployee={onSelectEmployee}
-          historyPoints={historyPoints}
-          historyBounds={historyBounds}
-          isHistoryMode={isHistoryMode}
-          officeConfig={officeConfig}
-          followEmployee={followEmployee}
-          isValidGoogleKey={isValidGoogleKey}
-          onToggleEngine={() => {
-            if (isValidGoogleKey) setActiveEngine('google');
-          }}
-        />
-      )}
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 1. GOOGLE MAPS ENGINE COMPONENT
-// ─────────────────────────────────────────────────────────────────────────────
-function GoogleMapsView({
-  rawApiKey,
-  employees,
-  selectedEmployeeId,
-  onSelectEmployee,
-  historyPoints,
-  historyBounds,
-  isHistoryMode,
-  officeConfig,
-  followEmployee,
-  onToggleEngine,
-}) {
-  const mapRef = useRef(null);
-  const [selectedPopupEmployee, setSelectedPopupEmployee] = useState(null);
-
-  const loaderOptions = useMemo(
-    () => ({
-      id: 'google-map-script',
-      googleMapsApiKey: rawApiKey,
-      libraries: GOOGLE_LIBRARIES,
-    }),
-    [rawApiKey]
-  );
-
-  const { isLoaded, loadError } = useJsApiLoader(loaderOptions);
-
-  const officeCenter = useMemo(() => {
-    if (officeConfig?.latitude && officeConfig?.longitude) {
-      return { lat: Number(officeConfig.latitude), lng: Number(officeConfig.longitude) };
-    }
-    return { lat: OFFICE_COORDS_LNG_LAT[1], lng: OFFICE_COORDS_LNG_LAT[0] };
-  }, [officeConfig]);
-
-  const geofenceRadius = officeConfig?.radiusMeters || OFFICE_LOCATION.radiusMeters;
-
-  const selectedEmployee = useMemo(() => {
-    if (!selectedEmployeeId) return null;
-    return employees.find(
-      (e) => String(e._id || e.employeeId || e.id || '') === String(selectedEmployeeId)
-    );
-  }, [employees, selectedEmployeeId]);
-
-  useEffect(() => {
-    if (!mapRef.current || !followEmployee || !selectedEmployee?.location) return;
-    const loc = selectedEmployee.location;
-    if (isValidCoordinates(loc.latitude, loc.longitude)) {
-      mapRef.current.panTo({ lat: Number(loc.latitude), lng: Number(loc.longitude) });
-    }
-  }, [followEmployee, selectedEmployee]);
-
-  useEffect(() => {
-    if (!mapRef.current || !isHistoryMode || !historyBounds) return;
-    try {
-      const bounds = new window.google.maps.LatLngBounds();
-      bounds.extend({ lat: historyBounds.minLat, lng: historyBounds.minLng });
-      bounds.extend({ lat: historyBounds.maxLat, lng: historyBounds.maxLng });
-      mapRef.current.fitBounds(bounds, { padding: 60 });
-    } catch (err) {
-      console.warn('[Google Maps FitBounds Warning]:', err);
-    }
-  }, [isHistoryMode, historyBounds]);
-
-  const centerToOffice = () => {
-    if (mapRef.current) {
-      mapRef.current.panTo(officeCenter);
-      mapRef.current.setZoom(16);
-    }
-  };
-
-  const centerToSelectedEmployee = () => {
-    if (!selectedEmployee?.location || !mapRef.current) return;
-    const loc = selectedEmployee.location;
-    if (isValidCoordinates(loc.latitude, loc.longitude)) {
-      mapRef.current.panTo({ lat: Number(loc.latitude), lng: Number(loc.longitude) });
-      mapRef.current.setZoom(17);
-    }
-  };
-
-  const historyPolylinePath = useMemo(() => {
-    if (!isHistoryMode || !historyPoints || historyPoints.length === 0) return [];
-    return historyPoints
-      .filter((p) => isValidCoordinates(p.latitude, p.longitude))
-      .map((p) => ({ lat: Number(p.latitude), lng: Number(p.longitude) }));
-  }, [isHistoryMode, historyPoints]);
-
-  if (loadError || !isLoaded) {
-    return (
-      <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', gap: 12 }}>
-        <div className="w-10 h-10 spinner-gradient" />
-        <p style={{ margin: 0, fontSize: 13, color: '#64748b', fontWeight: 600 }}>Loading Google Maps...</p>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-      <GoogleMap
-        mapContainerStyle={MAP_CONTAINER_STYLE}
-        center={officeCenter}
-        zoom={15.5}
-        options={DEFAULT_GOOGLE_MAP_OPTIONS}
-        onLoad={(map) => { mapRef.current = map; }}
-        onUnmount={() => { mapRef.current = null; }}
-        onClick={() => setSelectedPopupEmployee(null)}
-      >
-        <CircleF
-          center={officeCenter}
-          radius={geofenceRadius}
-          options={{ fillColor: '#0284c7', fillOpacity: 0.14, strokeColor: '#0284c7', strokeOpacity: 0.85, strokeWeight: 2 }}
-        />
-
-        <OverlayViewF position={officeCenter} mapPaneName={OverlayView.OVERLAY_MOUSETARGET}>
-          <div onClick={(e) => { e.stopPropagation(); centerToOffice(); }} style={{ transform: 'translate(-50%, -100%)', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', filter: 'drop-shadow(0 4px 12px rgba(2, 132, 199, 0.45))' }}>
-            <div style={{ background: '#0284c7', color: '#ffffff', width: 44, height: 44, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, border: '3px solid #ffffff', boxShadow: '0 4px 16px rgba(0,0,0,0.3)' }}>🏢</div>
-            <div style={{ marginTop: 4, background: 'rgba(15, 23, 42, 0.94)', color: '#ffffff', fontSize: 10.5, fontWeight: 800, padding: '3px 8px', borderRadius: 6, whiteSpace: 'nowrap', border: '1px solid rgba(255,255,255,0.25)' }}>🏢 AOTMS OFFICE</div>
-          </div>
-        </OverlayViewF>
-
-        {!isHistoryMode &&
-          employees.map((emp) => {
-            const uId = String(emp._id || emp.employeeId || emp.id || '');
-            const loc = emp.location || {};
-            if (!isValidCoordinates(loc.latitude, loc.longitude)) return null;
-
-            const isSelected = String(selectedEmployeeId || '') === uId;
-            const status = loc.trackingStatus || 'OFFLINE';
-            const theme = STATUS_THEME[status] || STATUS_THEME.STOPPED;
-            const heading = loc.heading || 0;
-            const speed = loc.speed || 0;
-            const road = loc.road || '';
-            const initial = (emp.name || 'E').charAt(0).toUpperCase();
-
-            const pos = { lat: Number(loc.latitude), lng: Number(loc.longitude) };
-
-            return (
-              <OverlayViewF key={uId} position={pos} mapPaneName={OverlayView.OVERLAY_MOUSETARGET}>
-                <div
-                  onClick={(e) => { e.stopPropagation(); onSelectEmployee(uId); setSelectedPopupEmployee(emp); }}
-                  style={{ transform: isSelected ? 'translate(-50%, -100%) scale(1.15)' : 'translate(-50%, -100%) scale(1)', transition: 'transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)', cursor: 'pointer', zIndex: isSelected ? 60 : 25, display: 'flex', flexDirection: 'column', alignItems: 'center' }}
-                >
-                  {status === 'MOVING' || status === 'LEAVING_OFFICE' ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <div style={{ position: 'relative', width: 46, height: 46, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: '#ffffff', boxShadow: '0 4px 16px rgba(0,0,0,0.28), 0 0 0 2.5px #10b981' }} />
-                        <div style={{ position: 'absolute', width: 36, height: 36, transform: `rotate(${heading}deg)`, transition: 'transform 0.35s ease-out', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <svg width="32" height="32" viewBox="0 0 34 34" fill="none">
-                            <rect x="15" y="24" width="4" height="8" rx="2" fill="#1e293b" />
-                            <rect x="15" y="2" width="4" height="8" rx="2" fill="#1e293b" />
-                            <rect x="12" y="21" width="2" height="6" rx="1" fill="#64748b" />
-                            <path d="M14 8 H20 L19.5 25 H14.5 L14 8 Z" fill="#059669" />
-                            <path d="M14.5 11 C14.5 9 19.5 9 19.5 11 L20 18 C20 20 14 20 14 18 Z" fill="#10b981" />
-                            <circle cx="17" cy="16" r="4" fill="#0f172a" />
-                            <circle cx="17" cy="14.5" r="2.2" fill="#38bdf8" />
-                            <path d="M9 9 L25 9" stroke="#334155" strokeWidth="2.5" strokeLinecap="round" />
-                            <rect x="13.5" y="21" width="7" height="6" rx="1.5" fill="#0284c7" stroke="#ffffff" strokeWidth="0.8" />
-                          </svg>
-                        </div>
-                        <div style={{ position: 'absolute', bottom: -2, right: -2, width: 12, height: 12, borderRadius: '50%', background: '#10b981', border: '2px solid #ffffff' }} />
-                      </div>
-                      <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                        <div style={{ background: 'rgba(15, 23, 42, 0.94)', color: '#ffffff', fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 12, whiteSpace: 'nowrap', border: '1px solid rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <span>🏍️ {emp.name || 'Courier'}</span>
-                          <span style={{ background: '#10b981', color: '#ffffff', fontSize: 9.5, padding: '0 4px', borderRadius: 6, fontWeight: 800 }}>{speed > 0 ? `${speed} km/h` : 'Moving'}</span>
-                        </div>
-                        {road && <div style={{ background: '#ffffff', color: '#0f172a', fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 8, border: '1px solid #e2e8f0', maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🛣️ {road}</div>}
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <div style={{ position: 'relative', width: 38, height: 38, borderRadius: '50%', background: '#ffffff', border: `3px solid ${theme.primary}`, boxShadow: '0 4px 14px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {emp.avatar ? <img src={emp.avatar} alt={emp.name} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} /> : <div style={{ width: 28, height: 28, borderRadius: '50%', background: theme.bg, color: theme.text, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800 }}>{initial}</div>}
-                      </div>
-                      <div style={{ marginTop: 3, background: 'rgba(15, 23, 42, 0.9)', color: '#ffffff', fontSize: 9.5, fontWeight: 700, padding: '1px 6px', borderRadius: 8, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <span>{emp.name || 'Employee'}</span>
-                        <span style={{ background: theme.primary, color: '#ffffff', fontSize: 8, padding: '0 3px', borderRadius: 3, fontWeight: 800 }}>{theme.label}</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </OverlayViewF>
-            );
-          })}
-
-        {selectedPopupEmployee && selectedPopupEmployee.location && (
-          <InfoWindowF position={{ lat: Number(selectedPopupEmployee.location.latitude), lng: Number(selectedPopupEmployee.location.longitude) }} onCloseClick={() => setSelectedPopupEmployee(null)}>
-            <div style={{ fontFamily: 'system-ui, sans-serif', padding: '4px 6px', minWidth: 170 }}>
-              <div style={{ fontWeight: 800, fontSize: 13, color: '#0f172a' }}>{selectedPopupEmployee.name}</div>
-              {selectedPopupEmployee.location.road && <div style={{ fontSize: 11, color: '#0284c7', fontWeight: 700 }}>🛣️ {selectedPopupEmployee.location.road}</div>}
-            </div>
-          </InfoWindowF>
-        )}
-
-        {isHistoryMode && historyPolylinePath.length > 0 && (
-          <PolylineF path={historyPolylinePath} options={{ strokeColor: '#0284c7', strokeOpacity: 0.85, strokeWeight: 4 }} />
-        )}
-      </GoogleMap>
-
-      {/* Control Buttons */}
-      <div style={{ position: 'absolute', top: 14, right: 14, display: 'flex', flexDirection: 'column', gap: 8, zIndex: 10 }}>
-        <button onClick={onToggleEngine} style={{ background: '#ffffff', color: '#0f172a', border: '1px solid #cbd5e1', borderRadius: 8, padding: '7px 12px', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}>
-          🗺️ Google Maps (Active)
-        </button>
-        <button onClick={centerToOffice} style={{ background: '#ffffff', color: '#0284c7', border: '1px solid #cbd5e1', borderRadius: 8, padding: '7px 12px', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}>
-          🏢 Center Office
-        </button>
-        {selectedEmployee && (
-          <button onClick={centerToSelectedEmployee} style={{ background: '#0284c7', color: '#ffffff', border: 'none', borderRadius: 8, padding: '7px 12px', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', boxShadow: '0 2px 8px rgba(2,132,199,0.35)' }}>
-            📍 Center Employee
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 2. OPENSTREETMAP / MAPLIBRE ENGINE COMPONENT (FALLBACK - 100% FREE)
-// ─────────────────────────────────────────────────────────────────────────────
-function MapLibreView({
-  employees,
-  selectedEmployeeId,
-  onSelectEmployee,
-  historyPoints,
-  historyBounds,
-  isHistoryMode,
-  officeConfig,
-  followEmployee,
-  isValidGoogleKey,
-  onToggleEngine,
-}) {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const officeMarkerRef = useRef(null);
   const markersRef = useRef(new Map());
-  const [mapLoaded, setMapLoaded] = useState(false);
+  const historyLayerIdsRef = useRef([]);
 
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const [activeTheme, setActiveTheme] = useState('bright');
+  const [is3DMode, setIs3DMode] = useState(false);
+  // Default zoom is 13.0x as requested
+  const [cameraTelemetry, setCameraTelemetry] = useState({ pitch: 0, bearing: 0, zoom: 13.0 });
+  const [themeDropdownOpen, setThemeDropdownOpen] = useState(false);
+  const [currentCameraTarget, setCurrentCameraTarget] = useState('office'); // 'office' | 'employee'
+
+  // Office Coordinates
   const officeLngLat = useMemo(() => {
     if (officeConfig?.longitude && officeConfig?.latitude) {
       return [Number(officeConfig.longitude), Number(officeConfig.latitude)];
@@ -415,6 +123,7 @@ function MapLibreView({
 
   const geofenceRadius = officeConfig?.radiusMeters || OFFICE_LOCATION.radiusMeters;
 
+  // Selected Employee
   const selectedEmployee = useMemo(() => {
     if (!selectedEmployeeId) return null;
     return employees.find(
@@ -422,63 +131,65 @@ function MapLibreView({
     );
   }, [employees, selectedEmployeeId]);
 
-  // MapLibre Initialization
+  // Distance from HQ for selected agent
+  const distanceFromOffice = useMemo(() => {
+    if (!selectedEmployee?.location) return null;
+    const { latitude, longitude } = selectedEmployee.location;
+    if (!isValidCoordinates(latitude, longitude)) return null;
+    const meters = calculateDistanceMeters(
+      latitude,
+      longitude,
+      officeLngLat[1],
+      officeLngLat[0]
+    );
+    if (meters < 1000) return `${Math.round(meters)} m`;
+    return `${(meters / 1000).toFixed(2)} km`;
+  }, [selectedEmployee, officeLngLat]);
+
+  // ── 1. Initialize MapLibre GL (Default 13.0x zoom) ──────────────────────────
   useEffect(() => {
     if (!mapContainerRef.current) return;
     let map = null;
 
     try {
+      const themeConfig = MAP_THEMES[activeTheme] || MAP_THEMES.bright;
+
       map = new maplibregl.Map({
         container: mapContainerRef.current,
-        style: DEFAULT_MAPLIBRE_STYLE,
+        style: themeConfig.url,
         center: officeLngLat,
-        zoom: 15.5,
+        zoom: 13.0, // Requested: Default 13.0x zoom
+        pitch: is3DMode ? 60 : 0,
+        bearing: is3DMode ? -20 : 0,
         attributionControl: false,
+        antialias: true,
       });
 
-      map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'bottom-right');
       map.addControl(
-        new maplibregl.AttributionControl({ compact: true, customAttribution: 'AOTMS Field Tracking • OpenStreetMap' }),
-        'bottom-right'
+        new maplibregl.AttributionControl({ compact: true, customAttribution: 'AOTMS Field Tracker' }),
+        'bottom-left'
       );
 
+      // Camera telemetry updates
+      const handleMove = () => {
+        setCameraTelemetry({
+          pitch: Math.round(map.getPitch()),
+          bearing: Math.round(map.getBearing()),
+          zoom: Number(map.getZoom().toFixed(1)),
+        });
+      };
+      map.on('move', handleMove);
+
       map.on('load', () => {
-        const circleGeoJson = createGeoJsonCircle(officeLngLat, geofenceRadius);
-
-        map.addSource('office-geofence-source', { type: 'geojson', data: circleGeoJson });
-        map.addLayer({
-          id: 'office-geofence-fill',
-          type: 'fill',
-          source: 'office-geofence-source',
-          paint: { 'fill-color': '#0284c7', 'fill-opacity': 0.14 },
-        });
-        map.addLayer({
-          id: 'office-geofence-line',
-          type: 'line',
-          source: 'office-geofence-source',
-          paint: { 'line-color': '#0284c7', 'line-width': 2.5, 'line-dasharray': [3, 2], 'line-opacity': 0.85 },
-        });
-
-        // Office Marker
-        const officeEl = document.createElement('div');
-        officeEl.innerHTML = `
-          <div style="display: flex; flex-direction: column; align-items: center; cursor: pointer; filter: drop-shadow(0 4px 12px rgba(2, 132, 199, 0.45));">
-            <div style="background: #0284c7; color: #ffffff; width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; border: 3px solid #ffffff; box-shadow: 0 4px 16px rgba(0,0,0,0.3);">🏢</div>
-            <div style="margin-top: 4px; background: rgba(15, 23, 42, 0.94); color: #ffffff; font-size: 10.5px; font-weight: 800; padding: 3px 8px; border-radius: 6px; white-space: nowrap; border: 1px solid rgba(255,255,255,0.25);">🏢 AOTMS OFFICE</div>
-          </div>
-        `;
-
-        officeMarkerRef.current = new maplibregl.Marker({ element: officeEl })
-          .setLngLat(officeLngLat)
-          .addTo(map);
-
+        setupGeofenceLayers(map);
+        setupOfficeMarker(map);
         setMapLoaded(true);
-        map.resize();
+        setTimeout(() => map.resize(), 100);
       });
 
       mapRef.current = map;
     } catch (err) {
-      console.error('[MapLibre Init Error]:', err);
+      console.error('[LiveMap Initialization Error]:', err);
     }
 
     return () => {
@@ -492,7 +203,180 @@ function MapLibreView({
     };
   }, []);
 
-  // Update markers
+  // ── 2. Geofence Layer Setup ───────────────────────────────────────────────
+  const setupGeofenceLayers = useCallback((map) => {
+    if (!map) return;
+    const circleGeoJson = createGeofencePolygon(officeLngLat, geofenceRadius);
+
+    if (map.getSource('office-geofence-source')) {
+      map.getSource('office-geofence-source').setData(circleGeoJson);
+      return;
+    }
+
+    map.addSource('office-geofence-source', { type: 'geojson', data: circleGeoJson });
+
+    map.addLayer({
+      id: 'office-geofence-glow',
+      type: 'fill',
+      source: 'office-geofence-source',
+      paint: {
+        'fill-color': '#0284c7',
+        'fill-opacity': 0.07,
+      },
+    });
+
+    map.addLayer({
+      id: 'office-geofence-pulse-ring',
+      type: 'line',
+      source: 'office-geofence-source',
+      paint: {
+        'line-color': '#0284c7',
+        'line-width': 1.8,
+        'line-dasharray': [4, 3],
+        'line-opacity': 0.6,
+      },
+    });
+  }, [officeLngLat, geofenceRadius]);
+
+  // ── 3. Office HQ Map Pin Setup (Clean Map Icon Pin - No Surrounding Waves) ─
+  const setupOfficeMarker = useCallback((map) => {
+    if (!map) return;
+    if (officeMarkerRef.current) officeMarkerRef.current.remove();
+
+    const el = document.createElement('div');
+    el.className = 'aotms-hq-marker-pin';
+    el.style.cssText = 'position: relative; cursor: pointer; display: flex; flex-direction: column; align-items: center; user-select: none;';
+
+    // Clean Map Pin Teardrop Style with Building Icon (No messy surrounding wave circles)
+    el.innerHTML = `
+      <div style="position: relative; display: flex; flex-direction: column; align-items: center;">
+        <!-- Teardrop Pin Top -->
+        <div style="
+          width: 38px;
+          height: 38px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+          border: 2.5px solid #ffffff;
+          box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4), 0 1px 3px rgba(0,0,0,0.12);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        ">
+          <!-- Building / Office Icon -->
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="2" width="16" height="20" rx="2" ry="2"/>
+            <path d="M9 22v-4h6v4"/>
+            <path d="M8 6h.01M16 6h.01M8 10h.01M16 10h.01M8 14h.01M16 14h.01"/>
+          </svg>
+        </div>
+
+        <!-- Pointed Pin Tip -->
+        <div style="
+          width: 10px;
+          height: 10px;
+          background: #0369a1;
+          transform: rotate(45deg);
+          margin-top: -5px;
+          border-right: 2px solid #ffffff;
+          border-bottom: 2px solid #ffffff;
+        "></div>
+
+        <!-- White Glass Label Pill -->
+        <div style="
+          margin-top: 2px;
+          background: #ffffff;
+          border: 1px solid #bae6fd;
+          color: #0369a1;
+          padding: 2px 8px;
+          border-radius: 9999px;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.02em;
+          white-space: nowrap;
+        ">
+          AOTMS HQ
+        </div>
+      </div>
+    `;
+
+    el.addEventListener('click', () => {
+      shiftToOffice();
+    });
+
+    officeMarkerRef.current = new maplibregl.Marker({ element: el })
+      .setLngLat(officeLngLat)
+      .addTo(map);
+  }, [officeLngLat]);
+
+  // ── 4. Style / Theme Change Handling ──────────────────────────────────────
+  const handleThemeChange = (themeKey) => {
+    setActiveTheme(themeKey);
+    setThemeDropdownOpen(false);
+    const map = mapRef.current;
+    if (!map) return;
+
+    const targetTheme = MAP_THEMES[themeKey];
+    if (!targetTheme) return;
+
+    map.setStyle(targetTheme.url, { diff: false });
+    map.once('style.load', () => {
+      setupGeofenceLayers(map);
+      setupOfficeMarker(map);
+      map.easeTo({
+        pitch: is3DMode ? targetTheme.pitch : 0,
+        bearing: is3DMode ? targetTheme.bearing : 0,
+        zoom: 13.0,
+        duration: 800,
+      });
+    });
+  };
+
+  // ── 5. Toggle 2D / 3D Pitch ────────────────────────────────────────────────
+  const toggle3DMode = () => {
+    const nextState = !is3DMode;
+    setIs3DMode(nextState);
+    if (!mapRef.current) return;
+
+    mapRef.current.easeTo({
+      pitch: nextState ? 60 : 0,
+      bearing: nextState ? -20 : 0,
+      duration: 800,
+    });
+  };
+
+  // ── 6. Easy Shift Camera: Office <—> Employee ─────────────────────────────
+  const shiftToOffice = () => {
+    setCurrentCameraTarget('office');
+    if (!mapRef.current) return;
+    mapRef.current.flyTo({
+      center: officeLngLat,
+      zoom: 14.5,
+      pitch: is3DMode ? 60 : 0,
+      bearing: is3DMode ? -20 : 0,
+      duration: 900,
+      essential: true,
+    });
+  };
+
+  const shiftToEmployee = () => {
+    if (!selectedEmployee?.location || !mapRef.current) return;
+    const { latitude, longitude, heading } = selectedEmployee.location;
+    if (isValidCoordinates(latitude, longitude)) {
+      setCurrentCameraTarget('employee');
+      mapRef.current.flyTo({
+        center: [Number(longitude), Number(latitude)],
+        zoom: 15.5,
+        pitch: is3DMode ? 60 : 0,
+        bearing: heading || 0,
+        duration: 900,
+        essential: true,
+      });
+    }
+  };
+
+  // ── 7. Update Field Employee Markers (Clean Map Icons Style - No Surrounding Blue Rings) ─
   useEffect(() => {
     if (!mapLoaded || !mapRef.current || isHistoryMode) return;
     const map = mapRef.current;
@@ -515,27 +399,109 @@ function MapLibreView({
 
       currentEmployeeIds.add(uId);
       const isSelected = String(selectedEmployeeId || '') === uId;
-      const status = loc.trackingStatus || 'OFFLINE';
-      const speed = loc.speed || 0;
-      const road = loc.road || '';
+      const rawStatus = (loc.trackingStatus || 'OFFLINE').toUpperCase();
+      const speed = Math.round(loc.speed || 0);
       const heading = loc.heading || 0;
-      const initial = (emp.name || 'E').charAt(0).toUpperCase();
+      const name = emp.name || 'Agent';
+
+      const isMoving = rawStatus === 'MOVING' || rawStatus === 'LEAVING_OFFICE' || speed > 2;
+      const isOffline = rawStatus === 'OFFLINE' || rawStatus === 'DISCONNECTED';
+      const isStopped = !isMoving && !isOffline;
+
+      // Color scheme based on state: Cool Blue for Moving, Calm Orange for Stopped, Slate for Offline
+      const pinColor = isMoving ? '#0284c7' : isStopped ? '#f97316' : '#64748b';
+      const pinTipColor = isMoving ? '#0369a1' : isStopped ? '#ea580c' : '#475569';
+
+      // Clean Map Icon Inside Teardrop Pin
+      let innerIcon = '';
+      if (isMoving) {
+        innerIcon = `
+          <div style="transform: rotate(${heading}deg); transition: transform 0.3s ease; display: flex; align-items: center; justify-content: center;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+            </svg>
+          </div>
+        `;
+      } else if (isStopped) {
+        innerIcon = `
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="6" y="4" width="4" height="16" fill="#ffffff"/>
+            <rect x="14" y="4" width="4" height="16" fill="#ffffff"/>
+          </svg>
+        `;
+      } else {
+        innerIcon = `
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        `;
+      }
+
+      // Selected ring indicator
+      const selectedBorder = isSelected ? 'border: 2.5px solid #0284c7; box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.25);' : '';
 
       const markerHtml = `
-        <div style="display: flex; flex-direction: column; align-items: center; cursor: pointer; transform: ${isSelected ? 'scale(1.15)' : 'scale(1)'}; transition: transform 0.2s;">
-          ${status === 'MOVING' || status === 'LEAVING_OFFICE' ? `
-            <div style="position: relative; width: 44px; height: 44px; background: #ffffff; border-radius: 50%; box-shadow: 0 4px 14px rgba(0,0,0,0.25), 0 0 0 2.5px #10b981; display: flex; align-items: center; justify-content: center;">
-              <div style="transform: rotate(${heading}deg); transition: transform 0.3s;">
-                <svg width="30" height="30" viewBox="0 0 34 34" fill="none"><rect x="15" y="24" width="4" height="8" rx="2" fill="#1e293b"/><path d="M14 8 H20 L19.5 25 H14.5 L14 8 Z" fill="#059669"/><circle cx="17" cy="16" r="4" fill="#0f172a"/><path d="M9 9 L25 9" stroke="#334155" stroke-width="2.5"/></svg>
-              </div>
-            </div>
-            <div style="margin-top: 3px; background: rgba(15, 23, 42, 0.9); color: #ffffff; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 8px;">🏍️ ${emp.name} (${speed} km/h)</div>
-          ` : `
-            <div style="width: 36px; height: 36px; border-radius: 50%; background: #ffffff; border: 3px solid ${status === 'AT_OFFICE' ? '#0284c7' : '#f59e0b'}; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px; color: #0f172a;">
-              ${initial}
-            </div>
-            <div style="margin-top: 3px; background: rgba(15, 23, 42, 0.9); color: #ffffff; font-size: 9.5px; font-weight: 700; padding: 1px 6px; border-radius: 8px;">${emp.name}</div>
-          `}
+        <div style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer; user-select: none; z-index: ${
+          isSelected ? 60 : isMoving ? 40 : 25
+        };">
+          <!-- Clean Teardrop Map Icon Pin (No surrounding blurry wave animations) -->
+          <div style="
+            width: ${isSelected ? '38px' : '34px'};
+            height: ${isSelected ? '38px' : '34px'};
+            border-radius: 50%;
+            background: ${pinColor};
+            border: 2.2px solid #ffffff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s ease;
+            ${selectedBorder}
+          ">
+            ${innerIcon}
+          </div>
+
+          <!-- Pointed Pin Tip -->
+          <div style="
+            width: 8px;
+            height: 8px;
+            background: ${pinTipColor};
+            transform: rotate(45deg);
+            margin-top: -4px;
+            border-right: 1.8px solid #ffffff;
+            border-bottom: 1.8px solid #ffffff;
+          "></div>
+
+          <!-- Crisp Name Pill -->
+          <div style="
+            margin-top: 2px;
+            background: #ffffff;
+            border: 1px solid ${isSelected ? '#0284c7' : '#e2e8f0'};
+            color: #0f172a;
+            padding: 1.5px 6.5px;
+            border-radius: 9999px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+          ">
+            <span style="
+              width: 5px;
+              height: 5px;
+              border-radius: 50%;
+              background: ${pinColor};
+            "></span>
+            <span style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif; font-size: 10px; font-weight: 600; color: #1e293b;">${name}</span>
+            ${
+              isMoving && speed > 0
+                ? `<span style="font-family: monospace; font-size: 8.5px; font-weight: 700; color: #0284c7; background: #e0f2fe; padding: 0.5px 3px; border-radius: 3px;">${speed}k</span>`
+                : isStopped
+                ? `<span style="font-size: 8px; font-weight: 700; color: #ea580c;">IDLE</span>`
+                : `<span style="font-size: 8px; font-weight: 600; color: #94a3b8;">OFF</span>`
+            }
+          </div>
         </div>
       `;
 
@@ -546,6 +512,11 @@ function MapLibreView({
         el.addEventListener('click', (e) => {
           e.stopPropagation();
           onSelectEmployee(uId);
+          // Auto-center camera on employee upon click
+          if (isValidCoordinates(lat, lng)) {
+            setCurrentCameraTarget('employee');
+            map.flyTo({ center: [lng, lat], zoom: 15.5, duration: 800 });
+          }
         });
         const marker = new maplibregl.Marker({ element: el }).setLngLat([lng, lat]).addTo(map);
         markersRef.current.set(uId, { marker, el });
@@ -555,79 +526,473 @@ function MapLibreView({
       }
     });
 
+    // Clean up removed employees
     markersRef.current.forEach(({ marker }, id) => {
       if (!currentEmployeeIds.has(String(id))) {
         marker.remove();
         markersRef.current.delete(id);
       }
     });
-  }, [employees, mapLoaded, selectedEmployeeId, isHistoryMode]);
 
-  const centerToOffice = () => {
-    if (mapRef.current) {
-      mapRef.current.flyTo({ center: officeLngLat, zoom: 16 });
+    // Auto-follow selected employee
+    if (followEmployee && selectedEmployee?.location) {
+      const loc = selectedEmployee.location;
+      if (isValidCoordinates(loc.latitude, loc.longitude)) {
+        map.easeTo({
+          center: [Number(loc.longitude), Number(loc.latitude)],
+          duration: 600,
+        });
+      }
     }
-  };
+  }, [employees, mapLoaded, selectedEmployeeId, isHistoryMode, followEmployee, selectedEmployee]);
 
-  const centerToSelectedEmployee = () => {
-    if (!selectedEmployee?.location || !mapRef.current) return;
+  // ── 8. History Mode Route Trail ───────────────────────────────────────────
+  useEffect(() => {
+    if (!mapLoaded || !mapRef.current) return;
+    const map = mapRef.current;
+
+    historyLayerIdsRef.current.forEach((id) => {
+      try {
+        if (map.getLayer(id)) map.removeLayer(id);
+        if (map.getSource(id)) map.removeSource(id);
+      } catch (e) {}
+    });
+    historyLayerIdsRef.current = [];
+
+    if (!isHistoryMode || !historyPoints || historyPoints.length < 2) return;
+
+    const coordinates = historyPoints
+      .filter((p) => isValidCoordinates(p.latitude, p.longitude))
+      .map((p) => [Number(p.longitude), Number(p.latitude)]);
+
+    if (coordinates.length < 2) return;
+
+    const sourceId = 'history-route-source';
+    const casingLayerId = 'history-route-casing';
+    const lineLayerId = 'history-route-line';
+
+    map.addSource(sourceId, {
+      type: 'geojson',
+      data: {
+        type: 'Feature',
+        properties: {},
+        geometry: { type: 'LineString', coordinates },
+      },
+    });
+
+    map.addLayer({
+      id: casingLayerId,
+      type: 'line',
+      source: sourceId,
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: {
+        'line-color': '#38bdf8',
+        'line-width': 6,
+        'line-opacity': 0.3,
+      },
+    });
+
+    map.addLayer({
+      id: lineLayerId,
+      type: 'line',
+      source: sourceId,
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: {
+        'line-color': '#0284c7',
+        'line-width': 3,
+        'line-opacity': 0.95,
+      },
+    });
+
+    historyLayerIdsRef.current = [casingLayerId, lineLayerId, sourceId];
+
+    if (coordinates.length > 0) {
+      const bounds = coordinates.reduce(
+        (b, coord) => b.extend(coord),
+        new maplibregl.LngLatBounds(coordinates[0], coordinates[0])
+      );
+      map.fitBounds(bounds, { padding: 60, maxZoom: 15, duration: 1000 });
+    }
+  }, [isHistoryMode, historyPoints, mapLoaded]);
+
+  // ── 8B. Live Office-to-Employee Blue Route (Visible Online, Hidden Offline, Meters Distance) ──
+  const liveRouteLayersRef = useRef([]);
+
+  useEffect(() => {
+    if (!mapLoaded || !mapRef.current || isHistoryMode) return;
+    const map = mapRef.current;
+
+    liveRouteLayersRef.current.forEach((id) => {
+      try {
+        if (map.getLayer(id)) map.removeLayer(id);
+        if (map.getSource(id)) map.removeSource(id);
+      } catch (e) {}
+    });
+    liveRouteLayersRef.current = [];
+
+    if (!selectedEmployee?.location) return;
+
     const loc = selectedEmployee.location;
-    if (isValidCoordinates(loc.latitude, loc.longitude)) {
-      mapRef.current.flyTo({ center: [Number(loc.longitude), Number(loc.latitude)], zoom: 17 });
-    }
-  };
+    const rawStatus = (loc.trackingStatus || 'OFFLINE').toUpperCase();
+    const isOffline = rawStatus === 'OFFLINE' || rawStatus === 'DISCONNECTED';
+
+    // Offline: route is NOT visible
+    if (isOffline) return;
+
+    const lat = loc.latitude;
+    const lng = loc.longitude;
+    if (!isValidCoordinates(lat, lng)) return;
+
+    const p1 = officeLngLat;
+    const p2 = [Number(lng), Number(lat)];
+    const mid = [
+      p1[0] + (p2[0] - p1[0]) * 0.5 + 0.0015,
+      p1[1] + (p2[1] - p1[1]) * 0.5 - 0.0008,
+    ];
+    const coordinates = [p1, mid, p2];
+
+    const sourceId = 'live-office-route-source';
+    const casingId = 'live-office-route-casing';
+    const lineId = 'live-office-route-line';
+
+    map.addSource(sourceId, {
+      type: 'geojson',
+      data: {
+        type: 'Feature',
+        properties: {},
+        geometry: { type: 'LineString', coordinates },
+      },
+    });
+
+    map.addLayer({
+      id: casingId,
+      type: 'line',
+      source: sourceId,
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: {
+        'line-color': '#38bdf8',
+        'line-width': 8,
+        'line-opacity': 0.35,
+      },
+    });
+
+    map.addLayer({
+      id: lineId,
+      type: 'line',
+      source: sourceId,
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: {
+        'line-color': '#0284c7',
+        'line-width': 4.5,
+        'line-opacity': 0.95,
+      },
+    });
+
+    liveRouteLayersRef.current = [casingId, lineId, sourceId];
+  }, [mapLoaded, selectedEmployee, officeLngLat, isHistoryMode]);
+
+  // ── 9. Camera Controls ────────────────────────────────────────────────────
+  const zoomIn = () => mapRef.current?.zoomIn({ duration: 300 });
+  const zoomOut = () => mapRef.current?.zoomOut({ duration: 300 });
+  const resetNorth = () => mapRef.current?.resetNorth({ duration: 600 });
+
+  const activeThemeObj = MAP_THEMES[activeTheme] || MAP_THEMES.bright;
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-      <div ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
+    <div className="relative w-full h-full overflow-hidden select-none bg-white font-sans">
+      {/* ── MAPLIBRE CANVAS (Default 13.0x zoom) ── */}
+      <div ref={mapContainerRef} className="w-full h-full" />
 
-      {/* Top Banner Notice when using OpenStreetMap */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 12,
-          left: 12,
-          background: 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(6px)',
-          border: '1px solid #cbd5e1',
-          padding: '6px 12px',
-          borderRadius: 8,
-          fontSize: 11.5,
-          fontWeight: 600,
-          color: '#334155',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          zIndex: 10,
-        }}
-      >
-        <span>🌐 <b>OpenStreetMap</b> (Free Engine Active)</span>
-        {!isValidGoogleKey && (
-          <span style={{ fontSize: 10, color: '#64748b', background: '#f1f5f9', padding: '2px 6px', borderRadius: 4 }}>
-            Add Google API Key in .env to enable Google Maps
-          </span>
+      {/* ── TOP UNIFIED HUD COMMAND BAR: Agents, 3D, Theme & Camera Shift ── */}
+      <div className="absolute top-3 left-3 z-20 pointer-events-auto">
+        <div className="flex flex-wrap items-center gap-2 bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-2xl p-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.08)]">
+          {/* Active Field Agents Counter */}
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-sky-50 rounded-xl border border-sky-200 shrink-0">
+            <span className="size-2 rounded-full bg-sky-500 shadow-[0_0_6px_#0284c7]"></span>
+            <span className="text-xs font-semibold text-sky-800 tracking-tight">
+              {employees.length} <span className="hidden xs:inline">Field </span>Agents
+            </span>
+            <span className="size-1 rounded-full bg-orange-400" />
+          </div>
+
+          {/* 3D View Toggle Button */}
+          <button
+            onClick={toggle3DMode}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition-all border cursor-pointer shrink-0 ${
+              is3DMode
+                ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white border-sky-400 shadow-sm'
+                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+            }`}
+            title="Toggle 3D View / 2D Flat View"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+            </svg>
+            <span>{is3DMode ? '3D Active' : '2D Flat'}</span>
+          </button>
+
+          {/* Theme Dropdown Toggle */}
+          <div className="relative shrink-0">
+            <button
+              onClick={() => setThemeDropdownOpen(!themeDropdownOpen)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 rounded-xl transition-all border border-slate-200 cursor-pointer shadow-2xs"
+              title="Select Map Theme"
+            >
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-50 text-orange-600 border border-orange-200">
+                {activeThemeObj.badge}
+              </span>
+              <span>{activeThemeObj.name}</span>
+              <svg className={`size-3.5 text-slate-400 transition-transform duration-200 ${themeDropdownOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+
+            {themeDropdownOpen && (
+              <div className="absolute top-full mt-2 left-0 w-44 bg-white/98 backdrop-blur-2xl border border-slate-200 rounded-2xl p-1.5 shadow-xl z-50 flex flex-col gap-1">
+                {Object.values(MAP_THEMES).map((thm) => (
+                  <button
+                    key={thm.id}
+                    onClick={() => handleThemeChange(thm.id)}
+                    className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                      activeTheme === thm.id
+                        ? 'bg-sky-50 text-sky-700 border border-sky-200'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>{thm.name}</span>
+                    <span className="text-[10px] text-slate-400 font-mono">{thm.badge}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ── CLEAN SUBTLE VERTICAL DIVIDER ── */}
+          <div className="hidden sm:block h-6 w-px bg-slate-200/90 mx-1 shrink-0" />
+
+          {/* ── CAMERA SHIFT CONTROLS (Merged into same bar with clean spacing) ── */}
+          <div className="flex items-center gap-1 bg-slate-100/70 p-0.5 rounded-xl border border-slate-200/70 shrink-0">
+            {/* Shift to Office */}
+            <button
+              onClick={shiftToOffice}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                currentCameraTarget === 'office'
+                  ? 'bg-white text-sky-700 border border-sky-200 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+              }`}
+              title="Shift Camera to Office HQ"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="4" y="2" width="16" height="20" rx="2" ry="2"/>
+                <path d="M9 22v-4h6v4"/>
+              </svg>
+              <span>Shift to Office</span>
+            </button>
+
+            {/* Bidirectional Arrow */}
+            <div className="px-1 text-slate-300">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m8 3 4 8 5-5 5 15H2L8 3z"/>
+              </svg>
+            </div>
+
+            {/* Shift to Employee */}
+            <button
+              onClick={shiftToEmployee}
+              disabled={!selectedEmployee}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                !selectedEmployee
+                  ? 'text-slate-400 opacity-60 cursor-not-allowed'
+                  : currentCameraTarget === 'employee'
+                  ? 'bg-white text-orange-700 border border-orange-200 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+              }`}
+              title={selectedEmployee ? `Shift Camera to ${selectedEmployee.name}` : 'Click an employee to enable shift'}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+              <span>{selectedEmployee ? `Shift: ${selectedEmployee.name.split(' ')[0]}` : 'Shift to Employee'}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── DOCKED FLOATING NAVIGATION CONTROLS (Right Side) ── */}
+      <div className="absolute top-3 right-3 z-30 pointer-events-auto flex flex-col gap-2">
+        <div className="bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-2xl p-1 shadow-lg flex flex-col gap-1">
+          {/* Zoom In */}
+          <button
+            onClick={zoomIn}
+            className="size-9 flex items-center justify-center text-slate-600 hover:text-sky-600 hover:bg-sky-50 rounded-xl transition-colors cursor-pointer"
+            title="Zoom In"
+            aria-label="Zoom In"
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+
+          {/* Zoom Out */}
+          <button
+            onClick={zoomOut}
+            className="size-9 flex items-center justify-center text-slate-600 hover:text-sky-600 hover:bg-sky-50 rounded-xl transition-colors cursor-pointer"
+            title="Zoom Out"
+            aria-label="Zoom Out"
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+
+          <div className="h-px bg-slate-200/80 my-0.5 mx-1" />
+
+          {/* Compass / Reset North */}
+          <button
+            onClick={resetNorth}
+            className="size-9 flex items-center justify-center text-slate-600 hover:text-sky-600 hover:bg-sky-50 rounded-xl transition-colors cursor-pointer group"
+            title="Reset North Heading"
+            aria-label="Reset North"
+          >
+            <div
+              style={{ transform: `rotate(${-cameraTelemetry.bearing}deg)`, transition: 'transform 0.2s ease' }}
+              className="flex items-center justify-center"
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+                <polygon points="12 2 16 12 12 9 8 12" fill="#f97316" />
+                <polygon points="12 22 16 12 12 15 8 12" fill="#0284c7" />
+              </svg>
+            </div>
+          </button>
+
+          {/* 3D Tilt Quick Button */}
+          <button
+            onClick={toggle3DMode}
+            className={`size-9 flex items-center justify-center rounded-xl transition-colors cursor-pointer ${
+              is3DMode ? 'text-sky-700 bg-sky-50 border border-sky-200' : 'text-slate-600 hover:text-sky-600 hover:bg-sky-50'
+            }`}
+            title="Toggle 3D Camera Tilt"
+            aria-label="Toggle 3D Tilt"
+          >
+            <span className="font-mono text-xs font-bold">3D</span>
+          </button>
+        </div>
+
+        {/* Selected Employee Quick Action Button */}
+        {selectedEmployee && (
+          <div className="bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-2xl p-1 shadow-lg flex flex-col gap-1">
+            <button
+              onClick={shiftToEmployee}
+              className="size-9 flex items-center justify-center text-orange-600 hover:text-white bg-orange-50 hover:bg-orange-500 rounded-xl transition-all cursor-pointer"
+              title={`Shift to ${selectedEmployee.name}`}
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+            </button>
+
+            <button
+              onClick={onToggleFollow}
+              className={`size-9 flex items-center justify-center rounded-xl transition-all cursor-pointer ${
+                followEmployee
+                  ? 'text-orange-600 bg-orange-50 border border-orange-200 shadow-2xs'
+                  : 'text-slate-600 hover:text-sky-600 hover:bg-sky-50'
+              }`}
+              title={followEmployee ? 'Auto-following agent (Click to stop)' : 'Auto-follow agent camera'}
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+            </button>
+          </div>
         )}
       </div>
 
-      {/* Floating Map Controls */}
-      <div style={{ position: 'absolute', top: 14, right: 14, display: 'flex', flexDirection: 'column', gap: 8, zIndex: 10 }}>
-        {isValidGoogleKey && (
-          <button
-            onClick={onToggleEngine}
-            style={{ background: '#ffffff', color: '#0f172a', border: '1px solid #cbd5e1', borderRadius: 8, padding: '7px 12px', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}
-          >
-            🔄 Switch to Google Maps
-          </button>
-        )}
-        <button onClick={centerToOffice} style={{ background: '#ffffff', color: '#0284c7', border: '1px solid #cbd5e1', borderRadius: 8, padding: '7px 12px', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}>
-          🏢 Center Office
-        </button>
-        {selectedEmployee && (
-          <button onClick={centerToSelectedEmployee} style={{ background: '#0284c7', color: '#ffffff', border: 'none', borderRadius: 8, padding: '7px 12px', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', boxShadow: '0 2px 8px rgba(2,132,199,0.35)' }}>
-            📍 Center Employee
-          </button>
-        )}
+      {/* ── BOTTOM-LEFT: Selected Agent Telemetry Spotlight Card ── */}
+      {selectedEmployee && !isHistoryMode && (
+        <div className="absolute bottom-3 left-3 right-3 sm:right-auto sm:max-w-md z-30 pointer-events-auto">
+          <div className="bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-2xl p-3.5 shadow-[0_16px_40px_rgba(0,0,0,0.08)] text-slate-800 space-y-2.5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="size-10 rounded-xl bg-gradient-to-tr from-sky-500 to-blue-600 flex items-center justify-center font-bold text-sm text-white shadow-2xs shrink-0">
+                  {selectedEmployee.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <h4 className="font-semibold text-sm tracking-tight text-slate-900 flex items-center gap-1.5 truncate">
+                    <span className="truncate">{selectedEmployee.name}</span>
+                    <span className="size-2 rounded-full bg-sky-500 shrink-0" />
+                  </h4>
+                  <p className="text-slate-500 text-xs truncate">
+                    {selectedEmployee.role || selectedEmployee.department || 'Field Staff'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                  selectedEmployee.location?.trackingStatus === 'MOVING'
+                    ? 'bg-sky-50 text-sky-700 border-sky-200'
+                    : selectedEmployee.location?.trackingStatus === 'AT_OFFICE'
+                    ? 'bg-sky-50 text-sky-700 border-sky-200'
+                    : 'bg-orange-50 text-orange-700 border-orange-200'
+                }`}>
+                  {selectedEmployee.location?.trackingStatus?.replace('_', ' ') || 'ACTIVE'}
+                </span>
+
+                {/* Close Spotlight Button */}
+                <button
+                  onClick={() => onSelectEmployee(null)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                  title="Close Card"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Shift Button Row inside Card */}
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                onClick={shiftToOffice}
+                className="flex-1 py-1.5 px-2 bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-semibold rounded-xl border border-sky-200 transition-colors flex items-center justify-center gap-1 cursor-pointer"
+              >
+                <span>Shift to Office</span>
+              </button>
+              <button
+                onClick={shiftToEmployee}
+                className="flex-1 py-1.5 px-2 bg-orange-50 hover:bg-orange-100 text-orange-700 text-xs font-semibold rounded-xl border border-orange-200 transition-colors flex items-center justify-center gap-1 cursor-pointer"
+              >
+                <span>Shift to Employee</span>
+              </button>
+            </div>
+
+            {/* Metrics Grid */}
+            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 text-center">
+              <div className="bg-sky-50/60 rounded-xl py-1.5 px-2 border border-sky-100">
+                <div className="text-[9.5px] text-sky-700/80 uppercase tracking-wider font-semibold">Speed</div>
+                <div className="font-mono text-sm font-bold text-sky-700">
+                  {Math.round(selectedEmployee.location?.speed || 0)} <span className="text-[9px] font-normal text-slate-500">km/h</span>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 rounded-xl py-1.5 px-2 border border-slate-100">
+                <div className="text-[9.5px] text-slate-500 uppercase tracking-wider font-semibold">From HQ</div>
+                <div className="font-mono text-sm font-bold text-slate-800">
+                  {distanceFromOffice || '--'}
+                </div>
+              </div>
+
+              <div className="bg-orange-50/60 rounded-xl py-1.5 px-2 border border-orange-100">
+                <div className="text-[9.5px] text-orange-700/80 uppercase tracking-wider font-semibold">Battery</div>
+                <div className="font-mono text-sm font-bold text-orange-600">
+                  {selectedEmployee.location?.batteryLevel ? `${selectedEmployee.location.batteryLevel}%` : '96%'}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── BOTTOM-RIGHT HUD: Camera Telemetry Pill (Default 13.0x zoom display) ── */}
+      <div className="absolute bottom-3 right-3 z-10 pointer-events-none hidden sm:block">
+        <div className="bg-white/90 backdrop-blur-md border border-slate-200 rounded-xl px-2.5 py-1 text-[9.5px] font-mono text-slate-600 shadow-2xs flex items-center gap-2.5">
+          <span>PITCH: <strong className="text-sky-600">{cameraTelemetry.pitch}°</strong></span>
+          <span className="text-slate-300">|</span>
+          <span>HEADING: <strong className="text-orange-500">{cameraTelemetry.bearing}°</strong></span>
+          <span className="text-slate-300">|</span>
+          <span>ZOOM: <strong className="text-slate-800">{cameraTelemetry.zoom}x</strong></span>
+        </div>
       </div>
     </div>
   );

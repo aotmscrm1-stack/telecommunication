@@ -9,6 +9,8 @@ const router = express.Router();
 
 const MessageTemplate = require('../models/MessageTemplate');
 const { uploadToCloudinary } = require('../utils/cloudinary');
+const { ImapFlow } = require('imapflow');
+const { simpleParser } = require('mailparser');
 
 // Permission Guard: Only CTO, HR, and Managing Director (or CEO/Admin) can access Bulk Email Blast
 const isBlastAllowed = (user) => {
@@ -180,6 +182,37 @@ router.post('/upload-image', protect, async (req, res) => {
   } catch (err) {
     console.error('[Email Image Upload Error]:', err.message);
     res.status(500).json({ message: err.message || 'Image upload failure' });
+  }
+});
+
+// POST /api/email/upload-file — Upload any email attachment or photo to Cloudinary
+router.post('/upload-file', protect, async (req, res) => {
+  try {
+    const { file, fileName, folder } = req.body;
+    if (!file) {
+      return res.status(400).json({ message: 'No file data provided for upload' });
+    }
+
+    const uploadedUrl = await uploadToCloudinary(file, folder || 'email_attachments', fileName);
+    if (!uploadedUrl) {
+      return res.status(500).json({ message: 'Failed to upload file to Cloudinary' });
+    }
+
+    let downloadUrl = uploadedUrl;
+    if (uploadedUrl.includes('/upload/')) {
+      downloadUrl = uploadedUrl.replace('/upload/', '/upload/fl_attachment/');
+    }
+
+    res.json({
+      success: true,
+      url: uploadedUrl,
+      downloadUrl,
+      fileName: fileName || 'attachment',
+      message: 'File uploaded to Cloudinary successfully'
+    });
+  } catch (err) {
+    console.error('[Email File Upload Error]:', err.message);
+    res.status(500).json({ message: err.message || 'File upload failure' });
   }
 });
 
@@ -366,12 +399,66 @@ router.post('/send', protect, async (req, res) => {
       return res.status(400).json({ message: 'Recipient Email, Subject, and Message Body are required.' });
     }
 
+    // 1. Auto-upload any base64 photos to Cloudinary so receiver inboxes (Gmail/Outlook) never get broken image icons
+    let processedPhotos = Array.isArray(req.body.photos) ? [...req.body.photos] : [];
+    for (let i = 0; i < processedPhotos.length; i++) {
+      const p = processedPhotos[i];
+      const dataStr = p.dataUrl || p.url || '';
+      if (dataStr && dataStr.startsWith('data:')) {
+        const cloudUrl = await uploadToCloudinary(dataStr, 'email_photos', p.name || `photo_${Date.now()}`);
+        if (cloudUrl) {
+          let downloadUrl = cloudUrl;
+          if (cloudUrl.includes('/upload/')) {
+            downloadUrl = cloudUrl.replace('/upload/', '/upload/fl_attachment/');
+          }
+          processedPhotos[i] = {
+            ...p,
+            url: cloudUrl,
+            downloadUrl,
+            dataUrl: '',
+          };
+        }
+      }
+    }
+
+    // 2. Auto-upload any base64 attachments to Cloudinary so receiver inboxes have direct download links
+    let processedAttachments = Array.isArray(req.body.attachmentsList) ? [...req.body.attachmentsList] : (Array.isArray(req.body.attachments) ? [...req.body.attachments] : []);
+    for (let i = 0; i < processedAttachments.length; i++) {
+      const a = processedAttachments[i];
+      const dataStr = a.base64 || a.dataUrl || a.url || '';
+      if (dataStr && dataStr.startsWith('data:')) {
+        const cloudUrl = await uploadToCloudinary(dataStr, 'email_attachments', a.name || `attachment_${Date.now()}`);
+        if (cloudUrl) {
+          let downloadUrl = cloudUrl;
+          if (cloudUrl.includes('/upload/')) {
+            downloadUrl = cloudUrl.replace('/upload/', '/upload/fl_attachment/');
+          }
+          processedAttachments[i] = {
+            ...a,
+            url: cloudUrl,
+            downloadUrl,
+            base64: '',
+            dataUrl: '',
+          };
+        }
+      }
+    }
+
+    // 3. Sanitized HTML: ensure any base64 dataUrl images that were just uploaded get replaced with their Cloudinary URLs
+    let finalHtml = req.body.html || emailBody.replace(/\n/g, '<br/>');
+    processedPhotos.forEach(p => {
+      if (p.url && p.name) {
+        // If data:image was in the html, replace it with the secure Cloudinary url
+        finalHtml = finalHtml.replace(/src=["']data:image\/[^"']+["']/i, `src="${p.url}"`);
+      }
+    });
+
     let sentVia = 'n8n Automation Webhook';
     let success = false;
     let n8nDetails = null;
     let n8nError = null;
 
-    // 1. Dispatch via n8n webhook service if configured
+    // 4. Dispatch via n8n webhook service if configured
     if (process.env.N8N_WEBHOOK_URL) {
       try {
         const n8nRes = await axios.post(process.env.N8N_WEBHOOK_URL, {
@@ -388,6 +475,11 @@ router.post('/send', protect, async (req, res) => {
             emailBody: emailBody,
             body: emailBody,
             message: emailBody,
+            html: finalHtml,
+            attachments: processedAttachments,
+            fileAttachments: processedAttachments,
+            driveLinks: req.body.driveLinks || [],
+            photos: processedPhotos,
             templateId,
             sentBy: req.user?.name || req.user?.email || 'Staff',
             timestamp: new Date().toISOString()
@@ -457,24 +549,31 @@ router.post('/send', protect, async (req, res) => {
       }
     }
 
-    // 2. Fallback to direct SMTP if configured
-    if (!success && process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    // 2. Direct SMTP mailer (user-specific GoDaddy credentials or fallback to process.env)
+    const smtpHost = req.user?.smtpConfig?.host || process.env.SMTP_HOST;
+    const smtpUser = req.user?.smtpConfig?.user || process.env.SMTP_USER;
+    const smtpPass = req.user?.smtpConfig?.pass || process.env.SMTP_PASS;
+    const smtpPort = Number(req.user?.smtpConfig?.port || process.env.SMTP_PORT || 465);
+    const smtpSecure = smtpPort === 465;
+
+    if (!success && smtpHost && smtpUser && smtpPass) {
       try {
         const nodemailer = require('nodemailer');
         const transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST,
-          port: Number(process.env.SMTP_PORT || 587),
-          secure: Number(process.env.SMTP_PORT) === 465,
+          host: smtpHost,
+          port: smtpPort,
+          secure: smtpSecure,
           auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
+            user: smtpUser,
+            pass: smtpPass,
           },
+          tls: { rejectUnauthorized: false }
         });
 
         await transporter.sendMail({
-          from: `"${req.user?.name || 'AOTMS HR'}" <${senderEmail}>`,
+          from: `"${req.user?.name || 'AOTMS'}" <${smtpUser || senderEmail}>`,
           to: targetRecipient,
-          replyTo: senderEmail,
+          replyTo: senderEmail || smtpUser,
           subject: emailSubject,
           text: emailBody,
           html: `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111; padding: 20px; background: #fafafa; border-radius: 8px;">
@@ -482,15 +581,15 @@ router.post('/send', protect, async (req, res) => {
               ${emailBody.replace(/\n/g, '<br/>')}
             </div>
             <div style="margin-top: 16px; font-size: 12px; color: #6b7280; text-align: center;">
-              Sent via AOTMS Platform · ${senderEmail}
+              Sent via AOTMS Platform · ${smtpUser || senderEmail}
             </div>
           </div>`,
         });
-        sentVia = 'SMTP Mailer';
+        sentVia = 'GoDaddy SMTP Mailer';
         success = true;
         n8nError = null; // Clear error since fallback succeeded
       } catch (smtpErr) {
-        console.warn('[SMTP Fallback Warning]:', smtpErr.message);
+        console.warn('[SMTP Direct Warning]:', smtpErr.message);
       }
     }
 
@@ -510,6 +609,10 @@ router.post('/send', protect, async (req, res) => {
         recipientEmail: targetRecipient,
         subject: emailSubject,
         body: emailBody,
+        html: finalHtml,
+        attachments: processedAttachments,
+        driveLinks: req.body.driveLinks || [],
+        photos: processedPhotos,
         templateId,
         sentVia: success ? sentVia : 'n8n Automation Webhook (Failed)',
         status: finalStatus,
@@ -638,31 +741,38 @@ router.post('/reply', protect, async (req, res) => {
       }
     }
 
-    // 2. SMTP fallback
-    if (!success && process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    // 2. Direct SMTP fallback (user-specific GoDaddy credentials or fallback to process.env)
+    const replySmtpHost = req.user?.smtpConfig?.host || process.env.SMTP_HOST;
+    const replySmtpUser = req.user?.smtpConfig?.user || process.env.SMTP_USER;
+    const replySmtpPass = req.user?.smtpConfig?.pass || process.env.SMTP_PASS;
+    const replySmtpPort = Number(req.user?.smtpConfig?.port || process.env.SMTP_PORT || 465);
+    const replySmtpSecure = replySmtpPort === 465;
+
+    if (!success && replySmtpHost && replySmtpUser && replySmtpPass) {
       try {
         const nodemailer = require('nodemailer');
         const transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST,
-          port: Number(process.env.SMTP_PORT || 587),
-          secure: Number(process.env.SMTP_PORT) === 465,
+          host: replySmtpHost,
+          port: replySmtpPort,
+          secure: replySmtpSecure,
           auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
+            user: replySmtpUser,
+            pass: replySmtpPass,
           },
+          tls: { rejectUnauthorized: false }
         });
 
         await transporter.sendMail({
-          from: `"${req.user?.name || 'AOTMS HR'}" <${senderEmail}>`,
+          from: `"${req.user?.name || 'AOTMS'}" <${replySmtpUser || senderEmail}>`,
           to: replyRecipient,
-          replyTo: senderEmail,
+          replyTo: senderEmail || replySmtpUser,
           subject: replySubject,
           text: replyBody,
         });
-        sentVia = 'SMTP Mailer';
+        sentVia = 'GoDaddy SMTP Mailer';
         success = true;
       } catch (smtpErr) {
-        console.warn('[Reply SMTP Warning]:', smtpErr.message);
+        console.warn('[Reply SMTP Direct Warning]:', smtpErr.message);
       }
     }
 
@@ -672,6 +782,8 @@ router.post('/reply', protect, async (req, res) => {
       recipientEmail: replyRecipient,
       subject: replySubject,
       body: replyBody,
+      sentVia,
+      status: success ? 'Delivered' : 'Sent',
       direction: 'outbound',
       receivedAt: new Date(),
       source: 'email_crm_reply',
@@ -690,6 +802,40 @@ router.post('/reply', protect, async (req, res) => {
   } catch (err) {
     console.error('[Email Reply Error]:', err);
     res.status(500).json({ message: 'Failed to send reply: ' + err.message });
+  }
+});
+
+// POST /api/email/sync — Triggers real GoDaddy IMAP synchronization & fetches incoming data
+router.post('/sync', protect, async (req, res) => {
+  try {
+    const syncResult = await syncGoDaddyMail(req.user, 50);
+
+    const userDesig = String(req.user?.designation || '').trim().toUpperCase();
+    const isMD = userDesig === 'MANAGING DIRECTOR' || userDesig === 'MD' || userDesig === 'CEO' || req.user?.role === 'admin' || req.user?.name?.toLowerCase().trim() === 'ameen';
+
+    const filter = {};
+    if (!isMD) {
+      filter.$or = [
+        { sender: req.user._id },
+        { recipientEmail: new RegExp(`^${req.user.email}$`, 'i') },
+        { fromEmail: new RegExp(`^${req.user.email}$`, 'i') }
+      ];
+    }
+
+    const totalLogs = await EmailLog.countDocuments(filter);
+    const unreadCount = await EmailLog.countDocuments({ ...filter, isRead: false });
+
+    res.json({
+      success: true,
+      message: syncResult.message || 'Email data synchronized successfully',
+      syncedCount: syncResult.synced || 0,
+      threadedCount: syncResult.threaded || 0,
+      syncedAt: new Date().toISOString(),
+      stats: { totalLogs, unreadCount }
+    });
+  } catch (err) {
+    console.error('[SYNC ENDPOINT ERROR]:', err);
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -769,6 +915,152 @@ function stripQuotedEmailHistory(rawText) {
     .trim();
 
   return text || rawText.trim();
+}
+
+// GoDaddy Mail IMAP Synchronizer
+async function syncGoDaddyMail(user, limit = 50) {
+  const imapHost = user?.smtpConfig?.imapHost || (user?.smtpConfig?.host ? user.smtpConfig.host.replace('smtpout', 'imap') : null) || process.env.IMAP_HOST || 'imap.secureserver.net';
+  const imapPort = Number(user?.smtpConfig?.imapPort || 993);
+  const imapUser = user?.smtpConfig?.user || (user?.email && user.email.includes('@aotms.com') ? user.email : null) || process.env.SMTP_USER || 'jayaveer@aotms.com';
+  const imapPass = user?.smtpConfig?.pass || process.env.SMTP_PASS || 'Aotms@2026';
+
+  if (!imapUser || !imapPass) {
+    return { success: false, synced: 0, message: 'No GoDaddy mail credentials configured' };
+  }
+
+  const client = new ImapFlow({
+    host: imapHost,
+    port: imapPort,
+    secure: true,
+    auth: { user: imapUser, pass: imapPass },
+    tls: { rejectUnauthorized: false },
+    logger: false
+  });
+
+  let syncedCount = 0;
+  let threadedCount = 0;
+
+  try {
+    await client.connect();
+    const lock = await client.getMailboxLock('INBOX');
+    try {
+      const status = await client.status('INBOX', { messages: true });
+      const totalMessages = status.messages || 0;
+      if (totalMessages === 0) {
+        return { success: true, synced: 0, threaded: 0, message: 'GoDaddy INBOX is empty' };
+      }
+
+      const startSeq = Math.max(1, totalMessages - limit + 1);
+      for await (const msg of client.fetch({ seq: `${startSeq}:*` }, { envelope: true, source: true })) {
+        try {
+          const parsed = await simpleParser(msg.source);
+          const messageId = (parsed.messageId || '').trim();
+
+          // Check if already synced in EmailLog or replies
+          if (messageId) {
+            const alreadyExists = await EmailLog.findOne({
+              $or: [
+                { messageId: messageId },
+                { 'replies.messageId': messageId }
+              ]
+            });
+            if (alreadyExists) continue;
+          }
+
+          const fromEmail = parsed.from?.value?.[0]?.address || extractEmailAddress(parsed.from?.text) || '';
+          const toEmail = parsed.to?.value?.[0]?.address || extractEmailAddress(parsed.to?.text) || imapUser;
+          const senderName = parsed.from?.value?.[0]?.name || extractSenderName(parsed.from?.text) || (fromEmail ? fromEmail.split('@')[0] : 'Sender');
+          const rawSubject = (parsed.subject || 'No Subject').trim();
+          const inReplyTo = (parsed.inReplyTo || '').trim();
+          const references = (Array.isArray(parsed.references) ? parsed.references.join(' ') : (parsed.references || '')).trim();
+          const rawBody = (parsed.text || parsed.html || '(No content)').trim();
+          const bodyContent = stripQuotedEmailHistory(rawBody);
+          const date = parsed.date || new Date();
+
+          const normalizedSubject = rawSubject.replace(/^(re|fwd|fw|aw|antw):\s*/i, '').trim();
+
+          let parentLog = null;
+          if (inReplyTo) {
+            parentLog = await EmailLog.findOne({
+              $or: [{ messageId: inReplyTo }, { 'replies.messageId': inReplyTo }]
+            });
+          }
+          if (!parentLog && references) {
+            parentLog = await EmailLog.findOne({
+              $or: [{ messageId: references }, { 'replies.messageId': references }]
+            });
+          }
+          if (!parentLog && normalizedSubject) {
+            parentLog = await EmailLog.findOne({
+              $or: [
+                { subject: new RegExp(`^${normalizedSubject.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+                { subject: new RegExp(normalizedSubject.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i'), recipientEmail: new RegExp(fromEmail, 'i') },
+                { subject: new RegExp(normalizedSubject.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i'), fromEmail: new RegExp(toEmail, 'i') }
+              ]
+            }).sort({ createdAt: -1 });
+          }
+
+          if (parentLog) {
+            parentLog.replies.push({
+              senderEmail: fromEmail,
+              senderName,
+              recipientEmail: toEmail,
+              subject: rawSubject,
+              body: bodyContent,
+              direction: 'inbound',
+              messageId,
+              inReplyTo,
+              references,
+              receivedAt: date,
+              source: 'godaddy_imap'
+            });
+            parentLog.isRead = false;
+            parentLog.status = 'Received';
+            await parentLog.save();
+            threadedCount++;
+            syncedCount++;
+          } else {
+            await EmailLog.create({
+              senderName,
+              senderEmail: fromEmail,
+              senderDesignation: 'External / Client',
+              fromEmail: fromEmail,
+              recipientEmail: toEmail,
+              subject: rawSubject,
+              body: bodyContent,
+              templateId: 'godaddy_inbox',
+              sentVia: 'GoDaddy IMAP Sync',
+              status: 'Received',
+              direction: 'inbound',
+              isReply: false,
+              parentEmail: null,
+              messageId,
+              inReplyTo,
+              references,
+              isRead: false,
+              createdAt: date,
+              sender: user?._id || null
+            });
+            syncedCount++;
+          }
+        } catch (msgErr) {
+          console.warn('[GoDaddy IMAP Message Error]:', msgErr.message);
+        }
+      }
+    } finally {
+      lock.release();
+    }
+    await client.logout();
+    return {
+      success: true,
+      synced: syncedCount,
+      threaded: threadedCount,
+      message: `Successfully synced ${syncedCount} emails from GoDaddy (${threadedCount} threaded replies)`
+    };
+  } catch (err) {
+    console.error('[GoDaddy IMAP Sync Error]:', err.message);
+    return { success: false, synced: 0, message: err.message };
+  }
 }
 
 // Core Inbound Email Handler for GoDaddy IMAP & n8n webhooks

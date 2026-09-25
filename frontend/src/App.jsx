@@ -42,6 +42,7 @@ import LiveEmployeeTracking from './Management/Attedence/LiveEmployee/LiveEmploy
 import AttendanceRecords from './Management/Attedence/AttendanceRecords';
 import Accept from './components/dashboard/accept';
 import BulkEmailBlast from './Management/Email/BulkEmailBlast';
+import MapsDashboard from './Maps';
 
 import { isCEO, isHR, isLimitedStaff, canViewDashboard, canAccessEmailBlast } from './utils/permissions';
 
@@ -195,6 +196,7 @@ export default function App() {
             <Route path="admin/attendance-records" element={<AttendanceRoute><AttendanceRecords /></AttendanceRoute>} />
             <Route path="attendance-records" element={<AttendanceRoute><AttendanceRecords /></AttendanceRoute>} />
             <Route path="add-lead" element={<StaffRestrictedRoute><AddLead /></StaffRestrictedRoute>} />
+            <Route path="maps" element={<MapsDashboard />} />
           </Route>
           <Route path="*" element={<RootRedirect />} />
         </Routes>

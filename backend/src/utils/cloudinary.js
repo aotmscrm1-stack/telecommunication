@@ -2,17 +2,17 @@ const cloudinary = require('cloudinary').v2;
 
 // Configure Cloudinary from process.env or fallback defaults
 cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME || 'dph38hvvb',
-  api_key: process.env.CLOUDINARY_API_KEY || '519655653597463',
-  api_secret: process.env.CLOUDINARY_API_SECRET || 'aB_-2v7R7Zz3JgV9QvP8K7X6W5Y',
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME || 'dlxveseav',
+  api_key: process.env.CLOUDINARY_API_KEY || '858548694337363',
+  api_secret: process.env.CLOUDINARY_API_SECRET || '0NQGNv-8fOe64VPh1dC4VRgxV5A',
 });
 
 /**
- * Upload an image (base64 string, buffer, or HTTP URL) to Cloudinary.
+ * Upload an image or file (base64 string, buffer, or HTTP URL) to Cloudinary.
  * Returns a permanent, unrestricted public HTTPS URL on res.cloudinary.com.
- * Meta's WhatsApp servers can fetch this URL without 403 Forbidden errors.
+ * Usable for WhatsApp media, emails, and direct downloads.
  */
-async function uploadToCloudinary(fileInput, folder = 'whatsapp_media') {
+async function uploadToCloudinary(fileInput, folder = 'whatsapp_media', fileName = null) {
   if (!fileInput) return null;
 
   try {
@@ -23,10 +23,18 @@ async function uploadToCloudinary(fileInput, folder = 'whatsapp_media') {
       uploadStr = `data:image/png;base64,${fileInput.toString('base64')}`;
     }
 
-    const result = await cloudinary.uploader.upload(uploadStr, {
+    const options = {
       folder: folder,
       resource_type: 'auto',
-    });
+    };
+
+    if (fileName) {
+      options.use_filename = true;
+      options.unique_filename = true;
+      options.filename_override = fileName;
+    }
+
+    const result = await cloudinary.uploader.upload(uploadStr, options);
 
     return result.secure_url || result.url;
   } catch (err) {
@@ -39,3 +47,4 @@ module.exports = {
   cloudinary,
   uploadToCloudinary,
 };
+
