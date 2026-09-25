@@ -115,6 +115,9 @@ export default function EmailCRM() {
   const [creatingTmpl, setCreatingTmpl] = useState(false);
   const [createError, setCreateError] = useState('');
 
+  // Inbound Webhook Modal State (for n8n setup instructions)
+  const [showWebhookModal, setShowWebhookModal] = useState(false);
+
   // Initialize sender with user profile email
   useEffect(() => {
     if (user?.email && (!fromEmail || fromEmail === 'user@aotms.com')) {
