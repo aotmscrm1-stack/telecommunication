@@ -503,6 +503,7 @@ export default function Navbar() {
       { label: 'All Leads', path: '/leads', icon: FaUsers },
       { label: 'Campaigns', path: '/campaigns', icon: FaBullhorn },
       { label: 'Message Templates', path: '/message-templates', icon: FaFileLines },
+      { label: 'WhatsApp Campaign', path: '/whatsapp-campaigns', icon: FaWhatsapp },
       { label: 'WhatsApp', path: '/whatsapp', icon: FaWhatsapp },
       { label: 'Leaderboard', path: '/leaderboard', icon: FaTrophy },
       { label: 'Reports', path: '/reports', icon: FaChartPie },

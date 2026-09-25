@@ -140,6 +140,22 @@ export const emailCampaignsAPI = {
   delete: (id) => api.delete(`/email-campaigns/${id}`),
 };
 
+// ── WhatsApp Campaign (Marketing → WhatsApp Campaign) ─────────────────────────
+export const whatsappCampaignsAPI = {
+  getAll: (params) => api.get('/whatsapp-campaigns', { params }),
+  getOne: (id) => api.get(`/whatsapp-campaigns/${id}`),
+  upload: (formData) => api.post('/whatsapp-campaigns/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  update: (id, data) => api.put(`/whatsapp-campaigns/${id}`, data),
+  delete: (id) => api.delete(`/whatsapp-campaigns/${id}`),
+  addContact: (id, data) => api.post(`/whatsapp-campaigns/${id}/contacts`, data),
+  deleteContact: (id, contactId) => api.delete(`/whatsapp-campaigns/${id}/contacts/${contactId}`),
+  send: (id) => api.post(`/whatsapp-campaigns/${id}/send`),
+  downloadTemplate: () => api.get('/whatsapp-campaigns/template', { responseType: 'blob' }),
+  exportAudience: (id) => api.get(`/whatsapp-campaigns/${id}/export`, { responseType: 'blob' }),
+};
+
 export const emailBlastAPI = {
   getTemplates: () => api.get('/email/templates'),
   createTemplate: (data) => api.post('/email/templates', data),

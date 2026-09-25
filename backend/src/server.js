@@ -100,6 +100,7 @@ app.use('/api/message-templates', apiLimiter, require('./routes/messageTemplates
 app.use('/api/broadcasts', apiLimiter, require('./routes/broadcasts'));
 app.use('/api/whatsapp-inbox', apiLimiter, require('./routes/whatsappInbox'));
 app.use('/api/whatsapp-lists', apiLimiter, require('./routes/whatsappLists'));
+app.use('/api/whatsapp-campaigns', apiLimiter, require('./routes/whatsappCampaigns'));
 app.use('/api/bulk-import', apiLimiter, require('./routes/bulkImport'));
 app.use('/api/integrations', require('./routes/integrations'));
 app.use('/api/notifications', apiLimiter, require('./routes/notifications'));

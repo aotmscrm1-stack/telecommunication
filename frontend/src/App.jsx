@@ -16,6 +16,7 @@ import MessageTemplates from './Marketing/MessageTemplate/MessageTemplates';
 import Blocklist from './pages/Blocklist';
 import MyPreferences from './pages/MyPreferences';
 import WhatsApp from './Marketing/Whatsapp/WhatsApp';
+import WhatsAppCampaigns from './Marketing/WhatsappCampaign/WhatsAppCampaigns';
 import EmailCRM from './Management/Email/EmailCRM';
 import Users from './pages/Users';
 import StaleLeads from './pages/StaleLeads';
@@ -163,6 +164,8 @@ export default function App() {
             <Route path="tasks" element={<Tasks />} />
             <Route path="profile" element={<Profile />} />
             <Route path="message-templates" element={<StaffRestrictedRoute><MessageTemplates /></StaffRestrictedRoute>} />
+            <Route path="whatsapp-campaigns" element={<StaffRestrictedRoute><WhatsAppCampaigns /></StaffRestrictedRoute>} />
+            <Route path="whatsapp-campaign" element={<Navigate to="/whatsapp-campaigns" replace />} />
             <Route path="blocklist" element={<AdminRoute><Blocklist /></AdminRoute>} />
             <Route path="my-preferences" element={<MyPreferences />} />
             <Route path="whatsapp" element={<StaffRestrictedRoute><WhatsApp /></StaffRestrictedRoute>} />
