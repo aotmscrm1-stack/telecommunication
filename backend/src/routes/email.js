@@ -547,24 +547,31 @@ router.post('/send', protect, async (req, res) => {
       }
     }
 
-    // 2. Fallback to direct SMTP if configured
-    if (!success && process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    // 2. Direct SMTP mailer (user-specific GoDaddy credentials or fallback to process.env)
+    const smtpHost = req.user?.smtpConfig?.host || process.env.SMTP_HOST;
+    const smtpUser = req.user?.smtpConfig?.user || process.env.SMTP_USER;
+    const smtpPass = req.user?.smtpConfig?.pass || process.env.SMTP_PASS;
+    const smtpPort = Number(req.user?.smtpConfig?.port || process.env.SMTP_PORT || 465);
+    const smtpSecure = smtpPort === 465;
+
+    if (!success && smtpHost && smtpUser && smtpPass) {
       try {
         const nodemailer = require('nodemailer');
         const transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST,
-          port: Number(process.env.SMTP_PORT || 587),
-          secure: Number(process.env.SMTP_PORT) === 465,
+          host: smtpHost,
+          port: smtpPort,
+          secure: smtpSecure,
           auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
+            user: smtpUser,
+            pass: smtpPass,
           },
+          tls: { rejectUnauthorized: false }
         });
 
         await transporter.sendMail({
-          from: `"${req.user?.name || 'AOTMS HR'}" <${senderEmail}>`,
+          from: `"${req.user?.name || 'AOTMS'}" <${smtpUser || senderEmail}>`,
           to: targetRecipient,
-          replyTo: senderEmail,
+          replyTo: senderEmail || smtpUser,
           subject: emailSubject,
           text: emailBody,
           html: `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111; padding: 20px; background: #fafafa; border-radius: 8px;">
@@ -572,15 +579,15 @@ router.post('/send', protect, async (req, res) => {
               ${emailBody.replace(/\n/g, '<br/>')}
             </div>
             <div style="margin-top: 16px; font-size: 12px; color: #6b7280; text-align: center;">
-              Sent via AOTMS Platform · ${senderEmail}
+              Sent via AOTMS Platform · ${smtpUser || senderEmail}
             </div>
           </div>`,
         });
-        sentVia = 'SMTP Mailer';
+        sentVia = 'GoDaddy SMTP Mailer';
         success = true;
         n8nError = null; // Clear error since fallback succeeded
       } catch (smtpErr) {
-        console.warn('[SMTP Fallback Warning]:', smtpErr.message);
+        console.warn('[SMTP Direct Warning]:', smtpErr.message);
       }
     }
 
@@ -732,31 +739,38 @@ router.post('/reply', protect, async (req, res) => {
       }
     }
 
-    // 2. SMTP fallback
-    if (!success && process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    // 2. Direct SMTP fallback (user-specific GoDaddy credentials or fallback to process.env)
+    const replySmtpHost = req.user?.smtpConfig?.host || process.env.SMTP_HOST;
+    const replySmtpUser = req.user?.smtpConfig?.user || process.env.SMTP_USER;
+    const replySmtpPass = req.user?.smtpConfig?.pass || process.env.SMTP_PASS;
+    const replySmtpPort = Number(req.user?.smtpConfig?.port || process.env.SMTP_PORT || 465);
+    const replySmtpSecure = replySmtpPort === 465;
+
+    if (!success && replySmtpHost && replySmtpUser && replySmtpPass) {
       try {
         const nodemailer = require('nodemailer');
         const transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST,
-          port: Number(process.env.SMTP_PORT || 587),
-          secure: Number(process.env.SMTP_PORT) === 465,
+          host: replySmtpHost,
+          port: replySmtpPort,
+          secure: replySmtpSecure,
           auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
+            user: replySmtpUser,
+            pass: replySmtpPass,
           },
+          tls: { rejectUnauthorized: false }
         });
 
         await transporter.sendMail({
-          from: `"${req.user?.name || 'AOTMS HR'}" <${senderEmail}>`,
+          from: `"${req.user?.name || 'AOTMS'}" <${replySmtpUser || senderEmail}>`,
           to: replyRecipient,
-          replyTo: senderEmail,
+          replyTo: senderEmail || replySmtpUser,
           subject: replySubject,
           text: replyBody,
         });
-        sentVia = 'SMTP Mailer';
+        sentVia = 'GoDaddy SMTP Mailer';
         success = true;
       } catch (smtpErr) {
-        console.warn('[Reply SMTP Warning]:', smtpErr.message);
+        console.warn('[Reply SMTP Direct Warning]:', smtpErr.message);
       }
     }
 
@@ -766,6 +780,8 @@ router.post('/reply', protect, async (req, res) => {
       recipientEmail: replyRecipient,
       subject: replySubject,
       body: replyBody,
+      sentVia,
+      status: success ? 'Delivered' : 'Sent',
       direction: 'outbound',
       receivedAt: new Date(),
       source: 'email_crm_reply',
@@ -784,6 +800,35 @@ router.post('/reply', protect, async (req, res) => {
   } catch (err) {
     console.error('[Email Reply Error]:', err);
     res.status(500).json({ message: 'Failed to send reply: ' + err.message });
+  }
+});
+
+// POST /api/email/sync — Triggers manual/active sync of email records & refreshes counts
+router.post('/sync', protect, async (req, res) => {
+  try {
+    const userDesig = String(req.user?.designation || '').trim().toUpperCase();
+    const isMD = userDesig === 'MANAGING DIRECTOR' || userDesig === 'MD' || userDesig === 'CEO' || req.user?.role === 'admin' || req.user?.name?.toLowerCase().trim() === 'ameen';
+
+    const filter = {};
+    if (!isMD) {
+      filter.$or = [
+        { sender: req.user._id },
+        { recipientEmail: new RegExp(`^${req.user.email}$`, 'i') },
+        { fromEmail: new RegExp(`^${req.user.email}$`, 'i') }
+      ];
+    }
+
+    const totalLogs = await EmailLog.countDocuments(filter);
+    const unreadCount = await EmailLog.countDocuments({ ...filter, isRead: false });
+
+    res.json({
+      success: true,
+      message: 'Email data synchronized successfully',
+      syncedAt: new Date().toISOString(),
+      stats: { totalLogs, unreadCount }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 

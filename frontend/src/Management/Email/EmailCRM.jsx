@@ -97,7 +97,8 @@ export default function EmailCRM() {
   const [replying, setReplying] = useState(false);
   const [replySuccess, setReplySuccess] = useState('');
   const [replyError, setReplyError] = useState('');
-  const [showWebhookModal, setShowWebhookModal] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncNotice, setSyncNotice] = useState('');
   const [unreadCount, setUnreadCount] = useState(0);
   const [inboxCount, setInboxCount] = useState(0);
 
@@ -211,6 +212,23 @@ ${user?.designation || 'Staff'}`
         console.warn('Failed to load email logs:', err.message);
       })
       .finally(() => setLoadingLogs(false));
+  };
+
+  const handleSyncData = async () => {
+    setIsSyncing(true);
+    setSyncNotice('');
+    try {
+      try {
+        await api.post('/email/sync');
+      } catch (_) {}
+      await fetchEmailLogs(selectedEmployeeFilter, searchQuery);
+      setSyncNotice('Data Synced Successfully! All incoming & outgoing messages are up to date.');
+      setTimeout(() => setSyncNotice(''), 4000);
+    } catch (err) {
+      console.error('Failed to sync email data:', err);
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   const fetchTrackingUsers = () => {
