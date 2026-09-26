@@ -563,6 +563,22 @@ export default function AttendanceRecords() {
     }
   };
 
+  const handleContinueAttendanceModal = async () => {
+    try {
+      setActionLoading('CONTINUE');
+      if (liveSessionMetrics.status === 'ON_BREAK' && typeof handleResumeBreak === 'function') {
+        await handleResumeBreak();
+      }
+    } catch (err) {
+      console.warn('[AttendanceRecords] Continue attendance error:', err.message);
+    } finally {
+      setTimeout(() => {
+        setActionLoading(null);
+        setNineHourWarningModal(null);
+      }, 350);
+    }
+  };
+
   // Derive live real-time countdown / work timer for the personal session
   const liveSessionMetrics = useMemo(() => {
     const sessionData = currentSession?.attendance;
@@ -3298,7 +3314,7 @@ export default function AttendanceRecords() {
                 {/* Continue Attendance Button */}
                 <button
                   type="button"
-                  onClick={() => setNineHourWarningModal(null)}
+                  onClick={handleContinueAttendanceModal}
                   disabled={actionLoading !== null}
                   style={{
                     width: '100%',
@@ -3309,7 +3325,7 @@ export default function AttendanceRecords() {
                     padding: '12px 20px',
                     fontSize: 13.5,
                     fontWeight: 500,
-                    cursor: 'pointer',
+                    cursor: actionLoading ? 'wait' : 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -3318,7 +3334,11 @@ export default function AttendanceRecords() {
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  <Play size={15} fill="#ffffff" /> Continue Attendance (Keep Working)
+                  {actionLoading === 'CONTINUE' ? (
+                    <><Loader2 size={16} className="animate-spin" /> Continuing Shift...</>
+                  ) : (
+                    <><Play size={15} fill="#ffffff" /> Continue Attendance (Keep Working)</>
+                  )}
                 </button>
               </div>
             </div>

@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { attendanceAPI, followupsAPI, usersAPI } from '../../services/api';
 import geoTracker from '../../services/geoTracker';
 import logoImg from '../../assets/aotms-global-logo.png';
+import { getTaskAssignorOptions } from '../../utils/permissions';
 import {
   FiClock,
   FiShield,
@@ -162,6 +163,15 @@ export default function MandatoryAttendanceModal() {
       })
       .catch(() => {});
   }, []);
+
+  const assignedByUsers = getTaskAssignorOptions(user, teamUsers);
+
+  useEffect(() => {
+    if (!assignedByUsers || !assignedByUsers.length) return;
+    if (!assignedByUsers.some((u) => u._id === assignedBy)) {
+      setAssignedBy(assignedByUsers[0]._id);
+    }
+  }, [teamUsers, assignedBy, user]);
 
   // Check overall Check-in Status on mount
   const evaluateCheckInStatus = useCallback(async () => {
@@ -678,17 +688,15 @@ export default function MandatoryAttendanceModal() {
                       onChange={(e) => setAssignedBy(e.target.value)}
                       className="w-full px-2.5 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-blue-500"
                     >
-                      <option value="all">All</option>
-                      <option value={user?._id}>
-                        {user?.name ? `${user.name} (You)` : 'You'}
-                      </option>
-                      {teamUsers
-                        .filter((u) => u._id !== user?._id)
-                        .map((u) => (
-                          <option key={u._id} value={u._id}>
-                            {u.name} {u.designation ? `(${u.designation})` : ''}
-                          </option>
-                        ))}
+                      {assignedByUsers.map((u) => (
+                        <option key={u._id} value={u._id}>
+                          {u._id === 'all'
+                            ? 'All'
+                            : u._id === user?._id
+                            ? `${u.name || 'You'} (You)`
+                            : `${u.name} ${u.designation ? `(${u.designation})` : ''}`}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>

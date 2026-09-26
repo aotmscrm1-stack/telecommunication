@@ -847,10 +847,7 @@ export default function Task() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const isLimited = isLimitedStaff(currentUser);
-
   const [activeTab, setActiveTab] = useState(() => {
-    if (isLimited) return 'Todo';
     const tab = searchParams.get('tab');
     if (tab) {
       const lower = tab.toLowerCase();
@@ -863,10 +860,6 @@ export default function Task() {
   });
 
   useEffect(() => {
-    if (isLimited) {
-      if (activeTab !== 'Todo') setActiveTab('Todo');
-      return;
-    }
     const tab = searchParams.get('tab');
     if (tab) {
       const lower = tab.toLowerCase();
@@ -879,18 +872,11 @@ export default function Task() {
         setActiveTab(matchedTab);
       }
     }
-  }, [searchParams, isLimited, activeTab]);
+  }, [searchParams, activeTab]);
 
   const [forFilter, setForFilter] = useState(() => {
-    if (isLimitedStaff(currentUser)) return 'Me';
     return (currentUser?.role === 'admin' || currentUser?.role === 'manager') ? 'Team' : 'Me';
   });
-
-  useEffect(() => {
-    if (isLimitedStaff(currentUser) && forFilter !== 'Me') {
-      setForFilter('Me');
-    }
-  }, [currentUser, forFilter]);
 
   const [dueFilter, setDueFilter] = useState(null);
   const [statusFilter, setStatusFilter] = useState(['pending', 'late', 'cancelled']);
@@ -1300,7 +1286,7 @@ export default function Task() {
       {/* Tabs bar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${COLOR_BORDER}`, marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          {(isLimited ? ['Todo'] : ['Tasks', 'Todo', 'Call Followups']).map(tab => {
+          {['Tasks', 'Todo', 'Call Followups'].map(tab => {
             const isActive = !historyMode && activeTab === tab;
             const tabLabel = tab === 'Tasks' ? 'Tasks' : tab === 'Todo' ? 'Todo List' : 'Call Followups';
             return (

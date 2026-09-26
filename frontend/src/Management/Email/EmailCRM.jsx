@@ -2414,79 +2414,7 @@ ${user?.designation || 'Staff'}`
                   style={{ flex: 1, border: 'none', outline: 'none', fontSize: 13, color: TEXT_MAIN }}
                 />
 
-                {/* Contact Picker Trigger Button */}
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <button
-                    type="button"
-                    onClick={() => setContactPickerOpen(!contactPickerOpen)}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 5,
-                      padding: '3px 10px', background: '#eff6ff', color: '#1d4ed8',
-                      border: '1px solid #bfdbfe', borderRadius: 14, fontSize: 11.5,
-                      fontWeight: 600, cursor: 'pointer'
-                    }}
-                  >
-                    <span>👥 Contacts ({contacts.length})</span>
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-                  </button>
-
-                  {/* Contact Picker Dropdown Menu */}
-                  {contactPickerOpen && (
-                    <div
-                      style={{
-                        position: 'absolute', top: 32, right: 0, width: 320, maxHeight: 280,
-                        background: WHITE, borderRadius: 10, border: '1px solid #cbd5e1',
-                        boxShadow: '0 10px 25px rgba(0,0,0,0.2)', zIndex: 10100,
-                        display: 'flex', flexDirection: 'column', overflow: 'hidden'
-                      }}
-                    >
-                      <div style={{ padding: '8px 10px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: 11.5, fontWeight: 700, color: '#1e293b' }}>Select Recipient Contact</span>
-                        <button onClick={() => setContactPickerOpen(false)} style={{ border: 'none', background: 'none', fontSize: 13, cursor: 'pointer', color: '#64748b' }}>✕</button>
-                      </div>
-                      <div style={{ padding: '6px 10px', borderBottom: '1px solid #f1f5f9' }}>
-                        <input
-                          placeholder="Search contact name or email..."
-                          value={contactSearchQuery}
-                          onChange={e => setContactSearchQuery(e.target.value)}
-                          style={{ width: '100%', padding: '4px 8px', border: '1px solid #cbd5e1', borderRadius: 6, fontSize: 11.5, outline: 'none' }}
-                        />
-                      </div>
-                      <div style={{ flex: 1, overflowY: 'auto', maxHeight: 200 }}>
-                        {filteredContactsList.filter(c => c.email && c.email.includes('@')).length === 0 ? (
-                          <div style={{ padding: '16px', textAlign: 'center', fontSize: 12, color: '#94a3b8' }}>
-                            No contacts with valid email addresses found
-                          </div>
-                        ) : (
-                          filteredContactsList.filter(c => c.email && c.email.includes('@')).map(c => (
-                            <div
-                              key={c._id || c.id}
-                              onClick={() => {
-                                setRecipientEmail(c.email);
-                                setContactPickerOpen(false);
-                              }}
-                              style={{
-                                padding: '8px 12px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer',
-                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                transition: 'background 0.1s'
-                              }}
-                              onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
-                              onMouseLeave={e => e.currentTarget.style.background = WHITE}
-                            >
-                              <div style={{ overflow: 'hidden' }}>
-                                <div style={{ fontSize: 12, fontWeight: 600, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
-                                <div style={{ fontSize: 10.5, color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.email}</div>
-                              </div>
-                              <span style={{ fontSize: 10, fontWeight: 600, background: '#e0f2fe', color: '#0369a1', padding: '1px 6px', borderRadius: 4, flexShrink: 0 }}>
-                                {c.identity || 'SAP FICO'}
-                              </span>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  )}
-
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <button
                     type="button"
                     onClick={() => setRecipientEmail('hr@aotms.com')}
@@ -2626,8 +2554,6 @@ ${user?.designation || 'Staff'}`
                       </div>
                     </div>
                   )}
-
-                  {/* PHOTOS ATTACHMENTS STRIP */}
                   {photos.length > 0 && (
                     <div style={{ marginTop: 10 }}>
                       <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_MUTED, marginBottom: 6 }}>

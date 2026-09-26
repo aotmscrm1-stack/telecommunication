@@ -92,105 +92,88 @@ export const canViewDashboard = (user) => {
 
 /**
  * Task Creation "Assigned By" allowed options per Designation:
- * 1. Developer: Only Ameen (CEO/MD) and You.
- * 2. Digital Marketing: CEO, CTO, HR, You, All.
- * 3. Trainers: CEO, HR, You, All.
- * 4. Others (Executive / Admin / Manager): All individual users + All.
+ * 1. Developer: Only Admin (CEO/MD/Manager) and You.
+ * 2. Trainers: HR, Admin, You.
+ * 3. Digital Marketing: HR, Admin, You.
+ * 4. Others (Admin / HR / CEO / MD / Manager): All users + All option.
  */
 export const getTaskAssignorOptions = (currentUser, users = []) => {
-  const ameen = users.find(u =>
-    u.name?.toLowerCase().trim() === 'ameen' ||
-    u.email?.toLowerCase().includes('ameen@') ||
-    normalizeDesignation(u) === 'CEO' ||
-    normalizeDesignation(u) === 'MANAGING DIRECTOR'
-  ) || { _id: 'ameen_fallback', name: 'Ameen', designation: 'Managing Director' };
+  const userList = Array.isArray(users) ? users : [];
 
-  const cto = users.find(u =>
-    u.name?.toLowerCase().trim() === 'rabbani' ||
-    normalizeDesignation(u) === 'CTO'
+  // Find Admin / Executive / CEO / MD / Manager users
+  const adminUsers = userList.filter(u =>
+    isExecutive(u) ||
+    u.role === 'admin' ||
+    u.role === 'manager' ||
+    u.name?.toLowerCase().includes('ameen') ||
+    u.name?.toLowerCase().includes('rabbani')
   );
 
-  const hrList = users.filter(u => normalizeDesignation(u) === 'HR');
+  const primaryAdmin = adminUsers.length > 0 ? adminUsers : [
+    { _id: 'admin_fallback', name: 'Admin', designation: 'Managing Director' }
+  ];
+
+  // Find HR users
+  const hrUsers = userList.filter(u => isHR(u));
 
   const allOption = { _id: 'all', name: 'All' };
 
-  // 1. Developer: Only Ameen and You
+  // 1. Developer: All + Admin + You
   if (isDeveloper(currentUser)) {
-    const list = [ameen];
-    if (currentUser && currentUser._id !== ameen._id) {
-      list.push(currentUser);
-    }
-    return list;
-  }
-
-  // 2. Digital Marketing: CEO, CTO, HR, You, All
-  if (isDigitalMarketing(currentUser)) {
-    const list = [ameen];
-    if (cto && cto._id !== ameen._id) list.push(cto);
-    hrList.forEach(hr => {
-      if (!list.some(u => u._id === hr._id)) list.push(hr);
-    });
+    const list = [allOption, ...primaryAdmin];
     if (currentUser && !list.some(u => u._id === currentUser._id)) {
       list.push(currentUser);
     }
-    list.push(allOption);
     return list;
   }
 
-  // 3. Trainers: CEO, HR, You, All
-  if (isTrainer(currentUser)) {
-    const list = [ameen];
-    hrList.forEach(hr => {
+  // 2. Trainers & 3. Digital Marketing: All + HR + Admin + You
+  if (isTrainer(currentUser) || isDigitalMarketing(currentUser)) {
+    const list = [allOption];
+
+    // HR users
+    hrUsers.forEach(hr => {
       if (!list.some(u => u._id === hr._id)) list.push(hr);
     });
+
+    // Admin users
+    primaryAdmin.forEach(adm => {
+      if (!list.some(u => u._id === adm._id)) list.push(adm);
+    });
+
+    // Current User (You)
     if (currentUser && !list.some(u => u._id === currentUser._id)) {
       list.push(currentUser);
     }
-    list.push(allOption);
+
     return list;
   }
 
-  // 4. All others: All individual users + All option
-  const list = [...users];
-  if (!list.some(u => u._id === 'all')) {
-    list.push(allOption);
-  }
+  // 4. All others: All option + all individual users
+  const list = [allOption];
+  userList.forEach(u => {
+    if (!list.some(existing => existing._id === u._id)) {
+      list.push(u);
+    }
+  });
   return list;
 };
 
 /**
  * Filter team users for Todo / Task Team dropdown.
- * Only users who are HR, CTO, or Managing Director (or CEO) are allowed.
- * All other designations (Developers, Trainers, Digital Marketing, Callers, etc.) are strictly removed.
+ * All employee designations are included so any team member can be selected or assigned.
  */
 export const isTeamDropdownMember = (user) => {
-  if (!user) return false;
-  const d = normalizeDesignation(user);
-  const name = String(user.name || '').trim().toLowerCase();
-
-  // 1. Managing Director / MD / CEO
-  if (d === 'MANAGING DIRECTOR' || d === 'MD' || d === 'CEO') return true;
-  if (name === 'ameen' || name.includes('ameen')) return true;
-
-  // 2. CTO
-  if (d === 'CTO' || d === 'CHIEF TECHNOLOGY OFFICER') return true;
-  if (name === 'rabbani' || name.includes('rabbani')) return true;
-
-  // 3. HR
-  if (d === 'HR' || d === 'HUMAN RESOURCES' || d.startsWith('HR ') || d.endsWith(' HR')) return true;
-  if (name === 'deenaz' || name === 'bhavani') return true;
-
-  return false;
+  return !!user;
 };
 
 export const filterTeamDropdownUsers = (users = []) => {
   if (!Array.isArray(users)) return [];
-  return users.filter(isTeamDropdownMember);
+  return users;
 };
 
 export const getTeamDropdownUsersWithFallback = (users = []) => {
-  const filtered = filterTeamDropdownUsers(users);
-  if (filtered.length > 0) return filtered;
+  if (Array.isArray(users) && users.length > 0) return users;
 
   // Fallback defaults if no users found in current local database
   return [
