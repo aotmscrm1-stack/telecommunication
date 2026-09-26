@@ -348,8 +348,8 @@ function AddTemplateForm({ onCancel, onSave, integrationId }) {
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
 
-      {/* Preview panel */}
-      <div style={{ width: 280, flexShrink: 0, borderLeft: `1px solid ${BORDER}`, background: '#f0f2f5', padding: 20, overflowY: 'auto' }}>
+      {/* Preview panel — Decreased width (250px) with separate scroll */}
+      <div className="whatsapp-chat-scroll" style={{ width: 250, flexShrink: 0, borderLeft: `1px solid ${BORDER}`, background: '#f8fafc', padding: '16px 14px', overflowY: 'auto' }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: TEXT_MAIN, marginBottom: 16 }}>Preview</div>
         <div style={{ background: '#e5ddd5', borderRadius: 12, padding: 12, minHeight: 200, backgroundImage: 'url("data:image/svg+xml,%3Csvg...")', position: 'relative' }}>
           {(headerText || mediaPreview || message || footer || buttons.length > 0) ? (
@@ -530,43 +530,70 @@ function parseTemplateDoc(t) {
   const footerComp = comps.find(c => String(c.type).toUpperCase() === 'FOOTER');
   const buttonsComp = comps.find(c => String(c.type).toUpperCase() === 'BUTTONS');
 
+  const headerImg = header?.example?.header_handle?.[0] ||
+                    header?.example?.header_url?.[0] ||
+                    t.header_image_url ||
+                    t.headerImage ||
+                    t.mediaUrl ||
+                    t.imageUrl ||
+                    t.mediaBase64 ||
+                    '';
+
   return {
-    id: t._id,
-    name: t.shortcut || t.metaTemplateName || t.name,
-    shortcut: t.shortcut || t.metaTemplateName,
-    metaTemplateName: t.metaTemplateName || t.shortcut,
-    category: t.category || 'MARKETING',
-    status: t.waStatus || 'APPROVED',
+    id: String(t._id || t.id || t.name),
+    _id: t._id || t.id,
+    name: t.shortcut || t.metaTemplateName || t.name || 'Template',
+    shortcut: t.shortcut || t.metaTemplateName || t.name || '',
+    metaTemplateName: t.metaTemplateName || t.shortcut || t.name || '',
+    category: t.category || t.type || 'MARKETING',
+    status: t.waStatus || t.metaStatus || t.status || 'APPROVED',
     language: t.language || 'en_US',
-    body: body?.text || t.message || t.body || '',
-    headerText: header?.text || t.headerText || '',
-    headerFormat: header?.format || t.headerType || '',
-    headerImage: header?.example?.header_handle?.[0] || header?.example?.header_url?.[0] || t.headerImage || t.mediaUrl || t.imageUrl || '',
-    footer: footerComp?.text || t.footer || '',
+    body: body?.text || t.message || t.body_text || t.body || '',
+    rejectedReason: t.rejectedReason || t.rejected_reason || '',
+    headerText: header?.text || t.header_text || t.headerText || '',
+    headerFormat: header?.format || t.headerType || t.header_type || t.headerFormat || '',
+    headerImage: headerImg,
+    footer: footerComp?.text || t.footer_text || t.footer || '',
     buttons: buttonsComp?.buttons || t.buttons || [],
     components: comps,
   };
 }
 
 // ── Rich Template Message Card Component ──────────────────────────────────────
-function RichTemplateMessageCard({ message, templates = [] }) {
-  const text = message.description || '';
+function RichTemplateMessageCard({ message, templates = [], leadName = '' }) {
+  const text = message.description || message.text || '';
   
-  // Find matched template by ID / shortcut / name / metaTemplateName / body text snippet
-  const matchedTemplate = templates.find(t => {
-    if (!t) return false;
-    const tShortcut = (t.shortcut || '').toLowerCase().trim();
-    const tName = (t.metaTemplateName || t.name || '').toLowerCase().trim();
-    const cleanText = text.toLowerCase().trim();
+  const extractedTemplateName = text.match(/\[Template:\s*([^\]]+)\]/i)?.[1]?.trim() ||
+                                (text.startsWith('@') ? text.slice(1).trim() : '');
+  
+  const cleanText = text.toLowerCase().trim();
+  const cleanNorm = cleanText.replace(/[\s_]+/g, '');
+  const cleanExtractedNorm = extractedTemplateName.toLowerCase().replace(/[\s_]+/g, '');
 
-    if (t.id && message.templateId === t.id) return true;
-    if (message.templateName && (tShortcut === message.templateName.toLowerCase() || tName === message.templateName.toLowerCase())) return true;
-    if (tShortcut && cleanText.includes(tShortcut)) return true;
-    if (tName && cleanText.includes(tName)) return true;
-    
+  // Find matched template by ID / shortcut / name / metaTemplateName / normalized string
+  const matchedTemplate = (templates || []).find(t => {
+    if (!t) return false;
+    const tId = String(t.id || t._id || '');
+    const mId = String(message.templateId || '');
+    if (mId && tId === mId) return true;
+
+    const tShortcut = (t.shortcut || '').toLowerCase().trim();
+    const tShortcutNorm = tShortcut.replace(/[\s_]+/g, '');
+    const tName = (t.metaTemplateName || t.name || '').toLowerCase().trim();
+    const tNameNorm = tName.replace(/[\s_]+/g, '');
+
+    const mName = (message.templateName || '').toLowerCase().trim();
+    const mNameNorm = mName.replace(/[\s_]+/g, '');
+
+    if (mNameNorm && (tShortcutNorm === mNameNorm || tNameNorm === mNameNorm)) return true;
+    if (cleanExtractedNorm && (tShortcutNorm === cleanExtractedNorm || tNameNorm === cleanExtractedNorm)) return true;
+    if (tShortcutNorm && cleanNorm.includes(tShortcutNorm)) return true;
+    if (tNameNorm && cleanNorm.includes(tNameNorm)) return true;
+
     // Match body text snippet (ignoring variable placeholders {{1}}, {{2}})
     const tBody = (t.body || t.message || '').toLowerCase().trim().replace(/\{\{\d+\}\}/g, '').trim();
-    if (tBody && tBody.length >= 4 && (cleanText.includes(tBody.slice(0, 15)) || tBody.includes(cleanText.slice(0, 15)))) return true;
+    const tBodyNorm = tBody.replace(/[\s_]+/g, '');
+    if (tBodyNorm && tBodyNorm.length >= 8 && (cleanNorm.includes(tBodyNorm.slice(0, 15)) || tBodyNorm.includes(cleanNorm.slice(0, 15)))) return true;
     return false;
   });
 
@@ -581,7 +608,6 @@ function RichTemplateMessageCard({ message, templates = [] }) {
     }
   }
 
-  // If template has IMAGE/Media header format but no explicit URL, fallback to default visual image
   const isImageHeader = (matchedTemplate?.headerFormat || matchedTemplate?.headerType || '').toUpperCase() === 'IMAGE' ||
                         (matchedTemplate?.headerFormat || matchedTemplate?.headerType || '').toUpperCase() === 'MEDIA';
   if (!imageUrl && isImageHeader) {
@@ -591,11 +617,16 @@ function RichTemplateMessageCard({ message, templates = [] }) {
   const headerText = matchedTemplate?.headerText || message.headerText;
   
   let bodyDisplay = text;
-  if (matchedTemplate?.body && text.startsWith('[Template:')) {
-    bodyDisplay = matchedTemplate.body;
-  } else if (text.startsWith('[Template:') && !matchedTemplate) {
-    const extractedName = text.replace(/^\[Template:\s*/i, '').replace(/\]$/, '').trim();
-    bodyDisplay = `📋 Template: ${extractedName}`;
+  if (matchedTemplate?.body) {
+    let b = matchedTemplate.body;
+    if (text.startsWith('[Template:') || text.includes('[Template:') || text.startsWith('@')) {
+      const recipientName = leadName || message.leadName || message.contactName || 'Customer';
+      b = b.replace(/\{\{1\}\}/g, recipientName).replace(/\{\{\d+\}\}/g, '');
+    }
+    bodyDisplay = b;
+  } else if ((text.startsWith('[Template:') || text.startsWith('@')) && !matchedTemplate) {
+    const extractedName = extractedTemplateName || text.replace(/^\[Template:\s*/i, '').replace(/^@/, '').replace(/\]$/, '').trim();
+    bodyDisplay = `📋 Meta WhatsApp Template: ${extractedName}`;
   }
 
   const footerText = matchedTemplate?.footer || message.footer;
@@ -712,6 +743,11 @@ function InboxTab({ onSendTemplate }) {
   const scrollRef = useRef(null);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
   const [templates, setTemplates] = useState([]);
+  const [showContactPreview, setShowContactPreview] = useState(true);
+  const [showSendTemplateModal, setShowSendTemplateModal] = useState(false);
+  const [sendingTemplate, setSendingTemplate] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState(null);
+  const [templateSearchText, setTemplateSearchText] = useState('');
 
   const handleChatScroll = (e) => {
     const el = e.target;
@@ -726,14 +762,25 @@ function InboxTab({ onSendTemplate }) {
     }
   };
 
-  // Fetch Templates for Rich Cards
+  // Fetch Unified Templates (Meta WABA + MessageTemplates) for Rich Cards & Real Sending
   useEffect(() => {
-    api.get('/message-templates', { params: { type: 'whatsapp' } })
+    api.get('/integrations/whatsapp/templates')
       .then(res => {
-        const raw = res.data?.templates || res.data || [];
-        setTemplates(raw.map(t => parseTemplateDoc(t)));
+        const raw = res.data?.templates || [];
+        if (Array.isArray(raw) && raw.length > 0) return raw;
+        return api.get('/message-templates', { params: { type: 'whatsapp' } })
+          .then(mRes => mRes.data?.templates || mRes.data || []);
       })
-      .catch(() => {});
+      .catch(() => {
+        return api.get('/message-templates', { params: { type: 'whatsapp' } })
+          .then(mRes => mRes.data?.templates || mRes.data || [])
+          .catch(() => []);
+      })
+      .then(raw => {
+        if (Array.isArray(raw)) {
+          setTemplates(raw.map(t => parseTemplateDoc(t)).filter(Boolean));
+        }
+      });
   }, []);
 
   // Fetch Contacts for identity mapping & matching
@@ -959,6 +1006,28 @@ function InboxTab({ onSendTemplate }) {
     }
   };
 
+  const handleSendRealTemplate = async () => {
+    if (!selectedTemplateId || !selectedId) return;
+    const tmpl = templates.find(t => t.id === selectedTemplateId);
+    if (!tmpl) return;
+
+    setSendingTemplate(true);
+    try {
+      await api.post(`/whatsapp-inbox/${selectedId}/reply`, {
+        templateName: tmpl.shortcut || tmpl.metaTemplateName || tmpl.name,
+        languageCode: tmpl.language || 'en_US'
+      });
+      setShowSendTemplateModal(false);
+      setSelectedTemplateId(null);
+      await openThread(selectedId);
+      await fetchLeads();
+    } catch (err) {
+      alert(err.response?.data?.message || err.message || 'Failed to dispatch Meta WhatsApp template');
+    } finally {
+      setSendingTemplate(false);
+    }
+  };
+
   const waStatusDot = (s) => s === 'pending' ? ORANGE : s === 'intervened' ? BLUE : '#cbd5e1';
 
   // Helper variable for tracking date headers across rendered messages
@@ -967,18 +1036,23 @@ function InboxTab({ onSendTemplate }) {
   return (
     <div style={{ display: 'flex', flex: 1, minHeight: 0, position: 'relative' }}>
       <style>{`
+        .whatsapp-chat-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(37, 99, 235, 0.3) transparent;
+        }
         .whatsapp-chat-scroll::-webkit-scrollbar {
-          width: 6px;
+          width: 5px;
+          height: 5px;
         }
         .whatsapp-chat-scroll::-webkit-scrollbar-track {
-          background: rgba(0, 0, 0, 0.03);
+          background: rgba(0, 0, 0, 0.02);
         }
         .whatsapp-chat-scroll::-webkit-scrollbar-thumb {
           background: rgba(0, 0, 0, 0.2);
           border-radius: 6px;
         }
         .whatsapp-chat-scroll::-webkit-scrollbar-thumb:hover {
-          background: rgba(0, 0, 0, 0.35);
+          background: rgba(37, 99, 235, 0.5);
         }
       `}</style>
 
@@ -1059,8 +1133,8 @@ function InboxTab({ onSendTemplate }) {
           </div>
         </div>
 
-        {/* Contacts & Leads list */}
-        <div style={{ flex: 1, overflowY: 'auto' }}>
+        {/* Contacts & Leads list with custom smooth scroll */}
+        <div className="whatsapp-chat-scroll" style={{ flex: 1, overflowY: 'auto' }}>
           {loadingList && <div style={{ padding: 24, textAlign: 'center', color: TEXT_MUTED, fontSize: 13 }}>Loading…</div>}
           {!loadingList && displayedLeads.length === 0 && (
             <div style={{ padding: '40px 20px', textAlign: 'center', color: TEXT_MUTED, fontSize: 13 }}>
@@ -1123,19 +1197,27 @@ function InboxTab({ onSendTemplate }) {
       <div style={{
         flex: 1,
         display: 'flex',
-        flexDirection: 'column',
+        flexDirection: 'row',
         minWidth: 0,
         position: 'relative',
         backgroundColor: '#efeae2',
         backgroundImage: 'radial-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 0)',
         backgroundSize: '18px 18px',
+        overflow: 'hidden'
       }}>
         {!selectedId && (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: TEXT_MUTED, fontSize: 13.5, gap: 8 }}>
-            <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#fff', border: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: BLUE, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: TEXT_MUTED, fontSize: 13.5, gap: 12, padding: 20 }}>
+            <div style={{
+              width: 58, height: 58, borderRadius: '50%', background: '#fff', border: `1px solid ${BORDER}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', color: BLUE, boxShadow: '0 4px 14px rgba(0,0,0,0.08)',
+              animation: 'pulse 2s infinite ease-in-out'
+            }}>
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             </div>
-            <span>Select a conversation to start chatting</span>
+            <div style={{ maxWidth: 320, textAlign: 'center', background: '#ffffff', padding: '16px 20px', borderRadius: 12, border: `1px solid ${BORDER}`, boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: TEXT_MAIN, marginBottom: 4 }}>WhatsApp Inbox Preview</div>
+              <div style={{ fontSize: 12, color: TEXT_MUTED, lineHeight: 1.5 }}>Select a conversation from the left panel to start live chatting & inspect contact profile details.</div>
+            </div>
           </div>
         )}
 
@@ -1147,189 +1229,464 @@ function InboxTab({ onSendTemplate }) {
 
         {selectedId && !loadingThread && thread && (
           <>
-            {/* Top Chat Header */}
-            <div style={{ background: '#fff', borderBottom: `1px solid ${BORDER}`, padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 10 }}>
-              <div>
+            {/* Center: Main Active Chat Thread Area */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, height: '100%', position: 'relative' }}>
+              
+              {/* Top Chat Header */}
+              <div style={{ background: '#fff', borderBottom: `1px solid ${BORDER}`, padding: '10px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 10 }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: TEXT_MAIN }}>{thread.lead.name || thread.lead.phone}</div>
+                    {getLeadIdentity(thread.lead) && (
+                      <span style={{ fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 4, background: LIGHT_BLUE, color: DARK_BLUE, border: '1px solid #bfdbfe' }}>
+                        {getLeadIdentity(thread.lead)}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 12, color: TEXT_MUTED, marginTop: 1 }}>{thread.lead.phone}</div>
+                </div>
+
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: TEXT_MAIN }}>{thread.lead.name || thread.lead.phone}</div>
-                  {getLeadIdentity(thread.lead) && (
-                    <span style={{ fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 4, background: LIGHT_BLUE, color: DARK_BLUE, border: '1px solid #bfdbfe' }}>
-                      {getLeadIdentity(thread.lead)}
+                  {thread.lead.waStatus === 'pending' && (
+                    <span style={{ fontSize: 11.5, fontWeight: 500, background: LIGHT_ORANGE, color: DARK_ORANGE, borderRadius: 12, padding: '3px 10px', border: '1px solid #fed7aa' }}>
+                      ⏳ Pending Agent Reply
                     </span>
                   )}
+                  {/* Right Side Preview Mode Toggle Button */}
+                  <button
+                    type="button"
+                    onClick={() => setShowContactPreview(p => !p)}
+                    title={showContactPreview ? "Hide Right Side Preview Panel" : "Show Right Side Contact Preview Mode"}
+                    style={{
+                      padding: '5px 10px',
+                      borderRadius: 6,
+                      border: `1px solid ${showContactPreview ? BLUE : BORDER}`,
+                      background: showContactPreview ? LIGHT_BLUE : '#ffffff',
+                      color: showContactPreview ? DARK_BLUE : TEXT_MUTED,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 5,
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                    {showContactPreview ? 'Hide Preview' : 'Show Preview'}
+                  </button>
                 </div>
-                <div style={{ fontSize: 12, color: TEXT_MUTED, marginTop: 1 }}>{thread.lead.phone}</div>
               </div>
-              {thread.lead.waStatus === 'pending' && (
-                <span style={{ fontSize: 11.5, fontWeight: 500, background: LIGHT_ORANGE, color: DARK_ORANGE, borderRadius: 12, padding: '3px 10px', border: '1px solid #fed7aa' }}>
-                  ⏳ Pending Agent Reply
-                </span>
-              )}
-            </div>
 
-            {/* Scrollable Message History Area */}
-            <div
-              ref={scrollRef}
-              onScroll={handleChatScroll}
-              className="whatsapp-chat-scroll"
-              style={{
-                flex: 1,
-                overflowY: 'auto',
-                scrollBehavior: 'smooth',
-                padding: '18px 24px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 10,
-              }}
-            >
-              {thread.thread.length === 0 && (
-                <div style={{ textAlign: 'center', color: TEXT_MUTED, fontSize: 13, marginTop: 40, background: '#fff', padding: '12px 20px', borderRadius: 10, maxWidth: 300, margin: '40px auto 0', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                  No messages yet. Send a greeting or template!
-                </div>
-              )}
-              {(() => {
-                let lastDateLabel = null;
-                return (thread.thread || []).map((m, i) => {
-                  const isInbound = m.direction === 'inbound';
-                  const currentDateLabel = getDateLabel(m.createdAt);
-                  const showDateHeader = currentDateLabel && currentDateLabel !== lastDateLabel;
-                  if (showDateHeader) {
-                    lastDateLabel = currentDateLabel;
-                  }
+              {/* Scrollable Message History Area */}
+              <div
+                ref={scrollRef}
+                onScroll={handleChatScroll}
+                className="whatsapp-chat-scroll"
+                style={{
+                  flex: 1,
+                  overflowY: 'auto',
+                  scrollBehavior: 'smooth',
+                  padding: '18px 24px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 10,
+                }}
+              >
+                {thread.thread.length === 0 && (
+                  <div style={{ textAlign: 'center', color: TEXT_MUTED, fontSize: 13, marginTop: 40, background: '#fff', padding: '12px 20px', borderRadius: 10, maxWidth: 300, margin: '40px auto 0', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                    No messages yet. Send a greeting or template!
+                  </div>
+                )}
+                {(() => {
+                  let lastDateLabel = null;
+                  return (thread.thread || []).map((m, i) => {
+                    const isInbound = m.direction === 'inbound';
+                    const currentDateLabel = getDateLabel(m.createdAt);
+                    const showDateHeader = currentDateLabel && currentDateLabel !== lastDateLabel;
+                    if (showDateHeader) {
+                      lastDateLabel = currentDateLabel;
+                    }
 
-                  const matchedTmpl = (templates || []).find(t => {
-                    if (!t || !m.description) return false;
-                    const cleanText = m.description.toLowerCase().trim();
-                    const tShortcut = (t.shortcut || '').toLowerCase().trim();
-                    const tName = (t.metaTemplateName || t.name || '').toLowerCase().trim();
-                    if (m.templateId && t.id === m.templateId) return true;
-                    if (m.templateName && (tShortcut === m.templateName.toLowerCase() || tName === m.templateName.toLowerCase())) return true;
-                    if (tShortcut && cleanText.includes(tShortcut)) return true;
-                    if (tName && cleanText.includes(tName)) return true;
-                    const tBody = (t.body || t.message || '').toLowerCase().trim().replace(/\{\{\d+\}\}/g, '').trim();
-                    if (tBody && tBody.length >= 4 && (cleanText.includes(tBody.slice(0, 15)) || tBody.includes(cleanText.slice(0, 15)))) return true;
-                    return false;
-                  });
+                    const matchedTmpl = (templates || []).find(t => {
+                      if (!t || !m.description) return false;
+                      const cleanText = m.description.toLowerCase().trim();
+                      const cleanNorm = cleanText.replace(/[\s_]+/g, '');
+                      const tShortcut = (t.shortcut || '').toLowerCase().trim();
+                      const tShortcutNorm = tShortcut.replace(/[\s_]+/g, '');
+                      const tName = (t.metaTemplateName || t.name || '').toLowerCase().trim();
+                      const tNameNorm = tName.replace(/[\s_]+/g, '');
 
-                  const isTemplate = !!matchedTmpl || m.description?.startsWith('[Template:') || m.description?.startsWith('@') || m.isTemplate || (m.direction && (m.direction.includes('broadcast') || m.direction.includes('campaign') || m.direction === 'outbound'));
+                      if (m.templateId && String(t.id) === String(m.templateId)) return true;
+                      if (m.templateName) {
+                        const mNameNorm = String(m.templateName).toLowerCase().replace(/[\s_]+/g, '');
+                        if (tShortcutNorm === mNameNorm || tNameNorm === mNameNorm) return true;
+                      }
+                      const extracted = m.description.match(/\[Template:\s*([^\]]+)\]/i)?.[1]?.trim() || (m.description.startsWith('@') ? m.description.slice(1).trim() : '');
+                      if (extracted) {
+                        const extNorm = extracted.toLowerCase().replace(/[\s_]+/g, '');
+                        if (tShortcutNorm === extNorm || tNameNorm === extNorm) return true;
+                      }
+                      return false;
+                    });
 
-                  return (
-                    <div key={i} style={{ display: 'flex', flexDirection: 'column' }}>
-                      {/* Date Header: Today / Yesterday / 11 Sep 2026 */}
-                      {showDateHeader && (
-                        <div style={{ display: 'flex', justifyContent: 'center', margin: '14px 0 6px' }}>
-                          <span style={{
-                            fontSize: 11.5, fontWeight: 500, color: '#475569', background: '#ffffff',
-                            border: '1px solid #e2e8f0', padding: '3px 14px', borderRadius: 14,
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.06)', letterSpacing: '0.2px'
+                    const isTemplate = !!matchedTmpl || m.description?.startsWith('[Template:') || m.description?.startsWith('@') || m.isTemplate || m.type === 'template' || !!m.templateName || !!m.templateId || (m.direction && (m.direction.includes('broadcast') || m.direction.includes('campaign')));
+
+                    return (
+                      <div key={i} style={{ display: 'flex', flexDirection: 'column' }}>
+                        {/* Date Header */}
+                        {showDateHeader && (
+                          <div style={{ display: 'flex', justifyContent: 'center', margin: '14px 0 6px' }}>
+                            <span style={{
+                              fontSize: 11.5, fontWeight: 500, color: '#475569', background: '#ffffff',
+                              border: '1px solid #e2e8f0', padding: '3px 14px', borderRadius: 14,
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.06)', letterSpacing: '0.2px'
+                            }}>
+                              {currentDateLabel}
+                            </span>
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', justifyContent: isInbound ? 'flex-start' : 'flex-end', margin: '2px 0' }}>
+                          <div style={{
+                            maxWidth: '72%', padding: '9px 13px',
+                            borderRadius: isInbound ? '10px 10px 10px 2px' : '10px 10px 2px 10px',
+                            background: isInbound ? '#ffffff' : '#e0f2fe',
+                            border: isInbound ? '1px solid rgba(0,0,0,0.06)' : '1px solid #bae6fd',
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
+                            fontSize: 13.5, color: TEXT_MAIN, lineHeight: 1.55, fontWeight: 400
                           }}>
-                            {currentDateLabel}
-                          </span>
-                        </div>
-                      )}
-
-                      <div style={{ display: 'flex', justifyContent: isInbound ? 'flex-start' : 'flex-end', margin: '2px 0' }}>
-                        <div style={{
-                          maxWidth: '72%', padding: '9px 13px',
-                          borderRadius: isInbound ? '10px 10px 10px 2px' : '10px 10px 2px 10px',
-                          background: isInbound ? '#ffffff' : '#e0f2fe',
-                          border: isInbound ? '1px solid rgba(0,0,0,0.06)' : '1px solid #bae6fd',
-                          boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
-                          fontSize: 13.5, color: TEXT_MAIN, lineHeight: 1.55, fontWeight: 400
-                        }}>
-                          {/* Rich Template Card or Plain Message */}
-                          {isTemplate ? (
-                            <RichTemplateMessageCard message={m} templates={templates || []} />
-                          ) : (
-                            <div style={{ wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{m.description}</div>
-                          )}
-
-                          {/* Timestamp + Live Delivery Tick Status */}
-                          <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 4, textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 3 }}>
-                            <span>{new Date(m.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
-                            {m.direction === 'outbound_broadcast' && <span style={{ marginLeft: 3 }}>· broadcast</span>}
-                            {m.direction === 'outbound_agent' && <span style={{ marginLeft: 3 }}>· agent</span>}
-                            {!isInbound && (
-                              <MessageTicks status={m.deliveryStatus || m.status || 'sent'} />
+                            {/* Rich Template Card or Plain Message */}
+                            {isTemplate ? (
+                              <RichTemplateMessageCard message={m} templates={templates || []} />
+                            ) : (
+                              <div style={{ wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{m.description}</div>
                             )}
+
+                            {/* Timestamp + Live Delivery Tick Status */}
+                            <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 4, textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 3 }}>
+                              <span>{new Date(m.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+                              {m.direction === 'outbound_broadcast' && <span style={{ marginLeft: 3 }}>· broadcast</span>}
+                              {m.direction === 'outbound_agent' && <span style={{ marginLeft: 3 }}>· agent</span>}
+                              {!isInbound && (
+                                <MessageTicks status={m.deliveryStatus || m.status || 'sent'} />
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                });
-              })()}
+                    );
+                  });
+                })()}
+              </div>
+
+              {/* Floating Scroll to Bottom Button */}
+              {showScrollBottom && (
+                <button
+                  type="button"
+                  onClick={scrollToBottom}
+                  title="Scroll to bottom"
+                  style={{
+                    position: 'absolute',
+                    right: 24,
+                    bottom: 74,
+                    width: 38,
+                    height: 38,
+                    borderRadius: '50%',
+                    background: '#ffffff',
+                    color: BLUE,
+                    boxShadow: '0 4px 14px rgba(0,0,0,0.18)',
+                    border: '1px solid #e2e8f0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    zIndex: 25,
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </button>
+              )}
+
+              {/* Bottom Chat Reply Input Area */}
+              <div style={{ background: '#fff', borderTop: `1px solid ${BORDER}`, padding: '12px 20px', zIndex: 10 }}>
+                {thread.withinWindow ? (
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowSendTemplateModal(true)}
+                      title="Send Real Meta WhatsApp Template Message"
+                      style={{
+                        padding: '9px 12px',
+                        background: LIGHT_BLUE,
+                        color: DARK_BLUE,
+                        border: '1px solid #bfdbfe',
+                        borderRadius: 8,
+                        fontSize: 12.5,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 5
+                      }}
+                    >
+                      📋 Template
+                    </button>
+                    <input
+                      value={replyText}
+                      onChange={e => setReplyText(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && !sending) sendReply(); }}
+                      placeholder="Type a message…"
+                      style={{ ...inputStyle, marginBottom: 0, flex: 1, fontSize: 13.5, padding: '9px 14px', borderRadius: 8, border: `1px solid #cbd5e1` }}
+                    />
+                    <button onClick={sendReply} disabled={sending || !replyText.trim()}
+                      style={{
+                        padding: '10px 22px',
+                        background: sending || !replyText.trim() ? '#cbd5e1' : BLUE,
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: 8,
+                        fontSize: 13.5,
+                        fontWeight: 600,
+                        cursor: sending || !replyText.trim() ? 'not-allowed' : 'pointer',
+                        transition: 'background 0.15s ease'
+                      }}>
+                      {sending ? 'Sending…' : 'Send'}
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, background: LIGHT_ORANGE, border: '1px solid #fed7aa', borderRadius: 8, padding: '10px 16px' }}>
+                    <span style={{ fontSize: 13, color: '#9a3412', fontWeight: 500 }}>
+                      You can send template messages directly to recipient's phone via Meta WhatsApp API
+                    </span>
+                    <button onClick={() => setShowSendTemplateModal(true)}
+                      style={{ padding: '8px 18px', background: BLUE, color: '#fff', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      📋 Select Meta Template
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Floating Scroll to Bottom Button */}
-            {showScrollBottom && (
-              <button
-                type="button"
-                onClick={scrollToBottom}
-                title="Scroll to bottom"
-                style={{
-                  position: 'absolute',
-                  right: 24,
-                  bottom: 74,
-                  width: 38,
-                  height: 38,
-                  borderRadius: '50%',
-                  background: '#ffffff',
-                  color: BLUE,
-                  boxShadow: '0 4px 14px rgba(0,0,0,0.18)',
-                  border: '1px solid #e2e8f0',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  zIndex: 25,
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
-              </button>
+            {/* In-Chat Real Meta WhatsApp Template Modal */}
+            {showSendTemplateModal && (
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999, padding: 16 }}>
+                <div style={{ background: '#ffffff', borderRadius: 16, width: 500, maxWidth: '95vw', maxHeight: '88vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.25)', border: `1px solid ${BORDER}` }}>
+                  <div style={{ padding: '16px 20px', borderBottom: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8fafc' }}>
+                    <div>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: TEXT_MAIN }}>Select Meta WhatsApp Template</div>
+                      <div style={{ fontSize: 11.5, color: TEXT_MUTED, marginTop: 2 }}>Real WhatsApp API message to +91 {thread.lead.phone}</div>
+                    </div>
+                    <button onClick={() => { setShowSendTemplateModal(false); setSelectedTemplateId(null); setTemplateSearchText(''); }} style={{ border: 'none', background: 'none', fontSize: 18, color: TEXT_MUTED, cursor: 'pointer', padding: 4 }}>✕</button>
+                  </div>
+
+                  <div style={{ padding: '10px 16px 6px', borderBottom: `1px solid ${BORDER}`, background: '#ffffff' }}>
+                    <input
+                      value={templateSearchText}
+                      onChange={e => setTemplateSearchText(e.target.value)}
+                      placeholder="🔍 Search templates by name or text..."
+                      style={{ ...inputStyle, marginBottom: 0, fontSize: 12.5, padding: '8px 12px' }}
+                    />
+                  </div>
+
+                  <div className="whatsapp-chat-scroll" style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {templates.filter(t => (t.name || t.shortcut || '').toLowerCase().includes((templateSearchText || '').toLowerCase()) || (t.body || '').toLowerCase().includes((templateSearchText || '').toLowerCase())).length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: 24, color: TEXT_MUTED, fontSize: 13 }}>
+                        {templateSearchText ? `No templates found matching "${templateSearchText}".` : 'No Meta templates found. Create or sync Meta templates first.'}
+                      </div>
+                    ) : (
+                      templates.filter(t => (t.name || t.shortcut || '').toLowerCase().includes((templateSearchText || '').toLowerCase()) || (t.body || '').toLowerCase().includes((templateSearchText || '').toLowerCase())).map(tmpl => {
+                        const isSelected = selectedTemplateId === tmpl.id;
+                        return (
+                          <div
+                            key={tmpl.id}
+                            onClick={() => setSelectedTemplateId(tmpl.id)}
+                            style={{
+                              padding: 12, borderRadius: 10, border: `1.5px solid ${isSelected ? BLUE : BORDER}`,
+                              background: isSelected ? LIGHT_BLUE : '#ffffff', cursor: 'pointer', transition: 'all 0.15s ease'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                              <span style={{ fontSize: 13.5, fontWeight: 700, color: isSelected ? DARK_BLUE : TEXT_MAIN }}>{tmpl.shortcut || tmpl.name}</span>
+                              <span style={{ fontSize: 10.5, fontWeight: 600, padding: '2px 7px', borderRadius: 4, background: tmpl.status === 'APPROVED' ? '#f0fdf4' : '#fffbeb', color: tmpl.status === 'APPROVED' ? '#16a34a' : '#d97706' }}>
+                                {tmpl.status}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: 12, color: TEXT_MUTED, lineHeight: 1.4, wordBreak: 'break-word' }}>
+                              {tmpl.body}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* Selected Template Live Preview Card */}
+                  {selectedTemplateId && (
+                    <div style={{ borderTop: `1px solid ${BORDER}`, background: '#f8fafc', padding: 14, maxHeight: 220, overflowY: 'auto' }} className="whatsapp-chat-scroll">
+                      <div style={{ fontSize: 10.5, fontWeight: 700, color: TEXT_MUTED, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                        Selected Template Card Preview
+                      </div>
+                      <RichTemplateMessageCard
+                        message={{
+                          description: `[Template: ${templates.find(t => t.id === selectedTemplateId)?.shortcut || templates.find(t => t.id === selectedTemplateId)?.name || ''}]`,
+                          templateId: selectedTemplateId
+                        }}
+                        templates={templates}
+                        leadName={thread.lead.name || thread.lead.phone}
+                      />
+                    </div>
+                  )}
+
+                  <div style={{ padding: '14px 20px', borderTop: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, background: '#ffffff' }}>
+                    <button onClick={() => { setShowSendTemplateModal(false); setSelectedTemplateId(null); setTemplateSearchText(''); }} style={{ padding: '9px 18px', background: '#ffffff', border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, fontWeight: 600, color: TEXT_MUTED, cursor: 'pointer' }}>
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSendRealTemplate}
+                      disabled={!selectedTemplateId || sendingTemplate}
+                      style={{
+                        padding: '9px 20px', background: !selectedTemplateId || sendingTemplate ? '#cbd5e1' : BLUE,
+                        border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, color: '#ffffff',
+                        cursor: !selectedTemplateId || sendingTemplate ? 'not-allowed' : 'pointer',
+                        display: 'flex', alignItems: 'center', gap: 6
+                      }}
+                    >
+                      {sendingTemplate ? 'Sending via Meta API...' : '⚡ Send Real Meta Message'}
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
 
-            {/* Bottom Chat Reply Input Area */}
-            <div style={{ background: '#fff', borderTop: `1px solid ${BORDER}`, padding: '12px 20px', zIndex: 10 }}>
-              {thread.withinWindow ? (
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <input
-                    value={replyText}
-                    onChange={e => setReplyText(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter' && !sending) sendReply(); }}
-                    placeholder="Type a message…"
-                    style={{ ...inputStyle, marginBottom: 0, flex: 1, fontSize: 13.5, padding: '9px 14px', borderRadius: 8, border: `1px solid #cbd5e1` }}
-                  />
-                  <button onClick={sendReply} disabled={sending || !replyText.trim()}
-                    style={{
-                      padding: '10px 22px',
-                      background: sending || !replyText.trim() ? '#cbd5e1' : BLUE,
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: 8,
-                      fontSize: 13.5,
-                      fontWeight: 600,
-                      cursor: sending || !replyText.trim() ? 'not-allowed' : 'pointer',
-                      transition: 'background 0.15s ease'
+            {/* Right: Contact Profile Preview Mode Panel (Decreased 250px Width & Independent Separate Scroll) */}
+            {showContactPreview && (
+              <div
+                className="whatsapp-chat-scroll"
+                style={{
+                  width: 250,
+                  flexShrink: 0,
+                  borderLeft: `1px solid ${BORDER}`,
+                  background: '#ffffff',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  overflowY: 'auto',
+                  height: '100%',
+                  padding: '16px 14px',
+                  gap: 14,
+                  boxSizing: 'border-box'
+                }}
+              >
+                {/* Contact Profile Header */}
+                <div style={{ textAlign: 'center', paddingBottom: 12, borderBottom: `1px solid ${BORDER}` }}>
+                  <div style={{
+                    width: 52, height: 52, borderRadius: '50%', margin: '0 auto 8px',
+                    background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+                    color: '#ffffff', fontSize: 19, fontWeight: 700,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: '0 4px 12px rgba(37,99,235,0.22)'
+                  }}>
+                    {(thread.lead.name || thread.lead.phone || 'C').charAt(0).toUpperCase()}
+                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: TEXT_MAIN, wordBreak: 'break-word', lineHeight: 1.3 }}>
+                    {thread.lead.name || thread.lead.phone}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: TEXT_MUTED, marginTop: 2, fontFamily: 'monospace' }}>
+                    {thread.lead.phone}
+                  </div>
+                  {getLeadIdentity(thread.lead) && (
+                    <span style={{
+                      display: 'inline-block', marginTop: 6, fontSize: 10.5, fontWeight: 600,
+                      padding: '2px 8px', borderRadius: 10, background: LIGHT_BLUE, color: DARK_BLUE,
+                      border: '1px solid #bfdbfe'
                     }}>
-                    {sending ? 'Sending…' : 'Send'}
-                  </button>
+                      🏷️ {getLeadIdentity(thread.lead)}
+                    </span>
+                  )}
                 </div>
-              ) : (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, background: LIGHT_ORANGE, border: '1px solid #fed7aa', borderRadius: 8, padding: '10px 16px' }}>
-                  <span style={{ fontSize: 13, color: '#9a3412', fontWeight: 500 }}>
-                    You can only send template messages because the 24hr window passed
-                  </span>
-                  <button onClick={() => onSendTemplate && onSendTemplate(thread.lead)}
-                    style={{ padding: '8px 18px', background: BLUE, color: '#fff', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                    Send Template
-                  </button>
+
+                {/* Quick Contact Action Shortcuts */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                  <a
+                    href={`https://wa.me/${String(thread.lead.phone).replace(/\D/g, '')}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      padding: '7px 8px', borderRadius: 7, background: '#f0fdf4', border: '1px solid #bbf7d0',
+                      color: '#15803d', fontSize: 11, fontWeight: 600, textDecoration: 'none', textAlign: 'center',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4
+                    }}
+                  >
+                    💬 WhatsApp
+                  </a>
+                  <a
+                    href={`tel:${thread.lead.phone}`}
+                    style={{
+                      padding: '7px 8px', borderRadius: 7, background: '#eff6ff', border: '1px solid #bfdbfe',
+                      color: '#1d4ed8', fontSize: 11, fontWeight: 600, textDecoration: 'none', textAlign: 'center',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4
+                    }}
+                  >
+                    📞 Direct Call
+                  </a>
                 </div>
-              )}
-            </div>
+
+                {/* Lead Information Card */}
+                <div style={{ background: '#f8fafc', borderRadius: 9, padding: '10px 12px', border: `1px solid ${BORDER}`, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    Contact Details
+                  </div>
+                  <div style={{ fontSize: 12, color: TEXT_MAIN }}>
+                    <span style={{ color: TEXT_MUTED }}>Email: </span>
+                    <span style={{ fontWeight: 500, wordBreak: 'break-all' }}>{thread.lead.email || 'Not specified'}</span>
+                  </div>
+                  <div style={{ fontSize: 12, color: TEXT_MAIN }}>
+                    <span style={{ color: TEXT_MUTED }}>Status: </span>
+                    <span style={{
+                      fontWeight: 600, fontSize: 11, padding: '1px 6px', borderRadius: 4,
+                      background: thread.lead.waStatus === 'pending' ? '#fff7ed' : '#f0fdf4',
+                      color: thread.lead.waStatus === 'pending' ? '#c2410c' : '#15803d'
+                    }}>
+                      {thread.lead.waStatus || 'Active'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 12, color: TEXT_MAIN }}>
+                    <span style={{ color: TEXT_MUTED }}>Session: </span>
+                    <span style={{ fontWeight: 600, color: thread.withinWindow ? '#15803d' : '#c2410c' }}>
+                      {thread.withinWindow ? '🟢 24h Window Active' : '🔴 24h Window Expired'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Quick Action: Send Template */}
+                <button
+                  type="button"
+                  onClick={() => onSendTemplate && onSendTemplate(thread.lead)}
+                  style={{
+                    padding: '9px 12px', borderRadius: 8, background: BLUE, color: '#ffffff',
+                    border: 'none', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    boxShadow: '0 2px 6px rgba(37,99,235,0.2)'
+                  }}
+                >
+                  <span>📋 Send Template</span>
+                </button>
+
+                {/* Separate Scroll Activity Log Section */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    Recent Log Preview
+                  </div>
+                  <div style={{ fontSize: 11.5, color: TEXT_MUTED, background: '#f8fafc', padding: 8, borderRadius: 7, border: `1px solid ${BORDER}`, lineHeight: 1.4 }}>
+                    {thread.thread?.length ? `📜 ${thread.thread.length} messages in conversation history.` : 'No past activity logged.'}
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>
@@ -1378,32 +1735,7 @@ function TemplatesTab() {
           .catch(() => []);
       })
       .then(raw => {
-        const mapped = (raw || []).map(t => {
-          const comps = Array.isArray(t.components) ? t.components : [];
-          const header = comps.find(c => String(c.type).toUpperCase() === 'HEADER');
-          const bodyComp = comps.find(c => String(c.type).toUpperCase() === 'BODY');
-          const footerComp = comps.find(c => String(c.type).toUpperCase() === 'FOOTER');
-          const buttonsComp = comps.find(c => String(c.type).toUpperCase() === 'BUTTONS');
-
-          const headerImg = header?.example?.header_handle?.[0] || header?.example?.header_url?.[0] || t.header_image_url || t.headerImage || t.imageUrl || '';
-
-          return {
-            id: String(t._id || t.id || t.name),
-            _id: t._id || t.id,
-            name: t.shortcut || t.metaTemplateName || t.name || 'Template',
-            category: t.category || 'MARKETING',
-            status: t.waStatus || t.metaStatus || t.status || 'APPROVED',
-            language: t.language || 'en_US',
-            body: t.message || bodyComp?.text || t.body_text || t.body || '',
-            rejectedReason: t.rejectedReason || t.rejected_reason || '',
-            headerText: header?.text || t.header_text || t.headerText || '',
-            headerFormat: header?.format || t.header_type || t.headerFormat || '',
-            headerImage: headerImg,
-            components: comps,
-            footer: footerComp?.text || t.footer_text || t.footer || '',
-            buttons: buttonsComp?.buttons || t.buttons || [],
-          };
-        });
+        const mapped = (raw || []).map(t => parseTemplateDoc(t)).filter(Boolean);
         setTemplates(mapped);
         if (mapped.length > 0) {
           setPreviewId(prev => (prev && mapped.some(m => m.id === prev)) ? prev : mapped[0].id);
@@ -1685,11 +2017,14 @@ function TemplatePreviewPanel({ template, sentCount, onDelete }) {
             </div>
             {t.buttons?.length > 0 && (
               <div style={{ borderTop: '1px solid #f0f0f0' }}>
-                {t.buttons.map((b, i) => (
-                  <div key={i} style={{ padding: '10px 12px', textAlign: 'center', fontSize: 13, color: '#0a8dff', fontWeight: 600, borderBottom: i < t.buttons.length - 1 ? '1px solid #f0f0f0' : 'none' }}>
-                    {b.text || b.type}
-                  </div>
-                ))}
+                {t.buttons.map((b, i) => {
+                  const btnText = typeof b === 'string' ? b : (b.text || b.value || b.type || 'Button');
+                  return (
+                    <div key={i} style={{ padding: '10px 12px', textAlign: 'center', fontSize: 13, color: '#0a8dff', fontWeight: 600, borderBottom: i < t.buttons.length - 1 ? '1px solid #f0f0f0' : 'none' }}>
+                      {btnText}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1935,7 +2270,27 @@ function BroadcastsTab() {
 // ── Main Page ──────────────────────────────────────────────────────────────────
 export default function WhatsApp() {
   const [activeTab, setActiveTab] = useState('inbox');
+  const [syncingData, setSyncingData] = useState(false);
+  const [syncSuccess, setSyncSuccess] = useState(false);
   const activeItem = NAV_ITEMS.find(n => n.key === activeTab);
+
+  const handleSyncData = async () => {
+    setSyncingData(true);
+    setSyncSuccess(false);
+    try {
+      await api.post('/integrations/whatsapp/templates/sync').catch(() => {});
+      await api.get('/contacts').catch(() => {});
+      await api.get('/whatsapp-inbox').catch(() => {});
+
+      setSyncSuccess(true);
+      setTimeout(() => setSyncSuccess(false), 4000);
+      window.dispatchEvent(new CustomEvent('wa_data_synced'));
+    } catch (err) {
+      console.error('Data sync failed:', err);
+    } finally {
+      setSyncingData(false);
+    }
+  };
 
   const renderTab = () => {
     switch (activeTab) {
@@ -1947,8 +2302,26 @@ export default function WhatsApp() {
   };
 
   return (
-    <div className="wa-shell" style={{ display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 48px)', background: BG, maxWidth: '100%', overflowX: 'hidden' }}>
+    <div className="wa-shell" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 84px)', maxHeight: 'calc(100vh - 84px)', background: BG, maxWidth: '100%', overflow: 'hidden' }}>
       <style>{`
+        .whatsapp-chat-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(37, 99, 235, 0.3) transparent;
+        }
+        .whatsapp-chat-scroll::-webkit-scrollbar {
+          width: 5px;
+          height: 5px;
+        }
+        .whatsapp-chat-scroll::-webkit-scrollbar-track {
+          background: rgba(0, 0, 0, 0.02);
+        }
+        .whatsapp-chat-scroll::-webkit-scrollbar-thumb {
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 6px;
+        }
+        .whatsapp-chat-scroll::-webkit-scrollbar-thumb:hover {
+          background: rgba(37, 99, 235, 0.55);
+        }
         @media (max-width: 640px) {
           .wa-shell [style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
           .wa-shell div[style*="display: flex"] { flex-wrap: wrap; row-gap: 6px; }
@@ -1960,35 +2333,79 @@ export default function WhatsApp() {
       `}</style>
 
       {/* Top header */}
-      <div className="wa-top-header" style={{ background: '#fff', borderBottom: `1px solid ${BORDER}`, padding: '0 24px', minHeight: 56, display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0, flexWrap: 'wrap' }}>
-        {/* Brand */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-          <div style={{ width: 34, height: 34, background: LIGHT_BLUE, border: '1.5px solid #bfdbfe', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={BLUE} strokeWidth="2" strokeLinecap="round">
-              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
-            </svg>
+      <div className="wa-top-header" style={{ background: '#fff', borderBottom: `1px solid ${BORDER}`, padding: '0 24px', minHeight: 52, maxHeight: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexShrink: 0, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          {/* Brand */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+            <div style={{ width: 32, height: 32, background: LIGHT_BLUE, border: '1.5px solid #bfdbfe', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={BLUE} strokeWidth="2" strokeLinecap="round">
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+              </svg>
+            </div>
+            <div className="wa-brand-text">
+              <div style={{ fontSize: 13, fontWeight: 600, color: TEXT_MAIN, lineHeight: 1.2 }}>WhatsApp CRM</div>
+              <div style={{ fontSize: 10, color: ORANGE, fontWeight: 600 }}>Business Suite</div>
+            </div>
           </div>
-          <div className="wa-brand-text">
-            <div style={{ fontSize: 13.5, fontWeight: 600, color: TEXT_MAIN, lineHeight: 1.2 }}>WhatsApp CRM</div>
-            <div style={{ fontSize: 10.5, color: ORANGE, fontWeight: 600 }}>Business Suite</div>
+
+          {/* Hamburger — shows dropdown on click */}
+          <HamburgerMenu activeTab={activeTab} onSelect={setActiveTab} />
+
+          <div style={{ width: 1, height: 20, background: BORDER }} />
+
+          {/* Active section breadcrumb */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ color: BLUE, display: 'flex' }}>{activeItem?.icon}</span>
+            <span style={{ fontSize: 13.5, fontWeight: 600, color: TEXT_MAIN }}>{activeItem?.label}</span>
           </div>
         </div>
 
-        {/* Hamburger — shows 6-item dropdown on click */}
-        <HamburgerMenu activeTab={activeTab} onSelect={setActiveTab} />
-
-        <div style={{ width: 1, height: 22, background: BORDER }} />
-
-        {/* Active section breadcrumb */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ color: BLUE, display: 'flex' }}>{activeItem?.icon}</span>
-          <span style={{ fontSize: 14, fontWeight: 600, color: TEXT_MAIN }}>{activeItem?.label}</span>
+        {/* Top Right Corner: Data Sync Button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
+          <button
+            onClick={handleSyncData}
+            disabled={syncingData}
+            title="Sync Meta WhatsApp Templates, Contacts & Inbox Data"
+            style={{
+              padding: '6px 14px',
+              borderRadius: 8,
+              border: `1.5px solid ${syncSuccess ? '#bbf7d0' : syncingData ? '#bfdbfe' : BLUE}`,
+              background: syncSuccess ? '#f0fdf4' : syncingData ? LIGHT_BLUE : '#ffffff',
+              color: syncSuccess ? '#15803d' : syncingData ? DARK_BLUE : BLUE,
+              fontSize: 12.5,
+              fontWeight: 600,
+              cursor: syncingData ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{
+                animation: syncingData ? 'spin 1s linear infinite' : 'none'
+              }}
+            >
+              <path d="M21.5 2v6h-6M2.5 22v-6h6"/>
+              <path d="M2 11.5a10 10 0 0 1 18.8-4.3L21.5 8M22 12.5a10 10 0 0 1-18.8 4.2L2.5 16"/>
+            </svg>
+            <span>{syncingData ? 'Syncing Data...' : syncSuccess ? '✓ Data Synced!' : 'Sync Data'}</span>
+          </button>
         </div>
       </div>
 
-      {/* Content wrapper with responsive max-width for neat fit across devices */}
-      <div className="wa-body-container" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', width: '100%', maxWidth: 1440, margin: '0 auto', padding: '10px 14px' }}>
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: activeTab === 'inbox' ? 'hidden' : 'auto', background: '#fff', borderRadius: 14, border: `1px solid ${BORDER}`, boxShadow: '0 1px 4px rgba(0,0,0,0.03)' }}>
+      {/* Content wrapper with compact height fit */}
+      <div className="wa-body-container" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', width: '100%', maxWidth: 1440, margin: '0 auto', padding: '6px 10px 8px', boxSizing: 'border-box', overflow: 'hidden' }}>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: activeTab === 'inbox' ? 'hidden' : 'auto', background: '#fff', borderRadius: 12, border: `1px solid ${BORDER}`, boxShadow: '0 1px 4px rgba(0,0,0,0.03)' }}>
           {renderTab()}
         </div>
       </div>

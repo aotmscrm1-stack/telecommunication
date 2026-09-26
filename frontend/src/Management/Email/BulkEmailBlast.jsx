@@ -14,8 +14,10 @@ export default function BulkEmailBlast() {
   const { user } = useAuth();
   const isAuthorized = canAccessEmailBlast(user);
 
-  // Leads state
+  // Leads & Contacts state
   const [leads, setLeads] = useState([]);
+  const [contacts, setContacts] = useState([]);
+  const [directoryTab, setDirectoryTab] = useState('all'); // 'all' | 'leads' | 'contacts'
   const [loadingLeads, setLoadingLeads] = useState(true);
   const [leadSearch, setLeadSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -64,16 +66,32 @@ export default function BulkEmailBlast() {
     }
   };
 
-  // Fetch All Leads
+  // Fetch All Leads & MongoDB Contacts
   const fetchLeads = async () => {
     try {
       setLoadingLeads(true);
-      const res = await leadsAPI.getAll({ limit: 2000 });
-      const rawLeads = res.data?.leads || res.data || [];
+      const token = localStorage.getItem('aotms_token');
+      const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+
+      const cleanBase = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '').replace(/\/$/, '');
+      const apiEndpoint = cleanBase ? `${cleanBase}/api/contacts` : '/api/contacts';
+
+      const [leadsRes, contactsRes] = await Promise.all([
+        leadsAPI.getAll({ limit: 2000 }).catch(() => null),
+        fetch(apiEndpoint, { headers: authHeaders }).then(r => r.json()).catch(() => null)
+      ]);
+
+      const rawLeads = leadsRes?.data?.leads || leadsRes?.data || [];
       setLeads(rawLeads);
+
+      if (contactsRes && contactsRes.success && Array.isArray(contactsRes.contacts)) {
+        setContacts(contactsRes.contacts);
+      } else {
+        setContacts([]);
+      }
     } catch (err) {
-      console.error('Failed to load leads:', err);
-      notify('error', 'Could not load leads from database.');
+      console.error('Failed to load leads & contacts:', err);
+      notify('error', 'Could not load directory data.');
     } finally {
       setLoadingLeads(false);
     }
@@ -217,36 +235,76 @@ export default function BulkEmailBlast() {
     }
   };
 
-  // Filter leads
+  // Unified Audience (Leads + Contacts)
+  const allAudience = useMemo(() => {
+    const list = [];
+
+    if (directoryTab === 'all' || directoryTab === 'leads') {
+      leads.forEach(l => {
+        list.push({
+          _id: l._id || l.id,
+          name: l.name || 'Valued Lead',
+          email: l.email || '',
+          phone: l.phone || l.mobile || '',
+          company: l.company || '',
+          status: l.status || 'Fresh',
+          identity: l.identity || 'Lead',
+          sourceType: 'lead'
+        });
+      });
+    }
+
+    if (directoryTab === 'all' || directoryTab === 'contacts') {
+      contacts.forEach(c => {
+        list.push({
+          _id: c._id || c.id || `c_${c.phone}`,
+          name: c.name || 'Contact',
+          email: c.email || '',
+          phone: c.phone || '',
+          company: c.identity || 'SAP FICO',
+          status: c.segment || 'Contact',
+          identity: (c.identity && c.identity !== 'General') ? c.identity : 'SAP FICO',
+          sourceType: 'contact'
+        });
+      });
+    }
+
+    return list;
+  }, [leads, contacts, directoryTab]);
+
+  // Filter audience list
   const filteredLeads = useMemo(() => {
-    return leads.filter(lead => {
+    return allAudience.filter(item => {
       const matchSearch =
         !leadSearch.trim() ||
-        lead.name?.toLowerCase().includes(leadSearch.toLowerCase()) ||
-        lead.email?.toLowerCase().includes(leadSearch.toLowerCase()) ||
-        lead.phone?.includes(leadSearch);
+        item.name?.toLowerCase().includes(leadSearch.toLowerCase()) ||
+        item.email?.toLowerCase().includes(leadSearch.toLowerCase()) ||
+        item.phone?.includes(leadSearch) ||
+        item.company?.toLowerCase().includes(leadSearch.toLowerCase()) ||
+        item.identity?.toLowerCase().includes(leadSearch.toLowerCase());
 
       const matchStatus =
         statusFilter === 'All' ||
-        String(lead.status || '').toLowerCase() === statusFilter.toLowerCase();
+        String(item.status || '').toLowerCase() === statusFilter.toLowerCase() ||
+        String(item.identity || '').toLowerCase() === statusFilter.toLowerCase();
 
       return matchSearch && matchStatus;
     });
-  }, [leads, leadSearch, statusFilter]);
+  }, [allAudience, leadSearch, statusFilter]);
 
-  // Filtered leads with valid emails
+  // Filtered audience with valid emails
   const filteredLeadsWithEmail = useMemo(() => {
     return filteredLeads.filter(l => l.email && l.email.includes('@') && l.email.includes('.'));
   }, [filteredLeads]);
 
-  // ── Pagination State for Leads Directory (20 items per page) ──
+  // ── Pagination State for Directory (20 items per page) ──
   const PAGE_SIZE = 20;
   const [currentPage, setCurrentPage] = useState(1);
 
   // Reset to page 1 on search or status filter modification
   useEffect(() => {
     setCurrentPage(1);
-  }, [leadSearch, statusFilter]);
+  }, [leadSearch, statusFilter, directoryTab]);
 
   const totalPages = Math.max(1, Math.ceil(filteredLeads.length / PAGE_SIZE));
   const safeCurrentPage = Math.min(Math.max(currentPage, 1), totalPages);
@@ -257,12 +315,12 @@ export default function BulkEmailBlast() {
     return filteredLeads.slice(start, start + PAGE_SIZE);
   }, [filteredLeads, safeCurrentPage, PAGE_SIZE]);
 
-  // Paginated leads on current page with valid email
+  // Paginated audience on current page with valid email
   const paginatedLeadsWithEmail = useMemo(() => {
     return paginatedLeads.filter(l => l.email && l.email.includes('@') && l.email.includes('.'));
   }, [paginatedLeads]);
 
-  // Lead selection handlers
+  // Selection handlers
   const handleToggleLead = (leadId, hasEmail) => {
     if (!hasEmail) return;
     setSelectedLeadIds(prev => {
@@ -276,7 +334,6 @@ export default function BulkEmailBlast() {
     });
   };
 
-  // Toggle selection for all reachable leads on current page
   const handleToggleCurrentPage = () => {
     const allPageSelected = paginatedLeadsWithEmail.length > 0 && paginatedLeadsWithEmail.every(l => selectedLeadIds.has(l._id));
     setSelectedLeadIds(prev => {
@@ -310,13 +367,14 @@ export default function BulkEmailBlast() {
   // Calculate actual recipient emails selected
   const selectedRecipientsList = useMemo(() => {
     const list = [];
-    leads.forEach(l => {
-      if (selectedLeadIds.has(l._id) && l.email && l.email.includes('@')) {
+    allAudience.forEach(item => {
+      if (selectedLeadIds.has(item._id) && item.email && item.email.includes('@')) {
         list.push({
-          id: l._id,
-          name: l.name || 'Valued Contact',
-          email: l.email.trim().toLowerCase(),
-          phone: l.phone || ''
+          id: item._id,
+          name: item.name || 'Valued Contact',
+          email: item.email.trim().toLowerCase(),
+          phone: item.phone || '',
+          sourceType: item.sourceType
         });
       }
     });
@@ -330,7 +388,7 @@ export default function BulkEmailBlast() {
       }
     });
     return unique;
-  }, [leads, selectedLeadIds]);
+  }, [allAudience, selectedLeadIds]);
 
   // Dispatch Bulk Email Broadcast to n8n Webhook
   const handleConfirmDispatch = async () => {
@@ -781,14 +839,53 @@ export default function BulkEmailBlast() {
             display: 'flex', flexDirection: 'column', gap: 10, flexShrink: 0
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Users size={18} color="#2563eb" />
-                <h3 style={{ margin: 0, fontSize: 14.5, fontWeight: 600, color: '#0f172a' }}>
-                  All Leads Directory
-                </h3>
-                <span style={{ fontSize: 12, color: '#64748b' }}>
-                  ({filteredLeadsWithEmail.length} reachable via email)
-                </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Users size={18} color="#2563eb" />
+                  <h3 style={{ margin: 0, fontSize: 14.5, fontWeight: 600, color: '#0f172a' }}>
+                    All Leads & Contacts Directory
+                  </h3>
+                </div>
+
+                {/* Audience Filter Tabs */}
+                <div style={{ display: 'inline-flex', background: '#f1f5f9', padding: 2, borderRadius: 8, gap: 2 }}>
+                  <button
+                    type="button"
+                    onClick={() => setDirectoryTab('all')}
+                    style={{
+                      padding: '3px 9px', fontSize: 11, fontWeight: 600, border: 'none', borderRadius: 6,
+                      cursor: 'pointer', background: directoryTab === 'all' ? '#ffffff' : 'transparent',
+                      color: directoryTab === 'all' ? '#1d4ed8' : '#64748b',
+                      boxShadow: directoryTab === 'all' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'
+                    }}
+                  >
+                    👥 All ({leads.length + contacts.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDirectoryTab('leads')}
+                    style={{
+                      padding: '3px 9px', fontSize: 11, fontWeight: 600, border: 'none', borderRadius: 6,
+                      cursor: 'pointer', background: directoryTab === 'leads' ? '#ffffff' : 'transparent',
+                      color: directoryTab === 'leads' ? '#1d4ed8' : '#64748b',
+                      boxShadow: directoryTab === 'leads' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'
+                    }}
+                  >
+                    🎯 Leads ({leads.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDirectoryTab('contacts')}
+                    style={{
+                      padding: '3px 9px', fontSize: 11, fontWeight: 600, border: 'none', borderRadius: 6,
+                      cursor: 'pointer', background: directoryTab === 'contacts' ? '#ffffff' : 'transparent',
+                      color: directoryTab === 'contacts' ? '#ea580c' : '#64748b',
+                      boxShadow: directoryTab === 'contacts' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'
+                    }}
+                  >
+                    📑 Contacts ({contacts.length})
+                  </button>
+                </div>
               </div>
 
               {/* Selection Controls */}
@@ -1004,14 +1101,23 @@ export default function BulkEmailBlast() {
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                               <div style={{
                                 width: 26, height: 26, borderRadius: '50%',
-                                background: isSelected ? '#3b82f6' : '#e2e8f0',
-                                color: isSelected ? '#fff' : '#475569',
+                                background: isSelected ? '#2563eb' : (lead.sourceType === 'contact' ? '#f97316' : '#64748b'),
+                                color: '#fff',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 fontSize: 11, fontWeight: 700
                               }}>
                                 {(lead.name || 'L').charAt(0).toUpperCase()}
                               </div>
-                              <span>{lead.name || 'Unnamed Lead'}</span>
+                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <span>{lead.name || 'Unnamed Lead'}</span>
+                                  {lead.sourceType === 'contact' && (
+                                    <span style={{ fontSize: 9.5, fontWeight: 700, background: '#fff7ed', color: '#ea580c', border: '1px solid #fed7aa', padding: '1px 5px', borderRadius: 4 }}>
+                                      Contact
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
                             </div>
                           </td>
                           <td style={{ padding: '10px 12px' }}>
@@ -1029,7 +1135,13 @@ export default function BulkEmailBlast() {
                             {lead.phone || '—'}
                           </td>
                           <td style={{ padding: '10px 12px' }}>
-                            <StatusBadge status={lead.status || 'Fresh'} />
+                            {lead.sourceType === 'contact' ? (
+                              <span style={{ fontSize: 11, fontWeight: 700, background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '2px 8px', borderRadius: 12 }}>
+                                🏷️ {lead.identity || 'SAP FICO'}
+                              </span>
+                            ) : (
+                              <StatusBadge status={lead.status || 'Fresh'} />
+                            )}
                           </td>
                         </tr>
                       );
@@ -1135,14 +1247,8 @@ export default function BulkEmailBlast() {
                     Broadcast Dispatched to n8n!
                   </h4>
                   <p style={{ margin: '0 0 16px', fontSize: 13.5, color: '#475569' }}>
-                    Successfully queued <strong>{dispatchResult.count} recipients</strong> to n8n AI-Mail workflow.
+                    Successfully queued <strong>{dispatchResult.count} recipients</strong>.
                   </p>
-                  <div style={{
-                    background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0',
-                    fontSize: 12, color: '#64748b', textAlign: 'left', wordBreak: 'break-all'
-                  }}>
-                    <strong>Webhook URL:</strong> {dispatchResult.webhookUrl}
-                  </div>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Send, 
   CheckSquare, 
@@ -55,6 +56,7 @@ const DEFAULT_FALLBACK_TEMPLATES = [
 ];
 
 export default function WhatsappBlast() {
+  const navigate = useNavigate();
   const [templates, setTemplates] = useState([]);
   const [leads, setLeads] = useState([]);
   const [contacts, setContacts] = useState([]);
@@ -187,10 +189,15 @@ export default function WhatsappBlast() {
 
       if (leadsRes && leadsRes.ok) {
         const leadsData = await leadsRes.json();
-        if (leadsData && leadsData.success && Array.isArray(leadsData.leads)) {
-          loadedLeads = leadsData.leads.map((l, index) => ({
+        const rawLeads = leadsData.leads || (Array.isArray(leadsData) ? leadsData : []);
+        if (Array.isArray(rawLeads)) {
+          loadedLeads = rawLeads.map((l, index) => ({
             ...l,
-            id: String(l._id || l.id || `lead_${index}`)
+            id: String(l._id || l.id || `lead_${index}`),
+            name: l.name || l.contactName || l.full_name || l.phone || 'Lead',
+            phone: l.phone || l.mobile || l.phoneNumber || '',
+            email: l.email || '',
+            identity: l.identity || l.customFields?.identity || 'Inquiries'
           }));
           setLeads(loadedLeads);
         }
@@ -198,10 +205,15 @@ export default function WhatsappBlast() {
 
       if (contactsRes && contactsRes.ok) {
         const contactsData = await contactsRes.json();
-        if (contactsData && contactsData.success && Array.isArray(contactsData.contacts)) {
-          loadedContacts = contactsData.contacts.map((c, index) => ({
+        const rawContacts = contactsData.contacts || (Array.isArray(contactsData) ? contactsData : []);
+        if (Array.isArray(rawContacts)) {
+          loadedContacts = rawContacts.map((c, index) => ({
             ...c,
-            id: String(c._id || c.id || c.phone || `contact_${index}`)
+            id: String(c._id || c.id || c.phone || `contact_${index}`),
+            name: c.name || c.contactName || c.full_name || c.contact_name || c.phone || 'Contact',
+            phone: c.phone || c.mobile || c.phoneNumber || c.phone_number || '',
+            email: c.email || '',
+            identity: (c.identity && c.identity !== 'General') ? c.identity : 'SAP FICO'
           }));
           setContacts(loadedContacts);
         }
@@ -494,15 +506,26 @@ export default function WhatsappBlast() {
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={handleTriggerBlast}
-          disabled={sending || selectedIds.length === 0 || !selectedTemplate}
-          className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-medium text-xs flex items-center gap-2 shadow-xs transition-all cursor-pointer disabled:opacity-50 hover:shadow-sm active:scale-98 shrink-0"
-        >
-          {sending ? <RotateCw className="w-4 h-4 animate-spin text-white" /> : <Send className="w-4 h-4" />}
-          <span>{sending ? 'Dispatching...' : `Send Blast (${selectedIds.length} ${recipientType === 'contacts' ? 'Contacts' : 'Leads'})`}</span>
-        </button>
+        <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+          <button
+            type="button"
+            onClick={() => navigate('/whatsapp')}
+            className="px-4 py-2.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 font-medium text-xs flex items-center gap-2 transition-all cursor-pointer shadow-xs active:scale-98"
+          >
+            <WhatsApp className="w-4 h-4 text-sky-600" />
+            <span>Open WhatsApp CRM Inbox</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleTriggerBlast}
+            disabled={sending || selectedIds.length === 0 || !selectedTemplate}
+            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-medium text-xs flex items-center gap-2 shadow-xs transition-all cursor-pointer disabled:opacity-50 hover:shadow-sm active:scale-98"
+          >
+            {sending ? <RotateCw className="w-4 h-4 animate-spin text-white" /> : <Send className="w-4 h-4" />}
+            <span>{sending ? 'Dispatching...' : `Send Blast (${selectedIds.length} ${recipientType === 'contacts' ? 'Contacts' : 'Leads'})`}</span>
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -662,49 +685,73 @@ export default function WhatsappBlast() {
               {filteredRecipients.map((item) => {
                 const itemId = getItemId(item);
                 const isSelected = selectedIds.includes(itemId);
+                const isPreviewed = activePreviewRecipient && getItemId(activePreviewRecipient) === itemId;
                 const itemStatus = item.status || item.pipeline_stage || 'Inquiries';
 
                 return (
                   <div
                     key={itemId}
-                    onClick={() => toggleSelectItem(itemId)}
+                    onClick={() => {
+                      toggleSelectItem(itemId);
+                      setPreviewRecipientId(itemId);
+                    }}
                     className={`p-2.5 rounded-lg border transition-all cursor-pointer flex items-center justify-between ${
                       isSelected
                         ? 'bg-emerald-50/40 border-emerald-300 text-slate-900 ring-1 ring-emerald-400/30'
                         : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'
-                    }`}
+                    } ${isPreviewed ? 'ring-2 ring-emerald-500 shadow-xs' : ''}`}
                   >
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-2.5 min-w-0">
                       {isSelected ? <CheckSquare className="w-4 h-4 text-emerald-600 shrink-0" /> : <Square className="w-4 h-4 text-slate-300 shrink-0" />}
                       
                       {/* Avatar preview if image_url exists */}
-                      {item.image_url && (
+                      {item.image_url ? (
                         <img src={item.image_url} alt={item.name} className="w-7 h-7 rounded-lg object-cover shrink-0" />
+                      ) : (
+                        <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center justify-center shrink-0">
+                          {(item.name || 'C').charAt(0).toUpperCase()}
+                        </div>
                       )}
 
-                      <div>
-                        <div className="text-xs font-medium text-slate-800">{item.name}</div>
-                        <div className="text-[10px] font-mono text-slate-500 flex items-center gap-2 font-normal">
-                          <span>{item.phone}</span>
-                          {item.address && (
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold text-slate-800 truncate">{item.name || item.phone || 'Contact'}</div>
+                        <div className="text-[10px] font-mono text-slate-500 flex items-center gap-1 font-normal truncate">
+                          <span>{item.phone || 'No Phone'}</span>
+                          {item.email && (
                             <>
                               <span>•</span>
-                              <span className="text-slate-600 truncate max-w-[130px] font-normal">{item.address}</span>
+                              <span className="text-slate-600 truncate max-w-[120px] font-normal">{item.email}</span>
                             </>
                           )}
                         </div>
                       </div>
                     </div>
 
-                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-medium border ${
-                      recipientType === 'contacts'
-                        ? 'bg-sky-50 text-sky-700 border-sky-200/80'
-                        : 'bg-amber-50 text-amber-700 border-amber-200/80'
-                    }`}>
-                      {recipientType === 'contacts'
-                        ? `🏷️ ${item.identity && item.identity !== 'General' ? item.identity : 'SAP FICO'}`
-                        : itemStatus}
-                    </span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPreviewRecipientId(itemId);
+                        }}
+                        title="Preview message template for this contact"
+                        className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${
+                          isPreviewed ? 'bg-emerald-600 text-white' : 'bg-slate-100 hover:bg-emerald-100 text-slate-600 hover:text-emerald-800'
+                        }`}
+                      >
+                        Preview
+                      </button>
+
+                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-medium border ${
+                        recipientType === 'contacts'
+                          ? 'bg-sky-50 text-sky-700 border-sky-200/80'
+                          : 'bg-amber-50 text-amber-700 border-amber-200/80'
+                      }`}>
+                        {recipientType === 'contacts'
+                          ? `🏷️ ${item.identity && item.identity !== 'General' ? item.identity : 'SAP FICO'}`
+                          : itemStatus}
+                      </span>
+                    </div>
                   </div>
                 );
               })}

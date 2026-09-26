@@ -717,6 +717,7 @@ router.post('/whatsapp-blast', async (req, res) => {
       }
 
       try {
+        let sendResult;
         if (phoneId && accessToken) {
           const sendComponents = await whatsappService.buildTemplateComponents(
             template,
@@ -727,7 +728,7 @@ router.post('/whatsapp-blast', async (req, res) => {
             accessToken
           );
 
-          await whatsappService.sendTemplateMessage(
+          sendResult = await whatsappService.sendTemplateMessage(
             phoneId,
             accessToken,
             toPhone,
@@ -736,13 +737,74 @@ router.post('/whatsapp-blast', async (req, res) => {
             sendComponents
           );
         }
+
+        // Record activity in Lead document for live WhatsApp Inbox visibility
+        const { normalizePhone10 } = require('../utils/phone');
+        const p10 = normalizePhone10(rawPhone) || String(rawPhone).slice(-10);
+        const descriptionText = `[Template: ${template_name || metaTemplateName}]`;
+
+        let targetLead = await Lead.findOne({ phone: p10 });
+        if (!targetLead) {
+          targetLead = await Lead.create({
+            name: item.name || 'WhatsApp Contact',
+            phone: p10,
+            status: 'Contact',
+            leadSource: 'Whatsapp Blast',
+            customFields: { identity: item.identity || 'General' },
+          });
+        }
+
+        targetLead.activities = targetLead.activities || [];
+        targetLead.activities.push({
+          type: 'whatsapp',
+          description: descriptionText,
+          direction: 'outbound_broadcast',
+          metaMessageId: sendResult?.messages?.[0]?.id || '',
+          deliveryStatus: 'sent',
+          isTemplate: true,
+          templateName: metaTemplateName,
+          performedBy: req.user?._id,
+          createdAt: new Date(),
+        });
+        targetLead.waStatus = 'intervened';
+        targetLead.lastWaMessageAt = new Date();
+        targetLead.lastWaMessagePreview = descriptionText;
+        await targetLead.save();
+
         successful++;
       } catch (sendErr) {
         console.warn(`WhatsApp blast error for ${item.name} (${toPhone}):`, sendErr.response?.data || sendErr.message);
         if (phoneId && accessToken) {
           try {
             const fallbackText = template?.message || `Hello ${item.name || ''}, greetings from AOTMS!`;
-            await whatsappService.sendTextMessage(phoneId, accessToken, toPhone, fallbackText);
+            const textRes = await whatsappService.sendTextMessage(phoneId, accessToken, toPhone, fallbackText);
+            
+            const { normalizePhone10 } = require('../utils/phone');
+            const p10 = normalizePhone10(rawPhone) || String(rawPhone).slice(-10);
+            let targetLead = await Lead.findOne({ phone: p10 });
+            if (!targetLead) {
+              targetLead = await Lead.create({
+                name: item.name || 'WhatsApp Contact',
+                phone: p10,
+                status: 'Contact',
+                leadSource: 'Whatsapp Blast',
+                customFields: { identity: item.identity || 'General' },
+              });
+            }
+            targetLead.activities = targetLead.activities || [];
+            targetLead.activities.push({
+              type: 'whatsapp',
+              description: fallbackText,
+              direction: 'outbound_broadcast',
+              metaMessageId: textRes?.messages?.[0]?.id || '',
+              deliveryStatus: 'sent',
+              createdAt: new Date(),
+            });
+            targetLead.waStatus = 'intervened';
+            targetLead.lastWaMessageAt = new Date();
+            targetLead.lastWaMessagePreview = fallbackText;
+            await targetLead.save();
+
             successful++;
             continue;
           } catch (textErr) {

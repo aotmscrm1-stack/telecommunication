@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import { canDelete, isManagingDirector, isExecutive, canAccessEmailBlast } from '../../utils/permissions';
@@ -40,13 +40,43 @@ export default function EmailCRM() {
   const isMD = isManagingDirector(user) || isExecutive(user);
   const isBlastAllowed = canAccessEmailBlast(user);
 
-  // Active Navigation Tab: 'sent', 'inbox', 'templates', 'admin_audit', 'blast'
+  // Active Navigation Tab: 'sent', 'inbox', 'contacts', 'templates', 'admin_audit', 'blast'
   const [activeFolder, setActiveFolder] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     const tab = params.get('folder') || params.get('tab');
     if (tab === 'blast') return 'blast';
+    if (tab === 'contacts') return 'contacts';
     return 'sent';
   });
+
+  // Contacts Directory State
+  const [contacts, setContacts] = useState([]);
+  const [loadingContacts, setLoadingContacts] = useState(false);
+  const [contactSearchQuery, setContactSearchQuery] = useState('');
+  const [contactIdentityFilter, setContactIdentityFilter] = useState('ALL');
+  const [showAddContactModal, setShowAddContactModal] = useState(false);
+  const [showEditContactModal, setShowEditContactModal] = useState(false);
+  const [editingContact, setEditingContact] = useState(null);
+  const [submittingContact, setSubmittingContact] = useState(false);
+  const [contactToast, setContactToast] = useState(null);
+  const [contactPickerOpen, setContactPickerOpen] = useState(false);
+
+  // Form State for Contact Creation / Editing
+  const [contactFormData, setContactFormData] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    identity: 'SAP FICO'
+  });
+  const [editContactFormData, setEditContactFormData] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    identity: 'SAP FICO',
+    segment: 'New'
+  });
+  const [phoneError, setPhoneError] = useState('');
+  const [emailError, setEmailError] = useState('');
 
   // Templates
   const [templates, setTemplates] = useState([]);
@@ -214,6 +244,169 @@ ${user?.designation || 'Staff'}`
       .finally(() => setLoadingLogs(false));
   };
 
+  const fetchContacts = async () => {
+    setLoadingContacts(true);
+    try {
+      const res = await api.get('/contacts');
+      if (res.data && res.data.success && Array.isArray(res.data.contacts)) {
+        setContacts(res.data.contacts);
+      } else {
+        setContacts([]);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch contacts:', err.message);
+    } finally {
+      setLoadingContacts(false);
+    }
+  };
+
+  const handlePhoneChange = (val) => {
+    let digits = val.replace(/\D/g, '');
+    if (digits.startsWith('91') && digits.length > 10) {
+      digits = digits.slice(2);
+    }
+    const clean10 = digits.slice(0, 10);
+    setContactFormData(prev => ({ ...prev, phone: clean10 }));
+    if (!clean10) setPhoneError('Mobile number is required (10 digits).');
+    else if (clean10.length !== 10) setPhoneError(`Exactly 10 digits required (${clean10.length}/10 entered).`);
+    else if (!['6', '7', '8', '9'].includes(clean10[0])) setPhoneError('Indian mobile numbers must start with 6, 7, 8, or 9.');
+    else setPhoneError('');
+  };
+
+  const handleEmailChange = (val) => {
+    setContactFormData(prev => ({ ...prev, email: val }));
+    if (!val || !val.trim()) setEmailError('Email address is required.');
+    else {
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!emailRegex.test(val.trim())) setEmailError('Enter a valid email address (e.g., name@domain.com).');
+      else setEmailError('');
+    }
+  };
+
+  const handleCreateContactSubmit = async (e) => {
+    e.preventDefault();
+    if (!contactFormData.name.trim() || !contactFormData.phone || !contactFormData.email.trim()) {
+      setContactToast({ msg: 'All required fields marked with * must be filled.', type: 'error' });
+      setTimeout(() => setContactToast(null), 4000);
+      return;
+    }
+    if (phoneError || emailError) {
+      setContactToast({ msg: 'Please fix validation errors before saving.', type: 'error' });
+      setTimeout(() => setContactToast(null), 4000);
+      return;
+    }
+
+    setSubmittingContact(true);
+    try {
+      const res = await api.post('/contacts', {
+        name: contactFormData.name.trim(),
+        phone: contactFormData.phone,
+        email: contactFormData.email.trim(),
+        identity: contactFormData.identity.trim(),
+        source: 'manual'
+      });
+      if (res.data?.success) {
+        setContactToast({ msg: `Contact '${contactFormData.name}' created successfully!`, type: 'success' });
+        setTimeout(() => setContactToast(null), 4000);
+        setShowAddContactModal(false);
+        setContactFormData({ name: '', phone: '', email: '', identity: 'SAP FICO' });
+        await fetchContacts();
+      }
+    } catch (err) {
+      setContactToast({ msg: err.response?.data?.message || 'Error creating contact.', type: 'error' });
+      setTimeout(() => setContactToast(null), 4000);
+    } finally {
+      setSubmittingContact(false);
+    }
+  };
+
+  const handleOpenEditContact = (c) => {
+    setEditingContact(c);
+    setEditContactFormData({
+      name: c.name || '',
+      phone: c.phone || '',
+      email: c.email || '',
+      identity: (c.identity && c.identity !== 'General') ? c.identity : 'SAP FICO',
+      segment: c.segment || 'New'
+    });
+    setShowEditContactModal(true);
+  };
+
+  const handleUpdateContactSubmit = async (e) => {
+    e.preventDefault();
+    if (!editingContact) return;
+    setSubmittingContact(true);
+    try {
+      const res = await api.put(`/contacts/${editingContact._id || editingContact.id}`, {
+        name: editContactFormData.name.trim(),
+        phone: editContactFormData.phone.trim(),
+        email: editContactFormData.email.trim(),
+        identity: editContactFormData.identity.trim(),
+        segment: editContactFormData.segment
+      });
+      if (res.data?.success) {
+        setContactToast({ msg: `Contact '${editContactFormData.name}' updated!`, type: 'success' });
+        setTimeout(() => setContactToast(null), 4000);
+        setShowEditContactModal(false);
+        setEditingContact(null);
+        await fetchContacts();
+      }
+    } catch (err) {
+      setContactToast({ msg: err.response?.data?.message || 'Error updating contact.', type: 'error' });
+      setTimeout(() => setContactToast(null), 4000);
+    } finally {
+      setSubmittingContact(false);
+    }
+  };
+
+  const handleDeleteContact = async (contactId, contactName) => {
+    if (!window.confirm(`Are you sure you want to delete contact '${contactName}'?`)) return;
+    try {
+      const res = await api.delete(`/contacts/${contactId}`);
+      if (res.data?.success) {
+        setContactToast({ msg: `Contact '${contactName}' deleted successfully.`, type: 'success' });
+        setTimeout(() => setContactToast(null), 4000);
+        await fetchContacts();
+      }
+    } catch (err) {
+      setContactToast({ msg: err.response?.data?.message || 'Error deleting contact.', type: 'error' });
+      setTimeout(() => setContactToast(null), 4000);
+    }
+  };
+
+  const availableIdentities = useMemo(() => {
+    const defaultList = ['ALL', 'SAP FICO', 'Client', 'VIP', 'Lead', 'Vendor'];
+    const seenLower = new Set(defaultList.map(item => item.toLowerCase().replace(/_/g, ' ')));
+    const dynamicList = [];
+
+    contacts.forEach(c => {
+      const tag = (c.identity || '').trim();
+      const norm = tag.toLowerCase().replace(/_/g, ' ');
+      if (tag && tag !== 'General' && !seenLower.has(norm)) {
+        seenLower.add(norm);
+        dynamicList.push(tag);
+      }
+    });
+
+    return [...defaultList, ...dynamicList];
+  }, [contacts]);
+
+  const filteredContactsList = useMemo(() => {
+    return contacts.filter(c => {
+      const contactIdentity = (c.identity && c.identity !== 'General') ? c.identity : 'SAP FICO';
+      const matchesIdentity = contactIdentityFilter === 'ALL' || contactIdentity.toLowerCase() === contactIdentityFilter.toLowerCase();
+      const query = contactSearchQuery.toLowerCase();
+      const matchesSearch = 
+        !query ||
+        (c.name || '').toLowerCase().includes(query) ||
+        (c.phone || '').toLowerCase().includes(query) ||
+        (c.email || '').toLowerCase().includes(query) ||
+        contactIdentity.toLowerCase().includes(query);
+
+      return matchesIdentity && matchesSearch;
+    });
+  }, [contacts, contactIdentityFilter, contactSearchQuery]);
+
   const handleSyncData = async () => {
     setIsSyncing(true);
     setSyncNotice('');
@@ -221,8 +414,11 @@ ${user?.designation || 'Staff'}`
       try {
         await api.post('/email/sync');
       } catch (_) {}
-      await fetchEmailLogs(selectedEmployeeFilter, searchQuery);
-      setSyncNotice('Data Synced Successfully! All incoming & outgoing messages are up to date.');
+      await Promise.all([
+        fetchEmailLogs(selectedEmployeeFilter, searchQuery),
+        fetchContacts()
+      ]);
+      setSyncNotice('Data Synced Successfully! All incoming & outgoing messages, plus contacts, are up to date.');
       setTimeout(() => setSyncNotice(''), 4000);
     } catch (err) {
       console.error('Failed to sync email data:', err);
@@ -243,6 +439,7 @@ ${user?.designation || 'Staff'}`
     loadTemplates();
     fetchEmailLogs('all', '');
     fetchTrackingUsers();
+    fetchContacts();
   }, [user?.email, user?.name, user?.designation]);
 
   // Background auto-refresh every 15s to pull incoming replies from n8n webhook
@@ -1027,7 +1224,6 @@ ${user?.designation || 'Staff'}`
             <span style={{ fontSize: 12, fontWeight: 600, color: TEXT_MUTED }}>{sentCount}</span>
           </div>
 
-
           {/* Folder Item: Templates */}
           <div
             onClick={() => { setActiveFolder('templates'); setSelectedEmail(null); }}
@@ -1088,6 +1284,242 @@ ${user?.designation || 'Staff'}`
           <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100%' }}>
             <BulkEmailBlast />
           </div>
+        ) : activeFolder === 'contacts' ? (
+          /* ── 3B. CONTACTS DIRECTORY VIEW ───────────────────────── */
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#f8fafd', overflowY: 'auto' }}>
+            {/* Header Banner */}
+            <div style={{ background: WHITE, padding: '14px 24px', borderBottom: `1px solid ${BORDER_LIGHT}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <SplitText
+                    text="Contacts Directory & Customer List"
+                    className="font-bold text-gray-800"
+                    delay={25}
+                    duration={0.6}
+                    style={{ fontSize: 18, fontWeight: 700, color: TEXT_MAIN, margin: 0 }}
+                  />
+                  <span style={{ background: '#fff7ed', padding: '3px 10px', borderRadius: 20, border: '1px solid #fed7aa', display: 'inline-flex' }}>
+                    <ShinyText text="MongoDB Contacts Sync" speed={3} style={{ fontSize: 11, fontWeight: 600, color: '#ea580c' }} />
+                  </span>
+                </div>
+                <div style={{ fontSize: 12, color: TEXT_MUTED, marginTop: 2 }}>
+                  Manage customer contacts with custom Identities (SAP FICO, Client, VIP, Lead, Vendor) with direct email & WhatsApp actions.
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button
+                  onClick={() => {
+                    setContactFormData({ name: '', phone: '', email: '', identity: 'SAP FICO' });
+                    setPhoneError('');
+                    setEmailError('');
+                    setShowAddContactModal(true);
+                  }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    background: GMAIL_BLUE, color: WHITE, border: 'none', borderRadius: 8,
+                    padding: '8px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  + Add Contact
+                </button>
+
+                <button
+                  onClick={handleSyncData}
+                  disabled={isSyncing}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: 8,
+                    padding: '7px 13px', fontSize: 12, fontWeight: 600, cursor: isSyncing ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: isSyncing ? 'spin 1s linear infinite' : 'none' }}>
+                    <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                  </svg>
+                  {isSyncing ? 'Syncing...' : 'Sync Data'}
+                </button>
+              </div>
+            </div>
+
+            {/* Notification Toast */}
+            {contactToast && (
+              <div style={{ background: contactToast.type === 'error' ? '#fef2f2' : '#f0fdf4', borderBottom: `1px solid ${contactToast.type === 'error' ? '#fecaca' : '#bbf7d0'}`, color: contactToast.type === 'error' ? '#991b1b' : '#16a34a', padding: '8px 24px', fontSize: 12.5, fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>{contactToast.msg}</span>
+                <button onClick={() => setContactToast(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14 }}>✕</button>
+              </div>
+            )}
+
+            {/* Toolbar: Search Box & Identity Filter Chips */}
+            <div style={{ background: WHITE, padding: '10px 24px', borderBottom: `1px solid ${BORDER_LIGHT}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+              {/* Search Box */}
+              <div style={{ display: 'flex', alignItems: 'center', background: '#f1f3f4', borderRadius: 20, padding: '0 14px', width: 280, height: 36 }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#5f6368" strokeWidth="2" style={{ marginRight: 8 }}>
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input
+                  value={contactSearchQuery}
+                  onChange={e => setContactSearchQuery(e.target.value)}
+                  placeholder="Search name, phone, email, identity..."
+                  style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', fontSize: 12.5, color: TEXT_MAIN }}
+                />
+                {contactSearchQuery && (
+                  <button onClick={() => setContactSearchQuery('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: TEXT_MUTED, fontSize: 14 }}>✕</button>
+                )}
+              </div>
+
+              {/* Identity Filter Chips */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflowX: 'auto', paddingBottom: 2 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: '0.5px', marginRight: 4 }}>Identity:</span>
+                {availableIdentities.map(identity => (
+                  <button
+                    key={identity}
+                    onClick={() => setContactIdentityFilter(identity)}
+                    style={{
+                      padding: '4px 12px', borderRadius: 16, fontSize: 11.5, fontWeight: contactIdentityFilter === identity ? 700 : 500,
+                      border: 'none', cursor: 'pointer', transition: 'all 0.15s',
+                      background: contactIdentityFilter === identity ? '#1e293b' : '#f1f5f9',
+                      color: contactIdentityFilter === identity ? WHITE : '#475569'
+                    }}
+                  >
+                    {identity === 'ALL' ? 'All Contacts' : identity}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Contacts Cards Grid */}
+            <div style={{ padding: 24, flex: 1 }}>
+              {loadingContacts ? (
+                <div style={{ textAlign: 'center', padding: 40, color: TEXT_MUTED, fontSize: 13 }}>
+                  Loading contacts from database...
+                </div>
+              ) : filteredContactsList.length === 0 ? (
+                <div style={{ background: WHITE, borderRadius: 12, padding: 40, border: `1px solid ${BORDER_LIGHT}`, textAlign: 'center', color: TEXT_MUTED }}>
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" style={{ margin: '0 auto 12px' }}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: TEXT_MAIN }}>No Contacts Found</div>
+                  <div style={{ fontSize: 12, marginTop: 4 }}>
+                    {contactSearchQuery || contactIdentityFilter !== 'ALL' ? 'Try changing your search query or identity filter.' : 'Click "+ Add Contact" to create your first contact!'}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
+                  {filteredContactsList.map(contact => {
+                    const cleanPhone = (contact.phone || '').replace(/[^0-9]/g, '');
+                    const initials = contact.name ? contact.name.charAt(0).toUpperCase() : 'C';
+                    const contactIdentity = (contact.identity && contact.identity !== 'General') ? contact.identity : 'SAP FICO';
+
+                    return (
+                      <div
+                        key={contact._id || contact.id}
+                        style={{
+                          background: WHITE, border: `1px solid ${BORDER_LIGHT}`, borderRadius: 12,
+                          padding: 18, boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                          display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                          transition: 'all 0.15s ease'
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
+                          e.currentTarget.style.borderColor = GMAIL_BLUE;
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.03)';
+                          e.currentTarget.style.borderColor = BORDER_LIGHT;
+                        }}
+                      >
+                        <div>
+                          {/* Top Row: Avatar Initials & Identity Pill */}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg, #1a73e8, #3b82f6)', color: WHITE, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, boxShadow: '0 2px 4px rgba(26,115,232,0.2)' }}>
+                                {initials}
+                              </div>
+                              <div>
+                                <div style={{ fontSize: 14, fontWeight: 700, color: TEXT_MAIN }}>{contact.name}</div>
+                                <div style={{ fontSize: 11, color: TEXT_MUTED }}>Segment: <span style={{ fontWeight: 600, color: '#15803d' }}>{contact.segment || 'New'}</span></div>
+                              </div>
+                            </div>
+                            <span style={{ fontSize: 10.5, fontWeight: 700, background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '2px 8px', borderRadius: 12 }}>
+                              🏷️ {contactIdentity}
+                            </span>
+                          </div>
+
+                          {/* Contact Phone & Email Details */}
+                          <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: 8, border: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: '#15803d', display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                              +91 {contact.phone}
+                            </div>
+                            {contact.email && (
+                              <div style={{ fontSize: 11.5, color: '#0284c7', display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{contact.email}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Bottom Action Toolbar */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, paddingTop: 10, borderTop: `1px solid ${BORDER_LIGHT}` }}>
+                          {/* Send Email Action */}
+                          <button
+                            onClick={() => {
+                              setRecipientEmail(contact.email || '');
+                              setComposeOpen(true);
+                            }}
+                            style={{
+                              flex: 1, padding: '6px 8px', background: GMAIL_BLUE_LIGHT, color: GMAIL_BLUE,
+                              border: `1px solid #c2e7ff`, borderRadius: 6, fontSize: 11.5, fontWeight: 600,
+                              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4
+                            }}
+                            title="Send individual email in composer"
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                            <span>Send Email</span>
+                          </button>
+
+                          {/* WhatsApp Chat Action */}
+                          <a
+                            href={`https://wa.me/${cleanPhone.startsWith('91') ? cleanPhone : '91' + cleanPhone}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{
+                              padding: '6px 10px', background: '#f0fdf4', color: '#16a34a',
+                              border: '1px solid #bbf7d0', borderRadius: 6, fontSize: 11.5, fontWeight: 600,
+                              textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4
+                            }}
+                            title="Open WhatsApp chat"
+                          >
+                            <span>💬 WhatsApp</span>
+                          </a>
+
+                          {/* Edit Contact */}
+                          <button
+                            onClick={() => handleOpenEditContact(contact)}
+                            style={{ padding: '6px 8px', background: '#f8fafc', color: TEXT_MUTED, border: `1px solid ${BORDER_LIGHT}`, borderRadius: 6, fontSize: 11, cursor: 'pointer' }}
+                            title="Edit Contact"
+                          >
+                            ✏️
+                          </button>
+
+                          {/* Delete Contact */}
+                          <button
+                            onClick={() => handleDeleteContact(contact._id || contact.id, contact.name)}
+                            style={{ padding: '6px 8px', background: '#fef2f2', color: '#ef4444', border: '1px solid #fecaca', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}
+                            title="Delete Contact"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
         ) : (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#f8fafd', overflow: 'hidden' }}>
           {/* Header Banner using React Bits SplitText & ShinyText */}
@@ -1123,7 +1555,7 @@ ${user?.designation || 'Staff'}`
                   }}
                   style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${BORDER_LIGHT}`, fontSize: 12, fontWeight: 500, background: WHITE, color: TEXT_MAIN, outline: 'none' }}
                 >
-                  <option value="all">👥 All Staff ({trackingUsers.length})</option>
+                  <option value="all">All Staff ({trackingUsers.length})</option>
                   {trackingUsers.map(u => (
                     <option key={u._id} value={u._id}>{u.name} ({u.designation || 'Staff'})</option>
                   ))}
@@ -1972,8 +2404,8 @@ ${user?.designation || 'Staff'}`
                 </button>
               </div>
 
-              {/* TO FIELD: Editable Recipient Email */}
-              <div style={{ display: 'flex', alignItems: 'center', padding: '8px 16px', borderBottom: `1px solid #f1f3f4` }}>
+              {/* TO FIELD: Editable Recipient Email with Quick Contact Selector */}
+              <div style={{ display: 'flex', alignItems: 'center', padding: '8px 16px', borderBottom: `1px solid #f1f3f4`, position: 'relative' }}>
                 <span style={{ width: 50, fontSize: 12.5, color: TEXT_MUTED }}>To</span>
                 <input
                   value={recipientEmail}
@@ -1981,7 +2413,80 @@ ${user?.designation || 'Staff'}`
                   placeholder="Customer email address (e.g. client@example.com)"
                   style={{ flex: 1, border: 'none', outline: 'none', fontSize: 13, color: TEXT_MAIN }}
                 />
-                <div style={{ display: 'flex', gap: 6 }}>
+
+                {/* Contact Picker Trigger Button */}
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <button
+                    type="button"
+                    onClick={() => setContactPickerOpen(!contactPickerOpen)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 5,
+                      padding: '3px 10px', background: '#eff6ff', color: '#1d4ed8',
+                      border: '1px solid #bfdbfe', borderRadius: 14, fontSize: 11.5,
+                      fontWeight: 600, cursor: 'pointer'
+                    }}
+                  >
+                    <span>👥 Contacts ({contacts.length})</span>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+
+                  {/* Contact Picker Dropdown Menu */}
+                  {contactPickerOpen && (
+                    <div
+                      style={{
+                        position: 'absolute', top: 32, right: 0, width: 320, maxHeight: 280,
+                        background: WHITE, borderRadius: 10, border: '1px solid #cbd5e1',
+                        boxShadow: '0 10px 25px rgba(0,0,0,0.2)', zIndex: 10100,
+                        display: 'flex', flexDirection: 'column', overflow: 'hidden'
+                      }}
+                    >
+                      <div style={{ padding: '8px 10px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 11.5, fontWeight: 700, color: '#1e293b' }}>Select Recipient Contact</span>
+                        <button onClick={() => setContactPickerOpen(false)} style={{ border: 'none', background: 'none', fontSize: 13, cursor: 'pointer', color: '#64748b' }}>✕</button>
+                      </div>
+                      <div style={{ padding: '6px 10px', borderBottom: '1px solid #f1f5f9' }}>
+                        <input
+                          placeholder="Search contact name or email..."
+                          value={contactSearchQuery}
+                          onChange={e => setContactSearchQuery(e.target.value)}
+                          style={{ width: '100%', padding: '4px 8px', border: '1px solid #cbd5e1', borderRadius: 6, fontSize: 11.5, outline: 'none' }}
+                        />
+                      </div>
+                      <div style={{ flex: 1, overflowY: 'auto', maxHeight: 200 }}>
+                        {filteredContactsList.filter(c => c.email && c.email.includes('@')).length === 0 ? (
+                          <div style={{ padding: '16px', textAlign: 'center', fontSize: 12, color: '#94a3b8' }}>
+                            No contacts with valid email addresses found
+                          </div>
+                        ) : (
+                          filteredContactsList.filter(c => c.email && c.email.includes('@')).map(c => (
+                            <div
+                              key={c._id || c.id}
+                              onClick={() => {
+                                setRecipientEmail(c.email);
+                                setContactPickerOpen(false);
+                              }}
+                              style={{
+                                padding: '8px 12px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                transition: 'background 0.1s'
+                              }}
+                              onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
+                              onMouseLeave={e => e.currentTarget.style.background = WHITE}
+                            >
+                              <div style={{ overflow: 'hidden' }}>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
+                                <div style={{ fontSize: 10.5, color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.email}</div>
+                              </div>
+                              <span style={{ fontSize: 10, fontWeight: 600, background: '#e0f2fe', color: '#0369a1', padding: '1px 6px', borderRadius: 4, flexShrink: 0 }}>
+                                {c.identity || 'SAP FICO'}
+                              </span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   <button
                     type="button"
                     onClick={() => setRecipientEmail('hr@aotms.com')}
@@ -2663,6 +3168,152 @@ ${user?.designation || 'Staff'}`
                 </button>
                 <button type="submit" disabled={creatingTmpl} style={{ padding: '8px 18px', background: GMAIL_BLUE, color: WHITE, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                   {creatingTmpl ? 'Saving...' : 'Save Template'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* ── 5. QUICK ADD CONTACT MODAL ────────────────────────────────────── */}
+      {showAddContactModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(32,33,36,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10050, padding: 16 }}>
+          <div style={{ background: WHITE, borderRadius: 12, width: 440, maxWidth: '96%', padding: 24, boxShadow: '0 12px 32px rgba(0,0,0,0.25)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: TEXT_MAIN, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>👤</span> Add New Contact
+              </div>
+              <button onClick={() => setShowAddContactModal(false)} style={{ background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', color: TEXT_MUTED }}>✕</button>
+            </div>
+
+            <form onSubmit={handleCreateContactSubmit}>
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: TEXT_MAIN, display: 'block', marginBottom: 4 }}>Contact Full Name *</label>
+                <input
+                  required
+                  value={contactFormData.name}
+                  onChange={e => setContactFormData(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="e.g. Dr. Srinivas Rao"
+                  style={{ width: '100%', padding: '8px 12px', border: `1px solid ${BORDER_LIGHT}`, borderRadius: 6, fontSize: 13, outline: 'none' }}
+                />
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: TEXT_MAIN, display: 'block', marginBottom: 4 }}>Mobile Number (10 Digits) *</label>
+                <input
+                  required
+                  value={contactFormData.phone}
+                  onChange={e => handlePhoneChange(e.target.value)}
+                  placeholder="9876543210"
+                  style={{ width: '100%', padding: '8px 12px', border: `1px solid ${phoneError ? '#ef4444' : BORDER_LIGHT}`, borderRadius: 6, fontSize: 13, outline: 'none' }}
+                />
+                {phoneError && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 3 }}>{phoneError}</div>}
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: TEXT_MAIN, display: 'block', marginBottom: 4 }}>Email Address *</label>
+                <input
+                  required
+                  type="email"
+                  value={contactFormData.email}
+                  onChange={e => handleEmailChange(e.target.value)}
+                  placeholder="e.g. srinivas@example.com"
+                  style={{ width: '100%', padding: '8px 12px', border: `1px solid ${emailError ? '#ef4444' : BORDER_LIGHT}`, borderRadius: 6, fontSize: 13, outline: 'none' }}
+                />
+                {emailError && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 3 }}>{emailError}</div>}
+              </div>
+
+              <div style={{ marginBottom: 18 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: TEXT_MAIN, display: 'block', marginBottom: 4 }}>Identity / Segment *</label>
+                <select
+                  value={contactFormData.identity}
+                  onChange={e => setContactFormData(prev => ({ ...prev, identity: e.target.value }))}
+                  style={{ width: '100%', padding: '8px 12px', border: `1px solid ${BORDER_LIGHT}`, borderRadius: 6, fontSize: 12.5, outline: 'none', background: WHITE }}
+                >
+                  <option value="SAP FICO">SAP FICO</option>
+                  <option value="Client">Client</option>
+                  <option value="VIP">VIP</option>
+                  <option value="Lead">Lead</option>
+                  <option value="Vendor">Vendor</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                <button type="button" onClick={() => setShowAddContactModal(false)} style={{ padding: '8px 16px', background: 'none', border: `1px solid ${BORDER_LIGHT}`, borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>
+                  Cancel
+                </button>
+                <button type="submit" disabled={submittingContact} style={{ padding: '8px 18px', background: GMAIL_BLUE, color: WHITE, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                  {submittingContact ? 'Saving...' : 'Save Contact'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── 6. QUICK EDIT CONTACT MODAL ────────────────────────────────────── */}
+      {showEditContactModal && editingContact && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(32,33,36,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10050, padding: 16 }}>
+          <div style={{ background: WHITE, borderRadius: 12, width: 440, maxWidth: '96%', padding: 24, boxShadow: '0 12px 32px rgba(0,0,0,0.25)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: TEXT_MAIN, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>✏️</span> Edit Contact
+              </div>
+              <button onClick={() => setShowEditContactModal(false)} style={{ background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', color: TEXT_MUTED }}>✕</button>
+            </div>
+
+            <form onSubmit={handleUpdateContactSubmit}>
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: TEXT_MAIN, display: 'block', marginBottom: 4 }}>Full Name</label>
+                <input
+                  required
+                  value={editContactFormData.name}
+                  onChange={e => setEditContactFormData(prev => ({ ...prev, name: e.target.value }))}
+                  style={{ width: '100%', padding: '8px 12px', border: `1px solid ${BORDER_LIGHT}`, borderRadius: 6, fontSize: 13, outline: 'none' }}
+                />
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: TEXT_MAIN, display: 'block', marginBottom: 4 }}>Mobile Number</label>
+                <input
+                  required
+                  value={editContactFormData.phone}
+                  onChange={e => setEditContactFormData(prev => ({ ...prev, phone: e.target.value }))}
+                  style={{ width: '100%', padding: '8px 12px', border: `1px solid ${BORDER_LIGHT}`, borderRadius: 6, fontSize: 13, outline: 'none' }}
+                />
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: TEXT_MAIN, display: 'block', marginBottom: 4 }}>Email Address</label>
+                <input
+                  required
+                  type="email"
+                  value={editContactFormData.email}
+                  onChange={e => setEditContactFormData(prev => ({ ...prev, email: e.target.value }))}
+                  style={{ width: '100%', padding: '8px 12px', border: `1px solid ${BORDER_LIGHT}`, borderRadius: 6, fontSize: 13, outline: 'none' }}
+                />
+              </div>
+
+              <div style={{ marginBottom: 18 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: TEXT_MAIN, display: 'block', marginBottom: 4 }}>Identity Tag</label>
+                <select
+                  value={editContactFormData.identity}
+                  onChange={e => setEditContactFormData(prev => ({ ...prev, identity: e.target.value }))}
+                  style={{ width: '100%', padding: '8px 12px', border: `1px solid ${BORDER_LIGHT}`, borderRadius: 6, fontSize: 12.5, outline: 'none', background: WHITE }}
+                >
+                  <option value="SAP FICO">SAP FICO</option>
+                  <option value="Client">Client</option>
+                  <option value="VIP">VIP</option>
+                  <option value="Lead">Lead</option>
+                  <option value="Vendor">Vendor</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                <button type="button" onClick={() => setShowEditContactModal(false)} style={{ padding: '8px 16px', background: 'none', border: `1px solid ${BORDER_LIGHT}`, borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>
+                  Cancel
+                </button>
+                <button type="submit" disabled={submittingContact} style={{ padding: '8px 18px', background: GMAIL_BLUE, color: WHITE, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                  {submittingContact ? 'Saving...' : 'Update Contact'}
                 </button>
               </div>
             </form>
