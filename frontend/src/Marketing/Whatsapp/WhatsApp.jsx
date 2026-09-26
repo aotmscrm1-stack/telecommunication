@@ -1364,32 +1364,51 @@ function TemplatesTab() {
 
   const loadTemplates = () => {
     setLoading(true);
-    api.get('/message-templates', { params: { type: 'whatsapp' } })
+    // Fetch unified templates: attempts /integrations/whatsapp/templates first, falls back to /message-templates
+    api.get('/integrations/whatsapp/templates')
       .then(res => {
-        const raw = res.data?.templates || res.data || [];
-        setTemplates(raw.map(t => {
-          const comps = Array.isArray(t.components) ? t.components : [];
-          const header = comps.find(c => c.type === 'HEADER');
-          const footerComp = comps.find(c => c.type === 'FOOTER');
-          const buttonsComp = comps.find(c => c.type === 'BUTTONS');
-          return {
-            id: t._id,
-            name: t.shortcut,
-            category: t.category || 'MARKETING',
-            status: t.waStatus || 'LOCAL',
-            language: t.language || 'en_US',
-            body: t.message,
-            rejectedReason: t.rejectedReason,
-            headerText: header?.text || '',
-            headerFormat: header?.format || '',
-            headerImage: header?.example?.header_handle?.[0] || '',
-            components: comps,
-            footer: footerComp?.text || '',
-            buttons: buttonsComp?.buttons || [],
-          };
-        }));
+        const raw = res.data?.templates || [];
+        if (Array.isArray(raw) && raw.length > 0) return raw;
+        return api.get('/message-templates', { params: { type: 'whatsapp' } })
+          .then(mRes => mRes.data?.templates || mRes.data || []);
       })
-      .catch(() => {})
+      .catch(() => {
+        return api.get('/message-templates', { params: { type: 'whatsapp' } })
+          .then(mRes => mRes.data?.templates || mRes.data || [])
+          .catch(() => []);
+      })
+      .then(raw => {
+        const mapped = (raw || []).map(t => {
+          const comps = Array.isArray(t.components) ? t.components : [];
+          const header = comps.find(c => String(c.type).toUpperCase() === 'HEADER');
+          const bodyComp = comps.find(c => String(c.type).toUpperCase() === 'BODY');
+          const footerComp = comps.find(c => String(c.type).toUpperCase() === 'FOOTER');
+          const buttonsComp = comps.find(c => String(c.type).toUpperCase() === 'BUTTONS');
+
+          const headerImg = header?.example?.header_handle?.[0] || header?.example?.header_url?.[0] || t.header_image_url || t.headerImage || t.imageUrl || '';
+
+          return {
+            id: String(t._id || t.id || t.name),
+            _id: t._id || t.id,
+            name: t.shortcut || t.metaTemplateName || t.name || 'Template',
+            category: t.category || 'MARKETING',
+            status: t.waStatus || t.metaStatus || t.status || 'APPROVED',
+            language: t.language || 'en_US',
+            body: t.message || bodyComp?.text || t.body_text || t.body || '',
+            rejectedReason: t.rejectedReason || t.rejected_reason || '',
+            headerText: header?.text || t.header_text || t.headerText || '',
+            headerFormat: header?.format || t.header_type || t.headerFormat || '',
+            headerImage: headerImg,
+            components: comps,
+            footer: footerComp?.text || t.footer_text || t.footer || '',
+            buttons: buttonsComp?.buttons || t.buttons || [],
+          };
+        });
+        setTemplates(mapped);
+        if (mapped.length > 0) {
+          setPreviewId(prev => (prev && mapped.some(m => m.id === prev)) ? prev : mapped[0].id);
+        }
+      })
       .finally(() => setLoading(false));
   };
 
@@ -1417,8 +1436,8 @@ function TemplatesTab() {
   };
 
   const filtered = templates.filter(t =>
-    t.name.toLowerCase().includes(search.toLowerCase()) ||
-    t.category.toLowerCase().includes(search.toLowerCase())
+    (t.name || '').toLowerCase().includes(search.toLowerCase()) ||
+    (t.category || '').toLowerCase().includes(search.toLowerCase())
   );
 
   const statusColor = (s) => s === 'APPROVED' ? '#16a34a' : s === 'PENDING' ? '#d97706' : s === 'LOCAL' ? TEXT_MUTED : '#e53e3e';
