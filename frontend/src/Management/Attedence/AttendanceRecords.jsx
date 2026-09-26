@@ -545,8 +545,8 @@ export default function AttendanceRecords() {
         setActionStatusMsg({
           type: 'success',
           message: overrideOptions.force
-            ? 'Attendance ended early and recorded successfully in MongoDB.'
-            : 'Attendance completed and saved to MongoDB! 9:00:00 hours recorded.'
+            ? 'Attendance ended early and recorded successfully.'
+            : 'Attendance completed and saved successfully.'
         });
         geoTracker.stopTracking().catch((err) => console.warn('[Attendance GeoTracker stop]:', err.message));
         window.dispatchEvent(new CustomEvent('attendance-updated', { detail: res.data.attendance }));
@@ -779,7 +779,7 @@ export default function AttendanceRecords() {
           border: '#bfdbfe',
           dot: '#2563eb',
           label: 'On Duty',
-          icon: '🔵',
+          
         };
       case 'ON_BREAK':
         return {
@@ -788,7 +788,7 @@ export default function AttendanceRecords() {
           border: '#fed7aa',
           dot: '#f97316',
           label: 'On Break',
-          icon: '☕',
+          
         };
       case 'COMPLETED':
         return {
@@ -816,7 +816,7 @@ export default function AttendanceRecords() {
           border: '#e2e8f0',
           dot: '#94a3b8',
           label: 'Not Started',
-          icon: '⚪',
+          
         };
     }
   };
@@ -2188,8 +2188,8 @@ export default function AttendanceRecords() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           {[
             { key: 'ALL', label: 'All Status' },
-            { key: 'ON_DUTY', label: '🔵 On Duty' },
-            { key: 'ON_BREAK', label: '☕ On Break' },
+            { key: 'ON_DUTY', label: ' On Duty' },
+            { key: 'ON_BREAK', label: ' On Break' },
             { key: 'COMPLETED', label: '✓ Completed' },
             { key: 'NOT_STARTED', label: 'Not Started' },
             { key: 'INCOMPLETE', label: 'Incomplete' },
@@ -2504,30 +2504,6 @@ export default function AttendanceRecords() {
                             </button>
                           )}
 
-                          {/* Button 2: Map Button */}
-                          {(rec.latestLocation?.latitude || rec.startLocation?.latitude || rec.status === 'ON_DUTY' || rec.status === 'ON_BREAK') && (
-                            <button
-                              onClick={() => setMapModalRecord(rec)}
-                              title="View GPS location on map"
-                              style={{
-                                height: 30,
-                                background: '#eff6ff',
-                                color: '#1d4ed8',
-                                border: '1px solid #bfdbfe',
-                                borderRadius: 7,
-                                padding: '0 8px',
-                                fontSize: 11.5,
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 3,
-                                transition: 'all 0.15s',
-                              }}
-                            >
-                              <MapPin size={11} /> Map
-                            </button>
-                          )}
 
                           {/* Button 3: Details Button */}
                           {!isNotStarted && (
@@ -3157,7 +3133,7 @@ export default function AttendanceRecords() {
             style={{
               background: '#ffffff',
               borderRadius: 24,
-              width: '100%',
+              width: '70%',
               maxWidth: 520,
               boxShadow: '0 25px 50px -12px rgba(234, 88, 12, 0.28), 0 0 0 1px rgba(254, 215, 170, 0.5)',
               overflow: 'hidden',
@@ -3171,7 +3147,6 @@ export default function AttendanceRecords() {
             <div
               style={{
                 height: 6,
-                background: 'linear-gradient(90deg, #ea580c 0%, #f97316 50%, #fb923c 100%)',
               }}
             />
 
@@ -3195,7 +3170,7 @@ export default function AttendanceRecords() {
               </div>
 
               {/* Modal Title & Requirement Headline */}
-              <h3 style={{ margin: '0 0 6px', fontSize: 21, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>
+              <h3 style={{ margin: '0 0 6px', fontSize: 21, fontWeight:200, color: '#0f172a', letterSpacing: '-0.02em' }}>
                 End Attendance Confirmation
               </h3>
 
@@ -3208,7 +3183,7 @@ export default function AttendanceRecords() {
                   margin: '14px 0 16px',
                   color: '#c2410c',
                   fontSize: 14,
-                  fontWeight: 800,
+                  fontWeight: 500,
                   lineHeight: 1.4,
                   boxShadow: '0 2px 8px rgba(234, 88, 12, 0.08)',
                 }}
@@ -3216,7 +3191,7 @@ export default function AttendanceRecords() {
                 9 hours are not complete ({nineHourWarningModal.remainingHms} remaining).
               </div>
 
-              <p style={{ margin: '0 0 20px', fontSize: 13, color: '#64748b', lineHeight: 1.5 }}>
+              <p style={{ margin: '0 0 20px', fontSize: 10, color: '#64748b', lineHeight: 1.5 }}>
                 Daily full shift policy recommends a total of <strong>9:00:00 Hours</strong> login time. You can confirm and end your attendance early now, or continue working.
               </p>
 
@@ -3273,7 +3248,7 @@ export default function AttendanceRecords() {
               <div style={{ marginBottom: 22, textAlign: 'left' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
                   <span>Daily Shift Progress</span>
-                  <span style={{ color: '#ea580c', fontWeight: 800 }}>{nineHourWarningModal.percent}% Complete</span>
+                  <span style={{ color: '#ea580c', fontWeight: 500 }}>{nineHourWarningModal.percent}% Complete</span>
                 </div>
                 <div style={{ width: '100%', height: 8, background: '#f1f5f9', borderRadius: 8, overflow: 'hidden' }}>
                   <div
@@ -3303,7 +3278,7 @@ export default function AttendanceRecords() {
                     borderRadius: 12,
                     padding: '13px 20px',
                     fontSize: 14,
-                    fontWeight: 800,
+                    fontWeight: 500,
                     cursor: actionLoading ? 'wait' : 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -3333,7 +3308,7 @@ export default function AttendanceRecords() {
                     borderRadius: 12,
                     padding: '12px 20px',
                     fontSize: 13.5,
-                    fontWeight: 700,
+                    fontWeight: 500,
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',

@@ -1,28 +1,81 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
-import { attendanceAPI, followupsAPI } from '../../services/api';
+import { attendanceAPI, followupsAPI, usersAPI } from '../../services/api';
 import geoTracker from '../../services/geoTracker';
 import logoImg from '../../assets/aotms-global-logo.png';
 import {
   FiClock,
-  FiMapPin,
   FiShield,
   FiCheckCircle,
   FiAlertCircle,
   FiPlay,
   FiLogOut,
   FiCalendar,
-  FiUser,
-  FiActivity,
-  FiPlus,
-  FiTrash2,
-  FiList,
   FiCheck,
-  FiLock,
-  FiArrowRight,
 } from 'react-icons/fi';
-import { RiShieldCheckFill, RiTimerFlashLine, RiTaskLine, RiCheckboxCircleFill } from 'react-icons/ri';
+import { RiTimerFlashLine } from 'react-icons/ri';
+
+/**
+ * 12-hour Time Picker Component
+ */
+function TimeInput12h({ value, onChange }) {
+  const [hh24, mm] = value ? value.split(':') : ['09', '00'];
+  const hh24Num = parseInt(hh24, 10) || 0;
+  const period = hh24Num >= 12 ? 'PM' : 'AM';
+  let hh12 = hh24Num % 12;
+  if (hh12 === 0) hh12 = 12;
+
+  const commit = (newHh12, newMm, newPeriod) => {
+    let h = parseInt(newHh12, 10) % 12;
+    if (newPeriod === 'PM') h += 12;
+    const hhStr = String(h).padStart(2, '0');
+    const mmStr = String(newMm).padStart(2, '0');
+    onChange(`${hhStr}:${mmStr}`);
+  };
+
+  return (
+    <div className="flex items-center gap-1 shrink-0">
+      <select
+        value={hh12}
+        onChange={(e) => commit(e.target.value, mm, period)}
+        className="px-2 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-blue-500"
+      >
+        {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
+          <option key={h} value={h}>
+            {String(h).padStart(2, '0')}
+          </option>
+        ))}
+      </select>
+      <span className="text-slate-400 font-bold">:</span>
+      <select
+        value={mm}
+        onChange={(e) => commit(hh12, e.target.value, period)}
+        className="px-2 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-blue-500"
+      >
+        {Array.from({ length: 60 }, (_, i) => i).map((m) => (
+          <option key={m} value={String(m).padStart(2, '0')}>
+            {String(m).padStart(2, '0')}
+          </option>
+        ))}
+      </select>
+      <div className="flex rounded-lg border border-slate-200 overflow-hidden shrink-0">
+        {['AM', 'PM'].map((p) => (
+          <button
+            type="button"
+            key={p}
+            onClick={() => commit(hh12, mm, p)}
+            className={`px-2 py-1.5 text-xs font-semibold transition-colors ${
+              period === p ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            {p}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 /**
  * Format IST Date and Day string (e.g., Saturday, 26 September 2026)
@@ -62,16 +115,10 @@ function getGreeting(dateObj) {
   return 'Good Evening';
 }
 
-const PRIORITY_BADGES = {
-  high: { label: 'High', bg: '#fef2f2', color: '#dc2626', border: '#fecaca', dot: '#ef4444' },
-  medium: { label: 'Medium', bg: '#fffbeb', color: '#d97706', border: '#fde68a', dot: '#f59e0b' },
-  low: { label: 'Low', bg: '#f0fdf4', color: '#16a34a', border: '#bbf7d0', dot: '#10b981' },
-};
-
 export default function MandatoryAttendanceModal() {
   const { user, logout } = useAuth();
 
-  // Modal Flow Step: 'ATTENDANCE' | 'TASK' | 'CLOSED'
+  // Modal Flow Step: 'ATTENDANCE' | 'TODO' | 'CLOSED'
   const [currentStep, setCurrentStep] = useState('CLOSED');
   const [checking, setChecking] = useState(true);
   const [now, setNow] = useState(new Date());
@@ -80,18 +127,22 @@ export default function MandatoryAttendanceModal() {
   const [clockingIn, setClockingIn] = useState(false);
   const [attendanceSuccess, setAttendanceSuccess] = useState(false);
   const [attendanceError, setAttendanceError] = useState(null);
-  const [gpsStatus, setGpsStatus] = useState('detecting'); // 'detecting' | 'ready' | 'fallback'
   const [gpsCoords, setGpsCoords] = useState(null);
 
-  // Step 2: Task Setup state
-  const [todayTasks, setTodayTasks] = useState([]);
-  const [fetchingTasks, setFetchingTasks] = useState(false);
-  const [taskTitle, setTaskTitle] = useState('');
-  const [taskPriority, setTaskPriority] = useState('medium');
-  const [taskDueTime, setTaskDueTime] = useState('18:00'); // default 6:00 PM
+  // Step 2: Rich Todo Item Form state
+  const [taskType, setTaskType] = useState('todo'); // 'todo' | 'call_followup'
+  const [taskDescription, setTaskDescription] = useState('');
+  const [dueDate, setDueDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [dueTime, setDueTime] = useState('09:00');
+  const [priority, setPriority] = useState('medium');
+  const [recurrence, setRecurrence] = useState('none');
+  const [repeatEndDate, setRepeatEndDate] = useState('');
+  const [assignedTo, setAssignedTo] = useState(user?._id || '');
+  const [assignedBy, setAssignedBy] = useState('all');
+  const [teamUsers, setTeamUsers] = useState([]);
+
   const [addingTask, setAddingTask] = useState(false);
   const [taskError, setTaskError] = useState(null);
-  const [taskSuccessMsg, setTaskSuccessMsg] = useState('');
 
   // Real-time digital clock ticker
   useEffect(() => {
@@ -101,22 +152,16 @@ export default function MandatoryAttendanceModal() {
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch today's tasks for current user
-  const fetchTodayTasks = useCallback(async () => {
-    if (!user) return [];
-    try {
-      setFetchingTasks(true);
-      const res = await followupsAPI.getAll({ forMe: 'true', due: 'today' });
-      const list = res.data?.followups || [];
-      setTodayTasks(list);
-      return list;
-    } catch (err) {
-      console.warn('[MandatoryCheckIn] Fetch tasks error:', err.message);
-      return [];
-    } finally {
-      setFetchingTasks(false);
-    }
-  }, [user]);
+  // Fetch users for Assign To / Assign By dropdowns
+  useEffect(() => {
+    usersAPI
+      .getAll()
+      .then((res) => {
+        const list = res.data?.users || res.data || [];
+        setTeamUsers(list);
+      })
+      .catch(() => {});
+  }, []);
 
   // Check overall Check-in Status on mount
   const evaluateCheckInStatus = useCallback(async () => {
@@ -128,7 +173,6 @@ export default function MandatoryAttendanceModal() {
 
     try {
       setChecking(true);
-      // 1. Check Attendance status for today
       const attRes = await attendanceAPI.getCurrentStatus();
       const attData = attRes.data || {};
       const isAttActiveOrDone =
@@ -138,19 +182,22 @@ export default function MandatoryAttendanceModal() {
         attData.status === 'COMPLETED';
 
       if (!isAttActiveOrDone) {
-        // Attendance not started for today -> Step 1: Attendance
+        // Attendance not started for today -> Step 1: Attendance Modal
         setCurrentStep('ATTENDANCE');
       } else if (attData.status === 'COMPLETED') {
-        // Attendance already completed/ended for today -> Permanently closed
+        // Attendance completed -> Close modal
         setCurrentStep('CLOSED');
       } else {
-        // Attendance active (ON_DUTY or ON_BREAK) -> Check Step 2: Tasks for today
-        const tasks = await fetchTodayTasks();
-        if (tasks.length === 0) {
-          // No tasks planned for today -> Step 2: Mandatory Task Setup
-          setCurrentStep('TASK');
-        } else {
-          // Both attendance and at least 1 task completed -> Close modal
+        // Attendance active -> Check if at least 1 Todo task exists for today
+        try {
+          const res = await followupsAPI.getAll({ forMe: 'true', due: 'today' });
+          const list = res.data?.followups || [];
+          if (list.length === 0) {
+            setCurrentStep('TODO');
+          } else {
+            setCurrentStep('CLOSED');
+          }
+        } catch {
           setCurrentStep('CLOSED');
         }
       }
@@ -159,7 +206,7 @@ export default function MandatoryAttendanceModal() {
     } finally {
       setChecking(false);
     }
-  }, [user, fetchTodayTasks]);
+  }, [user]);
 
   useEffect(() => {
     evaluateCheckInStatus();
@@ -174,12 +221,10 @@ export default function MandatoryAttendanceModal() {
     return () => window.removeEventListener('attendance-updated', handleAttendanceUpdate);
   }, [evaluateCheckInStatus]);
 
-  // Pre-fetch GPS coordinates when Attendance step is open
+  // Background location retrieval
   useEffect(() => {
     if (currentStep !== 'ATTENDANCE') return;
-
     if (navigator.geolocation) {
-      setGpsStatus('detecting');
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           setGpsCoords({
@@ -187,20 +232,16 @@ export default function MandatoryAttendanceModal() {
             longitude: pos.coords.longitude,
             accuracy: pos.coords.accuracy,
           });
-          setGpsStatus('ready');
         },
         (err) => {
-          console.warn('[MandatoryAttendanceModal] Geolocation fallback:', err.message);
-          setGpsStatus('fallback');
+          console.warn('[MandatoryAttendanceModal] Location fallback:', err.message);
         },
         { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
       );
-    } else {
-      setGpsStatus('fallback');
     }
   }, [currentStep]);
 
-  // Block background scrolling and intercept Escape key
+  // Block background scrolling and intercept Escape key (mandatory modal constraint)
   useEffect(() => {
     if (currentStep !== 'CLOSED') {
       document.body.style.overflow = 'hidden';
@@ -220,7 +261,7 @@ export default function MandatoryAttendanceModal() {
     }
   }, [currentStep]);
 
-  // ── Step 1 Action: Start Attendance ──────────────────────────────────────────
+  // ── Step 1 Action: Start Attendance -> Immediately Show "Create Todo Item" Form ──
   const handleStartAttendance = async () => {
     try {
       setClockingIn(true);
@@ -245,7 +286,7 @@ export default function MandatoryAttendanceModal() {
           locationData.longitude = freshPos.coords.longitude;
           locationData.accuracy = freshPos.coords.accuracy;
         } catch (geoErr) {
-          console.warn('[MandatoryAttendance] GPS fallback:', geoErr.message);
+          console.warn('[MandatoryAttendance] Location fallback:', geoErr.message);
         }
       }
 
@@ -259,13 +300,12 @@ export default function MandatoryAttendanceModal() {
         setAttendanceSuccess(true);
         window.dispatchEvent(new CustomEvent('attendance-updated', { detail: res.data.attendance }));
 
-        // Immediately transition to Step 2: Task Setup
-        setTimeout(async () => {
-          await fetchTodayTasks();
+        // Immediately show "Create Todo Item" popup form
+        setTimeout(() => {
           setClockingIn(false);
           setAttendanceSuccess(false);
-          setCurrentStep('TASK');
-        }, 800);
+          setCurrentStep('TODO');
+        }, 500);
       } else {
         setAttendanceError(res.data?.message || 'Failed to start attendance. Please try again.');
         setClockingIn(false);
@@ -278,74 +318,49 @@ export default function MandatoryAttendanceModal() {
     }
   };
 
-  // ── Step 2 Action: Add Task ──────────────────────────────────────────────────
-  const handleAddTask = async (e) => {
+  // ── Step 2 Action: Submit Create Todo Form ──
+  const handleCreateTodoSubmit = async (e) => {
     if (e) e.preventDefault();
-    const title = taskTitle.trim();
-    if (!title) {
-      setTaskError('Please enter a task description');
+    const desc = taskDescription.trim();
+    if (!desc) {
+      setTaskError('Please enter a description for the Todo Item.');
       return;
     }
 
     try {
       setAddingTask(true);
       setTaskError(null);
-      setTaskSuccessMsg('');
 
-      // Build scheduledAt date for today at chosen time
-      const today = new Date();
-      const [hh, mm] = taskDueTime.split(':');
-      today.setHours(parseInt(hh || '18', 10), parseInt(mm || '00', 10), 0, 0);
+      const scheduledAtIso = `${dueDate || new Date().toISOString().slice(0, 10)}T${dueTime || '09:00'}:00`;
 
       const payload = {
-        type: 'todo',
-        title,
-        note: title,
-        description: title,
-        scheduledAt: today.toISOString(),
-        priority: taskPriority,
-        assignedTo: user?._id,
-        assignedBy: user?._id,
+        type: taskType === 'call_followup' ? 'call_followup' : 'todo',
+        title: desc,
+        note: desc,
+        description: desc,
+        scheduledAt: new Date(scheduledAtIso).toISOString(),
+        priority,
+        repeatFrequency: recurrence,
+        repeatEndDate: recurrence !== 'none' && repeatEndDate ? new Date(repeatEndDate).toISOString() : undefined,
+        assignedTo: assignedTo || user?._id,
+        assignedBy: assignedBy === 'all' ? user?._id : assignedBy,
       };
 
       const res = await followupsAPI.create(payload);
-      if (res.data?.followup) {
-        const created = res.data.followup;
-        setTodayTasks((prev) => [created, ...prev]);
-        setTaskTitle('');
-        setTaskSuccessMsg('✓ Task added successfully!');
-        setTimeout(() => setTaskSuccessMsg(''), 3000);
-
-        window.dispatchEvent(new CustomEvent('tasks-updated', { detail: created }));
+      if (res.data?.followup || res.data?.ok) {
+        window.dispatchEvent(new CustomEvent('tasks-updated', { detail: res.data.followup }));
+        // Close modal and open workspace
+        window.dispatchEvent(new CustomEvent('attendance-updated'));
+        setCurrentStep('CLOSED');
+      } else {
+        setTaskError('Failed to create Todo item. Please try again.');
       }
     } catch (err) {
       console.error('[MandatoryTask] Create error:', err);
-      setTaskError(err.response?.data?.message || 'Failed to add task. Please try again.');
+      setTaskError(err.response?.data?.message || 'Failed to create Todo item. Please try again.');
     } finally {
       setAddingTask(false);
     }
-  };
-
-  // Delete task action (if added by mistake in modal)
-  const handleDeleteTask = async (taskId) => {
-    try {
-      await followupsAPI.delete(taskId);
-      setTodayTasks((prev) => prev.filter((t) => t._id !== taskId));
-      window.dispatchEvent(new CustomEvent('tasks-updated'));
-    } catch (err) {
-      console.warn('[MandatoryTask] Delete error:', err.message);
-    }
-  };
-
-  // ── Final Exit Action: Save & Enter Workspace ────────────────────────────────
-  const handleFinishAndEnter = () => {
-    if (todayTasks.length === 0) {
-      setTaskError('Please add at least 1 task for today before entering the workspace.');
-      return;
-    }
-    window.dispatchEvent(new CustomEvent('attendance-updated'));
-    window.dispatchEvent(new CustomEvent('tasks-updated'));
-    setCurrentStep('CLOSED');
   };
 
   if (currentStep === 'CLOSED' || checking) return null;
@@ -354,179 +369,92 @@ export default function MandatoryAttendanceModal() {
   const roleDisplay = user?.designation || user?.role || 'Staff Member';
   const greeting = getGreeting(now);
 
+  const isCallFollowup = taskType === 'call_followup';
+
   return (
     <AnimatePresence>
       <div
         className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 md:p-6 select-none"
         style={{
-          background: 'rgba(15, 23, 42, 0.85)',
-          backdropFilter: 'blur(30px)',
-          WebkitBackdropFilter: 'blur(30px)',
+          background: 'rgba(15, 23, 42, 0.75)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Ambient Glowing Background Orbs */}
+        {/* Ambient Glow */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div
-            className="absolute -top-32 -left-32 w-96 h-96 rounded-full opacity-35 blur-3xl animate-pulse"
-            style={{ background: 'radial-gradient(circle, #0284c7, transparent 70%)' }}
+            className="absolute -top-32 -left-32 w-96 h-96 rounded-full opacity-20 blur-3xl animate-pulse"
+            style={{ background: 'radial-gradient(circle, #2563eb, transparent 70%)' }}
           />
           <div
-            className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full opacity-35 blur-3xl animate-pulse"
-            style={{ background: 'radial-gradient(circle, #10b981, transparent 70%)', animationDelay: '1.5s' }}
-          />
-          <div
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full opacity-20 blur-3xl"
-            style={{ background: 'radial-gradient(circle, #f97316, transparent 70%)' }}
+            className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full opacity-20 blur-3xl animate-pulse"
+            style={{ background: 'radial-gradient(circle, #f97316, transparent 70%)', animationDelay: '1.5s' }}
           />
         </div>
 
         {/* Modal Window Container */}
         <motion.div
           key={currentStep}
-          initial={{ opacity: 0, scale: 0.93, y: 15 }}
+          initial={{ opacity: 0, scale: 0.96, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.93, y: 15 }}
-          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-          className="relative w-full max-w-lg max-h-[92vh] flex flex-col rounded-3xl overflow-hidden shadow-2xl border"
-          style={{
-            background: 'linear-gradient(165deg, #ffffff 0%, #f8fafc 50%, #f1f5f9 100%)',
-            borderColor: '#e2e8f0',
-            boxShadow: '0 25px 70px rgba(15, 23, 42, 0.5), 0 0 40px rgba(2, 132, 199, 0.2)',
-          }}
+          exit={{ opacity: 0, scale: 0.96, y: 10 }}
+          transition={{ duration: 0.25, ease: 'easeOut' }}
+          className="relative w-full max-w-md max-h-[92vh] flex flex-col rounded-2xl overflow-hidden shadow-xl border border-slate-200 bg-white"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Top Multi-Color Brand Bar */}
-          <div
-            className="h-2 w-full shrink-0"
-            style={{
-              background: 'linear-gradient(90deg, #0284c7 0%, #38bdf8 30%, #10b981 70%, #f97316 100%)',
-            }}
-          />
+          {/* Header Section with Centered Middle Logo */}
+          <div className="relative p-4 shrink-0 border-b border-slate-100 bg-slate-50/50 flex items-center justify-center">
+            <img src={logoImg} alt="AOTMS" className="h-9 object-contain mx-auto" />
 
-          {/* Modal Header: Logo + Steps Progression Indicator */}
-          <div className="p-6 pb-4 sm:p-8 sm:pb-4 shrink-0 border-b border-slate-100">
-            <div className="flex items-center justify-between gap-4 mb-4">
-              <img
-                src={logoImg}
-                alt="AOTMS"
-                className="h-9 sm:h-10 object-contain"
-                style={{ filter: 'drop-shadow(0 2px 8px rgba(2, 132, 199, 0.25))' }}
-              />
-
-              {/* Step Pill Badges */}
-              <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-2xl border border-slate-200">
-                {/* Step 1 badge */}
-                <div
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-extrabold tracking-wide transition-all ${
-                    currentStep === 'ATTENDANCE'
-                      ? 'bg-sky-600 text-white shadow-sm'
-                      : 'bg-emerald-100 text-emerald-800'
-                  }`}
-                >
-                  {currentStep === 'ATTENDANCE' ? (
-                    <span>1. Shift In</span>
-                  ) : (
-                    <span className="flex items-center gap-1">
-                      <FiCheck className="w-3.5 h-3.5 text-emerald-600" /> Shift Active
-                    </span>
-                  )}
-                </div>
-
-                {/* Step 2 badge */}
-                <div
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-extrabold tracking-wide transition-all ${
-                    currentStep === 'TASK'
-                      ? 'bg-emerald-600 text-white shadow-sm'
-                      : 'bg-transparent text-slate-400'
-                  }`}
-                >
-                  <RiTaskLine className="w-3.5 h-3.5" />
-                  <span>2. Daily Task</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Title & Greeting Banner */}
-            <div className="text-left">
-              {currentStep === 'ATTENDANCE' ? (
-                <>
-                  <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-                    <span>{greeting},</span>
-                    <span
-                      style={{
-                        background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                      }}
-                    >
-                      {user?.name?.split(' ')[0] || 'Team'}
-                    </span>
-                    <span>👋</span>
-                  </h2>
-                  <p className="text-xs sm:text-sm text-slate-500 mt-1 font-medium">
-                    Step 1 of 2: Please clock in your attendance to start your shift timer.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-                    <span>Plan Today's Tasks</span>
-                    <span className="text-emerald-600">🎯</span>
-                  </h2>
-                  <p className="text-xs sm:text-sm text-slate-500 mt-1 font-medium">
-                    Step 2 of 2: Add at least <strong className="text-slate-800 font-bold">1 task/goal</strong> for today's shift before entering the workspace.
-                  </p>
-                </>
-              )}
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (currentStep === 'TODO') {
+                  setCurrentStep('CLOSED');
+                }
+              }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-2xl font-medium leading-none px-2 py-1 rounded-lg hover:bg-slate-200/50 transition-colors"
+            >
+              ×
+            </button>
           </div>
 
-          {/* Scrollable Body Content */}
-          <div className="p-6 sm:p-8 pt-4 overflow-y-auto flex-1 space-y-5">
-            {/* ═══════════════════════════════════════════════════════════════════
-                STEP 1: ATTENDANCE CLOCK-IN
-               ═══════════════════════════════════════════════════════════════════ */}
+          {/* Body Content */}
+          <div className="p-5 overflow-y-auto flex-1 space-y-4">
+            {/* STEP 1: ATTENDANCE CLOCK-IN */}
             {currentStep === 'ATTENDANCE' && (
               <>
-                {/* Live Clock & Date Banner */}
-                <div
-                  className="p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 border shadow-sm"
-                  style={{
-                    background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
-                    borderColor: '#bae6fd',
-                  }}
-                >
-                  <div className="flex items-center gap-2.5 text-slate-700">
-                    <div className="w-8 h-8 rounded-xl bg-sky-500/10 flex items-center justify-center text-sky-600 font-bold border border-sky-200">
-                      <FiCalendar className="w-4 h-4" />
-                    </div>
+                {/* Greeting Header */}
+                <div className="text-center mb-2">
+                  <h2 className="text-xl font-semibold text-slate-800">
+                    {greeting}, <span className="text-blue-600">{user?.name?.split(' ')[0] || 'Team'}</span> 👋
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Please clock in your attendance to open your workspace.
+                  </p>
+                </div>
+
+                {/* Date & Time Box */}
+                <div className="p-3.5 rounded-xl bg-blue-50/60 border border-blue-100 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2 text-slate-700">
+                    <FiCalendar className="w-4 h-4 text-blue-600" />
                     <div>
-                      <div className="text-[10px] font-bold text-sky-700 uppercase tracking-wider">Today's Date</div>
-                      <div className="text-xs font-semibold text-slate-800">{formatISTDate(now)}</div>
+                      <span className="text-[10px] text-blue-600 font-medium uppercase tracking-wider block">Today</span>
+                      <span className="font-medium text-slate-800">{formatISTDate(now)}</span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/80 border border-sky-200 shadow-inner">
-                    <FiClock className="w-4 h-4 text-sky-600 animate-pulse" />
-                    <span className="font-mono text-sm sm:text-base font-bold text-sky-900 tracking-tight">
-                      {formatISTTime(now)}
-                    </span>
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-sky-100 text-sky-700">IST</span>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-blue-200 text-blue-700 font-mono text-sm font-semibold">
+                    <FiClock className="w-3.5 h-3.5 text-blue-600 animate-pulse" />
+                    <span>{formatISTTime(now)}</span>
                   </div>
                 </div>
 
                 {/* Employee Profile Card */}
-                <div
-                  className="p-4 rounded-2xl flex items-center gap-3.5 border bg-white shadow-sm"
-                  style={{ borderColor: '#e2e8f0' }}
-                >
-                  <div
-                    className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-extrabold text-sm overflow-hidden shrink-0 shadow-md"
-                    style={{
-                      background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 50%, #f97316 100%)',
-                    }}
-                  >
+                <div className="p-3.5 rounded-xl border border-slate-200 bg-white flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-orange-500 flex items-center justify-center text-white font-medium text-sm overflow-hidden shrink-0 shadow-sm">
                     {user?.avatar ? (
                       <img
                         src={user.avatar}
@@ -543,354 +471,275 @@ export default function MandatoryAttendanceModal() {
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-bold text-slate-900 truncate">{user?.name || 'Employee'}</span>
-                      <span
-                        className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider shrink-0"
-                        style={{
-                          background: 'rgba(2, 132, 199, 0.10)',
-                          color: '#0284c7',
-                          border: '1px solid rgba(2, 132, 199, 0.25)',
-                        }}
-                      >
+                      <span className="text-sm font-semibold text-slate-800 truncate">{user?.name || 'Employee'}</span>
+                      <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-100 shrink-0">
                         {roleDisplay}
                       </span>
                     </div>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
-                      <span className="truncate">{user?.email || 'user@example.com'}</span>
-                      {user?.employeeId && (
-                        <span className="font-mono font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded text-[11px] shrink-0">
-                          {user.employeeId}
-                        </span>
-                      )}
+                    <div className="text-xs text-slate-500 truncate mt-0.5">
+                      {user?.email || 'user@example.com'}
                     </div>
                   </div>
                 </div>
 
-                {/* Shift Info & GPS status */}
-                <div className="grid grid-cols-2 gap-2.5 text-xs">
-                  <div
-                    className="p-3 rounded-xl border flex items-center gap-2.5"
-                    style={{ background: '#f8fafc', borderColor: '#e2e8f0' }}
-                  >
-                    <RiTimerFlashLine className="w-5 h-5 text-amber-500 shrink-0" />
-                    <div>
-                      <div className="text-[10px] font-bold text-slate-400 uppercase">Shift Target</div>
-                      <div className="font-bold text-slate-700">09:00:00 Hours</div>
-                    </div>
-                  </div>
-
-                  <div
-                    className="p-3 rounded-xl border flex items-center gap-2.5"
-                    style={{ background: '#f8fafc', borderColor: '#e2e8f0' }}
-                  >
-                    <FiMapPin className="w-5 h-5 text-emerald-500 shrink-0" />
-                    <div>
-                      <div className="text-[10px] font-bold text-slate-400 uppercase">GPS Verification</div>
-                      <div className="font-bold text-slate-700">
-                        {gpsStatus === 'ready'
-                          ? 'GPS Active 📍'
-                          : gpsStatus === 'detecting'
-                          ? 'Locating...'
-                          : 'Vijayawada HQ'}
-                      </div>
-                    </div>
+                {/* Shift Target Info */}
+                <div className="p-3 rounded-xl border border-slate-200 bg-slate-50/60 flex items-center gap-3 text-xs">
+                  <RiTimerFlashLine className="w-5 h-5 text-orange-500 shrink-0" />
+                  <div>
+                    <div className="text-[10px] text-slate-400 font-medium uppercase">Shift Target</div>
+                    <div className="font-semibold text-slate-700">09:00:00 Hours</div>
                   </div>
                 </div>
 
                 {/* Error Banner */}
                 {attendanceError && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="p-3 rounded-xl flex items-start gap-2.5 text-xs text-red-700 bg-red-50 border border-red-200 shadow-sm"
-                  >
+                  <div className="p-3 rounded-xl flex items-start gap-2 text-xs text-red-700 bg-red-50 border border-red-200">
                     <FiAlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
                     <div className="flex-1 font-medium">{attendanceError}</div>
-                  </motion.div>
+                  </div>
                 )}
 
                 {/* Success Banner */}
                 {attendanceSuccess && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="p-4 rounded-2xl flex items-center justify-center gap-2.5 text-sm font-bold text-emerald-800 bg-emerald-50 border border-emerald-300 shadow-md"
-                  >
-                    <FiCheckCircle className="w-5 h-5 text-emerald-600 animate-bounce" />
-                    <span>Attendance Clocked In! Proceeding to Task Setup...</span>
-                  </motion.div>
+                  <div className="p-3 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200">
+                    <FiCheckCircle className="w-4 h-4 text-emerald-600" />
+                    <span>Attendance Clocked In! Opening Create Todo Item form...</span>
+                  </div>
                 )}
 
                 {/* Start Attendance Action Button */}
-                <motion.button
-                  whileHover={{ scale: clockingIn || attendanceSuccess ? 1 : 1.02 }}
-                  whileTap={{ scale: clockingIn || attendanceSuccess ? 1 : 0.98 }}
+                <button
+                  type="button"
                   disabled={clockingIn || attendanceSuccess}
                   onClick={handleStartAttendance}
-                  className="w-full py-4 px-6 rounded-2xl font-extrabold text-sm sm:text-base text-white transition-all shadow-lg flex items-center justify-center gap-3 relative overflow-hidden"
-                  style={{
-                    background: attendanceSuccess
-                      ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
-                      : 'linear-gradient(135deg, #0284c7 0%, #0369a1 50%, #f97316 100%)',
-                    boxShadow: attendanceSuccess
-                      ? '0 10px 25px rgba(16, 185, 129, 0.4)'
-                      : '0 12px 30px rgba(2, 132, 199, 0.35)',
-                  }}
+                  className="w-full py-3.5 px-4 rounded-xl font-medium text-sm text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-sm flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {clockingIn ? (
                     <>
-                      <div className="w-5 h-5 border-3 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>Clocking In & Starting Live Shift...</span>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Clocking In...</span>
                     </>
                   ) : attendanceSuccess ? (
                     <>
-                      <FiCheckCircle className="w-5 h-5" />
-                      <span>Attendance Active!</span>
+                      <FiCheckCircle className="w-4 h-4" />
+                      <span>Attendance Active</span>
                     </>
                   ) : (
                     <>
-                      <FiPlay className="w-5 h-5 fill-current" />
+                      <FiPlay className="w-4 h-4 fill-current" />
                       <span>Start Attendance</span>
                     </>
                   )}
-                </motion.button>
+                </button>
               </>
             )}
 
-            {/* ═══════════════════════════════════════════════════════════════════
-                STEP 2: MANDATORY TASK SETUP
-               ═══════════════════════════════════════════════════════════════════ */}
-            {currentStep === 'TASK' && (
-              <>
-                {/* Task Creation Form */}
-                <form onSubmit={handleAddTask} className="p-4 rounded-2xl border bg-white shadow-sm space-y-4" style={{ borderColor: '#e2e8f0' }}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                      <FiPlus className="text-emerald-600 font-bold" /> Add Task for Today
-                    </span>
-                    <span className="text-[11px] font-bold text-slate-400">
-                      {todayTasks.length === 0 ? '⚠️ 0 tasks added' : `✓ ${todayTasks.length} task(s) added`}
-                    </span>
-                  </div>
-
-                  {/* Task Description Input */}
-                  <div>
-                    <input
-                      type="text"
-                      placeholder="e.g. Follow up with 15 leads & prepare daily report..."
-                      value={taskTitle}
-                      onChange={(e) => setTaskTitle(e.target.value)}
-                      className="w-full px-3.5 py-3 rounded-xl border text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
-                      style={{ background: '#f8fafc', borderColor: '#cbd5e1' }}
-                    />
-                  </div>
-
-                  {/* Priority Selector + Due Time Selector */}
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    {/* Priority Pills */}
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[11px] font-bold text-slate-500 mr-1">Priority:</span>
-                      {['low', 'medium', 'high'].map((p) => {
-                        const cfg = PRIORITY_BADGES[p];
-                        const isSelected = taskPriority === p;
-                        return (
-                          <button
-                            type="button"
-                            key={p}
-                            onClick={() => setTaskPriority(p)}
-                            className="px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 border"
-                            style={{
-                              background: isSelected ? cfg.bg : '#ffffff',
-                              color: isSelected ? cfg.color : '#64748b',
-                              borderColor: isSelected ? cfg.dot : '#e2e8f0',
-                              boxShadow: isSelected ? `0 0 8px ${cfg.bg}` : 'none',
-                            }}
-                          >
-                            <span
-                              className="w-2 h-2 rounded-full inline-block"
-                              style={{ background: isSelected ? cfg.dot : '#cbd5e1' }}
-                            />
-                            <span>{cfg.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {/* Target Due Time */}
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[11px] font-bold text-slate-500">Due:</span>
-                      <input
-                        type="time"
-                        value={taskDueTime}
-                        onChange={(e) => setTaskDueTime(e.target.value)}
-                        className="px-2 py-1 rounded-lg border text-xs font-bold text-slate-700 focus:outline-none focus:border-sky-500"
-                        style={{ background: '#f8fafc', borderColor: '#cbd5e1' }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Add Task Button */}
+            {/* STEP 2: CREATE TODO ITEM FORM (EXACT SPEC FROM TASK.JSX FORM) */}
+            {currentStep === 'TODO' && (
+              <form onSubmit={handleCreateTodoSubmit} className="space-y-4">
+                {/* Type Switcher Tabs */}
+                <div className="flex bg-blue-50/70 p-1 rounded-xl border border-blue-100">
                   <button
-                    type="submit"
-                    disabled={addingTask || !taskTitle.trim()}
-                    className="w-full py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm text-white transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
-                    style={{
-                      background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-                    }}
+                    type="button"
+                    onClick={() => setTaskType('todo')}
+                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                      taskType === 'todo'
+                        ? 'bg-white text-slate-800 shadow-sm border border-slate-200/60'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
                   >
-                    {addingTask ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        <span>Adding Task...</span>
-                      </>
-                    ) : (
-                      <>
-                        <FiPlus className="w-4 h-4" />
-                        <span>Add Task To Today's Plan</span>
-                      </>
-                    )}
+                    <span>📋</span>
+                    <span>Todo Item</span>
                   </button>
-                </form>
-
-                {/* Feedback Alerts */}
-                {taskError && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="p-3 rounded-xl flex items-start gap-2.5 text-xs text-red-700 bg-red-50 border border-red-200"
+                  <button
+                    type="button"
+                    onClick={() => setTaskType('call_followup')}
+                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                      taskType === 'call_followup'
+                        ? 'bg-white text-slate-800 shadow-sm border border-slate-200/60'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
                   >
-                    <FiAlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-                    <div className="flex-1 font-medium">{taskError}</div>
-                  </motion.div>
-                )}
+                    <span>📞</span>
+                    <span>Call Follow-up</span>
+                  </button>
+                </div>
 
-                {taskSuccessMsg && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="p-2.5 rounded-xl flex items-center gap-2 text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200"
-                  >
-                    <FiCheck className="w-4 h-4 text-emerald-600" />
-                    <span>{taskSuccessMsg}</span>
-                  </motion.div>
-                )}
+                {/* Description Input */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    {isCallFollowup ? 'Follow-up Details' : 'Todo Task Description'}
+                  </label>
+                  <textarea
+                    value={taskDescription}
+                    onChange={(e) => setTaskDescription(e.target.value)}
+                    rows={3}
+                    placeholder={
+                      isCallFollowup ? 'What should this call be about?' : 'What needs to be accomplished?'
+                    }
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 bg-slate-50/50 resize-none"
+                  />
+                </div>
 
-                {/* List of Tasks Added for Today */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs px-1">
-                    <span className="font-bold text-slate-700 flex items-center gap-1.5">
-                      <FiList className="text-sky-600" /> Today's Planned Tasks ({todayTasks.length})
-                    </span>
-                    {todayTasks.length >= 1 ? (
-                      <span className="text-emerald-600 font-bold text-[11px] flex items-center gap-1">
-                        <FiCheckCircle /> Requirement Fulfilled
-                      </span>
-                    ) : (
-                      <span className="text-amber-600 font-bold text-[11px] flex items-center gap-1">
-                        <FiLock /> Add 1 task to proceed
-                      </span>
-                    )}
+                {/* Due Date & Time Picker */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Due Date & Time
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="date"
+                      value={dueDate}
+                      onChange={(e) => setDueDate(e.target.value)}
+                      className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-blue-500"
+                    />
+                    <TimeInput12h value={dueTime} onChange={setDueTime} />
                   </div>
+                </div>
 
-                  {todayTasks.length === 0 ? (
-                    <div className="p-6 rounded-2xl border border-dashed border-slate-300 text-center text-xs text-slate-400 bg-slate-50/50">
-                      <RiTaskLine className="w-8 h-8 text-slate-300 mx-auto mb-1.5" />
-                      <p className="font-medium text-slate-500">No tasks added for today yet.</p>
-                      <p className="text-[11px] text-slate-400 mt-0.5">
-                        Please type a goal above and click <strong>"Add Task"</strong> to enable the enter button.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                      {todayTasks.map((t, idx) => {
-                        const priCfg = PRIORITY_BADGES[t.priority] || PRIORITY_BADGES.medium;
-                        return (
-                          <div
-                            key={t._id || idx}
-                            className="p-3 rounded-xl border bg-white flex items-center justify-between gap-3 shadow-sm hover:border-slate-300 transition-all"
-                            style={{ borderColor: '#e2e8f0' }}
-                          >
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <span className="w-5 h-5 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xs shrink-0 border border-emerald-200">
-                                {idx + 1}
-                              </span>
-                              <div className="min-w-0">
-                                <p className="text-xs font-bold text-slate-800 truncate">{t.title || t.note}</p>
-                                <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400 font-medium">
-                                  <span
-                                    className="px-1.5 py-0.2 rounded font-bold uppercase tracking-wider"
-                                    style={{ background: priCfg.bg, color: priCfg.color, border: `1px solid ${priCfg.border}` }}
-                                  >
-                                    {priCfg.label}
-                                  </span>
-                                  <span>Due: {t.scheduledAt ? new Date(t.scheduledAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : 'Today'}</span>
-                                </div>
-                              </div>
-                            </div>
+                {/* Priority */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Priority
+                  </label>
+                  <select
+                    value={priority}
+                    onChange={(e) => setPriority(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-blue-500"
+                  >
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="low">Low</option>
+                  </select>
+                </div>
 
-                            <button
-                              type="button"
-                              title="Remove task"
-                              onClick={() => handleDeleteTask(t._id)}
-                              className="text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-colors shrink-0"
-                            >
-                              <FiTrash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        );
-                      })}
+                {/* Recurrence */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Recurrence
+                  </label>
+                  <select
+                    value={recurrence}
+                    onChange={(e) => setRecurrence(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-blue-500"
+                  >
+                    <option value="none">Does not repeat</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
+
+                  {recurrence !== 'none' && (
+                    <div className="mt-2">
+                      <label className="block text-[11px] font-semibold text-slate-500 mb-1">
+                        Repeat Until
+                      </label>
+                      <input
+                        type="date"
+                        value={repeatEndDate}
+                        min={dueDate}
+                        onChange={(e) => setRepeatEndDate(e.target.value)}
+                        className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-blue-500"
+                      />
                     </div>
                   )}
                 </div>
 
-                {/* Final Exit Button: Save & Enter Workspace */}
-                <motion.button
-                  whileHover={{ scale: todayTasks.length === 0 ? 1 : 1.02 }}
-                  whileTap={{ scale: todayTasks.length === 0 ? 1 : 0.98 }}
-                  disabled={todayTasks.length === 0}
-                  onClick={handleFinishAndEnter}
-                  className={`w-full py-4 px-6 rounded-2xl font-extrabold text-sm sm:text-base text-white transition-all shadow-lg flex items-center justify-center gap-3 relative overflow-hidden ${
-                    todayTasks.length === 0 ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
-                  style={{
-                    background:
-                      todayTasks.length === 0
-                        ? '#94a3b8'
-                        : 'linear-gradient(135deg, #10b981 0%, #059669 50%, #0284c7 100%)',
-                    boxShadow:
-                      todayTasks.length === 0
-                        ? 'none'
-                        : '0 12px 30px rgba(16, 185, 129, 0.35)',
-                  }}
-                >
-                  {todayTasks.length === 0 ? (
-                    <>
-                      <FiLock className="w-4 h-4" />
-                      <span>Add At Least 1 Task to Enter Workspace</span>
-                    </>
-                  ) : (
-                    <>
-                      <FiCheckCircle className="w-5 h-5" />
-                      <span>Save & Enter Workspace ({todayTasks.length} Tasks)</span>
-                      <FiArrowRight className="w-4 h-4" />
-                    </>
-                  )}
-                </motion.button>
-              </>
+                {/* Assigned To & Assigned By */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                      Assigned To
+                    </label>
+                    <select
+                      value={assignedTo}
+                      onChange={(e) => setAssignedTo(e.target.value)}
+                      className="w-full px-2.5 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-blue-500"
+                    >
+                      <option value={user?._id}>
+                        {user?.name ? `${user.name} (You)` : 'You'}
+                      </option>
+                      {teamUsers
+                        .filter((u) => u._id !== user?._id)
+                        .map((u) => (
+                          <option key={u._id} value={u._id}>
+                            {u.name} {u.designation ? `(${u.designation})` : ''}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                      Assigned By
+                    </label>
+                    <select
+                      value={assignedBy}
+                      onChange={(e) => setAssignedBy(e.target.value)}
+                      className="w-full px-2.5 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-blue-500"
+                    >
+                      <option value="all">All</option>
+                      <option value={user?._id}>
+                        {user?.name ? `${user.name} (You)` : 'You'}
+                      </option>
+                      {teamUsers
+                        .filter((u) => u._id !== user?._id)
+                        .map((u) => (
+                          <option key={u._id} value={u._id}>
+                            {u.name} {u.designation ? `(${u.designation})` : ''}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Error Banner */}
+                {taskError && (
+                  <div className="p-3 rounded-lg flex items-start gap-2 text-xs text-red-700 bg-red-50 border border-red-200">
+                    <FiAlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                    <div className="flex-1 font-medium">{taskError}</div>
+                  </div>
+                )}
+
+                {/* Action Buttons: Cancel / Create Todo */}
+                <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep('CLOSED')}
+                    className="flex-1 py-2.5 px-4 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 bg-white hover:bg-slate-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={addingTask}
+                    className="flex-1 py-2.5 px-4 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  >
+                    {addingTask ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Creating...</span>
+                      </>
+                    ) : (
+                      <span>Create Todo</span>
+                    )}
+                  </button>
+                </div>
+              </form>
             )}
           </div>
 
-          {/* Modal Footer (Sign out option) */}
-          <div className="p-4 px-6 sm:px-8 border-t border-slate-100 bg-slate-50/80 flex items-center justify-between text-[11px] text-slate-400 font-medium shrink-0">
-            <div className="flex items-center gap-1.5">
+          {/* Modal Footer */}
+          <div className="p-3 px-6 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between text-[11px] text-slate-400 font-medium shrink-0">
+            <div className="flex items-center gap-1">
               <FiShield className="w-3.5 h-3.5 text-slate-400" />
-              <span>Shift check-in & goal planning policy active</span>
+              <span>Shift check-in policy active</span>
             </div>
 
             <button
               type="button"
               onClick={logout}
-              className="hover:text-red-500 transition-colors flex items-center gap-1 font-semibold text-slate-500 hover:underline"
+              className="hover:text-red-500 transition-colors flex items-center gap-1 text-slate-500 font-medium"
             >
               <FiLogOut className="w-3.5 h-3.5" />
               <span>Sign Out</span>
