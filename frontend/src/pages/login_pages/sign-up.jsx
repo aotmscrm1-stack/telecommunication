@@ -1286,16 +1286,6 @@ export default function SignUp() {
         localStorage.setItem('aotms_user', JSON.stringify(res.data.user));
         updateUser(res.data.user);
         setRegistrationSuccess(true);
-
-        setTimeout(() => {
-          if (res.data.user?.approvalStatus === 'pending') {
-            navigate('/accept');
-          } else if (canViewDashboard(res.data.user)) {
-            navigate('/dashboard');
-          } else {
-            navigate('/tasks');
-          }
-        }, 1400);
       }
     } catch (err) {
       setErrorMsg(err.response?.data?.message || 'Verification failed. Please check the code.');

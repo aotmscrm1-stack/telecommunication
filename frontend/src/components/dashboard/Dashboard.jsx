@@ -1944,15 +1944,6 @@ export default function Dashboard() {
                 </p>
               </div>
             </div>
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => navigate('/accept')}
-              className="px-4 py-2 rounded-xl text-[12.5px] font-bold bg-amber-600 hover:bg-amber-700 text-white cursor-pointer transition shadow-md shrink-0 flex items-center gap-2"
-            >
-              <span>Review & Accept</span>
-              <FaArrowUpRightFromSquare className="w-3 h-3" />
-            </motion.button>
           </motion.div>
         )}
 

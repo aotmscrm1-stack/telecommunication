@@ -518,11 +518,6 @@ export default function Navbar() {
       { label: 'Attendance', path: '/admin/attendance-records', icon: FaCalendarCheck },
       { label: 'Live Tracking', path: '/admin/employee-tracking', icon: FaLocationDot, adminOnly: !isHR(user) && !isCEO(user) },
       { label: 'Email CRM', path: '/email', icon: FaEnvelopeOpenText },
-      { label: 'Team Ops', path: '/team-operations', icon: FaPeopleGroup },
-      { label: 'Idle Leads', path: '/stale-leads', icon: FaClock },
-      { label: 'Blocklist', path: '/blocklist', icon: FaBan },
-      { label: 'Users', path: '/users', icon: FaUserGear },
-      { label: 'Approvals', path: '/accept', icon: FaUserCheck },
     ]},
     { title: 'Developer', icon: FaCode, items: [
       { label: 'Access Tokens', path: '/access-tokens', icon: FaKey },

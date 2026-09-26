@@ -838,20 +838,14 @@ export default function Login() {
     }
     setLoading(true);
     try {
-      const data = await login(trimmedEmail, trimmedPassword);
-      if (data?.user?.role !== 'admin' && (data?.user?.approvalStatus === 'pending' || data?.user?.approvalStatus === 'rejected')) {
-        navigate('/accept');
-      } else if (canViewDashboard(data?.user)) {
+      const loggedUser = await login(trimmedEmail, trimmedPassword);
+      if (canViewDashboard(loggedUser)) {
         navigate('/dashboard');
       } else {
         navigate('/tasks');
       }
     } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          err.message ||
-          'Login failed. Please check your credentials.'
-      );
+      setError(err.response?.data?.error || err.message || 'Login failed.');
     } finally {
       setLoading(false);
     }

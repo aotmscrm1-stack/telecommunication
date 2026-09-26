@@ -24,6 +24,7 @@ export default function LiveEmployeeTracking() {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   const [followEmployee, setFollowEmployee] = useState(false);
   const [showRouteTrail, setShowRouteTrail] = useState(true);
+  const [sidebarToggle, setSidebarToggle] = useState(true);
   const [connectionState, setConnectionState] = useState(
     trackingSocket.getConnectionState() || ConnectionState.DISCONNECTED
   );
@@ -350,122 +351,140 @@ export default function LiveEmployeeTracking() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] w-full overflow-hidden bg-white font-sans text-slate-800">
-      {/* ── 1. Top Header Bar (Pristine White + Cool Blue & Calm Orange Accents) ── */}
-      <header className="h-14 px-4 sm:px-6 bg-white border-b border-slate-200/80 flex items-center justify-between shrink-0 shadow-xs z-30">
-        {/* Left: Brand title & live status indicator */}
-        <div className="flex items-center gap-3 sm:gap-4 overflow-x-auto py-1">
-          <div className="flex items-center gap-2.5 shrink-0">
-            <div className="size-8 rounded-lg bg-sky-50 border border-sky-200 flex items-center justify-center text-sky-600 shadow-2xs">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      {/* ── 1. Top Header Bar (Ultra-Responsive & Overflow-Free) ── */}
+      <header className="h-12 sm:h-13 px-3 sm:px-4 bg-white border-b border-slate-200/80 flex items-center justify-between shrink-0 shadow-2xs z-30 gap-2 overflow-hidden">
+        {/* Left: Brand title, sidebar toggle & live status indicator */}
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink">
+          {/* Sidebar Toggle Button */}
+          <button
+            onClick={() => setSidebarToggle(prev => !prev)}
+            title={sidebarToggle ? "Collapse Agent Directory" : "Expand Agent Directory"}
+            className="p-1 rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-sky-600 transition-colors cursor-pointer shadow-2xs shrink-0"
+          >
+            <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
+          </button>
+
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="size-7 rounded-lg bg-sky-50 border border-sky-200 flex items-center justify-center text-sky-600 shadow-2xs shrink-0">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
                 <circle cx="12" cy="10" r="3" />
               </svg>
             </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <h1 className="text-sm font-semibold text-slate-900 tracking-tight leading-tight">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <h1 className="text-xs sm:text-sm font-bold text-slate-900 tracking-tight leading-none truncate">
                   Live Field Tracking
                 </h1>
-                <span className="size-1.5 rounded-full bg-orange-500" />
+                <span className="size-1.5 rounded-full bg-orange-500 shrink-0" />
               </div>
-              <span className="text-[11px] text-slate-500 font-normal hidden sm:inline">
+              <span className="text-[10px] text-slate-500 font-normal hidden xl:inline truncate">
                 Real-time workforce telemetry
               </span>
             </div>
           </div>
 
           {/* Connection state pill */}
-          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border ${connectionTheme.bg} ${connectionTheme.border} ${connectionTheme.color} shrink-0`}>
-            <span className="relative flex size-2">
+          <div className={`hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10.5px] font-medium border ${connectionTheme.bg} ${connectionTheme.border} ${connectionTheme.color} shrink-0`}>
+            <span className="relative flex size-1.5">
               {connectionTheme.pulse && (
                 <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${connectionTheme.dot}`} />
               )}
-              <span className={`relative inline-flex rounded-full size-2 ${connectionTheme.dot}`} />
+              <span className={`relative inline-flex rounded-full size-1.5 ${connectionTheme.dot}`} />
             </span>
             <span>{connectionTheme.label}</span>
           </div>
 
-          {/* Metric Chips (Calm & Cool Palettes) */}
-          <div className="hidden lg:flex items-center gap-1.5 shrink-0">
-            <span className="text-xs px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-600 shadow-2xs">
-              Total <span className="font-semibold text-slate-800 ml-0.5">{statusCounts.ALL}</span>
-            </span>
-
-            <span className="text-xs px-2.5 py-1 rounded-md bg-sky-50 border border-sky-200/80 text-sky-700 flex items-center gap-1 shadow-2xs">
-              <svg className="size-3 text-sky-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 21h18M9 8h1M9 12h1M9 16h1M14 8h1M14 12h1M14 16h1M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"/></svg>
-              <span>At Office</span>
-              <span className="font-semibold ml-0.5">{statusCounts.AT_OFFICE}</span>
-            </span>
-
-            <span className="text-xs px-2.5 py-1 rounded-md bg-sky-50/70 border border-sky-300/80 text-sky-800 flex items-center gap-1 shadow-2xs">
-              <svg className="size-3 text-sky-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
-              <span>Moving</span>
-              <span className="font-semibold text-sky-700 ml-0.5">{statusCounts.MOVING}</span>
-            </span>
-
-            <span className="text-xs px-2.5 py-1 rounded-md bg-orange-50 border border-orange-200 text-orange-700 flex items-center gap-1 shadow-2xs">
-              <svg className="size-3 text-orange-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-              <span>Stopped</span>
-              <span className="font-semibold ml-0.5">{statusCounts.STOPPED}</span>
-            </span>
-
-            <span className="text-xs px-2.5 py-1 rounded-md bg-slate-50 border border-slate-200 text-slate-500 shadow-2xs">
-              Offline <span className="font-semibold ml-0.5">{statusCounts.OFFLINE}</span>
-            </span>
+          {/* Metric Chips (Single Sleek Grouped Pill) */}
+          <div className="hidden xl:flex items-center gap-2 px-2.5 py-1 bg-slate-50 border border-slate-200/80 rounded-full text-[11px] font-medium text-slate-600 shadow-2xs shrink-0">
+            <span>Total <strong className="text-slate-900">{statusCounts.ALL}</strong></span>
+            <span className="text-slate-300">•</span>
+            <span className="text-sky-700">Office <strong className="text-sky-800">{statusCounts.AT_OFFICE}</strong></span>
+            <span className="text-slate-300">•</span>
+            <span className="text-sky-700">Moving <strong className="text-sky-800">{statusCounts.MOVING}</strong></span>
+            <span className="text-slate-300">•</span>
+            <span className="text-orange-700">Stopped <strong className="text-orange-800">{statusCounts.STOPPED}</strong></span>
+            <span className="text-slate-300">•</span>
+            <span className="text-slate-500">Offline <strong>{statusCounts.OFFLINE}</strong></span>
           </div>
         </div>
 
-        {/* Right: Last updated & actions */}
-        <div className="flex items-center gap-3 shrink-0">
-          <div className="hidden md:flex items-center gap-1.5 text-xs text-slate-500">
-            <svg className="size-3.5 text-sky-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            <span>Updated {syncTimerText}</span>
+        {/* Right: User Profile Card, Last updated & actions */}
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+          {/* Active Supervisor User Profile Badge */}
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-50 border border-slate-200 text-xs shadow-2xs shrink-0">
+            {user?.avatar ? (
+              <img src={user.avatar} alt={user?.name || 'User'} className="size-5.5 rounded-full object-cover shrink-0" />
+            ) : (
+              <div className="size-5.5 rounded-full bg-gradient-to-tr from-sky-500 to-indigo-600 text-white font-bold flex items-center justify-center text-[9.5px] shadow-xs shrink-0">
+                {(user?.name || 'A')[0].toUpperCase()}
+              </div>
+            )}
+            <div className="flex flex-col leading-tight min-w-0">
+              <span className="font-semibold text-slate-800 text-[10px] sm:text-[10.5px] truncate max-w-[70px] sm:max-w-[100px]">{user?.name || 'Admin'}</span>
+              <span className="text-[8.5px] text-sky-600 font-medium capitalize truncate max-w-[70px] sm:max-w-[100px]">{user?.designation || user?.role || 'Supervisor'}</span>
+            </div>
+          </div>
+
+          <div className="hidden md:flex items-center gap-1 text-[11px] text-slate-500 shrink-0">
+            <svg className="size-3 text-sky-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span>{syncTimerText}</span>
           </div>
 
           {isHistoryMode ? (
             <button
               onClick={exitHistoryMode}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-lg transition-colors cursor-pointer border border-sky-200 shadow-2xs"
+              className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-lg transition-colors cursor-pointer border border-sky-200 shadow-2xs shrink-0"
             >
-              <svg className="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-              <span>Back to Live</span>
+              <svg className="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+              <span>Live</span>
             </button>
           ) : (
             <button
               onClick={fetchEmployeesAndConfig}
               title="Refresh telemetry"
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white hover:bg-sky-50/60 border border-slate-200 hover:border-sky-300 rounded-lg transition-colors cursor-pointer shadow-2xs"
+              className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-slate-700 bg-white hover:bg-sky-50/60 border border-slate-200 hover:border-sky-300 rounded-lg transition-colors cursor-pointer shadow-2xs shrink-0"
             >
-              <svg className="size-3.5 text-orange-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
-              <span>Refresh</span>
+              <svg className="size-3 text-orange-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+              <span className="hidden sm:inline">Sync</span>
             </button>
           )}
         </div>
       </header>
 
-      {/* ── 2. Main Content Layout ──────────────────────────────────────────── */}
-      <div className="flex-1 flex overflow-hidden relative">
-        {/* Left Employee Sidebar (Crisp White + Cool Blue & Calm Orange) */}
-        <aside className="w-80 sm:w-88 md:w-96 bg-white border-r border-slate-200/80 flex flex-col overflow-hidden shrink-0 z-20 shadow-xs">
+      {/* ── 2. Main Content Layout (Full Screen Optimized) ─────────────────────────── */}
+      <div className="flex-1 flex overflow-hidden relative w-full h-full">
+        {/* Left Employee Sidebar (Full Screen Optimized Spacious Width: w-64 sm:w-72 md:w-80) */}
+        <aside
+          className={`transition-all duration-300 ease-in-out bg-white flex flex-col overflow-hidden shrink-0 z-20 shadow-xs ${
+            sidebarToggle
+              ? 'w-64 sm:w-72 md:w-80 border-r border-slate-200/80 opacity-100'
+              : 'w-0 border-r-0 opacity-0 p-0 overflow-hidden pointer-events-none'
+          }`}
+        >
           {isHistoryMode ? (
             /* History Route Mode */
-            <div className="p-4 flex flex-col h-full overflow-hidden bg-white">
-              <div className="flex items-center gap-3 pb-3 mb-3 border-b border-slate-100">
-                <div className="size-10 rounded-xl bg-gradient-to-tr from-sky-500 to-blue-600 text-white font-semibold text-sm flex items-center justify-center shrink-0 shadow-xs">
-                  {(selectedEmployee?.name || 'A').charAt(0).toUpperCase()}
-                </div>
-                <div className="min-w-0">
-                  <h3 className="text-sm font-semibold text-slate-900 truncate">
+            <div className="p-3.5 flex flex-col h-full overflow-hidden bg-white">
+              <div className="flex items-center gap-2.5 pb-3 mb-2.5 border-b border-slate-100">
+                {selectedEmployee?.avatar ? (
+                  <img src={selectedEmployee.avatar} alt={selectedEmployee.name} className="size-9 rounded-xl object-cover border border-slate-200 shadow-xs shrink-0" />
+                ) : (
+                  <div className="size-9 rounded-xl bg-gradient-to-tr from-sky-500 to-blue-600 text-white font-semibold text-xs flex items-center justify-center shrink-0 shadow-xs">
+                    {(selectedEmployee?.name || 'A').charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-xs font-bold text-slate-900 truncate">
                     {selectedEmployee?.name}
                   </h3>
-                  <p className="text-xs text-orange-600 font-medium truncate">
+                  <p className="text-[11px] text-orange-600 font-medium truncate">
                     Route Playback & Logs
                   </p>
                 </div>
               </div>
 
               {/* Date Filters */}
-              <div className="flex gap-1.5 p-1 bg-slate-50 border border-slate-200/60 rounded-lg mb-3">
+              <div className="flex gap-1 p-1 bg-slate-50 border border-slate-200/60 rounded-lg mb-2.5">
                 {[
                   { key: 'today', label: 'Today' },
                   { key: 'yesterday', label: 'Yesterday' },
@@ -477,7 +496,7 @@ export default function LiveEmployeeTracking() {
                       setHistoryDateFilter(tab.key);
                       loadEmployeeHistory(selectedEmployeeId, tab.key);
                     }}
-                    className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors cursor-pointer ${
+                    className={`flex-1 py-1 text-[11px] font-medium rounded-md transition-colors cursor-pointer ${
                       historyDateFilter === tab.key
                         ? 'bg-white text-sky-600 border border-sky-200 shadow-2xs'
                         : 'text-slate-600 hover:text-slate-900'
@@ -489,16 +508,16 @@ export default function LiveEmployeeTracking() {
               </div>
 
               {/* Distance & Points KPI */}
-              <div className="grid grid-cols-2 gap-2 p-3 bg-sky-50/50 rounded-xl border border-sky-100 mb-3 text-center">
+              <div className="grid grid-cols-2 gap-2 p-2.5 bg-sky-50/50 rounded-xl border border-sky-100 mb-2.5 text-center">
                 <div>
                   <div className="text-[10px] text-sky-700/80 uppercase tracking-wider font-medium">Distance</div>
-                  <div className="text-base font-semibold text-sky-700 mt-0.5">
-                    {historyDistanceKm} <span className="text-xs font-normal text-slate-500">km</span>
+                  <div className="text-sm font-bold text-sky-700 mt-0.5">
+                    {historyDistanceKm} <span className="text-[10px] font-normal text-slate-500">km</span>
                   </div>
                 </div>
                 <div>
                   <div className="text-[10px] text-orange-700/80 uppercase tracking-wider font-medium">Breadcrumbs</div>
-                  <div className="text-base font-semibold text-orange-600 mt-0.5">
+                  <div className="text-sm font-bold text-orange-600 mt-0.5">
                     {historyPoints.length}
                   </div>
                 </div>
@@ -506,13 +525,13 @@ export default function LiveEmployeeTracking() {
 
               {/* Recorded Points Timeline */}
               <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
-                <div className="text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-2">
+                <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
                   Waypoints Log
                 </div>
                 {historyLoading ? (
                   <div className="text-center py-10 text-xs text-slate-400">Loading trail data...</div>
                 ) : historyPoints.length === 0 ? (
-                  <div className="text-center py-12 px-4 text-xs text-slate-400">
+                  <div className="text-center py-12 px-3 text-xs text-slate-400">
                     <p className="font-medium text-slate-700 mb-1">No recorded movement</p>
                     <p className="text-[11px]">No GPS breadcrumbs captured for this timeframe.</p>
                   </div>
@@ -520,17 +539,17 @@ export default function LiveEmployeeTracking() {
                   historyPoints.map((p, idx) => (
                     <div
                       key={idx}
-                      className="p-2.5 rounded-lg bg-white border border-slate-100 shadow-2xs text-xs flex items-center justify-between"
+                      className="p-2 rounded-lg bg-white border border-slate-100 shadow-2xs text-xs flex items-center justify-between"
                     >
                       <div className="min-w-0 pr-2">
-                        <div className="font-medium text-slate-800">
+                        <div className="font-medium text-slate-800 text-[11px]">
                           {new Date(p.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                         </div>
-                        <div className="text-[11px] text-slate-500 truncate">
+                        <div className="text-[10px] text-slate-500 truncate">
                           {p.road || `${p.latitude?.toFixed(4)}, ${p.longitude?.toFixed(4)}`}
                         </div>
                       </div>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 ${
+                      <span className={`text-[9.5px] px-1.5 py-0.5 rounded-full font-medium shrink-0 ${
                         p.trackingStatus === 'MOVING'
                           ? 'bg-sky-50 text-sky-700 border border-sky-200'
                           : p.trackingStatus === 'AT_OFFICE'
@@ -547,9 +566,102 @@ export default function LiveEmployeeTracking() {
           ) : (
             /* Live Directory Mode */
             <>
+              {/* Always Visible User Profile Header Card */}
+              <div className="p-2.5 bg-gradient-to-br from-slate-50 via-sky-50/40 to-blue-50/30 border-b border-slate-200/80 space-y-2 shrink-0">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9.5px] font-bold text-sky-700 tracking-wider uppercase flex items-center gap-1">
+                    <span className="size-1.5 rounded-full bg-sky-500 animate-pulse" />
+                    {selectedEmployee ? 'Agent Profile' : 'Supervisor Profile'}
+                  </span>
+                  {selectedEmployee && (
+                    <button
+                      onClick={() => setSelectedEmployeeId(null)}
+                      className="text-[9.5px] text-slate-400 hover:text-slate-600 font-medium cursor-pointer"
+                      title="Clear selection"
+                    >
+                      Deselect
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="relative shrink-0">
+                    {(selectedEmployee ? selectedEmployee.avatar || selectedEmployee.location?.avatar : user?.avatar) ? (
+                      <img
+                        src={selectedEmployee ? selectedEmployee.avatar || selectedEmployee.location?.avatar : user?.avatar}
+                        alt="Profile Avatar"
+                        className="size-9 rounded-xl object-cover border border-slate-200 shadow-xs"
+                      />
+                    ) : (
+                      <div className="size-9 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 text-white font-bold text-xs flex items-center justify-center shadow-xs">
+                        {((selectedEmployee ? selectedEmployee.name : user?.name) || 'U')[0].toUpperCase()}
+                      </div>
+                    )}
+                    <span className={`absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-white ${
+                      selectedEmployee
+                        ? (selectedEmployee.location?.trackingStatus === 'AT_OFFICE' || selectedEmployee.location?.trackingStatus === 'MOVING'
+                            ? 'bg-sky-500'
+                            : selectedEmployee.location?.trackingStatus === 'STOPPED'
+                            ? 'bg-orange-500'
+                            : 'bg-slate-400')
+                        : 'bg-sky-500'
+                    }`} />
+                  </div>
+
+                  <div className="min-w-0 flex-1 leading-tight">
+                    <h3 className="text-xs font-bold text-slate-900 truncate">
+                      {selectedEmployee ? selectedEmployee.name : user?.name || 'Administrator'}
+                    </h3>
+                    <p className="text-[10px] text-sky-700 font-medium truncate">
+                      {selectedEmployee
+                        ? (selectedEmployee.designation || selectedEmployee.role || 'Field Agent')
+                        : (user?.designation || user?.role || 'Live Supervisor')}
+                    </p>
+                    <p className="text-[9.5px] text-slate-500 truncate">
+                      {selectedEmployee
+                        ? (selectedEmployee.email || 'No email provided')
+                        : (user?.email || 'admin@aotms.com')}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Profile Quick Actions */}
+                {selectedEmployee ? (
+                  <div className="flex items-center gap-1.5 pt-0.5">
+                    {selectedEmployee.phone ? (
+                      <a
+                        href={`tel:${selectedEmployee.phone}`}
+                        className="flex-1 py-1 px-2 rounded-lg bg-white border border-slate-200 hover:border-sky-300 text-[10px] font-medium text-slate-700 hover:text-sky-600 flex items-center justify-center gap-1 transition-colors shadow-2xs min-w-0"
+                      >
+                        <svg className="size-3 text-sky-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                        <span className="truncate">{selectedEmployee.phone}</span>
+                      </a>
+                    ) : (
+                      <span className="flex-1 py-1 px-2 rounded-lg bg-slate-100/70 border border-slate-200/60 text-[9.5px] font-medium text-slate-400 flex items-center justify-center gap-1">
+                        <svg className="size-3 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                        No Phone
+                      </span>
+                    )}
+
+                    <button
+                      onClick={() => loadEmployeeHistory(selectedEmployee._id || selectedEmployee.employeeId, 'today')}
+                      className="py-1 px-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-medium flex items-center justify-center gap-1 transition-colors cursor-pointer shadow-2xs shrink-0"
+                    >
+                      <svg className="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                      Playback
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between text-[9.5px] text-slate-500 bg-white/70 px-2 py-1 rounded-lg border border-slate-200/60">
+                    <span>Active Roster</span>
+                    <span className="font-bold text-sky-700">{employees.length} Agents</span>
+                  </div>
+                )}
+              </div>
+
               {/* Search & Filter Bar */}
-              <div className="p-3 border-b border-slate-100 space-y-2 bg-white">
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50/80 rounded-xl border border-slate-200 focus-within:border-sky-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-sky-100 transition-all">
+              <div className="p-2.5 border-b border-slate-100 space-y-2 bg-white">
+                <div className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-50/80 rounded-xl border border-slate-200 focus-within:border-sky-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-sky-100 transition-all">
                   <svg className="size-4 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                   <input
                     type="text"
@@ -636,13 +748,23 @@ export default function LiveEmployeeTracking() {
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2.5 min-w-0">
                             <div className="relative shrink-0">
-                              <div className={`size-8 rounded-lg flex items-center justify-center text-xs font-semibold ${
-                                isSelected
-                                  ? 'bg-sky-500 text-white shadow-2xs'
-                                  : 'bg-sky-50 text-sky-700 border border-sky-200/80'
-                              }`}>
-                                {(emp.name || 'A').charAt(0).toUpperCase()}
-                              </div>
+                              {emp.avatar || loc.avatar ? (
+                                <img
+                                  src={emp.avatar || loc.avatar}
+                                  alt={emp.name}
+                                  className={`size-8 rounded-lg object-cover ${
+                                    isSelected ? 'border-2 border-sky-400 shadow-2xs' : 'border border-slate-200'
+                                  }`}
+                                />
+                              ) : (
+                                <div className={`size-8 rounded-lg flex items-center justify-center text-xs font-semibold ${
+                                  isSelected
+                                    ? 'bg-sky-500 text-white shadow-2xs'
+                                    : 'bg-sky-50 text-sky-700 border border-sky-200/80'
+                                }`}>
+                                  {(emp.name || 'A').charAt(0).toUpperCase()}
+                                </div>
+                              )}
                               <span className={`absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-white ${
                                 isAtOffice ? 'bg-sky-500' : isMoving ? 'bg-sky-500' : isStopped ? 'bg-orange-500' : 'bg-slate-400'
                               }`} />

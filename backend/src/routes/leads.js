@@ -331,17 +331,7 @@ router.get('/stats', protect, async (req, res) => {
         if (!followupMap[leadId] || f.scheduledAt < followupMap[leadId].scheduledAt) followupMap[leadId] = f;
       });
 
-      const startMyDayQueue = activeLeads.map(lead => {
-        const f = followupMap[lead._id.toString()];
-        let score = 10; let queueReason = 'General Follow-up';
-        if (f) {
-          if (f.scheduledAt < todayStart) { score = 1; queueReason = 'Overdue Follow-up'; }
-          else if (f.scheduledAt <= todayEnd) { score = 2; queueReason = 'Scheduled for Today'; }
-        } else if (lead.status === 'Call Back Later') { score = 4; queueReason = 'Callback Required'; }
-        else if (lead.status === 'Fresh') { score = 5; queueReason = 'Fresh Lead'; }
-        return { lead, score, queueReason };
-      });
-      startMyDayQueue.sort((a, b) => a.score - b.score);
+    
 
       const leaderboard = await Lead.aggregate([
         { $unwind: '$activities' },

@@ -12,22 +12,17 @@ import Leaderboard from './Marketing/Leaderboard/Leaderboard';
 import Reports from './Marketing/Report/Reports';
 import Tasks from './components/dashboard/Task/Task';
 import Profile from './pages/Profile';
-import Blocklist from './pages/Blocklist';
 import MyPreferences from './pages/MyPreferences';
 import WhatsApp from './Marketing/Whatsapp/WhatsApp';
 import Contacts from './Marketing/WhatsappCampaign/Contact';
 import WhatsappBlast from './Marketing/WhatsappCampaign/Whatsapp_Blast';
 import EmailCRM from './Management/Email/EmailCRM';
-import Users from './pages/Users';
-import StaleLeads from './pages/StaleLeads';
 import BulkImport from './Marketing/AllLeads/BulkImport';
-import TeamOperations from './pages/TeamOperations';
 import LeadProfile from './Marketing/Leaderboard/LeadProfile';
 import Integrations from './pages/Integrations';
 import IntegrationSetup from './pages/IntegrationSetup';
 import IntegrationDetail from './pages/IntegrationDetail';
 import AccessTokens from './pages/AccessTokens';
-import LeadStage from './Marketing/Leaderboard/LeadStage';
 import Fields from './pages/Fields';
 import CustomActions from './pages/CustomActions';
 import WorkspacePreferences from './pages/WorkspacePreferences';
@@ -40,13 +35,12 @@ import OfferLetter from './Finance/offerletter/OfferLetter';
 import Landing from './pages/landing_pages/Landing';
 import LiveEmployeeTracking from './Management/Attedence/LiveEmployee/LiveEmployeeTracking';
 import AttendanceRecords from './Management/Attedence/AttendanceRecords';
-import Accept from './components/dashboard/accept';
 import BulkEmailBlast from './Management/Email/BulkEmailBlast';
 import MapsDashboard from './Maps';
 
 import { isCEO, isHR, isLimitedStaff, canViewDashboard, canAccessEmailBlast } from './utils/permissions';
 
-const ProtectedRoute = ({ children, allowPending = false }) => {
+const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -57,9 +51,6 @@ const ProtectedRoute = ({ children, allowPending = false }) => {
     </div>
   );
   if (!user) return <Navigate to="/login" replace />;
-  if (!allowPending && user.role !== 'admin' && (user.approvalStatus === 'pending' || user.approvalStatus === 'rejected')) {
-    return <Navigate to="/accept" replace />;
-  }
   return children;
 };
 
@@ -67,9 +58,13 @@ const PublicRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (!user) return children;
-  if (user.role !== 'admin' && (user.approvalStatus === 'pending' || user.approvalStatus === 'rejected')) {
-    return <Navigate to="/accept" replace />;
-  }
+  return <Navigate to={canViewDashboard(user) ? "/dashboard" : "/tasks"} replace />;
+};
+
+const RootRedirect = () => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" replace />;
   return <Navigate to={canViewDashboard(user) ? "/dashboard" : "/tasks"} replace />;
 };
 
@@ -128,17 +123,6 @@ const BlastRoute = ({ children }) => {
   return <Navigate to="/tasks" replace />;
 };
 
-const RootRedirect = () => {
-  const { user, loading } = useAuth();
-  if (loading) return null;
-  if (!user) return <Navigate to="/login" replace />;
-  if (user.role !== 'admin' && (user.approvalStatus === 'pending' || user.approvalStatus === 'rejected')) {
-    return <Navigate to="/accept" replace />;
-  }
-  return <Navigate to={canViewDashboard(user) ? "/dashboard" : "/tasks"} replace />;
-};
-
-
 export default function App() {
   return (
     <AuthProvider>
@@ -148,9 +132,7 @@ export default function App() {
           <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
           <Route path="/signup" element={<PublicRoute><SignUp /></PublicRoute>} />
           <Route path="/sign-up" element={<PublicRoute><SignUp /></PublicRoute>} />
-          <Route path="/accept" element={<ProtectedRoute allowPending={true}><Accept /></ProtectedRoute>} />
           <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-            <Route path="accept" element={<AdminRoute><Accept /></AdminRoute>} />
             <Route path="dashboard" element={<DashboardRoute><Dashboard /></DashboardRoute>} />
             <Route path="billing" element={<AdminRoute><Billing /></AdminRoute>} />
             <Route path="leads" element={<StaffRestrictedRoute><AllLeads /></StaffRestrictedRoute>} />
@@ -169,7 +151,6 @@ export default function App() {
             <Route path="whatsapp-campaigns" element={<Navigate to="/contacts" replace />} />
             <Route path="whatsapp-campaign" element={<Navigate to="/contacts" replace />} />
             <Route path="whatsapp-blast" element={<StaffRestrictedRoute><WhatsappBlast /></StaffRestrictedRoute>} />
-            <Route path="blocklist" element={<AdminRoute><Blocklist /></AdminRoute>} />
             <Route path="my-preferences" element={<MyPreferences />} />
             <Route path="whatsapp" element={<StaffRestrictedRoute><WhatsApp /></StaffRestrictedRoute>} />
             <Route path="email" element={<EmailCRM />} />
@@ -180,15 +161,11 @@ export default function App() {
             <Route path="quotation" element={<AdminRoute><Quotation /></AdminRoute>} />
             <Route path="invoice" element={<AdminRoute><Invoice /></AdminRoute>} />
             <Route path="invoices" element={<Navigate to="/invoice" replace />} />
-            <Route path="users" element={<AdminRoute><Users /></AdminRoute>} />
-            <Route path="stale-leads" element={<AdminRoute><StaleLeads /></AdminRoute>} />
             <Route path="bulk-import" element={<StaffRestrictedRoute><BulkImport /></StaffRestrictedRoute>} />
-            <Route path="team-operations" element={<AdminRoute><TeamOperations /></AdminRoute>} />
             <Route path="integrations" element={<AdminRoute><Integrations /></AdminRoute>} />
             <Route path="integrations/setup/:type" element={<AdminRoute><IntegrationSetup /></AdminRoute>} />
             <Route path="integrations/:id" element={<AdminRoute><IntegrationDetail /></AdminRoute>} />
             <Route path="access-tokens" element={<AdminRoute><AccessTokens /></AdminRoute>} />
-            <Route path="lead-stage" element={<AdminRoute><LeadStage /></AdminRoute>} />
             <Route path="fields" element={<AdminRoute><Fields /></AdminRoute>} />
             <Route path="custom-actions" element={<AdminRoute><CustomActions /></AdminRoute>} />
             <Route path="workspace-preferences" element={<AdminRoute><WorkspacePreferences /></AdminRoute>} />

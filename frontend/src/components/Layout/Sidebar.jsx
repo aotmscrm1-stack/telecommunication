@@ -269,7 +269,6 @@ export default function Sidebar() {
               )}
               <NavItem to="/team-operations" icon={Icons.teamOps}    label="Team Operations" />
               <NavItem to="/stale-leads"     icon={Icons.staleLeads} label="Idle Leads" />
-              <NavItem to="/blocklist"       icon={Icons.blocklist}  label="Blocklist" />
               <NavItem to="/users"           icon={Icons.users}      label="Users" />
 
               <SectionLabel text="Developer" />

@@ -401,8 +401,9 @@ export default function LiveMap({
       const isSelected = String(selectedEmployeeId || '') === uId;
       const rawStatus = (loc.trackingStatus || 'OFFLINE').toUpperCase();
       const speed = Math.round(loc.speed || 0);
-      const heading = loc.heading || 0;
       const name = emp.name || 'Agent';
+      const avatarUrl = emp.avatar || loc.avatar || '';
+      const initial = (name || 'A').charAt(0).toUpperCase();
 
       const isMoving = rawStatus === 'MOVING' || rawStatus === 'LEAVING_OFFICE' || speed > 2;
       const isOffline = rawStatus === 'OFFLINE' || rawStatus === 'DISCONNECTED';
@@ -412,55 +413,52 @@ export default function LiveMap({
       const pinColor = isMoving ? '#0284c7' : isStopped ? '#f97316' : '#64748b';
       const pinTipColor = isMoving ? '#0369a1' : isStopped ? '#ea580c' : '#475569';
 
-      // Clean Map Icon Inside Teardrop Pin
-      let innerIcon = '';
-      if (isMoving) {
-        innerIcon = `
-          <div style="transform: rotate(${heading}deg); transition: transform 0.3s ease; display: flex; align-items: center; justify-content: center;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polygon points="3 11 22 2 13 21 11 13 3 11"/>
-            </svg>
-          </div>
-        `;
-      } else if (isStopped) {
-        innerIcon = `
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="6" y="4" width="4" height="16" fill="#ffffff"/>
-            <rect x="14" y="4" width="4" height="16" fill="#ffffff"/>
-          </svg>
-        `;
+      // Render Profile Avatar Image or Initial Avatar Badge
+      let avatarContent = '';
+      if (avatarUrl) {
+        avatarContent = `<img src="${avatarUrl}" alt="${name}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" />`;
       } else {
-        innerIcon = `
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
-            <circle cx="12" cy="7" r="4"/>
-          </svg>
-        `;
+        avatarContent = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif; font-weight: 700; font-size: ${isSelected ? '14px' : '12px'}; color: #ffffff;">${initial}</div>`;
       }
 
       // Selected ring indicator
-      const selectedBorder = isSelected ? 'border: 2.5px solid #0284c7; box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.25);' : '';
+      const selectedBorder = isSelected ? 'border: 2.5px solid #0284c7; box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.3);' : '';
 
       const markerHtml = `
         <div style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer; user-select: none; z-index: ${
           isSelected ? 60 : isMoving ? 40 : 25
         };">
-          <!-- Clean Teardrop Map Icon Pin (No surrounding blurry wave animations) -->
+          <!-- Teardrop Map Pin with Employee Profile Avatar -->
           <div style="
-            width: ${isSelected ? '38px' : '34px'};
-            height: ${isSelected ? '38px' : '34px'};
+            width: ${isSelected ? '40px' : '35px'};
+            height: ${isSelected ? '40px' : '35px'};
             border-radius: 50%;
             background: ${pinColor};
             border: 2.2px solid #ffffff;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
             display: flex;
             align-items: center;
             justify-content: center;
+            position: relative;
+            overflow: hidden;
             transition: transform 0.2s ease;
             ${selectedBorder}
           ">
-            ${innerIcon}
+            ${avatarContent}
           </div>
+
+          <!-- Status Indicator Dot Badge on Pin -->
+          <div style="
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: ${pinColor};
+            border: 1.8px solid #ffffff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+          "></div>
 
           <!-- Pointed Pin Tip -->
           <div style="
@@ -473,7 +471,7 @@ export default function LiveMap({
             border-bottom: 1.8px solid #ffffff;
           "></div>
 
-          <!-- Crisp Name Pill -->
+          <!-- Name & Telemetry Pill -->
           <div style="
             margin-top: 2px;
             background: #ffffff;
@@ -493,7 +491,7 @@ export default function LiveMap({
               border-radius: 50%;
               background: ${pinColor};
             "></span>
-            <span style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif; font-size: 10px; font-weight: 600; color: #1e293b;">${name}</span>
+            <span style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif; font-size: 10.5px; font-weight: 700; color: #1e293b;">${name}</span>
             ${
               isMoving && speed > 0
                 ? `<span style="font-family: monospace; font-size: 8.5px; font-weight: 700; color: #0284c7; background: #e0f2fe; padding: 0.5px 3px; border-radius: 3px;">${speed}k</span>`
@@ -905,16 +903,24 @@ export default function LiveMap({
           <div className="bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-2xl p-3.5 shadow-[0_16px_40px_rgba(0,0,0,0.08)] text-slate-800 space-y-2.5">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="size-10 rounded-xl bg-gradient-to-tr from-sky-500 to-blue-600 flex items-center justify-center font-bold text-sm text-white shadow-2xs shrink-0">
-                  {selectedEmployee.name.charAt(0).toUpperCase()}
-                </div>
+                {selectedEmployee.avatar || selectedEmployee.location?.avatar ? (
+                  <img
+                    src={selectedEmployee.avatar || selectedEmployee.location?.avatar}
+                    alt={selectedEmployee.name}
+                    className="size-10 rounded-xl object-cover border border-slate-200 shadow-2xs shrink-0"
+                  />
+                ) : (
+                  <div className="size-10 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center font-bold text-sm text-white shadow-2xs shrink-0">
+                    {selectedEmployee.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <div className="min-w-0">
                   <h4 className="font-semibold text-sm tracking-tight text-slate-900 flex items-center gap-1.5 truncate">
                     <span className="truncate">{selectedEmployee.name}</span>
                     <span className="size-2 rounded-full bg-sky-500 shrink-0" />
                   </h4>
                   <p className="text-slate-500 text-xs truncate">
-                    {selectedEmployee.role || selectedEmployee.department || 'Field Staff'}
+                    {selectedEmployee.designation || selectedEmployee.role || selectedEmployee.department || 'Field Staff'}
                   </p>
                 </div>
               </div>
