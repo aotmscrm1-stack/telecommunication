@@ -19,6 +19,17 @@ api.interceptors.request.use(cfg => {
   return cfg;
 });
 
+// Helper to strip open tracking pixel tags & placeholders
+const cleanEmailBody = (content) => {
+  if (!content || typeof content !== 'string') return '';
+  return content
+    .replace(/<img[^>]*class=["']?flm-open["']?[^>]*>/gi, '')
+    .replace(/<img[^>]*data-open-tracking-src=[^>]*>/gi, '')
+    .replace(/\{\{track-read-receipt\}\}/gi, '')
+    .replace(/<img[^>]*src=["']?\{\{track-read-receipt\}\}["']?[^>]*>/gi, '')
+    .trim();
+};
+
 // Gmail & Brand Colors (Clean White, Google Blue, Sunset Orange accents)
 const GMAIL_BLUE       = '#1a73e8';
 const GMAIL_BLUE_HOVER = '#1557b0';
@@ -1721,11 +1732,11 @@ ${user?.designation || 'Staff'}`
                 {selectedEmail.html ? (
                   <div
                     style={{ fontSize: 13.5, color: TEXT_MAIN, lineHeight: 1.7, background: '#fafbfc', padding: 20, borderRadius: 8, border: `1px solid ${BORDER_LIGHT}` }}
-                    dangerouslySetInnerHTML={{ __html: selectedEmail.html }}
+                    dangerouslySetInnerHTML={{ __html: cleanEmailBody(selectedEmail.html) }}
                   />
                 ) : (
                   <div style={{ fontSize: 13.5, color: TEXT_MAIN, lineHeight: 1.7, whiteSpace: 'pre-wrap', background: '#fafbfc', padding: 20, borderRadius: 8, border: `1px solid ${BORDER_LIGHT}` }}>
-                    {selectedEmail.body || '(No message content recorded)'}
+                    {cleanEmailBody(selectedEmail.body) || '(No message content recorded)'}
                   </div>
                 )}
 
@@ -1963,7 +1974,7 @@ ${user?.designation || 'Staff'}`
                               border: `1px solid ${isInbound ? '#ede9fe' : '#e0e7ff'}`
                             }}
                           >
-                            {reply.body}
+                            {cleanEmailBody(reply.body)}
                           </div>
                         </div>
                       );

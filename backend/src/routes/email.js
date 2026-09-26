@@ -877,10 +877,18 @@ function extractSenderName(raw) {
   return '';
 }
 
-// Helper to strip previous quoted message history (e.g., 'On [date] ... wrote:') from email replies
+// Helper to strip previous quoted message history and tracking tags from email content
 function stripQuotedEmailHistory(rawText) {
   if (!rawText || typeof rawText !== 'string') return '';
   let text = rawText.trim();
+
+  // Remove open tracking pixel images and placeholders
+  text = text
+    .replace(/<img[^>]*class=["']?flm-open["']?[^>]*>/gi, '')
+    .replace(/<img[^>]*data-open-tracking-src=[^>]*>/gi, '')
+    .replace(/\{\{track-read-receipt\}\}/gi, '')
+    .replace(/<img[^>]*src=["']?\{\{track-read-receipt\}\}["']?[^>]*>/gi, '')
+    .trim();
 
   // If text starts with 'On [date] ... wrote:' (bottom-posting or nested forwarded reply), strip leading header
   text = text.replace(/^\s*On\s+.+?(?:wrote|wrote:|said):\s*[\r\n]+/i, '').trim();
