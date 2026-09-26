@@ -13,7 +13,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/contacts - create single contact
+// POST /api/contacts - create or update single contact in MongoDB
 router.post('/', async (req, res) => {
   try {
     const { name, phone, email, identity, segment, source } = req.body;
@@ -21,23 +21,30 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Name and phone are required.' });
     }
 
-    const contact = await Contact.create({
-      name: String(name).trim(),
-      phone: String(phone).trim(),
-      email: email ? String(email).trim().toLowerCase() : '',
-      identity: identity ? String(identity).trim() : 'SAP FICO',
-      segment: segment ? String(segment).trim() : 'New',
-      source: source || 'manual'
-    });
+    const cleanPhone = String(phone).trim();
+    const contact = await Contact.findOneAndUpdate(
+      { phone: cleanPhone },
+      {
+        $set: {
+          name: String(name).trim(),
+          phone: cleanPhone,
+          email: email ? String(email).trim().toLowerCase() : '',
+          identity: identity ? String(identity).trim() : 'SAP FICO',
+          segment: segment ? String(segment).trim() : 'New',
+          source: source || 'manual'
+        }
+      },
+      { upsert: true, new: true, runValidators: true }
+    );
 
-    res.status(201).json({ success: true, message: 'Contact created successfully', contact });
+    res.status(201).json({ success: true, message: 'Contact saved to MongoDB successfully', contact });
   } catch (err) {
     console.error('Error creating contact:', err);
     res.status(500).json({ success: false, message: 'Failed to create contact', error: err.message });
   }
 });
 
-// POST /api/contacts/save - bulk save contacts from excel/csv
+// POST /api/contacts/save - bulk upsert contacts from excel/csv to MongoDB
 router.post('/save', async (req, res) => {
   try {
     const { contacts: incomingContacts, source } = req.body;
@@ -58,11 +65,21 @@ router.post('/save', async (req, res) => {
       return res.status(400).json({ success: false, message: 'No valid contacts to save.' });
     }
 
-    const inserted = await Contact.insertMany(docsToInsert, { ordered: false });
+    const bulkOps = docsToInsert.map(c => ({
+      updateOne: {
+        filter: { phone: c.phone },
+        update: { $set: c },
+        upsert: true
+      }
+    }));
+
+    const result = await Contact.bulkWrite(bulkOps, { ordered: false });
+    const count = (result.upsertedCount || 0) + (result.modifiedCount || 0) || docsToInsert.length;
+
     res.json({
       success: true,
-      message: `Successfully imported ${inserted.length} contacts!`,
-      count: inserted.length
+      message: `Successfully stored ${count} contacts in MongoDB!`,
+      count
     });
   } catch (err) {
     console.error('Error bulk saving contacts:', err);

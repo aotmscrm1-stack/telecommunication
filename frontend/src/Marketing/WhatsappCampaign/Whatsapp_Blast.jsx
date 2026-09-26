@@ -89,6 +89,9 @@ export default function WhatsappBlast() {
   const [sendingTest, setSendingTest] = useState(false);
 
   const getApiBase = () => {
+    if (import.meta.env.VITE_API_URL) {
+      return import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '');
+    }
     if (import.meta.env.VITE_API_BASE_URL) {
       return import.meta.env.VITE_API_BASE_URL;
     }

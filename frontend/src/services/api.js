@@ -156,6 +156,16 @@ export const whatsappCampaignsAPI = {
   exportAudience: (id) => api.get(`/whatsapp-campaigns/${id}/export`, { responseType: 'blob' }),
 };
 
+export const contactsAPI = {
+  getAll: () => api.get('/contacts'),
+  create: (data) => api.post('/contacts', data),
+  bulkSave: (data) => api.post('/contacts/save', data),
+  update: (id, data) => api.put(`/contacts/${id}`, data),
+  delete: (id) => api.delete(`/contacts/${id}`),
+  whatsappBlast: (data) => api.post('/contacts/whatsapp-blast', data),
+  sendSingleWhatsapp: (data) => api.post('/contacts/send-single-whatsapp', data),
+};
+
 export const emailBlastAPI = {
   getTemplates: () => api.get('/email/templates'),
   createTemplate: (data) => api.post('/email/templates', data),

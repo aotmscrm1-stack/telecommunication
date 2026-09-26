@@ -97,9 +97,13 @@ export default function Contacts({ onOpenBlast }) {
 
     setSubmitting(true);
     try {
+      const token = localStorage.getItem('aotms_token');
       const res = await fetch(`${getApiBase()}/api/contacts/${editingContact._id || editingContact.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` })
+        },
         body: JSON.stringify({
           name: editFormData.name.trim(),
           phone: editFormData.phone.trim(),
@@ -133,6 +137,9 @@ export default function Contacts({ onOpenBlast }) {
   const fileInputRef = useRef(null);
 
   const getApiBase = () => {
+    if (import.meta.env.VITE_API_URL) {
+      return import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '');
+    }
     if (import.meta.env.VITE_API_BASE_URL) {
       return import.meta.env.VITE_API_BASE_URL;
     }
@@ -150,7 +157,9 @@ export default function Contacts({ onOpenBlast }) {
   const fetchContacts = async () => {
     setRefreshing(true);
     try {
-      const res = await fetch(`${getApiBase()}/api/contacts`);
+      const token = localStorage.getItem('aotms_token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await fetch(`${getApiBase()}/api/contacts`, { headers });
       const data = await res.json();
       if (res.ok && data && data.success && Array.isArray(data.contacts)) {
         const mapped = data.contacts.map((c, index) => ({
@@ -340,9 +349,13 @@ export default function Contacts({ onOpenBlast }) {
 
     setImportingExcel(true);
     try {
+      const token = localStorage.getItem('aotms_token');
       const res = await fetch(`${getApiBase()}/api/contacts/save`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` })
+        },
         body: JSON.stringify({ contacts: excelPreviewData, source: 'excel' })
       });
 
@@ -380,9 +393,13 @@ export default function Contacts({ onOpenBlast }) {
 
     setSubmitting(true);
     try {
+      const token = localStorage.getItem('aotms_token');
       const res = await fetch(`${getApiBase()}/api/contacts`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` })
+        },
         body: JSON.stringify({
           name: formData.name.trim(),
           phone: formData.phone,
@@ -423,7 +440,11 @@ export default function Contacts({ onOpenBlast }) {
   const executeDeleteContact = async (contactId, contactName) => {
     setConfirmModal(prev => ({ ...prev, isOpen: false }));
     try {
-      const res = await fetch(`${getApiBase()}/api/contacts/${contactId}`, { method: 'DELETE' });
+      const token = localStorage.getItem('aotms_token');
+      const res = await fetch(`${getApiBase()}/api/contacts/${contactId}`, {
+        method: 'DELETE',
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
       const result = await res.json();
       if (res.ok && result.success) {
         showToastMsg(`Contact '${contactName}' deleted successfully.`, "success");
