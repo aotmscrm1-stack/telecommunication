@@ -451,6 +451,7 @@ export default function AttendanceRecords() {
       if (res.data?.ok) {
         setActionStatusMsg({ type: 'success', message: 'Attendance started successfully! Live timer running.' });
         geoTracker.startTracking().catch((err) => console.warn('[Attendance GeoTracker start]:', err.message));
+        window.dispatchEvent(new CustomEvent('attendance-updated', { detail: res.data.attendance }));
         await fetchCurrentSession();
         await fetchData();
       } else {
@@ -513,13 +514,7 @@ export default function AttendanceRecords() {
       const remSecs = remainingSec % 60;
       const remHms = `${String(remHours).padStart(2, '0')}:${String(remMins).padStart(2, '0')}:${String(remSecs).padStart(2, '0')}`;
 
-      // Set visible error message required by user
-      setActionStatusMsg({
-        type: 'error',
-        message: '9 hours are not complete. Please you can complete it in End Attendance.',
-      });
-
-      // Show dedicated 9-hour alert modal
+      // Open confirmation modal for all users with early end access
       setNineHourWarningModal({
         open: true,
         completedHms: liveSessionMetrics.totalHms,
@@ -530,7 +525,7 @@ export default function AttendanceRecords() {
       return;
     }
 
-    if (!window.confirm('Are you sure you want to end your attendance session for today?')) return;
+    if (!overrideOptions.force && !window.confirm('Are you sure you want to end your attendance session for today?')) return;
     try {
       setActionLoading('STOP');
       setActionStatusMsg(null);
@@ -547,8 +542,14 @@ export default function AttendanceRecords() {
       }
       const res = await attendanceAPI.stop({ ...location, force: overrideOptions.force || false });
       if (res.data?.ok) {
-        setActionStatusMsg({ type: 'success', message: 'Attendance completed and saved to MongoDB! 9:00:00 hours recorded.' });
+        setActionStatusMsg({
+          type: 'success',
+          message: overrideOptions.force
+            ? 'Attendance ended early and recorded successfully in MongoDB.'
+            : 'Attendance completed and saved to MongoDB! 9:00:00 hours recorded.'
+        });
         geoTracker.stopTracking().catch((err) => console.warn('[Attendance GeoTracker stop]:', err.message));
+        window.dispatchEvent(new CustomEvent('attendance-updated', { detail: res.data.attendance }));
         setNineHourWarningModal(null);
         await fetchCurrentSession();
         await fetchData();
@@ -586,6 +587,7 @@ export default function AttendanceRecords() {
         breakCount: 0,
         activeBreakDurationHms: '00:00:00',
         startTimeFormatted: '—',
+        endTimeFormatted: '—',
       };
     }
 
@@ -604,8 +606,45 @@ export default function AttendanceRecords() {
       }
     });
 
-    const totalElapsedSec = Math.max(0, Math.floor((currentNow - startMs) / 1000));
     const startTimeFormatted = formatTime12h(sessionData.startTime);
+
+    // If attendance is COMPLETED for the day, freeze all timer calculations completely
+    if (sessionStatus === 'COMPLETED') {
+      const endMs = sessionData.endTime ? new Date(sessionData.endTime).getTime() : startMs;
+      const totalSessionSec = sessionData.durationSeconds != null && sessionData.durationSeconds > 0
+        ? sessionData.durationSeconds
+        : Math.max(0, Math.floor((endMs - startMs) / 1000));
+      const totalBreakSec = sessionData.totalBreakSeconds != null
+        ? sessionData.totalBreakSeconds
+        : completedBreaksSec;
+      const finalWorkSec = sessionData.actualWorkSeconds != null && sessionData.actualWorkSeconds > 0
+        ? sessionData.actualWorkSeconds
+        : Math.max(0, totalSessionSec - totalBreakSec);
+      const isNineHoursComplete = totalSessionSec >= NINE_HOURS_SEC;
+      const percentToNineHours = Math.min(100, Math.round((totalSessionSec / NINE_HOURS_SEC) * 100));
+      const isBreakOverOneHour = totalBreakSec > ONE_HOUR_BREAK_SEC;
+
+      return {
+        status: 'COMPLETED',
+        workHms: formatHms(finalWorkSec),
+        breakHms: formatHms(totalBreakSec),
+        totalHms: formatHms(totalSessionSec),
+        totalLoginSec: totalSessionSec,
+        isNineHoursComplete,
+        remainingLoginSec: 0,
+        remainingHms: '00:00:00',
+        percentToNineHours,
+        completedBreaksSec: totalBreakSec,
+        isBreakOverOneHour,
+        breakRemainingHms: formatHms(Math.max(0, ONE_HOUR_BREAK_SEC - totalBreakSec)),
+        breakCount: breaks.length,
+        activeBreakDurationHms: '00:00:00',
+        startTimeFormatted,
+        endTimeFormatted: formatTime12h(sessionData.endTime),
+      };
+    }
+
+    const totalElapsedSec = Math.max(0, Math.floor((currentNow - startMs) / 1000));
     const totalLoginSec = totalElapsedSec;
     const isNineHoursComplete = totalLoginSec >= NINE_HOURS_SEC;
     const remainingLoginSec = Math.max(0, NINE_HOURS_SEC - totalLoginSec);
@@ -613,28 +652,6 @@ export default function AttendanceRecords() {
     const percentToNineHours = Math.min(100, Math.round((totalLoginSec / NINE_HOURS_SEC) * 100));
     const isBreakOverOneHour = completedBreaksSec > ONE_HOUR_BREAK_SEC;
     const breakRemainingHms = formatHms(Math.max(0, ONE_HOUR_BREAK_SEC - completedBreaksSec));
-
-    if (sessionStatus === 'COMPLETED') {
-      const finalWork = sessionData.actualWorkSeconds || Math.max(0, (sessionData.durationSeconds || 0) - completedBreaksSec);
-      return {
-        status: 'COMPLETED',
-        workHms: formatHms(finalWork),
-        breakHms: formatHms(sessionData.totalBreakSeconds || completedBreaksSec),
-        totalHms: formatHms(sessionData.durationSeconds || totalElapsedSec),
-        totalLoginSec,
-        isNineHoursComplete,
-        remainingLoginSec,
-        remainingHms,
-        percentToNineHours,
-        completedBreaksSec,
-        isBreakOverOneHour,
-        breakRemainingHms,
-        breakCount: breaks.length,
-        activeBreakDurationHms: '00:00:00',
-        startTimeFormatted,
-        endTimeFormatted: formatTime12h(sessionData.endTime),
-      };
-    }
 
     if (sessionStatus === 'ON_BREAK' && activeBreakObj) {
       const activeBreakStartMs = new Date(activeBreakObj.startTime).getTime();
@@ -1381,7 +1398,7 @@ export default function AttendanceRecords() {
                 <span style={{ color: '#475569', display: 'flex', alignItems: 'center', gap: 4 }}>
                   <Timer size={12} color="#2563eb" /> Daily Claim: <strong style={{ fontVariantNumeric: 'tabular-nums' }}>9:00:00h</strong>
                 </span>
-                <span style={{ color: liveSessionMetrics.isNineHoursComplete ? '#16a34a' : '#ea580c', fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
+                <span style={{ color: liveSessionMetrics.status === 'COMPLETED' || liveSessionMetrics.isNineHoursComplete ? '#16a34a' : '#ea580c', fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
                   {liveSessionMetrics.percentToNineHours}%
                 </span>
               </div>
@@ -1392,7 +1409,7 @@ export default function AttendanceRecords() {
                   style={{
                     width: `${liveSessionMetrics.percentToNineHours}%`,
                     height: '100%',
-                    background: liveSessionMetrics.isNineHoursComplete
+                    background: liveSessionMetrics.status === 'COMPLETED' || liveSessionMetrics.isNineHoursComplete
                       ? 'linear-gradient(90deg, #22c55e, #16a34a)'
                       : 'linear-gradient(90deg, #f97316 0%, #38bdf8 50%, #2563eb 100%)',
                     borderRadius: 10,
@@ -1405,7 +1422,9 @@ export default function AttendanceRecords() {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 9.5, color: '#64748b', fontWeight: 600, marginTop: 1 }}>
                 <span>Login: <strong style={{ color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>{liveSessionMetrics.totalHms}</strong></span>
                 <span>Break: <strong style={{ color: liveSessionMetrics.isBreakOverOneHour ? '#dc2626' : '#ea580c', fontVariantNumeric: 'tabular-nums' }}>{liveSessionMetrics.breakHms}/1h</strong></span>
-                {liveSessionMetrics.isNineHoursComplete ? (
+                {liveSessionMetrics.status === 'COMPLETED' ? (
+                  <span style={{ color: '#16a34a', fontWeight: 800 }}>✓ Shift Closed</span>
+                ) : liveSessionMetrics.isNineHoursComplete ? (
                   <span style={{ color: '#16a34a', fontWeight: 800 }}>✓ Reached</span>
                 ) : (
                   <span style={{ color: '#ea580c', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>-{liveSessionMetrics.remainingHms}</span>
@@ -1567,40 +1586,21 @@ export default function AttendanceRecords() {
             {liveSessionMetrics.status === 'COMPLETED' && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 <div style={{
-                  background: '#eff6ff',
-                  border: '1px solid #bfdbfe',
+                  background: '#f0fdf4',
+                  border: '1.5px solid #bbf7d0',
                   borderRadius: 10,
-                  padding: '8px 14px',
-                  color: '#1d4ed8',
-                  fontSize: 12.5,
+                  padding: '9px 16px',
+                  color: '#15803d',
+                  fontSize: 13,
                   fontWeight: 700,
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 6
+                  gap: 7,
+                  boxShadow: '0 2px 8px rgba(34, 197, 94, 0.08)'
                 }}>
-                  <CheckCircle2 size={15} color="#2563eb" />
-                  <span>Session Completed ({liveSessionMetrics.workHms} worked)</span>
+                  <CheckCircle2 size={16} color="#16a34a" />
+                  <span>Attendance Ended for Today ({liveSessionMetrics.workHms} recorded) — Shift Closed</span>
                 </div>
-                <button
-                  onClick={handleStartAttendance}
-                  disabled={actionLoading !== null}
-                  style={{
-                    background: '#ffffff',
-                    color: '#2563eb',
-                    border: '1.5px solid #bfdbfe',
-                    borderRadius: 10,
-                    padding: '8px 14px',
-                    fontSize: 12.5,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    boxShadow: '0 1px 3px rgba(37, 99, 235, 0.08)',
-                  }}
-                >
-                  <RotateCcw size={13} /> Start New Session
-                </button>
               </div>
             )}
           </div>
@@ -3196,7 +3196,7 @@ export default function AttendanceRecords() {
 
               {/* Modal Title & Requirement Headline */}
               <h3 style={{ margin: '0 0 6px', fontSize: 21, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>
-                9 Hours Attendance Incomplete
+                End Attendance Confirmation
               </h3>
 
               <div
@@ -3213,11 +3213,11 @@ export default function AttendanceRecords() {
                   boxShadow: '0 2px 8px rgba(234, 88, 12, 0.08)',
                 }}
               >
-                9 hours are not complete. Please you can complete it in End Attendance.
+                9 hours are not complete ({nineHourWarningModal.remainingHms} remaining).
               </div>
 
               <p style={{ margin: '0 0 20px', fontSize: 13, color: '#64748b', lineHeight: 1.5 }}>
-                Daily full shift policy requires a total of <strong>9:00:00 Hours</strong> login time reached every day (inclusive of 1-hour break allowance). You cannot end your shift until 9 hours are complete.
+                Daily full shift policy recommends a total of <strong>9:00:00 Hours</strong> login time. You can confirm and end your attendance early now, or continue working.
               </p>
 
               {/* Time Breakdown Cards */}
@@ -3288,57 +3288,63 @@ export default function AttendanceRecords() {
                 </div>
               </div>
 
-              {/* Action Buttons */}
+              {/* Action Buttons — Available for everyone */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {/* Early End Attendance Confirmation Button */}
                 <button
                   type="button"
-                  onClick={() => setNineHourWarningModal(null)}
+                  onClick={() => handleStopAttendance({ force: true })}
+                  disabled={actionLoading !== null}
                   style={{
                     width: '100%',
-                    background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                    background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
                     color: '#ffffff',
                     border: 'none',
                     borderRadius: 12,
                     padding: '13px 20px',
                     fontSize: 14,
                     fontWeight: 800,
+                    cursor: actionLoading ? 'wait' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    boxShadow: '0 4px 14px rgba(239, 68, 68, 0.35)',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {actionLoading === 'STOP' ? (
+                    <><Loader2 size={16} className="animate-spin" /> Ending Attendance...</>
+                  ) : (
+                    <><Square size={15} fill="#ffffff" /> End Attendance Early (Confirm)</>
+                  )}
+                </button>
+
+                {/* Continue Attendance Button */}
+                <button
+                  type="button"
+                  onClick={() => setNineHourWarningModal(null)}
+                  disabled={actionLoading !== null}
+                  style={{
+                    width: '100%',
+                    background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: 12,
+                    padding: '12px 20px',
+                    fontSize: 13.5,
+                    fontWeight: 700,
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: 8,
-                    boxShadow: '0 4px 14px rgba(37, 99, 235, 0.3)',
+                    boxShadow: '0 4px 14px rgba(37, 99, 235, 0.25)',
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  <Play size={16} fill="#ffffff" /> Continue Attendance (Keep Working)
+                  <Play size={15} fill="#ffffff" /> Continue Attendance (Keep Working)
                 </button>
-
-                {/* Emergency Override for Admin / Managers */}
-                {(user?.role === 'admin' || user?.role === 'manager' || isManagingDirector(user)) && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (window.confirm('ADMIN OVERRIDE: Are you sure you want to force end attendance early before 9 hours?')) {
-                        handleStopAttendance({ force: true });
-                      }
-                    }}
-                    style={{
-                      width: '100%',
-                      background: '#ffffff',
-                      color: '#64748b',
-                      border: '1px solid #cbd5e1',
-                      borderRadius: 12,
-                      padding: '10px 16px',
-                      fontSize: 12,
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    Early Clock Out (Admin Override)
-                  </button>
-                )}
               </div>
             </div>
           </div>

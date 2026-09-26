@@ -453,9 +453,10 @@ function UploadModal({ activeTab, onClose, onImported }) {
 }
 
 // ── Add Task Modal ────────────────────────────────────────────────────────────
-function AddTaskModal({ type, onClose, onCreated }) {
+function AddTaskModal({ type = 'todo', onClose, onCreated }) {
   const { user: currentUser } = useAuth();
-  const isCallFollowup = type === 'call_followup';
+  const [taskType, setTaskType] = useState(type === 'call_followup' ? 'call_followup' : 'todo');
+  const isCallFollowup = taskType === 'call_followup';
   const canAssign = !!currentUser;
 
   const [note, setNote] = useState('');
@@ -532,6 +533,10 @@ function AddTaskModal({ type, onClose, onCreated }) {
 
   const handleCreate = async () => {
     setError('');
+    if (!note.trim()) {
+      setError('Please enter a note / description');
+      return;
+    }
     if (!scheduledAt) {
       setError('Please choose a due date & time');
       return;
@@ -547,9 +552,10 @@ function AddTaskModal({ type, onClose, onCreated }) {
     setSaving(true);
     try {
       const payload = {
-        type,
-        title: !isCallFollowup ? note : '',
-        note,
+        type: taskType,
+        title: note.trim(),
+        note: note.trim(),
+        description: note.trim(),
         scheduledAt: new Date(scheduledAt).toISOString(),
         priority,
       };
@@ -594,6 +600,49 @@ function AddTaskModal({ type, onClose, onCreated }) {
           </h3>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: COLOR_MUTED, lineHeight: 1 }}>×</button>
         </div>
+
+        {type === 'all' && (
+          <div style={{ display: 'flex', background: COLOR_SKY_SURFACE, padding: 3, borderRadius: 8, border: `1px solid ${COLOR_BORDER}`, marginBottom: 16 }}>
+            <button
+              type="button"
+              onClick={() => setTaskType('todo')}
+              style={{
+                flex: 1,
+                padding: '7px 12px',
+                borderRadius: 6,
+                border: 'none',
+                background: taskType === 'todo' ? '#fff' : 'transparent',
+                color: taskType === 'todo' ? COLOR_DEEP_BLUE : COLOR_MUTED,
+                fontWeight: taskType === 'todo' ? 600 : 500,
+                fontSize: 13,
+                cursor: 'pointer',
+                boxShadow: taskType === 'todo' ? '0 2px 6px rgba(0,0,0,0.06)' : 'none',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              📋 Todo Item
+            </button>
+            <button
+              type="button"
+              onClick={() => setTaskType('call_followup')}
+              style={{
+                flex: 1,
+                padding: '7px 12px',
+                borderRadius: 6,
+                border: 'none',
+                background: taskType === 'call_followup' ? '#fff' : 'transparent',
+                color: taskType === 'call_followup' ? COLOR_DEEP_BLUE : COLOR_MUTED,
+                fontWeight: taskType === 'call_followup' ? 600 : 500,
+                fontSize: 13,
+                cursor: 'pointer',
+                boxShadow: taskType === 'call_followup' ? '0 2px 6px rgba(0,0,0,0.06)' : 'none',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              📞 Call Follow-up
+            </button>
+          </div>
+        )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
           {isCallFollowup && (
@@ -770,12 +819,14 @@ function AddTaskModal({ type, onClose, onCreated }) {
 
 // ── Download Helper ───────────────────────────────────────────────────────────
 function downloadCSV(tasks, tab) {
-  const headers = ['Lead Name', 'Phone', 'Description', 'Assignee', 'Status', 'Due Date', 'Priority'];
+  const headers = ['Type', 'Lead Name', 'Phone', 'Description / Note', 'Assignee', 'Assigned By', 'Status', 'Due Date (IST)', 'Priority'];
   const rows = tasks.map(t => [
+    t.type === 'todo' ? 'Todo' : 'Call Follow-up',
     t.lead?.name || '',
     t.lead?.phone || '',
-    t.note || t.description || '',
+    t.title || t.note || t.description || '',
     t.assignedTo?.name || '',
+    (t.assignedBy?.name || t.assignedBy) === 'all' ? 'All' : (t.assignedBy?.name || ''),
     t.status || '',
     t.scheduledAt ? formatISTDateTime(t.scheduledAt) : '',
     t.priority || '',
@@ -801,7 +852,14 @@ export default function Task() {
   const [activeTab, setActiveTab] = useState(() => {
     if (isLimited) return 'Todo';
     const tab = searchParams.get('tab');
-    return tab || 'Call Followups';
+    if (tab) {
+      const lower = tab.toLowerCase();
+      if (lower === 'todo' || lower === 'todo list' || lower === 'todos') return 'Todo';
+      if (lower === 'call followups' || lower === 'call_followup' || lower === 'calls') return 'Call Followups';
+      if (lower === 'tasks' || lower === 'all' || lower === 'all tasks') return 'Tasks';
+      return tab;
+    }
+    return 'Tasks';
   });
 
   useEffect(() => {
@@ -810,8 +868,16 @@ export default function Task() {
       return;
     }
     const tab = searchParams.get('tab');
-    if (tab && tab !== activeTab) {
-      setActiveTab(tab);
+    if (tab) {
+      const lower = tab.toLowerCase();
+      let matchedTab = tab;
+      if (lower === 'todo' || lower === 'todo list' || lower === 'todos') matchedTab = 'Todo';
+      else if (lower === 'call followups' || lower === 'call_followup' || lower === 'calls') matchedTab = 'Call Followups';
+      else if (lower === 'tasks' || lower === 'all' || lower === 'all tasks') matchedTab = 'Tasks';
+
+      if (matchedTab !== activeTab) {
+        setActiveTab(matchedTab);
+      }
     }
   }, [searchParams, isLimited, activeTab]);
 
@@ -861,12 +927,17 @@ export default function Task() {
   const fetchTasks = useCallback(async () => {
     setLoading(true);
     try {
+      let queryType;
+      if (activeTab === 'Todo') queryType = 'todo';
+      else if (activeTab === 'Call Followups') queryType = 'call_followup';
+      else queryType = undefined; // 'Tasks' loads all tasks
+
       if (historyMode) {
         const res = await followupsAPI.getAll({
           forMe: forFilter === 'Me',
           due: dueFilter ? dueFilter.toLowerCase().replace(' ', '_') : undefined,
           status: 'done',
-          type: activeTab === 'Call Followups' ? 'call_followup' : 'todo',
+          type: queryType,
           ...(teamMemberFilter ? { callerId: teamMemberFilter } : {}),
         });
         let items = res.data.followups || res.data.tasks || [];
@@ -889,7 +960,7 @@ export default function Task() {
         forMe: forFilter === 'Me',
         due: dueFilter ? dueFilter.toLowerCase().replace(' ', '_') : undefined,
         status: dbStatuses.join(','),
-        type: activeTab === 'Call Followups' ? 'call_followup' : 'todo',
+        type: queryType,
         ...(teamMemberFilter ? { callerId: teamMemberFilter } : {}),
       });
       let items = res.data.followups || res.data.tasks || [];
@@ -922,6 +993,15 @@ export default function Task() {
   }, [activeTab, forFilter, dueFilter, statusFilter, priorityFilter, teamMemberFilter, historyMode]);
 
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
+
+  // Listen for global tasks-updated events (e.g. from check-in modal)
+  useEffect(() => {
+    const handleTasksUpdated = () => {
+      fetchTasks();
+    };
+    window.addEventListener('tasks-updated', handleTasksUpdated);
+    return () => window.removeEventListener('tasks-updated', handleTasksUpdated);
+  }, [fetchTasks]);
 
   useEffect(() => {
     usersAPI.getAll().then(r => {
@@ -1001,9 +1081,24 @@ export default function Task() {
       return sortDir === 'asc' ? ta - tb : tb - ta;
     }
     if (sortField === 'lead') {
-      const la = (a.lead?.name || '').toLowerCase();
-      const lb = (b.lead?.name || '').toLowerCase();
+      const la = (a.lead?.name || a.type || '').toLowerCase();
+      const lb = (b.lead?.name || b.type || '').toLowerCase();
       return sortDir === 'asc' ? la.localeCompare(lb) : lb.localeCompare(la);
+    }
+    if (sortField === 'description') {
+      const da = (a.title || a.note || a.description || '').toLowerCase();
+      const db = (b.title || b.note || b.description || '').toLowerCase();
+      return sortDir === 'asc' ? da.localeCompare(db) : db.localeCompare(da);
+    }
+    if (sortField === 'assignee') {
+      const aa = (a.assignedTo?.name || a.assignee?.name || '').toLowerCase();
+      const ab = (b.assignedTo?.name || b.assignee?.name || '').toLowerCase();
+      return sortDir === 'asc' ? aa.localeCompare(ab) : ab.localeCompare(aa);
+    }
+    if (sortField === 'assignedBy') {
+      const ba = ((a.assignedBy?.name || a.assignedBy) === 'all' ? 'All' : (a.assignedBy?.name || '')).toLowerCase();
+      const bb = ((b.assignedBy?.name || b.assignedBy) === 'all' ? 'All' : (b.assignedBy?.name || '')).toLowerCase();
+      return sortDir === 'asc' ? ba.localeCompare(bb) : bb.localeCompare(ba);
     }
     if (sortField === 'priority') {
       const order = { high: 3, medium: 2, low: 1 };
@@ -1066,7 +1161,7 @@ export default function Task() {
 
       {showAddModal && (
         <AddTaskModal
-          type={activeTab === 'Call Followups' ? 'call_followup' : 'todo'}
+          type={activeTab === 'Call Followups' ? 'call_followup' : activeTab === 'Todo' ? 'todo' : 'all'}
           onClose={() => setShowAddModal(false)}
           onCreated={() => {
             fetchTasksRef.current();
@@ -1078,12 +1173,18 @@ export default function Task() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
         <div>
           <h1 style={{ fontSize: 26, fontWeight: 500, color: COLOR_DEEP_BLUE, margin: 0, letterSpacing: '-0.01em' }}>
-            {activeTab === 'Todo' ? 'Todo List & Actions' : 'Task & Follow-up Management'}
+            {activeTab === 'Todo'
+              ? 'Todo List & Actions'
+              : activeTab === 'Call Followups'
+              ? 'Call Follow-up Management'
+              : 'Tasks & Todo Management'}
           </h1>
           <p style={{ fontSize: 14, color: COLOR_MUTED, margin: '4px 0 0', fontWeight: 400 }}>
             {activeTab === 'Todo'
-              ? 'Organize daily to-dos, internal assignments, and action items'
-              : 'Track call follow-ups, customer schedules, and lead commitments'}
+              ? 'Organize daily to-dos, shift tasks, and internal assignments'
+              : activeTab === 'Call Followups'
+              ? 'Track call follow-ups, customer schedules, and lead commitments'
+              : 'Overview of all tasks, shift goals, and call follow-up commitments'}
           </p>
         </div>
 
@@ -1136,7 +1237,7 @@ export default function Task() {
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                   <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                 </svg>
-                {activeTab === 'Todo' ? 'New Todo' : 'New Task'}
+                {activeTab === 'Todo' ? 'New Todo' : activeTab === 'Call Followups' ? 'New Follow-up' : 'New Task'}
               </button>
 
               {/* Upload Todo List / Tasks Form Button */}
@@ -1199,8 +1300,9 @@ export default function Task() {
       {/* Tabs bar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${COLOR_BORDER}`, marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          {(isLimited ? ['Todo'] : ['Call Followups', 'Todo']).map(tab => {
+          {(isLimited ? ['Todo'] : ['Tasks', 'Todo', 'Call Followups']).map(tab => {
             const isActive = !historyMode && activeTab === tab;
+            const tabLabel = tab === 'Tasks' ? 'Tasks' : tab === 'Todo' ? 'Todo List' : 'Call Followups';
             return (
               <button
                 key={tab}
@@ -1221,16 +1323,20 @@ export default function Task() {
                   gap: 8
                 }}
               >
-                {tab === 'Call Followups' ? (
+                {tab === 'Tasks' ? (
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                    <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+                  </svg>
+                ) : tab === 'Call Followups' ? (
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9a16 16 0 0 0 6.29 6.29l1.42-1.42a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
                   </svg>
                 ) : (
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
                   </svg>
                 )}
-                {tab === 'Todo' ? 'Todo List' : tab}
+                {tabLabel}
               </button>
             );
           })}
@@ -1450,6 +1556,7 @@ export default function Task() {
           <thead>
             <tr style={{ background: '#f8fafc', borderBottom: `1px solid ${COLOR_BORDER}` }}>
               {[
+                ...(activeTab === 'Tasks' ? [{ label: 'Type / Lead', field: 'lead' }] : []),
                 ...(activeTab === 'Call Followups' ? [{ label: 'Lead', field: 'lead' }] : []),
                 { label: activeTab === 'Todo' ? 'Todo Description' : 'Description', field: 'description' },
                 { label: 'Assignee', field: 'assignee' },
@@ -1491,15 +1598,17 @@ export default function Task() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={activeTab === 'Call Followups' ? 8 : 7} style={{ padding: '60px 20px', textAlign: 'center' }}>
+                <td colSpan={activeTab === 'Todo' ? 7 : 8} style={{ padding: '60px 20px', textAlign: 'center' }}>
                   <div className="spinner-gradient" style={{ width: 28, height: 28, margin: '0 auto' }} />
                   <p style={{ fontSize: 14, color: COLOR_MUTED, marginTop: 12 }}>Loading {activeTab === 'Todo' ? 'todos' : 'tasks'}...</p>
                 </td>
               </tr>
             ) : paginatedTasks.length === 0 ? (
               <tr>
-                <td colSpan={activeTab === 'Call Followups' ? 8 : 7} style={{ padding: '80px 20px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 18, color: COLOR_DEEP_BLUE, fontWeight: 500 }}>No {activeTab === 'Todo' ? 'Todos' : 'Tasks'} Found</div>
+                <td colSpan={activeTab === 'Todo' ? 7 : 8} style={{ padding: '80px 20px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 18, color: COLOR_DEEP_BLUE, fontWeight: 500 }}>
+                    No {activeTab === 'Todo' ? 'Todos' : activeTab === 'Call Followups' ? 'Call Follow-ups' : 'Tasks'} Found
+                  </div>
                   <p style={{ fontSize: 14, color: COLOR_MUTED, margin: '6px 0 0', fontWeight: 400 }}>
                     {historyMode
                       ? `No completed ${activeTab === 'Todo' ? 'todos' : 'tasks'} in history`
@@ -1522,7 +1631,58 @@ export default function Task() {
                     onMouseEnter={e => e.currentTarget.style.background = '#f8fbfe'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   >
-                    {/* Lead */}
+                    {/* Type / Lead for All Tasks Tab */}
+                    {activeTab === 'Tasks' && (
+                      <td style={{ padding: '14px 18px', fontSize: 14, color: COLOR_DEEP_BLUE }}>
+                        {task.type === 'todo' ? (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 5,
+                            padding: '3px 9px',
+                            borderRadius: 6,
+                            background: '#e0f2fe',
+                            color: '#0369a1',
+                            fontSize: 12,
+                            fontWeight: 500,
+                            border: '1px solid #bae6fd'
+                          }}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                              <polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                            </svg>
+                            Todo
+                          </span>
+                        ) : task.lead?._id ? (
+                          <div
+                            onClick={() => navigate(`/leads/${task.lead._id}`)}
+                            style={{ cursor: 'pointer' }}
+                            title="Open lead details"
+                          >
+                            <div style={{ fontWeight: 500, color: COLOR_BLUE_GREEN, textDecoration: 'none' }}>
+                              {task.lead.name}
+                            </div>
+                            <div style={{ fontSize: 13, color: COLOR_MUTED, marginTop: 2 }}>{task.lead.phone}</div>
+                          </div>
+                        ) : (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 5,
+                            padding: '3px 9px',
+                            borderRadius: 6,
+                            background: '#fef3c7',
+                            color: '#92400e',
+                            fontSize: 12,
+                            fontWeight: 500,
+                            border: '1px solid #fde68a'
+                          }}>
+                            📞 Call Follow-up
+                          </span>
+                        )}
+                      </td>
+                    )}
+
+                    {/* Lead for Call Followups Tab */}
                     {activeTab === 'Call Followups' && (
                       <td style={{ padding: '14px 18px', fontSize: 14, color: COLOR_DEEP_BLUE }}>
                         {task.lead?._id ? (

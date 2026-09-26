@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom';
 import Navbar from '../dashboard/Navbar/Navbar';
+import MandatoryAttendanceModal from '../Attendance/MandatoryAttendanceModal';
 import { useAuth } from '../../context/AuthContext';
 import useTheme, { roleToTheme } from '../../hooks/useTheme';
 import useBreakpoint from '../../hooks/useBreakpoint';
@@ -15,6 +16,7 @@ function LayoutInner() {
   return (
     <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif", background: '#f8fafc', minHeight: '100vh', overflowX: 'hidden' }}>
       <Navbar />
+      <MandatoryAttendanceModal />
       <main
         style={{
           marginLeft: 0,

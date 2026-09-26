@@ -79,9 +79,38 @@ router.post('/start', protect, async (req, res) => {
     const { dateStr, dayStr } = getLocalDateAndDay();
     const now = new Date();
 
-    // Check if employee already has an active ON_DUTY or ON_BREAK session
+    // 1. Close / mark incomplete any dangling active sessions from previous dates
+    await Attendance.updateMany(
+      {
+        employeeId: userId,
+        date: { $ne: dateStr },
+        status: { $in: ['ON_DUTY', 'ON_BREAK'] },
+      },
+      {
+        $set: { status: 'INCOMPLETE' },
+      }
+    );
+
+    // 2. Check if employee already completed attendance today
+    const completedToday = await Attendance.findOne({
+      employeeId: userId,
+      date: dateStr,
+      status: 'COMPLETED',
+    });
+
+    if (completedToday) {
+      return res.status(400).json({
+        ok: false,
+        code: 'ATTENDANCE_ALREADY_COMPLETED_TODAY',
+        message: 'Attendance for today has already been ended and is permanently closed.',
+        attendance: completedToday,
+      });
+    }
+
+    // 3. Check if employee already has an active ON_DUTY or ON_BREAK session today
     let existingActive = await Attendance.findOne({
       employeeId: userId,
+      date: dateStr,
       status: { $in: ['ON_DUTY', 'ON_BREAK'] },
     }).sort({ startTime: -1 });
 
@@ -420,9 +449,22 @@ router.get('/current', protect, async (req, res) => {
     const { dateStr } = getLocalDateAndDay();
     const now = new Date();
 
-    // Check for active ON_DUTY or ON_BREAK session first
+    // 1. Automatically mark incomplete any dangling active sessions from previous dates
+    await Attendance.updateMany(
+      {
+        employeeId: userId,
+        date: { $ne: dateStr },
+        status: { $in: ['ON_DUTY', 'ON_BREAK'] },
+      },
+      {
+        $set: { status: 'INCOMPLETE' },
+      }
+    );
+
+    // 2. Check for active ON_DUTY or ON_BREAK session today
     const activeSession = await Attendance.findOne({
       employeeId: userId,
+      date: dateStr,
       status: { $in: ['ON_DUTY', 'ON_BREAK'] },
     }).sort({ startTime: -1 });
 
@@ -436,7 +478,7 @@ router.get('/current', protect, async (req, res) => {
       });
     }
 
-    // Check if employee completed an attendance session today
+    // 3. Check if employee completed an attendance session today
     const completedToday = await Attendance.findOne({
       employeeId: userId,
       date: dateStr,
