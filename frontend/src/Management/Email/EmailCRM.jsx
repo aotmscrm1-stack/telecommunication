@@ -1019,10 +1019,10 @@ ${user?.designation || 'Staff'}`
     if (log.isReply && log.parentEmail) return false;
 
     if (activeFolder === 'inbox') {
-      return log.direction === 'inbound' || (log.replies && log.replies.length > 0);
+      return log.direction === 'inbound' || (log.replies && log.replies.some(r => r.direction === 'inbound'));
     }
     if (activeFolder === 'sent') {
-      return log.direction !== 'inbound';
+      return log.direction === 'outbound' || log.direction !== 'inbound' || (log.replies && log.replies.some(r => r.direction === 'outbound' || r.senderEmail === user?.email || r.sender === user?._id));
     }
     if (activeFolder === 'admin_audit' && isMD) {
       return true;
@@ -1030,9 +1030,9 @@ ${user?.designation || 'Staff'}`
     return true;
   });
 
-  const inboxRepliesCount = logs.filter(l => !(l.isReply && l.parentEmail) && (l.direction === 'inbound' || (l.replies && l.replies.length > 0))).length;
+  const inboxRepliesCount = logs.filter(l => !(l.isReply && l.parentEmail) && (l.direction === 'inbound' || (l.replies && l.replies.some(r => r.direction === 'inbound')))).length;
   const unreadRepliesCount = logs.filter(l => !(l.isReply && l.parentEmail) && l.isRead === false).length;
-  const sentCount = logs.filter(l => !(l.isReply && l.parentEmail) && l.direction !== 'inbound').length;
+  const sentCount = logs.filter(l => !(l.isReply && l.parentEmail) && (l.direction === 'outbound' || l.direction !== 'inbound' || (l.replies && l.replies.some(r => r.direction === 'outbound' || r.senderEmail === user?.email)))).length;
 
   return (
     <div className="email-crm-outer-shell" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 84px)', maxHeight: 'calc(100vh - 84px)', minHeight: 0, background: '#f8fafc', color: TEXT_MAIN, fontFamily: 'Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif', overflow: 'hidden' }}>
