@@ -14,7 +14,11 @@ function cleanRepeatedHallucinations(text) {
     .replace(/(Subtitles by|Amara\.org|Thank you for watching|Subscribe to my channel|Like and subscribe)[^\n.]*/gi, '')
     .trim();
 
-  // 2. Deduplicate consecutive repeated phrases (e.g. "మునుపటి పురింది? మునుపటి పురింది?")
+  // 2. Remove consecutive repeated words in Telugu, English, or any language (e.g. "ప్రమైన్స్టేట్మెంట్ ప్రమైన్స్టేట్మెంట్")
+  // Matches any word (including Telugu range \u0C00-\u0C7F) repeated 2+ times consecutively
+  cleaned = cleaned.replace(/([\w\u0C00-\u0C7F]{2,})(?:\s+\1){2,}/gi, '$1');
+
+  // 3. Deduplicate consecutive repeated phrases/sentences
   const sentences = cleaned.split(/(?<=[.?!])\s+/);
   const uniqueSentences = [];
 
@@ -35,7 +39,7 @@ function cleanRepeatedHallucinations(text) {
 }
 
 /**
- * Transcribe an audio file using OpenAI Whisper API (whisper-1).
+ * Transcribe an audio file using OpenAI Audio API (gpt-4o-mini-transcribe / whisper-1).
  * 
  * @param {string} filePath - Absolute path to the audio file on disk
  * @param {string} [overrideApiKey] - Optional custom OpenAI API key (falls back to process.env.OPENAI_API_KEY)
@@ -79,30 +83,41 @@ async function transcribeAudioFile(filePath, overrideApiKey = '') {
   const safeExt = allowedExtensions.includes(originalExt) ? originalExt : '.m4a';
   const virtualFilename = `recording_${Date.now()}${safeExt}`;
 
-  // Use toFile helper to pass valid audio stream & extension to OpenAI Whisper API
-  const audioFile = await toFile(fs.createReadStream(targetPath), virtualFilename);
+  // Use toFile helper to pass valid audio stream & extension to OpenAI Audio API
+  let response;
+  const promptText = 'Customer support call recording in Telugu and English (Telugish). Transcribe actual conversation accurately without repeating words.';
 
   try {
-    const response = await openai.audio.transcriptions.create({
+    // 1. Try OpenAI's recommended new model "gpt-4o-mini-transcribe" or "gpt-transcribe"
+    const audioFile = await toFile(fs.createReadStream(targetPath), virtualFilename);
+    response = await openai.audio.transcriptions.create({
       file: audioFile,
-      model: 'whisper-1',
-      prompt: 'This is a customer call recording in Telugu and English (Telugish). Clean speech conversation transcript without repeated words or subtitles.',
+      model: 'gpt-4o-mini-transcribe',
+      prompt: promptText,
       temperature: 0,
       response_format: 'json',
     });
-
-    if (!response || typeof response.text !== 'string') {
-      throw new Error('Invalid or empty response received from OpenAI Whisper API');
-    }
-
-    const rawText = response.text.trim();
-    const cleanedText = cleanRepeatedHallucinations(rawText);
-
-    return cleanedText || rawText;
-  } catch (err) {
-    console.error('[Whisper STT Error]', err?.response?.data || err.message || err);
-    throw new Error(err?.response?.data?.error?.message || err.message || 'OpenAI Whisper transcription failed');
+  } catch (modelErr) {
+    // 2. Fallback to whisper-1 if gpt-4o-mini-transcribe is not enabled on the API key tier
+    console.warn('[STT] gpt-4o-mini-transcribe fallback to whisper-1:', modelErr?.message || modelErr);
+    const retryAudioFile = await toFile(fs.createReadStream(targetPath), virtualFilename);
+    response = await openai.audio.transcriptions.create({
+      file: retryAudioFile,
+      model: 'whisper-1',
+      prompt: promptText,
+      temperature: 0,
+      response_format: 'json',
+    });
   }
+
+  if (!response || typeof response.text !== 'string') {
+    throw new Error('Invalid or empty response received from OpenAI Transcription API');
+  }
+
+  const rawText = response.text.trim();
+  const cleanedText = cleanRepeatedHallucinations(rawText);
+
+  return cleanedText || rawText;
 }
 
 module.exports = {
