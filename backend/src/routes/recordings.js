@@ -70,22 +70,33 @@ const upload = multer({
 
 // ─── Extract phone number from recording filename ─────────────────────────
 function extractPhoneFromFilename(filename) {
-  let name = path.basename(filename, path.extname(filename));
+  if (!filename) return null;
+  const name = path.basename(filename, path.extname(filename));
 
-  name = name.replace(/^\d{10,}_/, '');                              // leading upload timestamp
-  name = name.replace(/\s+\d{4}-\d{2}-\d{2}[ _]\d{2}-\d{2}-\d{2}$/, ''); // trailing "YYYY-MM-DD HH-MM-SS"
-
-  // Match sequences of digits (with optional +, -, spaces) that look like phone numbers
-  const matches = name.match(/[\+]?[\d][\d\s\-]{7,}/g);
-  if (!matches) return null;
-
-  for (const raw of matches) {
-    const digits = raw.replace(/\D/g, '');
-    if (digits.length < 7) continue;
-
-    const last10 = digits.slice(-10);
-    if (last10.length === 10) return last10;
+  // 1. Direct match: 10-digit Indian phone number starting with 6, 7, 8, or 9
+  const directMatch = name.match(/(?:(?:\+?91[\s\-_]*)?([6-9]\d{9}))\b/);
+  if (directMatch && directMatch[1]) {
+    return directMatch[1];
   }
+
+  // 2. Generic match: any sequence of digits containing a 10-digit phone number
+  const matches = name.match(/[\+]?[\d][\d\s\-]{8,}/g);
+  if (matches) {
+    for (const raw of matches) {
+      const digits = raw.replace(/\D/g, '');
+      if (digits.length >= 10) {
+        // Skip unix timestamp prefixes (like 1783077830576)
+        const asInt = parseInt(digits, 10);
+        if (digits.length === 13 && asInt > 1000000000000) continue;
+
+        const last10 = digits.slice(-10);
+        if (/^[6-9]\d{9}$/.test(last10)) {
+          return last10;
+        }
+      }
+    }
+  }
+
   return null;
 }
 
