@@ -508,7 +508,6 @@ export default function Navbar() {
     { title: 'Marketing', icon: FaBullhorn, items: [
       { label: 'Add Leads', path: '/leads/new', icon: FaUserPlus },
       { label: 'All Leads', path: '/leads', icon: FaUsers },
-      { label: 'Call Recordings', path: '/recordings', icon: FaClock },
       { label: 'Campaigns', path: '/campaigns', icon: FaBullhorn },
       { label: 'Contact', path: '/contacts', icon: FaWhatsapp },
       { label: 'WhatsApp Blast', path: '/whatsapp-blast', icon: FaWhatsapp },
@@ -524,7 +523,6 @@ export default function Navbar() {
     ]},
     { title: 'Management', icon: FaSitemap, items: [
       { label: 'Attendance', path: '/admin/attendance-records', icon: FaCalendarCheck },
-      { label: 'Call Recordings', path: '/recordings', icon: FaClock },
       { label: 'Live Tracking', path: '/admin/employee-tracking', icon: FaLocationDot, adminOnly: !isHR(user) && !isCEO(user) },
       { label: 'Email CRM', path: '/email', icon: FaEnvelopeOpenText },
     ]},

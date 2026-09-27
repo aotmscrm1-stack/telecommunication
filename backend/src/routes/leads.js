@@ -394,6 +394,9 @@ router.post('/', protect, async (req, res) => {
 // GET /api/leads/random — Fetch a random lead document and ID
 router.get('/random', protect, async (req, res) => {
   try {
+    const CallRecording = require('../models/CallRecording');
+    const { normalizePhone10 } = require('../utils/phone');
+
     const query = {};
     if (req.user.role === 'employee' || req.user.role === 'caller') {
       query.assignedTo = req.user._id;
@@ -410,18 +413,37 @@ router.get('/random', protect, async (req, res) => {
       .populate('assignedTo', 'name email avatar')
       .populate('campaign', 'name')
       .populate('courseInterest')
+      .populate('activities.performedBy', 'name avatar')
       .lean();
 
     if (!lead) {
       return res.status(404).json({ message: 'Lead not found' });
     }
 
+    const p10 = normalizePhone10(lead.phone);
+    const recordingQuery = { $or: [{ lead: lead._id }] };
+    if (p10 && p10.length === 10) {
+      recordingQuery.$or.push({ phone: p10 });
+    }
+
+    const recordings = await CallRecording.find(recordingQuery)
+      .populate('user', 'name avatar')
+      .sort({ recordedAt: -1, createdAt: -1 })
+      .lean();
+
+    const baseUrl = process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`;
+    const formattedRecordings = recordings.map(rec => ({
+      ...rec,
+      streamUrl: rec.storedName ? `${baseUrl}/api/recordings/stream/${rec.storedName}` : (rec.url ? (rec.url.startsWith('http') ? rec.url : `${baseUrl}${rec.url}`) : '')
+    }));
+
     return res.json({
       success: true,
       id: lead._id,
       leadId: lead._id,
       randomId: lead._id,
-      lead
+      lead,
+      recordings: formattedRecordings
     });
   } catch (err) {
     console.error('GET /api/leads/random error:', err);
@@ -431,13 +453,34 @@ router.get('/random', protect, async (req, res) => {
 
 router.get('/:id', protect, async (req, res) => {
   try {
+    const CallRecording = require('../models/CallRecording');
+    const { normalizePhone10 } = require('../utils/phone');
+
     const lead = await Lead.findById(req.params.id)
       .populate('assignedTo', 'name email avatar')
       .populate('campaign', 'name')
       .populate('courseInterest')
       .populate('activities.performedBy', 'name avatar');
     if (!lead) return res.status(404).json({ message: 'Lead not found' });
-    res.json({ lead });
+
+    const p10 = normalizePhone10(lead.phone);
+    const recordingQuery = { $or: [{ lead: lead._id }] };
+    if (p10 && p10.length === 10) {
+      recordingQuery.$or.push({ phone: p10 });
+    }
+
+    const recordings = await CallRecording.find(recordingQuery)
+      .populate('user', 'name avatar')
+      .sort({ recordedAt: -1, createdAt: -1 })
+      .lean();
+
+    const baseUrl = process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`;
+    const formattedRecordings = recordings.map(rec => ({
+      ...rec,
+      streamUrl: rec.storedName ? `${baseUrl}/api/recordings/stream/${rec.storedName}` : (rec.url ? (rec.url.startsWith('http') ? rec.url : `${baseUrl}${rec.url}`) : '')
+    }));
+
+    res.json({ lead, recordings: formattedRecordings });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

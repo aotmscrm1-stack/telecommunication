@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Phone, PhoneOff, Mail, MapPin, Award, IndianRupee, Globe, User, Calendar, Tag, Star, Edit3, Save, X, Plus, Clock, MessageCircle, Copy, Check, Trash2, BookOpen, Zap, Sparkles, ShieldAlert, CheckCircle2, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Phone, PhoneOff, Mail, MapPin, Award, IndianRupee, Globe, User, Calendar, Tag, Star, Edit3, Save, X, Plus, Clock, MessageCircle, Copy, Check, Trash2, BookOpen, Zap, Sparkles, ShieldAlert, CheckCircle2, ChevronRight, Volume2, Download, Mic } from 'lucide-react';
 import api, { leadsAPI, campaignsAPI, usersAPI, coursesAPI, followupsAPI, blocklistAPI, leadStagesAPI, messageTemplatesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { canDelete } from '../../utils/permissions';
@@ -707,6 +707,7 @@ export default function LeadDetailsPage({
   const isCaller = user?.role === 'employee' || user?.role === 'caller';
 
   const [lead, setLead] = useState(null);
+  const [recordings, setRecordings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [campaigns, setCampaigns] = useState([]);
   const [callers, setCallers] = useState([]);
@@ -741,6 +742,7 @@ export default function LeadDetailsPage({
         isRandom ? Promise.resolve({ data: { followups: [] } }) : followupsAPI.getAll({ leadId: id }),
       ]);
       setLead(res.data.lead);
+      setRecordings(res.data.recordings || []);
       setLeadFollowups(followupsRes.data?.followups || []);
       onChange?.(res.data.lead);
       const l = res.data.lead;
@@ -1355,12 +1357,15 @@ export default function LeadDetailsPage({
             {[
               { key: 'all', label: 'All Activities' },
               { key: 'call', label: 'Calls' },
+              { key: 'recordings', label: 'Audio Recordings' },
               { key: 'followup', label: 'Callback Later' },
               { key: 'note', label: 'Notes' },
             ].map(tab => {
               let count = 0;
-              if (tab.key === 'all') count = (lead.activities?.length || 0) + leadFollowups.length;
+              if (tab.key === 'all') count = (lead.activities?.length || 0) + leadFollowups.length + recordings.length;
               else if (tab.key === 'followup') count = leadFollowups.length;
+              else if (tab.key === 'recordings') count = recordings.length;
+              else if (tab.key === 'call') count = (lead.activities?.filter(a => a.type === 'call').length || 0) + recordings.length;
               else count = lead.activities?.filter(a => a.type === tab.key).length || 0;
 
               const isActive = activityFilter === tab.key;
@@ -1427,9 +1432,9 @@ export default function LeadDetailsPage({
                 ));
               }
 
-              const activityItems = activityFilter === 'all'
-                ? (lead.activities || [])
-                : (lead.activities || []).filter(a => a.type === activityFilter);
+              const activityItems = (activityFilter === 'all' || activityFilter === 'call' || activityFilter === 'note')
+                ? (lead.activities || []).filter(a => activityFilter === 'all' ? true : a.type === activityFilter)
+                : [];
 
               const followupItems = activityFilter === 'all'
                 ? leadFollowups.map(f => ({
@@ -1444,7 +1449,17 @@ export default function LeadDetailsPage({
                   }))
                 : [];
 
-              const allItems = [...activityItems, ...followupItems].sort(
+              const recordingItems = (activityFilter === 'all' || activityFilter === 'call' || activityFilter === 'recordings')
+                ? recordings.map(rec => ({
+                    _recording: true,
+                    _id: rec._id,
+                    type: 'recording',
+                    createdAt: rec.recordedAt || rec.createdAt,
+                    rec
+                  }))
+                : [];
+
+              const allItems = [...activityItems, ...followupItems, ...recordingItems].sort(
                 (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
               );
 
@@ -1452,7 +1467,7 @@ export default function LeadDetailsPage({
                 return (
                   <div className="text-center py-8">
                     <Clock className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                    <p className="text-slate-400 text-xs font-normal">No activity history logged yet.</p>
+                    <p className="text-slate-400 text-xs font-normal">No activity history or recordings logged yet.</p>
                   </div>
                 );
               }
@@ -1466,49 +1481,101 @@ export default function LeadDetailsPage({
                   className="relative pl-5"
                 >
                   <div className="absolute -left-3 top-0 w-6 h-6 rounded-full bg-white border border-slate-200 shadow-2xs flex items-center justify-center">
-                    {a._followup ? <Clock className="w-3.5 h-3.5 text-amber-500" /> : activityIcon(a.type)}
+                    {a._recording ? <Volume2 className="w-3.5 h-3.5 text-blue-600" /> : a._followup ? <Clock className="w-3.5 h-3.5 text-amber-500" /> : activityIcon(a.type)}
                   </div>
-                  <div className="rounded-xl p-3 bg-slate-50/80 border border-slate-200 shadow-2xs hover:border-blue-300 transition-colors">
-                    <div className="flex items-center justify-between gap-4 flex-wrap">
-                      <div className="font-semibold text-xs sm:text-sm text-slate-800">
-                        {a._followup ? (
-                          <span className="flex items-center gap-1.5">
-                            Callback Scheduled
-                            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
-                              {a.status === 'upcoming' ? '⏳ Upcoming' : '✅ Done'}
-                            </span>
+                  
+                  {a._recording ? (
+                    <div className="rounded-xl p-3.5 bg-gradient-to-r from-blue-50/70 to-indigo-50/70 border border-blue-200/80 shadow-2xs hover:border-blue-400 transition-all">
+                      <div className="flex items-center justify-between gap-4 flex-wrap mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center flex-shrink-0 shadow-2xs">
+                            <Volume2 className="w-4 h-4" />
                           </span>
-                        ) : a.type === 'call' ? (
-                          <span>Logged Call — {fmtDuration(a.callDuration)} ({a.callStatus?.toUpperCase() || 'CONNECTED'})</span>
-                        ) : a.type === 'status_change' ? (
-                          <span className="text-blue-600">{a.description}</span>
-                        ) : (
-                          <span>{a.description}</span>
-                        )}
+                          <div>
+                            <div className="font-bold text-xs sm:text-sm text-slate-900 truncate max-w-xs sm:max-w-md">
+                              {a.rec.originalName || 'Call Recording'}
+                            </div>
+                            <div className="text-[11px] text-slate-500 flex items-center gap-2 font-medium">
+                              <span>📞 {a.rec.phone || lead.phone}</span>
+                              {a.rec.callTime && <span>· Time: {a.rec.callTime}</span>}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <a
+                            href={a.rec.streamUrl || a.rec.url}
+                            download
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:border-blue-300 text-blue-700 rounded-lg text-xs font-semibold shadow-2xs transition-all"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            <span>Download</span>
+                          </a>
+                        </div>
                       </div>
-                      <span className="text-[11px] text-slate-400 font-medium">{a.createdAt ? formatDistanceToNow(new Date(a.createdAt), { addSuffix: true }) : ''}</span>
-                    </div>
-                    {a._followup && a.scheduledAt && (
-                      <p className="text-xs text-amber-800 font-medium mt-1.5 bg-amber-50 border border-amber-200 rounded-lg p-2">
-                        ⏰ Due: {format(new Date(a.scheduledAt), 'dd MMM yyyy, hh:mm a')}
-                      </p>
-                    )}
-                    {!a._followup && a.type === 'call' && a.description && (
-                      <div className="mt-2 bg-white border border-slate-200 rounded-lg p-2.5">
-                        <p className="text-xs text-slate-600 italic">"{a.description}"</p>
-                        <button
-                          onClick={() => setRunCallIqActivityId(a._id)}
-                          className="mt-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors"
+
+                      {/* Native Audio Stream Player Container */}
+                      <div className="mt-2.5 bg-white border border-blue-100 rounded-xl p-2 shadow-inner">
+                        <audio
+                          controls
+                          preload="metadata"
+                          className="w-full h-9 rounded-lg"
+                          src={a.rec.streamUrl || a.rec.url}
                         >
-                          <Sparkles className="w-3.5 h-3.5" /> Run Call IQ Audit
-                        </button>
+                          Your browser does not support audio elements.
+                        </audio>
                       </div>
-                    )}
-                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-200/60 text-[10px] text-slate-500 font-medium">
-                      <span>BY: {a.performedBy?.name || 'System / Unassigned'}</span>
-                      {a.createdAt && <span>{format(new Date(a.createdAt), 'dd MMM yyyy, hh:mm a')}</span>}
+
+                      <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-blue-100 text-[10px] text-slate-500 font-medium">
+                        <span>RECORDED BY: {a.rec.user?.name || 'Mobile App Agent'}</span>
+                        {a.createdAt && <span>{format(new Date(a.createdAt), 'dd MMM yyyy, hh:mm a')}</span>}
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="rounded-xl p-3 bg-slate-50/80 border border-slate-200 shadow-2xs hover:border-blue-300 transition-colors">
+                      <div className="flex items-center justify-between gap-4 flex-wrap">
+                        <div className="font-semibold text-xs sm:text-sm text-slate-800">
+                          {a._followup ? (
+                            <span className="flex items-center gap-1.5">
+                              Callback Scheduled
+                              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                                {a.status === 'upcoming' ? '⏳ Upcoming' : '✅ Done'}
+                              </span>
+                            </span>
+                          ) : a.type === 'call' ? (
+                            <span>Logged Call — {fmtDuration(a.callDuration)} ({a.callStatus?.toUpperCase() || 'CONNECTED'})</span>
+                          ) : a.type === 'status_change' ? (
+                            <span className="text-blue-600">{a.description}</span>
+                          ) : (
+                            <span>{a.description}</span>
+                          )}
+                        </div>
+                        <span className="text-[11px] text-slate-400 font-medium">{a.createdAt ? formatDistanceToNow(new Date(a.createdAt), { addSuffix: true }) : ''}</span>
+                      </div>
+                      {a._followup && a.scheduledAt && (
+                        <p className="text-xs text-amber-800 font-medium mt-1.5 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                          ⏰ Due: {format(new Date(a.scheduledAt), 'dd MMM yyyy, hh:mm a')}
+                        </p>
+                      )}
+                      {!a._followup && a.type === 'call' && a.description && (
+                        <div className="mt-2 bg-white border border-slate-200 rounded-lg p-2.5">
+                          <p className="text-xs text-slate-600 italic">"{a.description}"</p>
+                          <button
+                            onClick={() => setRunCallIqActivityId(a._id)}
+                            className="mt-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors"
+                          >
+                            <Sparkles className="w-3.5 h-3.5" /> Run Call IQ Audit
+                          </button>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-200/60 text-[10px] text-slate-500 font-medium">
+                        <span>BY: {a.performedBy?.name || 'System / Unassigned'}</span>
+                        {a.createdAt && <span>{format(new Date(a.createdAt), 'dd MMM yyyy, hh:mm a')}</span>}
+                      </div>
+                    </div>
+                  )}
                 </motion.div>
               ));
             })()}
