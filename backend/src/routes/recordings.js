@@ -17,15 +17,37 @@ try {
 } catch (_) {}
 
 // ─── Storage setup ────────────────────────────────────────────────────────
-// UPLOAD_DIR points at Render's persistent disk mount (/var/data by default)
-// so files survive restarts/redeploys. Falls back to a local folder for dev.
-const UPLOAD_DIR = process.env.RECORDINGS_DIR
-  || (process.env.NODE_ENV === 'production'
-    ? path.join('/var/data', 'recordings')
-    : path.join(__dirname, '..', 'uploads', 'recordings'));
-if (!fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+function getUploadDirectory() {
+  const preferred = process.env.RECORDINGS_DIR || (
+    process.env.NODE_ENV === 'production'
+      ? '/var/data/recordings'
+      : path.join(__dirname, '..', 'uploads', 'recordings')
+  );
+
+  try {
+    if (!fs.existsSync(preferred)) {
+      fs.mkdirSync(preferred, { recursive: true });
+    }
+    fs.accessSync(preferred, fs.constants.W_OK);
+    return preferred;
+  } catch (_) {
+    const fallback = path.join(__dirname, '..', 'uploads', 'recordings');
+    try {
+      if (!fs.existsSync(fallback)) {
+        fs.mkdirSync(fallback, { recursive: true });
+      }
+      return fallback;
+    } catch (e) {
+      const tmpFallback = path.join('/tmp', 'recordings');
+      if (!fs.existsSync(tmpFallback)) {
+        fs.mkdirSync(tmpFallback, { recursive: true });
+      }
+      return tmpFallback;
+    }
+  }
 }
+
+const UPLOAD_DIR = getUploadDirectory();
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
