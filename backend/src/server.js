@@ -109,6 +109,15 @@ app.use('/api/email', apiLimiter, require('./routes/email'));
 app.use('/api/api/email', apiLimiter, require('./routes/email'));
 
 // ── Uploads static folder ───────────────────────────────────────────────────
+app.get('/download-apk', (req, res) => {
+  const apkPath = path.join(__dirname, 'uploads', 'app-release.apk');
+  const fs = require('fs');
+  if (fs.existsSync(apkPath)) {
+    return res.download(apkPath, 'Telecom-CRM.apk');
+  }
+  return res.status(404).send('APK build not found on server.');
+});
+
 app.use('/uploads', (req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', isAllowedOrigin(req.headers.origin) ? (req.headers.origin || '*') : 'null');
   res.setHeader('Access-Control-Allow-Headers', 'Range');

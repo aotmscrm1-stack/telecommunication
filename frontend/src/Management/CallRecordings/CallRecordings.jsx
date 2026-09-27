@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   AudioLines, Table, LayoutGrid, PhoneCall, FileAudio, 
-  Clock, Edit3, MoreVertical, Download, ExternalLink, RefreshCw, User, UserPlus
+  Clock, Edit3, MoreVertical, Download, ExternalLink, RefreshCw, User, UserPlus, Sparkles, FileText
 } from 'lucide-react';
 import { recordingsAPI, leadsAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -308,9 +308,25 @@ export default function CallRecordings() {
   const [rematching, setRematching] = useState(false);
   const [rematchMsg, setRematchMsg] = useState(null);
   const [activeLinkRecording, setActiveLinkRecording] = useState(null);
+  const [transcribingId, setTranscribingId] = useState(null);
 
   const canManageCRUD = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'hr' || user?.role === 'ceo';
   const canViewAllRecordings = canManageCRUD || user?.role === 'manager';
+
+  const handleTranscribe = async (recId) => {
+    setTranscribingId(recId);
+    try {
+      const res = await recordingsAPI.transcribe(recId, true);
+      if (res.data?.transcript) {
+        setRecordings(prev => prev.map(r => (r._id === recId || r.id === recId) ? { ...r, transcript: res.data.transcript, transcriptStatus: 'done' } : r));
+      }
+    } catch (err) {
+      console.error('Transcription error:', err);
+      alert(err.response?.data?.error || 'Failed to transcribe audio with OpenAI Whisper. Please verify OPENAI_API_KEY in backend .env.');
+    } finally {
+      setTranscribingId(null);
+    }
+  };
 
   const fetchRecordings = async () => {
     setLoading(true);
@@ -678,6 +694,38 @@ export default function CallRecordings() {
                     </audio>
                   ) : (
                     <span style={{ color: '#dc2626', fontSize: '11px' }}>No audio file available</span>
+                  )}
+                </div>
+
+                {/* 6. SIXTH LINE: AI Whisper Transcription */}
+                <div style={{ marginTop: '2px' }}>
+                  {rec.transcript ? (
+                    <div style={{
+                      background: '#f8fafc', padding: '8px 10px', borderRadius: '8px',
+                      border: `1px solid ${C.border}`, fontSize: '11px', color: '#334155'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 700, color: C.blue, marginBottom: '4px' }}>
+                        <Sparkles style={{ width: '12px', height: '12px' }} />
+                        <span>AI Whisper Transcript:</span>
+                      </div>
+                      <div style={{ maxHeight: '80px', overflowY: 'auto', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>
+                        {rec.transcript}
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => handleTranscribe(rec._id || rec.id)}
+                      disabled={transcribingId === (rec._id || rec.id)}
+                      style={{
+                        background: C.blueSoft, color: C.blue, border: `1px solid ${C.blue}`,
+                        padding: '5px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 700,
+                        cursor: transcribingId === (rec._id || rec.id) ? 'not-allowed' : 'pointer',
+                        display: 'flex', alignItems: 'center', gap: '5px', width: '100%', justifyContent: 'center'
+                      }}
+                    >
+                      <Sparkles style={{ width: '12px', height: '12px' }} className={transcribingId === (rec._id || rec.id) ? 'animate-spin' : ''} />
+                      {transcribingId === (rec._id || rec.id) ? 'Transcribing with Whisper...' : 'Transcribe with AI (Whisper)'}
+                    </button>
                   )}
                 </div>
 

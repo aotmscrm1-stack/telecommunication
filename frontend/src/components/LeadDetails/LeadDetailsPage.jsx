@@ -1353,7 +1353,7 @@ export default function LeadDetailsPage({
           </h3>
 
           {/* Filter Tabs */}
-          <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-4">
+          <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-5">
             {[
               { key: 'all', label: 'All Activities' },
               { key: 'call', label: 'Calls' },
@@ -1365,7 +1365,7 @@ export default function LeadDetailsPage({
               if (tab.key === 'all') count = (lead.activities?.length || 0) + leadFollowups.length + recordings.length;
               else if (tab.key === 'followup') count = leadFollowups.length;
               else if (tab.key === 'recordings') count = recordings.length;
-              else if (tab.key === 'call') count = (lead.activities?.filter(a => a.type === 'call').length || 0) + recordings.length;
+              else if (tab.key === 'call') count = (lead.activities?.filter(a => a.type === 'call').length || 0);
               else count = lead.activities?.filter(a => a.type === tab.key).length || 0;
 
               const isActive = activityFilter === tab.key;
@@ -1373,12 +1373,12 @@ export default function LeadDetailsPage({
                 <button
                   key={tab.key}
                   onClick={() => setActivityFilter(tab.key)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    isActive ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+                    isActive ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'
                   }`}
                 >
                   {tab.label}
-                  <span className={`rounded-full px-1.5 py-0.2 text-[10px] font-medium ${
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${
                     isActive ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'
                   }`}>
                     {count}
@@ -1388,55 +1388,14 @@ export default function LeadDetailsPage({
             })}
           </div>
 
-          {/* Timeline Items */}
-          <div className="relative border-l-2 border-slate-200 ml-3 sm:ml-4 space-y-4">
+          {/* 4-COLUMN CARD GRID DISPLAY */}
+          <div>
             {(() => {
-              if (activityFilter === 'followup') {
-                if (leadFollowups.length === 0) {
-                  return (
-                    <div className="text-center py-8">
-                      <Clock className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                      <p className="text-slate-400 text-xs font-normal">No callback scheduled yet.</p>
-                    </div>
-                  );
-                }
-                return leadFollowups.map((f, i) => (
-                  <motion.div
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.2, delay: i * 0.05 }}
-                    key={f._id || i}
-                    className="relative pl-5"
-                  >
-                    <div className="absolute -left-3 top-0 w-6 h-6 rounded-full bg-white border border-slate-200 shadow-2xs flex items-center justify-center text-amber-500">
-                      <Clock className="w-3.5 h-3.5" />
-                    </div>
-                    <div className="bg-slate-50/80 rounded-xl p-3 border border-slate-200 shadow-2xs">
-                      <div className="flex items-center justify-between gap-4 flex-wrap">
-                        <div className="font-semibold text-xs sm:text-sm text-slate-800">📅 Callback Scheduled</div>
-                        <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
-                          f.status === 'upcoming' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
-                        }`}>
-                          {f.status === 'upcoming' ? '⏳ Upcoming' : '✅ Done'}
-                        </span>
-                      </div>
-                      {f.note && (
-                        <p className="text-xs text-slate-600 italic mt-1.5 bg-white border border-slate-200 rounded-lg p-2">"{f.note}"</p>
-                      )}
-                      <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-200/60 text-[10px] text-slate-500 font-medium">
-                        <span>ASSIGNED TO: {f.assignedTo?.name || 'Unassigned'}</span>
-                        {f.scheduledAt && <span>{format(new Date(f.scheduledAt), 'dd MMM yyyy, hh:mm a')}</span>}
-                      </div>
-                    </div>
-                  </motion.div>
-                ));
-              }
-
               const activityItems = (activityFilter === 'all' || activityFilter === 'call' || activityFilter === 'note')
                 ? (lead.activities || []).filter(a => activityFilter === 'all' ? true : a.type === activityFilter)
                 : [];
 
-              const followupItems = activityFilter === 'all'
+              const followupItems = (activityFilter === 'all' || activityFilter === 'followup')
                 ? leadFollowups.map(f => ({
                     _followup: true,
                     _id: f._id,
@@ -1449,7 +1408,7 @@ export default function LeadDetailsPage({
                   }))
                 : [];
 
-              const recordingItems = (activityFilter === 'all' || activityFilter === 'call' || activityFilter === 'recordings')
+              const recordingItems = (activityFilter === 'all' || activityFilter === 'recordings')
                 ? recordings.map(rec => ({
                     _recording: true,
                     _id: rec._id,
@@ -1465,119 +1424,202 @@ export default function LeadDetailsPage({
 
               if (allItems.length === 0) {
                 return (
-                  <div className="text-center py-8">
-                    <Clock className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                    <p className="text-slate-400 text-xs font-normal">No activity history or recordings logged yet.</p>
+                  <div className="text-center py-12 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                    <Clock className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                    <h4 className="text-sm font-bold text-slate-700">No activities found</h4>
+                    <p className="text-slate-400 text-xs font-normal">No activity logs or recordings match the selected filter.</p>
                   </div>
                 );
               }
 
-              return allItems.map((a, i) => (
-                <motion.div
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.2, delay: i * 0.04 }}
-                  key={a._id || i}
-                  className="relative pl-5"
-                >
-                  <div className="absolute -left-3 top-0 w-6 h-6 rounded-full bg-white border border-slate-200 shadow-2xs flex items-center justify-center">
-                    {a._recording ? <Volume2 className="w-3.5 h-3.5 text-blue-600" /> : a._followup ? <Clock className="w-3.5 h-3.5 text-amber-500" /> : activityIcon(a.type)}
-                  </div>
-                  
-                  {a._recording ? (
-                    <div className="rounded-xl p-3.5 bg-gradient-to-r from-blue-50/70 to-indigo-50/70 border border-blue-200/80 shadow-2xs hover:border-blue-400 transition-all">
-                      <div className="flex items-center justify-between gap-4 flex-wrap mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center flex-shrink-0 shadow-2xs">
-                            <Volume2 className="w-4 h-4" />
-                          </span>
-                          <div>
-                            <div className="font-bold text-xs sm:text-sm text-slate-900 truncate max-w-xs sm:max-w-md">
-                              {a.rec.originalName || 'Call Recording'}
-                            </div>
-                            <div className="text-[11px] text-slate-500 flex items-center gap-2 font-medium">
-                              <span>📞 {a.rec.phone || lead.phone}</span>
-                              {a.rec.callTime && <span>· Time: {a.rec.callTime}</span>}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <a
-                            href={a.rec.streamUrl || a.rec.url}
-                            download
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:border-blue-300 text-blue-700 rounded-lg text-xs font-semibold shadow-2xs transition-all"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                            <span>Download</span>
-                          </a>
-                        </div>
-                      </div>
-
-                      {/* Native Audio Stream Player Container */}
-                      <div className="mt-2.5 bg-white border border-blue-100 rounded-xl p-2 shadow-inner">
-                        <audio
-                          controls
-                          preload="metadata"
-                          className="w-full h-9 rounded-lg"
-                          src={a.rec.streamUrl || a.rec.url}
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {allItems.map((a, i) => {
+                    // 1. AUDIO RECORDING CARD
+                    if (a._recording) {
+                      return (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.2, delay: i * 0.03 }}
+                          key={a._id || i}
+                          className="bg-white border border-blue-200/90 rounded-2xl p-4 shadow-xs hover:shadow-md hover:border-blue-400 transition-all flex flex-col justify-between"
                         >
-                          Your browser does not support audio elements.
-                        </audio>
-                      </div>
+                          <div>
+                            <div className="flex items-center justify-between gap-2 mb-2.5">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                                <Volume2 className="w-3 h-3 text-blue-600" /> Audio Recording
+                              </span>
+                              <a
+                                href={a.rec.streamUrl || a.rec.url}
+                                download
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="Download Audio"
+                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-200"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                              </a>
+                            </div>
 
-                      <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-blue-100 text-[10px] text-slate-500 font-medium">
-                        <span>RECORDED BY: {a.rec.user?.name || 'Mobile App Agent'}</span>
-                        {a.createdAt && <span>{format(new Date(a.createdAt), 'dd MMM yyyy, hh:mm a')}</span>}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="rounded-xl p-3 bg-slate-50/80 border border-slate-200 shadow-2xs hover:border-blue-300 transition-colors">
-                      <div className="flex items-center justify-between gap-4 flex-wrap">
-                        <div className="font-semibold text-xs sm:text-sm text-slate-800">
-                          {a._followup ? (
-                            <span className="flex items-center gap-1.5">
-                              Callback Scheduled
-                              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                            <h4 className="font-bold text-xs text-slate-800 truncate mb-1" title={a.rec.originalName}>
+                              {a.rec.originalName || 'Call Recording'}
+                            </h4>
+
+                            <div className="text-[11px] text-slate-500 font-medium mb-2.5 flex items-center gap-1.5">
+                              <Phone className="w-3 h-3 text-emerald-600 flex-shrink-0" />
+                              <span className="truncate">{a.rec.phone || lead.phone}</span>
+                            </div>
+
+                            {/* Audio Player Container */}
+                            <div className="bg-slate-50 border border-slate-200 rounded-xl p-2 mb-2.5">
+                              <audio
+                                controls
+                                preload="metadata"
+                                className="w-full h-8 rounded-lg"
+                                src={a.rec.streamUrl || a.rec.url}
+                              >
+                                Audio not supported
+                              </audio>
+                            </div>
+
+                            {/* AI Transcript if available */}
+                            {a.rec.transcript && (
+                              <div className="bg-blue-50/60 border border-blue-100 rounded-xl p-2.5 text-[10px] text-slate-700 mb-2">
+                                <span className="font-bold text-blue-700 flex items-center gap-1 mb-1">
+                                  <Sparkles className="w-3 h-3" /> AI Whisper Transcript:
+                                </span>
+                                <p className="line-clamp-3 italic text-slate-600">{a.rec.transcript}</p>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-medium">
+                            <span className="truncate max-w-[120px]">By: {a.rec.user?.name || 'Mobile Agent'}</span>
+                            <span>{a.createdAt ? format(new Date(a.createdAt), 'dd MMM, hh:mm a') : ''}</span>
+                          </div>
+                        </motion.div>
+                      );
+                    }
+
+                    // 2. CALLBACK SCHEDULED CARD
+                    if (a._followup) {
+                      return (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.2, delay: i * 0.03 }}
+                          key={a._id || i}
+                          className="bg-white border border-amber-200/90 rounded-2xl p-4 shadow-xs hover:shadow-md hover:border-amber-400 transition-all flex flex-col justify-between"
+                        >
+                          <div>
+                            <div className="flex items-center justify-between gap-2 mb-2.5">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                <Clock className="w-3 h-3 text-amber-600" /> Callback
+                              </span>
+                              <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                                a.status === 'upcoming' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
+                              }`}>
                                 {a.status === 'upcoming' ? '⏳ Upcoming' : '✅ Done'}
                               </span>
+                            </div>
+
+                            {a.scheduledAt && (
+                              <div className="text-xs font-bold text-amber-800 bg-amber-50/80 p-2.5 rounded-xl border border-amber-200 mb-2">
+                                ⏰ {format(new Date(a.scheduledAt), 'dd MMM yyyy, hh:mm a')}
+                              </div>
+                            )}
+
+                            {a.description && (
+                              <p className="text-xs text-slate-600 italic bg-slate-50 p-2.5 rounded-xl border border-slate-100 line-clamp-3 mb-2">
+                                "{a.description}"
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-medium">
+                            <span className="truncate max-w-[120px]">Assigned: {a.performedBy?.name || 'Unassigned'}</span>
+                            <span>{a.createdAt ? format(new Date(a.createdAt), 'dd MMM, hh:mm a') : ''}</span>
+                          </div>
+                        </motion.div>
+                      );
+                    }
+
+                    // 3. PURE CALL LOG CARD (NO AUDIO PLAYER)
+                    if (a.type === 'call') {
+                      return (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.2, delay: i * 0.03 }}
+                          key={a._id || i}
+                          className="bg-white border border-emerald-200/90 rounded-2xl p-4 shadow-xs hover:shadow-md hover:border-emerald-400 transition-all flex flex-col justify-between"
+                        >
+                          <div>
+                            <div className="flex items-center justify-between gap-2 mb-2.5">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <Phone className="w-3 h-3 text-emerald-600" /> Logged Call
+                              </span>
+                              <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                                {a.callStatus?.toUpperCase() || 'CONNECTED'}
+                              </span>
+                            </div>
+
+                            <div className="mb-2">
+                              <div className="text-xs font-bold text-slate-800 mb-1.5 flex items-center gap-1.5">
+                                <Clock className="w-3.5 h-3.5 text-slate-400" />
+                                <span>Duration: {fmtDuration(a.callDuration)}</span>
+                              </div>
+                              {a.description ? (
+                                <p className="text-xs text-slate-600 italic bg-slate-50 p-2.5 rounded-xl border border-slate-100 line-clamp-3">
+                                  "{a.description}"
+                                </p>
+                              ) : (
+                                <p className="text-[11px] text-slate-400 italic bg-slate-50/50 p-2 rounded-lg border border-slate-100">
+                                  No call notes recorded.
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-medium">
+                            <span className="truncate max-w-[120px]">By: {a.performedBy?.name || 'Agent'}</span>
+                            <span>{a.createdAt ? format(new Date(a.createdAt), 'dd MMM, hh:mm a') : ''}</span>
+                          </div>
+                        </motion.div>
+                      );
+                    }
+
+                    // 4. NOTES / OTHER ACTIVITIES CARD
+                    return (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2, delay: i * 0.03 }}
+                        key={a._id || i}
+                        className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs hover:shadow-md hover:border-slate-300 transition-all flex flex-col justify-between"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between gap-2 mb-2.5">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                              <MessageCircle className="w-3 h-3 text-slate-600" /> {a.type ? a.type.toUpperCase() : 'NOTE'}
                             </span>
-                          ) : a.type === 'call' ? (
-                            <span>Logged Call — {fmtDuration(a.callDuration)} ({a.callStatus?.toUpperCase() || 'CONNECTED'})</span>
-                          ) : a.type === 'status_change' ? (
-                            <span className="text-blue-600">{a.description}</span>
-                          ) : (
-                            <span>{a.description}</span>
-                          )}
+                          </div>
+
+                          <p className="text-xs text-slate-700 bg-slate-50/80 p-2.5 rounded-xl border border-slate-100 mb-2 line-clamp-3">
+                            {a.description || 'Activity logged'}
+                          </p>
                         </div>
-                        <span className="text-[11px] text-slate-400 font-medium">{a.createdAt ? formatDistanceToNow(new Date(a.createdAt), { addSuffix: true }) : ''}</span>
-                      </div>
-                      {a._followup && a.scheduledAt && (
-                        <p className="text-xs text-amber-800 font-medium mt-1.5 bg-amber-50 border border-amber-200 rounded-lg p-2">
-                          ⏰ Due: {format(new Date(a.scheduledAt), 'dd MMM yyyy, hh:mm a')}
-                        </p>
-                      )}
-                      {!a._followup && a.type === 'call' && a.description && (
-                        <div className="mt-2 bg-white border border-slate-200 rounded-lg p-2.5">
-                          <p className="text-xs text-slate-600 italic">"{a.description}"</p>
-                          <button
-                            onClick={() => setRunCallIqActivityId(a._id)}
-                            className="mt-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors"
-                          >
-                            <Sparkles className="w-3.5 h-3.5" /> Run Call IQ Audit
-                          </button>
+
+                        <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-medium">
+                          <span className="truncate max-w-[120px]">By: {a.performedBy?.name || 'System'}</span>
+                          <span>{a.createdAt ? format(new Date(a.createdAt), 'dd MMM, hh:mm a') : ''}</span>
                         </div>
-                      )}
-                      <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-200/60 text-[10px] text-slate-500 font-medium">
-                        <span>BY: {a.performedBy?.name || 'System / Unassigned'}</span>
-                        {a.createdAt && <span>{format(new Date(a.createdAt), 'dd MMM yyyy, hh:mm a')}</span>}
-                      </div>
-                    </div>
-                  )}
-                </motion.div>
-              ));
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              );
             })()}
           </div>
         </div>
