@@ -1,7 +1,7 @@
 // services/transcriptionService.js
 const fs = require('fs');
 const path = require('path');
-const OpenAI = require('openai');
+const { OpenAI, toFile } = require('openai');
 
 /**
  * Transcribe an audio file using OpenAI Whisper API (whisper-1).
@@ -41,12 +41,19 @@ async function transcribeAudioFile(filePath, overrideApiKey = '') {
 
   const openai = new OpenAI({ apiKey });
 
-  // OpenAI Whisper accepts readStream or File object
-  const fileStream = fs.createReadStream(targetPath);
+  // OpenAI Whisper supported extensions:
+  // ['flac', 'm4a', 'mp3', 'mp4', 'mpeg', 'mpga', 'oga', 'ogg', 'wav', 'webm']
+  const originalExt = path.extname(targetPath).toLowerCase();
+  const allowedExtensions = ['.flac', '.m4a', '.mp3', '.mp4', '.mpeg', '.mpga', '.oga', '.ogg', '.wav', '.webm'];
+  const safeExt = allowedExtensions.includes(originalExt) ? originalExt : '.m4a';
+  const virtualFilename = `recording_${Date.now()}${safeExt}`;
+
+  // Use toFile helper to pass valid audio stream & extension to OpenAI Whisper API
+  const audioFile = await toFile(fs.createReadStream(targetPath), virtualFilename);
 
   try {
     const response = await openai.audio.transcriptions.create({
-      file: fileStream,
+      file: audioFile,
       model: 'whisper-1',
       response_format: 'json',
     });
