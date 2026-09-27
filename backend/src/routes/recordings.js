@@ -163,6 +163,35 @@ router.post('/', protect, upload.single('audio'), async (req, res) => {
       .populate('lead', 'name phone')
       .lean();
 
+    // ── Background Auto-Transcription via OpenAI Whisper / GPT-4o ───────────
+    try {
+      const absolutePath = path.join(UPLOAD_DIR, req.file.filename);
+      let sttFn = transcribeAudioFile;
+      if (!sttFn) {
+        try { sttFn = require('../services/transcriptionService').transcribeAudioFile; } catch (_) {}
+      }
+      if (sttFn) {
+        sttFn(absolutePath)
+          .then(async (transcriptText) => {
+            await CallRecording.findByIdAndUpdate(doc._id, {
+              transcript: transcriptText,
+              transcriptStatus: 'done',
+              transcriptError: '',
+            });
+            console.log(`[Auto-STT Success] Recording ${doc._id} transcribed automatically.`);
+          })
+          .catch(async (sttErr) => {
+            console.warn(`[Auto-STT Warning] Recording ${doc._id} auto-transcription failed:`, sttErr.message);
+            await CallRecording.findByIdAndUpdate(doc._id, {
+              transcriptStatus: 'failed',
+              transcriptError: sttErr.message || 'Auto-transcription failed',
+            });
+          });
+      }
+    } catch (bgErr) {
+      console.error('[Auto-STT Setup Error]', bgErr);
+    }
+
     return res.status(201).json({ success: true, recording: populated });
   } catch (err) {
     console.error('Recording upload error:', err);

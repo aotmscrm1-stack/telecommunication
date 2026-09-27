@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   AudioLines, Table, LayoutGrid, PhoneCall, FileAudio, 
@@ -8,6 +8,19 @@ import { recordingsAPI, leadsAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { formatISTDateTime } from '../../utils/dateFormat';
 import { isHR, isCEO, isManager } from '../../utils/permissions';
+
+// ── MEMOIZED AUDIO PLAYER (Prevents audio reset/pause on parent state change)
+const MemoizedAudioPlayer = memo(function MemoizedAudioPlayer({ audioUrl, mimeType }) {
+  if (!audioUrl) return <span style={{ color: '#dc2626', fontSize: '11px' }}>No audio file available</span>;
+  return (
+    <audio controls style={{ width: '100%', height: '32px' }} preload="metadata">
+      <source src={audioUrl} type={mimeType || 'audio/mp4'} />
+      <source src={audioUrl} type="audio/mp4" />
+      <source src={audioUrl} type="audio/mpeg" />
+      Your browser does not support audio playback.
+    </audio>
+  );
+});
 
 // ── COLOR PALETTE ────────────────────────────────────────────────────────────
 const C = {
@@ -696,16 +709,7 @@ export default function CallRecordings() {
 
                 {/* 5. FIFTH LINE: Audio Container */}
                 <div style={{ background: C.bgSoft, borderRadius: '8px', padding: '6px', border: `1px solid ${C.border}` }}>
-                  {audioUrl ? (
-                    <audio controls style={{ width: '100%', height: '32px' }} preload="metadata">
-                      <source src={audioUrl} type={rec.mimeType || 'audio/mp4'} />
-                      <source src={audioUrl} type="audio/mp4" />
-                      <source src={audioUrl} type="audio/mpeg" />
-                      Your browser does not support audio playback.
-                    </audio>
-                  ) : (
-                    <span style={{ color: '#dc2626', fontSize: '11px' }}>No audio file available</span>
-                  )}
+                  <MemoizedAudioPlayer audioUrl={audioUrl} mimeType={rec.mimeType} />
                 </div>
 
                 {/* 6. SIXTH LINE: AI Whisper Transcription */}
@@ -786,15 +790,7 @@ export default function CallRecordings() {
                       </td>
 
                       <td style={{ padding: '14px 16px', minWidth: '300px' }}>
-                        {audioUrl ? (
-                          <audio controls style={{ width: '100%', height: '32px' }} preload="metadata">
-                            <source src={audioUrl} type={rec.mimeType || 'audio/mp4'} />
-                            <source src={audioUrl} type="audio/mp4" />
-                            <source src={audioUrl} type="audio/mpeg" />
-                          </audio>
-                        ) : (
-                          <span style={{ color: '#dc2626', fontSize: '11px' }}>No audio</span>
-                        )}
+                        <MemoizedAudioPlayer audioUrl={audioUrl} mimeType={rec.mimeType} />
                       </td>
 
                       <td style={{ padding: '14px 16px', textAlign: 'right' }}>
