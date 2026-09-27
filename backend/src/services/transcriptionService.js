@@ -4,6 +4,37 @@ const path = require('path');
 const { OpenAI, toFile } = require('openai');
 
 /**
+ * Filter out repetition hallucination loops common in Whisper on silent/noisy audio
+ */
+function cleanRepeatedHallucinations(text) {
+  if (!text) return '';
+
+  // 1. Strip common OpenAI Whisper subtitle hallucination artifacts
+  let cleaned = text
+    .replace(/(Subtitles by|Amara\.org|Thank you for watching|Subscribe to my channel|Like and subscribe)[^\n.]*/gi, '')
+    .trim();
+
+  // 2. Deduplicate consecutive repeated phrases (e.g. "మునుపటి పురింది? మునుపటి పురింది?")
+  const sentences = cleaned.split(/(?<=[.?!])\s+/);
+  const uniqueSentences = [];
+
+  for (const s of sentences) {
+    const trimmed = s.trim();
+    if (!trimmed) continue;
+    // Skip if identical to previous sentence
+    if (
+      uniqueSentences.length > 0 &&
+      uniqueSentences[uniqueSentences.length - 1].toLowerCase() === trimmed.toLowerCase()
+    ) {
+      continue;
+    }
+    uniqueSentences.push(trimmed);
+  }
+
+  return uniqueSentences.join(' ');
+}
+
+/**
  * Transcribe an audio file using OpenAI Whisper API (whisper-1).
  * 
  * @param {string} filePath - Absolute path to the audio file on disk
@@ -55,6 +86,8 @@ async function transcribeAudioFile(filePath, overrideApiKey = '') {
     const response = await openai.audio.transcriptions.create({
       file: audioFile,
       model: 'whisper-1',
+      prompt: 'This is a customer call recording in Telugu and English (Telugish). Clean speech conversation transcript without repeated words or subtitles.',
+      temperature: 0,
       response_format: 'json',
     });
 
@@ -62,7 +95,10 @@ async function transcribeAudioFile(filePath, overrideApiKey = '') {
       throw new Error('Invalid or empty response received from OpenAI Whisper API');
     }
 
-    return response.text.trim();
+    const rawText = response.text.trim();
+    const cleanedText = cleanRepeatedHallucinations(rawText);
+
+    return cleanedText || rawText;
   } catch (err) {
     console.error('[Whisper STT Error]', err?.response?.data || err.message || err);
     throw new Error(err?.response?.data?.error?.message || err.message || 'OpenAI Whisper transcription failed');
