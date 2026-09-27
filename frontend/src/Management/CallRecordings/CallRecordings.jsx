@@ -7,6 +7,7 @@ import {
 import { recordingsAPI, leadsAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { formatISTDateTime } from '../../utils/dateFormat';
+import { isHR, isCEO, isManager } from '../../utils/permissions';
 
 // ── COLOR PALETTE ────────────────────────────────────────────────────────────
 const C = {
@@ -310,8 +311,10 @@ export default function CallRecordings() {
   const [activeLinkRecording, setActiveLinkRecording] = useState(null);
   const [transcribingId, setTranscribingId] = useState(null);
 
-  const canManageCRUD = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'hr' || user?.role === 'ceo';
-  const canViewAllRecordings = canManageCRUD || user?.role === 'manager';
+  const isHRUser = isHR(user) || user?.role === 'hr' || String(user?.designation || '').toUpperCase() === 'HR';
+  const isCEOUser = isCEO(user) || user?.role === 'ceo' || user?.role === 'admin' || user?.role === 'superadmin';
+  const canManageCRUD = isHRUser || isCEOUser || user?.role === 'admin' || user?.role === 'superadmin';
+  const canViewAllRecordings = canManageCRUD || isManager(user) || user?.role === 'manager';
 
   const handleTranscribe = async (recId) => {
     setTranscribingId(recId);
@@ -658,8 +661,8 @@ export default function CallRecordings() {
                           transition: 'all 0.15s'
                         }}
                       >
-                        <UserPlus style={{ width: '13px', height: '13px' }} />
-                        <span>{hasLead ? "Edit Link" : "🔗 Link Lead"}</span>
+                        <UserPlus style={{ width: '10px', height: '10px' }} />
+                        <span>{hasLead ? "Edit Link" : "Link"}</span>
                       </motion.button>
                     )}
 
@@ -774,7 +777,7 @@ export default function CallRecordings() {
                       </td>
 
                       <td style={{ padding: '14px 16px', fontWeight: 600 }}>
-                        📞 {rec.phone || 'N/A'}
+                         {rec.phone || 'N/A'}
                       </td>
 
                       <td style={{ padding: '14px 16px', color: C.textSoft, fontSize: '12px' }}>
@@ -806,7 +809,7 @@ export default function CallRecordings() {
                                 cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px'
                               }}
                             >
-                              {hasLead ? '✏️ Edit Link' : '🔗 Link Lead'}
+                              {hasLead ? ' Edit Link' : ' Link Lead'}
                             </button>
                           )}
                           <ThreeDotsMenu audioUrl={audioUrl} originalName={rec.originalName} />
