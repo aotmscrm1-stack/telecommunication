@@ -42,7 +42,7 @@ async function transcribeAudioFile(filePath, overrideApiKey = '') {
   const openai = new OpenAI({ apiKey });
 
   // OpenAI Whisper accepts readStream or File object
-  const fileStream = fs.createReadStream(filePath);
+  const fileStream = fs.createReadStream(targetPath);
 
   try {
     const response = await openai.audio.transcriptions.create({

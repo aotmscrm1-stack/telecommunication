@@ -325,7 +325,8 @@ export default function CallRecordings() {
       }
     } catch (err) {
       console.error('Transcription error:', err);
-      alert(err.response?.data?.error || 'Failed to transcribe audio with OpenAI Whisper. Please verify OPENAI_API_KEY in backend .env.');
+      const serverErrMsg = err.response?.data?.error || err.response?.data?.message || err.message;
+      alert(`⚠️ Transcription Error:\n${serverErrMsg}\n\nTroubleshooting Check:\n1. Verify OPENAI_API_KEY is set in Render Environment Variables.\n2. Ensure your OpenAI account has active credit balance.`);
     } finally {
       setTranscribingId(null);
     }
