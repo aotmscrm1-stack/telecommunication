@@ -130,6 +130,7 @@ app.use('/api/billing', apiLimiter, require('./routes/billing'));
 app.use('/api/public', apiLimiter, require('./routes/publicApi'));
 app.use('/api/tracking', apiLimiter, require('./routes/tracking'));
 app.use('/api/attendance', apiLimiter, require('./routes/attendance'));
+app.use('/api/recordings', apiLimiter, require('./routes/recordings'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', app: 'AOTMS Backend' }));
 

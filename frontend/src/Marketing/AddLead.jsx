@@ -20,26 +20,36 @@ const COURSE_LIST = [
 ];
 
 /* ─────────────────────────────────────────────────────────
-   ORANGE THEME
+   WHITE, BLUE & ORANGE THEME
    ───────────────────────────────────────────────────────── */
-const O = {
-    primary: '#ff8c42',
-    primary3: '#ffb877',
-    deep: '#e84a10',
-    darkest: '#c23a05',
+const T = {
+    // Primary Blue Palette
+    blue: '#2563eb',
+    blueDark: '#1d4ed8',
+    blueLight: '#eff6ff',
+    blueBorder: '#bfdbfe',
+    blueGradient: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
 
-    bg: '#fff8f2',
-    bgSoft: '#fff0e8',
-    bgSofter: '#fff5ed',
+    // Accent Orange Palette
+    orange: '#f97316',
+    orangeDark: '#ea580c',
+    orangeLight: '#fff7ed',
+    orangeBorder: '#ffedd5',
+    orangeGradient: 'linear-gradient(135deg, #fb923c, #ea580c)',
 
-    line: '#ffe0cb',
-    lineSoft: '#ffe4d5',
-
-    ink: '#1f1206',
-    inkSoft: '#6b5546',
-    muted: '#a68a78',
-    error: '#e63946',
+    // Neutral White & Slate Palette
     white: '#ffffff',
+    bg: '#f8fafc',
+    bgCard: '#ffffff',
+    bgSoft: '#f1f5f9',
+
+    line: '#e2e8f0',
+    lineSoft: '#f1f5f9',
+
+    ink: '#0f172a',
+    inkSoft: '#334155',
+    muted: '#64748b',
+    error: '#ef4444',
 };
 
 /* ─────────────────────────────────────────────────────────
@@ -58,31 +68,31 @@ const STEPS = [
 const Field = ({ label, children, required, optional, hint, error }) => (
     <div>
         <label className="block text-[11px] font-bold uppercase tracking-wider mb-1.5"
-            style={{ color: O.inkSoft }}>
+            style={{ color: T.inkSoft }}>
             {label}
-            {required && <span className="ml-0.5" style={{ color: O.primary }}>*</span>}
+            {required && <span className="ml-0.5" style={{ color: T.orange }}>*</span>}
             {optional && (
                 <span className="ml-1.5 text-[9.5px] font-semibold normal-case tracking-normal"
-                    style={{ color: O.muted }}>
+                    style={{ color: T.muted }}>
                     (optional)
                 </span>
             )}
         </label>
         {children}
         {error ? (
-            <p className="text-[10.5px] mt-1 flex items-center gap-1 font-semibold" style={{ color: O.error }}>
+            <p className="text-[10.5px] mt-1 flex items-center gap-1 font-semibold" style={{ color: T.error }}>
                 <AlertCircle className="w-3 h-3" /> {error}
             </p>
         ) : hint ? (
-            <p className="text-[10.5px] mt-1" style={{ color: O.muted }}>{hint}</p>
+            <p className="text-[10.5px] mt-1" style={{ color: T.muted }}>{hint}</p>
         ) : null}
     </div>
 );
 
-const inputCls = 'w-full bg-white rounded-xl px-3.5 py-2.5 text-sm transition-all duration-200 outline-none';
+const inputCls = 'w-full bg-white rounded-xl px-3.5 py-2.5 text-sm transition-all duration-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20';
 const inputStyle = (hasError) => ({
-    border: `1px solid ${hasError ? O.error : O.line}`,
-    color: O.ink,
+    border: `1px solid ${hasError ? T.error : T.line}`,
+    color: T.ink,
 });
 
 /* ─────────────────────────────────────────────────────────
@@ -211,7 +221,7 @@ export default function AddLead() {
     if (loading) return (
         <div className="flex justify-center items-center h-48">
             <div className="w-8 h-8 rounded-full border-4 animate-spin"
-                style={{ borderColor: O.line, borderTopColor: O.primary }} />
+                style={{ borderColor: T.line, borderTopColor: T.blue }} />
         </div>
     );
 
@@ -219,41 +229,41 @@ export default function AddLead() {
     const stepHasErrors = (s) => Object.keys(validateStep(s)).length > 0;
 
     return (
-        <div className="min-h-screen py-8 px-4" style={{ background: O.bg }}>
+        <div className="min-h-screen py-8 px-4" style={{ background: T.bg }}>
             <div className="max-w-3xl mx-auto">
 
                 {/* HEADER */}
                 <div className="flex items-center gap-3 mb-6">
                     <motion.button
-                        whileHover={{ x: -2, backgroundColor: O.bgSoft }}
+                        whileHover={{ x: -2, backgroundColor: T.blueLight }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => navigate('/leads')}
-                        className="w-9 h-9 rounded-xl bg-white flex items-center justify-center transition-all"
-                        style={{ border: `1px solid ${O.line}`, color: O.inkSoft }}
+                        className="w-9 h-9 rounded-xl bg-white flex items-center justify-center transition-all shadow-sm"
+                        style={{ border: `1px solid ${T.line}`, color: T.inkSoft }}
                     >
-                        <ArrowLeft className="w-4 h-4" />
+                        <ArrowLeft className="w-4 h-4 text-blue-600" />
                     </motion.button>
                     <div>
-                        <h2 className="text-lg font-bold" style={{ color: O.ink }}>
+                        <h2 className="text-lg font-bold" style={{ color: T.ink }}>
                             {isEdit ? 'Edit Lead' : 'Add New Lead'}
                         </h2>
-                        <p className="text-xs" style={{ color: O.muted }}>
-                            Step {step} of 4 · {STEPS[step - 1].desc}
+                        <p className="text-xs font-medium" style={{ color: T.muted }}>
+                            Step {step} of 4 · <span style={{ color: T.blue }}>{STEPS[step - 1].desc}</span>
                         </p>
                     </div>
                 </div>
 
                 {/* STEPPER */}
                 <div className="rounded-2xl p-5 mb-5 bg-white"
-                    style={{ border: `1px solid ${O.line}`, boxShadow: '0 4px 20px rgba(255,140,66,.08)' }}>
+                    style={{ border: `1px solid ${T.line}`, boxShadow: '0 4px 20px rgba(37,99,235,0.06)' }}>
                     <div className="relative">
                         <div className="absolute top-5 left-[12%] right-[12%] h-[3px] rounded-full"
-                            style={{ background: O.lineSoft }} />
+                            style={{ background: T.lineSoft }} />
                         <motion.div
                             className="absolute top-5 left-[12%] h-[3px] rounded-full"
                             style={{
-                                background: `linear-gradient(90deg, ${O.primary3}, ${O.primary}, ${O.deep})`,
-                                boxShadow: `0 0 10px ${O.primary}80`,
+                                background: `linear-gradient(90deg, ${T.blue}, ${T.orange})`,
+                                boxShadow: `0 0 10px ${T.blue}60`,
                             }}
                             initial={false}
                             animate={{ width: `${(progress / 100) * 76}%` }}
@@ -280,20 +290,20 @@ export default function AddLead() {
                                             animate={{
                                                 scale: active ? 1.08 : 1,
                                                 boxShadow: active
-                                                    ? `0 8px 22px ${O.primary}55, 0 0 0 4px ${O.primary}22`
+                                                    ? `0 8px 22px ${T.orange}50, 0 0 0 4px ${T.orange}20`
                                                     : done
-                                                        ? `0 4px 14px ${O.deep}44`
-                                                        : '0 2px 6px rgba(0,0,0,.06)',
+                                                        ? `0 4px 14px ${T.blue}40`
+                                                        : '0 2px 6px rgba(0,0,0,.04)',
                                             }}
                                             transition={{ duration: 0.3 }}
                                             style={{
                                                 background: done
-                                                    ? (hasErr ? `linear-gradient(135deg, ${O.error}, #c1272d)` : `linear-gradient(135deg, ${O.primary}, ${O.deep})`)
+                                                    ? (hasErr ? `linear-gradient(135deg, ${T.error}, #dc2626)` : T.blueGradient)
                                                     : active
-                                                        ? `linear-gradient(135deg, ${O.primary3}, ${O.primary})`
-                                                        : O.white,
-                                                border: `2px solid ${done || active ? 'transparent' : O.line}`,
-                                                color: done || active ? O.white : O.muted,
+                                                        ? T.orangeGradient
+                                                        : T.white,
+                                                border: `2px solid ${done || active ? 'transparent' : T.line}`,
+                                                color: done || active ? T.white : T.muted,
                                             }}
                                         >
                                             {done ? <Check className="w-5 h-5" strokeWidth={3} /> : <StepIcon className="w-5 h-5" />}
@@ -302,12 +312,12 @@ export default function AddLead() {
                                                     className="absolute inset-0 rounded-full pointer-events-none"
                                                     animate={{ scale: [1, 1.35, 1.35], opacity: [0.5, 0, 0] }}
                                                     transition={{ duration: 1.8, repeat: Infinity, ease: 'easeOut' }}
-                                                    style={{ border: `2px solid ${O.primary}` }}
+                                                    style={{ border: `2px solid ${T.orange}` }}
                                                 />
                                             )}
                                         </motion.div>
                                         <span className="text-[10.5px] font-bold mt-2 tracking-wide text-center"
-                                            style={{ color: active ? O.primary : done ? O.ink : O.muted }}>
+                                            style={{ color: active ? T.orange : done ? T.blueDark : T.muted }}>
                                             {s.label}
                                         </span>
                                     </motion.button>
@@ -319,8 +329,8 @@ export default function AddLead() {
 
                 {/* FORM */}
                 <form onSubmit={handleSubmit}>
-                    <div className="bg-white rounded-2xl overflow-hidden"
-                        style={{ border: `1px solid ${O.line}`, boxShadow: '0 4px 20px rgba(255,140,66,.06)' }}>
+                    <div className="bg-white rounded-2xl overflow-hidden shadow-sm"
+                        style={{ border: `1px solid ${T.line}` }}>
                         <AnimatePresence mode="wait">
 
                             {/* STEP 1 */}
@@ -333,14 +343,14 @@ export default function AddLead() {
                                     transition={{ duration: 0.22 }}
                                     className="p-6 space-y-5"
                                 >
-                                    <div className="flex items-center gap-3 pb-4" style={{ borderBottom: `1px solid ${O.line}` }}>
+                                    <div className="flex items-center gap-3 pb-4" style={{ borderBottom: `1px solid ${T.line}` }}>
                                         <div className="w-9 h-9 rounded-xl grid place-items-center text-white shadow-sm"
-                                            style={{ background: `linear-gradient(135deg, ${O.primary3}, ${O.primary})` }}>
+                                            style={{ background: T.blueGradient }}>
                                             <User className="w-4 h-4" />
                                         </div>
                                         <div>
-                                            <h3 className="text-sm font-bold" style={{ color: O.ink }}>Basic Information</h3>
-                                            <p className="text-[11.5px]" style={{ color: O.muted }}>Personal & contact details</p>
+                                            <h3 className="text-sm font-bold" style={{ color: T.ink }}>Basic Information</h3>
+                                            <p className="text-[11.5px]" style={{ color: T.muted }}>Personal & contact details</p>
                                         </div>
                                     </div>
 
@@ -360,13 +370,13 @@ export default function AddLead() {
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <Field label="Phone" required error={errors.phone}>
                                             <div className="flex items-stretch rounded-xl overflow-hidden"
-                                                style={{ border: `1px solid ${errors.phone ? O.error : O.line}` }}>
+                                                style={{ border: `1px solid ${errors.phone ? T.error : T.line}` }}>
                                                 <span className="inline-flex items-center px-3 text-sm font-bold"
-                                                    style={{ background: O.bgSoft, color: O.ink, borderRight: `1px solid ${O.line}` }}>
+                                                    style={{ background: T.blueLight, color: T.blueDark, borderRight: `1px solid ${T.line}` }}>
                                                     🇮🇳 +91
                                                 </span>
                                                 <input className="flex-1 bg-white px-3 py-2.5 text-sm outline-none min-w-0"
-                                                    style={{ color: O.ink }}
+                                                    style={{ color: T.ink }}
                                                     value={form.phone}
                                                     onChange={e => set('phone', e.target.value.replace(/\D/g, '').slice(0, 10))}
                                                     placeholder="98765 43210" inputMode="numeric" />
@@ -374,13 +384,13 @@ export default function AddLead() {
                                         </Field>
                                         <Field label="Alternate Phone" hint="Optional">
                                             <div className="flex items-stretch rounded-xl overflow-hidden"
-                                                style={{ border: `1px solid ${O.line}` }}>
+                                                style={{ border: `1px solid ${T.line}` }}>
                                                 <span className="inline-flex items-center px-3 text-sm font-bold"
-                                                    style={{ background: O.bgSoft, color: O.ink, borderRight: `1px solid ${O.line}` }}>
+                                                    style={{ background: T.blueLight, color: T.blueDark, borderRight: `1px solid ${T.line}` }}>
                                                     🇮🇳 +91
                                                 </span>
                                                 <input className="flex-1 bg-white px-3 py-2.5 text-sm outline-none min-w-0"
-                                                    style={{ color: O.ink }}
+                                                    style={{ color: T.ink }}
                                                     value={form.alternatePhone}
                                                     onChange={e => set('alternatePhone', e.target.value.replace(/\D/g, '').slice(0, 10))}
                                                     placeholder="98765 43210" inputMode="numeric" />
@@ -406,14 +416,14 @@ export default function AddLead() {
                                     transition={{ duration: 0.22 }}
                                     className="p-6 space-y-5"
                                 >
-                                    <div className="flex items-center gap-3 pb-4" style={{ borderBottom: `1px solid ${O.line}` }}>
+                                    <div className="flex items-center gap-3 pb-4" style={{ borderBottom: `1px solid ${T.line}` }}>
                                         <div className="w-9 h-9 rounded-xl grid place-items-center text-white shadow-sm"
-                                            style={{ background: `linear-gradient(135deg, ${O.primary3}, ${O.primary})` }}>
+                                            style={{ background: T.orangeGradient }}>
                                             <Briefcase className="w-4 h-4" />
                                         </div>
                                         <div>
-                                            <h3 className="text-sm font-bold" style={{ color: O.ink }}>Lead Details</h3>
-                                            <p className="text-[11.5px]" style={{ color: O.muted }}>Source, course interest & budget</p>
+                                            <h3 className="text-sm font-bold" style={{ color: T.ink }}>Lead Details</h3>
+                                            <p className="text-[11.5px]" style={{ color: T.muted }}>Source, course interest & budget</p>
                                         </div>
                                     </div>
 
@@ -484,7 +494,7 @@ export default function AddLead() {
                                         <Field label="Budget" required error={errors.budget}>
                                             <div className="relative">
                                                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold"
-                                                    style={{ color: O.muted }}>₹</span>
+                                                    style={{ color: T.orange }}>₹</span>
                                                 <input type="number" className={`${inputCls} pl-7`} style={inputStyle(errors.budget)}
                                                     value={form.budget} onChange={e => set('budget', e.target.value)}
                                                     placeholder="20,000" />
@@ -506,20 +516,20 @@ export default function AddLead() {
                                     initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.22 }}
                                     className="p-6 space-y-5">
-                                    <div className="flex items-center gap-3 pb-4" style={{ borderBottom: `1px solid ${O.line}` }}>
+                                    <div className="flex items-center gap-3 pb-4" style={{ borderBottom: `1px solid ${T.line}` }}>
                                         <div className="w-9 h-9 rounded-xl grid place-items-center text-white shadow-sm"
-                                            style={{ background: `linear-gradient(135deg, ${O.primary3}, ${O.primary})` }}>
+                                            style={{ background: T.blueGradient }}>
                                             <Calendar className="w-4 h-4" />
                                         </div>
                                         <div className="flex-1">
-                                            <h3 className="text-sm font-bold flex items-center gap-2" style={{ color: O.ink }}>
+                                            <h3 className="text-sm font-bold flex items-center gap-2" style={{ color: T.ink }}>
                                                 Scheduling
-                                                <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
-                                                    style={{ background: O.bgSofter, color: O.muted, border: `1px solid ${O.line}` }}>
+                                                <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full"
+                                                    style={{ background: T.orangeLight, color: T.orangeDark, border: `1px solid ${T.orangeBorder}` }}>
                                                     Optional
                                                 </span>
                                             </h3>
-                                            <p className="text-[11.5px]" style={{ color: O.muted }}>
+                                            <p className="text-[11.5px]" style={{ color: T.muted }}>
                                                 Follow-up and demo dates — you can add these later
                                             </p>
                                         </div>
@@ -541,9 +551,9 @@ export default function AddLead() {
                                     </div>
 
                                     <div className="rounded-xl p-3.5 flex items-start gap-3"
-                                        style={{ background: O.bgSofter, border: `1px solid ${O.lineSoft}` }}>
+                                        style={{ background: T.orangeLight, border: `1px solid ${T.orangeBorder}` }}>
                                         <span className="text-lg">💡</span>
-                                        <p className="text-[11.5px] leading-relaxed font-semibold" style={{ color: O.deep }}>
+                                        <p className="text-[11.5px] leading-relaxed font-semibold" style={{ color: T.orangeDark }}>
                                             These fields are optional. You can add or edit follow-up and demo dates any time from the lead detail page.
                                         </p>
                                     </div>
@@ -556,14 +566,14 @@ export default function AddLead() {
                                     initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.22 }}
                                     className="p-6 space-y-5">
-                                    <div className="flex items-center gap-3 pb-4" style={{ borderBottom: `1px solid ${O.line}` }}>
+                                    <div className="flex items-center gap-3 pb-4" style={{ borderBottom: `1px solid ${T.line}` }}>
                                         <div className="w-9 h-9 rounded-xl grid place-items-center text-white shadow-sm"
-                                            style={{ background: `linear-gradient(135deg, ${O.primary}, ${O.deep})` }}>
+                                            style={{ background: T.orangeGradient }}>
                                             <UsersIcon className="w-4 h-4" />
                                         </div>
                                         <div>
-                                            <h3 className="text-sm font-bold" style={{ color: O.ink }}>Assignment</h3>
-                                            <p className="text-[11.5px]" style={{ color: O.muted }}>Owner and campaign</p>
+                                            <h3 className="text-sm font-bold" style={{ color: T.ink }}>Assignment</h3>
+                                            <p className="text-[11.5px]" style={{ color: T.muted }}>Owner and campaign</p>
                                         </div>
                                     </div>
 
@@ -587,22 +597,22 @@ export default function AddLead() {
                                     </div>
 
                                     <div className="rounded-2xl p-4"
-                                        style={{ background: O.bgSoft, border: `1px solid ${O.line}` }}>
+                                        style={{ background: T.blueLight, border: `1px solid ${T.blueBorder}` }}>
                                         <div className="flex items-center gap-2 mb-3">
-                                            <Check className="w-4 h-4" style={{ color: O.primary }} />
-                                            <span className="text-[12.5px] font-bold" style={{ color: O.ink }}>Ready to save</span>
+                                            <Check className="w-4 h-4 text-blue-600" />
+                                            <span className="text-[12.5px] font-bold" style={{ color: T.blueDark }}>Ready to save</span>
                                         </div>
                                         <div className="grid grid-cols-2 gap-y-2 text-[11.5px]">
-                                            <div style={{ color: O.inkSoft }}>Name</div>
-                                            <div className="font-bold truncate" style={{ color: O.ink }}>{form.name || '—'}</div>
-                                            <div style={{ color: O.inkSoft }}>Phone</div>
-                                            <div className="font-bold" style={{ color: O.ink }}>{form.phone ? `+91 ${form.phone}` : '—'}</div>
-                                            <div style={{ color: O.inkSoft }}>Email</div>
-                                            <div className="font-bold truncate" style={{ color: O.ink }}>{form.email || '—'}</div>
-                                            <div style={{ color: O.inkSoft }}>Source</div>
-                                            <div className="font-bold" style={{ color: O.ink }}>{form.leadSource}</div>
-                                            <div style={{ color: O.inkSoft }}>Status</div>
-                                            <div className="font-bold" style={{ color: O.ink }}>{form.status}</div>
+                                            <div style={{ color: T.muted }}>Name</div>
+                                            <div className="font-bold truncate" style={{ color: T.ink }}>{form.name || '—'}</div>
+                                            <div style={{ color: T.muted }}>Phone</div>
+                                            <div className="font-bold" style={{ color: T.ink }}>{form.phone ? `+91 ${form.phone}` : '—'}</div>
+                                            <div style={{ color: T.muted }}>Email</div>
+                                            <div className="font-bold truncate" style={{ color: T.ink }}>{form.email || '—'}</div>
+                                            <div style={{ color: T.muted }}>Source</div>
+                                            <div className="font-bold" style={{ color: T.ink }}>{form.leadSource}</div>
+                                            <div style={{ color: T.muted }}>Status</div>
+                                            <div className="font-bold" style={{ color: T.orangeDark }}>{form.status}</div>
                                         </div>
                                     </div>
                                 </motion.div>
@@ -614,27 +624,27 @@ export default function AddLead() {
                     <div className="flex items-center gap-3 mt-5">
                         {step > 1 && (
                             <motion.button type="button" onClick={prevStep}
-                                whileHover={{ y: -2, backgroundColor: O.bgSoft }} whileTap={{ scale: 0.97 }}
-                                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold transition-all"
-                                style={{ background: O.white, color: O.inkSoft, border: `1px solid ${O.line}` }}>
-                                <ChevronLeft className="w-4 h-4" /> Back
+                                whileHover={{ y: -2, backgroundColor: T.blueLight }} whileTap={{ scale: 0.97 }}
+                                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm"
+                                style={{ background: T.white, color: T.inkSoft, border: `1px solid ${T.line}` }}>
+                                <ChevronLeft className="w-4 h-4 text-blue-600" /> Back
                             </motion.button>
                         )}
                         <div className="flex-1" />
                         {step < 4 ? (
                             <motion.button type="button" onClick={nextStep}
-                                whileHover={{ y: -2, boxShadow: `0 12px 26px ${O.primary}60` }}
+                                whileHover={{ y: -2, boxShadow: `0 12px 24px rgba(37,99,235,0.3)` }}
                                 whileTap={{ scale: 0.97 }}
-                                className="flex items-center gap-1.5 px-6 py-2.5 rounded-xl text-sm font-bold text-white transition-all"
-                                style={{ background: `linear-gradient(135deg, ${O.primary}, ${O.deep})` }}>
+                                className="flex items-center gap-1.5 px-6 py-2.5 rounded-xl text-sm font-bold text-white transition-all shadow-sm"
+                                style={{ background: T.blueGradient }}>
                                 Continue <ChevronRight className="w-4 h-4" />
                             </motion.button>
                         ) : (
                             <motion.button type="submit" disabled={saving}
-                                whileHover={!saving ? { y: -2, boxShadow: `0 12px 26px ${O.deep}80` } : {}}
+                                whileHover={!saving ? { y: -2, boxShadow: `0 12px 24px rgba(249,115,22,0.4)` } : {}}
                                 whileTap={!saving ? { scale: 0.97 } : {}}
-                                className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-70"
-                                style={{ background: `linear-gradient(135deg, ${O.primary}, ${O.deep}, ${O.darkest})` }}>
+                                className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-70 shadow-sm"
+                                style={{ background: T.orangeGradient }}>
                                 {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : isEdit ? 'Update Lead' : 'Save Lead'}
                             </motion.button>
                         )}
