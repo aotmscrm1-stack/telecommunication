@@ -35,6 +35,11 @@ export const isHR = (user) => {
   return d === 'HR';
 };
 
+export const isManager = (user) => {
+  const d = normalizeDesignation(user);
+  return d === 'MANAGER' || user?.role === 'manager';
+};
+
 export const isDeveloper = (user) => {
   const d = normalizeDesignation(user);
   return d === 'DEVELOPER';

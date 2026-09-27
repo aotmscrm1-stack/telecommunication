@@ -13,7 +13,7 @@ import {
   FaCode, FaBell, FaChevronDown, FaBars, FaXmark, FaRightFromBracket,
   FaUser, FaLock, FaUserCheck
 } from 'react-icons/fa6';
-import { isCEO, isHR, isLimitedStaff, canViewDashboard, normalizeDesignation } from '../../../utils/permissions';
+import { isCEO, isHR, isManager, isLimitedStaff, canViewDashboard, normalizeDesignation } from '../../../utils/permissions';
 
 
 /* ─────────────────────────────────────────────────────────
@@ -523,6 +523,7 @@ export default function Navbar() {
     ]},
     { title: 'Management', icon: FaSitemap, items: [
       { label: 'Attendance', path: '/admin/attendance-records', icon: FaCalendarCheck },
+      { label: 'Call Recordings', path: '/recordings', icon: FaClock, adminOnly: !isHR(user) && !isCEO(user) && !isManager(user) },
       { label: 'Live Tracking', path: '/admin/employee-tracking', icon: FaLocationDot, adminOnly: !isHR(user) && !isCEO(user) },
       { label: 'Email CRM', path: '/email', icon: FaEnvelopeOpenText },
     ]},
@@ -697,7 +698,7 @@ export default function Navbar() {
                           >
                             <div className="h-0.5 w-full -mt-2 mb-1" style={{ background: `linear-gradient(90deg, ${C.orange}, ${C.orangeLt}, ${C.blue})` }} />
                             {group.items
-                              .filter(item => !item.adminOnly || user?.role === 'admin' || isCEO(user) || isHR(user) || item.path.includes('attendance'))
+                              .filter(item => !item.adminOnly || user?.role === 'admin' || isCEO(user) || isHR(user) || isManager(user) || user?.role === 'manager' || item.path.includes('attendance'))
                               .map(item => {
                                 const ItemIcon = item.icon;
                                 const active = location.pathname === item.path;

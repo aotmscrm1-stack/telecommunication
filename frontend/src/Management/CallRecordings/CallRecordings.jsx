@@ -309,12 +309,14 @@ export default function CallRecordings() {
   const [rematchMsg, setRematchMsg] = useState(null);
   const [activeLinkRecording, setActiveLinkRecording] = useState(null);
 
+  const canManageCRUD = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'hr' || user?.role === 'ceo';
+  const canViewAllRecordings = canManageCRUD || user?.role === 'manager';
+
   const fetchRecordings = async () => {
     setLoading(true);
     setError(null);
     try {
-      const isAdmin = user?.role === 'admin' || user?.role === 'manager';
-      const res = isAdmin ? await recordingsAPI.getAll() : await recordingsAPI.getMy();
+      const res = canViewAllRecordings ? await recordingsAPI.getAll() : await recordingsAPI.getMy();
       const list = res.data?.recordings || res.data || [];
       setRecordings(Array.isArray(list) ? list : []);
     } catch (err) {
@@ -401,7 +403,7 @@ export default function CallRecordings() {
         </div>
 
         <div style={{ display: 'flex', gap: '10px' }}>
-          {isAdmin && (
+          {canManageCRUD && (
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -619,22 +621,24 @@ export default function CallRecordings() {
 
                   {/* Right Actions: Edit Link Lead & Three Dots Menu */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {/* Edit Link Lead Icon */}
-                    <motion.button
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => setActiveLinkRecording(rec)}
-                      title={hasLead ? "Change Lead" : "Link Lead"}
-                      style={{
-                        background: '#f8fafc', border: `1px solid ${C.border}`, borderRadius: '6px',
-                        width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        cursor: 'pointer', color: C.blue, transition: 'all 0.15s'
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.borderColor = C.blue}
-                      onMouseLeave={e => e.currentTarget.style.borderColor = C.border}
-                    >
-                      <Edit3 style={{ width: '13px', height: '13px' }} />
-                    </motion.button>
+                    {/* Edit Link Lead Icon (Admin & HR only) */}
+                    {canManageCRUD && (
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => setActiveLinkRecording(rec)}
+                        title={hasLead ? "Change Lead" : "Link Lead"}
+                        style={{
+                          background: '#f8fafc', border: `1px solid ${C.border}`, borderRadius: '6px',
+                          width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          cursor: 'pointer', color: C.blue, transition: 'all 0.15s'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.borderColor = C.blue}
+                        onMouseLeave={e => e.currentTarget.style.borderColor = C.border}
+                      >
+                        <Edit3 style={{ width: '13px', height: '13px' }} />
+                      </motion.button>
+                    )}
 
                     {/* Three Dots Menu for Download & Open */}
                     <ThreeDotsMenu audioUrl={audioUrl} originalName={rec.originalName} />
@@ -736,12 +740,14 @@ export default function CallRecordings() {
 
                       <td style={{ padding: '14px 16px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                          <button
-                            onClick={() => setActiveLinkRecording(rec)}
-                            style={{ background: C.blueLight, color: C.blue, border: `1px solid ${C.blue}`, padding: '4px 8px', borderRadius: '6px', fontWeight: 600, fontSize: '11px', cursor: 'pointer' }}
-                          >
-                            ✏️ Link Lead
-                          </button>
+                          {canManageCRUD && (
+                            <button
+                              onClick={() => setActiveLinkRecording(rec)}
+                              style={{ background: C.blueLight, color: C.blue, border: `1px solid ${C.blue}`, padding: '4px 8px', borderRadius: '6px', fontWeight: 600, fontSize: '11px', cursor: 'pointer' }}
+                            >
+                              ✏️ Link Lead
+                            </button>
+                          )}
                           <ThreeDotsMenu audioUrl={audioUrl} originalName={rec.originalName} />
                         </div>
                       </td>
