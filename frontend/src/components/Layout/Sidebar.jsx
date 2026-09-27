@@ -227,6 +227,7 @@ export default function Sidebar() {
           <NavItem to="/dashboard"     icon={Icons.dashboard}   label="Dashboard" />
           <NavItem to="/leads"         icon={Icons.leads}       label="All Leads" />
           <NavItem to="/tasks"         icon={Icons.tasks}       label="Tasks" />
+          <NavItem to="/recordings"    icon={Icons.recordings}  label="Call Recordings" iconColor="#0284c7" />
 
           {isAdmin && (
             <>

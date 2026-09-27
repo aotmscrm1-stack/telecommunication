@@ -37,6 +37,7 @@ import LiveEmployeeTracking from './Management/Attedence/LiveEmployee/LiveEmploy
 import AttendanceRecords from './Management/Attedence/AttendanceRecords';
 import BulkEmailBlast from './Management/Email/BulkEmailBlast';
 import MapsDashboard from './Maps';
+import CallRecordings from './Management/CallRecordings/CallRecordings';
 
 import { isCEO, isHR, isLimitedStaff, canViewDashboard, canAccessEmailBlast } from './utils/permissions';
 
@@ -176,6 +177,8 @@ export default function App() {
             <Route path="attendance-records" element={<AttendanceRoute><AttendanceRecords /></AttendanceRoute>} />
             <Route path="add-lead" element={<StaffRestrictedRoute><AddLead /></StaffRestrictedRoute>} />
             <Route path="maps" element={<MapsDashboard />} />
+            <Route path="recordings" element={<CallRecordings />} />
+            <Route path="call-recordings" element={<Navigate to="/recordings" replace />} />
           </Route>
           <Route path="*" element={<RootRedirect />} />
         </Routes>
