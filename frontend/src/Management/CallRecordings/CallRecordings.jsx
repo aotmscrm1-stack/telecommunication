@@ -2,8 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   AudioLines, Table, LayoutGrid, PhoneCall, FileAudio, 
-  Clock, Edit3, MoreVertical, Download, ExternalLink, RefreshCw, User, UserPlus,
-  Smartphone, Radio, CheckCircle2, Zap
+  Clock, Edit3, MoreVertical, Download, ExternalLink, RefreshCw, User, UserPlus
 } from 'lucide-react';
 import { recordingsAPI, leadsAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -297,115 +296,6 @@ function ManualLinkLeadModal({ recording, onClose, onLinked }) {
   );
 }
 
-// ── SYNC APP DATA MODAL ──────────────────────────────────────────────────────
-function SyncAppModal({ isOpen, onClose, onSyncNow, onRematch, isSyncing, isRematching, backendUrl }) {
-  if (!isOpen) return null;
-
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 9999,
-      background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(5px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px'
-    }}>
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 10 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 10 }}
-        style={{
-          background: '#ffffff', borderRadius: '16px', maxWidth: '520px', width: '100%',
-          boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', border: `1px solid ${C.border}`, overflow: 'hidden'
-        }}
-      >
-        {/* Header */}
-        <div style={{
-          background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-          padding: '20px 24px', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ background: 'rgba(255,255,255,0.2)', padding: '8px', borderRadius: '10px' }}>
-              <Smartphone style={{ width: '22px', height: '22px' }} />
-            </div>
-            <div>
-              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800 }}>Mobile App Recording Sync</h3>
-              <p style={{ margin: '2px 0 0 0', fontSize: '12px', opacity: 0.88 }}>Sync call recordings & match leads with mobile app</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#ffffff', width: '30px', height: '30px', borderRadius: '50%', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold' }}
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Content */}
-        <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          
-          {/* Live Backend Connection Status */}
-          <div style={{
-            background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '12px 16px', borderRadius: '12px',
-            display: 'flex', alignItems: 'center', gap: '12px'
-          }}>
-            <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#16a34a', boxShadow: '0 0 8px #16a34a' }} />
-            <div>
-              <div style={{ fontSize: '12px', fontWeight: 700, color: '#15803d' }}>Backend Live Connection Active</div>
-              <div style={{ fontSize: '11px', color: '#166534', fontFamily: 'monospace', marginTop: '2px' }}>
-                {backendUrl}
-              </div>
-            </div>
-          </div>
-
-          {/* Sync Trigger Actions */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={onSyncNow}
-              disabled={isSyncing}
-              style={{
-                background: C.blue, color: '#ffffff', border: 'none', padding: '12px 14px', borderRadius: '10px',
-                fontWeight: 700, fontSize: '13px', cursor: isSyncing ? 'not-allowed' : 'pointer',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
-                boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)'
-              }}
-            >
-              <RefreshCw style={{ width: '18px', height: '18px' }} className={isSyncing ? 'animate-spin' : ''} />
-              {isSyncing ? 'Syncing Server...' : '⚡ Sync Data Now'}
-            </motion.button>
-
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={onRematch}
-              disabled={isRematching}
-              style={{
-                background: C.orange, color: '#ffffff', border: 'none', padding: '12px 14px', borderRadius: '10px',
-                fontWeight: 700, fontSize: '13px', cursor: isRematching ? 'not-allowed' : 'pointer',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
-                boxShadow: '0 4px 12px rgba(249, 115, 22, 0.25)'
-              }}
-            >
-              <Zap style={{ width: '18px', height: '18px' }} className={isRematching ? 'animate-spin' : ''} />
-              {isRematching ? 'Matching Leads...' : '🔄 Auto-Match Leads'}
-            </motion.button>
-          </div>
-
-          {/* How Sync Works Box */}
-          <div style={{ background: '#f8fafc', border: `1px solid ${C.border}`, borderRadius: '12px', padding: '14px 16px' }}>
-            <div style={{ fontSize: '12px', fontWeight: 700, color: C.dark, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Radio style={{ width: '14px', height: '14px', color: C.blue }} /> Mobile App Automatic Sync:
-            </div>
-            <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '12px', color: C.textSoft, lineHeight: '1.6' }}>
-              <li>App uploads recorded call files from <code style={{ background: '#e2e8f0', padding: '2px 4px', borderRadius: '4px', color: C.dark }}>InternalStorage/Recordings/Record/call/</code></li>
-              <li>Recordings automatically connect & match to CRM leads via phone number.</li>
-            </ul>
-          </div>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
-
 // ── MAIN CALL RECORDINGS PAGE ───────────────────────────────────────────────
 export default function CallRecordings() {
   const { user } = useAuth();
@@ -418,7 +308,6 @@ export default function CallRecordings() {
   const [rematching, setRematching] = useState(false);
   const [rematchMsg, setRematchMsg] = useState(null);
   const [activeLinkRecording, setActiveLinkRecording] = useState(null);
-  const [syncModalOpen, setSyncModalOpen] = useState(false);
 
   const fetchRecordings = async () => {
     setLoading(true);
@@ -511,22 +400,7 @@ export default function CallRecordings() {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setSyncModalOpen(true)}
-            style={{
-              background: '#ffffff', color: C.blueDark, border: 'none', padding: '10px 18px',
-              borderRadius: '10px', fontWeight: 700, fontSize: '13px', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: '6px',
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
-            }}
-          >
-            <Smartphone style={{ width: '16px', height: '16px' }} />
-            📲 Sync App Data
-          </motion.button>
-
+        <div style={{ display: 'flex', gap: '10px' }}>
           {isAdmin && (
             <motion.button
               whileHover={{ scale: 1.05 }}
@@ -880,25 +754,13 @@ export default function CallRecordings() {
         </div>
       )}
 
-      {/* ── MODALS ── */}
+      {/* ── MANUAL LINK LEAD MODAL ── */}
       <AnimatePresence>
         {activeLinkRecording && (
           <ManualLinkLeadModal
             recording={activeLinkRecording}
             onClose={() => setActiveLinkRecording(null)}
             onLinked={fetchRecordings}
-          />
-        )}
-
-        {syncModalOpen && (
-          <SyncAppModal
-            isOpen={syncModalOpen}
-            onClose={() => setSyncModalOpen(false)}
-            onSyncNow={fetchRecordings}
-            onRematch={handleRematch}
-            isSyncing={loading}
-            isRematching={rematching}
-            backendUrl={import.meta.env.VITE_API_URL || 'https://telecommunication-l3oz.onrender.com/api'}
           />
         )}
       </AnimatePresence>

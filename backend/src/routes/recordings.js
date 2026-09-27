@@ -62,7 +62,7 @@ const upload = multer({
   storage,
   limits: { fileSize: 25 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const allowed = /\.(m4a|amr|mp3|wav|3gp|3gpp|aac|ogg)$/i;
+    const allowed = /\.(m4a|amr|mp3|wav|3gp|3gpp|aac|ogg|opus|wma|m4p|flac|mp4|awb)$/i;
     if (allowed.test(file.originalname)) cb(null, true);
     else cb(new Error('Unsupported audio file type'));
   },
