@@ -814,7 +814,34 @@ function InboxTab({ onSendTemplate }) {
     }
   };
 
-  useEffect(() => { fetchLeads(); }, [tab, search]);
+  useEffect(() => {
+    fetchLeads();
+    const handleSync = () => {
+      fetchLeads();
+      fetchContacts();
+    };
+    window.addEventListener('wa_data_synced', handleSync);
+    // Background polling every 8s to recover messages seamlessly across session restarts
+    const interval = setInterval(() => {
+      fetchLeads();
+    }, 8000);
+
+    return () => {
+      window.removeEventListener('wa_data_synced', handleSync);
+      clearInterval(interval);
+    };
+  }, [tab, search]);
+
+  // Periodic thread refresher for active selected chat thread
+  useEffect(() => {
+    if (!selectedId) return;
+    const threadInterval = setInterval(() => {
+      api.get(`/whatsapp-inbox/${selectedId}`)
+        .then(res => setThread(res.data))
+        .catch(() => {});
+    }, 6000);
+    return () => clearInterval(threadInterval);
+  }, [selectedId]);
 
   // Extract ONLY existing identities from contacts and leads
   const existingIdentities = (() => {
