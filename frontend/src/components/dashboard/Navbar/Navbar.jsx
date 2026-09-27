@@ -504,11 +504,11 @@ export default function Navbar() {
     { title: 'Information', icon: FaCircleInfo, items: [
       { label: 'Dashboard', path: '/dashboard', icon: FaHouse },
       { label: 'Task', path: '/tasks', icon: FaListCheck },
-      { label: 'Call Recordings', path: '/recordings', icon: FaClock },
     ]},
     { title: 'Marketing', icon: FaBullhorn, items: [
       { label: 'Add Leads', path: '/leads/new', icon: FaUserPlus },
       { label: 'All Leads', path: '/leads', icon: FaUsers },
+      { label: 'Call Recordings', path: '/recordings', icon: FaClock },
       { label: 'Campaigns', path: '/campaigns', icon: FaBullhorn },
       { label: 'Contact', path: '/contacts', icon: FaWhatsapp },
       { label: 'WhatsApp Blast', path: '/whatsapp-blast', icon: FaWhatsapp },
