@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Phone, PhoneOff, Mail, MapPin, Award, IndianRupee, Globe, User, Calendar, Tag, Star, Edit3, Save, X, Plus, Clock, MessageCircle, Copy, Check, Trash2, BookOpen, Zap, Sparkles, ShieldAlert, CheckCircle2, ChevronRight, Volume2, Download, Mic } from 'lucide-react';
+import { ArrowLeft, Phone, PhoneOff, Mail, MapPin, Award, IndianRupee, Globe, User, Calendar, Tag, Star, Edit3, Save, X, Plus, Clock, MessageCircle, Copy, Check, Trash2, BookOpen, Zap, Sparkles, ShieldAlert, CheckCircle2, ChevronRight, Volume2, Download, Mic, Maximize2 } from 'lucide-react';
 import api, { leadsAPI, campaignsAPI, usersAPI, coursesAPI, followupsAPI, blocklistAPI, leadStagesAPI, messageTemplatesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { canDelete } from '../../utils/permissions';
 import StatusBadge from '../common/StatusBadge';
 import { formatDistanceToNow, format } from 'date-fns';
+import TranscriptConversationModal from '../TranscriptConversationModal';
 
 const PALETTE = {
   navy: '#1d3557',
@@ -727,6 +728,7 @@ export default function LeadDetailsPage({
   const [isBlocked, setIsBlocked] = useState(false);
   const [blockEntryId, setBlockEntryId] = useState(null);
   const [blockingAction, setBlockingAction] = useState(false);
+  const [activeConversationRecording, setActiveConversationRecording] = useState(null);
 
   const [activityFilter, setActivityFilter] = useState('all');
 
@@ -1486,9 +1488,22 @@ export default function LeadDetailsPage({
                             {/* AI Transcript if available */}
                             {a.rec.transcript && (
                               <div className="bg-blue-50/60 border border-blue-100 rounded-xl p-2.5 text-[10px] text-slate-700 mb-2">
-                                <span className="font-bold text-blue-700 flex items-center gap-1 mb-1">
-                                  <Sparkles className="w-3 h-3" /> AI Whisper Transcript:
-                                </span>
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="font-bold text-blue-700 flex items-center gap-1">
+                                    <Sparkles className="w-3 h-3" /> AI Whisper Transcript:
+                                  </span>
+                                  <button
+                                    onClick={() => setActiveConversationRecording({
+                                      ...a.rec,
+                                      leadName: lead?.name,
+                                      phone: lead?.phone || a.rec?.phone,
+                                    })}
+                                    title="Open Fullscreen Chat Conversation View"
+                                    className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-1.5 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                                  >
+                                    <Maximize2 className="w-2.5 h-2.5" /> Chat View
+                                  </button>
+                                </div>
                                 <p className="line-clamp-3 italic text-slate-600">{a.rec.transcript}</p>
                               </div>
                             )}
@@ -1645,6 +1660,12 @@ export default function LeadDetailsPage({
             lead={lead}
             onClose={() => setShowSendTemplateModal(false)}
             onSuccess={fetchLeadDetails}
+          />
+        )}
+        {activeConversationRecording && (
+          <TranscriptConversationModal
+            recording={activeConversationRecording}
+            onClose={() => setActiveConversationRecording(null)}
           />
         )}
       </AnimatePresence>

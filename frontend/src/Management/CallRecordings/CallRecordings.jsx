@@ -2,12 +2,14 @@ import { useState, useEffect, useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   AudioLines, Table, LayoutGrid, PhoneCall, FileAudio, 
-  Clock, Edit3, MoreVertical, Download, ExternalLink, RefreshCw, User, UserPlus, Sparkles, FileText
+  Clock, Edit3, MoreVertical, Download, ExternalLink, RefreshCw, User, UserPlus, Sparkles, FileText,
+  Maximize2, MessageSquare, Copy, Check, Volume2
 } from 'lucide-react';
 import { recordingsAPI, leadsAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { formatISTDateTime } from '../../utils/dateFormat';
 import { isHR, isCEO, isManager } from '../../utils/permissions';
+import TranscriptConversationModal from '../../components/TranscriptConversationModal';
 
 // ── MEMOIZED AUDIO PLAYER (Prevents audio reset/pause on parent state change)
 const MemoizedAudioPlayer = memo(function MemoizedAudioPlayer({ audioUrl, mimeType }) {
@@ -127,6 +129,8 @@ function ThreeDotsMenu({ audioUrl, originalName }) {
     </div>
   );
 }
+
+
 
 // ── MODAL: MANUALLY LINK LEAD / CONTACT ─────────────────────────────────────
 function ManualLinkLeadModal({ recording, onClose, onLinked }) {
@@ -323,6 +327,7 @@ export default function CallRecordings() {
   const [rematchMsg, setRematchMsg] = useState(null);
   const [activeLinkRecording, setActiveLinkRecording] = useState(null);
   const [transcribingId, setTranscribingId] = useState(null);
+  const [activeConversationRecording, setActiveConversationRecording] = useState(null);
 
   const isHRUser = isHR(user) || user?.role === 'hr' || String(user?.designation || '').toUpperCase() === 'HR';
   const isCEOUser = isCEO(user) || user?.role === 'ceo' || user?.role === 'admin' || user?.role === 'superadmin';
@@ -719,9 +724,22 @@ export default function CallRecordings() {
                       background: '#f8fafc', padding: '8px 10px', borderRadius: '8px',
                       border: `1px solid ${C.border}`, fontSize: '11px', color: '#334155'
                     }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 700, color: C.blue, marginBottom: '4px' }}>
-                        <Sparkles style={{ width: '12px', height: '12px' }} />
-                        <span>AI Whisper Transcript:</span>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 700, color: C.blue }}>
+                          <Sparkles style={{ width: '12px', height: '12px' }} />
+                          <span>AI Whisper Transcript:</span>
+                        </div>
+                        <button
+                          onClick={() => setActiveConversationRecording(rec)}
+                          title="Open Fullscreen Chat Conversation View"
+                          style={{
+                            background: C.blueLight, color: C.blue, border: 'none', borderRadius: '4px',
+                            padding: '2px 7px', fontSize: '10px', fontWeight: 700, cursor: 'pointer',
+                            display: 'inline-flex', alignItems: 'center', gap: '3px'
+                          }}
+                        >
+                          <Maximize2 style={{ width: '11px', height: '11px' }} /> Chat View
+                        </button>
                       </div>
                       <div style={{ maxHeight: '80px', overflowY: 'auto', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>
                         {rec.transcript}
@@ -821,13 +839,19 @@ export default function CallRecordings() {
         </div>
       )}
 
-      {/* ── MANUAL LINK LEAD MODAL ── */}
+      {/* ── MODALS ── */}
       <AnimatePresence>
         {activeLinkRecording && (
           <ManualLinkLeadModal
             recording={activeLinkRecording}
             onClose={() => setActiveLinkRecording(null)}
             onLinked={fetchRecordings}
+          />
+        )}
+        {activeConversationRecording && (
+          <TranscriptConversationModal
+            recording={activeConversationRecording}
+            onClose={() => setActiveConversationRecording(null)}
           />
         )}
       </AnimatePresence>
