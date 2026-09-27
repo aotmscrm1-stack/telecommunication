@@ -296,8 +296,17 @@ router.post('/:id/transcribe', protect, async (req, res) => {
       return res.json({ success: true, transcript: rec.transcript, cached: true });
     }
 
-    if (!transcribeAudioFile) {
-      return res.status(501).json({ error: 'Transcription service not configured on server' });
+    let sttFn = transcribeAudioFile;
+    if (!sttFn) {
+      try {
+        sttFn = require('../services/transcriptionService').transcribeAudioFile;
+      } catch (err) {
+        console.error('Failed to load transcriptionService:', err);
+      }
+    }
+
+    if (!sttFn) {
+      return res.status(501).json({ error: 'Transcription service not configured on server or OPENAI_API_KEY is missing' });
     }
 
     rec.transcriptStatus = 'pending';
@@ -305,7 +314,7 @@ router.post('/:id/transcribe', protect, async (req, res) => {
 
     try {
       const absolutePath = path.join(UPLOAD_DIR, rec.storedName);
-      const transcript = await transcribeAudioFile(absolutePath, req.body.apiKey);
+      const transcript = await sttFn(absolutePath, req.body.apiKey);
       rec.transcript = transcript;
       rec.transcriptStatus = 'done';
       rec.transcriptError = '';
