@@ -637,22 +637,29 @@ export default function CallRecordings() {
 
                   {/* Right Actions: Edit Link Lead & Three Dots Menu */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {/* Edit Link Lead Icon (Admin & HR only) */}
+                    {/* Link Lead Action Button */}
                     {canManageCRUD && (
                       <motion.button
-                        whileHover={{ scale: 1.1 }}
+                        whileHover={{ scale: 1.04 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => setActiveLinkRecording(rec)}
-                        title={hasLead ? "Change Lead" : "Link Lead"}
+                        title={hasLead ? "Change Linked Lead" : "Link this recording to a CRM Lead"}
                         style={{
-                          background: '#f8fafc', border: `1px solid ${C.border}`, borderRadius: '6px',
-                          width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          cursor: 'pointer', color: C.blue, transition: 'all 0.15s'
+                          background: hasLead ? '#f8fafc' : C.orangeLight,
+                          border: `1px solid ${hasLead ? C.border : C.orange}`,
+                          borderRadius: '8px',
+                          padding: '5px 10px',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          display: 'flex', alignItems: 'center', gap: '5px',
+                          cursor: 'pointer',
+                          color: hasLead ? C.blue : C.orangeDark,
+                          boxShadow: hasLead ? 'none' : '0 2px 6px rgba(249, 115, 22, 0.2)',
+                          transition: 'all 0.15s'
                         }}
-                        onMouseEnter={e => e.currentTarget.style.borderColor = C.blue}
-                        onMouseLeave={e => e.currentTarget.style.borderColor = C.border}
                       >
-                        <Edit3 style={{ width: '13px', height: '13px' }} />
+                        <UserPlus style={{ width: '13px', height: '13px' }} />
+                        <span>{hasLead ? "Edit Link" : "🔗 Link Lead"}</span>
                       </motion.button>
                     )}
 
@@ -791,9 +798,15 @@ export default function CallRecordings() {
                           {canManageCRUD && (
                             <button
                               onClick={() => setActiveLinkRecording(rec)}
-                              style={{ background: C.blueLight, color: C.blue, border: `1px solid ${C.blue}`, padding: '4px 8px', borderRadius: '6px', fontWeight: 600, fontSize: '11px', cursor: 'pointer' }}
+                              style={{
+                                background: hasLead ? C.blueLight : C.orangeLight,
+                                color: hasLead ? C.blue : C.orangeDark,
+                                border: `1px solid ${hasLead ? C.blue : C.orange}`,
+                                padding: '5px 10px', borderRadius: '6px', fontWeight: 700, fontSize: '11px',
+                                cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px'
+                              }}
                             >
-                              ✏️ Link Lead
+                              {hasLead ? '✏️ Edit Link' : '🔗 Link Lead'}
                             </button>
                           )}
                           <ThreeDotsMenu audioUrl={audioUrl} originalName={rec.originalName} />
