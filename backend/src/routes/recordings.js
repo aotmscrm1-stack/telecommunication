@@ -312,18 +312,114 @@ router.post('/:id/transcribe', protect, async (req, res) => {
   }
 });
 
+// ─── Stream & Serve Audio Files ───────────────────────────────────────────
+function findAudioFilePath(filename) {
+  if (!filename) return null;
+  const cleanName = path.basename(filename);
+  const possiblePaths = [
+    path.join(UPLOAD_DIR, cleanName),
+    path.join(__dirname, '..', 'uploads', 'recordings', cleanName),
+    path.join(__dirname, '..', 'uploads', cleanName),
+    path.join('/var/data/recordings', cleanName),
+    path.join('/tmp/recordings', cleanName),
+  ];
+
+  for (const p of possiblePaths) {
+    try {
+      if (fs.existsSync(p)) return p;
+    } catch (_) {}
+  }
+  return null;
+}
+
+function getAudioMimeType(filename) {
+  if (!filename) return 'audio/mp4';
+  const ext = path.extname(filename).toLowerCase();
+  switch (ext) {
+    case '.m4a': return 'audio/mp4';
+    case '.mp3': return 'audio/mpeg';
+    case '.wav': return 'audio/wav';
+    case '.aac': return 'audio/aac';
+    case '.ogg': return 'audio/ogg';
+    case '.3gp':
+    case '.3gpp': return 'audio/3gpp';
+    case '.amr': return 'audio/amr';
+    default: return 'audio/mp4';
+  }
+}
+
+function streamAudioFile(req, res) {
+  try {
+    const filename = req.params.filename;
+    const filePath = findAudioFilePath(filename);
+
+    if (!filePath) {
+      console.warn(`[AudioStream] File not found for: ${filename}`);
+      return res.status(404).json({ error: 'Audio recording file not found on server' });
+    }
+
+    const stat = fs.statSync(filePath);
+    const fileSize = stat.size;
+    const mimeType = getAudioMimeType(filename);
+    const range = req.headers.range;
+
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Headers', 'Range, Origin, Content-Type, Accept');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Accept-Ranges, Content-Length');
+
+    if (range) {
+      const parts = range.replace(/bytes=/, '').split('-');
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+
+      if (start >= fileSize || end >= fileSize) {
+        res.setHeader('Content-Range', `bytes */${fileSize}`);
+        return res.status(416).send('Requested Range Not Satisfiable');
+      }
+
+      const chunksize = (end - start) + 1;
+      const file = fs.createReadStream(filePath, { start, end });
+
+      res.writeHead(206, {
+        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': chunksize,
+        'Content-Type': mimeType,
+      });
+      file.pipe(res);
+    } else {
+      res.writeHead(200, {
+        'Content-Length': fileSize,
+        'Content-Type': mimeType,
+        'Accept-Ranges': 'bytes',
+      });
+      fs.createReadStream(filePath).pipe(res);
+    }
+  } catch (err) {
+    console.error('[AudioStream Error]', err);
+    res.status(500).json({ error: 'Failed to stream audio file' });
+  }
+}
+
+router.get('/stream/:filename', streamAudioFile);
+router.get('/file/:filename', streamAudioFile);
+
 function formatRecording(r) {
+  const filename = r.storedName || (r.url ? path.basename(r.url) : '');
+  const streamPath = filename ? `/api/recordings/stream/${filename}` : (r.url || '');
   return {
     _id: r._id,
     recordedAt: r.recordedAt,
-    url: absoluteUrl(r.url),
+    url: absoluteUrl(streamPath),
+    originalUrl: absoluteUrl(r.url),
     size: r.size,
-    mimeType: r.mimeType,
+    mimeType: getAudioMimeType(filename) || r.mimeType || 'audio/mp4',
     phone: r.phone || null,
     userName: r.user && r.user.name ? r.user.name : undefined,
     leadId: r.lead ? r.lead._id : null,
     leadName: r.lead && r.lead.name ? r.lead.name : null,
     leadPhone: r.lead && r.lead.phone ? r.lead.phone : null,
+    originalName: r.originalName || filename,
     transcript: r.transcript || '',
     transcriptStatus: r.transcriptStatus || 'none',
     transcriptError: r.transcriptError || '',

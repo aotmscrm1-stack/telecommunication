@@ -285,12 +285,16 @@ export default function CallRecordings() {
                         {rec.recordedAt ? formatISTDateTime(rec.recordedAt) : `${rec.callDate || ''} ${rec.callTime || ''}`}
                       </td>
 
-                      <td style={{ padding: '14px 16px', minWidth: '300px' }}>
+                      <td style={{ padding: '14px 16px', minWidth: '320px' }}>
                         {audioUrl ? (
-                          <audio controls style={{ width: '100%', height: '36px' }} preload="none">
-                            <source src={audioUrl} type={rec.mimeType || 'audio/mpeg'} />
-                            Your browser does not support the audio element.
-                          </audio>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <audio controls style={{ width: '100%', height: '38px' }} preload="metadata">
+                              <source src={audioUrl} type={rec.mimeType || 'audio/mp4'} />
+                              <source src={audioUrl} type="audio/mp4" />
+                              <source src={audioUrl} type="audio/mpeg" />
+                              Your browser does not support the audio player.
+                            </audio>
+                          </div>
                         ) : (
                           <span style={{ color: '#dc2626', fontSize: '12px' }}>No audio URL</span>
                         )}
@@ -298,19 +302,33 @@ export default function CallRecordings() {
 
                       <td style={{ padding: '14px 16px', textAlign: 'right' }}>
                         {audioUrl && (
-                          <a
-                            href={audioUrl}
-                            download={rec.originalName || 'recording.m4a'}
-                            target="_blank"
-                            rel="noreferrer"
-                            style={{
-                              background: '#e0f2fe', color: COLOR_PRIMARY, padding: '6px 12px',
-                              borderRadius: '6px', textDecoration: 'none', fontWeight: 600, fontSize: '12px',
-                              display: 'inline-flex', alignItems: 'center', gap: '4px'
-                            }}
-                          >
-                            ⬇️ Download
-                          </a>
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                            <a
+                              href={audioUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{
+                                background: '#f0fdf4', color: '#16a34a', padding: '6px 12px',
+                                borderRadius: '6px', textDecoration: 'none', fontWeight: 600, fontSize: '12px',
+                                display: 'inline-flex', alignItems: 'center', gap: '4px', border: '1px solid #bbf7d0'
+                              }}
+                            >
+                              ▶️ Open
+                            </a>
+                            <a
+                              href={audioUrl}
+                              download={rec.originalName || 'recording.m4a'}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{
+                                background: '#e0f2fe', color: COLOR_PRIMARY, padding: '6px 12px',
+                                borderRadius: '6px', textDecoration: 'none', fontWeight: 600, fontSize: '12px',
+                                display: 'inline-flex', alignItems: 'center', gap: '4px', border: '1px solid #bae6fd'
+                              }}
+                            >
+                              ⬇️ Download
+                            </a>
+                          </div>
                         )}
                       </td>
                     </tr>
