@@ -480,6 +480,13 @@ export default function Navbar() {
       ]
     },
     {
+      title: 'Call Recordings',
+      icon: FaClock,
+      items: [
+        { label: 'Call Recordings', path: '/recordings', icon: FaClock },
+      ]
+    },
+    {
       title: 'Email CRM',
       icon: FaEnvelopeOpenText,
       items: [
@@ -497,6 +504,7 @@ export default function Navbar() {
     { title: 'Information', icon: FaCircleInfo, items: [
       { label: 'Dashboard', path: '/dashboard', icon: FaHouse },
       { label: 'Task', path: '/tasks', icon: FaListCheck },
+      { label: 'Call Recordings', path: '/recordings', icon: FaClock },
     ]},
     { title: 'Marketing', icon: FaBullhorn, items: [
       { label: 'Add Leads', path: '/leads/new', icon: FaUserPlus },
@@ -516,6 +524,7 @@ export default function Navbar() {
     ]},
     { title: 'Management', icon: FaSitemap, items: [
       { label: 'Attendance', path: '/admin/attendance-records', icon: FaCalendarCheck },
+      { label: 'Call Recordings', path: '/recordings', icon: FaClock },
       { label: 'Live Tracking', path: '/admin/employee-tracking', icon: FaLocationDot, adminOnly: !isHR(user) && !isCEO(user) },
       { label: 'Email CRM', path: '/email', icon: FaEnvelopeOpenText },
     ]},

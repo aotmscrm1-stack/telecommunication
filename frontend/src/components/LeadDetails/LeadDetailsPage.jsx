@@ -735,12 +735,13 @@ export default function LeadDetailsPage({
 
   const fetchLeadDetails = async () => {
     try {
+      const isRandom = id === 'random';
       const [res, followupsRes] = await Promise.all([
-        leadsAPI.getOne(id),
-        followupsAPI.getAll({ leadId: id }),
+        isRandom ? leadsAPI.getRandom() : leadsAPI.getOne(id),
+        isRandom ? Promise.resolve({ data: { followups: [] } }) : followupsAPI.getAll({ leadId: id }),
       ]);
       setLead(res.data.lead);
-      setLeadFollowups(followupsRes.data.followups || []);
+      setLeadFollowups(followupsRes.data?.followups || []);
       onChange?.(res.data.lead);
       const l = res.data.lead;
       setEditForm({

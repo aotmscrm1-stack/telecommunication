@@ -391,6 +391,44 @@ router.post('/', protect, async (req, res) => {
   }
 });
 
+// GET /api/leads/random — Fetch a random lead document and ID
+router.get('/random', protect, async (req, res) => {
+  try {
+    const query = {};
+    if (req.user.role === 'employee' || req.user.role === 'caller') {
+      query.assignedTo = req.user._id;
+    }
+
+    const count = await Lead.countDocuments(query);
+    if (count === 0) {
+      return res.status(404).json({ message: 'No leads found' });
+    }
+
+    const randomOffset = Math.floor(Math.random() * count);
+    const lead = await Lead.findOne(query)
+      .skip(randomOffset)
+      .populate('assignedTo', 'name email avatar')
+      .populate('campaign', 'name')
+      .populate('courseInterest')
+      .lean();
+
+    if (!lead) {
+      return res.status(404).json({ message: 'Lead not found' });
+    }
+
+    return res.json({
+      success: true,
+      id: lead._id,
+      leadId: lead._id,
+      randomId: lead._id,
+      lead
+    });
+  } catch (err) {
+    console.error('GET /api/leads/random error:', err);
+    return res.status(500).json({ message: err.message });
+  }
+});
+
 router.get('/:id', protect, async (req, res) => {
   try {
     const lead = await Lead.findById(req.params.id)
