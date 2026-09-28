@@ -807,6 +807,15 @@ function InboxTab({ onSendTemplate }) {
       if (Array.isArray(res.data.existingIdentities)) {
         setBackendIdentities(res.data.existingIdentities);
       }
+
+      // Restore active conversation thread from localStorage or auto-select top lead
+      const savedLeadId = localStorage.getItem('wa_active_lead_id');
+      const activeMatch = savedLeadId && fetchedLeads.find(l => String(l._id) === String(savedLeadId));
+      const targetId = activeMatch ? activeMatch._id : (fetchedLeads[0] ? fetchedLeads[0]._id : null);
+
+      if (targetId) {
+        openThread(targetId, false);
+      }
     } catch {
       // swallow — keep prior list on transient errors
     } finally {
@@ -882,14 +891,20 @@ function InboxTab({ onSendTemplate }) {
     return idTag.toLowerCase() === selectedIdentity.toLowerCase();
   });
 
-  const openThread = async (leadId) => {
+  const openThread = async (leadId, refreshList = true) => {
+    if (!leadId) return;
     setSelectedId(leadId);
+    try {
+      localStorage.setItem('wa_active_lead_id', String(leadId));
+    } catch {}
     setLoadingThread(true);
     try {
       const res = await api.get(`/whatsapp-inbox/${leadId}`);
       setThread(res.data);
-      // Immediately refresh lead list & pending counts as pending status was cleared on read!
-      fetchLeads();
+      if (refreshList) {
+        // Immediately refresh lead list & pending counts as pending status was cleared on read!
+        fetchLeads();
+      }
     } catch {
       setThread(null);
     } finally {
