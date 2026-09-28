@@ -199,9 +199,29 @@ router.post('/', protect, upload.single('audio'), async (req, res) => {
   }
 });
 
+function isHRorAdmin(user) {
+  if (!user) return false;
+  const role = String(user.role || '').toLowerCase();
+  const desig = String(user.designation || '').trim().toUpperCase();
+  return (
+    desig === 'HR' ||
+    role === 'hr' ||
+    role === 'admin' ||
+    role === 'superadmin' ||
+    desig === 'MANAGING DIRECTOR' ||
+    desig === 'MD' ||
+    desig === 'CEO' ||
+    desig === 'CTO'
+  );
+}
+
 // ─── POST /api/recordings/:id/link-lead ───────────────────────────────────
 router.post('/:id/link-lead', protect, async (req, res) => {
   try {
+    if (!isHRorAdmin(req.user)) {
+      return res.status(403).json({ error: 'Not authorized: Call recordings are restricted to HR and Admin' });
+    }
+
     const { leadId } = req.body;
     const update = { lead: leadId || null };
 
@@ -230,8 +250,8 @@ router.post('/:id/link-lead', protect, async (req, res) => {
 // ─── POST /api/recordings/rematch ─────────────────────────────────────────
 router.post('/rematch', protect, async (req, res) => {
   try {
-    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
-      return res.status(403).json({ error: 'Not authorized' });
+    if (!isHRorAdmin(req.user)) {
+      return res.status(403).json({ error: 'Not authorized: Call recordings are restricted to HR and Admin' });
     }
 
     const unlinked = await CallRecording.find({ lead: null }).lean();
@@ -274,6 +294,10 @@ router.post('/rematch', protect, async (req, res) => {
 // ─── GET /api/recordings/my ───────────────────────────────────────────────
 router.get('/my', protect, async (req, res) => {
   try {
+    if (!isHRorAdmin(req.user)) {
+      return res.status(403).json({ error: 'Access denied: Call recordings are visible only to HR and Admin accounts' });
+    }
+
     const recordings = await CallRecording.find({ user: req.user.id })
       .sort({ recordedAt: -1 })
       .limit(200)
@@ -290,6 +314,10 @@ router.get('/my', protect, async (req, res) => {
 // ─── GET /api/recordings ─────────────────────────────────────────────────
 router.get('/', protect, async (req, res) => {
   try {
+    if (!isHRorAdmin(req.user)) {
+      return res.status(403).json({ error: 'Access denied: Call recordings are visible only to HR and Admin accounts' });
+    }
+
     const filter = {};
     if (req.query.phone) {
       const phoneDigits = normalizePhone10(req.query.phone);
@@ -297,8 +325,6 @@ router.get('/', protect, async (req, res) => {
     }
     if (req.query.userId) {
       filter.user = req.query.userId;
-    } else if (req.user.role !== 'admin' && req.user.role !== 'manager') {
-      filter.user = req.user.id;
     }
 
     const recordings = await CallRecording.find(filter)
@@ -318,6 +344,10 @@ router.get('/', protect, async (req, res) => {
 // ─── POST /api/recordings/:id/transcribe ──────────────────────────────────
 router.post('/:id/transcribe', protect, async (req, res) => {
   try {
+    if (!isHRorAdmin(req.user)) {
+      return res.status(403).json({ error: 'Not authorized: Call recordings are restricted to HR and Admin' });
+    }
+
     const rec = await CallRecording.findById(req.params.id);
     if (!rec) return res.status(404).json({ error: 'Recording not found' });
 

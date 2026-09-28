@@ -41,6 +41,28 @@ function getEmployeeCode(user, index = null) {
 }
 
 /**
+ * Helper to sort employees in natural alphanumeric order based on employee ID (e.g. AOTMS-01, AOTMS-02, AOTMS4, AOTMS-09, AOTMS-18, AOTMS-20, AOTMS-21)
+ */
+function sortEmployeesByCode(aCode = '', bCode = '', aName = '', bName = '') {
+  const strA = String(aCode || '').trim();
+  const strB = String(bCode || '').trim();
+  const numA = strA.match(/\d+/) ? parseInt(strA.match(/\d+/)[0], 10) : null;
+  const numB = strB.match(/\d+/) ? parseInt(strB.match(/\d+/)[0], 10) : null;
+
+  if (numA !== null && numB !== null) {
+    if (numA !== numB) return numA - numB;
+  } else if (numA !== null) {
+    return -1;
+  } else if (numB !== null) {
+    return 1;
+  }
+
+  const codeCompare = strA.localeCompare(strB, undefined, { numeric: true, sensitivity: 'base' });
+  if (codeCompare !== 0) return codeCompare;
+  return String(aName || '').localeCompare(String(bName || ''));
+}
+
+/**
  * Format timestamp into 12-hour time (e.g. 09:15 AM) in IST
  */
 function formatTime12h(dateObj) {
@@ -785,6 +807,9 @@ router.get('/records', protect, async (req, res) => {
       });
     }
 
+    // Sort table rows in natural order based on Employee ID
+    tableRows.sort((a, b) => sortEmployeesByCode(a.employeeCode, b.employeeCode, a.employeeName, b.employeeName));
+
     res.json({
       ok: true,
       date: selectedDate,
@@ -940,6 +965,9 @@ router.get('/export', protect, async (req, res) => {
       const q = search.toLowerCase().trim();
       rows = rows.filter((r) => r.name.toLowerCase().includes(q) || r.code.toLowerCase().includes(q));
     }
+
+    // Sort export rows in natural order based on Employee ID
+    rows.sort((a, b) => sortEmployeesByCode(a.code, b.code, a.name, b.name));
 
     // CSV building
     const headers = [

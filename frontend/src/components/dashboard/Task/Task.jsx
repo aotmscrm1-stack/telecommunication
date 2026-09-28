@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { followupsAPI, leadsAPI, usersAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import { formatISTDateTime } from '../../../utils/dateFormat';
-import { isLimitedStaff, isDeveloper, getTaskAssignorOptions, filterTeamDropdownUsers } from '../../../utils/permissions';
+import { isLimitedStaff, isDeveloper, getTaskAssigneeOptions, getTaskAssignorOptions, filterTeamDropdownUsers } from '../../../utils/permissions';
 
 // Theme Palette Constants
 const COLOR_DEEP_BLUE = '#023047';
@@ -452,6 +452,215 @@ function UploadModal({ activeTab, onClose, onImported }) {
   );
 }
 
+// ── Task Assignee Multi-select Checkbox Dropdown ──────────────────────────────
+function TaskAssigneeCheckboxDropdown({ assignableUsers, selectedIds, onChange, currentUser }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const dropRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (dropRef.current && !dropRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filtered = assignableUsers.filter((u) => {
+    const q = search.toLowerCase();
+    const name = (u.name || (u.isMe ? 'You' : '')).toLowerCase();
+    const desig = (u.designation || u.displayName || '').toLowerCase();
+    return name.includes(q) || desig.includes(q);
+  });
+
+  const allSelected = assignableUsers.length > 0 && assignableUsers.every((u) => selectedIds.includes(u._id));
+  const isSingleOption = assignableUsers.length <= 1;
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      const defaultId = currentUser?._id || assignableUsers[0]?._id;
+      onChange(defaultId ? [defaultId] : []);
+    } else {
+      onChange(assignableUsers.map((u) => u._id));
+    }
+  };
+
+  const toggleUser = (id) => {
+    if (selectedIds.includes(id)) {
+      if (isSingleOption) return;
+      onChange(selectedIds.filter((x) => x !== id));
+    } else {
+      onChange([...selectedIds, id]);
+    }
+  };
+
+  const getSummaryLabel = () => {
+    if (selectedIds.length === 0) return 'Select Assignee(s)';
+    if (allSelected && assignableUsers.length > 1) {
+      return `All Employees (${assignableUsers.length})`;
+    }
+    if (selectedIds.length === 1) {
+      const found = assignableUsers.find((u) => u._id === selectedIds[0]);
+      if (found) {
+        return `${found.name || 'User'}${found._id === currentUser?._id ? ' (You)' : ''}${
+          found.displayName || found.designation ? ` (${found.displayName || found.designation})` : ''
+        }`;
+      }
+      return '1 Person Selected';
+    }
+    return `${selectedIds.length} People Selected`;
+  };
+
+  return (
+    <div ref={dropRef} style={{ position: 'relative', width: '100%' }}>
+      <button
+        type="button"
+        onClick={() => setOpen((p) => !p)}
+        style={{
+          width: '100%',
+          border: `1px solid ${COLOR_BORDER}`,
+          borderRadius: 8,
+          padding: '9px 12px',
+          fontSize: 14,
+          outline: 'none',
+          color: COLOR_DEEP_BLUE,
+          background: '#fff',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8,
+          boxSizing: 'border-box'
+        }}
+      >
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }}>
+          {getSummaryLabel()}
+        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          {selectedIds.length > 1 && (
+            <span style={{ fontSize: 11, fontWeight: 700, background: '#e0f2fe', color: '#0284c7', padding: '1px 6px', borderRadius: 10 }}>
+              {selectedIds.length}
+            </span>
+          )}
+          <span style={{ fontSize: 10, color: COLOR_MUTED, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
+        </div>
+      </button>
+
+      {open && (
+        <div style={{
+          position: 'absolute',
+          left: 0,
+          top: '100%',
+          marginTop: 4,
+          width: '100%',
+          minWidth: 240,
+          maxWidth: 320,
+          background: '#fff',
+          borderRadius: 10,
+          border: `1px solid ${COLOR_BORDER}`,
+          boxShadow: '0 10px 25px rgba(2, 48, 71, 0.15)',
+          zIndex: 1100,
+          padding: 6,
+          boxSizing: 'border-box'
+        }}>
+          {assignableUsers.length > 1 && (
+            <div style={{
+              padding: '6px 8px',
+              borderBottom: `1px solid ${COLOR_BORDER}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: COLOR_SKY_SURFACE,
+              borderRadius: 6,
+              marginBottom: 4
+            }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: COLOR_DEEP_BLUE, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={toggleSelectAll}
+                  style={{ cursor: 'pointer', accentColor: COLOR_BLUE_GREEN }}
+                />
+                <span>Select All ({assignableUsers.length})</span>
+              </label>
+              <span style={{ fontSize: 10, color: COLOR_MUTED }}>
+                {selectedIds.length} selected
+              </span>
+            </div>
+          )}
+
+          {assignableUsers.length > 4 && (
+            <div style={{ padding: '4px 2px' }}>
+              <input
+                type="text"
+                placeholder="🔍 Search user..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '6px 8px',
+                  fontSize: 12,
+                  border: `1px solid ${COLOR_BORDER}`,
+                  borderRadius: 6,
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+          )}
+
+          <div style={{ maxHeight: 180, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {filtered.length === 0 ? (
+              <div style={{ padding: 10, textAlign: 'center', fontSize: 12, color: COLOR_MUTED }}>No matching users</div>
+            ) : (
+              filtered.map((u) => {
+                const isChecked = selectedIds.includes(u._id);
+                const isMe = u._id === currentUser?._id;
+                return (
+                  <div
+                    key={u._id}
+                    onClick={() => toggleUser(u._id)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '6px 8px',
+                      borderRadius: 6,
+                      fontSize: 12,
+                      cursor: 'pointer',
+                      background: isChecked ? '#e8f4fa' : 'transparent',
+                      color: COLOR_DEEP_BLUE,
+                      fontWeight: isChecked ? 600 : 400
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => {}}
+                      style={{ cursor: 'pointer', accentColor: COLOR_BLUE_GREEN, flexShrink: 0 }}
+                    />
+                    <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {u.name || (isMe ? 'You' : 'User')}
+                      {isMe && <span style={{ color: COLOR_BLUE_GREEN, fontSize: 10, marginLeft: 4, fontWeight: 700 }}>(You)</span>}
+                    </div>
+                    {(u.displayName || u.designation) && (
+                      <span style={{ fontSize: 10, padding: '1px 5px', borderRadius: 4, background: '#f1f5f9', color: '#64748b', flexShrink: 0 }}>
+                        {u.displayName || u.designation}
+                      </span>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Add Task Modal ────────────────────────────────────────────────────────────
 function AddTaskModal({ type = 'todo', onClose, onCreated }) {
   const { user: currentUser } = useAuth();
@@ -473,8 +682,8 @@ function AddTaskModal({ type = 'todo', onClose, onCreated }) {
   const [repeatEndDate, setRepeatEndDate] = useState('');
 
   const [users, setUsers] = useState([]);
-  const [assignedTo, setAssignedTo] = useState(currentUser?._id || '');
-  const [assignedBy, setAssignedBy] = useState(currentUser?._id || '');
+  const [selectedAssigneeIds, setSelectedAssigneeIds] = useState(() => (currentUser?._id ? [currentUser._id] : []));
+  const [assignedBy, setAssignedBy] = useState('');
 
   useEffect(() => {
     if (!canAssign) return;
@@ -486,30 +695,24 @@ function AddTaskModal({ type = 'todo', onClose, onCreated }) {
       });
   }, [canAssign]);
 
-  const assignableUsers = (() => {
-    if (currentUser?.role === 'admin' || currentUser?.role === 'manager') {
-      const list = [...users];
-      if (!list.some(u => u._id === 'all')) list.push({ _id: 'all', name: 'All' });
-      return list;
-    }
-    return getTaskAssignorOptions(currentUser, users);
-  })();
-
+  const assignableUsers = getTaskAssigneeOptions(currentUser, users);
   const assignedByUsers = getTaskAssignorOptions(currentUser, users);
 
   useEffect(() => {
-    if (!assignableUsers.length) return;
-    if (!assignableUsers.some(u => u._id === assignedTo)) {
-      setAssignedTo(currentUser?._id || assignableUsers[0]._id);
-    }
-  }, [users, assignableUsers]);
+    if (!assignableUsers || !assignableUsers.length) return;
+    setSelectedAssigneeIds(prev => {
+      const valid = prev.filter(id => assignableUsers.some(u => u._id === id));
+      if (valid.length > 0) return valid;
+      return [assignableUsers[0]._id];
+    });
+  }, [users, currentUser]);
 
   useEffect(() => {
-    if (!assignedByUsers.length) return;
+    if (!assignedByUsers || !assignedByUsers.length) return;
     if (!assignedByUsers.some(u => u._id === assignedBy)) {
       setAssignedBy(assignedByUsers[0]._id);
     }
-  }, [users, assignedByUsers]);
+  }, [users, assignedBy, currentUser]);
 
   // Lead search
   useEffect(() => {
@@ -551,38 +754,48 @@ function AddTaskModal({ type = 'todo', onClose, onCreated }) {
     }
     setSaving(true);
     try {
-      const payload = {
-        type: taskType,
-        title: note.trim(),
-        note: note.trim(),
-        description: note.trim(),
-        scheduledAt: new Date(scheduledAt).toISOString(),
-        priority,
-      };
-      if (isCallFollowup && selectedLead) payload.lead = selectedLead._id;
-      if (canAssign) {
-        let finalAssignedTo = assignedTo || currentUser._id;
-        if (finalAssignedTo === 'ameen_fallback') {
-          const realAmeen = users.find(u => u.name?.toLowerCase().trim() === 'ameen');
-          finalAssignedTo = realAmeen ? realAmeen._id : currentUser._id;
-        }
-        payload.assignedTo = finalAssignedTo;
+      const targetAssignees = (canAssign && selectedAssigneeIds.length > 0)
+        ? selectedAssigneeIds
+        : [currentUser._id];
+      const finalAssignedBy = assignedBy || currentUser._id;
 
-        let finalAssignedBy = assignedBy || currentUser._id;
-        if (finalAssignedBy === 'ameen_fallback') {
-          const realAmeen = users.find(u => u.name?.toLowerCase().trim() === 'ameen');
-          finalAssignedBy = realAmeen ? realAmeen._id : currentUser._id;
-        }
-        payload.assignedBy = finalAssignedBy;
+      const results = await Promise.all(
+        targetAssignees.map(async (targetId) => {
+          let resolvedTargetId = targetId;
+          if (resolvedTargetId === 'ameen_fallback') {
+            const realAmeen = users.find(u => u.name?.toLowerCase().trim() === 'ameen');
+            resolvedTargetId = realAmeen ? realAmeen._id : currentUser._id;
+          }
+          let resolvedAssignedBy = finalAssignedBy;
+          if (resolvedAssignedBy === 'ameen_fallback') {
+            const realAmeen = users.find(u => u.name?.toLowerCase().trim() === 'ameen');
+            resolvedAssignedBy = realAmeen ? realAmeen._id : currentUser._id;
+          }
+
+          const payload = {
+            type: taskType,
+            title: note.trim(),
+            note: note.trim(),
+            description: note.trim(),
+            scheduledAt: new Date(scheduledAt).toISOString(),
+            priority,
+            assignedTo: resolvedTargetId,
+            assignedBy: resolvedAssignedBy,
+          };
+          if (isCallFollowup && selectedLead) payload.lead = selectedLead._id;
+          if (repeatFrequency !== 'none') {
+            payload.recurrence = {
+              frequency: repeatFrequency,
+              endDate: new Date(repeatEndDate + 'T23:59:59').toISOString(),
+            };
+          }
+          return followupsAPI.create(payload);
+        })
+      );
+
+      if (results[0]?.data?.followup) {
+        onCreated(results[0].data.followup);
       }
-      if (repeatFrequency !== 'none') {
-        payload.recurrence = {
-          frequency: repeatFrequency,
-          endDate: new Date(repeatEndDate + 'T23:59:59').toISOString(),
-        };
-      }
-      const res = await followupsAPI.create(payload);
-      onCreated(res.data.followup);
       onClose();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to create task');
@@ -764,32 +977,25 @@ function AddTaskModal({ type = 'todo', onClose, onCreated }) {
             <div style={{ display: 'flex', gap: 12 }}>
               <div style={{ flex: 1 }}>
                 <label style={{ fontSize: 13, fontWeight: 500, color: COLOR_DEEP_BLUE, display: 'block', marginBottom: 6 }}>Assigned To</label>
-                <select
-                  value={assignedTo}
-                  onChange={e => setAssignedTo(e.target.value)}
-                  style={{ width: '100%', border: `1px solid ${COLOR_BORDER}`, borderRadius: 8, padding: '9px 12px', fontSize: 14, outline: 'none', color: COLOR_DEEP_BLUE }}
-                >
-                  {assignableUsers.map(u => (
-                    <option key={u._id} value={u._id}>
-                      {u._id === 'all'
-                        ? 'All'
-                        : `${u.name}${u._id === currentUser?._id ? ' (You)' : (u.displayName || u.designation ? ` (${u.displayName || u.designation})` : '')}`}
-                    </option>
-                  ))}
-                </select>
+                <TaskAssigneeCheckboxDropdown
+                  assignableUsers={assignableUsers}
+                  selectedIds={selectedAssigneeIds}
+                  onChange={setSelectedAssigneeIds}
+                  currentUser={currentUser}
+                />
               </div>
               <div style={{ flex: 1 }}>
                 <label style={{ fontSize: 13, fontWeight: 500, color: COLOR_DEEP_BLUE, display: 'block', marginBottom: 6 }}>Assigned By</label>
                 <select
                   value={assignedBy}
                   onChange={e => setAssignedBy(e.target.value)}
-                  style={{ width: '100%', border: `1px solid ${COLOR_BORDER}`, borderRadius: 8, padding: '9px 12px', fontSize: 14, outline: 'none', color: COLOR_DEEP_BLUE }}
+                  style={{ width: '100%', border: `1px solid ${COLOR_BORDER}`, borderRadius: 8, padding: '9px 12px', fontSize: 14, outline: 'none', color: COLOR_DEEP_BLUE, background: '#fff' }}
                 >
                   {assignedByUsers.map(u => (
                     <option key={u._id} value={u._id}>
-                      {u._id === 'all'
-                        ? 'All'
-                        : `${u.name}${u._id === currentUser?._id ? ' (You)' : (u.displayName || u.designation ? ` (${u.displayName || u.designation})` : '')}`}
+                      {u._id === currentUser?._id
+                        ? `${u.name || 'You'} (You)`
+                        : `${u.name}${u.displayName || u.designation ? ` (${u.displayName || u.designation})` : ''}`}
                     </option>
                   ))}
                 </select>

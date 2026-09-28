@@ -13,7 +13,7 @@ import {
   FaCode, FaBell, FaChevronDown, FaBars, FaXmark, FaRightFromBracket,
   FaUser, FaLock, FaUserCheck
 } from 'react-icons/fa6';
-import { isCEO, isHR, isManager, isLimitedStaff, canViewDashboard, normalizeDesignation } from '../../../utils/permissions';
+import { isCEO, isHR, isManager, isLimitedStaff, canViewDashboard, canViewCallRecordings, normalizeDesignation } from '../../../utils/permissions';
 
 
 /* ─────────────────────────────────────────────────────────
@@ -479,13 +479,13 @@ export default function Navbar() {
         { label: 'TODO List', path: '/tasks', icon: FaListCheck },
       ]
     },
-    {
+    ...(canViewCallRecordings(user) ? [{
       title: 'Call Recordings',
       icon: FaClock,
       items: [
         { label: 'Call Recordings', path: '/recordings', icon: FaClock },
       ]
-    },
+    }] : []),
     {
       title: 'Email CRM',
       icon: FaEnvelopeOpenText,
@@ -523,7 +523,7 @@ export default function Navbar() {
     ]},
     { title: 'Management', icon: FaSitemap, items: [
       { label: 'Attendance', path: '/admin/attendance-records', icon: FaCalendarCheck },
-      { label: 'Call Recordings', path: '/recordings', icon: FaClock, adminOnly: !isHR(user) && !isCEO(user) && !isManager(user) },
+      ...(canViewCallRecordings(user) ? [{ label: 'Call Recordings', path: '/recordings', icon: FaClock }] : []),
       { label: 'Live Tracking', path: '/admin/employee-tracking', icon: FaLocationDot, adminOnly: !isHR(user) && !isCEO(user) },
       { label: 'Email CRM', path: '/email', icon: FaEnvelopeOpenText },
     ]},

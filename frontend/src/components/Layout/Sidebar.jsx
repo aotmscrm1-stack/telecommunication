@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import useBreakpoint from '../../hooks/useBreakpoint';
 import { useSidebar } from '../../context/SidebarContext';
-import { canAccessEmailBlast } from '../../utils/permissions';
+import { canAccessEmailBlast, canViewCallRecordings } from '../../utils/permissions';
 
 const ACTIVE_BG = '#edf8f8';
 const ACTIVE_COLOR = '#1d3557';
@@ -227,7 +227,9 @@ export default function Sidebar() {
           <NavItem to="/dashboard"     icon={Icons.dashboard}   label="Dashboard" />
           <NavItem to="/leads"         icon={Icons.leads}       label="All Leads" />
           <NavItem to="/tasks"         icon={Icons.tasks}       label="Tasks" />
-          <NavItem to="/recordings"    icon={Icons.recordings}  label="Call Recordings" iconColor="#0284c7" />
+          {canViewCallRecordings(user) && (
+            <NavItem to="/recordings"  icon={Icons.recordings}  label="Call Recordings" iconColor="#0284c7" />
+          )}
 
           {isAdmin && (
             <>

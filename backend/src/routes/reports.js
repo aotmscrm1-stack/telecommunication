@@ -36,6 +36,25 @@ function getEmployeeCode(user, index = null) {
   return `EMP-${index != null ? String(index + 1).padStart(3, '0') : '001'}`;
 }
 
+function sortEmployeesByCode(aCode = '', bCode = '', aName = '', bName = '') {
+  const strA = String(aCode || '').trim();
+  const strB = String(bCode || '').trim();
+  const numA = strA.match(/\d+/) ? parseInt(strA.match(/\d+/)[0], 10) : null;
+  const numB = strB.match(/\d+/) ? parseInt(strB.match(/\d+/)[0], 10) : null;
+
+  if (numA !== null && numB !== null) {
+    if (numA !== numB) return numA - numB;
+  } else if (numA !== null) {
+    return -1;
+  } else if (numB !== null) {
+    return 1;
+  }
+
+  const codeCompare = strA.localeCompare(strB, undefined, { numeric: true, sensitivity: 'base' });
+  if (codeCompare !== 0) return codeCompare;
+  return String(aName || '').localeCompare(String(bName || ''));
+}
+
 function formatTime12h(dateObj) {
   if (!dateObj) return '—';
   const d = new Date(dateObj);
@@ -806,6 +825,9 @@ router.get('/employees-live-activity', protect, authorize('manager', 'admin'), a
         };
       })
     );
+
+    // Sort employees in natural order based on Employee ID
+    employees.sort((a, b) => sortEmployeesByCode(a.employeeId, b.employeeId, a.name, b.name));
 
     res.json({
       ok: true,

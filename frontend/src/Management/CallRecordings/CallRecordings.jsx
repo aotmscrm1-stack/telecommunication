@@ -8,7 +8,7 @@ import {
 import { recordingsAPI, leadsAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { formatISTDateTime } from '../../utils/dateFormat';
-import { isHR, isCEO, isManager } from '../../utils/permissions';
+import { isHR, isCEO, isManager, canViewCallRecordings } from '../../utils/permissions';
 import TranscriptConversationModal from '../../components/TranscriptConversationModal';
 
 // ── MEMOIZED AUDIO PLAYER (Prevents audio reset/pause on parent state change)
@@ -329,6 +329,8 @@ export default function CallRecordings() {
   const [transcribingId, setTranscribingId] = useState(null);
   const [activeConversationRecording, setActiveConversationRecording] = useState(null);
 
+  const isAllowed = canViewCallRecordings(user);
+
   const isHRUser = isHR(user) || user?.role === 'hr' || String(user?.designation || '').toUpperCase() === 'HR';
   const isCEOUser = isCEO(user) || user?.role === 'ceo' || user?.role === 'admin' || user?.role === 'superadmin';
   const canManageCRUD = isHRUser || isCEOUser || user?.role === 'admin' || user?.role === 'superadmin';
@@ -351,6 +353,10 @@ export default function CallRecordings() {
   };
 
   const fetchRecordings = async () => {
+    if (!isAllowed) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -366,8 +372,24 @@ export default function CallRecordings() {
   };
 
   useEffect(() => {
-    fetchRecordings();
-  }, [user]);
+    if (isAllowed) {
+      fetchRecordings();
+    } else {
+      setLoading(false);
+    }
+  }, [user, isAllowed]);
+
+  if (!isAllowed) {
+    return (
+      <div style={{ padding: '40px 20px', textAlign: 'center', background: '#fff', borderRadius: '16px', maxWidth: '600px', margin: '40px auto', border: `1px solid ${C.border}`, boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
+        <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔒</div>
+        <h2 style={{ fontSize: '20px', fontWeight: 800, color: C.dark, marginBottom: '8px' }}>Access Restricted</h2>
+        <p style={{ fontSize: '14px', color: C.textSoft, lineHeight: 1.6, margin: 0 }}>
+          The Call Recordings module is visible and accessible only to HR and Admin accounts.
+        </p>
+      </div>
+    );
+  }
 
   const handleRematch = async () => {
     setRematching(true);

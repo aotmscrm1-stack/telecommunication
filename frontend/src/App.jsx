@@ -39,7 +39,7 @@ import BulkEmailBlast from './Management/Email/BulkEmailBlast';
 import MapsDashboard from './Maps';
 import CallRecordings from './Management/CallRecordings/CallRecordings';
 
-import { isCEO, isHR, isLimitedStaff, canViewDashboard, canAccessEmailBlast } from './utils/permissions';
+import { isCEO, isHR, isLimitedStaff, canViewDashboard, canAccessEmailBlast, canViewCallRecordings } from './utils/permissions';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -124,6 +124,17 @@ const BlastRoute = ({ children }) => {
   return <Navigate to="/tasks" replace />;
 };
 
+// Route guard for Call Recordings — strictly HR and Admin (CEO, Managing Director, CTO, Admin)
+const CallRecordingsRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  if (canViewCallRecordings(user)) {
+    return children;
+  }
+  return <Navigate to={canViewDashboard(user) ? "/dashboard" : "/tasks"} replace />;
+};
+
 export default function App() {
   return (
     <AuthProvider>
@@ -177,8 +188,8 @@ export default function App() {
             <Route path="attendance-records" element={<AttendanceRoute><AttendanceRecords /></AttendanceRoute>} />
             <Route path="add-lead" element={<StaffRestrictedRoute><AddLead /></StaffRestrictedRoute>} />
             <Route path="maps" element={<MapsDashboard />} />
-            <Route path="recordings" element={<CallRecordings />} />
-            <Route path="call-recordings" element={<Navigate to="/recordings" replace />} />
+            <Route path="recordings" element={<CallRecordingsRoute><CallRecordings /></CallRecordingsRoute>} />
+            <Route path="call-recordings" element={<CallRecordingsRoute><CallRecordings /></CallRecordingsRoute>} />
           </Route>
           <Route path="*" element={<RootRedirect />} />
         </Routes>
