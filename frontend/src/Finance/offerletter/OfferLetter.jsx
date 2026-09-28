@@ -116,14 +116,14 @@ export const OfferLetterDocument = forwardRef(({ invoiceData = {}, isPreview = f
     backgroundColor: '#ffffff',
     color: '#000000',
     fontFamily: "'Inter', sans-serif",
-    fontSize: isPreview ? '12.5px' : '13.5px',
+    fontSize: '12.5px',
     lineHeight: '1.45',
     width: '100%',
-    maxWidth: '794px',
-    minHeight: isPreview ? 'auto' : '296.5mm',
+    maxWidth: '730px',
+    minHeight: '296.5mm',
     boxSizing: 'border-box',
-    padding: isPreview ? '16px 20px' : '10mm 14mm',
-    border: '1.5px solid #000000',
+    padding: '18px 24px',
+    border: '1px solid #000000',
     borderRadius: '0px',
     marginBottom: isPreview ? '14px' : '0px',
     pageBreakAfter: 'always',
@@ -135,6 +135,7 @@ export const OfferLetterDocument = forwardRef(({ invoiceData = {}, isPreview = f
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'flex-start',
+    margin: '0 auto 14px auto',
   };
 
   const headerStyle = {
@@ -142,7 +143,7 @@ export const OfferLetterDocument = forwardRef(({ invoiceData = {}, isPreview = f
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    borderBottom: '1.5px solid #000000',
+    borderBottom: '1px solid #000000',
     paddingBottom: '12px',
     marginBottom: '16px',
     textAlign: 'center',
@@ -651,11 +652,14 @@ export default function OfferLetter() {
           compress: true,
         });
 
-        // Temporarily remove preview card shadows during capture
+        // Temporarily remove preview card shadows & bottom margins during capture
         const originalShadows = [];
+        const originalMargins = [];
         offerPages.forEach((p, idx) => {
           originalShadows[idx] = p.style.boxShadow;
+          originalMargins[idx] = p.style.marginBottom;
           p.style.boxShadow = 'none';
+          p.style.marginBottom = '0px';
         });
 
         try {
@@ -679,9 +683,10 @@ export default function OfferLetter() {
 
           pdf.save(filename);
         } finally {
-          // Restore shadows
+          // Restore shadows and margins
           offerPages.forEach((p, idx) => {
             p.style.boxShadow = originalShadows[idx];
+            p.style.marginBottom = originalMargins[idx];
           });
         }
       }
