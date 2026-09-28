@@ -563,7 +563,7 @@ function parseTemplateDoc(t) {
 function RichTemplateMessageCard({ message, templates = [], leadName = '' }) {
   const text = message.description || message.text || '';
   
-  const extractedTemplateName = text.match(/\[Template:\s*([^\]]+)\]/i)?.[1]?.trim() ||
+  const extractedTemplateName = text.match(/\[(?:Template|Campaign):\s*([^\]]+)\]/i)?.[1]?.trim() ||
                                 (text.startsWith('@') ? text.slice(1).trim() : '');
   
   const cleanText = text.toLowerCase().trim();
@@ -619,14 +619,14 @@ function RichTemplateMessageCard({ message, templates = [], leadName = '' }) {
   let bodyDisplay = text;
   if (matchedTemplate?.body) {
     let b = matchedTemplate.body;
-    if (text.startsWith('[Template:') || text.includes('[Template:') || text.startsWith('@')) {
-      const recipientName = leadName || message.leadName || message.contactName || 'Customer';
-      b = b.replace(/\{\{1\}\}/g, recipientName).replace(/\{\{\d+\}\}/g, '');
-    }
+    const recipientName = leadName || message.leadName || message.contactName || 'Customer';
+    b = b.replace(/\{\{1\}\}/g, recipientName).replace(/\{\{\d+\}\}/g, '');
     bodyDisplay = b;
-  } else if ((text.startsWith('[Template:') || text.startsWith('@')) && !matchedTemplate) {
-    const extractedName = extractedTemplateName || text.replace(/^\[Template:\s*/i, '').replace(/^@/, '').replace(/\]$/, '').trim();
-    bodyDisplay = `📋 Meta WhatsApp Template: ${extractedName}`;
+  } else {
+    const cleaned = text.replace(/^\[(?:Template|Campaign):\s*[^\]]+\]\s*/i, '').trim();
+    if (cleaned) {
+      bodyDisplay = cleaned;
+    }
   }
 
   const footerText = matchedTemplate?.footer || message.footer;

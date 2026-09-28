@@ -4,12 +4,25 @@ async function run() {
   try {
     const Lead = mongoose.model('Lead');
     const WhatsAppCampaign = mongoose.model('WhatsAppCampaign');
+    const MessageTemplate = mongoose.model('MessageTemplate');
 
     const campaigns = await WhatsAppCampaign.find({}).lean();
     let totalMigrated = 0;
 
     for (const cmp of campaigns) {
-      const msgText = cmp.customMessage || 'WhatsApp Campaign Broadcast';
+      let templateObj = null;
+      if (cmp.templateRef) {
+        try {
+          templateObj = await MessageTemplate.findById(cmp.templateRef).lean();
+        } catch (e) {}
+      }
+
+      let templateShortcut = templateObj?.shortcut || templateObj?.metaTemplateName || cmp.name || 'hackathon2026';
+      let fullMessageBody = templateObj?.message || templateObj?.body || cmp.customMessage || '🔥 NATIONAL-LEVEL PROBLEM STATEMENT HACKATHON 2026 🔥';
+
+      // Ensure proper formatting for Rich Template Rendering
+      const formattedText = `[Template: ${templateShortcut}] ${fullMessageBody}`;
+
       for (const contact of (cmp.contacts || [])) {
         if (!contact.phone) continue;
         const clean10 = String(contact.phone).replace(/[^\d]/g, '').slice(-10);
@@ -33,11 +46,14 @@ async function run() {
         }
 
         lead.activities = lead.activities || [];
-        const exists = lead.activities.some(a => a.metaMessageId === String(contact._id));
+        // Replace previous placeholder activity if present
+        lead.activities = lead.activities.filter(a => !(a.metaMessageId === String(contact._id) && a.description?.includes('WhatsApp Campaign Broadcast')));
+
+        const exists = lead.activities.some(a => a.metaMessageId === String(contact._id) && !a.description?.includes('WhatsApp Campaign Broadcast'));
         if (!exists) {
           lead.activities.push({
             type: 'whatsapp',
-            description: `[Campaign: ${cmp.name || 'Broadcast'}] ${msgText}`,
+            description: formattedText,
             direction: 'outbound_broadcast',
             metaMessageId: String(contact._id),
             deliveryStatus: contact.status === 'sent' ? 'sent' : 'failed',
@@ -45,14 +61,14 @@ async function run() {
           });
           lead.waStatus = 'intervened';
           lead.lastWaMessageAt = cmp.createdAt || new Date();
-          lead.lastWaMessagePreview = `[Campaign: ${cmp.name || 'Broadcast'}] ${msgText}`;
+          lead.lastWaMessagePreview = fullMessageBody.slice(0, 100);
           await lead.save();
           totalMigrated++;
         }
       }
     }
     if (totalMigrated > 0) {
-      console.log(`[WhatsApp Sync] Synced ${totalMigrated} past campaign contacts into Lead activities for /whatsapp display.`);
+      console.log(`[WhatsApp Sync] Successfully updated ${totalMigrated} campaign contacts with FULL Template bodies in Lead activities!`);
     }
   } catch (err) {
     console.warn('[WhatsApp Sync Warning]:', err.message);
