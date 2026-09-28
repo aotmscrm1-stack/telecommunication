@@ -165,6 +165,9 @@ server.listen(PORT, () => {
   console.log(`🚀 AOTMS Server running on port ${PORT}`);
   startOverdueTaskChecker(5 * 60 * 1000);
   startTaskReminderChecker(5 * 60 * 1000);
+  setTimeout(() => {
+    require('./scripts/migrate_campaigns').run().catch(() => {});
+  }, 3000);
 });
 
 // Keep-alive self-ping every 10 minutes (Render free tier spin-down prevention)
