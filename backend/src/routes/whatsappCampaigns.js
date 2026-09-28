@@ -516,9 +516,11 @@ router.post('/:id/send', protect, async (req, res) => {
           const token = integration.config?.accessToken || process.env.META_WA_ACCESS_TOKEN;
           const toPhone = toIndiaE164(contact.phone);
 
+          let sendResult;
+          let messageText = '';
           // If template exists, send template message, otherwise send text
           if (campaign.templateRef?.shortcut) {
-            await whatsappService.sendTemplateMessage(
+            sendResult = await whatsappService.sendTemplateMessage(
               toPhone,
               campaign.templateRef.shortcut,
               'en',
@@ -526,13 +528,45 @@ router.post('/:id/send', protect, async (req, res) => {
               phoneId,
               token
             );
+            messageText = `[Template: ${campaign.templateRef.shortcut}] ${campaign.templateRef.message || ''}`;
           } else {
             const personalized = messageBody
               .replace(/\{\{name\}\}/gi, contact.name || 'Valued Customer')
               .replace(/\{\{identity\}\}/gi, contact.identity || '')
               .replace(/\{\{email\}\}/gi, contact.email || '');
 
-            await whatsappService.sendTextMessage(toPhone, personalized, phoneId, token);
+            sendResult = await whatsappService.sendTextMessage(toPhone, personalized, phoneId, token);
+            messageText = personalized;
+          }
+
+          // Sync to Lead collection so broadcast messages also show up in WhatsApp Inbox tab
+          try {
+            const Lead = require('../models/Lead');
+            const clean10 = String(contact.phone || '').slice(-10);
+            let lead = clean10 ? await Lead.findOne({ phone: { $regex: clean10 } }) : null;
+            if (!lead && clean10) {
+              lead = new Lead({
+                name: contact.name || 'WhatsApp Contact',
+                phone: contact.phone,
+                leadSource: 'Whatsapp Broadcast',
+                status: 'Fresh',
+              });
+            }
+            if (lead) {
+              lead.activities = lead.activities || [];
+              lead.activities.push({
+                type: 'whatsapp',
+                description: messageText,
+                direction: 'outbound',
+                metaMessageId: sendResult?.messages?.[0]?.id || '',
+              });
+              lead.waStatus = 'intervened';
+              lead.lastWaMessageAt = new Date();
+              lead.lastWaMessagePreview = messageText;
+              await lead.save();
+            }
+          } catch (syncErr) {
+            console.warn('Failed to sync campaign to Lead activity:', syncErr.message);
           }
         }
 
