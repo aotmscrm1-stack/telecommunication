@@ -139,23 +139,42 @@ export default function Invoice() {
       const filename = `AOTMS_Tax_Invoice_${cleanName}.pdf`;
 
       const canvas = await html2canvas(element, {
-        scale: 2.2,
+        scale: 2,
         useCORS: true,
         logging: false,
         backgroundColor: '#ffffff',
       });
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const imgData = canvas.toDataURL('image/jpeg', 0.98);
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
         format: 'a4',
+        compress: true,
       });
 
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      const a4Width = 210;
+      const a4Height = 297;
+      const imgWidth = a4Width;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      if (imgHeight <= a4Height) {
+        pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight, undefined, 'FAST');
+      } else {
+        let heightLeft = imgHeight;
+        let position = 0;
+
+        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+        heightLeft -= a4Height;
+
+        while (heightLeft > 5) {
+          position = position - a4Height;
+          pdf.addPage('a4', 'portrait');
+          pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+          heightLeft -= a4Height;
+        }
+      }
+
       pdf.save(filename);
     } catch (err) {
       console.error('PDF Generation failed:', err);
@@ -659,7 +678,7 @@ export default function Invoice() {
                   className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm rounded-xl shadow-md transition-all flex items-center gap-2 disabled:opacity-50"
                 >
                   {downloadingPdf ? <RefreshCw className="animate-spin" size={16} /> : <Download size={16} />}
-                  Download Vector PDF
+                  Download PDF
                 </button>
 
                 <button

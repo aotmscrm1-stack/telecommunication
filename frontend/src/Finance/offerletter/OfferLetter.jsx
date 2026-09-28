@@ -119,7 +119,7 @@ export const OfferLetterDocument = forwardRef(({ invoiceData = {}, isPreview = f
     fontSize: isPreview ? '13px' : '14px',
     lineHeight: '1.65',
     width: '100%',
-    maxWidth: '820px',
+    maxWidth: '794px',
     minHeight: isPreview ? 'auto' : '296.5mm',
     boxSizing: 'border-box',
     padding: isPreview ? '22px 26px' : '12mm 18mm',

@@ -62,7 +62,7 @@ export const InvoiceDocument = forwardRef(({ invoiceData, isPreview = false }, r
   };
 
   return (
-    <div ref={ref} className="pdf-invoice-container" style={{ width: '100%', maxWidth: '820px', margin: '0 auto' }}>
+    <div ref={ref} className="pdf-invoice-container" style={{ width: '100%', maxWidth: '794px', margin: '0 auto', boxSizing: 'border-box' }}>
       <div
         style={{
           backgroundColor: '#ffffff',
