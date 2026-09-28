@@ -563,7 +563,7 @@ function parseTemplateDoc(t) {
 function RichTemplateMessageCard({ message, templates = [], leadName = '' }) {
   const text = message.description || message.text || '';
   
-  const extractedTemplateName = text.match(/\[Template:\s*([^\]]+)\]/i)?.[1]?.trim() ||
+  const extractedTemplateName = text.match(/\[(?:Template|Campaign):\s*([^\]]+)\]/i)?.[1]?.trim() ||
                                 (text.startsWith('@') ? text.slice(1).trim() : '');
   
   const cleanText = text.toLowerCase().trim();
@@ -619,14 +619,14 @@ function RichTemplateMessageCard({ message, templates = [], leadName = '' }) {
   let bodyDisplay = text;
   if (matchedTemplate?.body) {
     let b = matchedTemplate.body;
-    if (text.startsWith('[Template:') || text.includes('[Template:') || text.startsWith('@')) {
-      const recipientName = leadName || message.leadName || message.contactName || 'Customer';
-      b = b.replace(/\{\{1\}\}/g, recipientName).replace(/\{\{\d+\}\}/g, '');
-    }
+    const recipientName = leadName || message.leadName || message.contactName || 'Customer';
+    b = b.replace(/\{\{1\}\}/g, recipientName).replace(/\{\{\d+\}\}/g, '');
     bodyDisplay = b;
-  } else if ((text.startsWith('[Template:') || text.startsWith('@')) && !matchedTemplate) {
-    const extractedName = extractedTemplateName || text.replace(/^\[Template:\s*/i, '').replace(/^@/, '').replace(/\]$/, '').trim();
-    bodyDisplay = `📋 Meta WhatsApp Template: ${extractedName}`;
+  } else {
+    const cleaned = text.replace(/^\[(?:Template|Campaign):\s*[^\]]+\]\s*/i, '').trim();
+    if (cleaned) {
+      bodyDisplay = cleaned;
+    }
   }
 
   const footerText = matchedTemplate?.footer || message.footer;
@@ -807,6 +807,15 @@ function InboxTab({ onSendTemplate }) {
       if (Array.isArray(res.data.existingIdentities)) {
         setBackendIdentities(res.data.existingIdentities);
       }
+
+      // Restore active conversation thread from localStorage or auto-select top lead
+      const savedLeadId = localStorage.getItem('wa_active_lead_id');
+      const activeMatch = savedLeadId && fetchedLeads.find(l => String(l._id) === String(savedLeadId));
+      const targetId = activeMatch ? activeMatch._id : (fetchedLeads[0] ? fetchedLeads[0]._id : null);
+
+      if (targetId) {
+        openThread(targetId, false);
+      }
     } catch {
       // swallow — keep prior list on transient errors
     } finally {
@@ -882,14 +891,20 @@ function InboxTab({ onSendTemplate }) {
     return idTag.toLowerCase() === selectedIdentity.toLowerCase();
   });
 
-  const openThread = async (leadId) => {
+  const openThread = async (leadId, refreshList = true) => {
+    if (!leadId) return;
     setSelectedId(leadId);
+    try {
+      localStorage.setItem('wa_active_lead_id', String(leadId));
+    } catch {}
     setLoadingThread(true);
     try {
       const res = await api.get(`/whatsapp-inbox/${leadId}`);
       setThread(res.data);
-      // Immediately refresh lead list & pending counts as pending status was cleared on read!
-      fetchLeads();
+      if (refreshList) {
+        // Immediately refresh lead list & pending counts as pending status was cleared on read!
+        fetchLeads();
+      }
     } catch {
       setThread(null);
     } finally {

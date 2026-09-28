@@ -139,23 +139,42 @@ export default function Invoice() {
       const filename = `AOTMS_Tax_Invoice_${cleanName}.pdf`;
 
       const canvas = await html2canvas(element, {
-        scale: 2.2,
+        scale: 2,
         useCORS: true,
         logging: false,
         backgroundColor: '#ffffff',
       });
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const imgData = canvas.toDataURL('image/jpeg', 0.98);
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
         format: 'a4',
+        compress: true,
       });
 
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      const a4Width = 210;
+      const a4Height = 297;
+      const imgWidth = a4Width;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      if (imgHeight <= a4Height) {
+        pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight, undefined, 'FAST');
+      } else {
+        let heightLeft = imgHeight;
+        let position = 0;
+
+        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+        heightLeft -= a4Height;
+
+        while (heightLeft > 5) {
+          position = position - a4Height;
+          pdf.addPage('a4', 'portrait');
+          pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+          heightLeft -= a4Height;
+        }
+      }
+
       pdf.save(filename);
     } catch (err) {
       console.error('PDF Generation failed:', err);
@@ -656,10 +675,12 @@ export default function Invoice() {
                   type="button"
                   onClick={() => handleDownloadPDF(printRef, form.client_name)}
                   disabled={downloadingPdf}
-                  className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm rounded-xl shadow-md transition-all flex items-center gap-2 disabled:opacity-50"
+                  className="group px-5 py-2.5 bg-gradient-to-r from-slate-900 to-slate-950 hover:from-slate-800 hover:to-slate-900 text-white font-bold text-sm rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2.5 border border-slate-700/80 disabled:opacity-50 cursor-pointer"
                 >
-                  {downloadingPdf ? <RefreshCw className="animate-spin" size={16} /> : <Download size={16} />}
-                  Download Vector PDF
+                  <div className="w-6.5 h-6.5 rounded-full bg-emerald-500/20 border-2 border-emerald-400/60 ring-2 ring-emerald-500/20 flex items-center justify-center text-emerald-300 group-hover:scale-105 group-hover:border-emerald-300 transition-all shadow-inner">
+                    {downloadingPdf ? <RefreshCw className="animate-spin w-3.5 h-3.5" /> : <Download className="w-3.5 h-3.5" />}
+                  </div>
+                  <span>Download PDF</span>
                 </button>
 
                 <button
@@ -686,9 +707,12 @@ export default function Invoice() {
                     type="button"
                     onClick={() => handleDownloadPDF(printRef, form.client_name)}
                     disabled={downloadingPdf}
-                    className="px-3 py-1 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold rounded-lg flex items-center gap-1 shadow-sm"
+                    className="group px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl flex items-center gap-2 shadow-sm transition-all border border-slate-700/80 cursor-pointer disabled:opacity-50"
                   >
-                    <Download size={12} /> PDF
+                    <div className="w-5.5 h-5.5 rounded-full bg-emerald-500/20 border border-emerald-400/60 ring-1 ring-emerald-400/20 flex items-center justify-center text-emerald-300 group-hover:scale-105 transition-all">
+                      {downloadingPdf ? <RefreshCw className="animate-spin w-3 h-3" /> : <Download className="w-3 h-3" />}
+                    </div>
+                    <span>Download PDF</span>
                   </button>
                 </div>
               </div>

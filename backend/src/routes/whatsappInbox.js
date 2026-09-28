@@ -1,8 +1,10 @@
 const express = require('express');
 const Lead = require('../models/Lead');
+const Contact = require('../models/Contact');
 const Integration = require('../models/Integration');
 const whatsappService = require('../services/integrations/whatsapp');
 const { protect } = require('../middleware/auth');
+const { normalizePhone10 } = require('../utils/phone');
 
 const router = express.Router();
 
@@ -17,11 +19,60 @@ function baseWhatsappQuery() {
   };
 }
 
+// ── HELPER: Find or Create Unified Lead for Contact / ID / Phone ────────────
+async function findOrCreateLeadForIdOrPhone(idOrPhone) {
+  if (!idOrPhone) return null;
+
+  // 1. First try finding Lead directly by ObjectId
+  if (idOrPhone.toString().length === 24) {
+    let lead = await Lead.findById(idOrPhone);
+    if (lead) return lead;
+  }
+
+  // 2. Try finding Contact directly by ObjectId if idOrPhone is Contact ID
+  let targetPhone = idOrPhone;
+  let targetName = 'WhatsApp Contact';
+  let targetIdentity = 'General';
+
+  if (idOrPhone.toString().length === 24) {
+    const contact = await Contact.findById(idOrPhone);
+    if (contact) {
+      targetPhone = contact.phone;
+      targetName = contact.name || targetName;
+      targetIdentity = contact.identity || targetIdentity;
+    }
+  }
+
+  // 3. Normalize phone to 10 digits
+  const clean10 = normalizePhone10(targetPhone) || String(targetPhone || '').replace(/[^\d]/g, '').slice(-10);
+  if (!clean10) return null;
+
+  // 4. Robust regex lookup for Lead by 10-digit phone
+  let lead = await Lead.findOne({
+    $or: [
+      { phone: clean10 },
+      { phone: { $regex: clean10 + '$' } },
+      { phone: { $regex: '^(\\+?91)?' + clean10 + '$' } }
+    ]
+  });
+
+  if (!lead) {
+    lead = await Lead.create({
+      name: targetName,
+      phone: clean10,
+      status: 'Contact',
+      leadSource: 'Whatsapp Inbox',
+      customFields: { identity: targetIdentity },
+    });
+  }
+
+  return lead;
+}
+
 // ── GET /api/whatsapp-inbox?tab=all|pending|intervened&search=&identity= ─────────────────
 router.get('/', protect, async (req, res) => {
   try {
     const { tab = 'all', search = '', identity = '', page = 1, limit = 50 } = req.query;
-    const Contact = require('../models/Contact');
 
     const query = baseWhatsappQuery();
     if (tab === 'pending') query.waStatus = 'pending';
@@ -37,7 +88,7 @@ router.get('/', protect, async (req, res) => {
     const skip = (Number(page) - 1) * Number(limit);
     const [rawLeads, total, allCount, pendingCount, intervenedCount] = await Promise.all([
       Lead.find(query)
-        .select('name phone status waStatus lastWaMessageAt lastWaMessagePreview rating customFields')
+        .select('name phone status waStatus lastWaMessageAt lastWaMessagePreview rating customFields activities')
         .sort({ lastWaMessageAt: -1, updatedAt: -1 })
         .skip(skip)
         .limit(Number(limit)),
@@ -82,22 +133,24 @@ router.get('/', protect, async (req, res) => {
       const existingPhones = new Set(leads.map(l => String(l.phone || '').slice(-10)));
       const extraContacts = await Contact.find(contactQuery).sort({ createdAt: -1 }).limit(100).lean();
 
-      extraContacts.forEach(c => {
+      for (const c of extraContacts) {
         const p10 = String(c.phone || '').slice(-10);
         if (p10 && !existingPhones.has(p10)) {
           existingPhones.add(p10);
+          // Find or create canonical Lead so _id is ALWAYS a valid Lead._id
+          const canonicalLead = await findOrCreateLeadForIdOrPhone(c._id);
           leads.push({
-            _id: c._id,
-            name: c.name,
-            phone: c.phone,
-            status: 'Contact',
-            waStatus: 'none',
-            identity: c.identity || 'General',
-            lastWaMessageAt: c.updatedAt || c.createdAt,
-            lastWaMessagePreview: 'Saved Contact'
+            _id: canonicalLead._id,
+            name: canonicalLead.name || c.name,
+            phone: canonicalLead.phone || c.phone,
+            status: canonicalLead.status || 'Contact',
+            waStatus: canonicalLead.waStatus || 'none',
+            identity: c.identity || canonicalLead.customFields?.identity || 'General',
+            lastWaMessageAt: canonicalLead.lastWaMessageAt || c.updatedAt || c.createdAt,
+            lastWaMessagePreview: canonicalLead.lastWaMessagePreview || 'Saved Contact'
           });
         }
-      });
+      }
     }
 
     // Filter by identity if provided
@@ -127,26 +180,8 @@ router.get('/', protect, async (req, res) => {
 // ── GET /api/whatsapp-inbox/:leadId — full whatsapp thread for the chat panel ──
 router.get('/:leadId', protect, async (req, res) => {
   try {
-    let lead = await Lead.findById(req.params.leadId);
-    if (!lead) {
-      const Contact = require('../models/Contact');
-      const contact = await Contact.findById(req.params.leadId);
-      if (contact) {
-        const { normalizePhone10 } = require('../utils/phone');
-        const p10 = normalizePhone10(contact.phone);
-        lead = await Lead.findOne({ phone: p10 });
-        if (!lead) {
-          lead = await Lead.create({
-            name: contact.name || 'WhatsApp Contact',
-            phone: p10,
-            status: 'Contact',
-            leadSource: 'Whatsapp Contact',
-            customFields: { identity: contact.identity || 'General' },
-          });
-        }
-      }
-    }
-    if (!lead) return res.status(404).json({ message: 'Lead not found' });
+    const lead = await findOrCreateLeadForIdOrPhone(req.params.leadId);
+    if (!lead) return res.status(404).json({ message: 'Lead or Contact not found' });
 
     // Automatically transition lead from Pending -> Intervened when agent reads thread
     if (lead.waStatus === 'pending') {
@@ -155,7 +190,7 @@ router.get('/:leadId', protect, async (req, res) => {
     }
 
     const thread = (lead.activities || [])
-      .filter(a => a.type === 'whatsapp')
+      .filter(a => a.type === 'whatsapp' || a.type === 'whatsapp_reply')
       .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
     // 24-hour customer service window: only free-form text is allowed if the
@@ -174,30 +209,11 @@ router.get('/:leadId', protect, async (req, res) => {
 });
 
 // ── POST /api/whatsapp-inbox/:leadId/reply — agent sends a reply ───────────────
-// This is what flips the lead into "Intervened".
 router.post('/:leadId/reply', protect, async (req, res) => {
   try {
     const { text, templateName, languageCode, components } = req.body;
-    let lead = await Lead.findById(req.params.leadId);
-    if (!lead) {
-      const Contact = require('../models/Contact');
-      const contact = await Contact.findById(req.params.leadId);
-      if (contact) {
-        const { normalizePhone10 } = require('../utils/phone');
-        const p10 = normalizePhone10(contact.phone);
-        lead = await Lead.findOne({ phone: p10 });
-        if (!lead) {
-          lead = await Lead.create({
-            name: contact.name || 'WhatsApp Contact',
-            phone: p10,
-            status: 'Contact',
-            leadSource: 'Whatsapp Contact',
-            customFields: { identity: contact.identity || 'General' },
-          });
-        }
-      }
-    }
-    if (!lead) return res.status(404).json({ message: 'Lead not found' });
+    const lead = await findOrCreateLeadForIdOrPhone(req.params.leadId);
+    if (!lead) return res.status(404).json({ message: 'Lead or Contact not found' });
 
     const integration = await Integration.findOne({ type: 'whatsapp_cloud', status: 'active' });
     if (!integration) {
@@ -239,6 +255,7 @@ router.post('/:leadId/reply', protect, async (req, res) => {
       metaMessageId: sendResult?.messages?.[0]?.id || '',
       deliveryStatus: 'sent',
       performedBy: req.user._id,
+      createdAt: new Date(),
     });
     // THIS IS THE KEY TRANSITION: an agent reply moves the lead to "Intervened".
     lead.waStatus = 'intervened';

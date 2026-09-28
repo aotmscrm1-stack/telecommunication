@@ -55,7 +55,7 @@ export const QuotationDocument = forwardRef(({ quotationData, isPreview = false 
   const signatoryCompany = quotationData.signatory_company || 'AOTMS Global Private Limited';
 
   return (
-    <div ref={ref} className="pdf-quotation-container" style={{ width: '100%', maxWidth: '820px', margin: '0 auto' }}>
+    <div ref={ref} className="pdf-quotation-container" style={{ width: '100%', maxWidth: '794px', margin: '0 auto', boxSizing: 'border-box' }}>
       <div
         style={{
           backgroundColor: '#ffffff',

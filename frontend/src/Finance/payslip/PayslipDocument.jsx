@@ -49,7 +49,7 @@ export const PayslipDocument = forwardRef(({ payslip, isPreview = false }, ref) 
       className="payslip-print-container"
       style={{
         width: '100%',
-        maxWidth: isPreview ? '100%' : '740px',
+        maxWidth: isPreview ? '100%' : '794px',
         margin: '0 auto',
         backgroundColor: '#ffffff',
         color: '#000000',
