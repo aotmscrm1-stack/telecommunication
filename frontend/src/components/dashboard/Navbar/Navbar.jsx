@@ -501,7 +501,7 @@ export default function Navbar() {
       ]
     }
   ] : [
-    { title: 'Information', icon: FaCircleInfo, items: [
+    { title: 'Info', icon: FaCircleInfo, items: [
       { label: 'Dashboard', path: '/dashboard', icon: FaHouse },
       { label: 'Task', path: '/tasks', icon: FaListCheck },
     ]},

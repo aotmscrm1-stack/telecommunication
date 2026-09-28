@@ -72,61 +72,16 @@ router.post('/', protect, authorize('manager', 'admin'), async (req, res) => {
   }
 });
 
-// GET /api/users/preferences
-router.get('/preferences', protect, async (req, res) => {
+// GET /api/users/:id — Get user details by ID
+router.get('/:id', protect, async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select('preferences');
-    res.json({
-      preferences: user?.preferences || {
-        email: 'Send to Mobile',
-        whatsapp: 'Send to Mobile',
-        notifications: {
-          paymentPending: true,
-          paymentCompleted: true,
-          paymentFailed: true,
-          newLeadInCampaign: true,
-          callReminder: true,
-        },
-      },
-    });
+    const user = await User.findById(req.params.id)
+      .select('-password')
+      .populate('approvedBy', 'name email designation');
+    if (!user) return res.status(404).json({ ok: false, message: 'User not found' });
+    res.json({ ok: true, user });
   } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-// PUT /api/users/preferences
-router.put('/preferences', protect, async (req, res) => {
-  try {
-    const defaults = {
-      email: 'Send to Mobile',
-      whatsapp: 'Send to Mobile',
-      notifications: {
-        paymentPending: true,
-        paymentCompleted: true,
-        paymentFailed: true,
-        newLeadInCampaign: true,
-        callReminder: true,
-      },
-    };
-
-    const nextPreferences = {
-      ...defaults,
-      ...(req.body?.preferences || req.body || {}),
-      notifications: {
-        ...defaults.notifications,
-        ...((req.body?.preferences || req.body || {}).notifications || {}),
-      },
-    };
-
-    const user = await User.findByIdAndUpdate(
-      req.user._id,
-      { preferences: nextPreferences },
-      { new: true }
-    ).select('preferences');
-
-    res.json({ preferences: user?.preferences || nextPreferences });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ ok: false, message: err.message });
   }
 });
 
@@ -192,33 +147,48 @@ router.put('/preferences', protect, async (req, res) => {
 router.put('/:id', protect, authorize('manager', 'admin'), async (req, res) => {
   try {
     const targetUser = await User.findById(req.params.id);
-    if (!targetUser) return res.status(404).json({ message: 'User not found' });
+    if (!targetUser) return res.status(404).json({ ok: false, message: 'User not found' });
     if (req.user.role === 'manager') {
-      if (targetUser.role !== 'employee' && targetUser.role !== 'caller') return res.status(403).json({ message: 'Managers can only update employees' });
-      if (req.body.role && req.body.role !== 'employee' && req.body.role !== 'caller') return res.status(403).json({ message: 'Managers cannot change user roles to non-employee' });
+      if (targetUser.role !== 'employee' && targetUser.role !== 'caller') return res.status(403).json({ ok: false, message: 'Managers can only update employees' });
+      if (req.body.role && req.body.role !== 'employee' && req.body.role !== 'caller') return res.status(403).json({ ok: false, message: 'Managers cannot change user roles to non-employee' });
     }
-    if (req.body.role === 'admin' && targetUser.role !== 'admin')
-      return res.status(403).json({ message: 'Only admins can set roles' });
-    const updates = {};
-    if (req.body.name) updates.name = req.body.name;
-    if (req.body.phone !== undefined) updates.phone = req.body.phone;
-    if (req.body.isActive !== undefined) updates.isActive = req.body.isActive;
-    if (req.body.role && (req.user.role === 'admin' || req.user.role === 'manager')) updates.role = req.body.role;
-    if (req.body.permissionTemplate !== undefined) updates.permissionTemplate = req.body.permissionTemplate || null;
-    if (req.body.password) {
-      targetUser.password = req.body.password;
-      if (req.body.name) targetUser.name = req.body.name;
-      if (req.body.phone !== undefined) targetUser.phone = req.body.phone;
-      if (req.body.isActive !== undefined) targetUser.isActive = req.body.isActive;
-      if (req.body.role && (req.user.role === 'admin' || req.user.role === 'manager')) targetUser.role = req.body.role;
-      if (req.body.permissionTemplate !== undefined) targetUser.permissionTemplate = req.body.permissionTemplate || null;
-      await targetUser.save();
-      return res.json({ user: targetUser.toJSON() });
+    if (req.body.role === 'admin' && targetUser.role !== 'admin' && req.user.role !== 'admin')
+      return res.status(403).json({ ok: false, message: 'Only admins can set admin role' });
+
+    // Allow updating all profile fields
+    const allowedFields = [
+      'name', 'firstName', 'lastName', 'email', 'phone', 'employeeId',
+      'avatar', 'designation', 'displayName', 'bloodGroup', 'address',
+      'department', 'officeLocation', 'joiningDate', 'isActive',
+      'approvalStatus', 'rejectionReason', 'permissionTemplate', 'preferences', 'smtpConfig'
+    ];
+
+    allowedFields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        targetUser[field] = req.body[field];
+      }
+    });
+
+    if (req.body.role && (req.user.role === 'admin' || req.user.role === 'manager')) {
+      targetUser.role = req.body.role;
     }
-    const user = await User.findByIdAndUpdate(req.params.id, updates, { new: true }).select('-password');
-    res.json({ user });
+
+    if (req.body.password && typeof req.body.password === 'string' && req.body.password.trim()) {
+      targetUser.password = req.body.password.trim();
+    }
+
+    if (req.body.approvalStatus === 'accepted' && (!targetUser.approvedBy || targetUser.approvalStatus !== 'accepted')) {
+      targetUser.approvedBy = req.user._id;
+      targetUser.approvedAt = new Date();
+    }
+
+    await targetUser.save();
+    const updated = await User.findById(targetUser._id)
+      .select('-password')
+      .populate('approvedBy', 'name email designation');
+    res.json({ ok: true, user: updated });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ ok: false, message: err.message });
   }
 });
 

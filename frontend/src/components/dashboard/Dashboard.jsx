@@ -11,6 +11,7 @@ import geoTracker from '../../services/geoTracker';
 import LiveMap from '../tracking/LiveMap';
 import StatusBadge from '../common/StatusBadge';
 import GradientWaves from './GradientWaves';
+import EmployeeProfileModal from './EmployeeProfileModal';
 import {
   FaUsers, FaMoneyBillWave, FaChartLine, FaCalendarCheck, FaPhone,
   FaTrophy, FaLocationDot, FaBuilding, FaMagnifyingGlass, FaRotate, FaFilter,
@@ -1754,6 +1755,40 @@ export default function Dashboard() {
     }
   };
 
+  // Live update handler when user profile is updated in MongoDB
+  const handleEmployeeUpdated = (updatedUser) => {
+    if (!updatedUser?._id) return;
+    setEmployeesActivityData(prev => {
+      const updated = (prev.employees || []).map(emp => {
+        if (String(emp._id) === String(updatedUser._id)) {
+          return {
+            ...emp,
+            ...updatedUser,
+            name: updatedUser.name || emp.name,
+            displayName: updatedUser.displayName || emp.displayName,
+            role: updatedUser.designation || updatedUser.role || emp.role,
+            designation: updatedUser.designation || emp.designation,
+            department: updatedUser.department || emp.department,
+            avatar: (updatedUser.avatar && typeof updatedUser.avatar === 'string') ? updatedUser.avatar : emp.avatar,
+            email: updatedUser.email || emp.email,
+            phone: updatedUser.phone || emp.phone,
+            approvalStatus: updatedUser.approvalStatus || emp.approvalStatus,
+            isActive: updatedUser.isActive !== undefined ? updatedUser.isActive : emp.isActive,
+            raw: {
+              ...(emp.raw || {}),
+              ...updatedUser,
+            },
+          };
+        }
+        return emp;
+      });
+      return {
+        ...prev,
+        employees: updated,
+      };
+    });
+  };
+
   // ── 5 REAL-TIME REPLICATED DATA CARDS ──
   const realtimeModuleCards = useMemo(() => {
     // 1. Leads
@@ -2282,60 +2317,15 @@ export default function Dashboard() {
 
       <AnimatePresence>
         {detailModalEmployee && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
-               style={{ background: 'rgba(15, 23, 42, 0.55)' }}
-               onClick={() => setDetailModalEmployee(null)}>
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 12 }} transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-              className="w-full max-w-3xl max-h-[90vh] flex flex-col rounded-3xl overflow-hidden shadow-2xl"
-              style={{ background: '#ffffff', border: `1px solid ${T.line}`, borderTop: '3px solid #f97316' }}
-              onClick={(e) => e.stopPropagation()}>
-              <div className="p-5 flex items-center justify-between"
-                   style={{ background: '#f8fafc', borderBottom: `1px solid ${T.line}` }}>
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-full grid place-items-center font-bold text-[14px]"
-                       style={{ background: 'rgba(249, 115, 22, 0.12)', color: '#ea580c' }}>
-                    {detailModalEmployee.name?.[0]?.toUpperCase()}
-                  </div>
-                  <div>
-                    <div className="text-[15px] font-bold text-slate-900">{detailModalEmployee.name}</div>
-                    <div className="text-[12px] text-slate-500">{detailModalEmployee.email}</div>
-                  </div>
-                </div>
-                <motion.button whileHover={{ scale: 1.15, rotate: 90 }} whileTap={{ scale: 0.9 }}
-                  onClick={() => setDetailModalEmployee(null)} className="cursor-pointer text-slate-400 hover:text-slate-700">
-                  <FaXmark className="w-5 h-5" />
-                </motion.button>
-              </div>
-              <div className="p-6 overflow-y-auto flex flex-col gap-4 text-[12.5px]">
-                <div className="rounded-2xl p-4" style={{ background: '#f8fafc', border: `1px solid ${T.line}` }}>
-                  <div className="text-[12px] font-bold uppercase mb-2" style={{ color: '#ea580c' }}>Today's Attendance</div>
-                  <div className="grid grid-cols-2 gap-2 text-slate-600">
-                    <div>Start: <strong className="text-slate-900">{detailModalEmployee.todayAttendance?.startTimeFormatted || 'Not Started'}</strong></div>
-                    <div>End: <strong className="text-slate-900">{detailModalEmployee.todayAttendance?.endTimeFormatted || '—'}</strong></div>
-                    <div>Duration: <strong className="text-slate-900">{detailModalEmployee.todayAttendance?.durationFormatted || '00:00:00'}</strong></div>
-                    <div>Actual: <strong style={{ color: '#ea580c' }}>{detailModalEmployee.todayAttendance?.formattedActualWork || '0m'}</strong></div>
-                  </div>
-                </div>
-                <div className="rounded-2xl p-4" style={{ background: '#ffffff', border: `1px solid ${T.line}` }}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[12px] font-bold uppercase flex items-center gap-2 text-slate-900">
-                      <FaLocationDot style={{ color: '#0284c7' }} /> Live GPS
-                    </span>
-                    <motion.button whileHover={{ y: -2 }} whileTap={{ scale: 0.94 }}
-                      onClick={() => { const t = detailModalEmployee; setDetailModalEmployee(null); setMapModalEmployee(t); }}
-                      className="px-3 py-1.5 rounded-full text-[11px] font-semibold flex items-center gap-1.5 cursor-pointer shadow-sm"
-                      style={{ background: 'linear-gradient(135deg, #38bdf8, #0284c7)', color: '#ffffff' }}>
-                      <FaMapLocationDot /> View Map
-                    </motion.button>
-                  </div>
-                  <div className="font-medium text-slate-800">
-                    {detailModalEmployee.location?.formattedAddress || 'Location unavailable'}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
+          <EmployeeProfileModal
+            employee={detailModalEmployee}
+            onClose={() => setDetailModalEmployee(null)}
+            onUpdated={handleEmployeeUpdated}
+            onOpenMap={(emp) => {
+              setDetailModalEmployee(null);
+              setMapModalEmployee(emp);
+            }}
+          />
         )}
       </AnimatePresence>
 
