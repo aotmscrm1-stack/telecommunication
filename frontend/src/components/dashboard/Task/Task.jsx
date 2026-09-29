@@ -112,10 +112,391 @@ function TimeInput12h({ value, onChange }) {
   );
 }
 
+// ── Auto-Numeric List Handler for Todo Textarea ─────────────────────────────
+function handleNumericKeyDown(e, value, setValue) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const target = e.target;
+    const cursor = target.selectionStart || value.length;
+    const beforeCursor = value.slice(0, cursor);
+    const afterCursor = value.slice(cursor);
+
+    const lines = beforeCursor.split('\n');
+    const currentLine = lines[lines.length - 1];
+
+    const match = currentLine.match(/^(\d+)[\.\)]\s*(.*)/);
+    if (match) {
+      const num = parseInt(match[1], 10);
+      const content = match[2];
+
+      if (!content.trim() && lines.length > 1) {
+        lines[lines.length - 1] = '';
+        const newText = lines.join('\n') + afterCursor;
+        setValue(newText);
+        return;
+      }
+
+      const nextNum = num + 1;
+      const newLinePrefix = `\n${nextNum}. `;
+      const newText = beforeCursor + newLinePrefix + afterCursor;
+      setValue(newText);
+
+      setTimeout(() => {
+        if (target) {
+          const newPos = cursor + newLinePrefix.length;
+          target.setSelectionRange(newPos, newPos);
+        }
+      }, 0);
+      return;
+    }
+
+    const nextNum = lines.length + 1;
+    const newLinePrefix = `\n${nextNum}. `;
+    const newText = beforeCursor + newLinePrefix + afterCursor;
+    setValue(newText);
+
+    setTimeout(() => {
+      if (target) {
+        const newPos = cursor + newLinePrefix.length;
+        target.setSelectionRange(newPos, newPos);
+      }
+    }, 0);
+  }
+}
+
+// ── Formatted Description (Renders Numbered Items as <ol><li>) ─────────────
+function FormattedDescription({ text }) {
+  if (!text || !text.trim()) return <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>No description provided</span>;
+
+  const rawLines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const isNumbered = rawLines.length > 0 && rawLines.some(l => /^\d+[\.\)]\s*/.test(l));
+
+  if (isNumbered) {
+    return (
+      <ol style={{ margin: 0, paddingLeft: 22, display: 'flex', flexDirection: 'column', gap: 6, listStyleType: 'decimal' }}>
+        {rawLines.map((line, idx) => {
+          const cleanText = line.replace(/^\d+[\.\)]\s*/, '');
+          return (
+            <li key={idx} style={{ fontSize: 13.5, color: '#1e293b', fontWeight: 500, lineHeight: 1.5 }}>
+              {cleanText || line}
+            </li>
+          );
+        })}
+      </ol>
+    );
+  }
+
+  return (
+    <div style={{ fontSize: 13.5, color: '#1e293b', lineHeight: 1.5, whiteSpace: 'pre-wrap', fontWeight: 400 }}>
+      {text}
+    </div>
+  );
+}
+
+// ── Vibrant Orange Loading State ─────────────────────────────────────────────
+function OrangeLoadingState({ isCard = false }) {
+  return (
+    <div style={{ padding: isCard ? '50px 20px' : '60px 20px', textAlign: 'center', width: '100%', boxSizing: 'border-box' }}>
+      <div
+        style={{
+          width: 44,
+          height: 44,
+          margin: '0 auto 16px',
+          borderRadius: '50%',
+          border: '3.5px solid #ffedd5',
+          borderTopColor: COLOR_ORANGE,
+          animation: 'spinOrange 0.8s linear infinite',
+          boxShadow: '0 0 14px rgba(251, 133, 0, 0.35)'
+        }}
+      />
+      <style>{`
+        @keyframes spinOrange {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
+      <div style={{ fontSize: 15, fontWeight: 600, color: COLOR_ORANGE, letterSpacing: '0.2px' }}>
+        Loading Todos & Tasks...
+      </div>
+      <div style={{ fontSize: 12.5, color: '#94a3b8', marginTop: 4 }}>
+        Fetching latest data and status updates
+      </div>
+    </div>
+  );
+}
+
+// ── Real Profile Avatar Component ─────────────────────────────────────────────
+function UserAvatar({ userObj, nameFallback = 'Me', size = 36 }) {
+  const avatarUrl = userObj?.avatar || userObj?.profileImage || userObj?.photo || userObj?.avatarUrl || userObj?.image;
+  const name = userObj?.name || userObj?.displayName || nameFallback;
+  const initials = (name || 'Me').slice(0, 2).toUpperCase();
+  const [imgError, setImgError] = useState(false);
+
+  if (avatarUrl && !imgError) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={name}
+        onError={() => setImgError(true)}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: '50%',
+          objectFit: 'cover',
+          border: `1.5px solid ${COLOR_BORDER}`,
+          boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+          flexShrink: 0
+        }}
+      />
+    );
+  }
+
+  return (
+    <div style={{
+      width: size,
+      height: size,
+      borderRadius: '50%',
+      background: COLOR_SKY_SURFACE,
+      border: `1.5px solid ${COLOR_BORDER}`,
+      color: COLOR_DEEP_BLUE,
+      fontSize: size * 0.38,
+      fontWeight: 700,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
+      flexShrink: 0
+    }}>
+      {initials}
+    </div>
+  );
+}
+
+// ── Todo Card Component ───────────────────────────────────────────────────────
+function TodoCard({ task, onEdit, onComplete, onDelete, canDelete, isLocked, markingId, deletingId }) {
+  const isLate = !isLocked && task.status === 'upcoming' && new Date(task.scheduledAt) < new Date();
+  const displayKey = isLocked ? 'locked' : (isLate ? 'late' : (task.status || 'upcoming'));
+  const statusMeta = STATUS_CONFIG[displayKey] || STATUS_CONFIG.upcoming;
+  const priorityMeta = PRIORITY_CONFIG[task.priority || 'medium'] || PRIORITY_CONFIG.medium;
+
+  const assigneeObj = task.assignedTo || task.assignee;
+  const assigneeName = assigneeObj?.name || 'Me';
+  const assignedByObj = task.assignedBy;
+  const assignedByName = (assignedByObj?.name || assignedByObj) === 'all' ? 'All' : (assignedByObj?.name || '');
+
+  return (
+    <div
+      style={{
+        background: '#ffffff',
+        border: `1px solid ${isLate ? '#fecaca' : COLOR_BORDER}`,
+        borderRadius: 14,
+        padding: '20px',
+        boxShadow: '0 4px 14px rgba(2, 48, 71, 0.04)',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        gap: 16,
+        transition: 'all 0.2s ease',
+        position: 'relative'
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.boxShadow = '0 8px 24px rgba(2, 48, 71, 0.09)';
+        e.currentTarget.style.borderColor = COLOR_BLUE_GREEN;
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.boxShadow = '0 4px 14px rgba(2, 48, 71, 0.04)';
+        e.currentTarget.style.borderColor = isLate ? '#fecaca' : COLOR_BORDER;
+      }}
+    >
+      {/* Top Header: Assignee Profile & Priority */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* Real Avatar Profile */}
+          <UserAvatar userObj={assigneeObj} nameFallback={assigneeName} size={38} />
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: COLOR_DEEP_BLUE }}>
+              {assigneeName}
+            </div>
+            {assignedByName && (
+              <div style={{ fontSize: 11.5, color: COLOR_MUTED, display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                Assigned by:
+                {typeof assignedByObj === 'object' && assignedByObj?.avatar ? (
+                  <UserAvatar userObj={assignedByObj} nameFallback={assignedByName} size={18} />
+                ) : null}
+                <span style={{ fontWeight: 500, color: '#334155' }}>{assignedByName}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Priority Badge */}
+        <span style={{
+          fontSize: 11.5,
+          fontWeight: 600,
+          padding: '4px 10px',
+          borderRadius: 20,
+          background: priorityMeta.bg,
+          color: priorityMeta.text,
+          border: `1px solid ${priorityMeta.border}`,
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 5,
+          textTransform: 'capitalize'
+        }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: priorityMeta.dot }} />
+          {task.priority || 'low'}
+        </span>
+      </div>
+
+      {/* Center Description */}
+      <div style={{
+        background: '#f8fafc',
+        border: '1px solid #f1f5f9',
+        borderRadius: 10,
+        padding: '14px 16px',
+        minHeight: 64
+      }}>
+        <FormattedDescription text={task.title || task.note || task.description || ''} />
+      </div>
+
+      {/* Bottom Metadata & Actions */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 8, borderTop: '1px solid #f1f5f9' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+          {/* Due Date */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: COLOR_MUTED, fontWeight: 500 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={COLOR_BLUE_GREEN} strokeWidth="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            <span>{task.scheduledAt ? formatISTDateTime(task.scheduledAt) : 'No due date'}</span>
+          </div>
+
+          {/* Status Badge */}
+          <span style={{
+            fontSize: 11.5,
+            fontWeight: 600,
+            padding: '3px 9px',
+            borderRadius: 6,
+            background: statusMeta.bg,
+            color: statusMeta.text,
+            border: `1px solid ${statusMeta.border}`,
+            marginLeft: 'auto'
+          }}>
+            {isLocked
+              ? `Locked (${new Date(task.scheduledAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })})`
+              : (isLate ? 'Late' : (statusMeta.label || task.status))}
+          </span>
+        </div>
+
+        {/* Actions Toolbar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+          {/* Mark Complete */}
+          <button
+            onClick={() => !isLocked && onComplete(task._id)}
+            disabled={isLocked || markingId === task._id}
+            style={{
+              flex: 1,
+              padding: '8px 12px',
+              borderRadius: 8,
+              border: 'none',
+              background: isLocked ? '#f1f5f9' : COLOR_ORANGE,
+              color: isLocked ? '#94a3b8' : '#ffffff',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: isLocked ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              boxShadow: isLocked ? 'none' : '0 2px 6px rgba(251, 133, 0, 0.25)',
+              opacity: (isLocked || markingId === task._id) ? 0.6 : 1,
+              transition: 'all 0.15s ease'
+            }}
+          >
+            {markingId === task._id ? (
+              <span>Saving...</span>
+            ) : isLocked ? (
+              <>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                <span>Locked</span>
+              </>
+            ) : (
+              <>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                <span>Mark Complete</span>
+              </>
+            )}
+          </button>
+
+          {/* Edit */}
+          <button
+            onClick={() => onEdit(task)}
+            style={{
+              padding: '8px 10px',
+              borderRadius: 8,
+              border: `1px solid ${COLOR_BORDER}`,
+              background: '#fff',
+              color: COLOR_DEEP_BLUE,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.15s ease'
+            }}
+            title="Edit Details"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={COLOR_BLUE_GREEN} strokeWidth="2">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </button>
+
+          {/* Delete */}
+          {canDelete && (
+            <button
+              onClick={() => onDelete(task._id)}
+              disabled={deletingId === task._id}
+              style={{
+                padding: '8px 10px',
+                borderRadius: 8,
+                border: '1px solid #fecaca',
+                background: '#fef2f2',
+                color: '#dc2626',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: deletingId === task._id ? 0.5 : 1,
+                transition: 'all 0.15s ease'
+              }}
+              title="Delete Todo"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14H6L5 6"/>
+                <path d="M10 11v6M14 11v6"/>
+                <path d="M9 6V4h6v2"/>
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Edit Modal ────────────────────────────────────────────────────────────────
 function EditModal({ task, onClose, onSaved, readOnly = false }) {
+  const isTodo = task.type === 'todo';
   const [form, setForm] = useState({
-    note: task.note || task.description || '',
+    note: task.note || task.description || (isTodo ? '1. ' : ''),
     scheduledAt: task.scheduledAt ? task.scheduledAt.slice(0, 16) : '',
     priority: task.priority || 'medium',
     status: task.status || 'upcoming',
@@ -123,6 +504,12 @@ function EditModal({ task, onClose, onSaved, readOnly = false }) {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (isTodo && (!form.note || !form.note.trim())) {
+      setForm(f => ({ ...f, note: '1. ' }));
+    }
+  }, [isTodo]);
 
   const handleSave = async () => {
     if (readOnly) return;
@@ -145,12 +532,21 @@ function EditModal({ task, onClose, onSaved, readOnly = false }) {
     }
   };
 
+  const addNumberedItem = () => {
+    const lines = (form.note || '').split('\n').filter(Boolean);
+    const nextNum = lines.length + 1;
+    setForm(f => ({
+      ...f,
+      note: f.note && f.note.trim() ? `${f.note}\n${nextNum}. ` : `${nextNum}. `
+    }));
+  };
+
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(2, 48, 71, 0.45)', backdropFilter: 'blur(2px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 460, padding: 24, boxShadow: '0 12px 36px rgba(2, 48, 71, 0.16)', border: `1px solid ${COLOR_BORDER}` }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
           <h3 style={{ fontSize: 18, fontWeight: 500, color: COLOR_DEEP_BLUE, margin: 0 }}>
-            {readOnly ? 'Task Details' : (task.type === 'todo' ? 'Edit Todo' : 'Edit Follow-up')}
+            {readOnly ? 'Task Details' : (isTodo ? 'Edit Todo' : 'Edit Follow-up')}
           </h3>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: COLOR_MUTED, lineHeight: 1 }}>×</button>
         </div>
@@ -169,14 +565,43 @@ function EditModal({ task, onClose, onSaved, readOnly = false }) {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
-            <label style={{ fontSize: 13, fontWeight: 500, color: COLOR_DEEP_BLUE, display: 'block', marginBottom: 6 }}>
-              {task.type === 'todo' ? 'Todo Description' : 'Description / Note'}
-            </label>
+            <div style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between', marginBottom: 6 }}>
+              <label style={{ fontSize: 13, fontWeight: 500, color: COLOR_DEEP_BLUE }}>
+                {isTodo ? 'Todo Task Description' : 'Description / Note'}
+              </label>
+              {isTodo && !readOnly && (
+                <button
+                  type="button"
+                  onClick={addNumberedItem}
+                  style={{
+                    padding: '2px 8px',
+                    fontSize: 11.5,
+                    fontWeight: 600,
+                    borderRadius: 4,
+                    border: `1px solid ${COLOR_BORDER}`,
+                    background: COLOR_SKY_SURFACE,
+                    color: COLOR_BLUE_GREEN,
+                    cursor: 'pointer'
+                  }}
+                >
+                  + Add Item
+                </button>
+              )}
+            </div>
+
+            {isTodo && !readOnly && (
+              <div style={{ fontSize: 11.5, color: COLOR_ORANGE, marginBottom: 6, fontWeight: 500 }}>
+                📋 Press <strong>Enter</strong> to automatically trigger 2., 3., 4.
+              </div>
+            )}
+
             <textarea
               value={form.note}
               onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
-              rows={3}
+              onKeyDown={e => isTodo && !readOnly && handleNumericKeyDown(e, form.note, newText => setForm(f => ({ ...f, note: newText })))}
+              rows={4}
               disabled={readOnly}
+              placeholder={isTodo ? '1. First task line\n2. Second task line' : 'Enter note description...'}
               style={{ width: '100%', border: `1px solid ${COLOR_BORDER}`, borderRadius: 8, padding: '10px 12px', fontSize: 14, fontWeight: 400, resize: 'none', outline: 'none', boxSizing: 'border-box', background: readOnly ? '#f8fafc' : '#fff', color: readOnly ? '#64748b' : COLOR_DEEP_BLUE }}
             />
           </div>
@@ -457,9 +882,10 @@ function AddTaskModal({ type = 'todo', onClose, onCreated }) {
   const { user: currentUser } = useAuth();
   const [taskType, setTaskType] = useState(type === 'call_followup' ? 'call_followup' : 'todo');
   const isCallFollowup = taskType === 'call_followup';
+  const isTodo = taskType === 'todo';
   const canAssign = !!currentUser;
 
-  const [note, setNote] = useState('');
+  const [note, setNote] = useState(type === 'todo' || (type === 'all' && taskType === 'todo') ? '1. ' : '');
   const [scheduledAt, setScheduledAt] = useState('');
   const [priority, setPriority] = useState('medium');
   const [leadQuery, setLeadQuery] = useState('');
@@ -475,6 +901,12 @@ function AddTaskModal({ type = 'todo', onClose, onCreated }) {
   const [users, setUsers] = useState([]);
   const [assignedTo, setAssignedTo] = useState(currentUser?._id || '');
   const [assignedBy, setAssignedBy] = useState(currentUser?._id || '');
+
+  useEffect(() => {
+    if (isTodo && (!note || !note.trim())) {
+      setNote('1. ');
+    }
+  }, [taskType, isTodo]);
 
   useEffect(() => {
     if (!canAssign) return;
@@ -687,14 +1119,46 @@ function AddTaskModal({ type = 'todo', onClose, onCreated }) {
           )}
 
           <div>
-            <label style={{ fontSize: 13, fontWeight: 500, color: COLOR_DEEP_BLUE, display: 'block', marginBottom: 6 }}>
-              {isCallFollowup ? 'Follow-up Details' : 'Todo Task Description'}
-            </label>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <label style={{ fontSize: 13, fontWeight: 500, color: COLOR_DEEP_BLUE }}>
+                {isCallFollowup ? 'Follow-up Details' : 'Todo Task Description'}
+              </label>
+              {isTodo && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const lines = (note || '').split('\n').filter(Boolean);
+                    const nextNum = lines.length + 1;
+                    setNote(prev => prev && prev.trim() ? `${prev}\n${nextNum}. ` : `${nextNum}. `);
+                  }}
+                  style={{
+                    padding: '2px 8px',
+                    fontSize: 11.5,
+                    fontWeight: 600,
+                    borderRadius: 4,
+                    border: `1px solid ${COLOR_BORDER}`,
+                    background: COLOR_SKY_SURFACE,
+                    color: COLOR_BLUE_GREEN,
+                    cursor: 'pointer'
+                  }}
+                >
+                  + Add Item
+                </button>
+              )}
+            </div>
+
+            {isTodo && (
+              <div style={{ fontSize: 11.5, color: COLOR_ORANGE, marginBottom: 6, fontWeight: 500 }}>
+                📋 Press <strong>Enter</strong> to automatically trigger 2., 3., 4.
+              </div>
+            )}
+
             <textarea
               value={note}
               onChange={e => setNote(e.target.value)}
-              rows={3}
-              placeholder={isCallFollowup ? 'What should this call be about?' : 'What needs to be accomplished?'}
+              onKeyDown={e => isTodo && handleNumericKeyDown(e, note, setNote)}
+              rows={4}
+              placeholder={isCallFollowup ? 'What should this call be about?' : '1. Write todo item here...'}
               style={{ width: '100%', border: `1px solid ${COLOR_BORDER}`, borderRadius: 8, padding: '10px 12px', fontSize: 14, fontWeight: 400, resize: 'none', outline: 'none', boxSizing: 'border-box', color: COLOR_DEEP_BLUE }}
             />
           </div>
@@ -881,6 +1345,7 @@ export default function Task() {
   const [dueFilter, setDueFilter] = useState(null);
   const [statusFilter, setStatusFilter] = useState(['pending', 'late', 'cancelled']);
   const [historyMode, setHistoryMode] = useState(false);
+  const [viewMode, setViewMode] = useState('cards');
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdditional, setShowAdditional] = useState(false);
@@ -1530,15 +1995,192 @@ export default function Task() {
 
         <div style={{ flex: 1 }} />
 
-        {/* Total found badge */}
-        <div style={{ fontSize: 13, color: COLOR_MUTED, fontWeight: 400 }}>
-          <span style={{ color: COLOR_DEEP_BLUE, fontWeight: 500 }}>{totalItems}</span> {activeTab === 'Todo' ? 'todos' : 'tasks'} found
+        {/* View mode toggle & total count */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${COLOR_BORDER}`, borderRadius: 8, overflow: 'hidden', background: '#fff' }}>
+            <button
+              onClick={() => setViewMode('cards')}
+              title="Card Grid View"
+              style={{
+                padding: '6px 12px',
+                border: 'none',
+                background: viewMode === 'cards' ? COLOR_SKY_SURFACE : 'transparent',
+                color: viewMode === 'cards' ? COLOR_BLUE_GREEN : COLOR_MUTED,
+                fontWeight: viewMode === 'cards' ? 600 : 400,
+                fontSize: 13,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                <rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
+              </svg>
+              Cards
+            </button>
+            <button
+              onClick={() => setViewMode('table')}
+              title="Table View"
+              style={{
+                padding: '6px 12px',
+                border: 'none',
+                background: viewMode === 'table' ? COLOR_SKY_SURFACE : 'transparent',
+                color: viewMode === 'table' ? COLOR_BLUE_GREEN : COLOR_MUTED,
+                fontWeight: viewMode === 'table' ? 600 : 400,
+                fontSize: 13,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+                <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+              </svg>
+              Table
+            </button>
+          </div>
+
+          <div style={{ fontSize: 13, color: COLOR_MUTED, fontWeight: 400 }}>
+            <span style={{ color: COLOR_DEEP_BLUE, fontWeight: 500 }}>{totalItems}</span> {activeTab === 'Todo' ? 'todos' : 'tasks'} found
+          </div>
         </div>
       </div>
 
-      {/* Main Table Container */}
-      <div style={{ background: '#fff', border: `1px solid ${COLOR_BORDER}`, borderRadius: 12, overflow: 'hidden', boxShadow: '0 2px 10px rgba(2, 48, 71, 0.03)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+      {/* Main Container: Cards View vs Table View */}
+      {viewMode === 'cards' && !loading && paginatedTasks.length > 0 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 }}>
+            {paginatedTasks.map(task => (
+              <TodoCard
+                key={task._id}
+                task={task}
+                onEdit={setEditingTask}
+                onComplete={handleMarkComplete}
+                onDelete={handleDelete}
+                canDelete={canDelete}
+                isLocked={isTaskLocked(task.scheduledAt)}
+                markingId={markingCompleteId}
+                deletingId={deletingTaskId}
+              />
+            ))}
+          </div>
+
+          {/* Pagination Bar for Cards */}
+          {totalItems > 0 && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '14px 20px',
+              background: '#fff',
+              border: `1px solid ${COLOR_BORDER}`,
+              borderRadius: 12,
+              flexWrap: 'wrap',
+              gap: 12
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <span style={{ fontSize: 13, color: COLOR_MUTED, fontWeight: 400 }}>
+                  Showing <strong style={{ color: COLOR_DEEP_BLUE, fontWeight: 500 }}>{startIndex + 1}</strong> to <strong style={{ color: COLOR_DEEP_BLUE, fontWeight: 500 }}>{endIndex}</strong> of <strong style={{ color: COLOR_DEEP_BLUE, fontWeight: 500 }}>{totalItems}</strong> {activeTab === 'Todo' ? 'todos' : 'tasks'}
+                </span>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 13, color: COLOR_MUTED, fontWeight: 400 }}>Rows:</span>
+                  <select
+                    value={pageSize}
+                    onChange={e => {
+                      setPageSize(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    style={{
+                      padding: '4px 8px',
+                      border: `1px solid ${COLOR_BORDER}`,
+                      borderRadius: 6,
+                      fontSize: 13,
+                      background: '#fff',
+                      color: COLOR_DEEP_BLUE,
+                      outline: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+                  disabled={currentPage <= 1}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '6px 14px',
+                    borderRadius: 6,
+                    border: `1px solid ${currentPage <= 1 ? '#e2e8f0' : COLOR_BORDER}`,
+                    background: currentPage <= 1 ? '#f8fafc' : '#fff',
+                    color: currentPage <= 1 ? '#94a3b8' : COLOR_DEEP_BLUE,
+                    fontSize: 13,
+                    fontWeight: 500,
+                    cursor: currentPage <= 1 ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <polyline points="15 18 9 12 15 6"/>
+                  </svg>
+                  Previous
+                </button>
+
+                <div style={{
+                  fontSize: 13,
+                  color: COLOR_DEEP_BLUE,
+                  padding: '6px 12px',
+                  borderRadius: 6,
+                  background: COLOR_SKY_SURFACE,
+                  border: `1px solid ${COLOR_BORDER}`,
+                  fontWeight: 500
+                }}>
+                  {currentPage} of {totalPages}
+                </div>
+
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+                  disabled={currentPage >= totalPages}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '6px 14px',
+                    borderRadius: 6,
+                    border: `1px solid ${currentPage >= totalPages ? '#e2e8f0' : COLOR_BORDER}`,
+                    background: currentPage >= totalPages ? '#f8fafc' : '#fff',
+                    color: currentPage >= totalPages ? '#94a3b8' : COLOR_DEEP_BLUE,
+                    fontSize: 13,
+                    fontWeight: 500,
+                    cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  Next
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Main Table Container */
+        <div style={{ background: '#fff', border: `1px solid ${COLOR_BORDER}`, borderRadius: 12, overflow: 'hidden', boxShadow: '0 2px 10px rgba(2, 48, 71, 0.03)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
           <thead>
             <tr style={{ background: '#f8fafc', borderBottom: `1px solid ${COLOR_BORDER}` }}>
               {[
@@ -1584,9 +2226,8 @@ export default function Task() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={activeTab === 'Todo' ? 7 : 8} style={{ padding: '60px 20px', textAlign: 'center' }}>
-                  <div className="spinner-gradient" style={{ width: 28, height: 28, margin: '0 auto' }} />
-                  <p style={{ fontSize: 14, color: COLOR_MUTED, marginTop: 12 }}>Loading {activeTab === 'Todo' ? 'todos' : 'tasks'}...</p>
+                <td colSpan={activeTab === 'Todo' ? 7 : 8} style={{ padding: '20px 0', textAlign: 'center' }}>
+                  <OrangeLoadingState />
                 </td>
               </tr>
             ) : paginatedTasks.length === 0 ? (
@@ -1708,22 +2349,7 @@ export default function Task() {
                     {/* Assignee */}
                     <td style={{ padding: '14px 18px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: '50%',
-                          background: COLOR_SKY_SURFACE,
-                          border: `1px solid ${COLOR_BORDER}`,
-                          color: COLOR_DEEP_BLUE,
-                          fontSize: 11,
-                          fontWeight: 500,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0
-                        }}>
-                          {(task.assignedTo?.name || task.assignee?.name || 'ME').slice(0, 2).toUpperCase()}
-                        </div>
+                        <UserAvatar userObj={task.assignedTo || task.assignee} nameFallback="Me" size={28} />
                         <span style={{ fontSize: 14, color: COLOR_DEEP_BLUE, fontWeight: 400 }}>
                           {task.assignedTo?.name || task.assignee?.name || 'Me'}
                         </span>
@@ -1735,24 +2361,7 @@ export default function Task() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         {(task.assignedBy?.name || task.assignedBy === 'all' || task.assignedBy === 'All') ? (
                           <>
-                            <div style={{
-                              width: 28,
-                              height: 28,
-                              borderRadius: '50%',
-                              background: '#fffbeb',
-                              border: '1px solid #fde68a',
-                              color: '#92400e',
-                              fontSize: 11,
-                              fontWeight: 500,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              flexShrink: 0
-                            }}>
-                              {((task.assignedBy?.name || task.assignedBy) === 'all' || (task.assignedBy?.name || task.assignedBy) === 'All')
-                                ? 'ALL'
-                                : (task.assignedBy?.name || '').slice(0, 2).toUpperCase()}
-                            </div>
+                            <UserAvatar userObj={typeof task.assignedBy === 'object' ? task.assignedBy : null} nameFallback={(task.assignedBy?.name || task.assignedBy) === 'all' ? 'All' : 'User'} size={28} />
                             <span style={{ fontSize: 14, color: COLOR_DEEP_BLUE, fontWeight: 400 }}>
                               {((task.assignedBy?.name || task.assignedBy) === 'all' || (task.assignedBy?.name || task.assignedBy) === 'All')
                                 ? 'All'
@@ -2021,6 +2630,7 @@ export default function Task() {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

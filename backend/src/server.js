@@ -105,6 +105,7 @@ app.use('/api/contacts', apiLimiter, require('./routes/contacts'));
 app.use('/api/bulk-import', apiLimiter, require('./routes/bulkImport'));
 app.use('/api/integrations', require('./routes/integrations'));
 app.use('/api/notifications', apiLimiter, require('./routes/notifications'));
+app.use('/api/departments', apiLimiter, require('./routes/departments'));
 app.use('/api/email', apiLimiter, require('./routes/email'));
 app.use('/api/api/email', apiLimiter, require('./routes/email'));
 

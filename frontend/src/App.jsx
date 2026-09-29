@@ -38,6 +38,7 @@ import AttendanceRecords from './Management/Attedence/AttendanceRecords';
 import BulkEmailBlast from './Management/Email/BulkEmailBlast';
 import MapsDashboard from './Maps';
 import CallRecordings from './Management/CallRecordings/CallRecordings';
+import Departments from './Management/Departments/Departments';
 
 import { isCEO, isHR, isLimitedStaff, canViewDashboard, canAccessEmailBlast } from './utils/permissions';
 
@@ -173,6 +174,8 @@ export default function App() {
             <Route path="permission-templates" element={<AdminRoute><PermissionTemplates /></AdminRoute>} />
             <Route path="admin/employee-tracking" element={<AdminOnlyRoute><LiveEmployeeTracking /></AdminOnlyRoute>} />
             <Route path="employee-tracking" element={<AdminOnlyRoute><LiveEmployeeTracking /></AdminOnlyRoute>} />
+            <Route path="admin/departments" element={<AdminRoute><Departments /></AdminRoute>} />
+            <Route path="departments" element={<Navigate to="/admin/departments" replace />} />
             <Route path="admin/attendance-records" element={<AttendanceRoute><AttendanceRecords /></AttendanceRoute>} />
             <Route path="attendance-records" element={<AttendanceRoute><AttendanceRecords /></AttendanceRoute>} />
             <Route path="add-lead" element={<StaffRestrictedRoute><AddLead /></StaffRestrictedRoute>} />

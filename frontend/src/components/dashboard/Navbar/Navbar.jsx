@@ -522,6 +522,7 @@ export default function Navbar() {
       { label: 'Invoice', path: '/invoice', icon: FaReceipt },
     ]},
     { title: 'Management', icon: FaSitemap, items: [
+      { label: 'Departments', path: '/admin/departments', icon: FaSitemap },
       { label: 'Attendance', path: '/admin/attendance-records', icon: FaCalendarCheck },
       { label: 'Call Recordings', path: '/recordings', icon: FaClock, adminOnly: !isHR(user) && !isCEO(user) && !isManager(user) },
       { label: 'Live Tracking', path: '/admin/employee-tracking', icon: FaLocationDot, adminOnly: !isHR(user) && !isCEO(user) },
