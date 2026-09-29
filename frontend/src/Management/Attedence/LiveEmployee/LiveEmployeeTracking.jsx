@@ -6,6 +6,25 @@ import trackingSocket, { ConnectionState } from '../../../services/trackingSocke
 import LiveMap from '../../../components/tracking/LiveMap';
 import { isValidCoordinates } from '../../../config/trackingConfig';
 
+function sortEmployeesByCode(aCode = '', bCode = '', aName = '', bName = '') {
+  const strA = String(aCode || '').trim();
+  const strB = String(bCode || '').trim();
+  const numA = strA.match(/\d+/) ? parseInt(strA.match(/\d+/)[0], 10) : null;
+  const numB = strB.match(/\d+/) ? parseInt(strB.match(/\d+/)[0], 10) : null;
+
+  if (numA !== null && numB !== null) {
+    if (numA !== numB) return numA - numB;
+  } else if (numA !== null) {
+    return -1;
+  } else if (numB !== null) {
+    return 1;
+  }
+
+  const codeCompare = strA.localeCompare(strB, undefined, { numeric: true, sensitivity: 'base' });
+  if (codeCompare !== 0) return codeCompare;
+  return String(aName || '').localeCompare(String(bName || ''));
+}
+
 export default function LiveEmployeeTracking() {
   const { user } = useAuth();
   const isSuperAdmin = user?.role === 'admin';
@@ -236,17 +255,18 @@ export default function LiveEmployeeTracking() {
     setHistoryBounds(null);
   };
 
-  // Filter & Search Logic
+  // Filter & Search Logic (Sorted by Employee ID)
   const filteredEmployees = useMemo(() => {
-    return employees.filter((emp) => {
+    const list = employees.filter((emp) => {
       const query = searchQuery.toLowerCase().trim();
       const loc = emp.location || {};
 
       const nameMatch = (emp.name || '').toLowerCase().includes(query);
+      const codeMatch = (emp.employeeId || emp.employeeCode || '').toLowerCase().includes(query);
       const emailMatch = (emp.email || '').toLowerCase().includes(query);
       const roadMatch = (loc.road || '').toLowerCase().includes(query);
       const areaMatch = (loc.area || '').toLowerCase().includes(query);
-      const matchesSearch = !query || nameMatch || emailMatch || roadMatch || areaMatch;
+      const matchesSearch = !query || nameMatch || codeMatch || emailMatch || roadMatch || areaMatch;
 
       const status = loc.trackingStatus || 'OFFLINE';
       let matchesStatus = true;
@@ -255,6 +275,12 @@ export default function LiveEmployeeTracking() {
       }
 
       return matchesSearch && matchesStatus;
+    });
+
+    return list.sort((a, b) => {
+      const codeA = a.employeeId || a.employeeCode || '';
+      const codeB = b.employeeId || b.employeeCode || '';
+      return sortEmployeesByCode(codeA, codeB, a.name, b.name);
     });
   }, [employees, searchQuery, statusFilter]);
 
@@ -771,9 +797,16 @@ export default function LiveEmployeeTracking() {
                             </div>
 
                             <div className="min-w-0">
-                              <h4 className="text-xs font-semibold text-slate-900 truncate">
-                                {emp.name}
-                              </h4>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <h4 className="text-xs font-semibold text-slate-900 truncate">
+                                  {emp.name}
+                                </h4>
+                                {(emp.employeeId || emp.raw?.employeeId) && (
+                                  <span className="text-[9.5px] font-mono font-bold px-1.5 py-0.2 rounded bg-sky-50 text-sky-700 border border-sky-200/80 shrink-0">
+                                    ID: {emp.employeeId || emp.raw?.employeeId}
+                                  </span>
+                                )}
+                              </div>
                               <p className="text-[11px] text-slate-500 truncate">
                                 {emp.email || emp.role || 'Field Agent'}
                               </p>

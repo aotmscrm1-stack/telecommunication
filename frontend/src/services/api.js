@@ -98,6 +98,7 @@ export const reportsAPI = {
 
 export const usersAPI = {
   getAll: () => api.get('/users'),
+  getById: (id) => api.get(`/users/${id}`),
   getApprovals: () => api.get('/users/approvals'),
   updateApprovalStatus: (id, data) => api.put(`/users/${id}/approval-status`, data),
   getPreferences: () => api.get('/users/preferences'),

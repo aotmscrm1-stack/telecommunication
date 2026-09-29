@@ -136,6 +136,26 @@ function formatHeaderDate(isoStr) {
   });
 }
 
+// Helper to sort employees in natural alphanumeric order based on employee ID (e.g. AOTMS-01, AOTMS-02, AOTMS4, AOTMS-09, AOTMS-18, AOTMS-20, AOTMS-21)
+function sortEmployeesByCode(aCode = '', bCode = '', aName = '', bName = '') {
+  const strA = String(aCode || '').trim();
+  const strB = String(bCode || '').trim();
+  const numA = strA.match(/\d+/) ? parseInt(strA.match(/\d+/)[0], 10) : null;
+  const numB = strB.match(/\d+/) ? parseInt(strB.match(/\d+/)[0], 10) : null;
+
+  if (numA !== null && numB !== null) {
+    if (numA !== numB) return numA - numB;
+  } else if (numA !== null) {
+    return -1;
+  } else if (numB !== null) {
+    return 1;
+  }
+
+  const codeCompare = strA.localeCompare(strB, undefined, { numeric: true, sensitivity: 'base' });
+  if (codeCompare !== 0) return codeCompare;
+  return String(aName || '').localeCompare(String(bName || ''));
+}
+
 export default function AttendanceRecords() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -315,7 +335,7 @@ export default function AttendanceRecords() {
       }
     });
 
-    return Array.from(empMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+    return Array.from(empMap.values()).sort((a, b) => sortEmployeesByCode(a.code, b.code, a.name, b.name));
   }, [records, systemUsers]);
 
   // Filtered employee options inside dropdown
@@ -336,16 +356,21 @@ export default function AttendanceRecords() {
     return employeeOptions.find((e) => e.id === selectedEmployeeId) || null;
   }, [selectedEmployeeId, employeeOptions]);
 
-  // Final records filtered by search query, status, and selected employee
+  // Final records filtered by search query, status, and selected employee (sorted by employee ID)
   const displayRecords = useMemo(() => {
-    let result = records;
+    let result = [...records];
 
     // Filter by selected employee from dropdown
     if (selectedEmployeeId !== 'ALL') {
       result = result.filter((r) => r.employeeId === selectedEmployeeId);
     }
 
-    return result;
+    // Sort in order based on Employee ID
+    return result.sort((a, b) => {
+      const codeA = a.employeeCode || a.employeeId || '';
+      const codeB = b.employeeCode || b.employeeId || '';
+      return sortEmployeesByCode(codeA, codeB, a.employeeName, b.employeeName);
+    });
   }, [records, selectedEmployeeId]);
 
   // Date navigation handlers

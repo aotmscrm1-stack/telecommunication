@@ -4,7 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import { attendanceAPI, followupsAPI, usersAPI } from '../../services/api';
 import geoTracker from '../../services/geoTracker';
 import logoImg from '../../assets/aotms-global-logo.png';
-import { getTaskAssignorOptions } from '../../utils/permissions';
+import { getTaskAssigneeOptions, getTaskAssignorOptions } from '../../utils/permissions';
+import { useRef } from 'react';
 import {
   FiClock,
   FiShield,
@@ -14,8 +15,171 @@ import {
   FiLogOut,
   FiCalendar,
   FiCheck,
+  FiChevronDown,
+  FiUsers,
 } from 'react-icons/fi';
 import { RiTimerFlashLine } from 'react-icons/ri';
+
+/**
+ * Multi-select Checkbox Dropdown for "Assigned To"
+ */
+function AssigneeCheckboxDropdown({ assignableUsers, selectedIds, onChange, currentUser }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const dropRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (dropRef.current && !dropRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filtered = assignableUsers.filter((u) => {
+    const q = search.toLowerCase();
+    const name = (u.name || (u.isMe ? 'You' : '')).toLowerCase();
+    const desig = (u.designation || '').toLowerCase();
+    return name.includes(q) || desig.includes(q);
+  });
+
+  const allSelected = assignableUsers.length > 0 && assignableUsers.every((u) => selectedIds.includes(u._id));
+  const isSingleOption = assignableUsers.length <= 1;
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      const defaultId = currentUser?._id || assignableUsers[0]?._id;
+      onChange(defaultId ? [defaultId] : []);
+    } else {
+      onChange(assignableUsers.map((u) => u._id));
+    }
+  };
+
+  const toggleUser = (id) => {
+    if (selectedIds.includes(id)) {
+      if (isSingleOption) return;
+      onChange(selectedIds.filter((x) => x !== id));
+    } else {
+      onChange([...selectedIds, id]);
+    }
+  };
+
+  const getSummaryLabel = () => {
+    if (selectedIds.length === 0) return 'Select Assignee(s)';
+    if (allSelected && assignableUsers.length > 1) {
+      return `All Employees (${assignableUsers.length})`;
+    }
+    if (selectedIds.length === 1) {
+      const found = assignableUsers.find((u) => u._id === selectedIds[0]);
+      if (found) {
+        return `${found.name || 'User'}${found._id === currentUser?._id ? ' (You)' : ''}${
+          found.designation ? ` (${found.designation})` : ''
+        }`;
+      }
+      return '1 Person Selected';
+    }
+    return `${selectedIds.length} People Selected`;
+  };
+
+  return (
+    <div ref={dropRef} className="relative w-full">
+      <button
+        type="button"
+        onClick={() => setOpen((p) => !p)}
+        className="w-full px-2.5 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-blue-500 flex items-center justify-between gap-1.5 shadow-xs transition-colors hover:border-slate-300"
+      >
+        <div className="flex items-center gap-1.5 min-w-0">
+          <FiUsers className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+          <span className="truncate text-left">{getSummaryLabel()}</span>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          {selectedIds.length > 1 && (
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700">
+              {selectedIds.length}
+            </span>
+          )}
+          <FiChevronDown className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+        </div>
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-full mt-1 w-full min-w-[240px] max-w-[320px] bg-white rounded-xl border border-slate-200 shadow-xl z-50 overflow-hidden flex flex-col p-1.5 animate-in fade-in zoom-in-95 duration-100">
+          {/* Header Controls for Multi-User options */}
+          {assignableUsers.length > 1 && (
+            <div className="p-1.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 rounded-lg mb-1">
+              <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={toggleSelectAll}
+                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 cursor-pointer accent-blue-600"
+                />
+                <span>Select All ({assignableUsers.length})</span>
+              </label>
+              <span className="text-[10px] font-medium text-slate-400">
+                {selectedIds.length} selected
+              </span>
+            </div>
+          )}
+
+          {assignableUsers.length > 4 && (
+            <div className="px-1 py-1">
+              <input
+                type="text"
+                placeholder="🔍 Search name / role..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full px-2 py-1 text-xs border border-slate-200 rounded-md outline-none focus:border-blue-500"
+              />
+            </div>
+          )}
+
+          {/* User List with Checkboxes */}
+          <div className="max-h-48 overflow-y-auto space-y-0.5 pr-0.5">
+            {filtered.length === 0 ? (
+              <div className="p-3 text-center text-xs text-slate-400">No matching employees</div>
+            ) : (
+              filtered.map((u) => {
+                const isChecked = selectedIds.includes(u._id);
+                const isMe = u._id === currentUser?._id;
+                return (
+                  <div
+                    key={u._id}
+                    onClick={() => toggleUser(u._id)}
+                    className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
+                      isChecked ? 'bg-blue-50/80 text-blue-900 font-semibold' : 'text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => {}}
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 cursor-pointer accent-blue-600 shrink-0"
+                    />
+                    <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 font-bold text-[10px] flex items-center justify-center shrink-0">
+                      {u.name ? u.name.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                    <div className="flex-1 min-w-0 truncate">
+                      <span className="truncate">{u.name || (isMe ? 'You' : 'User')}</span>
+                      {isMe && <span className="text-[10px] text-blue-600 ml-1 font-bold">(You)</span>}
+                    </div>
+                    {u.designation && (
+                      <span className="text-[10px] font-normal px-1.5 py-0.2 rounded bg-slate-100 text-slate-500 shrink-0">
+                        {u.designation}
+                      </span>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * 12-hour Time Picker Component
@@ -138,8 +302,8 @@ export default function MandatoryAttendanceModal() {
   const [priority, setPriority] = useState('medium');
   const [recurrence, setRecurrence] = useState('none');
   const [repeatEndDate, setRepeatEndDate] = useState('');
-  const [assignedTo, setAssignedTo] = useState(user?._id || '');
-  const [assignedBy, setAssignedBy] = useState('all');
+  const [selectedAssigneeIds, setSelectedAssigneeIds] = useState(() => (user?._id ? [user._id] : []));
+  const [assignedBy, setAssignedBy] = useState('');
   const [teamUsers, setTeamUsers] = useState([]);
 
   const [addingTask, setAddingTask] = useState(false);
@@ -164,7 +328,17 @@ export default function MandatoryAttendanceModal() {
       .catch(() => {});
   }, []);
 
+  const assignedToUsers = getTaskAssigneeOptions(user, teamUsers);
   const assignedByUsers = getTaskAssignorOptions(user, teamUsers);
+
+  useEffect(() => {
+    if (!assignedToUsers || !assignedToUsers.length) return;
+    setSelectedAssigneeIds((prev) => {
+      const valid = prev.filter((id) => assignedToUsers.some((u) => u._id === id));
+      if (valid.length > 0) return valid;
+      return [assignedToUsers[0]._id];
+    });
+  }, [teamUsers, user]);
 
   useEffect(() => {
     if (!assignedByUsers || !assignedByUsers.length) return;
@@ -337,34 +511,49 @@ export default function MandatoryAttendanceModal() {
       return;
     }
 
+    const targetAssignees = selectedAssigneeIds.length > 0 ? selectedAssigneeIds : (user?._id ? [user._id] : []);
+    if (!targetAssignees || targetAssignees.length === 0) {
+      setTaskError('Please select at least one person to assign this task to.');
+      return;
+    }
+
     try {
       setAddingTask(true);
       setTaskError(null);
 
       const scheduledAtIso = `${dueDate || new Date().toISOString().slice(0, 10)}T${dueTime || '09:00'}:00`;
+      const finalAssignedBy = assignedBy || user?._id;
 
-      const payload = {
-        type: taskType === 'call_followup' ? 'call_followup' : 'todo',
-        title: desc,
-        note: desc,
-        description: desc,
-        scheduledAt: new Date(scheduledAtIso).toISOString(),
-        priority,
-        repeatFrequency: recurrence,
-        repeatEndDate: recurrence !== 'none' && repeatEndDate ? new Date(repeatEndDate).toISOString() : undefined,
-        assignedTo: assignedTo || user?._id,
-        assignedBy: assignedBy === 'all' ? user?._id : assignedBy,
-      };
+      const createdTasks = await Promise.all(
+        targetAssignees.map(async (targetId) => {
+          const payload = {
+            type: taskType === 'call_followup' ? 'call_followup' : 'todo',
+            title: desc,
+            note: desc,
+            description: desc,
+            scheduledAt: new Date(scheduledAtIso).toISOString(),
+            priority,
+            recurrence: recurrence !== 'none' ? {
+              frequency: recurrence,
+              endDate: repeatEndDate ? new Date(repeatEndDate + 'T23:59:59').toISOString() : undefined,
+            } : undefined,
+            repeatFrequency: recurrence,
+            repeatEndDate: recurrence !== 'none' && repeatEndDate ? new Date(repeatEndDate).toISOString() : undefined,
+            assignedTo: targetId,
+            assignedBy: finalAssignedBy === 'all' ? user?._id : finalAssignedBy,
+          };
+          return followupsAPI.create(payload);
+        })
+      );
 
-      const res = await followupsAPI.create(payload);
-      if (res.data?.followup || res.data?.ok) {
-        window.dispatchEvent(new CustomEvent('tasks-updated', { detail: res.data.followup }));
-        // Close modal and open workspace
-        window.dispatchEvent(new CustomEvent('attendance-updated'));
-        setCurrentStep('CLOSED');
-      } else {
-        setTaskError('Failed to create Todo item. Please try again.');
-      }
+      createdTasks.forEach((res) => {
+        if (res.data?.followup) {
+          window.dispatchEvent(new CustomEvent('tasks-updated', { detail: res.data.followup }));
+        }
+      });
+      // Close modal and open workspace
+      window.dispatchEvent(new CustomEvent('attendance-updated'));
+      setCurrentStep('CLOSED');
     } catch (err) {
       console.error('[MandatoryTask] Create error:', err);
       setTaskError(err.response?.data?.message || 'Failed to create Todo item. Please try again.');
@@ -661,22 +850,12 @@ export default function MandatoryAttendanceModal() {
                     <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                       Assigned To
                     </label>
-                    <select
-                      value={assignedTo}
-                      onChange={(e) => setAssignedTo(e.target.value)}
-                      className="w-full px-2.5 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-blue-500"
-                    >
-                      <option value={user?._id}>
-                        {user?.name ? `${user.name} (You)` : 'You'}
-                      </option>
-                      {teamUsers
-                        .filter((u) => u._id !== user?._id)
-                        .map((u) => (
-                          <option key={u._id} value={u._id}>
-                            {u.name} {u.designation ? `(${u.designation})` : ''}
-                          </option>
-                        ))}
-                    </select>
+                    <AssigneeCheckboxDropdown
+                      assignableUsers={assignedToUsers}
+                      selectedIds={selectedAssigneeIds}
+                      onChange={setSelectedAssigneeIds}
+                      currentUser={user}
+                    />
                   </div>
 
                   <div>
@@ -690,9 +869,7 @@ export default function MandatoryAttendanceModal() {
                     >
                       {assignedByUsers.map((u) => (
                         <option key={u._id} value={u._id}>
-                          {u._id === 'all'
-                            ? 'All'
-                            : u._id === user?._id
+                          {u._id === user?._id
                             ? `${u.name || 'You'} (You)`
                             : `${u.name} ${u.designation ? `(${u.designation})` : ''}`}
                         </option>

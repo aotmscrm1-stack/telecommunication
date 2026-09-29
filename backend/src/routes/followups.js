@@ -152,13 +152,13 @@ router.get('/', protect, async (req, res) => {
 // - caller: themselves only
 async function canAssignTo(actor, assigneeId) {
   if (!assigneeId) return true; // falls back to actor as assignee
-  if (actor.role === 'admin' || actor.role === 'manager') return true;
+  if (actor.role === 'admin' || actor.role === 'superadmin' || actor.role === 'manager') return true;
   const desig = String(actor.designation || '').trim().toUpperCase();
-  if (['DEVELOPER', 'TRAINER', 'TRAINERS', 'DIGITAL MARKETING', 'DEGITAL MARKETING'].includes(desig)) {
+  if (['HR', 'CEO', 'MANAGING DIRECTOR', 'MD', 'CTO', 'DEVELOPER', 'TRAINER', 'TRAINERS', 'DIGITAL MARKETING', 'DEGITAL MARKETING'].includes(desig)) {
     return true;
   }
   if (assigneeId.toString() === actor._id.toString()) return true;
-  return false; // callers can only assign to themselves
+  return false;
 }
 
 // POST /api/followups — create a task/follow-up

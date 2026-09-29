@@ -11,6 +11,7 @@ import geoTracker from '../../services/geoTracker';
 import LiveMap from '../tracking/LiveMap';
 import StatusBadge from '../common/StatusBadge';
 import GradientWaves from './GradientWaves';
+import EmployeeProfileModal from './EmployeeProfileModal';
 import {
   FaUsers, FaMoneyBillWave, FaChartLine, FaCalendarCheck, FaPhone,
   FaTrophy, FaLocationDot, FaBuilding, FaMagnifyingGlass, FaRotate, FaFilter,
@@ -60,6 +61,25 @@ function formatLeadTime(iso) {
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+}
+
+function sortEmployeesByCode(aCode = '', bCode = '', aName = '', bName = '') {
+  const strA = String(aCode || '').trim();
+  const strB = String(bCode || '').trim();
+  const numA = strA.match(/\d+/) ? parseInt(strA.match(/\d+/)[0], 10) : null;
+  const numB = strB.match(/\d+/) ? parseInt(strB.match(/\d+/)[0], 10) : null;
+
+  if (numA !== null && numB !== null) {
+    if (numA !== numB) return numA - numB;
+  } else if (numA !== null) {
+    return -1;
+  } else if (numB !== null) {
+    return 1;
+  }
+
+  const codeCompare = strA.localeCompare(strB, undefined, { numeric: true, sensitivity: 'base' });
+  if (codeCompare !== 0) return codeCompare;
+  return String(aName || '').localeCompare(String(bName || ''));
 }
 function getLiveStatusBadge(status) {
   switch (status) {
@@ -174,10 +194,10 @@ function TeamMembersCard({
   const fallbackEmployees = [
     {
       _id: 'tm-1',
+      employeeId: 'AOTMS-01',
       name: 'Jaiden Keebler',
       role: 'UI/UX Designer',
       department: 'Design & Product',
-      assignedProjects: 2,
       avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=240&auto=format&fit=crop&q=80',
       email: 'jaiden.k@aotms.com',
       phone: '+91 98765 43210',
@@ -185,10 +205,10 @@ function TeamMembersCard({
     },
     {
       _id: 'tm-2',
+      employeeId: 'AOTMS-02',
       name: 'Norris Shields',
       role: 'Web developer',
       department: 'Engineering',
-      assignedProjects: 7,
       avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=240&auto=format&fit=crop&q=80',
       email: 'norris.s@aotms.com',
       phone: '+91 98765 43211',
@@ -196,10 +216,10 @@ function TeamMembersCard({
     },
     {
       _id: 'tm-3',
+      employeeId: 'AOTMS-03',
       name: 'Savanah Hegmann',
       role: 'Frontend developer',
       department: 'Engineering',
-      assignedProjects: 4,
       avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=240&auto=format&fit=crop&q=80',
       email: 'savanah.h@aotms.com',
       phone: '+91 98765 43212',
@@ -207,10 +227,10 @@ function TeamMembersCard({
     },
     {
       _id: 'tm-4',
+      employeeId: 'AOTMS-04',
       name: 'Marcus Vance',
       role: 'Product Specialist',
       department: 'Product Strategy',
-      assignedProjects: 5,
       avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=240&auto=format&fit=crop&q=80',
       email: 'marcus.v@aotms.com',
       phone: '+91 98765 43213',
@@ -224,16 +244,12 @@ function TeamMembersCard({
         const fb = fallbackEmployees[idx % fallbackEmployees.length];
         return {
           _id: e._id || `emp-${idx}`,
+          employeeId: e.employeeId || e.raw?.employeeId || fb.employeeId || `AOTMS-${String(idx + 1).padStart(2, '0')}`,
           name: e.name || fb.name,
           displayName: e.displayName || e.name || fb.name,
           role: e.designation || e.role || fb.role,
           designation: e.designation || fb.role,
           department: e.department || fb.department,
-          assignedProjects: e.assignedProjects 
-            ? e.assignedProjects 
-            : (e.calls?.today?.count 
-                ? Math.max(1, Math.min(9, Math.round(e.calls.today.count / 3))) 
-                : ((idx * 2 + 3) % 8 + 1)),
           avatar: (e.avatar && typeof e.avatar === 'string' && e.avatar.trim() !== '') ? e.avatar : fb.avatar,
           email: e.email || `${(e.name || fb.name).toLowerCase().replace(/\s+/g, '.')}@aotms.com`,
           phone: e.phone || '+91 98765 43210',
@@ -242,6 +258,8 @@ function TeamMembersCard({
           raw: e,
         };
       });
+
+      realList.sort((a, b) => sortEmployeesByCode(a.employeeId, b.employeeId, a.name, b.name));
 
       if (realList.length < 4) {
         const padded = [...realList];
@@ -488,20 +506,6 @@ function TeamMembersCard({
                         e.target.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center bg-gradient-to-tr from-orange-500 to-sky-500 text-white font-bold text-lg">${emp.name?.[0]?.toUpperCase() || 'U'}</div>`;
                       }}
                     />
-                    {/* Mini Profile Status Badge */}
-                    <div
-                      className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center shadow-xs"
-                      style={{ background: isPending ? '#f59e0b' : isAccepted ? '#0284c7' : '#ef4444' }}
-                      title={`Status: ${emp.approvalStatus}`}
-                    >
-                      {isPending ? (
-                        <FaClock className="w-2.5 h-2.5 text-white" />
-                      ) : isAccepted ? (
-                        <FaCheck className="w-2.5 h-2.5 text-white" />
-                      ) : (
-                        <FaXmark className="w-2.5 h-2.5 text-white" />
-                      )}
-                    </div>
                   </div>
 
                   {/* Top Right Status Badge & Menu */}
@@ -589,11 +593,16 @@ function TeamMembersCard({
                     </div>
                   </div>
 
-                  {/* Profile Info: Name, Designation & Email */}
+                  {/* Profile Info: Name, Designation, Employee ID & Email */}
                   <div className="mt-1">
-                    <h4 className="text-[16px] sm:text-[17px] font-bold text-slate-900 group-hover:text-orange-500 tracking-tight transition-colors m-0 truncate" title={emp.name}>
-                      {emp.name}
-                    </h4>
+                    <div className="flex items-center justify-between gap-1.5">
+                      <h4 className="text-[16px] sm:text-[17px] font-bold text-slate-900 group-hover:text-orange-500 tracking-tight transition-colors m-0 truncate" title={emp.name}>
+                        {emp.name}
+                      </h4>
+                      <span className="px-2 py-0.5 rounded-md text-[10.5px] font-mono font-bold bg-sky-50 text-sky-700 border border-sky-200/90 shrink-0 shadow-2xs" title={`Employee ID: ${emp.employeeId}`}>
+                        ID: {emp.employeeId}
+                      </span>
+                    </div>
                     <p className="text-[12.5px] font-semibold text-orange-600 mt-0.5 mb-1.5 truncate" title={emp.role}>
                       {emp.role}
                     </p>
@@ -665,9 +674,6 @@ function TeamMembersCard({
                           <FaUserCheck className="w-3.5 h-3.5 text-sky-600" />
                           <span>Active Member</span>
                         </div>
-                        <span className="text-slate-500 font-medium">
-                          {emp.assignedProjects} Projects
-                        </span>
                       </div>
                     ) : (
                       <div className="flex items-center justify-between text-[11.5px]">
@@ -687,21 +693,6 @@ function TeamMembersCard({
               );
             })}
           </AnimatePresence>
-
-          {/* ── ROUND PLUS BUTTON (NEXT EMPLOYEE / MOVE LEFT) ───── */}
-          {activeTotal > 4 && (
-            <div className="shrink-0 pl-1 self-center">
-              <motion.button
-                whileHover={{ scale: 1.1, x: 2 }}
-                whileTap={{ scale: 0.92 }}
-                onClick={handleNext}
-                className="w-14 h-14 sm:w-15 sm:h-15 rounded-full bg-white border border-orange-200 shadow-[0_4px_16px_rgba(249,115,22,0.12)] hover:shadow-lg hover:border-orange-400 text-orange-500 hover:text-orange-600 flex items-center justify-center cursor-pointer transition-all shrink-0 group"
-                title="Next Employee (Move Left)"
-              >
-                <FaPlus className="w-5.5 h-5.5 text-orange-500 group-hover:rotate-90 transition-transform duration-300" />
-              </motion.button>
-            </div>
-          )}
         </div>
       )}
 
@@ -1647,7 +1638,6 @@ export default function Dashboard() {
             role: u.designation || u.role || 'Telephony Specialist',
             department: u.department || 'CRM Operations',
             calls: act?.calls || { today: { count: ((i * 3 + 2) % 9 + 1) } },
-            assignedProjects: act?.calls?.today?.count ? Math.max(1, Math.min(9, Math.round(act.calls.today.count / 3))) : ((i * 2 + 3) % 8 + 1),
             avatar: (u.avatar && typeof u.avatar === 'string' && u.avatar.trim() !== '') ? u.avatar : (act?.avatar || ''),
             status: act?.status || (u.isActive ? 'Active' : 'Offline'),
           };
@@ -1680,14 +1670,16 @@ export default function Dashboard() {
   }, [user?.role]);
 
   const filteredActivityEmployees = useMemo(() => {
-    const list = employeesActivityData.employees || [];
-    if (!activitySearch.trim()) return list;
-    const q = activitySearch.toLowerCase().trim();
-    return list.filter(e =>
-      e.name.toLowerCase().includes(q) ||
-      e.employeeId.toLowerCase().includes(q) ||
-      e.email.toLowerCase().includes(q)
-    );
+    let list = [...(employeesActivityData.employees || [])];
+    if (activitySearch.trim()) {
+      const q = activitySearch.toLowerCase().trim();
+      list = list.filter(e =>
+        e.name.toLowerCase().includes(q) ||
+        (e.employeeId && e.employeeId.toLowerCase().includes(q)) ||
+        (e.email && e.email.toLowerCase().includes(q))
+      );
+    }
+    return list.sort((a, b) => sortEmployeesByCode(a.employeeId, b.employeeId, a.name, b.name));
   }, [employeesActivityData.employees, activitySearch]);
 
   const actualDemosCombined = adminStats?.demosScheduledThisMonth || stats?.byStatus?.['Demo Scheduled'] || 0;
@@ -1752,6 +1744,40 @@ export default function Dashboard() {
       console.error('Failed to permanently delete user:', err);
       alert(err.response?.data?.message || 'Failed to delete user profile');
     }
+  };
+
+  // Live update handler when user profile is updated in MongoDB
+  const handleEmployeeUpdated = (updatedUser) => {
+    if (!updatedUser?._id) return;
+    setEmployeesActivityData(prev => {
+      const updated = (prev.employees || []).map(emp => {
+        if (String(emp._id) === String(updatedUser._id)) {
+          return {
+            ...emp,
+            ...updatedUser,
+            name: updatedUser.name || emp.name,
+            displayName: updatedUser.displayName || emp.displayName,
+            role: updatedUser.designation || updatedUser.role || emp.role,
+            designation: updatedUser.designation || emp.designation,
+            department: updatedUser.department || emp.department,
+            avatar: (updatedUser.avatar && typeof updatedUser.avatar === 'string') ? updatedUser.avatar : emp.avatar,
+            email: updatedUser.email || emp.email,
+            phone: updatedUser.phone || emp.phone,
+            approvalStatus: updatedUser.approvalStatus || emp.approvalStatus,
+            isActive: updatedUser.isActive !== undefined ? updatedUser.isActive : emp.isActive,
+            raw: {
+              ...(emp.raw || {}),
+              ...updatedUser,
+            },
+          };
+        }
+        return emp;
+      });
+      return {
+        ...prev,
+        employees: updated,
+      };
+    });
   };
 
   // ── 5 REAL-TIME REPLICATED DATA CARDS ──
@@ -1902,17 +1928,6 @@ export default function Dashboard() {
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold cursor-pointer transition"
               style={{ background: '#ffffff', border: `1px solid ${T.line}`, color: '#334155', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
               <FaFileLines className="w-3.5 h-3.5" style={{ color: T.orange }} /> Exports
-            </motion.button>
-            <motion.button whileHover={{ y: -3 }} whileTap={{ scale: 0.96 }}
-              onClick={() => navigate('/leads/new')}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold cursor-pointer transition"
-              style={{
-                background: 'linear-gradient(135deg, #fb923c 0%, #f97316 60%, #ea580c 100%)',
-                color: '#ffffff',
-                border: '1px solid #ea580c',
-                boxShadow: '0 4px 14px rgba(249, 115, 22, 0.35)',
-              }}>
-              <FaPlus className="w-3 h-3" /> Add card
             </motion.button>
           </div>
         </div>
@@ -2282,60 +2297,15 @@ export default function Dashboard() {
 
       <AnimatePresence>
         {detailModalEmployee && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
-               style={{ background: 'rgba(15, 23, 42, 0.55)' }}
-               onClick={() => setDetailModalEmployee(null)}>
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 12 }} transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-              className="w-full max-w-3xl max-h-[90vh] flex flex-col rounded-3xl overflow-hidden shadow-2xl"
-              style={{ background: '#ffffff', border: `1px solid ${T.line}`, borderTop: '3px solid #f97316' }}
-              onClick={(e) => e.stopPropagation()}>
-              <div className="p-5 flex items-center justify-between"
-                   style={{ background: '#f8fafc', borderBottom: `1px solid ${T.line}` }}>
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-full grid place-items-center font-bold text-[14px]"
-                       style={{ background: 'rgba(249, 115, 22, 0.12)', color: '#ea580c' }}>
-                    {detailModalEmployee.name?.[0]?.toUpperCase()}
-                  </div>
-                  <div>
-                    <div className="text-[15px] font-bold text-slate-900">{detailModalEmployee.name}</div>
-                    <div className="text-[12px] text-slate-500">{detailModalEmployee.email}</div>
-                  </div>
-                </div>
-                <motion.button whileHover={{ scale: 1.15, rotate: 90 }} whileTap={{ scale: 0.9 }}
-                  onClick={() => setDetailModalEmployee(null)} className="cursor-pointer text-slate-400 hover:text-slate-700">
-                  <FaXmark className="w-5 h-5" />
-                </motion.button>
-              </div>
-              <div className="p-6 overflow-y-auto flex flex-col gap-4 text-[12.5px]">
-                <div className="rounded-2xl p-4" style={{ background: '#f8fafc', border: `1px solid ${T.line}` }}>
-                  <div className="text-[12px] font-bold uppercase mb-2" style={{ color: '#ea580c' }}>Today's Attendance</div>
-                  <div className="grid grid-cols-2 gap-2 text-slate-600">
-                    <div>Start: <strong className="text-slate-900">{detailModalEmployee.todayAttendance?.startTimeFormatted || 'Not Started'}</strong></div>
-                    <div>End: <strong className="text-slate-900">{detailModalEmployee.todayAttendance?.endTimeFormatted || '—'}</strong></div>
-                    <div>Duration: <strong className="text-slate-900">{detailModalEmployee.todayAttendance?.durationFormatted || '00:00:00'}</strong></div>
-                    <div>Actual: <strong style={{ color: '#ea580c' }}>{detailModalEmployee.todayAttendance?.formattedActualWork || '0m'}</strong></div>
-                  </div>
-                </div>
-                <div className="rounded-2xl p-4" style={{ background: '#ffffff', border: `1px solid ${T.line}` }}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[12px] font-bold uppercase flex items-center gap-2 text-slate-900">
-                      <FaLocationDot style={{ color: '#0284c7' }} /> Live GPS
-                    </span>
-                    <motion.button whileHover={{ y: -2 }} whileTap={{ scale: 0.94 }}
-                      onClick={() => { const t = detailModalEmployee; setDetailModalEmployee(null); setMapModalEmployee(t); }}
-                      className="px-3 py-1.5 rounded-full text-[11px] font-semibold flex items-center gap-1.5 cursor-pointer shadow-sm"
-                      style={{ background: 'linear-gradient(135deg, #38bdf8, #0284c7)', color: '#ffffff' }}>
-                      <FaMapLocationDot /> View Map
-                    </motion.button>
-                  </div>
-                  <div className="font-medium text-slate-800">
-                    {detailModalEmployee.location?.formattedAddress || 'Location unavailable'}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
+          <EmployeeProfileModal
+            employee={detailModalEmployee}
+            onClose={() => setDetailModalEmployee(null)}
+            onUpdated={handleEmployeeUpdated}
+            onOpenMap={(emp) => {
+              setDetailModalEmployee(null);
+              setMapModalEmployee(emp);
+            }}
+          />
         )}
       </AnimatePresence>
 

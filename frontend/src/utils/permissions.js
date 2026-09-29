@@ -96,71 +96,152 @@ export const canViewDashboard = (user) => {
 };
 
 /**
+ * Call Recordings Access Guard:
+ * Strictly visible to HR and Admin (CEO, Managing Director, CTO, Admin role).
+ * Remaining employees (Developer, Trainer, Digital Marketing, Caller, etc.) are strictly excluded.
+ */
+export const canViewCallRecordings = (user) => {
+  if (!user) return false;
+  return isHR(user) || isCEO(user) || user?.role === 'admin';
+};
+
+/**
+ * Task Creation "Assigned To" allowed options per Designation:
+ * - Admin (Admin role, CEO, Managing Director, CTO): All employees, Me.
+ * - HR (HR designation): Me, Trainers, Digital Marketing.
+ * - Developer (Developer designation): Me.
+ * - Digital Marketing (Digital Marketing designation): Me.
+ * - Trainers (Trainer/Trainers designation): Me.
+ * 
+ * Returns an array of user objects that the current user is allowed to assign tasks to.
+ */
+export const getTaskAssigneeOptions = (currentUser, users = []) => {
+  const userList = Array.isArray(users) ? users : [];
+  if (!currentUser) return [];
+
+  // Helper to ensure current user is represented
+  const meUser = userList.find(u => u._id === currentUser._id) || {
+    _id: currentUser._id,
+    name: currentUser.name || 'You',
+    designation: currentUser.designation || 'Me',
+    isMe: true,
+  };
+
+  // 1. Admin (CEO, Managing Director, CTO, role: admin/superadmin)
+  // Assigned to: all employees, me
+  if (isExecutive(currentUser) || currentUser.role === 'admin' || currentUser.role === 'superadmin') {
+    const list = [];
+    if (!list.some(u => u._id === meUser._id)) list.push(meUser);
+    userList.forEach(u => {
+      if (!list.some(existing => existing._id === u._id)) {
+        list.push(u);
+      }
+    });
+    return list;
+  }
+
+  // 2. HR
+  // Assigned to: me, trainers, digital marketing
+  if (isHR(currentUser)) {
+    const list = [meUser];
+    userList.forEach(u => {
+      if (u._id === currentUser._id) return;
+      if (isTrainer(u) || isDigitalMarketing(u)) {
+        if (!list.some(existing => existing._id === u._id)) {
+          list.push(u);
+        }
+      }
+    });
+    return list;
+  }
+
+  // 3. Developer, 4. Digital Marketing, 5. Trainers, & all others
+  // Assigned to: me
+  return [meUser];
+};
+
+/**
  * Task Creation "Assigned By" allowed options per Designation:
- * 1. Developer: Only Admin (CEO/MD/Manager) and You.
- * 2. Trainers: HR, Admin, You.
- * 3. Digital Marketing: HR, Admin, You.
- * 4. Others (Admin / HR / CEO / MD / Manager): All users + All option.
+ * - Admin (Admin role, CEO, MD, CTO): Me.
+ * - HR: Admin.
+ * - Developer: Admin, Me, Developer.
+ * - Digital Marketing: Admin, Manager.
+ * - Trainers: Admin, Manager.
+ * 
+ * Returns an array of user objects that the current user can select as "Assigned By".
  */
 export const getTaskAssignorOptions = (currentUser, users = []) => {
   const userList = Array.isArray(users) ? users : [];
+  if (!currentUser) return [];
 
-  // Find Admin / Executive / CEO / MD / Manager users
+  const meUser = userList.find(u => u._id === currentUser._id) || {
+    _id: currentUser._id,
+    name: currentUser.name || 'You',
+    designation: currentUser.designation || 'Me',
+    isMe: true,
+  };
+
+  // Find Admin / Executive / CEO / MD / CTO / superadmin users
   const adminUsers = userList.filter(u =>
     isExecutive(u) ||
     u.role === 'admin' ||
-    u.role === 'manager' ||
+    u.role === 'superadmin' ||
     u.name?.toLowerCase().includes('ameen') ||
     u.name?.toLowerCase().includes('rabbani')
   );
-
   const primaryAdmin = adminUsers.length > 0 ? adminUsers : [
     { _id: 'admin_fallback', name: 'Admin', designation: 'Managing Director' }
   ];
 
-  // Find HR users
-  const hrUsers = userList.filter(u => isHR(u));
+  // Find Manager users
+  const managerUsers = userList.filter(u => isManager(u) || u.role === 'manager');
+  const primaryManagers = managerUsers.length > 0 ? managerUsers : [
+    { _id: 'manager_fallback', name: 'Manager', designation: 'Manager' }
+  ];
 
-  const allOption = { _id: 'all', name: 'All' };
+  // Find Developer users
+  const devUsers = userList.filter(u => isDeveloper(u));
 
-  // 1. Developer: All + Admin + You
+  // 1. Admin: Assigned by: me
+  if (isExecutive(currentUser) || currentUser.role === 'admin' || currentUser.role === 'superadmin') {
+    return [meUser];
+  }
+
+  // 2. HR: Assigned by: admin
+  if (isHR(currentUser)) {
+    return primaryAdmin;
+  }
+
+  // 3. Developer: Assigned by: admin, me, developer
   if (isDeveloper(currentUser)) {
-    const list = [allOption, ...primaryAdmin];
-    if (currentUser && !list.some(u => u._id === currentUser._id)) {
-      list.push(currentUser);
+    const list = [...primaryAdmin];
+    if (!list.some(u => u._id === meUser._id)) {
+      list.push(meUser);
     }
+    devUsers.forEach(dev => {
+      if (!list.some(u => u._id === dev._id)) {
+        list.push(dev);
+      }
+    });
     return list;
   }
 
-  // 2. Trainers & 3. Digital Marketing: All + HR + Admin + You
-  if (isTrainer(currentUser) || isDigitalMarketing(currentUser)) {
-    const list = [allOption];
-
-    // HR users
-    hrUsers.forEach(hr => {
-      if (!list.some(u => u._id === hr._id)) list.push(hr);
+  // 4. Digital Marketing & 5. Trainers: Assigned by: admin, manager
+  if (isDigitalMarketing(currentUser) || isTrainer(currentUser)) {
+    const list = [...primaryAdmin];
+    primaryManagers.forEach(mgr => {
+      if (!list.some(u => u._id === mgr._id)) {
+        list.push(mgr);
+      }
     });
-
-    // Admin users
-    primaryAdmin.forEach(adm => {
-      if (!list.some(u => u._id === adm._id)) list.push(adm);
-    });
-
-    // Current User (You)
-    if (currentUser && !list.some(u => u._id === currentUser._id)) {
-      list.push(currentUser);
-    }
-
     return list;
   }
 
-  // 4. All others: All option + all individual users
-  const list = [allOption];
-  userList.forEach(u => {
-    if (!list.some(existing => existing._id === u._id)) {
-      list.push(u);
-    }
-  });
+  // Fallback for any other designation: Admin + Me
+  const list = [...primaryAdmin];
+  if (!list.some(u => u._id === meUser._id)) {
+    list.push(meUser);
+  }
   return list;
 };
 
