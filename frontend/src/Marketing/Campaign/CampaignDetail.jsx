@@ -22,6 +22,8 @@ const BORDER = '#e2e8f0';
 const STATUS_COLORS = {
   Fresh: '#ea580c', // Orange
   Connected: '#2563eb', // Blue
+  'Not Answered': '#f59e0b', // Amber
+  'Call Back': '#0ea5e9', // Sky Blue
   'Call Not Responding': '#f97316', // Amber-Orange
   'Call Back Later': '#3b82f6', // Light Blue
   'Not interested': '#64748b',
@@ -482,6 +484,8 @@ function AddLeadsModal({ campaignId, onClose, onSuccess }) {
                 <option value="Fresh">Fresh</option>
                 <option value="Interested">Interested</option>
                 <option value="Connected">Connected</option>
+                <option value="Not Answered">Not Answered</option>
+                <option value="Call Back">Call Back</option>
                 <option value="Call Back Later">Call Back Later</option>
                 <option value="Enrolled">Enrolled</option>
               </select>
@@ -565,7 +569,7 @@ export default function CampaignDetail() {
   const wonLeads = statusBreakdown.find(s => s._id === 'Won')?.count || 0;
   const lostReasons = campaign?.lostReasons || [];
 
-  const allStatuses = ['Fresh', 'Connected', 'Call Not Responding', 'Call Back Later', 'Not interested', 'Demo Scheduled', 'Demo Done', 'Won', 'Lost', 'Blocked'];
+  const allStatuses = ['Fresh', 'Connected', 'Not Answered', 'Call Back', 'Call Not Responding', 'Call Back Later', 'Not interested', 'Demo Scheduled', 'Demo Done', 'Won', 'Lost', 'Blocked'];
 
   if (loading) return <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Spinner /></div>;
   if (!campaign) return <div style={{ textAlign: 'center', padding: 48, color: MUTED }}>Campaign not found</div>;

@@ -41,7 +41,10 @@ const SYSTEM_FIELDS = [
 function normaliseStatus(raw) {
   if (!raw) return 'Fresh';
   const map = {
-    fresh:'Fresh',connected:'Connected','call not responding':'Call Not Responding',cnr:'Call Not Responding',
+    fresh:'Fresh',connected:'Connected',
+    'not answered':'Not Answered',na:'Not Answered','not answer':'Not Answered',
+    'call back':'Call Back',cb:'Call Back','callback':'Call Back',
+    'call not responding':'Call Not Responding',cnr:'Call Not Responding',
     'call back later':'Call Back Later',cbl:'Call Back Later','not interested':'Not interested',
     'demo scheduled':'Demo Scheduled','demo done':'Demo Done',won:'Won',lost:'Lost',blocked:'Blocked',
   };

@@ -58,11 +58,11 @@ const SAMPLE_AOTMS_QUOTATION = {
   payment_terms_2: '50% after Workshop completion',
   payment_note: '*Note: GST & TDS Applicable*',
 
-  bank_account_holder: 'AOTMS Global Private Limited',
+  bank_account_holder: 'AOTMS GLOBAL PRIVATE LIMITED',
   bank_name: 'HDFC',
-  bank_account_no: '50200113949476',
-  bank_ifsc: 'HDFC0003975',
-  bank_branch: 'Enikepadu, Vijayawada-521108.',
+  bank_account_no: '50200120568031',
+  bank_ifsc: 'HDFC0009062',
+  bank_branch: 'Gurunanak Colony',
 
   signatory_name: 'Ameenuddin Sayyed',
   signatory_role: 'Managing Director',
@@ -112,7 +112,7 @@ export default function Quotation() {
     }
   }, [activeTab, search]);
 
-  // PDF Download Handler using direct jsPDF & html2canvas
+  // PDF Download Handler matching Offer Letter standard A4 export
   const handleDownloadPDF = async (targetRef = printRef, clientName = form.client_name) => {
     if (!targetRef.current) return;
     setDownloadingPdf(true);
@@ -120,16 +120,12 @@ export default function Quotation() {
     try {
       const element = targetRef.current;
       const cleanName = (clientName || 'Client').replace(/[^a-zA-Z0-9]+/g, '_');
-      const filename = `AOTMS_Quotation_${cleanName}.pdf`;
+      const quoteNo = (form.invoice_number || 'QUOTE').replace(/[^a-zA-Z0-9]+/g, '_');
+      const filename = `AOTMS_Quotation_${quoteNo}_${cleanName}.pdf`;
 
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-      });
+      const quotePages = element.querySelectorAll('.quotation-page');
+      const targetPages = (quotePages && quotePages.length > 0) ? quotePages : [element];
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.98);
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
@@ -137,32 +133,49 @@ export default function Quotation() {
         compress: true,
       });
 
-      const a4Width = 210;
-      const a4Height = 297;
-      const imgWidth = a4Width;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      // Temporarily remove shadow and bottom margins during PDF capture
+      const originalShadows = [];
+      const originalMargins = [];
+      targetPages.forEach((p, idx) => {
+        originalShadows[idx] = p.style.boxShadow;
+        originalMargins[idx] = p.style.marginBottom;
+        p.style.boxShadow = 'none';
+        p.style.marginBottom = '0px';
+      });
 
-      if (imgHeight <= a4Height) {
-        pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight, undefined, 'FAST');
-      } else {
-        let heightLeft = imgHeight;
-        let position = 0;
+      try {
+        for (let i = 0; i < targetPages.length; i++) {
+          const pageEl = targetPages[i];
+          const canvas = await html2canvas(pageEl, {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            scrollY: 0,
+            scrollX: 0,
+            backgroundColor: '#ffffff',
+          });
 
-        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
-        heightLeft -= a4Height;
-
-        while (heightLeft > 5) {
-          position = position - a4Height;
-          pdf.addPage('a4', 'portrait');
-          pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
-          heightLeft -= a4Height;
+          const imgData = canvas.toDataURL('image/jpeg', 0.98);
+          if (i > 0) {
+            pdf.addPage('a4', 'portrait');
+          }
+          pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
         }
+
+        pdf.save(filename);
+      } finally {
+        targetPages.forEach((p, idx) => {
+          p.style.boxShadow = originalShadows[idx];
+          p.style.marginBottom = originalMargins[idx];
+        });
       }
 
-      pdf.save(filename);
+      setSuccessMessage(`PDF downloaded successfully: ${filename}`);
+      setTimeout(() => setSuccessMessage(''), 4000);
     } catch (err) {
       console.error('PDF Generation failed:', err);
-      alert('Failed to generate PDF. Please try again or use the browser Print option.');
+      setErrorMessage('Failed to generate PDF. Please try again.');
+      setTimeout(() => setErrorMessage(''), 4000);
     } finally {
       setDownloadingPdf(false);
     }
@@ -577,7 +590,7 @@ export default function Quotation() {
                     <label className="text-xs font-semibold text-slate-600 mb-1 block">Account Name</label>
                     <input
                       type="text"
-                      value={form.bank_account_holder || 'AOTMS Global Private Limited'}
+                      value={form.bank_account_holder || 'AOTMS GLOBAL PRIVATE LIMITED'}
                       onChange={(e) => setForm({ ...form, bank_account_holder: e.target.value })}
                       className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 font-medium"
                     />
@@ -595,7 +608,7 @@ export default function Quotation() {
                     <label className="text-xs font-semibold text-slate-600 mb-1 block">Account Number</label>
                     <input
                       type="text"
-                      value={form.bank_account_no || '50200113949476'}
+                      value={form.bank_account_no || '50200120568031'}
                       onChange={(e) => setForm({ ...form, bank_account_no: e.target.value })}
                       className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 font-bold"
                     />
@@ -604,7 +617,7 @@ export default function Quotation() {
                     <label className="text-xs font-semibold text-slate-600 mb-1 block">IFSC Code</label>
                     <input
                       type="text"
-                      value={form.bank_ifsc || 'HDFC0003975'}
+                      value={form.bank_ifsc || 'HDFC0009062'}
                       onChange={(e) => setForm({ ...form, bank_ifsc: e.target.value })}
                       className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 uppercase font-bold"
                     />
@@ -615,7 +628,7 @@ export default function Quotation() {
                   <label className="text-xs font-semibold text-slate-600 mb-1 block">Branch</label>
                   <input
                     type="text"
-                    value={form.bank_branch || 'Enikepadu, Vijayawada-521108.'}
+                    value={form.bank_branch || 'Gurunanak Colony'}
                     onChange={(e) => setForm({ ...form, bank_branch: e.target.value })}
                     className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500"
                   />
@@ -688,6 +701,13 @@ export default function Quotation() {
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
+                    onClick={() => setPreviewMode(previewMode === 'split' ? 'fullscreen' : 'split')}
+                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-all cursor-pointer"
+                  >
+                    {previewMode === 'split' ? 'Full Width' : 'Split View'}
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => handleDownloadPDF(printRef, form.client_name)}
                     disabled={downloadingPdf}
                     className="group px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl flex items-center gap-2 shadow-sm transition-all border border-slate-700/80 cursor-pointer disabled:opacity-50"
@@ -700,8 +720,8 @@ export default function Quotation() {
                 </div>
               </div>
 
-              {/* Printable Live Quotation Preview Container */}
-              <div className="p-2 sm:p-4 bg-slate-100/70 border border-slate-200 rounded-2xl shadow-inner">
+              {/* Printable Live Quotation Preview Container with standard A4 scrollbar */}
+              <div className="p-2 sm:p-4 bg-slate-100/70 border border-slate-200 rounded-2xl shadow-inner max-h-[calc(100vh-220px)] lg:max-h-[560px] overflow-y-auto custom-scrollbar">
                 <QuotationDocument ref={printRef} quotationData={form} isPreview={true} />
               </div>
             </div>
@@ -848,7 +868,7 @@ export default function Quotation() {
             </div>
 
             {/* Modal Body */}
-            <div className="p-6 overflow-y-auto flex justify-center bg-slate-100 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(90vh-80px)] bg-slate-100/70 custom-scrollbar flex justify-center">
               <QuotationDocument ref={modalPrintRef} quotationData={selectedQuotation} isPreview={true} />
             </div>
           </div>

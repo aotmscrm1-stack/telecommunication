@@ -254,7 +254,7 @@ router.get('/stats', protect, async (req, res) => {
         fresh: { $sum: { $cond: [{ $eq: ['$status', 'Fresh'] }, 1, 0] } },
         won: { $sum: { $cond: [{ $eq: ['$status', 'Won'] }, 1, 0] } },
         lost: { $sum: { $cond: [{ $eq: ['$status', 'Lost'] }, 1, 0] } },
-        active: { $sum: { $cond: [{ $in: ['$status', ['Connected', 'Call Not Responding', 'Call Back Later', 'Demo Scheduled', 'Demo Done']] }, 1, 0] } }
+        active: { $sum: { $cond: [{ $in: ['$status', ['Connected', 'Not Answered', 'Call Back', 'Call Not Responding', 'Call Back Later', 'Demo Scheduled', 'Demo Done', 'Interested', 'Follow Up', 'Negotiation']] }, 1, 0] } }
       }}
     ]);
     const globalCounts = globalStatusStats[0] || { fresh: 0, active: 0, won: 0, lost: 0 };
@@ -265,7 +265,7 @@ router.get('/stats', protect, async (req, res) => {
         fresh: { $sum: { $cond: [{ $eq: ['$status', 'Fresh'] }, 1, 0] } },
         won: { $sum: { $cond: [{ $eq: ['$status', 'Won'] }, 1, 0] } },
         lost: { $sum: { $cond: [{ $eq: ['$status', 'Lost'] }, 1, 0] } },
-        active: { $sum: { $cond: [{ $in: ['$status', ['Connected', 'Call Not Responding', 'Call Back Later', 'Demo Scheduled', 'Demo Done']] }, 1, 0] } }
+        active: { $sum: { $cond: [{ $in: ['$status', ['Connected', 'Not Answered', 'Call Back', 'Call Not Responding', 'Call Back Later', 'Demo Scheduled', 'Demo Done', 'Interested', 'Follow Up', 'Negotiation']] }, 1, 0] } }
       }}
     ]);
     const assignedCounts = assignedStatusStats[0] || { fresh: 0, active: 0, won: 0, lost: 0 };
@@ -276,7 +276,7 @@ router.get('/stats', protect, async (req, res) => {
         fresh: { $sum: { $cond: [{ $eq: ['$status', 'Fresh'] }, 1, 0] } },
         won: { $sum: { $cond: [{ $eq: ['$status', 'Won'] }, 1, 0] } },
         lost: { $sum: { $cond: [{ $eq: ['$status', 'Lost'] }, 1, 0] } },
-        active: { $sum: { $cond: [{ $in: ['$status', ['Connected', 'Call Not Responding', 'Call Back Later', 'Demo Scheduled', 'Demo Done']] }, 1, 0] } }
+        active: { $sum: { $cond: [{ $in: ['$status', ['Connected', 'Not Answered', 'Call Back', 'Call Not Responding', 'Call Back Later', 'Demo Scheduled', 'Demo Done', 'Interested', 'Follow Up', 'Negotiation']] }, 1, 0] } }
       }}
     ]);
     const myCounts = myStatusStats[0] || { fresh: 0, active: 0, won: 0, lost: 0 };

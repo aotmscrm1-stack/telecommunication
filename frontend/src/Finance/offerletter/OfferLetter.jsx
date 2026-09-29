@@ -25,6 +25,7 @@ import { numberToWords } from '../../utils/numberToWords';
 import atmLogoImg from '../../assets/atm-logo.jpeg';
 import logoImg from '../../assets/aotms-global-logo.png';
 import aotmsStampImg from '../../assets/image-removebg-preview.png';
+import deenazSignatureImg from '../../assets/deenaz-signature.png';
 
 const SAMPLE_OFFER_LETTER = {
   doc_type: 'offer',
@@ -46,8 +47,8 @@ const SAMPLE_OFFER_LETTER = {
   conveyance: 2500,
   food_transport_allowance: 1350,
   incentive: 0,
-  dearness_allowance: 3450,
-  special_allowance: 0,
+  dearness_allowance: 0,
+  special_allowance: 3450,
   custom_earnings: [],
   esi_employee: 0,
   pf_employee: 0,
@@ -77,20 +78,24 @@ export const OfferLetterDocument = forwardRef(({ invoiceData = {}, isPreview = f
   const hraMonthly = Number(invoiceData.hra) || Math.round(basicMonthly * 0.4);
   const hraAnnual = hraMonthly * 12;
 
-  const medicalMonthly = Number(invoiceData.medical_allowance) || 1500;
+  const medicalMonthly = Number(invoiceData.medical_allowance) || (monthlyCtc > 0 ? 1500 : 0);
   const medicalAnnual = medicalMonthly * 12;
 
-  const conveyanceMonthly = Number(invoiceData.conveyance) || 2500;
+  const conveyanceMonthly = Number(invoiceData.conveyance) || (monthlyCtc > 0 ? 2500 : 0);
   const conveyanceAnnual = conveyanceMonthly * 12;
 
-  const foodMonthly = Number(invoiceData.food_transport_allowance) || 1350;
+  const foodMonthly = Number(invoiceData.food_transport_allowance) || (monthlyCtc > 0 ? 1350 : 0);
   const foodAnnual = foodMonthly * 12;
 
   const incentiveMonthly = Number(invoiceData.incentive) || 0;
   const incentiveAnnual = incentiveMonthly * 12;
 
-  const daMonthly = Number(invoiceData.dearness_allowance) || 3450;
-  const daAnnual = daMonthly * 12;
+  const fixedSum = basicMonthly + hraMonthly + conveyanceMonthly + medicalMonthly + foodMonthly;
+  const calculatedSpecial = monthlyCtc > fixedSum ? monthlyCtc - fixedSum : 0;
+  const specialMonthly = invoiceData.special_allowance !== undefined && invoiceData.special_allowance !== null && !isNaN(Number(invoiceData.special_allowance))
+    ? Number(invoiceData.special_allowance)
+    : calculatedSpecial;
+  const specialAnnual = specialMonthly * 12;
 
   const customEarnings = invoiceData.custom_earnings || [];
   const customDeductions = invoiceData.custom_deductions || [];
@@ -117,7 +122,7 @@ export const OfferLetterDocument = forwardRef(({ invoiceData = {}, isPreview = f
     color: '#000000',
     fontFamily: "'Inter', sans-serif",
     fontSize: '12.5px',
-    lineHeight: '1.5',
+    lineHeight: '1.45',
     width: '794px',
     minHeight: '1123px',
     boxSizing: 'border-box',
@@ -136,7 +141,7 @@ export const OfferLetterDocument = forwardRef(({ invoiceData = {}, isPreview = f
     border: '1px solid #000000',
     minHeight: '1091px',
     boxSizing: 'border-box',
-    padding: '24px 28px',
+    padding: '20px 24px',
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'flex-start',
@@ -150,27 +155,27 @@ export const OfferLetterDocument = forwardRef(({ invoiceData = {}, isPreview = f
     alignItems: 'center',
     justifyContent: 'center',
     borderBottom: '1px solid #000000',
-    paddingBottom: '10px',
-    marginBottom: '14px',
+    paddingBottom: '8px',
+    marginBottom: '10px',
     textAlign: 'center',
   };
 
   return (
-    <div ref={ref} className="pdf-4page-container" style={{ width: '100%', maxWidth: '810px', margin: '0 auto', boxSizing: 'border-box' }}>
+    <div ref={ref} className="pdf-offerletter-container" style={{ width: '100%', maxWidth: '810px', margin: '0 auto', boxSizing: 'border-box' }}>
 
-      {/* ── PAGE 1 OF 4: OFFER LETTER & GROSS CTC ───────────────────────── */}
+      {/* ── PAGE 1 OF 2: OFFER LETTER & FULL COMPENSATION PLAN ─────────── */}
       <div className="offer-letter-page" style={outerPageStyle}>
         <div style={innerFrameStyle}>
-          <div style={{ position: 'absolute', top: 10, right: 14, fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>Page 1 of 4</div>
+          <div style={{ position: 'absolute', top: 10, right: 14, fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>Page 1 of 2</div>
 
           <div style={headerStyle}>
             <img
               src={logoImg}
               alt="AOTMS Global Logo"
-              style={{ height: 46, objectFit: 'contain', marginBottom: 4, display: 'block' }}
+              style={{ height: 42, objectFit: 'contain', marginBottom: 3, display: 'block' }}
               onError={(e) => { e.target.src = atmLogoImg; }}
             />
-            <div style={{ textAlign: 'center', fontSize: 12, color: '#111827' }}>
+            <div style={{ textAlign: 'center', fontSize: 11.5, color: '#111827' }}>
               <span>Phone: +91 80199-42233</span>
               <span style={{ margin: '0 8px', color: '#9ca3af' }}>|</span>
               <span>Email: <a href="mailto:hr@aotms.com" style={{ color: '#2563eb', textDecoration: 'none' }}>hr@aotms.com</a></span>
@@ -178,192 +183,142 @@ export const OfferLetterDocument = forwardRef(({ invoiceData = {}, isPreview = f
           </div>
 
           {/* Title: OFFER LETTER */}
-          <div style={{ textAlign: 'center', marginBottom: '14px' }}>
-            <span style={{ fontSize: '18px', fontWeight: 700, textDecoration: 'underline', color: '#000000', letterSpacing: '0.5px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '10px' }}>
+            <span style={{ fontSize: '17px', fontWeight: 700, textDecoration: 'underline', color: '#000000', letterSpacing: '0.5px' }}>
               OFFER LETTER
             </span>
           </div>
 
-          <div style={{ marginBottom: 12, marginTop: 2 }}>
-            <div style={{ fontSize: 13.5, color: '#111' }}>To,</div>
-            <div style={{ fontSize: 15, color: '#000', fontWeight: 600 }}>{clientName}</div>
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 13, color: '#111' }}>To,</div>
+            <div style={{ fontSize: 14.5, color: '#000', fontWeight: 600 }}>{clientName}</div>
           </div>
 
-          <div style={{ marginBottom: 14, textAlign: 'justify', lineHeight: 1.55, fontSize: 13, color: '#111827' }}>
-            <div style={{ marginBottom: 6, fontSize: 14, fontWeight: 600 }}>Dear {shortName},</div>
-            <p style={{ margin: '0 0 10px 0' }}>
+          <div style={{ marginBottom: 12, textAlign: 'justify', lineHeight: 1.5, fontSize: 12.5, color: '#111827' }}>
+            <div style={{ marginBottom: 4, fontSize: 13.5, fontWeight: 600 }}>Dear {shortName},</div>
+            <p style={{ margin: '0 0 8px 0' }}>
               We are pleased to offer you the position of "{designation}" from {offerDate} on the following terms and conditions. Subject to the terms and conditions hereinafter provided, AOTMS Global Private Limited hereby hires you for the purpose of rendering Professional Services to the company. Your salary will commence as of the first day you begin actual work at the Company, which will be considered the first day of employment with the Company.
             </p>
-            <p style={{ margin: '0 0 10px 0' }}>
+            <p style={{ margin: '0 0 8px 0' }}>
               This offer of employment is made based upon your representations of proficiency and technical skills and your ability to handle an assignment/ job independently.
             </p>
-            <p style={{ margin: '0 0 12px 0' }}>
+            <p style={{ margin: '0 0 8px 0' }}>
               Your gross compensation (C2C) shall be Rs {fmtCurrency(annualCtc)} ({annualWords}) per Annum. Annual Gross Compensation includes employer's contribution to Provident Fund and any other benefits, as applicable. All compensation will be paid to you after deduction of tax at source, in accordance with applicable law. You will be solely liable for your personal tax liabilities, as per applicable law, both in India and abroad.
             </p>
           </div>
 
-          {/* COMPENSATION PLAN Table */}
-          <div style={{ border: '1px solid #000000', marginTop: 2 }}>
-            <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 13.5, textTransform: 'uppercase', padding: '6px', borderBottom: '1px solid #000000', background: '#f3f4f6' }}>
-              COMPENSATION PLAN
+          {/* COMPENSATION PLAN & ALLOWANCES Table */}
+          <div style={{ border: '1px solid #000000', marginBottom: 10 }}>
+            <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 13, textTransform: 'uppercase', padding: '5px', borderBottom: '1px solid #000000', background: '#f3f4f6' }}>
+              COMPENSATION PLAN & ALLOWANCES
             </div>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <tbody>
                 <tr style={{ borderBottom: '1px solid #000000' }}>
-                  <td style={{ padding: '7px 12px', width: '40%', borderRight: '1px solid #000000' }}>Name</td>
-                  <td colSpan={2} style={{ padding: '7px 12px', fontWeight: 600 }}>{clientName}</td>
+                  <td style={{ padding: '5px 10px', width: '40%', borderRight: '1px solid #000000' }}>Name</td>
+                  <td colSpan={2} style={{ padding: '5px 10px', fontWeight: 600 }}>{clientName}</td>
                 </tr>
                 <tr style={{ borderBottom: '1px solid #000000' }}>
-                  <td style={{ padding: '7px 12px', borderRight: '1px solid #000000' }}>Designation</td>
-                  <td colSpan={2} style={{ padding: '7px 12px', fontWeight: 600 }}>{designation}</td>
+                  <td style={{ padding: '5px 10px', borderRight: '1px solid #000000' }}>Designation</td>
+                  <td colSpan={2} style={{ padding: '5px 10px', fontWeight: 600 }}>{designation}</td>
                 </tr>
                 <tr style={{ borderBottom: '1px solid #000000', background: '#e5e7eb', fontWeight: 600 }}>
-                  <td style={{ padding: '7px 12px', borderRight: '1px solid #000000' }}>Components Category</td>
-                  <td style={{ padding: '7px 12px', textAlign: 'right', borderRight: '1px solid #000000', width: '30%' }}>Monthly</td>
-                  <td style={{ padding: '7px 12px', textAlign: 'right', width: '30%' }}>Annual</td>
+                  <td style={{ padding: '5px 10px', borderRight: '1px solid #000000' }}>Components Category</td>
+                  <td style={{ padding: '5px 10px', textAlign: 'right', borderRight: '1px solid #000000', width: '30%' }}>Monthly (₹)</td>
+                  <td style={{ padding: '5px 10px', textAlign: 'right', width: '30%' }}>Annual (₹)</td>
                 </tr>
                 <tr style={{ borderBottom: '1px solid #000000' }}>
-                  <td style={{ padding: '7px 12px', borderRight: '1px solid #000000', fontWeight: 600 }}>Total Gross CTC</td>
-                  <td style={{ padding: '7px 12px', textAlign: 'right', borderRight: '1px solid #000000', fontWeight: 600 }}>{fmtCurrency(monthlyCtc)}</td>
-                  <td style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 600 }}>{fmtCurrency(annualCtc)}</td>
+                  <td style={{ padding: '5px 10px', borderRight: '1px solid #000000' }}>Basic Salary</td>
+                  <td style={{ padding: '5px 10px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(basicMonthly)}</td>
+                  <td style={{ padding: '5px 10px', textAlign: 'right' }}>{fmtCurrency(basicAnnual)}</td>
                 </tr>
                 <tr style={{ borderBottom: '1px solid #000000' }}>
-                  <td style={{ padding: '7px 12px', borderRight: '1px solid #000000' }}>Basic Salary</td>
-                  <td style={{ padding: '7px 12px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(basicMonthly)}</td>
-                  <td style={{ padding: '7px 12px', textAlign: 'right' }}>{fmtCurrency(basicAnnual)}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          {/* Anchored Page Footer */}
-          <div style={{ marginTop: 'auto', paddingTop: '8px', borderTop: '1px solid #94a3b8', display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748b' }}>
-            <span>AOTMS Global Private Limited — Confidential</span>
-            <span>Page 1 of 4</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ── PAGE 2 OF 4: ALLOWANCES & DEDUCTIONS BREAKDOWN ─────────────── */}
-      <div className="offer-letter-page" style={outerPageStyle}>
-        <div style={innerFrameStyle}>
-          <div style={{ position: 'absolute', top: 10, right: 14, fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>Page 2 of 4</div>
-
-          <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 16, textDecoration: 'underline', marginBottom: 14, marginTop: 2, letterSpacing: '0.5px' }}>
-            COMPENSATION BREAKDOWN & ALLOWANCES
-          </div>
-
-          <div style={{ border: '1px solid #000000', marginBottom: 14 }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
-              <thead>
-                <tr style={{ background: '#e5e7eb', borderBottom: '1px solid #000000', fontWeight: 600 }}>
-                  <th style={{ padding: '7px 12px', textAlign: 'left', width: '40%', borderRight: '1px solid #000000' }}>Allowance / Earning Component</th>
-                  <th style={{ padding: '7px 12px', textAlign: 'right', borderRight: '1px solid #000000', width: '30%' }}>Monthly (₹)</th>
-                  <th style={{ padding: '7px 12px', textAlign: 'right', width: '30%' }}>Annual (₹)</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr style={{ borderBottom: '1px solid #000000' }}>
-                  <td style={{ padding: '7px 12px', borderRight: '1px solid #000000' }}>House Rent Allowance (HRA)</td>
-                  <td style={{ padding: '7px 12px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(hraMonthly)}</td>
-                  <td style={{ padding: '7px 12px', textAlign: 'right' }}>{fmtCurrency(hraAnnual)}</td>
+                  <td style={{ padding: '5px 10px', borderRight: '1px solid #000000' }}>House Rent Allowance (HRA)</td>
+                  <td style={{ padding: '5px 10px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(hraMonthly)}</td>
+                  <td style={{ padding: '5px 10px', textAlign: 'right' }}>{fmtCurrency(hraAnnual)}</td>
                 </tr>
                 <tr style={{ borderBottom: '1px solid #000000' }}>
-                  <td style={{ padding: '7px 12px', borderRight: '1px solid #000000' }}>Medical Allowance</td>
-                  <td style={{ padding: '7px 12px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(medicalMonthly)}</td>
-                  <td style={{ padding: '7px 12px', textAlign: 'right' }}>{fmtCurrency(medicalAnnual)}</td>
+                  <td style={{ padding: '5px 10px', borderRight: '1px solid #000000' }}>Medical Allowance</td>
+                  <td style={{ padding: '5px 10px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(medicalMonthly)}</td>
+                  <td style={{ padding: '5px 10px', textAlign: 'right' }}>{fmtCurrency(medicalAnnual)}</td>
                 </tr>
                 <tr style={{ borderBottom: '1px solid #000000' }}>
-                  <td style={{ padding: '7px 12px', borderRight: '1px solid #000000' }}>Conveyance Allowance</td>
-                  <td style={{ padding: '7px 12px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(conveyanceMonthly)}</td>
-                  <td style={{ padding: '7px 12px', textAlign: 'right' }}>{fmtCurrency(conveyanceAnnual)}</td>
+                  <td style={{ padding: '5px 10px', borderRight: '1px solid #000000' }}>Conveyance Allowance</td>
+                  <td style={{ padding: '5px 10px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(conveyanceMonthly)}</td>
+                  <td style={{ padding: '5px 10px', textAlign: 'right' }}>{fmtCurrency(conveyanceAnnual)}</td>
                 </tr>
                 <tr style={{ borderBottom: '1px solid #000000' }}>
-                  <td style={{ padding: '7px 12px', borderRight: '1px solid #000000' }}>Food & Transport Allowance</td>
-                  <td style={{ padding: '7px 12px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(foodMonthly)}</td>
-                  <td style={{ padding: '7px 12px', textAlign: 'right' }}>{fmtCurrency(foodAnnual)}</td>
+                  <td style={{ padding: '5px 10px', borderRight: '1px solid #000000' }}>Food & Transport Allowance</td>
+                  <td style={{ padding: '5px 10px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(foodMonthly)}</td>
+                  <td style={{ padding: '5px 10px', textAlign: 'right' }}>{fmtCurrency(foodAnnual)}</td>
                 </tr>
                 <tr style={{ borderBottom: '1px solid #000000' }}>
-                  <td style={{ padding: '7px 12px', borderRight: '1px solid #000000' }}>Performance Incentive</td>
-                  <td style={{ padding: '7px 12px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(incentiveMonthly)}</td>
-                  <td style={{ padding: '7px 12px', textAlign: 'right' }}>{fmtCurrency(incentiveAnnual)}</td>
+                  <td style={{ padding: '5px 10px', borderRight: '1px solid #000000' }}>Performance Incentive</td>
+                  <td style={{ padding: '5px 10px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(incentiveMonthly)}</td>
+                  <td style={{ padding: '5px 10px', textAlign: 'right' }}>{fmtCurrency(incentiveAnnual)}</td>
                 </tr>
                 <tr style={{ borderBottom: '1px solid #000000' }}>
-                  <td style={{ padding: '7px 12px', borderRight: '1px solid #000000' }}>Dearness Allowance (DA)</td>
-                  <td style={{ padding: '7px 12px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(daMonthly)}</td>
-                  <td style={{ padding: '7px 12px', textAlign: 'right' }}>{fmtCurrency(daAnnual)}</td>
+                  <td style={{ padding: '5px 10px', borderRight: '1px solid #000000' }}>Special Allowance</td>
+                  <td style={{ padding: '5px 10px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(specialMonthly)}</td>
+                  <td style={{ padding: '5px 10px', textAlign: 'right' }}>{fmtCurrency(specialAnnual)}</td>
                 </tr>
 
                 {/* Custom Earnings */}
                 {customEarnings.map((earn, idx) => (
                   <tr key={idx} style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '7px 12px', borderRight: '1px solid #000000' }}>{earn.name}</td>
-                    <td style={{ padding: '7px 12px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(earn.monthly)}</td>
-                    <td style={{ padding: '7px 12px', textAlign: 'right' }}>{fmtCurrency(earn.annual || (earn.monthly * 12))}</td>
+                    <td style={{ padding: '5px 10px', borderRight: '1px solid #000000' }}>{earn.name}</td>
+                    <td style={{ padding: '5px 10px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(earn.monthly)}</td>
+                    <td style={{ padding: '5px 10px', textAlign: 'right' }}>{fmtCurrency(earn.annual || (earn.monthly * 12))}</td>
                   </tr>
                 ))}
 
                 {/* Gross Earnings */}
-                <tr style={{ background: '#f3f4f6', fontWeight: 700 }}>
-                  <td style={{ padding: '8px 12px', borderRight: '1px solid #000000' }}>Total Gross Earnings</td>
-                  <td style={{ padding: '8px 12px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(monthlyCtc)}</td>
-                  <td style={{ padding: '8px 12px', textAlign: 'right' }}>{fmtCurrency(annualCtc)}</td>
+                <tr style={{ background: '#f3f4f6', fontWeight: 700, borderBottom: '1px solid #000000' }}>
+                  <td style={{ padding: '6px 10px', borderRight: '1px solid #000000' }}>Total Gross CTC</td>
+                  <td style={{ padding: '6px 10px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(monthlyCtc)}</td>
+                  <td style={{ padding: '6px 10px', textAlign: 'right' }}>{fmtCurrency(annualCtc)}</td>
                 </tr>
-              </tbody>
-            </table>
-          </div>
 
-          {/* Deductions Breakdown */}
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 6, textDecoration: 'underline' }}>Deductions Breakdown</div>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, border: '1px solid #000000' }}>
-              <thead>
-                <tr style={{ background: '#e5e7eb', borderBottom: '1px solid #000000', fontWeight: 600 }}>
-                  <th style={{ padding: '7px 12px', textAlign: 'left', width: '40%', borderRight: '1px solid #000000' }}>Deduction Component</th>
-                  <th style={{ padding: '7px 12px', textAlign: 'right', borderRight: '1px solid #000000', width: '30%' }}>Monthly (₹)</th>
-                  <th style={{ padding: '7px 12px', textAlign: 'right', width: '30%' }}>Annual (₹)</th>
-                </tr>
-              </thead>
-              <tbody>
+                {/* Deductions Sub-rows */}
                 <tr style={{ borderBottom: '1px solid #000000' }}>
-                  <td style={{ padding: '7px 12px', borderRight: '1px solid #000000' }}>Professional Tax (PT)</td>
-                  <td style={{ padding: '7px 12px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(ptMonthly)}</td>
-                  <td style={{ padding: '7px 12px', textAlign: 'right' }}>{fmtCurrency(ptAnnual)}</td>
+                  <td style={{ padding: '5px 10px', borderRight: '1px solid #000000' }}>Less: Professional Tax (PT)</td>
+                  <td style={{ padding: '5px 10px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(ptMonthly)}</td>
+                  <td style={{ padding: '5px 10px', textAlign: 'right' }}>{fmtCurrency(ptAnnual)}</td>
                 </tr>
                 {customDeductions.map((ded, idx) => (
                   <tr key={idx} style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '7px 12px', borderRight: '1px solid #000000' }}>{ded.name}</td>
-                    <td style={{ padding: '7px 12px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(ded.monthly)}</td>
-                    <td style={{ padding: '7px 12px', textAlign: 'right' }}>{fmtCurrency(ded.annual || (ded.monthly * 12))}</td>
+                    <td style={{ padding: '5px 10px', borderRight: '1px solid #000000' }}>Less: {ded.name}</td>
+                    <td style={{ padding: '5px 10px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(ded.monthly)}</td>
+                    <td style={{ padding: '5px 10px', textAlign: 'right' }}>{fmtCurrency(ded.annual || (ded.monthly * 12))}</td>
                   </tr>
                 ))}
-                <tr style={{ background: '#fee2e2', fontWeight: 700 }}>
-                  <td style={{ padding: '8px 12px', borderRight: '1px solid #000000' }}>Total Deductions</td>
-                  <td style={{ padding: '8px 12px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(totalDeductionsMonthly)}</td>
-                  <td style={{ padding: '8px 12px', textAlign: 'right' }}>{fmtCurrency(totalDeductionsAnnual)}</td>
+                <tr style={{ background: '#fee2e2', fontWeight: 700, borderBottom: '1px solid #000000' }}>
+                  <td style={{ padding: '6px 10px', borderRight: '1px solid #000000' }}>Total Deductions</td>
+                  <td style={{ padding: '6px 10px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(totalDeductionsMonthly)}</td>
+                  <td style={{ padding: '6px 10px', textAlign: 'right' }}>{fmtCurrency(totalDeductionsAnnual)}</td>
                 </tr>
                 <tr style={{ background: '#ecfdf5', fontWeight: 700, color: '#065f46' }}>
-                  <td style={{ padding: '8px 12px', borderRight: '1px solid #000000' }}>Net Take-Home Salary (In Hand)</td>
-                  <td style={{ padding: '8px 12px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(netMonthly)}</td>
-                  <td style={{ padding: '8px 12px', textAlign: 'right' }}>{fmtCurrency(netAnnual)}</td>
+                  <td style={{ padding: '6px 10px', borderRight: '1px solid #000000' }}>Net Take-Home Salary (In Hand)</td>
+                  <td style={{ padding: '6px 10px', textAlign: 'right', borderRight: '1px solid #000000' }}>{fmtCurrency(netMonthly)}</td>
+                  <td style={{ padding: '6px 10px', textAlign: 'right' }}>{fmtCurrency(netAnnual)}</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
           {/* Compensation Guidelines & Payroll Terms */}
-          <div style={{ border: '1px solid #000000', padding: '10px 12px', background: '#fafafa', marginBottom: 8 }}>
-            <div style={{ fontWeight: 700, fontSize: 13, textDecoration: 'underline', marginBottom: 6 }}>
+          <div style={{ border: '1px solid #000000', padding: '8px 10px', background: '#fafafa', marginBottom: 4 }}>
+            <div style={{ fontWeight: 700, fontSize: 12, textDecoration: 'underline', marginBottom: 4 }}>
               NOTES ON COMPENSATION & SALARY DISBURSEMENT
             </div>
-            <div style={{ fontSize: 12, lineHeight: 1.5, color: '#1f2937' }}>
-              <p style={{ margin: '0 0 5px 0', textAlign: 'justify' }}>
+            <div style={{ fontSize: 11.5, lineHeight: 1.45, color: '#1f2937' }}>
+              <p style={{ margin: '0 0 3px 0', textAlign: 'justify' }}>
                 <strong>1. Salary Disbursal Cycle:</strong> The monthly payroll cycle runs from the 1st day of each calendar month to the last working day. Salary shall be directly credited to your designated corporate bank account within the first week of every succeeding month.
               </p>
-              <p style={{ margin: '0 0 5px 0', textAlign: 'justify' }}>
+              <p style={{ margin: '0 0 3px 0', textAlign: 'justify' }}>
                 <strong>2. Statutory Withholding & Tax Deductions:</strong> All compensation and perquisites are subject to applicable deductions towards Professional Tax (PT), Provident Fund (PF), and Income Tax (TDS) as per statutory laws of the Government of India.
               </p>
-              <p style={{ margin: '0 0 5px 0', textAlign: 'justify' }}>
+              <p style={{ margin: '0 0 3px 0', textAlign: 'justify' }}>
                 <strong>3. Annual Performance Appraisals:</strong> Increments and performance incentives are subject to management evaluation, key performance indicators (KPIs), company profitability, and individual deliverables at the end of the annual review cycle.
               </p>
               <p style={{ margin: '0', textAlign: 'justify' }}>
@@ -373,102 +328,87 @@ export const OfferLetterDocument = forwardRef(({ invoiceData = {}, isPreview = f
           </div>
 
           {/* Anchored Page Footer */}
-          <div style={{ marginTop: 'auto', paddingTop: '8px', borderTop: '1px solid #94a3b8', display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748b' }}>
+          <div style={{ marginTop: 'auto', paddingTop: '6px', borderTop: '1px solid #94a3b8', display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748b' }}>
             <span>AOTMS Global Private Limited — Confidential</span>
-            <span>Page 2 of 4</span>
+            <span>Page 1 of 2</span>
           </div>
         </div>
       </div>
 
-      {/* ── PAGE 3 OF 4: TERMS & CONDITIONS (PART 1) ───────────────────── */}
-      <div className="offer-letter-page" style={outerPageStyle}>
+      {/* ── PAGE 2 OF 2: TERMS, CHECKLIST, ACCEPTANCE & SIGNATURES ──────── */}
+      <div className="offer-letter-page" style={{ ...outerPageStyle, pageBreakAfter: 'avoid', breakAfter: 'avoid', marginBottom: '0px' }}>
         <div style={innerFrameStyle}>
-          <div style={{ position: 'absolute', top: 10, right: 14, fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>Page 3 of 4</div>
+          <div style={{ position: 'absolute', top: 10, right: 14, fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>Page 2 of 2</div>
 
-          <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 17, textDecoration: 'underline', marginBottom: 20, marginTop: 2, letterSpacing: '0.5px' }}>
+          <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 15, textDecoration: 'underline', marginBottom: 12, marginTop: 2, letterSpacing: '0.5px' }}>
             TERMS & CONDITIONS OF EMPLOYMENT
           </div>
 
-          <div style={{ lineHeight: 1.6, fontSize: 13, color: '#1f2937' }}>
-            <div style={{ marginBottom: 18 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4, color: '#000000' }}>1. Probation & Confirmation</div>
+          <div style={{ lineHeight: 1.45, fontSize: 12, color: '#1f2937' }}>
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2, color: '#000000' }}>1. Probation & Confirmation</div>
               <p style={{ margin: '0', textAlign: 'justify' }}>
                 Your probation period will be from {probationPeriod}. During this probation period, your performance, technical proficiency, attendance, and professional conduct will be continuously evaluated by management. Upon successful completion of probation, your employment with the company will be confirmed in writing. Management reserves the right to extend the probation period if deemed necessary.
               </p>
             </div>
 
-            <div style={{ marginBottom: 18 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4, color: '#000000' }}>2. Work Timings & Hours</div>
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2, color: '#000000' }}>2. Work Timings & Hours</div>
               <p style={{ margin: '0', textAlign: 'justify' }}>
                 Your standard work timings will be {workTimings}, Monday through Saturday. You may be required to work additional hours or shifts depending on operational, client delivery, or project milestones.
               </p>
             </div>
 
-            <div style={{ marginBottom: 18 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4, color: '#000000' }}>3. Leave Policy & Public Holidays</div>
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2, color: '#000000' }}>3. Leave Policy & Public Holidays</div>
               <p style={{ margin: '0', textAlign: 'justify' }}>
                 You will be entitled to paid leave and public holidays in accordance with the Company HR Leave Policy. Unauthorized absence exceeding 3 consecutive working days without prior approval will be considered abandonment of employment and subject to disciplinary action.
               </p>
             </div>
 
-            <div style={{ marginBottom: 18 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4, color: '#000000' }}>4. Confidentiality & Non-Disclosure (NDA)</div>
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2, color: '#000000' }}>4. Confidentiality & Non-Disclosure (NDA)</div>
               <p style={{ margin: '0', textAlign: 'justify' }}>
                 You shall maintain strict confidentiality regarding all company proprietary software, source codes, database schemas, client contracts, trade secrets, financial records, and operational strategies. You shall not disclose, duplicate, or transfer any company data or intellectual property to any third party during or after your employment.
               </p>
             </div>
 
-            <div style={{ marginBottom: 18 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4, color: '#000000' }}>5. Professional Conduct & Conflict of Interest</div>
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2, color: '#000000' }}>5. Professional Conduct & Conflict of Interest</div>
               <p style={{ margin: '0', textAlign: 'justify' }}>
                 During your employment with AOTMS Global Private Limited, you shall devote your full business time, attention, and effort to company duties. You shall not engage in any secondary employment, freelancing, consulting, or business activities that conflict with the company's business interests.
               </p>
             </div>
-          </div>
 
-          {/* Anchored Page Footer */}
-          <div style={{ marginTop: 'auto', paddingTop: '8px', borderTop: '1px solid #94a3b8', display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748b' }}>
-            <span>AOTMS Global Private Limited — Confidential</span>
-            <span>Page 3 of 4</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ── PAGE 4 OF 4: TERMS (PART 2), CHECKLIST & DECLARATION ────────── */}
-      <div className="offer-letter-page" style={{ ...outerPageStyle, pageBreakAfter: 'avoid', breakAfter: 'avoid', marginBottom: '0px' }}>
-        <div style={innerFrameStyle}>
-          <div style={{ position: 'absolute', top: 10, right: 14, fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>Page 4 of 4</div>
-
-          <div style={{ lineHeight: 1.55, fontSize: 13, color: '#1f2937', marginTop: 2 }}>
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 3, color: '#000000' }}>6. Termination & Notice Period</div>
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2, color: '#000000' }}>6. Termination & Notice Period</div>
               <p style={{ margin: '0', textAlign: 'justify' }}>
                 Post confirmation, either party may terminate employment by providing 30 days written notice or gross salary in lieu thereof. During probation, the notice period required by either party shall be 15 days. In case of gross misconduct, breach of confidentiality, fraud, or violation of company policies, the Company reserves the right to terminate employment immediately without notice or compensation.
               </p>
             </div>
 
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 3, color: '#000000' }}>7. Return of Company Property</div>
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2, color: '#000000' }}>7. Return of Company Property</div>
               <p style={{ margin: '0', textAlign: 'justify' }}>
                 Upon termination of employment for any reason, you shall immediately surrender to the company all assigned laptops, access cards, documents, software credentials, customer databases, and physical/digital assets in your possession.
               </p>
             </div>
 
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 3, color: '#000000' }}>8. Governing Law & Jurisdiction</div>
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2, color: '#000000' }}>8. Governing Law & Jurisdiction</div>
               <p style={{ margin: '0', textAlign: 'justify' }}>
                 This offer letter and employment contract shall be governed by and construed in accordance with the laws of India. Any disputes shall be subject to the exclusive jurisdiction of courts situated at Vijayawada, Andhra Pradesh.
               </p>
             </div>
           </div>
 
-          <div style={{ fontWeight: 700, fontSize: 14, textDecoration: 'underline', marginTop: 8, marginBottom: 6 }}>
+          <div style={{ fontWeight: 700, fontSize: 13, textDecoration: 'underline', marginTop: 4, marginBottom: 4 }}>
             JOINING FORMALITIES & DOCUMENT CHECKLIST
           </div>
-          <p style={{ margin: '0 0 6px 0', fontSize: 12.5 }}>
+          <p style={{ margin: '0 0 4px 0', fontSize: 11.5 }}>
             Please submit self-attested copies of the following documents on or before your joining date ({offerDate}):
           </p>
-          <ul style={{ margin: '0 0 10px 18px', padding: 0, fontSize: 12, lineHeight: 1.6 }}>
+          <ul style={{ margin: '0 0 8px 16px', padding: 0, fontSize: 11.5, lineHeight: 1.45 }}>
             <li>Educational Certificates (SSC/10th, Intermediate/12th, Graduation Degree & Marksheets)</li>
             <li>Previous Employer Relieving Letter & Service Certificate (if applicable)</li>
             <li>Last 3 Months Salary Slips / Bank Statement (if applicable)</li>
@@ -477,64 +417,64 @@ export const OfferLetterDocument = forwardRef(({ invoiceData = {}, isPreview = f
             <li>Cancelled Cheque or Bank Passbook copy for salary account setup</li>
           </ul>
 
-          <div style={{ border: '1px solid #000000', padding: '10px 12px', background: '#fafafa', marginBottom: 8 }}>
-            <div style={{ fontWeight: 700, fontSize: 13, textDecoration: 'underline', marginBottom: 5 }}>
+          <div style={{ border: '1px solid #000000', padding: '8px 10px', background: '#fafafa', marginBottom: 4 }}>
+            <div style={{ fontWeight: 700, fontSize: 12, textDecoration: 'underline', marginBottom: 4 }}>
               ACCEPTANCE OF OFFER & DECLARATION
             </div>
-            <p style={{ margin: '0 0 10px 0', fontSize: 12.5, lineHeight: 1.5, textAlign: 'justify' }}>
-              I, {clientName}, hereby accept the offer of employment as "{designation}" with AOTMS Global Private Limited on the terms and conditions outlined in this offer letter (Pages 1 to 4). I confirm that I will join duty on {offerDate} and agree to abide by all the rules, regulations, policies, and procedures of the company as amended from time to time.
+            <p style={{ margin: '0 0 6px 0', fontSize: 11.5, lineHeight: 1.45, textAlign: 'justify' }}>
+              I, {clientName}, hereby accept the offer of employment as "{designation}" with AOTMS Global Private Limited on the terms and conditions outlined in this offer letter (Pages 1 and 2). I confirm that I will join duty on {offerDate} and agree to abide by all the rules, regulations, policies, and procedures of the company as amended from time to time.
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 8, paddingTop: 8, borderTop: '1px solid #000000' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 4, paddingTop: 4, borderTop: '1px solid #000000' }}>
               <div>
-                <div style={{ fontSize: 12.5, color: '#4b5563', marginBottom: 16 }}>Candidate Signature: ______________________</div>
-                <div style={{ fontSize: 13, color: '#000', fontWeight: 600 }}>Name: {clientName}</div>
-                <div style={{ fontSize: 12, color: '#4b5563', marginTop: 2 }}>Date: ________________________</div>
-                <div style={{ fontSize: 12, color: '#4b5563', marginTop: 2 }}>Place: ________________________</div>
+                <div style={{ fontSize: 11.5, color: '#4b5563', marginBottom: 12 }}>Candidate Signature: ______________________</div>
+                <div style={{ fontSize: 12, color: '#000', fontWeight: 600 }}>Name: {clientName}</div>
+                <div style={{ fontSize: 11, color: '#4b5563', marginTop: 2 }}>Date: ________________________</div>
+                <div style={{ fontSize: 11, color: '#4b5563', marginTop: 2 }}>Place: ________________________</div>
               </div>
 
               <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                <div style={{ fontSize: 12.5, color: '#000000', fontWeight: 600 }}>For AOTMS GLOBAL PRIVATE LIMITED</div>
+                <div style={{ fontSize: 11.5, color: '#000000', fontWeight: 600 }}>For AOTMS GLOBAL PRIVATE LIMITED</div>
 
-                {/* Official AOTMS Stamp reflected Upper of Deenaz Shaik Name */}
-                <div style={{ position: 'relative', margin: '2px 0 2px', width: 84, height: 84 }}>
+                {/* Official AOTMS Stamp with Real Deenaz Shaik Signature Image */}
+                <div style={{ position: 'relative', margin: '2px 0 2px', width: 140, height: 76, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <img
                     src={aotmsStampImg}
                     alt="AOTMS Stamp"
                     style={{
-                      width: '100%',
-                      height: '100%',
+                      width: '74px',
+                      height: '74px',
                       objectFit: 'contain',
                       display: 'block',
                     }}
                   />
-                  <div
+                  <img
+                    src={deenazSignatureImg}
+                    alt="Deenaz Shaik Signature"
                     style={{
                       position: 'absolute',
-                      top: '52%',
+                      top: '50%',
                       left: '50%',
-                      transform: 'translate(-50%, -50%) rotate(-7deg)',
-                      fontFamily: "'Brush Script MT', cursive",
-                      fontSize: 20,
-                      color: '#0f172a',
-                      whiteSpace: 'nowrap',
+                      transform: 'translate(-50%, -50%)',
+                      width: '130px',
+                      height: 'auto',
+                      objectFit: 'contain',
+                      mixBlendMode: 'multiply',
                       pointerEvents: 'none',
                     }}
-                  >
-                    Deenaz Shaik
-                  </div>
+                  />
                 </div>
 
-                <div style={{ fontSize: 13, color: '#1e293b', fontWeight: 600 }}>Deenaz Shaik</div>
-                <div style={{ fontSize: 12, color: '#475569' }}>HR Manager</div>
+                <div style={{ fontSize: 12, color: '#1e293b', fontWeight: 600 }}>Deenaz Shaik</div>
+                <div style={{ fontSize: 11, color: '#475569' }}>HR Manager</div>
               </div>
             </div>
           </div>
 
           {/* Anchored Page Footer */}
-          <div style={{ marginTop: 'auto', paddingTop: '8px', borderTop: '1px solid #94a3b8', display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748b' }}>
+          <div style={{ marginTop: 'auto', paddingTop: '6px', borderTop: '1px solid #94a3b8', display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748b' }}>
             <span>AOTMS Global Private Limited — Confidential</span>
-            <span>Page 4 of 4</span>
+            <span>Page 2 of 2</span>
           </div>
         </div>
       </div>
@@ -569,14 +509,17 @@ export default function OfferLetter() {
 
     const basicM = Math.round(monthly * 0.40);
     const hraM = Math.round(basicM * 0.40);
-    const medM = 1500;
-    const convM = 2500;
-    const foodM = 1350;
+    const medM = monthly > 0 ? 1500 : 0;
+    const convM = monthly > 0 ? 2500 : 0;
+    const foodM = monthly > 0 ? 1350 : 0;
     const incM = 0;
-    const daM = 3450;
 
-    const fixedSum = basicM + hraM + medM + convM + foodM + incM + daM;
+    const fixedSum = basicM + hraM + convM + medM + foodM;
     const specM = monthly > fixedSum ? monthly - fixedSum : 0;
+
+    const pt = Number(form.professional_tax) >= 0 ? Number(form.professional_tax) : 200;
+    const tds = Number(form.tds) >= 0 ? Number(form.tds) : 0;
+    const totalDeductionsM = pt + tds;
 
     setForm(prev => ({
       ...prev,
@@ -588,10 +531,10 @@ export default function OfferLetter() {
       conveyance: convM,
       food_transport_allowance: foodM,
       incentive: incM,
-      dearness_allowance: daM,
+      dearness_allowance: 0,
       special_allowance: specM,
-      net_earnings_annual: annual - ((prev.professional_tax || 200) * 12 + (prev.tds || 0) * 12),
-      net_earnings_monthly: monthly - ((prev.professional_tax || 200) + (prev.tds || 0)),
+      net_earnings_annual: annual - (totalDeductionsM * 12),
+      net_earnings_monthly: monthly - totalDeductionsM,
       net_earnings_in_words: numberToWords(annual),
     }));
   };
@@ -758,7 +701,7 @@ export default function OfferLetter() {
             </h1>
           </div>
           <p className="text-sm text-slate-500 mt-1">
-            Create custom salary offer letters, compensation plans, and download A4 4-page PDF documents.
+            Create custom salary offer letters, compensation plans, and download A4 PDF documents.
           </p>
         </div>
 
@@ -951,8 +894,8 @@ export default function OfferLetter() {
                       <strong className="text-xs text-slate-800">₹{Number(form.incentive || 0).toLocaleString('en-IN')}</strong>
                     </div>
                     <div>
-                      <span className="text-[11px] text-slate-500 block font-medium">Dearness (DA)</span>
-                      <strong className="text-xs text-slate-800">₹{Number(form.dearness_allowance || 3450).toLocaleString('en-IN')}</strong>
+                      <span className="text-[11px] text-slate-500 block font-medium">Special Allowance</span>
+                      <strong className="text-xs text-slate-800">₹{Number(form.special_allowance || 0).toLocaleString('en-IN')}</strong>
                     </div>
                     <div>
                       <span className="text-[11px] text-slate-500 block font-medium">Prof. Tax (PT)</span>
@@ -1103,7 +1046,7 @@ export default function OfferLetter() {
                   <div className="w-6.5 h-6.5 rounded-full bg-blue-500/20 border-2 border-blue-400/60 ring-2 ring-blue-500/20 flex items-center justify-center text-blue-300 group-hover:scale-105 group-hover:border-blue-300 transition-all shadow-inner">
                     {downloadingPdf ? <RefreshCw className="animate-spin w-3.5 h-3.5" /> : <Download className="w-3.5 h-3.5" />}
                   </div>
-                  <span>Download 4-Page PDF</span>
+                  <span>Download Offer Letter PDF</span>
                 </button>
               </div>
             </form>
@@ -1267,7 +1210,7 @@ export default function OfferLetter() {
               </div>
             </div>
 
-            <div className="p-4 sm:p-6 overflow-y-auto bg-slate-100/70">
+            <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(90vh-80px)] bg-slate-100/70 custom-scrollbar flex justify-center">
               <OfferLetterDocument ref={modalPrintRef} invoiceData={selectedInvoice} isPreview={true} />
             </div>
           </div>
