@@ -158,8 +158,10 @@ export default function App() {
             <Route path="leaderboard" element={<StaffRestrictedRoute><Leaderboard /></StaffRestrictedRoute>} />
             <Route path="reports" element={<StaffRestrictedRoute><Reports /></StaffRestrictedRoute>} />
             <Route path="tasks" element={<Tasks />} />
-            <Route path="todo" element={<Navigate to="/tasks?tab=Todo" replace />} />
-            <Route path="todos" element={<Navigate to="/tasks?tab=Todo" replace />} />
+            <Route path="todo" element={<Tasks />} />
+            <Route path="todos" element={<Tasks />} />
+            <Route path="follow-ups" element={<Tasks />} />
+            <Route path="followups" element={<Tasks />} />
             <Route path="profile" element={<Profile />} />
             <Route path="contacts" element={<StaffRestrictedRoute><Contacts /></StaffRestrictedRoute>} />
             <Route path="contact" element={<Navigate to="/contacts" replace />} />

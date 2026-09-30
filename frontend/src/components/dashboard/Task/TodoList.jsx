@@ -129,43 +129,61 @@ function TodoChecklist({ text, task, onUpdated }) {
     const total = rawLines.length;
     const checkedCount = Object.values(checkedMap).filter(Boolean).length;
     const percent = total > 0 ? Math.round((checkedCount / total) * 100) : 0;
+    const hasScroll = total > 2;
 
     return (
-      <div className="flex flex-col gap-3">
-        {total > 1 && (
-          <div className="bg-slate-50/80 p-2.5 rounded-lg border border-slate-100">
-            <div className="flex justify-between items-center text-xs font-semibold text-slate-600 mb-1.5">
-              <span className="flex items-center gap-1.5 text-indigo-600">
-                <CheckSquare size={13} /> Sub-items Progress
-              </span>
-              <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-bold">
-                {checkedCount} / {total} ({percent}%)
-              </span>
-            </div>
-            <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
-              <div
-                className="h-full transition-all duration-300 rounded-full"
-                style={{
-                  width: `${percent}%`,
-                  background: percent === 100 ? 'linear-gradient(90deg, #10b981, #059669)' : 'linear-gradient(90deg, #6366f1, #4f46e5)'
-                }}
-              />
-            </div>
-          </div>
-        )}
+      <div className="flex flex-col gap-2.5 w-full">
+        <style>{`
+          .custom-hidden-scroll::-webkit-scrollbar {
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
+          }
+        `}</style>
 
-        <div className="flex flex-col gap-2">
+        {/* Sub-items Progress Bar (Sticky Header) */}
+        <div className="bg-slate-50/90 p-2.5 rounded-xl border border-slate-200/80 shadow-xs">
+          <div className="flex justify-between items-center text-xs font-semibold text-slate-600 mb-1.5">
+            <span className="flex items-center gap-1.5 text-indigo-600 font-bold">
+              <CheckSquare size={13} /> Sub-items Progress
+            </span>
+            <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-extrabold text-[11px]">
+              {checkedCount} / {total} ({percent}%)
+            </span>
+          </div>
+          <div className="w-full h-1.5 bg-slate-200/80 rounded-full overflow-hidden">
+            <div
+              className="h-full transition-all duration-400 rounded-full"
+              style={{
+                width: `${percent}%`,
+                background: percent === 100 ? 'linear-gradient(90deg, #10b981, #059669)' : 'linear-gradient(90deg, #6366f1, #4f46e5)'
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Scrollable Sub-items Container (Exactly 2 items visible, scroll for rest) */}
+        <div 
+          className="custom-hidden-scroll flex flex-col gap-2"
+          style={{
+            maxHeight: hasScroll ? 80 : 'none',
+            overflowY: hasScroll ? 'auto' : 'visible',
+            scrollBehavior: 'smooth',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none'
+          }}
+        >
           {rawLines.map((line, idx) => {
-            const cleanText = line.replace(/^\d+[\.\)]\s*/, '');
+            const cleanText = line.replace(/^(\d+[\.\)]|[\-\*•])\s*/, '');
             const isChecked = !!checkedMap[idx];
             return (
               <div
                 key={idx}
                 onClick={(e) => handleToggle(idx, e)}
-                className={`flex items-start gap-2.5 p-2 rounded-lg cursor-pointer transition-all duration-150 border ${
+                className={`flex items-start gap-2.5 p-2 rounded-xl cursor-pointer transition-all duration-150 border ${
                   isChecked 
                     ? 'bg-emerald-50/60 border-emerald-200/60 text-slate-500' 
-                    : 'bg-white border-slate-100 hover:border-indigo-200 text-slate-800 shadow-sm'
+                    : 'bg-white border-slate-200/70 hover:border-indigo-300 hover:translate-x-0.5 text-slate-800 shadow-xs'
                 }`}
               >
                 <div className={`w-4 h-4 rounded mt-0.5 flex items-center justify-center flex-shrink-0 transition-all ${
@@ -173,19 +191,41 @@ function TodoChecklist({ text, task, onUpdated }) {
                 }`}>
                   {isChecked && <Check size={11} strokeWidth={3.5} />}
                 </div>
-                <span className={`text-sm font-medium leading-relaxed ${isChecked ? 'line-through text-slate-400' : 'text-slate-800'}`}>
+                <span className={`text-xs font-medium leading-relaxed ${isChecked ? 'line-through text-slate-400' : 'text-slate-800'}`}>
                   {cleanText || line}
                 </span>
               </div>
             );
           })}
         </div>
+
+        {hasScroll && (
+          <div className="text-[10px] font-medium text-slate-400 text-center flex items-center justify-center gap-1">
+            <span>Scroll for more sub-items</span> ↓
+          </div>
+        )}
       </div>
     );
   }
 
+  const isLongText = text.length > 250;
   return (
-    <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap font-normal">
+    <div 
+      className="custom-hidden-scroll text-sm text-slate-700 leading-relaxed whitespace-pre-wrap font-normal"
+      style={{
+        maxHeight: isLongText ? 150 : 'none',
+        overflowY: isLongText ? 'auto' : 'visible',
+        scrollbarWidth: 'none',
+        msOverflowStyle: 'none'
+      }}
+    >
+      <style>{`
+        .custom-hidden-scroll::-webkit-scrollbar {
+          display: none !important;
+          width: 0 !important;
+          height: 0 !important;
+        }
+      `}</style>
       {text}
     </div>
   );
@@ -242,7 +282,9 @@ export default function TodoList({
     }
   };
 
-  // Filtered Todos
+  // Filtered Todos with single card deduplication for recurring series
+  const seenGroupIds = new Set();
+  const seenRecurringKeys = new Set();
   const filteredTodos = tasks.filter(t => {
     if (priorityFilter !== 'all' && t.priority !== priorityFilter) return false;
     if (searchQuery.trim()) {
@@ -250,6 +292,22 @@ export default function TodoList({
       const noteStr = (t.title || t.note || t.description || '').toLowerCase();
       const assigneeStr = (t.assignedTo?.name || '').toLowerCase();
       if (!noteStr.includes(q) && !assigneeStr.includes(q)) return false;
+    }
+
+    const isRec = !!(t.recurrence?.frequency || t.recurrenceFrequency || (t.recurrence && t.recurrence.frequency !== 'none'));
+    if (isRec) {
+      if (t.recurringGroupId) {
+        const gId = String(t.recurringGroupId);
+        if (seenGroupIds.has(gId)) return false;
+        seenGroupIds.add(gId);
+      } else {
+        const assigneeId = t.assignedTo?._id || t.assignedTo || '';
+        const taskTitle = (t.title || t.note || t.description || '').trim();
+        const freq = t.recurrence?.frequency || t.recurrenceFrequency || '';
+        const recKey = `${taskTitle}_${assigneeId}_${freq}`;
+        if (seenRecurringKeys.has(recKey)) return false;
+        seenRecurringKeys.add(recKey);
+      }
     }
     return true;
   });
@@ -408,7 +466,7 @@ export default function TodoList({
           <p className="text-xs text-slate-400 mt-1">There are no active todos matching your current criteria.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredTodos.map(t => {
             const isLate = t.status === 'upcoming' && new Date(t.scheduledAt) < new Date();
             const assigneeObj = t.assignedTo || t.assignee;

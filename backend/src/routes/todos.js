@@ -159,7 +159,7 @@ router.put('/:id', protect, async (req, res) => {
 });
 
 // DELETE /api/todos/:id
-router.delete('/:id', protect, authorize('admin', 'superadmin'), async (req, res) => {
+router.delete('/:id', protect, authorize('admin', 'superadmin', 'manager'), async (req, res) => {
   try {
     await Todo.findByIdAndDelete(req.params.id);
     res.json({ message: 'Deleted' });

@@ -41,6 +41,8 @@ const todoSchema = new mongoose.Schema({
   status: { type: String, enum: ['upcoming', 'done', 'late', 'cancelled', 'pending', 'in_progress', 'completed'], default: 'upcoming' },
 
   scheduledAt: { type: Date },
+  initialScheduledAt: { type: Date },
+  completedCount: { type: Number, default: 0 },
   dueDate: { type: Date },
   completedAt: { type: Date },
   completedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

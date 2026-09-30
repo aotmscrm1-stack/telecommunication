@@ -8,6 +8,8 @@ const taskSchema = new mongoose.Schema({
   assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   assignedBy: { type: mongoose.Schema.Types.Mixed, ref: 'User' },
   scheduledAt: { type: Date, required: true },
+  initialScheduledAt: { type: Date },
+  completedCount: { type: Number, default: 0 },
   status: { type: String, enum: ['upcoming', 'done', 'late', 'cancelled'], default: 'upcoming' },
   type: { type: String, default: 'task' },
   note: { type: String, default: '' },

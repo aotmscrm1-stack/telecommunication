@@ -189,56 +189,35 @@ router.post('/', protect, async (req, res) => {
     const itemType = body.type || 'call_followup';
     const ModelClass = getTargetModel(itemType);
 
+    const frequency = recurrence?.frequency;
+    const hasRecurrence = frequency && frequency !== 'none';
+
     const baseDoc = {
       ...body,
       type: itemType,
       assignedTo: req.body.assignedTo || req.user._id,
       assignedBy: req.body.assignedBy || req.user._id,
       createdBy: req.user._id,
+      initialScheduledAt: body.initialScheduledAt || body.scheduledAt,
+      recurrence: hasRecurrence ? {
+        frequency,
+        endDate: recurrence.endDate
+      } : undefined
     };
 
-    const frequency = recurrence?.frequency;
-    const isRecurring = frequency && frequency !== 'none' && recurrence?.endDate;
+    const followup = await ModelClass.create(baseDoc);
 
-    if (!isRecurring) {
-      const followup = await ModelClass.create(baseDoc);
-
-      await followup.populate('lead', 'name phone status');
-      await followup.populate('assignedTo', 'name email');
-      if (baseDoc.assignedBy && mongoose.Types.ObjectId.isValid(baseDoc.assignedBy)) {
-        await followup.populate('assignedBy', 'name email');
-      } else if (baseDoc.assignedBy === 'all' || baseDoc.assignedBy === 'All') {
-        followup.assignedBy = { _id: 'all', name: 'All' };
-      }
-
-      fireAndForget(() => notifyAdminsTaskCreated({ followup, performedByUser: req.user }));
-
-      return res.status(201).json({ followup });
+    await followup.populate('lead', 'name phone status');
+    await followup.populate('assignedTo', 'name email');
+    if (baseDoc.assignedBy && mongoose.Types.ObjectId.isValid(baseDoc.assignedBy)) {
+      await followup.populate('assignedBy', 'name email');
+    } else if (baseDoc.assignedBy === 'all' || baseDoc.assignedBy === 'All') {
+      followup.assignedBy = { _id: 'all', name: 'All' };
     }
 
-    if (!baseDoc.scheduledAt) {
-      return res.status(400).json({ message: 'scheduledAt is required to build a recurring series' });
-    }
-    const occurrenceDates = buildRecurrenceDates(baseDoc.scheduledAt, frequency, recurrence.endDate);
-    const recurringGroupId = new mongoose.Types.ObjectId();
+    fireAndForget(() => notifyAdminsTaskCreated({ followup, performedByUser: req.user }));
 
-    const docs = occurrenceDates.map(scheduledAt => ({
-      ...baseDoc,
-      scheduledAt,
-      recurrence: { frequency, endDate: recurrence.endDate },
-      recurringGroupId,
-    }));
-
-    const created = await ModelClass.insertMany(docs);
-
-    const firstFollowup = await ModelClass.findById(created[0]._id)
-      .populate('lead', 'name phone status')
-      .populate('assignedTo', 'name email')
-      .populate('assignedBy', 'name email');
-
-    fireAndForget(() => notifyAdminsTaskCreated({ followup: firstFollowup, performedByUser: req.user }));
-
-    res.status(201).json({ followup: firstFollowup, seriesCount: created.length });
+    return res.status(201).json({ followup });
   } catch (err) {
     console.error('[POST /followups]', err);
     res.status(500).json({ message: err.message });
@@ -264,11 +243,12 @@ router.put('/:id', protect, async (req, res) => {
     }
     if (!existing) return res.status(404).json({ message: 'Item not found' });
 
-    if (req.user.role === 'employee' || req.user.role === 'caller') {
-      const bodyKeys = Object.keys(req.body).filter(k => k !== 'completedAt');
-      const isStatusOnlyUpdate = bodyKeys.length === 1 && bodyKeys[0] === 'status' && (req.body.status === 'done' || req.body.status === 'completed');
-      if (!isStatusOnlyUpdate) {
-        return res.status(403).json({ message: 'You can only view this task. You may still mark it complete.' });
+    const isAdminOrMgr = req.user.role === 'admin' || req.user.role === 'superadmin' || req.user.role === 'manager';
+    if (!isAdminOrMgr) {
+      const isAssignedUser = String(existing.assignedTo || '') === String(req.user._id) ||
+                             String(existing.createdBy || '') === String(req.user._id);
+      if (!isAssignedUser) {
+        return res.status(403).json({ message: 'You can only update tasks assigned to you.' });
       }
     }
 
@@ -295,7 +275,7 @@ router.put('/:id', protect, async (req, res) => {
 });
 
 // DELETE /api/followups/:id
-router.delete('/:id', protect, authorize('admin', 'superadmin'), async (req, res) => {
+router.delete('/:id', protect, authorize('admin', 'superadmin', 'manager'), async (req, res) => {
   try {
     let target = await Task.findById(req.params.id);
     let ModelClass = Task;
