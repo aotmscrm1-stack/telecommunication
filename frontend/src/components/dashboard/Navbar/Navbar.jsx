@@ -540,6 +540,7 @@ export default function Navbar() {
       { label: 'Payslip', path: '/payslips', icon: FaReceipt },
       { label: 'Quotation', path: '/quotation', icon: FaFileInvoiceDollar },
       { label: 'Invoice', path: '/invoice', icon: FaReceipt },
+      { label: 'Fee Receipt', path: '/fee-receipt', icon: FaReceipt },
     ]},
     { title: 'Management', icon: FaSitemap, items: [
       { label: 'Departments', path: '/admin/departments', icon: FaSitemap },
