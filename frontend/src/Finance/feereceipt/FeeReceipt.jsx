@@ -493,7 +493,7 @@ export default function FeeReceipt() {
                   <label className="text-xs font-semibold text-slate-600 mb-1 block">Student Name (Billed To) *</label>
                   <input
                     type="text"
-                    value={form.student_name || form.client_name || ''}
+                    value={form.student_name !== undefined ? form.student_name : (form.client_name || '')}
                     onChange={(e) => setForm({ ...form, student_name: e.target.value, client_name: e.target.value })}
                     placeholder="e.g. Bommareddy Ramakoti Reddy"
                     className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 font-semibold"
@@ -527,7 +527,7 @@ export default function FeeReceipt() {
                     <label className="text-xs font-semibold text-slate-600 mb-1 block">Student Mobile / Phone</label>
                     <input
                       type="text"
-                      value={form.mobile_number || form.phone || ''}
+                      value={form.mobile_number !== undefined ? form.mobile_number : (form.phone || '')}
                       onChange={(e) => setForm({ ...form, mobile_number: e.target.value, phone: e.target.value })}
                       placeholder="e.g. 9381414268"
                       className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500"

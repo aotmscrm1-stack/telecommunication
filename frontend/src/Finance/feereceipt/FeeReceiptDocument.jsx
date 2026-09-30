@@ -6,17 +6,17 @@ import { numberToWords } from '../../utils/numberToWords';
 export const FeeReceiptDocument = forwardRef(({ receiptData, isPreview = false }, ref) => {
   if (!receiptData) return null;
 
-  const invoiceNo = receiptData.invoice_number || receiptData.receipt_number || 'AOTMSINV001';
-  const receiptDate = receiptData.invoice_date || receiptData.date || '03/08/2026';
-  const place = receiptData.place || 'Vijayawada';
+  const invoiceNo = receiptData.invoice_number !== undefined ? receiptData.invoice_number : (receiptData.receipt_number !== undefined ? receiptData.receipt_number : '');
+  const receiptDate = receiptData.invoice_date !== undefined ? receiptData.invoice_date : (receiptData.date !== undefined ? receiptData.date : '');
+  const place = receiptData.place !== undefined ? receiptData.place : '';
 
-  const companyPhone = receiptData.company_phone || '+91 80199-42233';
-  const companyEmail = receiptData.company_email || 'hr@aotms.com';
+  const companyPhone = receiptData.company_phone !== undefined ? receiptData.company_phone : '+91 80199-42233';
+  const companyEmail = receiptData.company_email !== undefined ? receiptData.company_email : 'hr@aotms.com';
 
-  const studentName = receiptData.student_name || receiptData.client_name || 'Bommareddy Ramakoti Reddy';
-  const mobileNumber = receiptData.mobile_number || receiptData.phone || '9381414268';
-  const email = receiptData.email || 'bommareddyvarma@gmail.com';
-  const address = receiptData.address || 'Katur Road, Vuyyur-521165';
+  const studentName = receiptData.student_name !== undefined ? receiptData.student_name : (receiptData.client_name !== undefined ? receiptData.client_name : '');
+  const mobileNumber = receiptData.mobile_number !== undefined ? receiptData.mobile_number : (receiptData.phone !== undefined ? receiptData.phone : '');
+  const email = receiptData.email !== undefined ? receiptData.email : '';
+  const address = receiptData.address !== undefined ? receiptData.address : '';
 
   const defaultItems = [
     {
