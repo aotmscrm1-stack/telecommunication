@@ -32,6 +32,7 @@ import Payslip from './Finance/payslip/Payslip';
 import Invoice from './Finance/invoice/Invoice';
 import Quotation from './Finance/quotation/Quotation';
 import OfferLetter from './Finance/offerletter/OfferLetter';
+import FeeReceipt from './Finance/feereceipt/FeeReceipt';
 import Landing from './pages/landing_pages/Landing';
 import LiveEmployeeTracking from './Management/Attedence/LiveEmployee/LiveEmployeeTracking';
 import AttendanceRecords from './Management/Attedence/AttendanceRecords';
@@ -176,6 +177,9 @@ export default function App() {
             <Route path="quotation" element={<AdminRoute><Quotation /></AdminRoute>} />
             <Route path="invoice" element={<AdminRoute><Invoice /></AdminRoute>} />
             <Route path="invoices" element={<Navigate to="/invoice" replace />} />
+            <Route path="fee-receipt" element={<AdminRoute><FeeReceipt /></AdminRoute>} />
+            <Route path="fee-receipts" element={<Navigate to="/fee-receipt" replace />} />
+            <Route path="feereceipt" element={<Navigate to="/fee-receipt" replace />} />
             <Route path="bulk-import" element={<StaffRestrictedRoute><BulkImport /></StaffRestrictedRoute>} />
             <Route path="integrations" element={<AdminRoute><Integrations /></AdminRoute>} />
             <Route path="integrations/setup/:type" element={<AdminRoute><IntegrationSetup /></AdminRoute>} />

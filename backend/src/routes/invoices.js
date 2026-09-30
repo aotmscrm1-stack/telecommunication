@@ -7,16 +7,26 @@ const { numberToWords } = require('../utils/numberToWords');
 // ── GET /api/invoices (List all saved invoices) ─────────────────────────────
 router.get('/', protect, async (req, res) => {
   try {
-    const { search, page = 1, limit = 50 } = req.query;
+    const { search, page = 1, limit = 100, doc_type } = req.query;
     const query = {};
+
+    if (doc_type) {
+      query.doc_type = doc_type;
+    }
 
     if (search) {
       const regex = new RegExp(search.trim(), 'i');
       query.$or = [
         { client_name: regex },
+        { student_name: regex },
         { invoice_number: regex },
+        { receipt_number: regex },
         { designation: regex },
         { email: regex },
+        { phone: regex },
+        { mobile_number: regex },
+        { course_name: regex },
+        { place: regex },
       ];
     }
 
@@ -48,10 +58,14 @@ router.post('/', protect, async (req, res) => {
   try {
     const body = req.body || {};
     
-    // Auto-generate invoice number if missing
-    if (!body.invoice_number) {
+    // Auto-generate invoice/receipt number if missing
+    if (!body.invoice_number && !body.receipt_number) {
       const count = await Invoice.countDocuments();
-      body.invoice_number = `AOTMS-INV-${new Date().getFullYear()}-${String(count + 1).padStart(3, '0')}`;
+      if (body.doc_type === 'fee_receipt') {
+        body.invoice_number = `AOTMSINV${String(count + 1).padStart(3, '0')}`;
+      } else {
+        body.invoice_number = `AOTMS-INV-${new Date().getFullYear()}-${String(count + 1).padStart(3, '0')}`;
+      }
     }
 
     // Number to words calculation
@@ -65,7 +79,7 @@ router.post('/', protect, async (req, res) => {
     });
 
     await invoice.save();
-    res.status(201).json({ ok: true, invoice, message: 'Invoice saved successfully' });
+    res.status(201).json({ ok: true, invoice, message: 'Saved successfully' });
   } catch (err) {
     res.status(400).json({ ok: false, message: err.message });
   }
