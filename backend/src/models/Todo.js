@@ -25,24 +25,23 @@ const activityLogSchema = new mongoose.Schema({
 });
 
 const todoSchema = new mongoose.Schema({
-  title: { type: String, required: true, trim: true },
+  lead: { type: mongoose.Schema.Types.ObjectId, ref: 'Lead' },
+  title: { type: String, default: '', trim: true },
+  note: { type: String, default: '', trim: true },
   description: { type: String, default: '', trim: true },
-  type: { type: String, enum: ['personal', 'assigned'], default: 'personal' },
+  type: { type: String, default: 'todo' },
   
-  // System-controlled references
-  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  assignedBy: { type: mongoose.Schema.Types.Mixed, ref: 'User' },
   department: { type: String, default: '' },
   departmentId: { type: mongoose.Schema.Types.Mixed, ref: 'Department' },
 
-  // Priorities: low, medium, high, urgent
   priority: { type: String, enum: ['low', 'medium', 'high', 'urgent'], default: 'medium' },
-  
-  // Statuses: pending, in_progress, completed, cancelled
-  status: { type: String, enum: ['pending', 'in_progress', 'completed', 'cancelled'], default: 'pending' },
+  status: { type: String, enum: ['upcoming', 'done', 'late', 'cancelled', 'pending', 'in_progress', 'completed'], default: 'upcoming' },
 
-  startDate: { type: Date },
-  dueDate: { type: Date, required: true },
+  scheduledAt: { type: Date },
+  dueDate: { type: Date },
   completedAt: { type: Date },
 
   checklist: [checklistItemSchema],
@@ -50,25 +49,28 @@ const todoSchema = new mongoose.Schema({
   attachments: [attachmentSchema],
   activityHistory: [activityLogSchema],
 
+  recurrence: {
+    frequency: { type: String, enum: ['none', 'daily', 'weekly', 'monthly'], default: 'none' },
+    endDate: { type: Date },
+  },
+  recurringGroupId: { type: mongoose.Schema.Types.ObjectId },
   reminderNotifiedAt: { type: Date },
   overdueNotifiedAt: { type: Date },
+  reminderMinutesBefore: { type: Number, default: 30 },
 }, { timestamps: true });
 
-// Virtual for calculating Overdue state
 todoSchema.virtual('isOverdue').get(function () {
-  if (this.status === 'completed' || this.status === 'cancelled') return false;
-  if (!this.dueDate) return false;
-  return new Date() > new Date(this.dueDate);
+  if (this.status === 'completed' || this.status === 'done' || this.status === 'cancelled') return false;
+  const targetDate = this.scheduledAt || this.dueDate;
+  if (!targetDate) return false;
+  return new Date() > new Date(targetDate);
 });
 
 todoSchema.set('toJSON', { virtuals: true });
 todoSchema.set('toObject', { virtuals: true });
 
-// Indexes for query performance
 todoSchema.index({ assignedTo: 1, status: 1 });
-todoSchema.index({ createdBy: 1 });
-todoSchema.index({ department: 1 });
+todoSchema.index({ scheduledAt: 1 });
 todoSchema.index({ dueDate: 1 });
-todoSchema.index({ priority: 1 });
 
-module.exports = mongoose.model('Todo', todoSchema);
+module.exports = mongoose.model('Todo', todoSchema, 'todos');

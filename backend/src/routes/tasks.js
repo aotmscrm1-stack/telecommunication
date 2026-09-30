@@ -1,10 +1,21 @@
 const express = require('express');
 const multer = require('multer');
+const xlsx = require('xlsx');
 const mongoose = require('mongoose');
-const Todo = require('../models/Todo');
+const Task = require('../models/Task');
 const { protect, authorize } = require('../middleware/auth');
+const { notifyAdminsTaskCreated, notifyAdminsTaskEdited } = require('../services/notificationService');
 
 const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage() });
+
+function fireAndForget(fn) {
+  try {
+    Promise.resolve(fn()).catch(err => console.error('[notification] fire-and-forget error:', err.message));
+  } catch (err) {
+    console.error('[notification] sync error:', err.message);
+  }
+}
 
 function isExecutiveOrAdmin(user) {
   if (!user) return false;
@@ -13,11 +24,13 @@ function isExecutiveOrAdmin(user) {
   return ['CEO', 'MANAGING DIRECTOR', 'MD', 'CTO'].includes(desig);
 }
 
-// GET /api/todos — fetch todos from 'todos' collection with role-based visibility
+// GET /api/tasks — fetch official tasks from 'tasks' collection
 router.get('/', protect, async (req, res) => {
   try {
-    const { status, date, due: dueQuery, callerId, forMe: forMeQuery } = req.query;
-    const query = {};
+    const { status, date, due: dueQuery, callerId, forMe: forMeQuery, leadId } = req.query;
+    const query = { type: 'task' };
+
+    if (leadId) query.lead = leadId;
 
     const isAdmin = isExecutiveOrAdmin(req.user);
     const isMgr = req.user.role === 'manager';
@@ -39,7 +52,7 @@ router.get('/', protect, async (req, res) => {
           query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { createdBy: req.user._id }];
         }
       } else {
-        // Employees / Callers see ONLY their own todos
+        // Employees / Callers see ONLY their own tasks
         query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { createdBy: req.user._id }];
       }
     } else {
@@ -52,13 +65,8 @@ router.get('/', protect, async (req, res) => {
     }
 
     if (status) {
-      const statuses = status.split(',').map(s => {
-        const trimmed = s.trim();
-        if (trimmed === 'pending' || trimmed === 'upcoming') return ['upcoming', 'pending', 'in_progress'];
-        if (trimmed === 'done' || trimmed === 'completed') return ['done', 'completed'];
-        return [trimmed];
-      }).flat();
-      query.status = { $in: Array.from(new Set(statuses)) };
+      const statuses = status.split(',').map(s => s.trim() === 'pending' ? 'upcoming' : s.trim());
+      query.status = { $in: statuses };
     }
 
     const due = dueQuery || date;
@@ -66,102 +74,79 @@ router.get('/', protect, async (req, res) => {
       if (due === 'today') {
         const start = new Date(); start.setHours(0, 0, 0, 0);
         const end = new Date(); end.setHours(23, 59, 59, 999);
-        query.$or = [{ scheduledAt: { $gte: start, $lte: end } }, { dueDate: { $gte: start, $lte: end } }];
+        query.scheduledAt = { $gte: start, $lte: end };
       } else if (due === 'tomorrow') {
         const start = new Date(); start.setDate(start.getDate() + 1); start.setHours(0, 0, 0, 0);
         const end = new Date(); end.setDate(end.getDate() + 1); end.setHours(23, 59, 59, 999);
-        query.$or = [{ scheduledAt: { $gte: start, $lte: end } }, { dueDate: { $gte: start, $lte: end } }];
+        query.scheduledAt = { $gte: start, $lte: end };
       }
     }
 
-    const todos = await Todo.find(query)
+    const tasks = await Task.find(query)
       .populate('lead', 'name phone status')
       .populate('assignedTo', 'name avatar')
       .populate('assignedBy', 'name avatar')
-      .populate('createdBy', 'name avatar')
-      .sort({ createdAt: -1 });
+      .sort({ scheduledAt: 1 });
 
-    const sanitized = todos.map(f => {
-      const doc = f.toObject ? f.toObject() : { ...f };
-      doc.type = 'todo';
-      doc.scheduledAt = doc.scheduledAt || doc.dueDate || doc.startDate || doc.createdAt;
-      doc.dueDate = doc.dueDate || doc.scheduledAt;
-      doc.note = doc.note || doc.description || doc.title || '';
-      doc.title = doc.title || doc.note || doc.description || '';
-      doc.description = doc.description || doc.note || doc.title || '';
-      if (doc.status === 'completed') doc.status = 'done';
-      else if (doc.status === 'pending' || doc.status === 'in_progress') doc.status = 'upcoming';
-
-      if (!doc.assignedBy) {
-        if (doc.createdBy && typeof doc.createdBy === 'object') {
-          doc.assignedBy = doc.createdBy;
-        } else if (f.get && (f.get('assignedBy') === 'all' || f.get('assignedBy') === 'All')) {
-          doc.assignedBy = { _id: 'all', name: 'All' };
-        } else {
-          doc.assignedBy = doc.assignedTo || { _id: 'all', name: 'All' };
-        }
-      } else if (doc.assignedBy === 'all' || doc.assignedBy === 'All') {
-        doc.assignedBy = { _id: 'all', name: 'All' };
-      }
-      return doc;
-    });
-
-    res.json({ followups: sanitized, todos: sanitized });
+    res.json({ followups: tasks, tasks });
   } catch (err) {
-    console.error('[GET /todos]', err);
+    console.error('[GET /tasks]', err);
     res.status(500).json({ message: err.message });
   }
 });
 
-// POST /api/todos
+// POST /api/tasks — create an official task in 'tasks' collection
 router.post('/', protect, async (req, res) => {
   try {
     const baseDoc = {
       ...req.body,
-      type: 'todo',
-      createdBy: req.user._id,
+      type: 'task',
       assignedTo: req.body.assignedTo || req.user._id,
       assignedBy: req.body.assignedBy || req.user._id,
+      createdBy: req.user._id,
     };
-    const todo = await Todo.create(baseDoc);
-    await todo.populate('assignedTo', 'name email');
+    const task = await Task.create(baseDoc);
+    await task.populate('lead', 'name phone status');
+    await task.populate('assignedTo', 'name email');
     if (baseDoc.assignedBy && mongoose.Types.ObjectId.isValid(baseDoc.assignedBy)) {
-      await todo.populate('assignedBy', 'name email');
+      await task.populate('assignedBy', 'name email');
     }
 
-    res.status(201).json({ followup: todo, todo });
+    fireAndForget(() => notifyAdminsTaskCreated({ followup: task, performedByUser: req.user }));
+    res.status(201).json({ followup: task, task });
   } catch (err) {
-    console.error('[POST /todos]', err);
+    console.error('[POST /tasks]', err);
     res.status(500).json({ message: err.message });
   }
 });
 
-// PUT /api/todos/:id
+// PUT /api/tasks/:id
 router.put('/:id', protect, async (req, res) => {
   try {
     const update = { ...req.body };
-    if (update.status === 'done' || update.status === 'completed') {
+    if (update.status === 'done' && !update.completedAt) {
       update.completedAt = new Date();
     }
-    const todo = await Todo.findByIdAndUpdate(req.params.id, update, { new: true })
+    const task = await Task.findByIdAndUpdate(req.params.id, update, { new: true })
+      .populate('lead', 'name phone status')
       .populate('assignedTo', 'name email')
       .populate('assignedBy', 'name email');
-    if (!todo) return res.status(404).json({ message: 'Todo not found' });
+    if (!task) return res.status(404).json({ message: 'Task not found' });
 
-    res.json({ followup: todo, todo });
+    res.json({ followup: task, task });
   } catch (err) {
-    console.error('[PUT /todos/:id]', err);
+    console.error('[PUT /tasks/:id]', err);
     res.status(500).json({ message: err.message });
   }
 });
 
-// DELETE /api/todos/:id
-router.delete('/:id', protect, async (req, res) => {
+// DELETE /api/tasks/:id
+router.delete('/:id', protect, authorize('manager', 'admin'), async (req, res) => {
   try {
-    await Todo.findByIdAndDelete(req.params.id);
+    await Task.findByIdAndDelete(req.params.id);
     res.json({ message: 'Deleted' });
   } catch (err) {
-    console.error('[DELETE /todos/:id]', err);
+    console.error('[DELETE /tasks/:id]', err);
     res.status(500).json({ message: err.message });
   }
 });

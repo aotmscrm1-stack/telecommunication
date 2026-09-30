@@ -3,6 +3,8 @@ const multer = require('multer');
 const xlsx = require('xlsx');
 const mongoose = require('mongoose');
 const FollowUp = require('../models/FollowUp');
+const Task = require('../models/Task');
+const Todo = require('../models/Todo');
 const Lead = require('../models/Lead');
 const { protect, authorize } = require('../middleware/auth');
 const { notifyAdminsTaskCreated, notifyAdminsTaskEdited } = require('../services/notificationService');
@@ -10,12 +12,8 @@ const { notifyAdminsTaskCreated, notifyAdminsTaskEdited } = require('../services
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
-// Safety cap so a bad "endDate" (e.g. years out) can't create thousands of rows
 const MAX_RECURRING_OCCURRENCES = 366;
 
-// Given a start date + frequency + endDate, build the list of scheduledAt
-// dates for every occurrence (including the first one). Each occurrence
-// keeps the same time-of-day as the original scheduledAt.
 function buildRecurrenceDates(startDate, frequency, endDate) {
   const dates = [new Date(startDate)];
   if (frequency === 'none' || !endDate) return dates;
@@ -28,7 +26,7 @@ function buildRecurrenceDates(startDate, frequency, endDate) {
     const next = new Date(cursor);
     if (stepDays) next.setDate(next.getDate() + stepDays);
     else if (stepMonths) next.setMonth(next.getMonth() + stepMonths);
-    else break; // unknown frequency, stop
+    else break;
 
     if (next.getTime() > new Date(endDate).getTime()) break;
     dates.push(next);
@@ -37,7 +35,6 @@ function buildRecurrenceDates(startDate, frequency, endDate) {
   return dates;
 }
 
-// Safe fire-and-forget wrapper — notification failures must NEVER break the main response
 function fireAndForget(fn) {
   try {
     Promise.resolve(fn()).catch(err =>
@@ -48,91 +45,114 @@ function fireAndForget(fn) {
   }
 }
 
+function getTargetModel(type) {
+  if (type === 'todo') return Todo;
+  if (type === 'task') return Task;
+  return FollowUp;
+}
+
+// Helper to check executive/admin status
+function isExecutiveOrAdmin(user) {
+  if (!user) return false;
+  if (user.role === 'admin' || user.role === 'superadmin') return true;
+  const desig = String(user.designation || '').trim().toUpperCase();
+  return ['CEO', 'MANAGING DIRECTOR', 'MD', 'CTO'].includes(desig);
+}
+
 // GET /api/followups
 router.get('/', protect, async (req, res) => {
   try {
     const { status, date, due: dueQuery, callerId, type, forMe: forMeQuery, leadId } = req.query;
     const query = {};
 
-    // 0. Lead filter (for lead profile page)
     if (leadId) {
       query.lead = leadId;
     }
 
-    // 1. assignedTo / assignedBy filtering (Me vs Team)
+    const isAdmin = isExecutiveOrAdmin(req.user);
+    const isMgr = req.user.role === 'manager';
     const forMe = forMeQuery === 'true';
-    const forTeam = forMeQuery === 'false';
 
-    if (forMe) {
-      query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }];
-    } else if (forTeam) {
-      // Team view: callers/employees see tasks assigned to them OR assigned by them
-      if (req.user.role === 'employee' || req.user.role === 'caller') {
-        query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }];
-      } else {
-        // Admin & Manager: see all tasks across the company, or filter by specific user
+    // Role-based visibility scoping
+    if (!isAdmin) {
+      if (isMgr && !forMe) {
         if (callerId && callerId !== 'all') {
-          query.$or = [{ assignedTo: callerId }, { assignedBy: callerId }];
+          query.$or = [{ assignedTo: callerId }, { assignedBy: callerId }, { createdBy: callerId }];
+        } else if (req.user.department) {
+          query.$or = [
+            { assignedTo: req.user._id },
+            { assignedBy: req.user._id },
+            { createdBy: req.user._id },
+            { department: req.user.department }
+          ];
+        } else {
+          query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { createdBy: req.user._id }];
         }
+      } else {
+        // Employees / Callers see ONLY their own tasks, todos, and follow-ups
+        query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { createdBy: req.user._id }];
       }
     } else {
-      // No forMe param at all
-      if (req.user.role === 'employee' || req.user.role === 'caller') {
-        query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }];
+      // Admin Panel: Full Visibility across all members
+      if (forMe) {
+        query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { createdBy: req.user._id }];
+      } else if (callerId && callerId !== 'all') {
+        query.$or = [{ assignedTo: callerId }, { assignedBy: callerId }, { createdBy: callerId }];
       }
     }
 
-    // 2. Type filtering
-    if (type) {
-      if (type === 'todo') query.type = 'todo';
-      else if (type === 'call' || type === 'call_followup') query.type = 'call_followup';
-    }
-
-    // 3. Status filtering
     if (status) {
-      const statuses = status.split(',').map(s => s.trim() === 'pending' ? 'upcoming' : s.trim());
-      query.status = { $in: statuses };
+      const statuses = status.split(',').map(s => {
+        const trimmed = s.trim();
+        if (trimmed === 'pending' || trimmed === 'upcoming') return ['upcoming', 'pending', 'in_progress'];
+        if (trimmed === 'done' || trimmed === 'completed') return ['done', 'completed'];
+        return [trimmed];
+      }).flat();
+      query.status = { $in: Array.from(new Set(statuses)) };
     }
 
-    // 4. Date / Due filtering
     const due = dueQuery || date;
     if (due) {
       if (due === 'today') {
         const start = new Date(); start.setHours(0, 0, 0, 0);
         const end = new Date(); end.setHours(23, 59, 59, 999);
-        query.scheduledAt = { $gte: start, $lte: end };
+        query.$or = [{ scheduledAt: { $gte: start, $lte: end } }, { dueDate: { $gte: start, $lte: end } }];
       } else if (due === 'tomorrow') {
         const start = new Date(); start.setDate(start.getDate() + 1); start.setHours(0, 0, 0, 0);
         const end = new Date(); end.setDate(end.getDate() + 1); end.setHours(23, 59, 59, 999);
-        query.scheduledAt = { $gte: start, $lte: end };
-      } else if (due === 'this_week') {
-        const start = new Date();
-        const day = start.getDay();
-        const startOfWeek = new Date(start);
-        startOfWeek.setDate(start.getDate() - day);
-        startOfWeek.setHours(0, 0, 0, 0);
-        const endOfWeek = new Date(startOfWeek);
-        endOfWeek.setDate(startOfWeek.getDate() + 6);
-        endOfWeek.setHours(23, 59, 59, 999);
-        query.scheduledAt = { $gte: startOfWeek, $lte: endOfWeek };
-      } else if (due === 'overdue') {
-        query.scheduledAt = { $lt: new Date() };
-      } else if (due === 'upcoming') {
-        const start = new Date(); start.setHours(0, 0, 0, 0);
-        query.scheduledAt = { $gte: start };
+        query.$or = [{ scheduledAt: { $gte: start, $lte: end } }, { dueDate: { $gte: start, $lte: end } }];
       }
     }
 
-    const followups = await FollowUp.find(query)
+    const ModelClass = getTargetModel(type);
+    let reqQueryFind = ModelClass.find(query)
       .populate('lead', 'name phone status')
       .populate('assignedTo', 'name avatar')
-      .populate('assignedBy', 'name avatar')
-      .sort({ scheduledAt: 1 });
+      .populate('assignedBy', 'name avatar');
+    if (ModelClass === Todo) {
+      reqQueryFind = reqQueryFind.populate('createdBy', 'name avatar');
+    }
+    const results = await reqQueryFind.sort({ scheduledAt: 1, createdAt: -1 });
 
-    const sanitized = followups.map(f => {
-      const doc = f.toObject ? f.toObject() : f;
-      if (!doc.assignedBy && (f.get && (f.get('assignedBy') === 'all' || f.get('assignedBy') === 'All'))) {
-        doc.assignedBy = { _id: 'all', name: 'All' };
+    const sanitized = results.map(f => {
+      const doc = f.toObject ? f.toObject() : { ...f };
+      doc.type = type || (ModelClass === Todo ? 'todo' : ModelClass === Task ? 'task' : 'call_followup');
+      doc.scheduledAt = doc.scheduledAt || doc.dueDate || doc.startDate || doc.createdAt;
+      doc.dueDate = doc.dueDate || doc.scheduledAt;
+      doc.note = doc.note || doc.description || doc.title || '';
+      doc.title = doc.title || doc.note || doc.description || '';
+      doc.description = doc.description || doc.note || doc.title || '';
+      if (doc.status === 'completed') doc.status = 'done';
+      else if (doc.status === 'pending' || doc.status === 'in_progress') doc.status = 'upcoming';
+
+      if (!doc.assignedBy) {
+        if (doc.createdBy && typeof doc.createdBy === 'object') {
+          doc.assignedBy = doc.createdBy;
+        } else if (f.get && (f.get('assignedBy') === 'all' || f.get('assignedBy') === 'All')) {
+          doc.assignedBy = { _id: 'all', name: 'All' };
+        } else {
+          doc.assignedBy = doc.assignedTo || { _id: 'all', name: 'All' };
+        }
       } else if (doc.assignedBy === 'all' || doc.assignedBy === 'All') {
         doc.assignedBy = { _id: 'all', name: 'All' };
       }
@@ -146,12 +166,8 @@ router.get('/', protect, async (req, res) => {
   }
 });
 
-// Enforce who a given user is allowed to assign a task to:
-// - admin & manager: anyone
-// - limited staff (developer, trainer, marketing): anyone in their allowed scope
-// - caller: themselves only
 async function canAssignTo(actor, assigneeId) {
-  if (!assigneeId) return true; // falls back to actor as assignee
+  if (!assigneeId) return true;
   if (actor.role === 'admin' || actor.role === 'superadmin' || actor.role === 'manager') return true;
   const desig = String(actor.designation || '').trim().toUpperCase();
   if (['HR', 'CEO', 'MANAGING DIRECTOR', 'MD', 'CTO', 'DEVELOPER', 'TRAINER', 'TRAINERS', 'DIGITAL MARKETING', 'DEGITAL MARKETING'].includes(desig)) {
@@ -161,7 +177,7 @@ async function canAssignTo(actor, assigneeId) {
   return false;
 }
 
-// POST /api/followups — create a task/follow-up
+// POST /api/followups
 router.post('/', protect, async (req, res) => {
   try {
     if (req.body.assignedTo && !(await canAssignTo(req.user, req.body.assignedTo))) {
@@ -169,18 +185,22 @@ router.post('/', protect, async (req, res) => {
     }
 
     const { recurrence, ...body } = req.body;
+    const itemType = body.type || 'call_followup';
+    const ModelClass = getTargetModel(itemType);
+
     const baseDoc = {
       ...body,
+      type: itemType,
       assignedTo: req.body.assignedTo || req.user._id,
       assignedBy: req.body.assignedBy || req.user._id,
+      createdBy: req.user._id,
     };
 
     const frequency = recurrence?.frequency;
     const isRecurring = frequency && frequency !== 'none' && recurrence?.endDate;
 
     if (!isRecurring) {
-      // Plain, one-off task — unchanged behaviour
-      const followup = await FollowUp.create(baseDoc);
+      const followup = await ModelClass.create(baseDoc);
 
       await followup.populate('lead', 'name phone status');
       await followup.populate('assignedTo', 'name email');
@@ -195,7 +215,6 @@ router.post('/', protect, async (req, res) => {
       return res.status(201).json({ followup });
     }
 
-    // ── Recurring task: pre-generate one document per occurrence ──────────
     if (!baseDoc.scheduledAt) {
       return res.status(400).json({ message: 'scheduledAt is required to build a recurring series' });
     }
@@ -209,11 +228,9 @@ router.post('/', protect, async (req, res) => {
       recurringGroupId,
     }));
 
-    const created = await FollowUp.insertMany(docs);
+    const created = await ModelClass.insertMany(docs);
 
-    // Return the first occurrence (populated) so the UI can show/select it immediately;
-    // the rest will simply appear on their scheduled day when the list is queried.
-    const firstFollowup = await FollowUp.findById(created[0]._id)
+    const firstFollowup = await ModelClass.findById(created[0]._id)
       .populate('lead', 'name phone status')
       .populate('assignedTo', 'name email')
       .populate('assignedBy', 'name email');
@@ -234,31 +251,37 @@ router.put('/:id', protect, async (req, res) => {
       return res.status(403).json({ message: 'You are not allowed to assign tasks to this user' });
     }
 
-    const existing = await FollowUp.findById(req.params.id);
-    if (!existing) return res.status(404).json({ message: 'Follow-up not found' });
+    let existing = await Task.findById(req.params.id);
+    let ModelClass = Task;
+    if (!existing) {
+      existing = await Todo.findById(req.params.id);
+      ModelClass = Todo;
+    }
+    if (!existing) {
+      existing = await FollowUp.findById(req.params.id);
+      ModelClass = FollowUp;
+    }
+    if (!existing) return res.status(404).json({ message: 'Item not found' });
 
-    // Callers/employees never get edit rights on a task's details — view only. The one
-    // exception is marking it complete, which is a status-only update.
     if (req.user.role === 'employee' || req.user.role === 'caller') {
       const bodyKeys = Object.keys(req.body).filter(k => k !== 'completedAt');
-      const isStatusOnlyUpdate = bodyKeys.length === 1 && bodyKeys[0] === 'status' && req.body.status === 'done';
+      const isStatusOnlyUpdate = bodyKeys.length === 1 && bodyKeys[0] === 'status' && (req.body.status === 'done' || req.body.status === 'completed');
       if (!isStatusOnlyUpdate) {
         return res.status(403).json({ message: 'You can only view this task. You may still mark it complete.' });
       }
     }
 
     const update = { ...req.body };
-    if (update.status === 'done' && !update.completedAt) {
+    if ((update.status === 'done' || update.status === 'completed') && !update.completedAt) {
       update.completedAt = new Date();
     }
-    const followup = await FollowUp.findByIdAndUpdate(req.params.id, update, { new: true })
+    const followup = await ModelClass.findByIdAndUpdate(req.params.id, update, { new: true })
       .populate('lead', 'name phone status')
       .populate('assignedTo', 'name email')
       .populate('assignedBy', 'name email');
 
-    if (!followup) return res.status(404).json({ message: 'Follow-up not found' });
+    if (!followup) return res.status(404).json({ message: 'Item not found' });
 
-    // Notify admins when a caller edits — fire-and-forget
     fireAndForget(() => notifyAdminsTaskEdited({ followup, performedByUser: req.user }));
 
     res.json({ followup });
@@ -268,23 +291,30 @@ router.put('/:id', protect, async (req, res) => {
   }
 });
 
-// DELETE /api/followups/:id — only admin & admin allowed
-// Pass ?series=true to delete every future occurrence in the same recurring
-// series (past/completed occurrences in the series are left untouched).
+// DELETE /api/followups/:id
 router.delete('/:id', protect, authorize('manager', 'admin'), async (req, res) => {
   try {
-    const target = await FollowUp.findById(req.params.id);
-    if (!target) return res.status(404).json({ message: 'Task not found' });
+    let target = await Task.findById(req.params.id);
+    let ModelClass = Task;
+    if (!target) {
+      target = await Todo.findById(req.params.id);
+      ModelClass = Todo;
+    }
+    if (!target) {
+      target = await FollowUp.findById(req.params.id);
+      ModelClass = FollowUp;
+    }
+    if (!target) return res.status(404).json({ message: 'Item not found' });
 
     if (req.query.series === 'true' && target.recurringGroupId) {
-      const result = await FollowUp.deleteMany({
+      const result = await ModelClass.deleteMany({
         recurringGroupId: target.recurringGroupId,
         scheduledAt: { $gte: target.scheduledAt },
       });
       return res.json({ message: 'Deleted series', count: result.deletedCount });
     }
 
-    await FollowUp.findByIdAndDelete(req.params.id);
+    await ModelClass.findByIdAndDelete(req.params.id);
     res.json({ message: 'Deleted' });
   } catch (err) {
     console.error('[DELETE /followups/:id]', err);
@@ -292,7 +322,7 @@ router.delete('/:id', protect, authorize('manager', 'admin'), async (req, res) =
   }
 });
 
-// POST /api/followups/import — bulk import from Excel/CSV
+// POST /api/followups/import
 router.post('/import', protect, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
@@ -307,6 +337,9 @@ router.post('/import', protect, upload.single('file'), async (req, res) => {
     if (rows.length === 0) {
       return res.status(400).json({ message: 'Excel/CSV file is empty' });
     }
+
+    const importType = req.body.activeTab === 'Todo' ? 'todo' : req.body.activeTab === 'Tasks' ? 'task' : 'call_followup';
+    const ModelClass = getTargetModel(importType);
 
     let created = 0;
     for (const row of rows) {
@@ -328,7 +361,6 @@ router.post('/import', protect, upload.single('file'), async (req, res) => {
         }
 
         const priority = (normalizedRow.priority || 'medium').trim().toLowerCase();
-        const type = (normalizedRow.type || 'call_followup').trim().toLowerCase();
 
         let leadId = undefined;
         const leadPhone = normalizedRow.phone || normalizedRow.lead_phone;
@@ -337,19 +369,17 @@ router.post('/import', protect, upload.single('file'), async (req, res) => {
           if (lead) leadId = lead._id;
         }
 
-        let finalType = ['call_followup', 'todo'].includes(type) ? type : 'call_followup';
-        if (finalType === 'call_followup' && !leadId) {
-          finalType = 'todo';
-        }
-
-        await FollowUp.create({
+        await ModelClass.create({
           lead: leadId,
           note,
+          title: note,
           scheduledAt,
+          dueDate: scheduledAt,
           priority: ['low', 'medium', 'high'].includes(priority) ? priority : 'medium',
-          type: finalType,
+          type: importType,
           assignedTo: req.user._id,
           assignedBy: req.user._id,
+          createdBy: req.user._id,
         });
         created++;
       } catch (rowError) {

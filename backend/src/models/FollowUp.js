@@ -11,8 +11,7 @@ const followUpSchema = new mongoose.Schema({
   assignedBy: { type: mongoose.Schema.Types.Mixed, ref: 'User' },
   scheduledAt: { type: Date, required: true },
   status: { type: String, enum: ['upcoming', 'done', 'late', 'cancelled'], default: 'upcoming' },
-  // FIX BUG-03: added type field so Tasks page "To-Do" tab works
-  type: { type: String, enum: ['call_followup', 'todo'], default: 'call_followup' },
+  type: { type: String, enum: ['call_followup', 'todo', 'task'], default: 'task' },
   note: { type: String, default: '' },
   title: { type: String, default: '' },       // for todo tasks
   department: { type: String, default: '' },

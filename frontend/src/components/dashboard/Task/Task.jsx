@@ -1586,7 +1586,7 @@ export default function Task() {
       let queryType;
       if (activeTab === 'Call Followups') queryType = 'call_followup';
       else if (activeTab === 'Todo') queryType = 'todo';
-      else queryType = undefined;
+      else queryType = 'task';
 
       if (historyMode) {
         const res = await followupsAPI.getAll({
@@ -1599,7 +1599,7 @@ export default function Task() {
         let items = res.data.followups || res.data.tasks || [];
         if (activeTab === 'Todo') items = items.filter(t => t.status === 'done' && t.type === 'todo');
         else if (activeTab === 'Call Followups') items = items.filter(t => t.status === 'done' && t.type === 'call_followup');
-        else items = items.filter(t => t.status === 'done');
+        else items = items.filter(t => t.status === 'done' && (t.type === 'task' || (t.type !== 'todo' && t.type !== 'call_followup')));
         if (priorityFilter) items = items.filter(t => t.priority === priorityFilter);
         setTasks(items);
         return;
@@ -1624,7 +1624,7 @@ export default function Task() {
       let items = res.data.followups || res.data.tasks || [];
       if (activeTab === 'Todo') items = items.filter(t => t.status !== 'done' && t.type === 'todo');
       else if (activeTab === 'Call Followups') items = items.filter(t => t.status !== 'done' && t.type === 'call_followup');
-      else items = items.filter(t => t.status !== 'done');
+      else items = items.filter(t => t.status !== 'done' && (t.type === 'task' || (t.type !== 'todo' && t.type !== 'call_followup')));
 
       if (!isAll) {
         if (wantsLate && !wantsPending) {

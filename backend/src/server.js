@@ -91,6 +91,7 @@ app.use('/api/auth/register', authLimiter);
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/leads', apiLimiter, require('./routes/leads'));
 app.use('/api/followups', apiLimiter, require('./routes/followups'));
+app.use('/api/tasks', apiLimiter, require('./routes/tasks'));
 app.use('/api/campaigns', apiLimiter, require('./routes/campaigns'));
 app.use('/api/reports', apiLimiter, require('./routes/reports'));
 app.use('/api/users', apiLimiter, require('./routes/users'));
