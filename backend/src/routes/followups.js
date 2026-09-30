@@ -128,7 +128,8 @@ router.get('/', protect, async (req, res) => {
     let reqQueryFind = ModelClass.find(query)
       .populate('lead', 'name phone status')
       .populate('assignedTo', 'name avatar')
-      .populate('assignedBy', 'name avatar');
+      .populate('assignedBy', 'name avatar')
+      .populate('completedBy', 'name avatar');
     if (ModelClass === Todo) {
       reqQueryFind = reqQueryFind.populate('createdBy', 'name avatar');
     }
@@ -272,13 +273,15 @@ router.put('/:id', protect, async (req, res) => {
     }
 
     const update = { ...req.body };
-    if ((update.status === 'done' || update.status === 'completed') && !update.completedAt) {
-      update.completedAt = new Date();
+    if ((update.status === 'done' || update.status === 'completed')) {
+      if (!update.completedAt) update.completedAt = new Date();
+      update.completedBy = req.user._id;
     }
     const followup = await ModelClass.findByIdAndUpdate(req.params.id, update, { new: true })
       .populate('lead', 'name phone status')
-      .populate('assignedTo', 'name email')
-      .populate('assignedBy', 'name email');
+      .populate('assignedTo', 'name email avatar')
+      .populate('assignedBy', 'name email avatar')
+      .populate('completedBy', 'name email avatar');
 
     if (!followup) return res.status(404).json({ message: 'Item not found' });
 
@@ -292,7 +295,7 @@ router.put('/:id', protect, async (req, res) => {
 });
 
 // DELETE /api/followups/:id
-router.delete('/:id', protect, authorize('manager', 'admin'), async (req, res) => {
+router.delete('/:id', protect, authorize('admin', 'superadmin'), async (req, res) => {
   try {
     let target = await Task.findById(req.params.id);
     let ModelClass = Task;

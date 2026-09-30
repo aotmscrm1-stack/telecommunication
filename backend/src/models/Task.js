@@ -17,6 +17,12 @@ const taskSchema = new mongoose.Schema({
   departmentId: { type: mongoose.Schema.Types.Mixed, ref: 'Department' },
   priority: { type: String, enum: ['low', 'medium', 'high'], default: 'medium' },
   completedAt: { type: Date },
+  completedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  checklist: [{
+    title: { type: String, required: true },
+    completed: { type: Boolean, default: false },
+    completedAt: { type: Date },
+  }],
   overdueNotifiedAt: { type: Date },
 
   recurrence: {

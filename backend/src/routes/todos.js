@@ -79,6 +79,7 @@ router.get('/', protect, async (req, res) => {
       .populate('assignedTo', 'name avatar')
       .populate('assignedBy', 'name avatar')
       .populate('createdBy', 'name avatar')
+      .populate('completedBy', 'name avatar')
       .sort({ createdAt: -1 });
 
     const sanitized = todos.map(f => {
@@ -141,11 +142,13 @@ router.put('/:id', protect, async (req, res) => {
   try {
     const update = { ...req.body };
     if (update.status === 'done' || update.status === 'completed') {
-      update.completedAt = new Date();
+      update.completedAt = update.completedAt || new Date();
+      update.completedBy = req.user._id;
     }
     const todo = await Todo.findByIdAndUpdate(req.params.id, update, { new: true })
-      .populate('assignedTo', 'name email')
-      .populate('assignedBy', 'name email');
+      .populate('assignedTo', 'name email avatar')
+      .populate('assignedBy', 'name email avatar')
+      .populate('completedBy', 'name email avatar');
     if (!todo) return res.status(404).json({ message: 'Todo not found' });
 
     res.json({ followup: todo, todo });
@@ -156,7 +159,7 @@ router.put('/:id', protect, async (req, res) => {
 });
 
 // DELETE /api/todos/:id
-router.delete('/:id', protect, async (req, res) => {
+router.delete('/:id', protect, authorize('admin', 'superadmin'), async (req, res) => {
   try {
     await Todo.findByIdAndDelete(req.params.id);
     res.json({ message: 'Deleted' });
