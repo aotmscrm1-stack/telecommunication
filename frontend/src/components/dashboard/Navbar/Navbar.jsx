@@ -476,7 +476,7 @@ export default function Navbar() {
       title: 'TODO List',
       icon: FaListCheck,
       items: [
-        { label: 'TODO List', path: '/tasks', icon: FaListCheck },
+        { label: 'TODO List', path: '/tasks?tab=Todo', icon: FaListCheck },
       ]
     },
     ...(canViewCallRecordings(user) ? [{

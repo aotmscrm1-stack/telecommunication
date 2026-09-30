@@ -17,17 +17,57 @@ import {
 } from 'lucide-react';
 
 // Strictly 3 Roles: Employee, Manager, Administrator
+// 1. System Permission Roles
 const ROLES = [
   { value: 'employee', label: 'Employee' },
   { value: 'manager', label: 'Manager' },
   { value: 'admin', label: 'Administrator' }
 ];
 
-// Dynamic Designation mapping per selected Role
-const ROLE_DESIGNATIONS = {
-  admin: ['CTO', 'Managing Director'],
-  manager: ['HR'],
-  employee: ['Developer', 'Trainer', 'Digital Marketing']
+// 2. Department Options
+const DEPARTMENTS = [
+  { value: 'HR', label: 'HR' },
+  { value: 'Developer', label: 'Developer' },
+  { value: 'Trainer', label: 'Trainer' },
+  { value: 'Marketing', label: 'Marketing' },
+  { value: 'Management', label: 'Management / Admin' }
+];
+
+// 3. Dynamic Designation mapping per selected Department
+const DEPARTMENT_DESIGNATIONS = {
+  HR: [
+    'HR Manager',
+    'Sr. HR Specialist',
+    'Jr. HR Executive',
+    'HR Recruiter',
+    'HR Associate'
+  ],
+  Developer: [
+    'Sr. Developer',
+    'Jr. Developer',
+    'Software Engineer',
+    'Full Stack Developer',
+    'Engineering Manager'
+  ],
+  Trainer: [
+    'Lead Trainer',
+    'Sr. Trainer',
+    'Jr. Trainer',
+    'Corporate Trainer',
+    'Technical Trainer'
+  ],
+  Marketing: [
+    'Marketing Manager',
+    'Sr. Marketing Lead',
+    'Marketing Executive',
+    'Digital Marketing Specialist'
+  ],
+  Management: [
+    'Managing Director',
+    'CTO',
+    'CEO',
+    'Admin'
+  ]
 };
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
@@ -932,8 +972,9 @@ export default function SignUp() {
     lastName: '',
     email: '',
     employeeId: '',
-    designation: 'Developer',
-    displayName: 'Developer',
+    department: 'Developer',
+    designation: 'Sr. Developer',
+    displayName: 'Sr. Developer',
     role: 'employee',
     bloodGroup: 'O+',
     phone: '',
@@ -969,16 +1010,15 @@ export default function SignUp() {
   const canvasRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  // Handle Role Change -> Automatically sets available designations and defaults to first one
-  const handleRoleChange = (e) => {
-    const newRole = e.target.value;
-    const availableDesignations = ROLE_DESIGNATIONS[newRole] || [];
-    const defaultDesig = availableDesignations[0] || '';
+  // Handle Department Change -> Dynamically sets designations mapped to selected department
+  const handleDepartmentChange = (e) => {
+    const newDept = e.target.value;
+    const availableDesignations = DEPARTMENT_DESIGNATIONS[newDept] || [];
+    const defaultDesig = availableDesignations[0] || 'Team Member';
     setFormData((prev) => ({
       ...prev,
-      role: newRole,
+      department: newDept,
       designation: defaultDesig,
-      // If user hasn't typed a custom display name or it matched the old designation, update to new default
       displayName: (!prev.displayName || prev.displayName === prev.designation) ? defaultDesig : prev.displayName
     }));
   };
@@ -1268,6 +1308,7 @@ export default function SignUp() {
         lastName: formData.lastName.trim(),
         email: formData.email.trim(),
         employeeId: formData.employeeId.trim(),
+        department: formData.department,
         designation: formData.designation,
         displayName: (formData.displayName || formData.designation).trim(),
         role: formData.role,
@@ -1336,7 +1377,7 @@ export default function SignUp() {
               </button>
             )}
 
-            <div className="brand">AOTMS</div>
+            
 
             {/* Error Message */}
             {errorMsg && (
@@ -1455,7 +1496,7 @@ export default function SignUp() {
             {step === 2 && (
               <>
                 <h1>Organization</h1>
-                <p className="sub">Step 2: Enter your work credentials and 10-digit contact number.</p>
+                <p className="sub">Step 2: Enter your work credentials.</p>
 
                 <div className="field">
                   <label htmlFor="em">Official Email *</label>
@@ -1488,7 +1529,7 @@ export default function SignUp() {
                     <select
                       id="role"
                       value={formData.role}
-                      onChange={handleRoleChange}
+                      onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                     >
                       {ROLES.map((r) => (
                         <option key={r.value} value={r.value}>{r.label}</option>
@@ -1497,8 +1538,21 @@ export default function SignUp() {
                   </div>
                 </div>
 
-                {/* Designation & Display Name: Two Columns */}
+                {/* Department & Designation: Two Columns */}
                 <div className="field-grid-2">
+                  <div className="field field-select">
+                    <label htmlFor="dept">Department *</label>
+                    <select
+                      id="dept"
+                      value={formData.department}
+                      onChange={handleDepartmentChange}
+                    >
+                      {DEPARTMENTS.map((d) => (
+                        <option key={d.value} value={d.value}>{d.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
                   <div className="field field-select">
                     <label htmlFor="desig">
                       <span>Designation *</span>
@@ -1515,12 +1569,15 @@ export default function SignUp() {
                         }));
                       }}
                     >
-                      {(ROLE_DESIGNATIONS[formData.role] || []).map((d) => (
+                      {(DEPARTMENT_DESIGNATIONS[formData.department] || []).map((d) => (
                         <option key={d} value={d}>{d}</option>
                       ))}
                     </select>
                   </div>
+                </div>
 
+                {/* Display Name & Contact Number: Two Columns */}
+                <div className="field-grid-2">
                   <div className="field">
                     <label htmlFor="dname">
                       <span>Display Name *</span>
@@ -1528,35 +1585,35 @@ export default function SignUp() {
                     <input
                       id="dname"
                       type="text"
-                      placeholder="e.g. Junior HR / HR Exclusive"
+                      placeholder="e.g. Jr. HR Executive / Sr. Developer"
                       value={formData.displayName}
                       onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
                       required
                     />
                   </div>
-                </div>
 
-                {/* Contact Number: Strictly 10 digits allowed, prefix has pointer-events: none */}
-                <div className="field field-with-prefix">
-                  <label htmlFor="ph">
-                    <span>Contact Number (10 Digits) *</span>
-                    <span style={{ fontSize: '10px', color: formData.phone.length === 10 ? '#22c55e' : '#94a3b8' }}>
-                      {formData.phone.length}/10 {formData.phone.length === 10 ? '✓' : ''}
+                  {/* Contact Number: Strictly 10 digits allowed, prefix has pointer-events: none */}
+                  <div className="field field-with-prefix">
+                    <label htmlFor="ph">
+                      <span>Contact Number*</span>
+                      <span style={{ fontSize: '10px', color: formData.phone.length === 10 ? '#22c55e' : '#94a3b8' }}>
+                        {formData.phone.length}/10 {formData.phone.length === 10 ? '✓' : ''}
+                      </span>
+                    </label>
+                    <span className="phone-prefix-tag">
+                      +91
                     </span>
-                  </label>
-                  <span className="phone-prefix-tag">
-                    +91
-                  </span>
-                  <input
-                    id="ph"
-                    type="tel"
-                    className="has-prefix phone-input-field"
-                    placeholder="9876543210"
-                    value={formData.phone}
-                    onChange={handlePhoneChange}
-                    maxLength={10}
-                    required
-                  />
+                    <input
+                      id="ph"
+                      type="tel"
+                      className="has-prefix phone-input-field"
+                      placeholder="9876543210"
+                      value={formData.phone}
+                      onChange={handlePhoneChange}
+                      maxLength={10}
+                      required
+                    />
+                  </div>
                 </div>
 
                 <button type="submit" className="sign-in-btn">

@@ -134,6 +134,29 @@ export const messageTemplatesAPI = {
 };
 
 // ── Email Campaign (Message Templates → Email → Create Email Campaign) ───────
+export const departmentsAPI = {
+  getAll: () => api.get('/departments'),
+  create: (data) => api.post('/departments', data),
+  update: (id, data) => api.put(`/departments/${id}`, data),
+  delete: (id) => api.delete(`/departments/${id}`),
+};
+
+export const todosAPI = {
+  getAll: (params) => api.get('/todos', { params }),
+  getStats: () => api.get('/todos/stats'),
+  getOne: (id) => api.get(`/todos/${id}`),
+  create: (data) => api.post('/todos', data),
+  update: (id, data) => api.put(`/todos/${id}`, data),
+  delete: (id) => api.delete(`/todos/${id}`),
+  updateStatus: (id, status) => api.patch(`/todos/${id}/status`, { status }),
+  assign: (id, assignedTo) => api.patch(`/todos/${id}/assign`, { assignedTo }),
+  addChecklist: (id, title) => api.post(`/todos/${id}/checklist`, { title }),
+  toggleChecklist: (id, itemId) => api.patch(`/todos/${id}/checklist/${itemId}`),
+  deleteChecklist: (id, itemId) => api.delete(`/todos/${id}/checklist/${itemId}`),
+  addComment: (id, text) => api.post(`/todos/${id}/comments`, { text }),
+  addAttachment: (id, data) => api.post(`/todos/${id}/attachments`, data),
+};
+
 export const emailCampaignsAPI = {
   previewRecipients: (campaignIds) => api.post('/email-campaigns/preview-recipients', { campaignIds }),
   send: (data) => api.post('/email-campaigns/send', data),

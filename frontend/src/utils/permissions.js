@@ -24,35 +24,46 @@ export const isCTO = (user) => {
 };
 
 export const isExecutive = (user) => {
+  if (!user) return false;
   const d = normalizeDesignation(user);
-  return isManagingDirector(user) || isCTO(user) || d === 'CEO' || user?.role === 'admin';
+  const dept = String(user?.department || '').trim().toUpperCase();
+  return isManagingDirector(user) || isCTO(user) || d === 'CEO' || user?.role === 'admin' || dept === 'ADMIN' || dept === 'MANAGEMENT';
 };
 
 export const isCEO = (user) => isExecutive(user);
 
 export const isHR = (user) => {
+  if (!user) return false;
   const d = normalizeDesignation(user);
-  return d === 'HR';
+  const dept = String(user?.department || '').trim().toUpperCase();
+  return d === 'HR' || d.includes('HR') || dept === 'HR';
 };
 
 export const isManager = (user) => {
+  if (!user) return false;
   const d = normalizeDesignation(user);
-  return d === 'MANAGER' || user?.role === 'manager';
+  return d.includes('MANAGER') || user?.role === 'manager';
 };
 
 export const isDeveloper = (user) => {
+  if (!user) return false;
   const d = normalizeDesignation(user);
-  return d === 'DEVELOPER';
+  const dept = String(user?.department || '').trim().toUpperCase();
+  return d.includes('DEVELOPER') || d.includes('ENGINEER') || dept === 'DEVELOPER' || dept === 'DEV';
 };
 
 export const isTrainer = (user) => {
+  if (!user) return false;
   const d = normalizeDesignation(user);
-  return d === 'TRAINER' || d === 'TRAINERS';
+  const dept = String(user?.department || '').trim().toUpperCase();
+  return d.includes('TRAINER') || dept === 'TRAINER' || dept === 'TRAINERS';
 };
 
 export const isDigitalMarketing = (user) => {
+  if (!user) return false;
   const d = normalizeDesignation(user);
-  return d === 'DIGITAL MARKETING' || d === 'DEGITAL MARKETING';
+  const dept = String(user?.department || '').trim().toUpperCase();
+  return d.includes('MARKETING') || dept === 'MARKETING' || dept === 'MKT';
 };
 
 /**
@@ -115,49 +126,56 @@ export const canViewCallRecordings = (user) => {
  * 
  * Returns an array of user objects that the current user is allowed to assign tasks to.
  */
-export const getTaskAssigneeOptions = (currentUser, users = []) => {
+export const getTaskAssigneeOptions = (currentUser, users = [], selectedDepartment = '') => {
   const userList = Array.isArray(users) ? users : [];
   if (!currentUser) return [];
+
+  // Filter user list by department if a specific department is selected
+  let deptFilteredUsers = userList;
+  if (selectedDepartment && selectedDepartment !== 'all' && selectedDepartment !== 'All') {
+    deptFilteredUsers = userList.filter(u => 
+      u.department && u.department.toLowerCase().trim() === selectedDepartment.toLowerCase().trim()
+    );
+  }
 
   // Helper to ensure current user is represented
   const meUser = userList.find(u => u._id === currentUser._id) || {
     _id: currentUser._id,
     name: currentUser.name || 'You',
     designation: currentUser.designation || 'Me',
+    department: currentUser.department || '',
     isMe: true,
   };
 
   // 1. Admin (CEO, Managing Director, CTO, role: admin/superadmin)
-  // Assigned to: all employees, me
+  // Assigned to: all employees in selected department, or all employees across org
   if (isExecutive(currentUser) || currentUser.role === 'admin' || currentUser.role === 'superadmin') {
     const list = [];
-    if (!list.some(u => u._id === meUser._id)) list.push(meUser);
-    userList.forEach(u => {
+    if (selectedDepartment && selectedDepartment.toLowerCase() === 'admin') {
+      if (!list.some(u => u._id === meUser._id)) list.push(meUser);
+    }
+    deptFilteredUsers.forEach(u => {
       if (!list.some(existing => existing._id === u._id)) {
         list.push(u);
       }
     });
-    return list;
+    return list.length > 0 ? list : [meUser];
   }
 
-  // 2. HR
-  // Assigned to: me, trainers, digital marketing
-  if (isHR(currentUser)) {
-    const list = [meUser];
-    userList.forEach(u => {
-      if (u._id === currentUser._id) return;
-      if (isTrainer(u) || isDigitalMarketing(u)) {
-        if (!list.some(existing => existing._id === u._id)) {
-          list.push(u);
-        }
+  // 2. Managers / HR / Department Leads
+  if (isHR(currentUser) || isManager(currentUser)) {
+    const list = [];
+    deptFilteredUsers.forEach(u => {
+      if (!list.some(existing => existing._id === u._id)) {
+        list.push(u);
       }
     });
+    if (list.length === 0) list.push(meUser);
     return list;
   }
 
-  // 3. Developer, 4. Digital Marketing, 5. Trainers, & all others
-  // Assigned to: me
-  return [meUser];
+  // 3. Regular Employees
+  return deptFilteredUsers.length > 0 ? deptFilteredUsers : [meUser];
 };
 
 /**

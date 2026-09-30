@@ -15,6 +15,8 @@ const followUpSchema = new mongoose.Schema({
   type: { type: String, enum: ['call_followup', 'todo'], default: 'call_followup' },
   note: { type: String, default: '' },
   title: { type: String, default: '' },       // for todo tasks
+  department: { type: String, default: '' },
+  departmentId: { type: mongoose.Schema.Types.Mixed, ref: 'Department' },
   priority: { type: String, enum: ['low', 'medium', 'high'], default: 'medium' },
   completedAt: { type: Date },
   // Set once an overdue notification has been sent for this task, so the

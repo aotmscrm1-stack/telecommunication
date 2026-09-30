@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FaSitemap, FaBuilding, FaUsers, FaPlus, FaUserPlus, FaUserGear,
   FaChevronRight, FaPen, FaTrash, FaXmark, FaCheck,
   FaEnvelope, FaPhone, FaShieldHalved, FaUserTie,
   FaCode, FaBookOpen, FaBullhorn, FaBriefcase, FaRotate, FaUserCheck,
-  FaCrown, FaCircle, FaAddressCard, FaLayerGroup
+  FaCrown, FaCircle, FaAddressCard, FaLayerGroup, FaEye, FaEyeSlash,
+  FaImage, FaLock, FaUser
 } from 'react-icons/fa6';
 import { useAuth } from '../../context/AuthContext';
 import API from '../../services/api';
@@ -28,6 +30,13 @@ const THEME = {
   text: '#000000',
   textSoft: '#000000',
   border: '#e2e8f0'
+};
+
+// Role-based Designation mapping for Register Form
+const ROLE_DESIGNATIONS = {
+  admin: ['CTO', 'Managing Director'],
+  manager: ['HR Specialist', 'Sr. HR Specialist', 'Marketing Manager', 'Engineering Manager'],
+  employee: ['Developer', 'Software Developer', 'Trainer', 'Corporate Trainer', 'Digital Marketing', 'Jr. Executive']
 };
 
 /* ── Profile Avatar with fallback initials ── */
@@ -73,6 +82,7 @@ function UserAvatar({ user, size = 'md', className = '' }) {
 }
 
 export default function Departments() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [adminUser, setAdminUser] = useState(null);
@@ -83,13 +93,26 @@ export default function Departments() {
   const [editingDept, setEditingDept] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Password Visibility Toggles
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Form States - New Department
   const [deptForm, setDeptForm] = useState({
     name: '', code: '', description: '', color: '#0284c7', icon: 'building'
   });
 
+  // Form States - Employee Register Form
   const [empForm, setEmpForm] = useState({
-    name: '', email: '', password: 'password123',
-    designation: '', department: '', role: 'employee', phone: ''
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    designation: '',
+    department: '',
+    role: 'employee',
+    phone: '',
+    avatar: ''
   });
 
   const [submitting, setSubmitting] = useState(false);
@@ -145,31 +168,68 @@ export default function Departments() {
     }
   };
 
+  // Register Employee Submit Handler
   const handleAddEmployee = async (e) => {
     e.preventDefault();
     setErrorMsg('');
+
     if (!empForm.name.trim() || !empForm.email.trim()) {
-      setErrorMsg('Name and Email are required');
+      setErrorMsg('Full Name and Email are required.');
       return;
     }
+
+    if (!empForm.password) {
+      setErrorMsg('Password is required.');
+      return;
+    }
+
+    if (empForm.password.length < 6) {
+      setErrorMsg('Password must be at least 6 characters.');
+      return;
+    }
+
+    if (empForm.password !== empForm.confirmPassword) {
+      setErrorMsg('Passwords do not match.');
+      return;
+    }
+
     const deptTarget = empForm.department || (selectedDept ? selectedDept.name : '');
-    if (!deptTarget) { setErrorMsg('Please select a department'); return; }
+    if (!deptTarget) {
+      setErrorMsg('Please select a department.');
+      return;
+    }
 
     setSubmitting(true);
     try {
-      const res = await API.post('/departments/employee', { ...empForm, department: deptTarget });
+      const res = await API.post('/departments/employee', {
+        name: empForm.name.trim(),
+        email: empForm.email.toLowerCase().trim(),
+        password: empForm.password,
+        role: empForm.role,
+        designation: empForm.designation || 'Team Member',
+        department: deptTarget,
+        phone: empForm.phone || '',
+        avatar: empForm.avatar || ''
+      });
+
       if (res.data?.ok) {
-        setSuccessMsg(`Employee ${empForm.name} added!`);
+        setSuccessMsg(`Employee ${empForm.name} registered successfully to ${deptTarget}!`);
         setEmpForm({
-          name: '', email: '', password: 'password123',
-          designation: '', department: selectedDept ? selectedDept.name : '',
-          role: 'employee', phone: ''
+          name: '',
+          email: '',
+          password: '',
+          confirmPassword: '',
+          designation: '',
+          department: selectedDept ? selectedDept.name : '',
+          role: 'employee',
+          phone: '',
+          avatar: ''
         });
         setShowAddEmpModal(false);
         await fetchDepartments();
       }
     } catch (err) {
-      setErrorMsg(err.response?.data?.message || 'Failed to add employee');
+      setErrorMsg(err.response?.data?.message || 'Registration failed. Please check details.');
     } finally {
       setSubmitting(false);
     }
@@ -361,7 +421,7 @@ export default function Departments() {
                           : '0 8px 20px rgba(15, 23, 42, 0.06)'
                       }}
                     >
-                      {/* ═══ CARD BODY — NO TOP COLOR BAND ═══ */}
+                      {/* CARD BODY */}
                       <div className="p-6">
 
                         {/* Icon + staff count row */}
@@ -656,10 +716,7 @@ export default function Departments() {
                   </div>
 
                   <button
-                    onClick={() => {
-                      setEmpForm(prev => ({ ...prev, department: selectedDept.name }));
-                      setShowAddEmpModal(true);
-                    }}
+                    onClick={() => navigate('/signup')}
                     className="px-5 py-3 rounded-2xl text-xs text-white bg-slate-900 hover:bg-slate-800 transition-all flex items-center gap-2 shadow-lg hover:scale-[1.02]"
                   >
                     <FaUserPlus className="w-4 h-4" style={{ color: selColor }} /> <span>+ Add Employee</span>
@@ -685,14 +742,11 @@ export default function Departments() {
                     <FaUsers className="w-12 h-12 text-slate-300 mx-auto mb-3" />
                     <p className="text-black text-base">No employees assigned yet.</p>
                     <button
-                      onClick={() => {
-                        setEmpForm(prev => ({ ...prev, department: selectedDept.name }));
-                        setShowAddEmpModal(true);
-                      }}
-                      className="mt-4 px-5 py-2.5 rounded-2xl text-white text-xs shadow-md"
+                      onClick={() => navigate('/signup')}
+                      className="mt-4 px-5 py-2.5 rounded-2xl text-white text-xs shadow-md cursor-pointer hover:opacity-90 transition-opacity"
                       style={{ background: selColor }}
                     >
-                      + Add First Employee
+                      + Register Employee
                     </button>
                   </div>
                 ) : (
@@ -757,13 +811,24 @@ export default function Departments() {
                 </span>
                 <button
                   onClick={() => {
-                    setEmpForm(prev => ({ ...prev, department: selectedDept.name }));
+                    setEmpForm(prev => ({
+                      ...prev,
+                      department: selectedDept.name,
+                      name: '',
+                      email: '',
+                      password: '',
+                      confirmPassword: '',
+                      phone: '',
+                      avatar: '',
+                      role: 'employee',
+                      designation: ''
+                    }));
                     setShowAddEmpModal(true);
                   }}
-                  className="hover:underline flex items-center gap-1.5"
+                  className="hover:underline flex items-center gap-1.5 font-bold"
                   style={{ color: selColor }}
                 >
-                  <FaUserPlus /> <span>+ Add Employee</span>
+                  <FaUserPlus /> <span>Open Register Form</span>
                 </button>
               </div>
             </div>
@@ -886,149 +951,7 @@ export default function Departments() {
         )}
       </AnimatePresence>
 
-      {/* ══════════════════════════════════════════════
-          MODAL: ADD EMPLOYEE
-          ══════════════════════════════════════════════ */}
-      <AnimatePresence>
-        {showAddEmpModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md bg-slate-900/60">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden"
-            >
-              <div className="p-8">
-                <div className="flex items-center justify-between pb-4 mb-6 border-b border-slate-100">
-                  <h3 className="text-2xl text-black flex items-center gap-3">
-                    <span className="p-2 rounded-xl bg-sky-100 text-sky-600"><FaUserPlus /></span>
-                    <span>+ Add New Employee</span>
-                  </h3>
-                  <button
-                    onClick={() => setShowAddEmpModal(false)}
-                    className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100"
-                  >
-                    <FaXmark className="w-5 h-5" />
-                  </button>
-                </div>
 
-                {errorMsg && (
-                  <div className="mb-4 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-black text-xs">
-                    {errorMsg}
-                  </div>
-                )}
-
-                <form onSubmit={handleAddEmployee} className="space-y-4">
-                  <div>
-                    <label className="text-xs text-black uppercase tracking-wider mb-1 block">
-                      Full Name *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Sr. Deenaz or Jr. Bhavani"
-                      value={empForm.name}
-                      onChange={e => setEmpForm({ ...empForm, name: e.target.value })}
-                      className="w-full p-3.5 rounded-2xl border border-slate-200 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-xs text-black uppercase tracking-wider mb-1 block">
-                        Email *
-                      </label>
-                      <input
-                        type="email"
-                        required
-                        placeholder="name@crm.com"
-                        value={empForm.email}
-                        onChange={e => setEmpForm({ ...empForm, email: e.target.value })}
-                        className="w-full p-3.5 rounded-2xl border border-slate-200 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-black uppercase tracking-wider mb-1 block">
-                        Designation
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Sr. HR Specialist"
-                        value={empForm.designation}
-                        onChange={e => setEmpForm({ ...empForm, designation: e.target.value })}
-                        className="w-full p-3.5 rounded-2xl border border-slate-200 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-xs text-black uppercase tracking-wider mb-1 block">
-                        Department *
-                      </label>
-                      <select
-                        value={empForm.department || (selectedDept ? selectedDept.name : '')}
-                        onChange={e => setEmpForm({ ...empForm, department: e.target.value })}
-                        className="w-full p-3.5 rounded-2xl border border-slate-200 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 bg-white"
-                      >
-                        <option value="">-- Select Department --</option>
-                        {departments.map(d => (
-                          <option key={d._id || d.name} value={d.name}>{d.name} Department</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="text-xs text-black uppercase tracking-wider mb-1 block">
-                        Role
-                      </label>
-                      <select
-                        value={empForm.role}
-                        onChange={e => setEmpForm({ ...empForm, role: e.target.value })}
-                        className="w-full p-3.5 rounded-2xl border border-slate-200 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 bg-white"
-                      >
-                        <option value="employee">Employee</option>
-                        <option value="manager">Manager</option>
-                        <option value="admin">Admin</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs text-black uppercase tracking-wider mb-1 block">
-                      Phone Number
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="+91 9876543210"
-                      value={empForm.phone}
-                      onChange={e => setEmpForm({ ...empForm, phone: e.target.value })}
-                      className="w-full p-3.5 rounded-2xl border border-slate-200 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-                    />
-                  </div>
-
-                  <div className="flex gap-4 pt-4">
-                    <button
-                      type="button"
-                      onClick={() => setShowAddEmpModal(false)}
-                      className="flex-1 py-3.5 rounded-2xl text-sm text-black bg-slate-100 hover:bg-slate-200 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={submitting}
-                      className="flex-1 py-3.5 rounded-2xl text-sm text-white bg-slate-900 hover:bg-slate-800 transition-all shadow-xl"
-                    >
-                      {submitting ? 'Adding Employee...' : '+ Save Employee'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
     </div>
   );

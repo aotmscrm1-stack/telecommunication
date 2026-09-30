@@ -74,9 +74,8 @@ function AssigneeCheckboxDropdown({ assignableUsers, selectedIds, onChange, curr
     if (selectedIds.length === 1) {
       const found = assignableUsers.find((u) => u._id === selectedIds[0]);
       if (found) {
-        return `${found.name || 'User'}${found._id === currentUser?._id ? ' (You)' : ''}${
-          found.designation ? ` (${found.designation})` : ''
-        }`;
+        return `${found.name || 'User'}${found._id === currentUser?._id ? ' (You)' : ''}${found.designation ? ` (${found.designation})` : ''
+          }`;
       }
       return '1 Person Selected';
     }
@@ -148,14 +147,13 @@ function AssigneeCheckboxDropdown({ assignableUsers, selectedIds, onChange, curr
                   <div
                     key={u._id}
                     onClick={() => toggleUser(u._id)}
-                    className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
-                      isChecked ? 'bg-blue-50/80 text-blue-900 font-semibold' : 'text-slate-700 hover:bg-slate-50'
-                    }`}
+                    className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${isChecked ? 'bg-blue-50/80 text-blue-900 font-semibold' : 'text-slate-700 hover:bg-slate-50'
+                      }`}
                   >
                     <input
                       type="checkbox"
                       checked={isChecked}
-                      onChange={() => {}}
+                      onChange={() => { }}
                       className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 cursor-pointer accent-blue-600 shrink-0"
                     />
                     <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 font-bold text-[10px] flex items-center justify-center shrink-0">
@@ -230,9 +228,8 @@ function TimeInput12h({ value, onChange }) {
             type="button"
             key={p}
             onClick={() => commit(hh12, mm, p)}
-            className={`px-2 py-1.5 text-xs font-semibold transition-colors ${
-              period === p ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'
-            }`}
+            className={`px-2 py-1.5 text-xs font-semibold transition-colors ${period === p ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'
+              }`}
           >
             {p}
           </button>
@@ -325,7 +322,7 @@ export default function MandatoryAttendanceModal() {
         const list = res.data?.users || res.data || [];
         setTeamUsers(list);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const assignedToUsers = getTaskAssigneeOptions(user, teamUsers);
@@ -741,11 +738,10 @@ export default function MandatoryAttendanceModal() {
                   <button
                     type="button"
                     onClick={() => setTaskType('todo')}
-                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
-                      taskType === 'todo'
+                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${taskType === 'todo'
                         ? 'bg-white text-slate-800 shadow-sm border border-slate-200/60'
                         : 'text-slate-500 hover:text-slate-700'
-                    }`}
+                      }`}
                   >
                     <span>📋</span>
                     <span>Todo Item</span>
@@ -753,11 +749,10 @@ export default function MandatoryAttendanceModal() {
                   <button
                     type="button"
                     onClick={() => setTaskType('call_followup')}
-                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
-                      taskType === 'call_followup'
+                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${taskType === 'call_followup'
                         ? 'bg-white text-slate-800 shadow-sm border border-slate-200/60'
                         : 'text-slate-500 hover:text-slate-700'
-                    }`}
+                      }`}
                   >
                     <span>📞</span>
                     <span>Call Follow-up</span>
@@ -845,7 +840,7 @@ export default function MandatoryAttendanceModal() {
                 </div>
 
                 {/* Assigned To & Assigned By */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                       Assigned To

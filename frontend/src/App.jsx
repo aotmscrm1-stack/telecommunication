@@ -143,8 +143,8 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-          <Route path="/signup" element={<PublicRoute><SignUp /></PublicRoute>} />
-          <Route path="/sign-up" element={<PublicRoute><SignUp /></PublicRoute>} />
+          <Route path="/signup" element={<SignUp />} />
+          <Route path="/sign-up" element={<SignUp />} />
           <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
             <Route path="dashboard" element={<DashboardRoute><Dashboard /></DashboardRoute>} />
             <Route path="billing" element={<AdminRoute><Billing /></AdminRoute>} />
@@ -158,6 +158,8 @@ export default function App() {
             <Route path="leaderboard" element={<StaffRestrictedRoute><Leaderboard /></StaffRestrictedRoute>} />
             <Route path="reports" element={<StaffRestrictedRoute><Reports /></StaffRestrictedRoute>} />
             <Route path="tasks" element={<Tasks />} />
+            <Route path="todo" element={<Navigate to="/tasks?tab=Todo" replace />} />
+            <Route path="todos" element={<Navigate to="/tasks?tab=Todo" replace />} />
             <Route path="profile" element={<Profile />} />
             <Route path="contacts" element={<StaffRestrictedRoute><Contacts /></StaffRestrictedRoute>} />
             <Route path="contact" element={<Navigate to="/contacts" replace />} />
