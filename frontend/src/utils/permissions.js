@@ -130,12 +130,32 @@ export const getTaskAssigneeOptions = (currentUser, users = [], selectedDepartme
   const userList = Array.isArray(users) ? users : [];
   if (!currentUser) return [];
 
-  // Filter user list by department if a specific department is selected
+  const isAdmin = isExecutive(currentUser) || currentUser.role === 'admin' || currentUser.role === 'superadmin';
+
+  // Determine user's own department
+  const userDept = currentUser.department || (
+    isDeveloper(currentUser) ? 'Developer' :
+    isHR(currentUser) ? 'HR' :
+    isTrainer(currentUser) ? 'Trainer' :
+    isDigitalMarketing(currentUser) ? 'Marketing' : ''
+  );
+
+  // If non-admin user, restrict effective department strictly to userDept
+  const targetDepartment = isAdmin ? selectedDepartment : userDept;
+
+  // Filter user list by department
   let deptFilteredUsers = userList;
-  if (selectedDepartment && selectedDepartment !== 'all' && selectedDepartment !== 'All') {
-    deptFilteredUsers = userList.filter(u => 
-      u.department && u.department.toLowerCase().trim() === selectedDepartment.toLowerCase().trim()
-    );
+  if (targetDepartment && targetDepartment !== 'all' && targetDepartment !== 'All') {
+    deptFilteredUsers = userList.filter(u => {
+      const uDept = String(u.department || '').toLowerCase().trim();
+      const target = String(targetDepartment).toLowerCase().trim();
+      if (uDept === target) return true;
+      if (target === 'developer' && (uDept.includes('dev') || isDeveloper(u))) return true;
+      if (target === 'hr' && (uDept.includes('hr') || isHR(u))) return true;
+      if ((target === 'trainer' || target === 'trainers') && (uDept.includes('trainer') || isTrainer(u))) return true;
+      if ((target === 'marketing' || target === 'digital marketing') && (uDept.includes('market') || isDigitalMarketing(u))) return true;
+      return false;
+    });
   }
 
   // Helper to ensure current user is represented
@@ -143,17 +163,13 @@ export const getTaskAssigneeOptions = (currentUser, users = [], selectedDepartme
     _id: currentUser._id,
     name: currentUser.name || 'You',
     designation: currentUser.designation || 'Me',
-    department: currentUser.department || '',
+    department: currentUser.department || userDept || '',
     isMe: true,
   };
 
-  // 1. Admin (CEO, Managing Director, CTO, role: admin/superadmin)
-  // Assigned to: all employees in selected department, or all employees across org
-  if (isExecutive(currentUser) || currentUser.role === 'admin' || currentUser.role === 'superadmin') {
+  // 1. Admin (CEO, Managing Director, CTO, role: admin/superadmin): Full org options
+  if (isAdmin) {
     const list = [];
-    if (selectedDepartment && selectedDepartment.toLowerCase() === 'admin') {
-      if (!list.some(u => u._id === meUser._id)) list.push(meUser);
-    }
     deptFilteredUsers.forEach(u => {
       if (!list.some(existing => existing._id === u._id)) {
         list.push(u);
@@ -162,32 +178,20 @@ export const getTaskAssigneeOptions = (currentUser, users = [], selectedDepartme
     return list.length > 0 ? list : [meUser];
   }
 
-  // 2. Managers / HR / Department Leads
-  if (isHR(currentUser) || isManager(currentUser)) {
-    const list = [];
-    deptFilteredUsers.forEach(u => {
-      if (!list.some(existing => existing._id === u._id)) {
-        list.push(u);
-      }
-    });
-    if (list.length === 0) list.push(meUser);
-    return list;
+  // 2. Non-Admin Employees (Developer, HR, Trainer, Marketing, Manager, Caller, etc.):
+  // Strictly restricted to members of their own department
+  const list = [];
+  deptFilteredUsers.forEach(u => {
+    if (!list.some(existing => existing._id === u._id)) {
+      list.push(u);
+    }
+  });
+  if (!list.some(existing => existing._id === meUser._id)) {
+    list.push(meUser);
   }
-
-  // 3. Regular Employees
-  return deptFilteredUsers.length > 0 ? deptFilteredUsers : [meUser];
+  return list;
 };
 
-/**
- * Task Creation "Assigned By" allowed options per Designation:
- * - Admin (Admin role, CEO, MD, CTO): Me.
- * - HR: Admin.
- * - Developer: Admin, Me, Developer.
- * - Digital Marketing: Admin, Manager.
- * - Trainers: Admin, Manager.
- * 
- * Returns an array of user objects that the current user can select as "Assigned By".
- */
 export const getTaskAssignorOptions = (currentUser, users = []) => {
   const userList = Array.isArray(users) ? users : [];
   if (!currentUser) return [];

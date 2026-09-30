@@ -3,7 +3,8 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { followupsAPI, leadsAPI, usersAPI, departmentsAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import { formatISTDateTime } from '../../../utils/dateFormat';
-import { isLimitedStaff, isDeveloper, getTaskAssigneeOptions, getTaskAssignorOptions, filterTeamDropdownUsers } from '../../../utils/permissions';
+import { isExecutive, isHR, isTrainer, isDigitalMarketing, isLimitedStaff, isDeveloper, getTaskAssigneeOptions, getTaskAssignorOptions, filterTeamDropdownUsers } from '../../../utils/permissions';
+import TodoList from './TodoList';
 
 // Theme Palette Constants
 const COLOR_DEEP_BLUE = '#023047';
@@ -165,24 +166,118 @@ function handleNumericKeyDown(e, value, setValue) {
 }
 
 // ── Formatted Description (Renders Numbered Items as <ol><li>) ─────────────
-function FormattedDescription({ text }) {
+// ── Formatted Description (Renders Interactive Checkboxes & Persists to DB) ──
+function FormattedDescription({ text, task }) {
   if (!text || !text.trim()) return <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>No description provided</span>;
 
   const rawLines = text.split('\n').map(l => l.trim()).filter(Boolean);
   const isNumbered = rawLines.length > 0 && rawLines.some(l => /^\d+[\.\)]\s*/.test(l));
 
-  if (isNumbered) {
-    return (
-      <ol style={{ margin: 0, paddingLeft: 22, display: 'flex', flexDirection: 'column', gap: 6, listStyleType: 'decimal' }}>
-        {rawLines.map((line, idx) => {
+  const [checkedMap, setCheckedMap] = useState(() => {
+    const initial = {};
+    if (task?.checklist && Array.isArray(task.checklist) && task.checklist.length > 0) {
+      task.checklist.forEach((item, idx) => {
+        if (item.completed) initial[idx] = true;
+      });
+    }
+    return initial;
+  });
+
+  const handleToggle = async (targetIdx, e) => {
+    e.stopPropagation();
+    const nextState = !checkedMap[targetIdx];
+    const newCheckedMap = { ...checkedMap, [targetIdx]: nextState };
+    setCheckedMap(newCheckedMap);
+
+    if (task?._id) {
+      try {
+        const updatedChecklist = rawLines.map((line, idx) => {
           const cleanText = line.replace(/^\d+[\.\)]\s*/, '');
-          return (
-            <li key={idx} style={{ fontSize: 13.5, color: '#1e293b', fontWeight: 500, lineHeight: 1.5 }}>
-              {cleanText || line}
-            </li>
-          );
-        })}
-      </ol>
+          const isChecked = !!newCheckedMap[idx];
+          return {
+            title: cleanText || line,
+            completed: isChecked,
+            completedAt: isChecked ? new Date().toISOString() : null
+          };
+        });
+        await followupsAPI.update(task._id, { checklist: updatedChecklist });
+      } catch (err) {
+        console.error('Failed to save checklist item state:', err);
+      }
+    }
+  };
+
+  if (isNumbered) {
+    const total = rawLines.length;
+    const checkedCount = Object.values(checkedMap).filter(Boolean).length;
+    const percent = total > 0 ? Math.round((checkedCount / total) * 100) : 0;
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {total > 1 && (
+          <div style={{ marginBottom: 2 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: '#475569', fontWeight: 600, marginBottom: 4 }}>
+              <span>Sub-items Checklist</span>
+              <span>{checkedCount} of {total} ({percent}%)</span>
+            </div>
+            <div style={{ width: '100%', height: 6, background: '#e2e8f0', borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{ width: `${percent}%`, height: '100%', background: percent === 100 ? '#10b981' : COLOR_ORANGE, transition: 'width 0.3s ease' }} />
+            </div>
+          </div>
+        )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {rawLines.map((line, idx) => {
+            const cleanText = line.replace(/^\d+[\.\)]\s*/, '');
+            const isChecked = !!checkedMap[idx];
+            return (
+              <div
+                key={idx}
+                onClick={(e) => handleToggle(idx, e)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 8,
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  padding: '3px 6px',
+                  borderRadius: 6,
+                  background: isChecked ? '#f0fdf4' : 'transparent',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <div style={{
+                  width: 17,
+                  height: 17,
+                  borderRadius: 4,
+                  border: `1.5px solid ${isChecked ? '#10b981' : '#cbd5e1'}`,
+                  background: isChecked ? '#10b981' : '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginTop: 2,
+                  flexShrink: 0,
+                  transition: 'all 0.15s ease'
+                }}>
+                  {isChecked && (
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  )}
+                </div>
+                <span style={{
+                  fontSize: 13.5,
+                  color: isChecked ? '#64748b' : '#1e293b',
+                  fontWeight: isChecked ? 400 : 500,
+                  lineHeight: 1.45,
+                  textDecoration: isChecked ? 'line-through' : 'none'
+                }}>
+                  {cleanText || line}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     );
   }
 
@@ -272,6 +367,214 @@ function UserAvatar({ userObj, nameFallback = 'Me', size = 36 }) {
   );
 }
 
+// ── Helper: Overdue Calculation ─────────────────────────────────────────────
+function getOverdueInfo(scheduledAt, status) {
+  if (!scheduledAt || status === 'done' || status === 'completed' || status === 'cancelled') return null;
+  const now = new Date();
+  const due = new Date(scheduledAt);
+  const diffMs = now - due;
+  if (diffMs <= 0) return null;
+
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  let label = '';
+  if (diffDays > 0) label = `Overdue by ${diffDays}d`;
+  else if (diffHours > 0) label = `Overdue by ${diffHours}h`;
+  else label = `Overdue by ${Math.max(1, diffMins)}m`;
+
+  return { isOverdue: true, label };
+}
+
+// ── Completion Audit Badge ──────────────────────────────────────────────────
+function CompletionAuditBadge({ completedAt, completedBy, fallbackUser }) {
+  if (!completedAt) return null;
+  const userObj = completedBy || fallbackUser;
+  const userName = userObj?.name || 'Team Member';
+  const timeStr = formatISTDateTime(completedAt);
+
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      background: '#ecfdf5',
+      border: '1px solid #a7f3d0',
+      borderRadius: 8,
+      padding: '6px 10px',
+      fontSize: 12,
+      color: '#065f46',
+      fontWeight: 500,
+      marginTop: 6
+    }}>
+      <span style={{ color: '#059669', fontSize: 13, fontWeight: 700 }}>✓</span>
+      <span>Completed {timeStr} by</span>
+      <UserAvatar userObj={userObj} nameFallback={userName} size={20} />
+      <span style={{ fontWeight: 600, color: '#047857' }}>{userName}</span>
+    </div>
+  );
+}
+
+// ── Quick Todo Input Bar ─────────────────────────────────────────────────────
+function QuickTodoInputBar({ onCreated, currentUser }) {
+  const [text, setText] = useState('');
+  const [priority, setPriority] = useState('medium');
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!text.trim()) return;
+    setSaving(true);
+    try {
+      const payload = {
+        type: 'todo',
+        title: text.trim(),
+        note: text.trim(),
+        description: text.trim(),
+        scheduledAt: new Date().toISOString(),
+        priority,
+        assignedTo: currentUser?._id,
+        assignedBy: currentUser?._id,
+      };
+      const res = await followupsAPI.create(payload);
+      setText('');
+      if (res.data?.followup || res.data?.todo) {
+        onCreated(res.data.followup || res.data.todo);
+      }
+    } catch (err) {
+      console.error('Quick todo failed:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        background: '#ffffff',
+        border: `1.5px solid ${COLOR_BLUE_GREEN}`,
+        borderRadius: 12,
+        padding: '8px 14px',
+        boxShadow: '0 4px 14px rgba(2, 48, 71, 0.06)',
+        marginBottom: 20,
+        flexWrap: 'wrap'
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 260 }}>
+        <span style={{ fontSize: 18 }}>📝</span>
+        <input
+          type="text"
+          value={text}
+          onChange={e => setText(e.target.value)}
+          placeholder="Quick add Todo item... (e.g. 1. Submit daily report, 2. Call lead)"
+          style={{
+            flex: 1,
+            border: 'none',
+            outline: 'none',
+            fontSize: 14,
+            fontWeight: 500,
+            color: COLOR_DEEP_BLUE,
+            background: 'transparent'
+          }}
+        />
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <select
+          value={priority}
+          onChange={e => setPriority(e.target.value)}
+          style={{
+            border: `1px solid ${COLOR_BORDER}`,
+            borderRadius: 8,
+            padding: '6px 10px',
+            fontSize: 12.5,
+            fontWeight: 500,
+            color: COLOR_DEEP_BLUE,
+            outline: 'none',
+            background: COLOR_SKY_SURFACE
+          }}
+        >
+          <option value="high"> High</option>
+          <option value="medium"> Medium</option>
+          <option value="low">🌱 Low</option>
+        </select>
+
+        <button
+          type="submit"
+          disabled={saving || !text.trim()}
+          style={{
+            padding: '7px 16px',
+            borderRadius: 8,
+            border: 'none',
+            background: COLOR_ORANGE,
+            color: '#fff',
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: (saving || !text.trim()) ? 'not-allowed' : 'pointer',
+            opacity: (saving || !text.trim()) ? 0.6 : 1,
+            boxShadow: '0 2px 8px rgba(251, 133, 0, 0.25)',
+            transition: 'all 0.15s ease',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          {saving ? 'Adding...' : '+ Add Todo'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// ── Daily Todo Summary Widget ─────────────────────────────────────────────────
+function TodoSummaryWidget({ tasks, activeTab }) {
+  if (activeTab !== 'Todo') return null;
+
+  const total = tasks.length;
+  const completed = tasks.filter(t => t.status === 'done' || t.status === 'completed').length;
+  const pending = tasks.filter(t => t.status === 'upcoming' || t.status === 'pending').length;
+  const overdue = tasks.filter(t => t.status === 'upcoming' && new Date(t.scheduledAt) < new Date()).length;
+  const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+  return (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+      gap: 12,
+      marginBottom: 20
+    }}>
+      <div style={{ background: '#fff', border: `1px solid ${COLOR_BORDER}`, borderRadius: 12, padding: '14px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+        <div style={{ fontSize: 12, color: COLOR_MUTED, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Todos</div>
+        <div style={{ fontSize: 24, fontWeight: 700, color: COLOR_DEEP_BLUE, marginTop: 4 }}>{total}</div>
+        <div style={{ fontSize: 11.5, color: COLOR_MUTED, marginTop: 2 }}>In active view</div>
+      </div>
+
+      <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 12, padding: '14px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+        <div style={{ fontSize: 12, color: '#047857', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Completed</div>
+        <div style={{ fontSize: 24, fontWeight: 700, color: '#065f46', marginTop: 4 }}>{completed}</div>
+        <div style={{ fontSize: 11.5, color: '#059669', marginTop: 2 }}>{rate}% completion rate</div>
+      </div>
+
+      <div style={{ background: '#fff7ed', border: '1px solid #ffedd5', borderRadius: 12, padding: '14px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+        <div style={{ fontSize: 12, color: '#c2410c', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Upcoming / Pending</div>
+        <div style={{ fontSize: 24, fontWeight: 700, color: '#9a3412', marginTop: 4 }}>{pending}</div>
+        <div style={{ fontSize: 11.5, color: '#ea580c', marginTop: 2 }}>Action items remaining</div>
+      </div>
+
+      <div style={{ background: overdue > 0 ? '#fef2f2' : '#f8fafc', border: `1px solid ${overdue > 0 ? '#fecaca' : '#e2e8f0'}`, borderRadius: 12, padding: '14px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+        <div style={{ fontSize: 12, color: overdue > 0 ? '#b91c1c' : COLOR_MUTED, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Overdue Alert</div>
+        <div style={{ fontSize: 24, fontWeight: 700, color: overdue > 0 ? '#991b1b' : COLOR_DEEP_BLUE, marginTop: 4 }}>{overdue}</div>
+        <div style={{ fontSize: 11.5, color: overdue > 0 ? '#dc2626' : COLOR_MUTED, marginTop: 2 }}>
+          {overdue > 0 ? '⚠️ Needs immediate action' : 'No overdue items'}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Todo Card Component ───────────────────────────────────────────────────────
 function TodoCard({ task, onEdit, onComplete, onDelete, canDelete, isLocked, markingId, deletingId }) {
   const isLate = !isLocked && task.status === 'upcoming' && new Date(task.scheduledAt) < new Date();
@@ -283,6 +586,7 @@ function TodoCard({ task, onEdit, onComplete, onDelete, canDelete, isLocked, mar
   const assigneeName = assigneeObj?.name || 'Me';
   const assignedByObj = task.assignedBy;
   const assignedByName = (assignedByObj?.name || assignedByObj) === 'all' ? 'All' : (assignedByObj?.name || '');
+  const overdueInfo = getOverdueInfo(task.scheduledAt, task.status);
 
   return (
     <div
@@ -291,7 +595,7 @@ function TodoCard({ task, onEdit, onComplete, onDelete, canDelete, isLocked, mar
         border: `1px solid ${isLate ? '#fecaca' : COLOR_BORDER}`,
         borderRadius: 14,
         padding: '20px',
-        boxShadow: '0 4px 14px rgba(2, 48, 71, 0.04)',
+        boxShadow: isLate ? '0 4px 14px rgba(239, 68, 68, 0.08)' : '0 4px 14px rgba(2, 48, 71, 0.04)',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
@@ -304,12 +608,12 @@ function TodoCard({ task, onEdit, onComplete, onDelete, canDelete, isLocked, mar
         e.currentTarget.style.borderColor = COLOR_BLUE_GREEN;
       }}
       onMouseLeave={e => {
-        e.currentTarget.style.boxShadow = '0 4px 14px rgba(2, 48, 71, 0.04)';
+        e.currentTarget.style.boxShadow = isLate ? '0 4px 14px rgba(239, 68, 68, 0.08)' : '0 4px 14px rgba(2, 48, 71, 0.04)';
         e.currentTarget.style.borderColor = isLate ? '#fecaca' : COLOR_BORDER;
       }}
     >
       {/* Top Header: Assignee Profile & Priority */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {/* Real Avatar Profile */}
           <UserAvatar userObj={assigneeObj} nameFallback={assigneeName} size={38} />
@@ -344,7 +648,7 @@ function TodoCard({ task, onEdit, onComplete, onDelete, canDelete, isLocked, mar
           textTransform: 'capitalize'
         }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: priorityMeta.dot }} />
-          {task.priority || 'low'}
+          {task.priority === 'high' ? ' High' : task.priority === 'medium' ? '⚡ Medium' : '🌱 Low'}
         </span>
       </div>
 
@@ -358,6 +662,9 @@ function TodoCard({ task, onEdit, onComplete, onDelete, canDelete, isLocked, mar
       }}>
         <FormattedDescription text={task.title || task.note || task.description || ''} />
       </div>
+
+      {/* Completion Audit Log & Overdue Alert */}
+      <CompletionAuditBadge completedAt={task.completedAt} completedBy={task.completedBy} fallbackUser={assigneeObj} />
 
       {/* Bottom Metadata & Actions */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 8, borderTop: '1px solid #f1f5f9' }}>
@@ -373,21 +680,38 @@ function TodoCard({ task, onEdit, onComplete, onDelete, canDelete, isLocked, mar
             <span>{task.scheduledAt ? formatISTDateTime(task.scheduledAt) : 'No due date'}</span>
           </div>
 
-          {/* Status Badge */}
-          <span style={{
-            fontSize: 11.5,
-            fontWeight: 600,
-            padding: '3px 9px',
-            borderRadius: 6,
-            background: statusMeta.bg,
-            color: statusMeta.text,
-            border: `1px solid ${statusMeta.border}`,
-            marginLeft: 'auto'
-          }}>
-            {isLocked
-              ? `Locked (${new Date(task.scheduledAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })})`
-              : (isLate ? 'Late' : (statusMeta.label || task.status))}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
+            {overdueInfo && (
+              <span style={{
+                fontSize: 11,
+                fontWeight: 600,
+                padding: '2px 8px',
+                borderRadius: 4,
+                background: '#fef2f2',
+                color: '#dc2626',
+                border: '1px solid #fecaca',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4
+              }}>
+                ⚠️ {overdueInfo.label}
+              </span>
+            )}
+            {/* Status Badge */}
+            <span style={{
+              fontSize: 11.5,
+              fontWeight: 600,
+              padding: '3px 9px',
+              borderRadius: 6,
+              background: statusMeta.bg,
+              color: statusMeta.text,
+              border: `1px solid ${statusMeta.border}`,
+            }}>
+              {isLocked
+                ? `Locked (${new Date(task.scheduledAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })})`
+                : (isLate ? 'Late' : (statusMeta.label || task.status))}
+            </span>
+          </div>
         </div>
 
         {/* Actions Toolbar */}
@@ -591,7 +915,7 @@ function EditModal({ task, onClose, onSaved, readOnly = false }) {
 
             {isTodo && !readOnly && (
               <div style={{ fontSize: 11.5, color: COLOR_ORANGE, marginBottom: 6, fontWeight: 500 }}>
-                📋 Press <strong>Enter</strong> to automatically trigger 2., 3., 4.
+                Press <strong>Enter</strong> to automatically trigger 2., 3., 4.
               </div>
             )}
 
@@ -1107,9 +1431,20 @@ function AddTaskModal({ type = 'todo', onClose, onCreated }) {
   const [repeatFrequency, setRepeatFrequency] = useState('none');
   const [repeatEndDate, setRepeatEndDate] = useState('');
 
+  const isAdminOrExecutive = isExecutive(currentUser) || currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
+  const userDept = currentUser?.department || (
+    isDeveloper(currentUser) ? 'Developer' :
+    isHR(currentUser) ? 'HR' :
+    isTrainer(currentUser) ? 'Trainer' :
+    isDigitalMarketing(currentUser) ? 'Marketing' : ''
+  );
+
   const [users, setUsers] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [selectedDepartment, setSelectedDepartment] = useState(() => {
+    if (!isAdminOrExecutive && userDept) {
+      return userDept;
+    }
     if (currentUser?.department && currentUser.department.toLowerCase() !== 'admin') {
       return currentUser.department;
     }
@@ -1336,7 +1671,7 @@ function AddTaskModal({ type = 'todo', onClose, onCreated }) {
 
             {isTodo && (
               <div style={{ fontSize: 11.5, color: COLOR_ORANGE, marginBottom: 6, fontWeight: 500 }}>
-                📋 Press <strong>Enter</strong> to automatically trigger 2., 3., 4.
+                Press <strong>Enter</strong> to automatically trigger 2., 3., 4.
               </div>
             )}
 
@@ -1385,51 +1720,73 @@ function AddTaskModal({ type = 'todo', onClose, onCreated }) {
             </select>
           </div>
 
-          <div>
-            <label style={{ fontSize: 13, fontWeight: 500, color: COLOR_DEEP_BLUE, display: 'block', marginBottom: 6 }}>Recurrence</label>
-            <select
-              value={repeatFrequency}
-              onChange={e => setRepeatFrequency(e.target.value)}
-              style={{ width: '100%', border: `1px solid ${COLOR_BORDER}`, borderRadius: 8, padding: '9px 12px', fontSize: 14, outline: 'none', color: COLOR_DEEP_BLUE }}
-            >
-              <option value="none">Does not repeat</option>
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
-            </select>
-            {repeatFrequency !== 'none' && (
-              <div style={{ marginTop: 10 }}>
-                <label style={{ fontSize: 13, fontWeight: 500, color: COLOR_DEEP_BLUE, display: 'block', marginBottom: 4 }}>Repeat Until</label>
-                <input
-                  type="date"
-                  value={repeatEndDate}
-                  min={scheduledAt ? scheduledAt.slice(0, 10) : undefined}
-                  onChange={e => setRepeatEndDate(e.target.value)}
-                  style={{ width: '100%', border: `1px solid ${COLOR_BORDER}`, borderRadius: 8, padding: '9px 12px', fontSize: 14, outline: 'none', boxSizing: 'border-box', color: COLOR_DEEP_BLUE }}
-                />
-              </div>
-            )}
-          </div>
+          {!isTodo && (
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 500, color: COLOR_DEEP_BLUE, display: 'block', marginBottom: 6 }}>Recurrence</label>
+              <select
+                value={repeatFrequency}
+                onChange={e => setRepeatFrequency(e.target.value)}
+                style={{ width: '100%', border: `1px solid ${COLOR_BORDER}`, borderRadius: 8, padding: '9px 12px', fontSize: 14, outline: 'none', color: COLOR_DEEP_BLUE }}
+              >
+                <option value="none">Does not repeat</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+              {repeatFrequency !== 'none' && (
+                <div style={{ marginTop: 10 }}>
+                  <label style={{ fontSize: 13, fontWeight: 500, color: COLOR_DEEP_BLUE, display: 'block', marginBottom: 4 }}>Repeat Until</label>
+                  <input
+                    type="date"
+                    value={repeatEndDate}
+                    min={scheduledAt ? scheduledAt.slice(0, 10) : undefined}
+                    onChange={e => setRepeatEndDate(e.target.value)}
+                    style={{ width: '100%', border: `1px solid ${COLOR_BORDER}`, borderRadius: 8, padding: '9px 12px', fontSize: 14, outline: 'none', boxSizing: 'border-box', color: COLOR_DEEP_BLUE }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           {canAssign && (
             <div>
               <label style={{ fontSize: 13, fontWeight: 500, color: COLOR_DEEP_BLUE, display: 'block', marginBottom: 6 }}>
-                Department Filter
+                Department Filter {!isAdminOrExecutive ? `(${userDept || selectedDepartment})` : ''}
               </label>
               <select
                 value={selectedDepartment}
                 onChange={e => setSelectedDepartment(e.target.value)}
-                style={{ width: '100%', border: `1px solid ${COLOR_BORDER}`, borderRadius: 8, padding: '9px 12px', fontSize: 14, outline: 'none', color: COLOR_DEEP_BLUE, background: '#fff', fontWeight: 500 }}
+                disabled={!isAdminOrExecutive}
+                style={{
+                  width: '100%',
+                  border: `1px solid ${COLOR_BORDER}`,
+                  borderRadius: 8,
+                  padding: '9px 12px',
+                  fontSize: 14,
+                  outline: 'none',
+                  color: COLOR_DEEP_BLUE,
+                  background: !isAdminOrExecutive ? '#f8fafc' : '#fff',
+                  fontWeight: 500,
+                  cursor: !isAdminOrExecutive ? 'not-allowed' : 'pointer'
+                }}
               >
-                <option value="All">All Departments</option>
-                {departments.map(d => {
-                  const dName = typeof d === 'string' ? d : (d.name || d.code);
-                  return (
-                    <option key={d._id || dName} value={dName}>
-                      {dName} Department
-                    </option>
-                  );
-                })}
+                {isAdminOrExecutive ? (
+                  <>
+                    <option value="All">All Departments</option>
+                    {departments.map(d => {
+                      const dName = typeof d === 'string' ? d : (d.name || d.code);
+                      return (
+                        <option key={d._id || dName} value={dName}>
+                          {dName} Department
+                        </option>
+                      );
+                    })}
+                  </>
+                ) : (
+                  <option value={userDept || selectedDepartment}>
+                    {(userDept || selectedDepartment)} Department Only
+                  </option>
+                )}
               </select>
             </div>
           )}
@@ -1566,7 +1923,7 @@ export default function Task() {
   const [teamMemberFilter, setTeamMemberFilter] = useState('');
   const [showTeamDrop, setShowTeamDrop] = useState(false);
   const teamDropRef = useRef(null);
-  const canDelete = currentUser?.role === 'manager' || currentUser?.role === 'admin';
+  const canDelete = currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
   const [markingCompleteId, setMarkingCompleteId] = useState(null);
 
   // Pagination states
@@ -2035,8 +2392,21 @@ export default function Task() {
           </div>
         )}
 
-        {/* Filters bar */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap', background: '#fff', padding: '12px 18px', borderRadius: 10, border: `1px solid ${COLOR_BORDER}` }}>
+        {activeTab === 'Todo' ? (
+          <TodoList
+            tasks={tasks}
+            fetchTasks={fetchTasks}
+            onEditTask={setEditingTask}
+            onCompleteTask={handleMarkComplete}
+            onDeleteTask={handleDelete}
+            historyMode={historyMode}
+            markingId={markingCompleteId}
+            deletingId={deletingTaskId}
+          />
+        ) : (
+          <>
+            {/* Filters bar */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap', background: '#fff', padding: '12px 18px', borderRadius: 10, border: `1px solid ${COLOR_BORDER}` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 14, color: COLOR_MUTED, fontWeight: 500 }}>Filter For:</span>
             <button
@@ -2841,6 +3211,8 @@ export default function Task() {
             )}
           </div>
         )}
+      </>
+    )}
       </div>
     </div>
   );

@@ -43,6 +43,7 @@ const todoSchema = new mongoose.Schema({
   scheduledAt: { type: Date },
   dueDate: { type: Date },
   completedAt: { type: Date },
+  completedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 
   checklist: [checklistItemSchema],
   comments: [commentSchema],

@@ -141,7 +141,7 @@ router.put('/:id', protect, async (req, res) => {
 });
 
 // DELETE /api/tasks/:id
-router.delete('/:id', protect, authorize('manager', 'admin'), async (req, res) => {
+router.delete('/:id', protect, authorize('admin', 'superadmin'), async (req, res) => {
   try {
     await Task.findByIdAndDelete(req.params.id);
     res.json({ message: 'Deleted' });
