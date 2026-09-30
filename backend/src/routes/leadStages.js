@@ -9,10 +9,12 @@ const router = express.Router();
 const DEFAULT_STATUSES = [
   { name: 'Fresh',        color: '#60a5fa', stage: 'initial',      order: 0, isSystem: true,  isDefault: true },
   { name: 'Contacted',   color: '#a78bfa', stage: 'initial',      order: 1, isSystem: true  },
-  { name: 'Interested',  color: '#34d399', stage: 'active',       order: 0 },
-  { name: 'Follow Up',   color: '#f6c453', stage: 'active',       order: 1 },
-  { name: 'Demo',        color: '#fb923c', stage: 'active',       order: 2 },
-  { name: 'Negotiation', color: '#818cf8', stage: 'active',       order: 3 },
+  { name: 'Not Answered', color: '#f59e0b', stage: 'active',       order: 0 },
+  { name: 'Call Back',    color: '#0ea5e9', stage: 'active',       order: 1 },
+  { name: 'Interested',  color: '#34d399', stage: 'active',       order: 2 },
+  { name: 'Follow Up',   color: '#f6c453', stage: 'active',       order: 3 },
+  { name: 'Demo',        color: '#fb923c', stage: 'active',       order: 4 },
+  { name: 'Negotiation', color: '#818cf8', stage: 'active',       order: 5 },
   { name: 'Enrolled',    color: '#22c55e', stage: 'closed_won',   order: 0, isSystem: true  },
   { name: 'Not Interested', color: '#f87171', stage: 'closed_lost', order: 0, isSystem: true },
   { name: 'Blocked',     color: '#ef4444', stage: 'closed_lost',  order: 1, isSystem: true  },
@@ -23,6 +25,22 @@ async function getConfig() {
   let config = await LeadStage.findOne({ org: 'default' });
   if (!config) {
     config = await LeadStage.create({ org: 'default', statuses: DEFAULT_STATUSES, lostReasons: [] });
+  } else {
+    // Ensure 'Not Answered' and 'Call Back' exist in current database config
+    const existingNames = (config.statuses || []).map(s => (s.name || '').toLowerCase().trim());
+    let modified = false;
+
+    if (!existingNames.includes('not answered')) {
+      config.statuses.push({ name: 'Not Answered', color: '#f59e0b', stage: 'active', order: config.statuses.length });
+      modified = true;
+    }
+    if (!existingNames.includes('call back')) {
+      config.statuses.push({ name: 'Call Back', color: '#0ea5e9', stage: 'active', order: config.statuses.length });
+      modified = true;
+    }
+    if (modified) {
+      await config.save();
+    }
   }
   return config;
 }

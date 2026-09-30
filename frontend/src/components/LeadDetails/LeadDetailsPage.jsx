@@ -17,7 +17,10 @@ const PALETTE = {
   red: '#e63946',
 };
 
-const FALLBACK_STATUSES = ['Fresh', 'Connected', 'Call Not Responding', 'Call Back Later', 'Not interested', 'Demo Scheduled', 'Demo Done', 'Won', 'Lost'];
+const FALLBACK_STATUSES = [
+  'Fresh', 'Connected', 'Not Answered', 'Call Back', 'Call Not Responding', 'Call Back Later',
+  'Not interested', 'Demo Scheduled', 'Demo Done', 'Won', 'Lost', 'Blocked'
+];
 const SOURCES = ['Manual', 'Facebook', 'WhatsApp', 'Website', 'Excel', 'Referral'];
 const MODES = ['Online', 'Offline', 'Hybrid'];
 

@@ -5,7 +5,7 @@ import {
   Check, Phone, ChevronDown, Image as ImageIcon,
 } from 'lucide-react';
 
-const STATUSES = ['Fresh', 'Connected', 'Call Not Responding', 'Call Back Later', 'Not interested', 'Demo Scheduled', 'Demo Done', 'Won', 'Lost', 'Blocked'];
+const STATUSES = ['Fresh', 'Connected', 'Not Answered', 'Call Back', 'Call Not Responding', 'Call Back Later', 'Not interested', 'Demo Scheduled', 'Demo Done', 'Won', 'Lost', 'Blocked'];
 const SOURCES = ['Manual', 'Facebook', 'WhatsApp', 'Website', 'Excel'];
 
 function timeAgo(date) {

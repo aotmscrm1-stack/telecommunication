@@ -912,7 +912,7 @@ export default function Payslip() {
                         />
                       </div>
                       <div>
-                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>PF Number</label>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>PF UAN Number</label>
                         <input
                           type="text"
                           value={form.pf_number || ''}

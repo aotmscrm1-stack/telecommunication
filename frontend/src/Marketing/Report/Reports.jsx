@@ -53,6 +53,8 @@ const CHART_PALETTE = [
 const STATUS_COLORS = {
   'Fresh':               '#3b82f6',
   'Connected':           '#10b981',
+  'Not Answered':        '#f59e0b',
+  'Call Back':           '#0ea5e9',
   'Call Not Responding': '#e84a10',
   'Call Back Later':     '#f59e0b',
   'Not interested':      '#ef4444',
@@ -365,7 +367,7 @@ function LeadViewCharts({ summary }) {
             style={{ borderColor: O.line }}
           >
             <option value="">All Stages</option>
-            {['Fresh', 'Connected', 'Call Not Responding', 'Call Back Later', 'Not interested', 'Demo Scheduled', 'Demo Done', 'Won', 'Lost', 'Blocked'].map(s => (
+            {['Fresh', 'Connected', 'Not Answered', 'Call Back', 'Call Not Responding', 'Call Back Later', 'Not interested', 'Demo Scheduled', 'Demo Done', 'Won', 'Lost', 'Blocked'].map(s => (
               <option key={s} value={s}>{s}</option>
             ))}
           </select>

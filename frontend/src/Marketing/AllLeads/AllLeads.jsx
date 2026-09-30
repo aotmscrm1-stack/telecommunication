@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { leadsAPI, usersAPI, blocklistAPI, leadStagesAPI } from '../../services/api';
@@ -66,10 +66,145 @@ const PALETTE_COLORS = [
 ];
 
 const FALLBACK_STATUSES = [
-  'All', 'Fresh', 'Connected', 'Call Not Responding', 'Call Back Later',
+  'All', 'Fresh', 'Connected', 'Not Answered', 'Call Back', 'Call Not Responding', 'Call Back Later',
   'Not interested', 'Demo Scheduled', 'Demo Done', 'Won', 'Lost', 'Blocked'
 ];
 const SOURCES = ['All', 'Manual', 'Facebook', 'WhatsApp', 'Website', 'Excel', 'Instagram', 'Referral', 'Other'];
+
+const STATUS_DOT_COLORS = {
+  'fresh': '#3b82f6',
+  'connected': '#10b981',
+  'not answered': '#f59e0b',
+  'call back': '#0ea5e9',
+  'call not responding': '#f97316',
+  'call back later': '#f59e0b',
+  'not interested': '#ef4444',
+  'demo scheduled': '#8b5cf6',
+  'demo done': '#14b8a6',
+  'won': '#16a34a',
+  'lost': '#dc2626',
+  'blocked': '#475569',
+  'interested': '#10b981',
+  'follow up': '#f59e0b',
+  'demo': '#fb923c',
+  'negotiation': '#818cf8',
+  'enrolled': '#16a34a',
+  'contacted': '#8b5cf6',
+  'wrong number': '#ef4444',
+};
+
+const getStatusDotColor = (status) => {
+  if (!status || status === 'All') return null;
+  const key = String(status).toLowerCase().trim();
+  return STATUS_DOT_COLORS[key] || '#94a3b8';
+};
+
+function CustomDropdown({ value, onChange, options, placeholder = 'Select...', getDotColor }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (ref.current && !ref.current.contains(event.target)) {
+        setOpen(false);
+      }
+    }
+    if (open) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [open]);
+
+  const selectedLabel = value || placeholder;
+  const currentDot = getDotColor ? getDotColor(value) : null;
+
+  return (
+    <div className="relative inline-block text-left" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className={`flex items-center justify-between gap-2 px-3 py-1.5 text-xs font-semibold rounded-xl border transition-all duration-150 cursor-pointer ${
+          open
+            ? 'border-blue-500 ring-2 ring-blue-500/15 bg-white text-blue-700 shadow-xs'
+            : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50/80 shadow-xs'
+        }`}
+      >
+        <div className="flex items-center gap-1.5 truncate max-w-[140px]">
+          {currentDot ? (
+            <span
+              className="w-2 h-2 rounded-full shrink-0"
+              style={{ backgroundColor: currentDot }}
+            />
+          ) : value === 'All' ? (
+            <span className="w-2 h-2 rounded-full bg-slate-300 shrink-0" />
+          ) : null}
+          <span className="truncate">{selectedLabel}</span>
+        </div>
+        <ChevronDown
+          className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform duration-200 ${
+            open ? 'rotate-180 text-blue-600' : ''
+          }`}
+        />
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: 4, scale: 0.98, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, scale: 1, x: '-50%' }}
+            exit={{ opacity: 0, y: 3, scale: 0.98, x: '-50%' }}
+            transition={{ duration: 0.12, ease: 'easeOut' }}
+            className="absolute left-1/2 top-full mt-1.5 min-w-[170px] max-h-72 overflow-y-auto bg-white rounded-2xl border border-slate-200 shadow-xl shadow-slate-900/10 p-1.5 z-50 focus:outline-none"
+            style={{
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#cbd5e1 transparent',
+            }}
+          >
+            <div className="space-y-0.5">
+              {options.map((opt) => {
+                const optVal = typeof opt === 'object' ? opt.value : opt;
+                const optLabel = typeof opt === 'object' ? opt.label : opt;
+                const isSelected = value === optVal;
+                const dotColor = getDotColor ? getDotColor(optVal) : null;
+
+                return (
+                  <button
+                    key={optVal}
+                    type="button"
+                    onClick={() => {
+                      onChange(optVal);
+                      setOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-xs font-medium text-left transition-colors cursor-pointer ${
+                      isSelected
+                        ? 'bg-blue-50 text-blue-700 font-semibold'
+                        : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      {dotColor ? (
+                        <span
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{ backgroundColor: dotColor }}
+                        />
+                      ) : optVal === 'All' ? (
+                        <span className="w-2 h-2 rounded-full bg-slate-300 shrink-0" />
+                      ) : null}
+                      <span className="truncate">{optLabel}</span>
+                    </div>
+                    {isSelected && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 function RatingStars({ lead, onRate }) {
   const [hoverRating, setHoverRating] = useState(0);
@@ -541,21 +676,20 @@ export default function AllLeads() {
                 />
               </div>
 
-              <select
+              {/* Custom Status Dropdown */}
+              <CustomDropdown
                 value={status}
-                onChange={e => setStatus(e.target.value)}
-                className="text-xs font-medium border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 outline-none cursor-pointer hover:border-slate-300"
-              >
-                {statuses.map(s => <option key={s}>{s}</option>)}
-              </select>
+                onChange={setStatus}
+                options={statuses}
+                getDotColor={getStatusDotColor}
+              />
 
-              <select
+              {/* Custom Source Dropdown */}
+              <CustomDropdown
                 value={source}
-                onChange={e => setSource(e.target.value)}
-                className="text-xs font-medium border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 outline-none cursor-pointer hover:border-slate-300"
-              >
-                {SOURCES.map(s => <option key={s}>{s}</option>)}
-              </select>
+                onChange={setSource}
+                options={SOURCES}
+              />
 
               <button
                 onClick={fetchLeads}

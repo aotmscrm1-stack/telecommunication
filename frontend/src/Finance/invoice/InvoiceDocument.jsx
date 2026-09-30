@@ -23,6 +23,16 @@ export const InvoiceDocument = forwardRef(({ invoiceData, isPreview = false }, r
   const clientMobile = invoiceData.client_mobile || invoiceData.phone || '';
   const clientEmail = invoiceData.client_email || invoiceData.email || 'anusid.1517@gmail.com';
 
+  const companyName = invoiceData.company_name || 'AOTMS GLOBAL PVT.LTD';
+  const companyAddress1 = invoiceData.company_address_line1 || '40-1-140/2, SRI POTHURI TOWERS';
+  const companyAddress2 = invoiceData.company_address_line2 || 'M.G ROAD, LABBIPET,VIJAYAWADA';
+  const companyGstin = invoiceData.company_gstin || invoiceData.company_gst || '37ABFCA0501M1ZV';
+  const companyPan = invoiceData.company_pan || 'ABFCA0501M';
+  const companyTan = invoiceData.company_tan || 'HYDA40679C';
+  const companyState = invoiceData.company_state || 'Andhra Pradesh, Code : 520010';
+  const companyEmail = invoiceData.company_email || 'info@aotms.in';
+  const companyPhone = invoiceData.company_phone || '8019952233';
+
   // Particulars / Line items
   const defaultItems = [
     {
@@ -50,7 +60,9 @@ export const InvoiceDocument = forwardRef(({ invoiceData, isPreview = false }, r
   const sgstAmount = Math.round(subtotal * (sgstRate / 100));
   const totalAmount = subtotal + cgstAmount + sgstAmount;
 
-  const amountInWords = totalAmount > 0 ? `INR ${numberToWords(Math.round(totalAmount))} Only` : 'INR Zero Only';
+  const rawWords = numberToWords(Math.round(totalAmount));
+  const cleanWords = rawWords.replace(/^Rupees\s+/i, '').replace(/\s+Only$/i, '').trim();
+  const amountInWords = totalAmount > 0 ? `INR ${cleanWords} Only` : 'INR Zero Only';
 
   // Bank Details
   const bankDetails = {
@@ -61,24 +73,40 @@ export const InvoiceDocument = forwardRef(({ invoiceData, isPreview = false }, r
     branch: invoiceData.bank_branch || 'Gurunanak Colony -520008',
   };
 
+  const outerPageStyle = {
+    backgroundColor: '#ffffff',
+    color: '#000000',
+    fontFamily: "'Inter', sans-serif",
+    fontSize: '12px',
+    lineHeight: '1.4',
+    width: '794px',
+    minHeight: '1123px',
+    boxSizing: 'border-box',
+    padding: '16px',
+    marginBottom: isPreview ? '20px' : '0px',
+    position: 'relative',
+    background: '#ffffff',
+    boxShadow: isPreview ? '0 4px 14px rgba(0,0,0,0.08)' : 'none',
+    margin: '0 auto',
+  };
+
+  const innerFrameStyle = {
+    border: '2px solid #000000',
+    minHeight: '1091px',
+    boxSizing: 'border-box',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+    position: 'relative',
+  };
+
   return (
-    <div ref={ref} className="pdf-invoice-container" style={{ width: '100%', maxWidth: '794px', margin: '0 auto', boxSizing: 'border-box' }}>
-      <div
-        style={{
-          backgroundColor: '#ffffff',
-          color: '#000000',
-          fontFamily: "'Inter', sans-serif",
-          fontSize: '12.5px',
-          lineHeight: '1.4',
-          padding: isPreview ? '20px 24px' : '28px 32px',
-          boxSizing: 'border-box',
-          border: '2px solid #000000',
-          background: '#fff',
-          boxShadow: isPreview ? '0 4px 14px rgba(0,0,0,0.08)' : 'none',
-        }}
-      >
-        {/* Main Outer Table Grid */}
-        <table style={{ width: '100%', borderCollapse: 'collapse', border: '1.5px solid #000000' }}>
+    <div ref={ref} className="pdf-invoice-container" style={{ width: '100%', maxWidth: '810px', margin: '0 auto', boxSizing: 'border-box' }}>
+      <div className="invoice-page" style={outerPageStyle}>
+        <div style={innerFrameStyle}>
+          {/* Main Outer Table Grid */}
+          <table style={{ width: '100%', height: '100%', borderCollapse: 'collapse', border: 'none', flex: 1 }}>
           <tbody>
             {/* Header Title Bar */}
             <tr>
@@ -112,20 +140,29 @@ export const InvoiceDocument = forwardRef(({ invoiceData, isPreview = false }, r
                 }}
               >
                 <div style={{ fontWeight: '800', fontSize: '14px', color: '#000000' }}>
-                  AOTMS GLOBAL PVT.LTD
+                  {companyName}
                 </div>
-                <div>40-1-140/2, SRI POTHURI TOWERS</div>
-                <div>M.G ROAD, LABBIPET,VIJAYAWADA</div>
-                <div style={{ fontWeight: '700', marginTop: '2px' }}>
-                  GSTIN : <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px' }}>37ABFCA0501M1ZV</span>
+                <div>{companyAddress1}</div>
+                <div>{companyAddress2}</div>
+                <div style={{ marginTop: '2px', fontSize: '12px' }}>
+                  <span style={{ fontWeight: '800' }}>GSTIN : </span>
+                  <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '12.5px', fontWeight: '700' }}>{companyGstin}</span>
+                  <span style={{ fontWeight: '800', marginLeft: '6px' }}>PAN: </span>
+                  <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '12.5px', fontWeight: '700' }}>{companyPan}</span>
                 </div>
-                <div>State Name : Andhra Pradesh, Code : 520010</div>
+                <div style={{ fontSize: '12px' }}>
+                  <span style={{ fontWeight: '800' }}>TAN :</span>
+                  <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '12.5px', fontWeight: '700' }}>{companyTan}</span>
+                  <span style={{ marginLeft: '8px' }}>{companyState}</span>
+                </div>
                 <div>
-                  E-Mail : <a href="mailto:info@aotms.in" style={{ color: '#000000', textDecoration: 'none' }}>info@aotms.in</a>
+                  E-Mail : <a href={`mailto:${companyEmail}`} style={{ color: '#000000', textDecoration: 'none' }}>{companyEmail}</a>
                 </div>
-                <div>
-                  Phone : <a href="tel:8019952233" style={{ color: '#000000', textDecoration: 'none' }}>8019952233</a>
-                </div>
+                {companyPhone && (
+                  <div>
+                    Phone : <a href={`tel:${companyPhone}`} style={{ color: '#000000', textDecoration: 'none' }}>{companyPhone}</a>
+                  </div>
+                )}
               </td>
 
               {/* Right Cell: Logo + Invoice No/Date Grid */}
@@ -215,10 +252,10 @@ export const InvoiceDocument = forwardRef(({ invoiceData, isPreview = false }, r
 
             {/* Itemized Particulars Table */}
             <tr>
-              <td colSpan={2} style={{ padding: '0', borderBottom: '1.5px solid #000000' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+              <td colSpan={2} style={{ padding: '0', borderTop: '1.5px solid #000000', borderBottom: '1.5px solid #000000' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', background: '#ffffff' }}>
                   <thead>
-                    <tr style={{ borderBottom: '1.5px solid #000000', textAlign: 'center', background: '#f8fafc' }}>
+                    <tr style={{ borderTop: '1.5px solid #000000', borderBottom: '1.5px solid #000000', textAlign: 'center', background: '#ffffff' }}>
                       <th style={{ padding: '6px', borderRight: '1px solid #000000', width: '6%', fontWeight: '700' }}>S.no</th>
                       <th style={{ padding: '6px 10px', borderRight: '1px solid #000000', width: '50%', textAlign: 'left', fontWeight: '700' }}>Particulars</th>
                       <th style={{ padding: '6px', borderRight: '1px solid #000000', width: '12%', fontWeight: '700' }}>SAC</th>
@@ -294,11 +331,11 @@ export const InvoiceDocument = forwardRef(({ invoiceData, isPreview = false }, r
                     </tr>
 
                     {/* Total Row */}
-                    <tr style={{ borderTop: '1.5px solid #000000', fontWeight: '800', background: '#f8fafc' }}>
-                      <td colSpan={5} style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1px solid #000000', fontSize: '13px' }}>
+                    <tr style={{ borderTop: '1.5px solid #000000', borderBottom: '1.5px solid #000000', fontWeight: '800', background: '#ffffff' }}>
+                      <td colSpan={5} style={{ padding: '6px 12px', textAlign: 'right', borderRight: '1.5px solid #000000', borderBottom: '1.5px solid #000000', fontSize: '13px' }}>
                         Total
                       </td>
-                      <td style={{ padding: '6px 10px', textAlign: 'right', fontSize: '13.5px' }}>
+                      <td style={{ padding: '6px 10px', textAlign: 'right', borderBottom: '1.5px solid #000000', fontSize: '13.5px' }}>
                         {fmtCurrency(totalAmount)}
                       </td>
                     </tr>
@@ -330,27 +367,29 @@ export const InvoiceDocument = forwardRef(({ invoiceData, isPreview = false }, r
                 style={{
                   width: '45%',
                   verticalAlign: 'top',
-                  padding: '10px 12px',
+                  padding: '10px 12px 12px',
                   borderRight: '1.5px solid #000000',
                   borderBottom: '1.5px solid #000000',
                   textAlign: 'center',
                 }}
               >
-                <div style={{ fontWeight: '800', fontSize: '13px', textDecoration: 'underline', marginBottom: '8px' }}>
+                <div style={{ fontWeight: '800', fontSize: '13px', textDecoration: 'underline', marginBottom: '6px' }}>
                   QR For Payment
                 </div>
                 {/* Payment QR Code Box */}
                 <div
                   style={{
-                    width: '130px',
-                    height: '130px',
+                    width: '168px',
+                    height: '168px',
                     margin: '0 auto',
                     border: '1.5px solid #000000',
-                    padding: '4px',
+                    borderRadius: '10px',
+                    padding: '6px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     background: '#ffffff',
+                    boxSizing: 'border-box',
                   }}
                 >
                   <img
@@ -361,10 +400,11 @@ export const InvoiceDocument = forwardRef(({ invoiceData, isPreview = false }, r
                       height: '100%',
                       objectFit: 'contain',
                       display: 'block',
+                      borderRadius: '6px',
                     }}
                   />
                 </div>
-                <div style={{ fontSize: '10.5px', color: '#475569', marginTop: '6px', fontWeight: '600' }}>
+                <div style={{ fontSize: '11px', color: '#1e293b', marginTop: '6px', fontWeight: '700' }}>
                   UPI / Scan to Pay
                 </div>
               </td>
@@ -446,6 +486,7 @@ export const InvoiceDocument = forwardRef(({ invoiceData, isPreview = false }, r
             </tr>
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

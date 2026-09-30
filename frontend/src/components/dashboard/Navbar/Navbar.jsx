@@ -11,9 +11,29 @@ import {
   FaReceipt, FaCalendarCheck, FaLocationDot, FaPeopleGroup, FaClock,
   FaBan, FaUserGear, FaKey, FaPlug, FaCircleInfo, FaCoins, FaSitemap,
   FaCode, FaBell, FaChevronDown, FaBars, FaXmark, FaRightFromBracket,
-  FaUser, FaLock, FaUserCheck
+  FaUser, FaLock, FaUserCheck, FaBook
 } from 'react-icons/fa6';
 import { isCEO, isHR, isManager, isLimitedStaff, canViewDashboard, canViewCallRecordings, normalizeDesignation } from '../../../utils/permissions';
+
+function WhatsAppBlastIcon({ className, style }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      style={style}
+      width="1em"
+      height="1em"
+    >
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+      <polygon points="12 6 9.5 11 13 11 11.5 16 15 10 12 10 12 6" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
 
 
 /* ─────────────────────────────────────────────────────────
@@ -509,8 +529,8 @@ export default function Navbar() {
       { label: 'Add Leads', path: '/leads/new', icon: FaUserPlus },
       { label: 'All Leads', path: '/leads', icon: FaUsers },
       { label: 'Campaigns', path: '/campaigns', icon: FaBullhorn },
-      { label: 'Contact', path: '/contacts', icon: FaWhatsapp },
-      { label: 'WhatsApp Blast', path: '/whatsapp-blast', icon: FaWhatsapp },
+      { label: 'Contact', path: '/contacts', icon: FaBook },
+      { label: 'WhatsApp Blast', path: '/whatsapp-blast', icon: WhatsAppBlastIcon },
       { label: 'WhatsApp', path: '/whatsapp', icon: FaWhatsapp },
       { label: 'Leaderboard', path: '/leaderboard', icon: FaTrophy },
       { label: 'Reports', path: '/reports', icon: FaChartPie },

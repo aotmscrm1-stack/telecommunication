@@ -8,7 +8,10 @@ import { useAuth } from '../context/AuthContext';
 /* ─────────────────────────────────────────────────────────
    CONSTANTS
    ───────────────────────────────────────────────────────── */
-const FALLBACK_STATUSES = ['Fresh', 'Connected', 'Call Not Responding', 'Call Back Later', 'Not interested', 'Demo Scheduled', 'Demo Done', 'Won', 'Lost'];
+const FALLBACK_STATUSES = [
+    'Fresh', 'Connected', 'Not Answered', 'Call Back', 'Call Not Responding', 'Call Back Later',
+    'Not interested', 'Demo Scheduled', 'Demo Done', 'Won', 'Lost', 'Blocked'
+];
 const SOURCES = ['Manual', 'Facebook', 'WhatsApp', 'Website', 'Excel', 'Instagram', 'Referral', 'Other'];
 
 const COURSE_LIST = [
@@ -59,7 +62,7 @@ const STEPS = [
     { id: 1, label: 'Basic Info', icon: User, desc: 'Name, contact & location' },
     { id: 2, label: 'Lead Details', icon: Briefcase, desc: 'Source, course & budget' },
     { id: 3, label: 'Scheduling', icon: Calendar, desc: 'Follow-ups & demos (optional)' },
-    { id: 4, label: 'Assignment', icon: UsersIcon, desc: 'Owner & campaign' },
+    { id: 4, label: 'Campaign & Review', icon: UsersIcon, desc: 'Campaign & summary' },
 ];
 
 /* ─────────────────────────────────────────────────────────
@@ -183,10 +186,7 @@ export default function AddLead() {
             if (!form.lastQualification.trim()) e.lastQualification = 'Last qualification is required';
         }
         /* Step 3: Scheduling — all OPTIONAL */
-        if (s === 4) {
-            if (!form.assignedTo) e.assignedTo = 'Please assign an owner';
-            /* Campaign is now OPTIONAL — no validation */
-        }
+        /* Step 4: Campaign & Review — all OPTIONAL */
         return e;
     };
 
@@ -560,7 +560,7 @@ export default function AddLead() {
                                 </motion.div>
                             )}
 
-                            {/* STEP 4 — Campaign now OPTIONAL */}
+                            {/* STEP 4 — Campaign (Optional) & Summary */}
                             {step === 4 && (
                                 <motion.div key="step4"
                                     initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }}
@@ -572,21 +572,13 @@ export default function AddLead() {
                                             <UsersIcon className="w-4 h-4" />
                                         </div>
                                         <div>
-                                            <h3 className="text-sm font-bold" style={{ color: T.ink }}>Assignment</h3>
-                                            <p className="text-[11.5px]" style={{ color: T.muted }}>Owner and campaign</p>
+                                            <h3 className="text-sm font-bold" style={{ color: T.ink }}>Campaign & Review</h3>
+                                            <p className="text-[11.5px]" style={{ color: T.muted }}>Optional campaign and lead summary</p>
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <Field label="Assign To" required error={errors.assignedTo}>
-                                            <select className={inputCls} style={inputStyle(errors.assignedTo)}
-                                                value={form.assignedTo} onChange={e => set('assignedTo', e.target.value)}>
-                                                <option value="">Select owner</option>
-                                                {users.map(u => <option key={u._id} value={u._id}>{u.name} ({u.role})</option>)}
-                                            </select>
-                                        </Field>
-
-                                        {/* Campaign — now optional */}
+                                    <div>
+                                        {/* Campaign — optional */}
                                         <Field label="Campaign" optional hint="Leave empty if no campaign">
                                             <select className={inputCls} style={inputStyle(false)}
                                                 value={form.campaign} onChange={e => set('campaign', e.target.value)}>
