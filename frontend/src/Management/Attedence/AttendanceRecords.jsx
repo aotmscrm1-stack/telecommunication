@@ -323,9 +323,12 @@ export default function AttendanceRecords() {
         params.search = searchQuery.trim();
       }
 
-      const activeEmpId = selectedEmployeeId && selectedEmployeeId !== 'ALL'
-        ? selectedEmployeeId
-        : (routeUserId && routeUserId !== 'attendance-records' ? routeUserId : null);
+      let activeEmpId = null;
+      if (selectedEmployeeId && selectedEmployeeId !== 'ALL') {
+        activeEmpId = selectedEmployeeId;
+      } else if (!isMD) {
+        activeEmpId = routeUserId || user?._id;
+      }
 
       if (activeEmpId) {
         params.employeeId = activeEmpId;
@@ -475,9 +478,12 @@ export default function AttendanceRecords() {
       if (statusFilter !== 'ALL') params.status = statusFilter;
       if (searchQuery.trim()) params.search = searchQuery.trim();
 
-      const activeEmpId = selectedEmployeeId && selectedEmployeeId !== 'ALL'
-        ? selectedEmployeeId
-        : (routeUserId && routeUserId !== 'attendance-records' ? routeUserId : null);
+      let activeEmpId = null;
+      if (selectedEmployeeId && selectedEmployeeId !== 'ALL') {
+        activeEmpId = selectedEmployeeId;
+      } else if (!isMD) {
+        activeEmpId = routeUserId || user?._id;
+      }
       if (activeEmpId) params.employeeId = activeEmpId;
 
       const res = await attendanceAPI.exportCSV(params);
