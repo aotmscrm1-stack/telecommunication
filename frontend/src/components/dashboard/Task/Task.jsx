@@ -2503,6 +2503,7 @@ export default function Task() {
   const [teamUsers, setTeamUsers] = useState([]);
   const [teamMemberFilter, setTeamMemberFilter] = useState('');
   const [showTeamDrop, setShowTeamDrop] = useState(false);
+  const teamDropRef = useRef(null);
   const checkCanDelete = (task) => {
     if (!currentUser) return false;
     if (
