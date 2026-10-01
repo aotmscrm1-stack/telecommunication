@@ -91,20 +91,96 @@ export default function FeeReceipt() {
   const printRef = useRef(null);
   const modalPrintRef = useRef(null);
 
-  // Recalculate Subtotal, CGST, SGST, Total, and Words
-  const updateCalculations = (itemsList, cgstRateVal, sgstRateVal) => {
-    const items = itemsList !== undefined ? itemsList : (form.items || []);
-    const cRate = (cgstRateVal !== undefined && cgstRateVal !== '') 
-      ? Number(cgstRateVal) 
+  // Recalculate Subtotal, CGST, SGST, Total, and Words when Grand Total is input/changed:
+  // Grand Total -> 9% CGST -> 9% SGST (CGST & SGST same) -> Remaining amount goes into Item Amount & Subtotal
+  const updateFromGrandTotal = (grandTotalVal, cgstRateVal, sgstRateVal, itemsList) => {
+    const total = (grandTotalVal !== undefined && grandTotalVal !== '' && !isNaN(Number(grandTotalVal))) 
+      ? Number(grandTotalVal) 
+      : 0;
+
+    let cRate = (cgstRateVal !== undefined && cgstRateVal !== '' && !isNaN(Number(cgstRateVal)))
+      ? Number(cgstRateVal)
       : (form.cgst_rate !== undefined && form.cgst_rate !== '' ? Number(form.cgst_rate) : 9);
-    const sRate = (sgstRateVal !== undefined && sgstRateVal !== '') 
-      ? Number(sgstRateVal) 
-      : (form.sgst_rate !== undefined && form.sgst_rate !== '' ? Number(form.sgst_rate) : 9);
+
+    let sRate = (sgstRateVal !== undefined && sgstRateVal !== '' && !isNaN(Number(sgstRateVal)))
+      ? Number(sgstRateVal)
+      : cRate; // CGST and SGST should be the same
+
+    const cgstAmount = Math.round(total * (cRate / 100));
+    const sgstAmount = Math.round(total * (sRate / 100));
+    const remainingAmount = Math.max(0, total - cgstAmount - sgstAmount);
+
+    const currentItems = itemsList !== undefined ? itemsList : (form.items || []);
+    let items = currentItems.map(it => ({ ...it }));
+
+    if (items.length === 0) {
+      items = [{
+        sno: 1,
+        course_name: '',
+        particulars: '',
+        qty: 1,
+        amount: remainingAmount,
+      }];
+    } else if (items.length === 1) {
+      items[0] = { ...items[0], amount: remainingAmount };
+    } else {
+      const prevTotal = items.slice(0, -1).reduce((s, it) => s + (Number(it.amount) || 0), 0);
+      items[items.length - 1] = {
+        ...items[items.length - 1],
+        amount: Math.max(0, remainingAmount - prevTotal),
+      };
+    }
+
+    const subtotal = items.reduce((s, it) => s + (Number(it.amount) || 0), 0);
+
+    let inWords = 'Zero rupees only';
+    if (total > 0) {
+      const raw = numberToWords(Math.round(total));
+      const cleaned = raw.replace(/^Rupees\s+/i, '').replace(/\s+Only$/i, '').trim();
+      inWords = `${cleaned} rupees only`;
+    }
+
+    return {
+      items,
+      subtotal,
+      cgst_rate: cRate,
+      cgst_amount: cgstAmount,
+      sgst_rate: sRate,
+      sgst_amount: sgstAmount,
+      total_amount: total,
+      amount_in_words: inWords,
+    };
+  };
+
+  // Recalculate if user edits item amount directly
+  const updateFromItems = (itemsList, cgstRateVal, sgstRateVal) => {
+    const items = itemsList !== undefined ? itemsList : (form.items || []);
+    let cRate = (cgstRateVal !== undefined && cgstRateVal !== '' && !isNaN(Number(cgstRateVal)))
+      ? Number(cgstRateVal)
+      : (form.cgst_rate !== undefined && form.cgst_rate !== '' ? Number(form.cgst_rate) : 9);
+
+    let sRate = (sgstRateVal !== undefined && sgstRateVal !== '' && !isNaN(Number(sgstRateVal)))
+      ? Number(sgstRateVal)
+      : cRate;
 
     const subtotal = items.reduce((sum, it) => sum + (Number(it.amount) || 0), 0);
-    const cgstAmount = Math.round(subtotal * (cRate / 100));
-    const sgstAmount = Math.round(subtotal * (sRate / 100));
-    const totalAmount = subtotal + cgstAmount + sgstAmount;
+    const taxRateSum = (cRate + sRate) / 100;
+
+    let totalAmount = 0;
+    let cgstAmount = 0;
+    let sgstAmount = 0;
+
+    if (subtotal > 0) {
+      if (taxRateSum < 1) {
+        totalAmount = Math.round(subtotal / (1 - taxRateSum));
+        cgstAmount = Math.round(totalAmount * (cRate / 100));
+        sgstAmount = Math.round(totalAmount * (sRate / 100));
+      } else {
+        cgstAmount = Math.round(subtotal * (cRate / 100));
+        sgstAmount = Math.round(subtotal * (sRate / 100));
+        totalAmount = subtotal + cgstAmount + sgstAmount;
+      }
+    }
 
     let inWords = 'Zero rupees only';
     if (totalAmount > 0) {
@@ -123,6 +199,13 @@ export default function FeeReceipt() {
       total_amount: totalAmount,
       amount_in_words: inWords,
     };
+  };
+
+  const updateCalculations = () => {
+    if (form.total_amount !== undefined && form.total_amount !== '' && Number(form.total_amount) > 0) {
+      return updateFromGrandTotal(form.total_amount, form.cgst_rate, form.sgst_rate, form.items);
+    }
+    return updateFromItems(form.items, form.cgst_rate, form.sgst_rate);
   };
 
   const loadHistory = async () => {
@@ -280,6 +363,17 @@ export default function FeeReceipt() {
     setTimeout(() => setSuccessMessage(''), 4000);
   };
 
+  // Grand Total Handler
+  const handleGrandTotalChange = (val) => {
+    const rawVal = val === '' ? '' : Number(val);
+    const calcs = updateFromGrandTotal(rawVal, form.cgst_rate, form.sgst_rate, form.items);
+    setForm(prev => ({
+      ...prev,
+      ...calcs,
+      total_amount: rawVal,
+    }));
+  };
+
   // Line Item Handlers
   const handleItemChange = (index, field, value) => {
     const updated = [...(form.items || [])];
@@ -287,11 +381,18 @@ export default function FeeReceipt() {
     if (field === 'course_name') {
       updated[index].particulars = value;
     }
-    const calcs = updateCalculations(updated);
-    setForm(prev => ({
-      ...prev,
-      ...calcs,
-    }));
+    if (field === 'amount') {
+      const calcs = updateFromItems(updated, form.cgst_rate, form.sgst_rate);
+      setForm(prev => ({
+        ...prev,
+        ...calcs,
+      }));
+    } else {
+      setForm(prev => ({
+        ...prev,
+        items: updated,
+      }));
+    }
   };
 
   const addItem = () => {
@@ -307,10 +408,9 @@ export default function FeeReceipt() {
         amount: 0,
       }
     ];
-    const calcs = updateCalculations(updated);
     setForm(prev => ({
       ...prev,
-      ...calcs,
+      items: updated,
     }));
   };
 
@@ -321,27 +421,33 @@ export default function FeeReceipt() {
       ...item,
       sno: i + 1,
     }));
-    const calcs = updateCalculations(updated);
+    const calcs = updateFromGrandTotal(form.total_amount, form.cgst_rate, form.sgst_rate, updated);
     setForm(prev => ({
       ...prev,
       ...calcs,
     }));
   };
 
-  // Tax Rate Handlers
+  // Tax Rate Handlers (CGST and SGST remain synchronized)
   const handleCgstRateChange = (val) => {
-    const calcs = updateCalculations(undefined, val, undefined);
+    const num = val === '' ? '' : Number(val);
+    const calcs = updateFromGrandTotal(form.total_amount, num, num, form.items);
     setForm(prev => ({
       ...prev,
       ...calcs,
+      cgst_rate: num,
+      sgst_rate: num,
     }));
   };
 
   const handleSgstRateChange = (val) => {
-    const calcs = updateCalculations(undefined, undefined, val);
+    const num = val === '' ? '' : Number(val);
+    const calcs = updateFromGrandTotal(form.total_amount, num, num, form.items);
     setForm(prev => ({
       ...prev,
       ...calcs,
+      cgst_rate: num,
+      sgst_rate: num,
     }));
   };
 
@@ -628,7 +734,7 @@ export default function FeeReceipt() {
                           <input
                             type="number"
                             value={item.amount !== undefined ? item.amount : ''}
-                            onChange={(e) => handleItemChange(idx, 'amount', Number(e.target.value))}
+                            onChange={(e) => handleItemChange(idx, 'amount', e.target.value === '' ? '' : Number(e.target.value))}
                             placeholder="24600"
                             className="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-emerald-500 font-bold text-emerald-700"
                           />
@@ -641,7 +747,7 @@ export default function FeeReceipt() {
                 {/* CGST, SGST & Totals breakdown */}
                 <div className="p-4 bg-emerald-50/60 border border-emerald-200/80 rounded-xl space-y-2.5 text-sm">
                   <div className="flex items-center justify-between text-slate-600">
-                    <span>Base Course Subtotal:</span>
+                    <span className="font-medium">Base Course Subtotal:</span>
                     <span className="font-bold text-slate-800">
                       ₹{Number(form.subtotal || 0).toLocaleString('en-IN')}/-
                     </span>
@@ -649,14 +755,14 @@ export default function FeeReceipt() {
 
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 text-slate-600">
-                      <span>CGST</span>
+                      <span className="font-medium">CGST</span>
                       <input
                         type="number"
                         value={form.cgst_rate !== undefined ? form.cgst_rate : 9}
                         onChange={(e) => handleCgstRateChange(e.target.value)}
-                        className="w-14 px-2 py-0.5 text-xs border border-slate-200 rounded bg-white font-semibold text-center"
+                        className="w-14 px-2 py-0.5 text-xs border border-slate-200 rounded bg-white font-semibold text-center focus:ring-2 focus:ring-emerald-500"
                       />
-                      <span className="text-slate-600">%</span>
+                      <span className="text-slate-600 font-medium">%</span>
                     </div>
                     <span className="font-bold text-emerald-800">
                       + ₹{Number(form.cgst_amount || 0).toLocaleString('en-IN')}/-
@@ -665,28 +771,36 @@ export default function FeeReceipt() {
 
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 text-slate-600">
-                      <span>SGST</span>
+                      <span className="font-medium">SGST</span>
                       <input
                         type="number"
                         value={form.sgst_rate !== undefined ? form.sgst_rate : 9}
                         onChange={(e) => handleSgstRateChange(e.target.value)}
-                        className="w-14 px-2 py-0.5 text-xs border border-slate-200 rounded bg-white font-semibold text-center"
+                        className="w-14 px-2 py-0.5 text-xs border border-slate-200 rounded bg-white font-semibold text-center focus:ring-2 focus:ring-emerald-500"
                       />
-                      <span className="text-slate-600">%</span>
+                      <span className="text-slate-600 font-medium">%</span>
                     </div>
                     <span className="font-bold text-emerald-800">
                       + ₹{Number(form.sgst_amount || 0).toLocaleString('en-IN')}/-
                     </span>
                   </div>
 
-                  <div className="pt-2 border-t border-emerald-200 flex items-center justify-between text-base font-extrabold text-emerald-900">
-                    <span>Grand Total:</span>
-                    <span>
-                      ₹{Number(form.total_amount || 0).toLocaleString('en-IN')}/-
-                    </span>
+                  <div className="pt-2 border-t border-emerald-200 flex items-center justify-between">
+                    <span className="text-sm font-extrabold text-emerald-900">Grand Total:</span>
+                    <div className="flex items-center gap-1">
+                      <span className="font-extrabold text-emerald-900 text-sm">₹</span>
+                      <input
+                        type="number"
+                        value={form.total_amount !== undefined ? form.total_amount : ''}
+                        onChange={(e) => handleGrandTotalChange(e.target.value)}
+                        placeholder="30000"
+                        className="w-36 px-2.5 py-1 text-sm font-extrabold text-emerald-900 border-2 border-emerald-400 rounded-lg bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none text-right shadow-sm"
+                      />
+                      <span className="font-extrabold text-emerald-900 text-sm">/-</span>
+                    </div>
                   </div>
 
-                  <div className="text-xs text-slate-600 italic pt-1">
+                  <div className="text-xs text-slate-600 italic pt-1 border-t border-emerald-100/60">
                     Rupees in words : ( {form.amount_in_words || 'Thirty thousand rupees only'} )
                   </div>
                 </div>

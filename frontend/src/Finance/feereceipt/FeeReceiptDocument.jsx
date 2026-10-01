@@ -37,17 +37,19 @@ export const FeeReceiptDocument = forwardRef(({ receiptData, isPreview = false }
     ? Number(receiptData.sgst_rate)
     : 9;
 
+  const totalAmount = receiptData.total_amount !== undefined && receiptData.total_amount !== null && !isNaN(Number(receiptData.total_amount))
+    ? Number(receiptData.total_amount)
+    : (subtotal > 0 && (cgstRate + sgstRate) < 100
+        ? Math.round(subtotal / (1 - (cgstRate + sgstRate) / 100))
+        : subtotal);
+
   const cgstAmount = receiptData.cgst_amount !== undefined && receiptData.cgst_amount !== null && !isNaN(Number(receiptData.cgst_amount))
     ? Number(receiptData.cgst_amount)
-    : Math.round(subtotal * (cgstRate / 100));
+    : Math.round(totalAmount * (cgstRate / 100));
 
   const sgstAmount = receiptData.sgst_amount !== undefined && receiptData.sgst_amount !== null && !isNaN(Number(receiptData.sgst_amount))
     ? Number(receiptData.sgst_amount)
-    : Math.round(subtotal * (sgstRate / 100));
-
-  const totalAmount = receiptData.total_amount !== undefined && receiptData.total_amount !== null && !isNaN(Number(receiptData.total_amount))
-    ? Number(receiptData.total_amount)
-    : (subtotal + cgstAmount + sgstAmount);
+    : Math.round(totalAmount * (sgstRate / 100));
 
   // Convert to words matching reference format "( Thirty thousand rupees only )"
   const getFormattedWords = () => {
