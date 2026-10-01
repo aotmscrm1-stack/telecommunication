@@ -163,6 +163,11 @@ export default function App() {
             <Route path="todos" element={<Tasks />} />
             <Route path="follow-ups" element={<Tasks />} />
             <Route path="followups" element={<Tasks />} />
+            <Route path=":userId/tasks" element={<Tasks />} />
+            <Route path=":userId/todo" element={<Tasks />} />
+            <Route path=":userId/todos" element={<Tasks />} />
+            <Route path=":userId/follow-ups" element={<Tasks />} />
+            <Route path=":userId/followups" element={<Tasks />} />
             <Route path="profile" element={<Profile />} />
             <Route path="contacts" element={<StaffRestrictedRoute><Contacts /></StaffRestrictedRoute>} />
             <Route path="contact" element={<Navigate to="/contacts" replace />} />

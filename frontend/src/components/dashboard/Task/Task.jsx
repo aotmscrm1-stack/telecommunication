@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { followupsAPI, leadsAPI, usersAPI, departmentsAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import { formatISTDateTime, formatISTDate } from '../../../utils/dateFormat';
@@ -2426,10 +2426,13 @@ function downloadCSV(tasks, tab) {
 
 // ── Main Task Component ───────────────────────────────────────────────────────
 export default function Task() {
+  const { userId: routeUserId } = useParams();
   const { user: currentUser } = useAuth();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const activeUserId = routeUserId || currentUser?._id;
 
   const getTabFromLocationOrQuery = useCallback(() => {
     const p = location.pathname.toLowerCase();
@@ -2455,6 +2458,14 @@ export default function Task() {
     }
   }, [getTabFromLocationOrQuery, activeTab]);
 
+  // Sync route URL to format: /:userId/todo or /:userId/tasks
+  useEffect(() => {
+    if (currentUser?._id && !routeUserId) {
+      const slug = activeTab === 'Todo' ? 'todo' : activeTab === 'Call Followups' ? 'follow-ups' : 'tasks';
+      navigate(`/${currentUser._id}/${slug}`, { replace: true });
+    }
+  }, [currentUser, routeUserId, activeTab, navigate]);
+
   const [historyModeMap, setHistoryModeMap] = useState({
     Tasks: false,
     Todo: false,
@@ -2473,12 +2484,13 @@ export default function Task() {
 
   const handleTabSwitch = (tab) => {
     setActiveTab(tab);
+    const idPrefix = activeUserId ? `/${activeUserId}` : currentUser?._id ? `/${currentUser._id}` : '';
     if (tab === 'Todo') {
-      navigate('/todo');
+      navigate(`${idPrefix}/todo`);
     } else if (tab === 'Call Followups') {
-      navigate('/follow-ups');
+      navigate(`${idPrefix}/follow-ups`);
     } else {
-      navigate('/tasks');
+      navigate(`${idPrefix}/tasks`);
     }
   };
 
@@ -2554,6 +2566,7 @@ export default function Task() {
 
       if (historyMode) {
         const res = await followupsAPI.getAll({
+          userId: activeUserId,
           forMe: forFilter === 'Me',
           due: dueFilter ? dueFilter.toLowerCase().replace(' ', '_') : undefined,
           status: 'done',
@@ -2579,6 +2592,7 @@ export default function Task() {
       if (wantsCancelled) dbStatuses.push('cancelled');
 
       const res = await followupsAPI.getAll({
+        userId: activeUserId,
         forMe: forFilter === 'Me',
         due: dueFilter ? dueFilter.toLowerCase().replace(' ', '_') : undefined,
         status: dbStatuses.join(','),
@@ -2638,7 +2652,7 @@ export default function Task() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, forFilter, dueFilter, statusFilter, priorityFilter, teamMemberFilter, historyMode]);
+  }, [activeTab, activeUserId, forFilter, dueFilter, statusFilter, priorityFilter, teamMemberFilter, historyMode]);
 
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
