@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { attendanceAPI, trackingAPI, usersAPI } from '../../services/api';
 import geoTracker from '../../services/geoTracker';
 import LiveMap from '../../components/tracking/LiveMap';
-import { isManagingDirector } from '../../utils/permissions';
+import { isManagingDirector, isExecutive, isHR, isManager } from '../../utils/permissions';
 import SplitText from '../../components/ui/SplitText';
 import {
   Users,
@@ -35,6 +35,8 @@ import {
   Sparkles,
   ShieldCheck,
   ArrowUpRight,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
 
 const GRADIENT = 'var(--btn-gradient, linear-gradient(90deg, #ffb37c 0%, #38bdf8 100%))';
@@ -111,6 +113,39 @@ function formatDateDisplay(isoStr) {
   return isoStr;
 }
 
+// AutoScroll Name Component for Long Employee Names
+function AutoScrollName({ prefix = '', name = '', className = '', style = {}, maxPx = 140 }) {
+  const fullText = prefix ? `${prefix} ${name}` : name;
+  const isLong = fullText.length > 15;
+
+  return (
+    <div 
+      className={`relative overflow-hidden whitespace-nowrap ${className}`}
+      style={{ maxWidth: maxPx, width: '100%', minWidth: 0, ...style }}
+      title={fullText}
+    >
+      <style>{`
+        @keyframes scroll-name-anim {
+          0%, 20% { transform: translateX(0%); }
+          80%, 100% { transform: translateX(min(0px, calc(-100% + ${maxPx}px))); }
+        }
+        .animate-autoscroll-name {
+          display: inline-block;
+          white-space: nowrap;
+          animation: scroll-name-anim 6s ease-in-out infinite alternate;
+        }
+        .animate-autoscroll-name:hover {
+          animation-play-state: paused;
+        }
+      `}</style>
+      <span className={isLong ? "animate-autoscroll-name" : "truncate block"}>
+        {prefix ? <span style={{ fontWeight: 400, color: '#64748b' }}>{prefix} </span> : null}
+        <span style={{ fontWeight: 700 }}>{name}</span>
+      </span>
+    </div>
+  );
+}
+
 // Helper to format 12-hour time (e.g. "09:15 AM")
 function formatTime12h(dateObj) {
   if (!dateObj) return '—';
@@ -159,7 +194,7 @@ function sortEmployeesByCode(aCode = '', bCode = '', aName = '', bName = '') {
 export default function AttendanceRecords() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const isMD = isManagingDirector(user);
+  const isMD = isExecutive(user) || isHR(user) || isManager(user) || user?.role === 'admin' || user?.role === 'manager';
 
   // Live Personal Attendance Session state (Start / Break / Resume / Stop)
   const [currentSession, setCurrentSession] = useState(null);
@@ -360,7 +395,6 @@ export default function AttendanceRecords() {
   const displayRecords = useMemo(() => {
     let result = [...records];
 
-    // Filter by selected employee from dropdown
     if (selectedEmployeeId !== 'ALL') {
       result = result.filter((r) => r.employeeId === selectedEmployeeId);
     }
@@ -495,7 +529,7 @@ export default function AttendanceRecords() {
       setActionStatusMsg(null);
       const res = await attendanceAPI.startBreak({ reason: 'General Break' });
       if (res.data?.ok) {
-        setActionStatusMsg({ type: 'success', message: 'Break started and autosaved to MongoDB!' });
+        setActionStatusMsg({ type: 'success', message: 'Break started and saved successfully!' });
         await fetchCurrentSession();
         await fetchData();
       } else {
@@ -514,7 +548,7 @@ export default function AttendanceRecords() {
       setActionStatusMsg(null);
       const res = await attendanceAPI.resumeBreak();
       if (res.data?.ok) {
-        setActionStatusMsg({ type: 'success', message: 'Resumed work! Break saved to MongoDB & timer continued.' });
+        setActionStatusMsg({ type: 'success', message: 'Resumed work! Break saved & timer continued.' });
         await fetchCurrentSession();
         await fetchData();
       } else {
@@ -739,6 +773,14 @@ export default function AttendanceRecords() {
       startTimeFormatted,
     };
   }, [currentSession, currentNow]);
+
+  // Auto-refresh session status when 9 hours are completed locally
+  useEffect(() => {
+    if (liveSessionMetrics.isNineHoursComplete && (currentSession?.status === 'ON_DUTY' || currentSession?.status === 'ON_BREAK')) {
+      fetchCurrentSession();
+      fetchData();
+    }
+  }, [liveSessionMetrics.isNineHoursComplete, currentSession?.status, fetchCurrentSession, fetchData]);
 
   // Calculate real-time timer values for a record
   const getRecordLiveTimes = (rec) => {
@@ -1506,11 +1548,11 @@ export default function AttendanceRecords() {
 
             {liveSessionMetrics.status === 'ON_DUTY' && (
               <>
-                {/* Break Button (Autosave to MongoDB - Orange) */}
+                {/* Break Button (Orange) */}
                 <button
                   onClick={handleStartBreak}
                   disabled={actionLoading !== null}
-                  title="Pause work timer & autosave break immediately to MongoDB"
+                  title="Pause work timer & save break immediately"
                   style={{
                     background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
                     color: '#ffffff',
@@ -1528,9 +1570,9 @@ export default function AttendanceRecords() {
                   }}
                 >
                   {actionLoading === 'BREAK' ? (
-                    <><Loader2 size={15} className="animate-spin" /> Autosaving...</>
+                    <><Loader2 size={15} className="animate-spin" /> Saving...</>
                   ) : (
-                    <><Coffee size={15} /> Break (Autosave)</>
+                    <><Coffee size={15} /> Break (Pause Timer)</>
                   )}
                 </button>
 
@@ -1570,7 +1612,7 @@ export default function AttendanceRecords() {
                 <button
                   onClick={handleResumeBreak}
                   disabled={actionLoading !== null}
-                  title="Resume work, continue timer, and complete break in MongoDB"
+                  title="Resume work, continue timer, and complete break"
                   style={{
                     background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
                     color: '#ffffff',
@@ -1678,7 +1720,7 @@ export default function AttendanceRecords() {
           </div>
         )}
 
-        {/* Informational Sub-Bar: Break summary & MongoDB sync confirmation */}
+        {/* Informational Sub-Bar: Break summary & sync confirmation */}
         <div
           style={{
             marginTop: 14,
@@ -1746,7 +1788,7 @@ export default function AttendanceRecords() {
             title: 'Break In Progress',
             splitText: true,
             value: summary.currentlyOnBreak || 0,
-            description: 'Team members currently on break with live autosave to MongoDB.',
+            description: 'Team members currently on break with live real-time sync.',
             theme: 'orange',
             icon: <Coffee size={20} color="#ea580c" />,
             actionLabel: 'Learn more',
@@ -2225,8 +2267,9 @@ export default function AttendanceRecords() {
           )}
         </div>
 
-        {/* Right Filter Group: Status Filter Pills (White, Orange, Blue) */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        {/* Right Filter Group: Status Filter Pills */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+
           {[
             { key: 'ALL', label: 'All Status' },
             { key: 'ON_DUTY', label: ' On Duty' },
@@ -2260,326 +2303,275 @@ export default function AttendanceRecords() {
         </div>
       </div>
 
-      {/* ──── 4. Main Attendance Records Table ────────────────────────────────────────────────────────────────────── */}
-      <div
-        style={{
-          background: '#ffffff',
-          borderRadius: 16,
-          border: `1px solid ${BORDER}`,
-          boxShadow: '0 4px 20px rgba(15, 23, 42, 0.04)',
-          overflow: 'hidden',
-        }}
-      >
-        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          <table style={{ width: '100%', minWidth: '1080px', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
+      {/* ──── 4. Main Attendance Records 6-Column Card Grid (Reactbits Style) ──── */}
+      {loading ? (
+        <div style={{ background: '#ffffff', borderRadius: 16, border: `1px solid ${BORDER}`, padding: '70px 20px', textAlign: 'center', color: TEXT_MUTED }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 34, height: 34, borderRadius: '50%', border: '3px solid #0284c7', borderTopColor: 'transparent', animation: 'spin 1s linear infinite' }} />
+            <span style={{ fontSize: 13.5, fontWeight: 600 }}>Loading employee attendance records...</span>
+          </div>
+        </div>
+      ) : displayRecords.length === 0 ? (
+        <div style={{ background: '#ffffff', borderRadius: 16, border: `1px solid ${BORDER}`, padding: '70px 20px', textAlign: 'center', color: TEXT_MUTED }}>
+          <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'center' }}><FileText size={38} color="#94a3b8" /></div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: TEXT_MAIN }}>No attendance records found</div>
+          <div style={{ fontSize: 12.5, color: TEXT_MUTED, marginTop: 4 }}>
+            {isFilterActive
+              ? 'Try adjusting your search query, department selector, employee selector, or status filter.'
+              : 'No employees recorded attendance for the selected date.'}
+          </div>
+          {isFilterActive && (
+            <button
+              onClick={handleResetFilters}
+              style={{
+                marginTop: 12,
+                background: '#0284c7',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: 8,
+                padding: '6px 14px',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              Reset All Filters
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="w-full overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-xs">
+          <table className="w-full text-left text-xs border-collapse min-w-[950px]">
             <thead>
-              <tr
-                style={{
-                  background: '#f8fafc',
-                  borderBottom: `2px solid ${BORDER}`,
-                  color: '#475569',
-                  fontWeight: 800,
-                  fontSize: 11,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  position: 'sticky',
-                  top: 0,
-                  zIndex: 5,
-                }}
-              >
-                <th style={{ padding: '12px 14px', minWidth: 200, width: '18%' }}>Employee Details</th>
-                <th style={{ padding: '12px 10px', minWidth: 105, width: '8%' }}>Employee ID</th>
-                <th style={{ padding: '12px 10px', minWidth: 95, width: '8%' }}>Date</th>
-                <th style={{ padding: '12px 8px', minWidth: 65, width: '5%' }}>Day</th>
-                <th style={{ padding: '12px 10px', minWidth: 90, width: '8%' }}>Start Time</th>
-                <th style={{ padding: '12px 10px', minWidth: 90, width: '8%' }}>End Time</th>
-                <th style={{ padding: '12px 10px', minWidth: 120, width: '10%' }}>Total Attendance</th>
-                <th style={{ padding: '12px 8px', minWidth: 70, width: '6%', textAlign: 'center' }}>Breaks</th>
-                <th style={{ padding: '12px 10px', minWidth: 110, width: '9%' }}>Total Break</th>
-                <th style={{ padding: '12px 10px', minWidth: 125, width: '10%' }}>Actual Work</th>
-                <th style={{ padding: '12px 10px', minWidth: 110, width: '8%' }}>Status</th>
-                <th style={{ padding: '12px 14px', minWidth: 170, width: '12%', textAlign: 'right' }}>Actions</th>
+              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#475569' }}>
+                <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: 12 }}>Employee</th>
+                <th style={{ padding: '12px 14px', fontWeight: 600, fontSize: 12 }}>Department</th>
+                <th style={{ padding: '12px 14px', fontWeight: 600, fontSize: 12 }}>Date & Day</th>
+                <th style={{ padding: '12px 14px', fontWeight: 600, fontSize: 12 }}>Clock In / Out</th>
+                <th style={{ padding: '12px 14px', fontWeight: 600, fontSize: 12, textAlign: 'center' }}>Total Time</th>
+                <th style={{ padding: '12px 14px', fontWeight: 600, fontSize: 12, textAlign: 'center' }}>Break Time</th>
+                <th style={{ padding: '12px 14px', fontWeight: 600, fontSize: 12, textAlign: 'center' }}>Actual Work</th>
+                <th style={{ padding: '12px 14px', fontWeight: 600, fontSize: 12 }}>Status</th>
+                <th style={{ padding: '12px 16px', fontWeight: 600, fontSize: 12, textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={12} style={{ padding: '70px 0', textAlign: 'center', color: TEXT_MUTED }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-                      <div className="w-9 h-9 spinner-gradient" style={{ width: 34, height: 34, borderRadius: '50%', border: '3px solid #0284c7', borderTopColor: 'transparent', animation: 'spin 1s linear infinite' }} />
-                      <span style={{ fontSize: 13.5, fontWeight: 600 }}>Loading employee attendance records...</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : displayRecords.length === 0 ? (
-                <tr>
-                  <td colSpan={12} style={{ padding: '70px 20px', textAlign: 'center', color: TEXT_MUTED }}>
-                    <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'center' }}><FileText size={38} color="#94a3b8" /></div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: TEXT_MAIN }}>No attendance records found</div>
-                    <div style={{ fontSize: 12.5, color: TEXT_MUTED, marginTop: 4 }}>
-                      {isFilterActive
-                        ? 'Try adjusting your search query, employee selector, or status filter.'
-                        : 'No employees recorded attendance for the selected date.'}
-                    </div>
-                    {isFilterActive && (
-                      <button
-                        onClick={handleResetFilters}
+              {displayRecords.map((rec, idx) => {
+                const badge = getStatusBadge(rec.status);
+                const isNotStarted = rec.status === 'NOT_STARTED';
+                const liveTimes = getRecordLiveTimes(rec);
+                const breakCount = rec.breakCount || (Array.isArray(rec.breaks) ? rec.breaks.length : 0);
+                const departmentTag = rec.department || rec.role || 'Staff';
+
+                return (
+                  <tr
+                    key={rec._id}
+                    style={{
+                      background: idx % 2 === 0 ? '#ffffff' : '#fdfdfe',
+                      borderBottom: '1px solid #f1f5f9',
+                      transition: 'background 0.15s ease',
+                    }}
+                    className="hover:bg-slate-50/80"
+                  >
+                    {/* Employee info */}
+                    <td style={{ padding: '12px 16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        {renderEmployeeAvatar(rec, 36, true)}
+                        <div>
+                          <div
+                            onClick={() => handleOpenEmployeeHistory(rec.employeeId)}
+                            style={{ cursor: 'pointer', fontWeight: 500, color: '#0369a1', fontSize: 13 }}
+                            title="Click to view employee history"
+                          >
+                            {rec.employeeName}
+                          </div>
+                          <span
+                            style={{
+                              background: '#f1f5f9',
+                              color: '#475569',
+                              fontWeight: 500,
+                              padding: '1px 6px',
+                              borderRadius: 4,
+                              fontSize: 10.5,
+                              fontFamily: 'ui-monospace, monospace',
+                              border: '1px solid #e2e8f0',
+                              display: 'inline-block',
+                              marginTop: 2,
+                            }}
+                          >
+                            {rec.employeeCode || 'EMP-001'}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Department */}
+                    <td style={{ padding: '12px 14px' }}>
+                      <span
                         style={{
-                          marginTop: 12,
-                          background: '#0284c7',
-                          color: '#ffffff',
-                          border: 'none',
-                          borderRadius: 8,
-                          padding: '6px 14px',
-                          fontSize: 12,
-                          fontWeight: 700,
-                          cursor: 'pointer',
+                          background: '#e0f2fe',
+                          color: '#0369a1',
+                          fontWeight: 500,
+                          padding: '3px 8px',
+                          borderRadius: 6,
+                          fontSize: 11,
+                          border: '1px solid #bae6fd',
                         }}
                       >
-                        Reset All Filters
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ) : (
-                displayRecords.map((rec) => {
-                  const badge = getStatusBadge(rec.status);
-                  const isNotStarted = rec.status === 'NOT_STARTED';
-                  const liveTimes = getRecordLiveTimes(rec);
-                  const breakCount = rec.breakCount || (Array.isArray(rec.breaks) ? rec.breaks.length : 0);
+                        {departmentTag}
+                      </span>
+                    </td>
 
-                  return (
-                    <tr
-                      key={rec._id}
-                      style={{
-                        borderBottom: '1px solid #f1f5f9',
-                        transition: 'background 0.15s ease',
-                        background: rec.status === 'ON_DUTY' ? '#fcfdfd' : rec.status === 'ON_BREAK' ? '#fffdf7' : '#ffffff',
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = rec.status === 'ON_DUTY' ? '#fcfdfd' : rec.status === 'ON_BREAK' ? '#fffdf7' : '#ffffff')}
-                    >
-                      {/* Employee Details (Avatar Image + Name + Email) */}
-                      <td style={{ padding: '10px 14px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          {renderEmployeeAvatar(rec, 36, true)}
-                          <div style={{ minWidth: 0 }}>
-                            <div
-                              onClick={() => handleOpenEmployeeHistory(rec.employeeId)}
-                              style={{
-                                fontWeight: 700,
-                                color: '#0284c7',
-                                cursor: 'pointer',
-                                fontSize: 13,
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                              }}
-                              onMouseEnter={(e) => (e.currentTarget.style.textDecoration = 'underline')}
-                              onMouseLeave={(e) => (e.currentTarget.style.textDecoration = 'none')}
-                              title="Click to view employee's full attendance history"
-                            >
-                              {rec.employeeName}
-                            </div>
-                            <div style={{ fontSize: 11, color: TEXT_MUTED, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 1 }}>
-                              {rec.email || rec.role}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Employee ID */}
-                      <td style={{ padding: '10px 10px', whiteSpace: 'nowrap' }}>
-                        <span style={{ background: '#f1f5f9', color: '#1e293b', fontWeight: 800, padding: '3px 8px', borderRadius: 6, fontSize: 11.5, fontFamily: 'ui-monospace, monospace', border: '1px solid #e2e8f0', fontVariantNumeric: 'tabular-nums' }}>
-                          {rec.employeeCode || 'EMP-001'}
-                        </span>
-                      </td>
-
-                      {/* Date */}
-                      <td style={{ padding: '10px 10px', color: TEXT_MAIN, fontWeight: 700, whiteSpace: 'nowrap', fontSize: 12.5, fontVariantNumeric: 'tabular-nums' }}>
+                    {/* Date & Day */}
+                    <td style={{ padding: '12px 14px' }}>
+                      <div style={{ fontSize: 12, fontWeight: 500, color: '#334155' }}>
                         {formatDateDisplay(rec.date)}
-                      </td>
-
-                      {/* Day */}
-                      <td style={{ padding: '10px 8px', color: TEXT_MUTED, whiteSpace: 'nowrap', fontWeight: 600, fontSize: 12 }}>
+                      </div>
+                      <div style={{ fontSize: 11, color: '#64748b', fontWeight: 400 }}>
                         {rec.day}
-                      </td>
+                      </div>
+                    </td>
 
-                      {/* Start Time */}
-                      <td style={{ padding: '10px 10px', fontWeight: 800, color: isNotStarted ? '#94a3b8' : '#1d4ed8', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', fontSize: 12.5 }}>
-                        {rec.startTimeFormatted || '—'}
-                      </td>
+                    {/* Clock In / Out */}
+                    <td style={{ padding: '12px 14px' }}>
+                      <div style={{ fontSize: 12, fontWeight: 500, color: isNotStarted ? '#94a3b8' : '#0369a1' }}>
+                        In: {rec.startTimeFormatted || '—'}
+                      </div>
+                      <div style={{ fontSize: 11.5, color: rec.endTimeFormatted === '—' ? '#94a3b8' : '#475569', fontWeight: 400 }}>
+                        Out: {rec.endTimeFormatted || '—'}
+                      </div>
+                    </td>
 
-                      {/* End Time */}
-                      <td style={{ padding: '10px 10px', fontWeight: 800, color: rec.endTimeFormatted === '—' ? '#94a3b8' : '#1d4ed8', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', fontSize: 12.5 }}>
-                        {rec.endTimeFormatted || '—'}
-                      </td>
+                    {/* Total Attendance */}
+                    <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                      <span style={{ fontSize: 12, fontWeight: 500, color: rec.status === 'ON_DUTY' ? '#1d4ed8' : '#334155', fontVariantNumeric: 'tabular-nums' }}>
+                        {rec.status === 'ON_DUTY' || rec.status === 'ON_BREAK'
+                          ? liveTimes.totalAttendance
+                          : normalizeDurationStr(rec.durationFormatted) || '—'}
+                      </span>
+                    </td>
 
-                      {/* Total Attendance */}
-                      <td style={{ padding: '10px 10px', whiteSpace: 'nowrap' }}>
-                        {rec.status === 'ON_DUTY' ? (
-                          <span style={{ color: '#1d4ed8', fontWeight: 800, fontFamily: 'ui-monospace, monospace', background: '#eff6ff', border: '1px solid #bfdbfe', padding: '3px 8px', borderRadius: 7, fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
-                            <Clock size={11} style={{ display: 'inline', marginRight: 3 }} />{liveTimes.totalAttendance}
-                          </span>
-                        ) : rec.status === 'ON_BREAK' ? (
-                          <span style={{ color: '#ea580c', fontWeight: 800, fontFamily: 'ui-monospace, monospace', background: '#fff7ed', border: '1px solid #fed7aa', padding: '3px 8px', borderRadius: 7, fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
-                            <Clock size={11} style={{ display: 'inline', marginRight: 3 }} />{liveTimes.totalAttendance}
-                          </span>
-                        ) : (
-                          <span style={{ color: isNotStarted ? '#94a3b8' : '#1e293b', fontWeight: 700, fontVariantNumeric: 'tabular-nums', fontSize: 12.5 }}>
-                            {normalizeDurationStr(rec.durationFormatted) || '—'}
-                          </span>
-                        )}
-                      </td>
+                    {/* Break Time */}
+                    <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                      <span
+                        onClick={() => breakCount > 0 && setBreakModalRecord(rec)}
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 500,
+                          color: '#c2410c',
+                          fontVariantNumeric: 'tabular-nums',
+                          cursor: breakCount > 0 ? 'pointer' : 'default',
+                          textDecoration: breakCount > 0 ? 'underline' : 'none',
+                        }}
+                        title={breakCount > 0 ? 'Click to view break breakdown' : ''}
+                      >
+                        {rec.status === 'ON_BREAK'
+                          ? liveTimes.totalBreak
+                          : isNotStarted
+                          ? '—'
+                          : normalizeDurationStr(rec.formattedBreakDuration) || '00h 00m'}
+                      </span>
+                      {breakCount > 0 && (
+                        <div style={{ fontSize: 10, color: '#ea580c', fontWeight: 400 }}>
+                          ({breakCount} breaks)
+                        </div>
+                      )}
+                    </td>
 
-                      {/* Break Count */}
-                      <td style={{ padding: '10px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                        {isNotStarted ? (
-                          <span style={{ color: '#94a3b8' }}>—</span>
-                        ) : breakCount > 0 ? (
+                    {/* Actual Work */}
+                    <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                      <span style={{ fontSize: 12, fontWeight: 500, color: rec.status === 'ON_DUTY' ? '#15803d' : '#0369a1', fontVariantNumeric: 'tabular-nums' }}>
+                        {rec.status === 'ON_DUTY' || rec.status === 'ON_BREAK'
+                          ? liveTimes.actualWork
+                          : isNotStarted
+                          ? '—'
+                          : normalizeDurationStr(rec.formattedActualWork || rec.durationFormatted) || '00h 00m'}
+                      </span>
+                    </td>
+
+                    {/* Status */}
+                    <td style={{ padding: '12px 14px' }}>
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 5,
+                          padding: '3px 8px',
+                          borderRadius: 6,
+                          fontSize: 11,
+                          fontWeight: 500,
+                          background: badge.bg,
+                          color: badge.color,
+                          border: `1px solid ${badge.border}`,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: '50%',
+                            background: badge.dot,
+                          }}
+                        />
+                        {badge.label}
+                      </span>
+                    </td>
+
+                    {/* Actions */}
+                    <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
+                        {!isNotStarted && (
                           <button
-                            onClick={() => setBreakModalRecord(rec)}
-                            title="Click to view break breakdown"
+                            onClick={() => setDetailModalRecord(rec)}
+                            title="View record details"
                             style={{
-                              background: '#fff7ed',
-                              border: '1px solid #fed7aa',
-                              color: '#ea580c',
-                              padding: '2px 8px',
-                              borderRadius: 12,
-                              fontSize: 11.5,
-                              fontWeight: 800,
+                              height: 28,
+                              background: '#f8fafc',
+                              color: '#334155',
+                              border: '1px solid #cbd5e1',
+                              borderRadius: 6,
+                              padding: '0 8px',
+                              fontSize: 11,
+                              fontWeight: 500,
                               cursor: 'pointer',
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: 3,
-                              boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                              gap: 4,
                             }}
                           >
-                            <Coffee size={11} /> {breakCount}
+                            <FileText size={11} /> Details
                           </button>
-                        ) : (
-                          <span style={{ color: '#64748b', fontSize: 12, fontWeight: 700 }}>0</span>
                         )}
-                      </td>
-
-                      {/* Total Break Time */}
-                      <td style={{ padding: '10px 10px', whiteSpace: 'nowrap' }}>
-                        {rec.status === 'ON_BREAK' ? (
-                          <span style={{ color: '#ea580c', fontWeight: 800, fontFamily: 'ui-monospace, monospace', background: '#fff7ed', border: '1px solid #fed7aa', padding: '3px 8px', borderRadius: 7, fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
-                            <Coffee size={11} style={{ display: 'inline', marginRight: 3 }} />{liveTimes.totalBreak}
-                          </span>
-                        ) : isNotStarted ? (
-                          <span style={{ color: '#94a3b8' }}>—</span>
-                        ) : (
-                          <span style={{ color: breakCount > 0 ? '#ea580c' : '#64748b', fontWeight: breakCount > 0 ? 800 : 600, fontVariantNumeric: 'tabular-nums', fontSize: 12.5 }}>
-                            {normalizeDurationStr(rec.formattedBreakDuration) || '00h 00m'}
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Actual Working Hours */}
-                      <td style={{ padding: '10px 10px', whiteSpace: 'nowrap' }}>
-                        {rec.status === 'ON_DUTY' ? (
-                          <span style={{ color: '#15803d', fontWeight: 800, fontFamily: 'ui-monospace, monospace', background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '3px 8px', borderRadius: 7, fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
-                            <Zap size={11} style={{ display: 'inline', marginRight: 3 }} />{liveTimes.actualWork}
-                          </span>
-                        ) : rec.status === 'ON_BREAK' ? (
-                          <span style={{ color: '#ea580c', fontWeight: 800, fontFamily: 'ui-monospace, monospace', background: '#fff7ed', border: '1px solid #fed7aa', padding: '3px 8px', borderRadius: 7, fontSize: 12, fontVariantNumeric: 'tabular-nums' }} title="Working timer paused while on break">
-                            <Clock size={11} style={{ display: 'inline', marginRight: 3 }} />{liveTimes.actualWork}
-                          </span>
-                        ) : isNotStarted ? (
-                          <span style={{ color: '#94a3b8' }}>—</span>
-                        ) : (
-                          <span style={{ color: '#1d4ed8', fontWeight: 800, fontVariantNumeric: 'tabular-nums', fontSize: 12.5 }}>
-                            {normalizeDurationStr(rec.formattedActualWork || rec.durationFormatted) || '00h 00m'}
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Status Badge */}
-                      <td style={{ padding: '10px 10px', whiteSpace: 'nowrap' }}>
-                        <span
+                        <button
+                          onClick={() => handleOpenEmployeeHistory(rec.employeeId)}
+                          title="View full attendance history"
                           style={{
+                            height: 28,
+                            background: '#e0f2fe',
+                            color: '#0369a1',
+                            border: '1px solid #bae6fd',
+                            borderRadius: 6,
+                            padding: '0 8px',
+                            fontSize: 11,
+                            fontWeight: 500,
+                            cursor: 'pointer',
                             display: 'inline-flex',
                             alignItems: 'center',
-                            gap: 5,
-                            padding: '3px 9px',
-                            borderRadius: 14,
-                            fontSize: 11.5,
-                            fontWeight: 700,
-                            background: badge.bg,
-                            color: badge.color,
-                            border: `1px solid ${badge.border}`,
+                            gap: 4,
                           }}
                         >
-                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: badge.dot }} />
-                          {badge.label}
-                        </span>
-                      </td>
-
-                      {/* Actions Column (Properly Spaced Buttons) */}
-                      <td style={{ padding: '10px 14px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
-                          {/* Button 1: Breaks Button */}
-                          {!isNotStarted && (
-                            <button
-                              onClick={() => setBreakModalRecord(rec)}
-                              title="View full break details breakdown"
-                              style={{
-                                height: 30,
-                                background: '#fff7ed',
-                                color: '#ea580c',
-                                border: '1px solid #fed7aa',
-                                borderRadius: 7,
-                                padding: '0 8px',
-                                fontSize: 11.5,
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 3,
-                                transition: 'all 0.15s',
-                              }}
-                            >
-                              <Coffee size={11} /> Breaks
-                            </button>
-                          )}
-
-
-                          {/* Button 3: Details Button */}
-                          {!isNotStarted && (
-                            <button
-                              onClick={() => setDetailModalRecord(rec)}
-                              title="View complete record details"
-                              style={{
-                                height: 30,
-                                background: '#f8fafc',
-                                color: '#334155',
-                                border: `1px solid ${BORDER}`,
-                                borderRadius: 7,
-                                padding: '0 8px',
-                                fontSize: 11.5,
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 3,
-                                transition: 'all 0.15s',
-                              }}
-                            >
-                              <FileText size={11} /> Details
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
+                          <ArrowUpRight size={11} /> History
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
-      </div>
+      )}
 
       {/* ──── 5. View Break Details Modal ────────────────────────────────────────────────────────────────────────────── */}
       {breakModalRecord && (

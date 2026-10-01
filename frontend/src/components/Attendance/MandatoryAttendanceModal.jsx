@@ -365,22 +365,9 @@ export default function MandatoryAttendanceModal() {
       if (!isAttActiveOrDone) {
         // Attendance not started for today -> Step 1: Attendance Modal
         setCurrentStep('ATTENDANCE');
-      } else if (attData.status === 'COMPLETED') {
-        // Attendance completed -> Close modal
-        setCurrentStep('CLOSED');
       } else {
-        // Attendance active -> Check if at least 1 Todo task exists for today
-        try {
-          const res = await followupsAPI.getAll({ forMe: 'true', due: 'today' });
-          const list = res.data?.followups || [];
-          if (list.length === 0) {
-            setCurrentStep('TODO');
-          } else {
-            setCurrentStep('CLOSED');
-          }
-        } catch {
-          setCurrentStep('CLOSED');
-        }
+        // Attendance active or completed -> Close modal immediately
+        setCurrentStep('CLOSED');
       }
     } catch (err) {
       console.warn('[MandatoryCheckIn] Evaluation error:', err.message);
@@ -481,11 +468,11 @@ export default function MandatoryAttendanceModal() {
         setAttendanceSuccess(true);
         window.dispatchEvent(new CustomEvent('attendance-updated', { detail: res.data.attendance }));
 
-        // Immediately show "Create Todo Item" popup form
+        // Close modal immediately after clocking in so workspace opens cleanly
         setTimeout(() => {
           setClockingIn(false);
           setAttendanceSuccess(false);
-          setCurrentStep('TODO');
+          setCurrentStep('CLOSED');
         }, 500);
       } else {
         setAttendanceError(res.data?.message || 'Failed to start attendance. Please try again.');

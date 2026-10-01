@@ -637,48 +637,261 @@ function QuickTodoInputBar({ onCreated, currentUser }) {
   );
 }
 
-// ── Daily Todo Summary Widget ─────────────────────────────────────────────────
-function TodoSummaryWidget({ tasks, activeTab }) {
-  if (activeTab !== 'Todo') return null;
-
+// ── Task & Todo Summary KPI Widget (Reactbits Inspired 5 KPI Cards) ───────────
+function TaskSummaryWidget({ tasks, activeTab, priorityFilter, setPriorityFilter }) {
   const total = tasks.length;
   const completed = tasks.filter(t => t.status === 'done' || t.status === 'completed').length;
   const pending = tasks.filter(t => t.status === 'upcoming' || t.status === 'pending').length;
   const overdue = tasks.filter(t => t.status === 'upcoming' && new Date(t.scheduledAt) < new Date()).length;
   const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
 
+  const highCount = tasks.filter(t => t.priority === 'high').length;
+  const mediumCount = tasks.filter(t => t.priority === 'medium').length;
+  const lowCount = tasks.filter(t => t.priority === 'low').length;
+
   return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-      gap: 12,
-      marginBottom: 20
-    }}>
-      <div style={{ background: '#fff', border: `1px solid ${COLOR_BORDER}`, borderRadius: 12, padding: '14px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-        <div style={{ fontSize: 12, color: COLOR_MUTED, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Todos</div>
-        <div style={{ fontSize: 24, fontWeight: 700, color: COLOR_DEEP_BLUE, marginTop: 4 }}>{total}</div>
-        <div style={{ fontSize: 11.5, color: COLOR_MUTED, marginTop: 2 }}>In active view</div>
-      </div>
-
-      <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 12, padding: '14px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-        <div style={{ fontSize: 12, color: '#047857', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Completed</div>
-        <div style={{ fontSize: 24, fontWeight: 700, color: '#065f46', marginTop: 4 }}>{completed}</div>
-        <div style={{ fontSize: 11.5, color: '#059669', marginTop: 2 }}>{rate}% completion rate</div>
-      </div>
-
-      <div style={{ background: '#fff7ed', border: '1px solid #ffedd5', borderRadius: 12, padding: '14px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-        <div style={{ fontSize: 12, color: '#c2410c', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Upcoming / Pending</div>
-        <div style={{ fontSize: 24, fontWeight: 700, color: '#9a3412', marginTop: 4 }}>{pending}</div>
-        <div style={{ fontSize: 11.5, color: '#ea580c', marginTop: 2 }}>Action items remaining</div>
-      </div>
-
-      <div style={{ background: overdue > 0 ? '#fef2f2' : '#f8fafc', border: `1px solid ${overdue > 0 ? '#fecaca' : '#e2e8f0'}`, borderRadius: 12, padding: '14px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-        <div style={{ fontSize: 12, color: overdue > 0 ? '#b91c1c' : COLOR_MUTED, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Overdue Alert</div>
-        <div style={{ fontSize: 24, fontWeight: 700, color: overdue > 0 ? '#991b1b' : COLOR_DEEP_BLUE, marginTop: 4 }}>{overdue}</div>
-        <div style={{ fontSize: 11.5, color: overdue > 0 ? '#dc2626' : COLOR_MUTED, marginTop: 2 }}>
-          {overdue > 0 ? '⚠️ Needs immediate action' : 'No overdue items'}
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 mb-5">
+      {/* 1. Total Tasks Card */}
+      <div 
+        onClick={() => setPriorityFilter && setPriorityFilter('')}
+        style={{
+          background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+          border: `1.5px solid ${priorityFilter === '' ? COLOR_BLUE_GREEN : COLOR_BORDER}`,
+          borderRadius: 14,
+          padding: '16px 18px',
+          boxShadow: '0 3px 10px rgba(2, 48, 71, 0.04)',
+          cursor: 'pointer',
+          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+        }}
+        onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+        onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 11.5, color: COLOR_MUTED, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px' }}>
+            Total {activeTab === 'Todo' ? 'Todos' : 'Tasks'}
+          </span>
+          <div style={{ width: 34, height: 34, borderRadius: 10, background: '#e0f2fe', color: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+            </svg>
+          </div>
+        </div>
+        <div style={{ fontSize: 26, fontWeight: 800, color: COLOR_DEEP_BLUE, marginTop: 8 }}>{total}</div>
+        <div style={{ fontSize: 11.5, color: COLOR_MUTED, marginTop: 3, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span>Active items in view</span>
         </div>
       </div>
+
+      {/* 2. Completed Card */}
+      <div style={{
+        background: 'linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%)',
+        border: '1.5px solid #a7f3d0',
+        borderRadius: 14,
+        padding: '16px 18px',
+        boxShadow: '0 3px 10px rgba(16, 185, 129, 0.06)',
+        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+      }}
+      onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+      onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 11.5, color: '#047857', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px' }}>Completed</span>
+          <div style={{ width: 34, height: 34, borderRadius: 10, background: '#d1fae5', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </div>
+        </div>
+        <div style={{ fontSize: 26, fontWeight: 800, color: '#065f46', marginTop: 8 }}>{completed}</div>
+        <div style={{ fontSize: 11.5, color: '#059669', marginTop: 3, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+          <span>{rate}% finish rate</span>
+        </div>
+      </div>
+
+      {/* 3. Upcoming / Pending Card */}
+      <div style={{
+        background: 'linear-gradient(135deg, #ffffff 0%, #fff7ed 100%)',
+        border: '1.5px solid #fed7aa',
+        borderRadius: 14,
+        padding: '16px 18px',
+        boxShadow: '0 3px 10px rgba(251, 133, 0, 0.06)',
+        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+      }}
+      onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+      onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 11.5, color: '#c2410c', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px' }}>Upcoming / Pending</span>
+          <div style={{ width: 34, height: 34, borderRadius: 10, background: '#ffedd5', color: '#ea580c', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </div>
+        </div>
+        <div style={{ fontSize: 26, fontWeight: 800, color: '#9a3412', marginTop: 8 }}>{pending}</div>
+        <div style={{ fontSize: 11.5, color: '#ea580c', marginTop: 3, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>In progress & scheduled</span>
+        </div>
+      </div>
+
+      {/* 4. Overdue Alert Card */}
+      <div style={{
+        background: overdue > 0 ? 'linear-gradient(135deg, #fff5f5 0%, #fef2f2 100%)' : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+        border: `1.5px solid ${overdue > 0 ? '#fecaca' : '#e2e8f0'}`,
+        borderRadius: 14,
+        padding: '16px 18px',
+        boxShadow: overdue > 0 ? '0 3px 12px rgba(239, 68, 68, 0.12)' : '0 3px 10px rgba(2, 48, 71, 0.04)',
+        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+      }}
+      onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+      onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 11.5, color: overdue > 0 ? '#b91c1c' : COLOR_MUTED, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px' }}>Overdue Alert</span>
+          <div style={{ width: 34, height: 34, borderRadius: 10, background: overdue > 0 ? '#fee2e2' : '#f1f5f9', color: overdue > 0 ? '#dc2626' : '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </div>
+        </div>
+        <div style={{ fontSize: 26, fontWeight: 800, color: overdue > 0 ? '#991b1b' : COLOR_DEEP_BLUE, marginTop: 8 }}>{overdue}</div>
+        <div style={{ fontSize: 11.5, color: overdue > 0 ? '#dc2626' : COLOR_MUTED, marginTop: 3, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span>{overdue > 0 ? 'Urgent attention required' : 'All tasks on schedule'}</span>
+        </div>
+      </div>
+
+      {/* 5. Priority Session Breakdown Card */}
+      <div style={{
+        background: 'linear-gradient(135deg, #ffffff 0%, #faf5ff 100%)',
+        border: `1.5px solid ${priorityFilter ? COLOR_ORANGE : '#e9d5ff'}`,
+        borderRadius: 14,
+        padding: '16px 18px',
+        boxShadow: '0 3px 10px rgba(147, 51, 234, 0.05)',
+        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between'
+      }}
+      onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+      onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+          <span style={{ fontSize: 11.5, color: '#7e22ce', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px' }}>Priority Session</span>
+          <div style={{ width: 34, height: 34, borderRadius: 10, background: '#f3e8ff', color: '#9333ea', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+          <button
+            type="button"
+            onClick={() => setPriorityFilter && setPriorityFilter(priorityFilter === 'high' ? '' : 'high')}
+            style={{
+              flex: 1,
+              padding: '5px 6px',
+              borderRadius: 8,
+              border: '1px solid #fecaca',
+              background: priorityFilter === 'high' ? '#dc2626' : '#fef2f2',
+              color: priorityFilter === 'high' ? '#fff' : '#b91c1c',
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 4,
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+            <span>{highCount}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setPriorityFilter && setPriorityFilter(priorityFilter === 'medium' ? '' : 'medium')}
+            style={{
+              flex: 1,
+              padding: '5px 6px',
+              borderRadius: 8,
+              border: '1px solid #fed7aa',
+              background: priorityFilter === 'medium' ? '#c2410c' : '#fff7ed',
+              color: priorityFilter === 'medium' ? '#fff' : '#c2410c',
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 4,
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            <span>{mediumCount}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setPriorityFilter && setPriorityFilter(priorityFilter === 'low' ? '' : 'low')}
+            style={{
+              flex: 1,
+              padding: '5px 6px',
+              borderRadius: 8,
+              border: '1px solid #a7f3d0',
+              background: priorityFilter === 'low' ? '#047857' : '#ecfdf5',
+              color: priorityFilter === 'low' ? '#fff' : '#047857',
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 4,
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
+            <span>{lowCount}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── AutoScroll Name Component for Long Assignee & Assignor Names ─────────────
+function AutoScrollName({ prefix = '', name = '', className = '', style = {}, maxPx = 135 }) {
+  const fullText = prefix ? `${prefix} ${name}` : name;
+  const isLong = fullText.length > 15;
+
+  return (
+    <div 
+      className={`relative overflow-hidden whitespace-nowrap ${className}`}
+      style={{ maxWidth: maxPx, width: '100%', minWidth: 0, ...style }}
+      title={fullText}
+    >
+      <style>{`
+        @keyframes scroll-name-anim {
+          0%, 20% { transform: translateX(0%); }
+          80%, 100% { transform: translateX(min(0px, calc(-100% + ${maxPx}px))); }
+        }
+        .animate-autoscroll-name {
+          display: inline-block;
+          white-space: nowrap;
+          animation: scroll-name-anim 6s ease-in-out infinite alternate;
+        }
+        .animate-autoscroll-name:hover {
+          animation-play-state: paused;
+        }
+      `}</style>
+      <span className={isLong ? "animate-autoscroll-name" : "truncate block"}>
+        {prefix ? <span style={{ fontWeight: 400, color: '#64748b' }}>{prefix} </span> : null}
+        <span style={{ fontWeight: 600 }}>{name}</span>
+      </span>
     </div>
   );
 }
@@ -773,21 +986,13 @@ function TodoCard({ task, onEdit, onComplete, onDelete, canDelete, isLocked, mar
     >
       {/* Top Header: Assignee Profile & Priority */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
           {/* Real Avatar Profile */}
           <UserAvatar userObj={assigneeObj} nameFallback={assigneeName} size={38} />
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: COLOR_DEEP_BLUE }}>
-              {assigneeName}
-            </div>
+          <div style={{ minWidth: 0, overflow: 'hidden', flex: 1 }}>
+            <AutoScrollName name={assigneeName} style={{ fontSize: 14, color: COLOR_DEEP_BLUE }} maxPx={135} />
             {assignedByName && (
-              <div style={{ fontSize: 11.5, color: COLOR_MUTED, display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                Assigned by:
-                {typeof assignedByObj === 'object' && assignedByObj?.avatar ? (
-                  <UserAvatar userObj={assignedByObj} nameFallback={assignedByName} size={18} />
-                ) : null}
-                <span style={{ fontWeight: 500, color: '#334155' }}>{assignedByName}</span>
-              </div>
+              <AutoScrollName prefix="Assigned by:" name={assignedByName} style={{ fontSize: 11.5, color: COLOR_MUTED }} maxPx={135} />
             )}
           </div>
         </div>
@@ -806,8 +1011,13 @@ function TodoCard({ task, onEdit, onComplete, onDelete, canDelete, isLocked, mar
           gap: 5,
           textTransform: 'capitalize'
         }}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: priorityMeta.dot }} />
-          {task.priority === 'high' ? ' High' : task.priority === 'medium' ? '⚡ Medium' : '🌱 Low'}
+          {task.priority === 'high' ? (
+            <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg> High</>
+          ) : task.priority === 'medium' ? (
+            <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Medium</>
+          ) : (
+            <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.5"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg> Low</>
+          )}
         </span>
       </div>
 
@@ -2245,9 +2455,24 @@ export default function Task() {
     }
   }, [getTabFromLocationOrQuery, activeTab]);
 
+  const [historyModeMap, setHistoryModeMap] = useState({
+    Tasks: false,
+    Todo: false,
+    'Call Followups': false,
+  });
+
+  const historyMode = !!historyModeMap[activeTab];
+
+  const setHistoryMode = (valOrFn) => {
+    setHistoryModeMap(prev => {
+      const currentVal = !!prev[activeTab];
+      const nextVal = typeof valOrFn === 'function' ? valOrFn(currentVal) : valOrFn;
+      return { ...prev, [activeTab]: nextVal };
+    });
+  };
+
   const handleTabSwitch = (tab) => {
     setActiveTab(tab);
-    setHistoryMode(false);
     if (tab === 'Todo') {
       navigate('/todo');
     } else if (tab === 'Call Followups') {
@@ -2263,7 +2488,6 @@ export default function Task() {
 
   const [dueFilter, setDueFilter] = useState(null);
   const [statusFilter, setStatusFilter] = useState(['pending', 'late', 'cancelled']);
-  const [historyMode, setHistoryMode] = useState(false);
   const [viewMode, setViewMode] = useState('cards');
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -2768,7 +2992,8 @@ export default function Task() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${COLOR_BORDER}`, marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             {['Tasks', 'Todo', 'Call Followups'].map(tab => {
-              const isActive = !historyMode && activeTab === tab;
+              const isActive = activeTab === tab;
+              const isTabHistoryOn = !!historyModeMap[tab];
               const tabLabel = tab === 'Tasks' ? 'Tasks' : tab === 'Todo' ? 'Todo List & Actions' : 'Call Followups';
               return (
                 <button
@@ -2805,13 +3030,18 @@ export default function Task() {
                       <polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
                     </svg>
                   )}
-                  {tabLabel}
+                  <span>{tabLabel}</span>
+                  {isTabHistoryOn && (
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                      History
+                    </span>
+                  )}
                 </button>
               );
             })}
           </div>
 
-          {/* History tab */}
+          {/* Section-Specific History Button */}
           <button
             onClick={() => setHistoryMode(p => !p)}
             style={{
@@ -2820,11 +3050,12 @@ export default function Task() {
               gap: 7,
               padding: '11px 18px',
               border: 'none',
-              background: 'none',
+              background: historyMode ? '#fef3c7' : 'none',
+              borderRadius: '8px 8px 0 0',
               cursor: 'pointer',
-              fontSize: 15,
-              fontWeight: 500,
-              color: historyMode ? COLOR_DEEP_BLUE : COLOR_MUTED,
+              fontSize: 14,
+              fontWeight: 600,
+              color: historyMode ? '#92400e' : COLOR_MUTED,
               borderBottom: historyMode ? `3px solid ${COLOR_AMBER}` : '3px solid transparent',
               marginBottom: -1,
               transition: 'all 0.15s ease'
@@ -2833,31 +3064,42 @@ export default function Task() {
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" />
             </svg>
-            Completed History
+            <span>
+              Completed {activeTab === 'Todo' ? 'Todo' : activeTab === 'Call Followups' ? 'Follow-up' : 'Task'} History
+            </span>
+            {historyMode && (
+              <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded-md bg-amber-600 text-white">
+                ON
+              </span>
+            )}
           </button>
         </div>
 
         {historyMode && (
-          <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 10, padding: '11px 16px', marginBottom: 16, fontSize: 13, color: '#065f46', fontWeight: 400, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span>Showing completed tasks. To reopen any task, edit it and update status to Upcoming.</span>
+          <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 10, padding: '11px 16px', marginBottom: 16, fontSize: 13, color: '#065f46', fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-emerald-800">📜 Completed {activeTab === 'Todo' ? 'Todos' : activeTab === 'Call Followups' ? 'Call Follow-ups' : 'Tasks'} History Mode:</span>
+              <span className="text-emerald-700 font-normal">Showing completed items for {activeTab === 'Todo' ? 'Todos' : activeTab === 'Call Followups' ? 'Call Follow-ups' : 'Tasks'}.</span>
+            </div>
+            <button
+              onClick={() => setHistoryMode(false)}
+              className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white transition-all shadow-xs shrink-0"
+            >
+              Show Active {activeTab === 'Todo' ? 'Todos' : activeTab === 'Call Followups' ? 'Call Follow-ups' : 'Tasks'}
+            </button>
           </div>
         )}
 
-        {activeTab === 'Todo' ? (
-          <TodoList
-            tasks={tasks}
-            fetchTasks={fetchTasks}
-            onEditTask={setEditingTask}
-            onCompleteTask={handleMarkComplete}
-            onDeleteTask={handleDelete}
-            historyMode={historyMode}
-            markingId={markingCompleteId}
-            deletingId={deletingTaskId}
-          />
-        ) : (
-          <>
-            {/* Filters bar */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap', background: '#fff', padding: '12px 18px', borderRadius: 10, border: `1px solid ${COLOR_BORDER}` }}>
+        {/* 📊 Reactbits 5 KPI Summary Stat Cards (Total Tasks, Completed, Upcoming, Overdue Alert, Priority Session) */}
+        <TaskSummaryWidget
+          tasks={tasks}
+          activeTab={activeTab}
+          priorityFilter={priorityFilter}
+          setPriorityFilter={setPriorityFilter}
+        />
+
+        {/* Filters bar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap', background: '#fff', padding: '12px 18px', borderRadius: 10, border: `1px solid ${COLOR_BORDER}` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 14, color: COLOR_MUTED, fontWeight: 500 }}>Filter For:</span>
             <button
@@ -3026,65 +3268,36 @@ export default function Task() {
 
           <div style={{ flex: 1 }} />
 
-          {/* View mode toggle & total count */}
+          {/* Total count badge */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${COLOR_BORDER}`, borderRadius: 8, overflow: 'hidden', background: '#fff' }}>
-              <button
-                onClick={() => setViewMode('cards')}
-                title="Card Grid View"
-                style={{
-                  padding: '6px 12px',
-                  border: 'none',
-                  background: viewMode === 'cards' ? COLOR_SKY_SURFACE : 'transparent',
-                  color: viewMode === 'cards' ? COLOR_BLUE_GREEN : COLOR_MUTED,
-                  fontWeight: viewMode === 'cards' ? 600 : 400,
-                  fontSize: 13,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 5
-                }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
-                  <rect x="14" y="14" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" />
-                </svg>
-                Cards
-              </button>
-              <button
-                onClick={() => setViewMode('table')}
-                title="Table View"
-                style={{
-                  padding: '6px 12px',
-                  border: 'none',
-                  background: viewMode === 'table' ? COLOR_SKY_SURFACE : 'transparent',
-                  color: viewMode === 'table' ? COLOR_BLUE_GREEN : COLOR_MUTED,
-                  fontWeight: viewMode === 'table' ? 600 : 400,
-                  fontSize: 13,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 5
-                }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
-                  <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
-                </svg>
-                Table
-              </button>
-            </div>
-
             <div style={{ fontSize: 13, color: COLOR_MUTED, fontWeight: 400 }}>
-              <span style={{ color: COLOR_DEEP_BLUE, fontWeight: 500 }}>{totalItems}</span> {activeTab === 'Todo' ? 'todos' : 'tasks'} found
+              <span style={{ color: COLOR_DEEP_BLUE, fontWeight: 500 }}>{tasks.length}</span> {activeTab === 'Todo' ? 'todos' : 'tasks'} found
             </div>
           </div>
         </div>
 
-        {/* Main Container: Cards View vs Table View (4 Columns Layout) */}
-        {viewMode === 'cards' && !loading && paginatedTasks.length > 0 ? (
+        {activeTab === 'Todo' ? (
+          <TodoList
+            tasks={tasks}
+            fetchTasks={fetchTasks}
+            onEditTask={setEditingTask}
+            onCompleteTask={handleMarkComplete}
+            onDeleteTask={handleDelete}
+            historyMode={historyMode}
+            markingId={markingCompleteId}
+            deletingId={deletingTaskId}
+            priorityFilter={priorityFilter}
+            setPriorityFilter={setPriorityFilter}
+          />
+        ) : (
+          <>
+
+
+
+        {/* Main Container: Card Grid View (4 Columns Layout) */}
+        {!loading && paginatedTasks.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 16 }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {paginatedTasks.map(task => (
                 <TodoCard
                   key={task._id}
@@ -3209,460 +3422,23 @@ export default function Task() {
               </div>
             )}
           </div>
+        ) : loading ? (
+          <div style={{ background: '#fff', border: `1px solid ${COLOR_BORDER}`, borderRadius: 12, padding: '40px 20px', textAlign: 'center' }}>
+            <OrangeLoadingState />
+          </div>
         ) : (
-          /* Main Table Container */
-          <div style={{ background: '#fff', border: `1px solid ${COLOR_BORDER}`, borderRadius: 12, overflow: 'hidden', boxShadow: '0 2px 10px rgba(2, 48, 71, 0.03)' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-              <thead>
-                <tr style={{ background: '#f8fafc', borderBottom: `1px solid ${COLOR_BORDER}` }}>
-                  {[
-                    ...(activeTab === 'Tasks' ? [{ label: 'Type / Lead', field: 'lead' }] : []),
-                    ...(activeTab === 'Call Followups' ? [{ label: 'Lead', field: 'lead' }] : []),
-                    { label: activeTab === 'Todo' ? 'Todo Description' : 'Description', field: 'description' },
-                    { label: 'Assignee', field: 'assignee' },
-                    { label: 'Assigned By', field: 'assignedBy' },
-                    { label: 'Status', field: 'status' },
-                    { label: 'Due Date', field: 'dueDate' },
-                    { label: 'Priority', field: 'priority' },
-                    { label: 'Actions', field: null },
-                  ].map(col => (
-                    <th
-                      key={col.label}
-                      onClick={() => col.field && handleSort(col.field)}
-                      style={{
-                        padding: '14px 18px',
-                        fontSize: 13,
-                        fontWeight: 500,
-                        color: sortField === col.field ? COLOR_BLUE_GREEN : COLOR_MUTED,
-                        cursor: col.field ? 'pointer' : 'default',
-                        userSelect: 'none',
-                        whiteSpace: 'nowrap'
-                      }}
-                    >
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        {col.label}
-                        {col.field && (
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            {sortField === col.field && sortDir === 'asc' ? (
-                              <polyline points="18 15 12 9 6 15" />
-                            ) : (
-                              <polyline points="6 9 12 15 18 9" />
-                            )}
-                          </svg>
-                        )}
-                      </span>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={activeTab === 'Todo' ? 7 : 8} style={{ padding: '20px 0', textAlign: 'center' }}>
-                      <OrangeLoadingState />
-                    </td>
-                  </tr>
-                ) : paginatedTasks.length === 0 ? (
-                  <tr>
-                    <td colSpan={activeTab === 'Todo' ? 7 : 8} style={{ padding: '80px 20px', textAlign: 'center' }}>
-                      <div style={{ fontSize: 18, color: COLOR_DEEP_BLUE, fontWeight: 500 }}>
-                        No {activeTab === 'Todo' ? 'Todos' : activeTab === 'Call Followups' ? 'Call Follow-ups' : 'Tasks'} Found
-                      </div>
-                      <p style={{ fontSize: 14, color: COLOR_MUTED, margin: '6px 0 0', fontWeight: 400 }}>
-                        {historyMode
-                          ? `No completed ${activeTab === 'Todo' ? 'todos' : 'tasks'} in history`
-                          : `You're all caught up! Create a new ${activeTab === 'Todo' ? 'todo' : 'task'} or upload an Excel/CSV list.`}
-                      </p>
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedTasks.map((task, i) => {
-                    const locked = isTaskLocked(task.scheduledAt);
-                    const isLate = !locked && task.status === 'upcoming' && new Date(task.scheduledAt) < new Date();
-                    const displayKey = locked ? 'locked' : (isLate ? 'late' : (task.status || 'upcoming'));
-                    const statusMeta = STATUS_CONFIG[displayKey] || STATUS_CONFIG.upcoming;
-                    const priorityMeta = PRIORITY_CONFIG[task.priority || 'medium'] || PRIORITY_CONFIG.medium;
-
-                    return (
-                      <tr
-                        key={task._id || i}
-                        style={{ borderBottom: `1px solid #f1f5f9`, transition: 'background 0.1s ease' }}
-                        onMouseEnter={e => e.currentTarget.style.background = '#f8fbfe'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                      >
-                        {/* Type / Lead for All Tasks Tab */}
-                        {activeTab === 'Tasks' && (
-                          <td style={{ padding: '14px 18px', fontSize: 14, color: COLOR_DEEP_BLUE }}>
-                            {task.type === 'todo' ? (
-                              <span style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 5,
-                                padding: '3px 9px',
-                                borderRadius: 6,
-                                background: '#e0f2fe',
-                                color: '#0369a1',
-                                fontSize: 12,
-                                fontWeight: 500,
-                                border: '1px solid #bae6fd'
-                              }}>
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                  <polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-                                </svg>
-                                Todo
-                              </span>
-                            ) : task.lead?._id ? (
-                              <div
-                                onClick={() => navigate(`/leads/${task.lead._id}`)}
-                                style={{ cursor: 'pointer' }}
-                                title="Open lead details"
-                              >
-                                <div style={{ fontWeight: 500, color: COLOR_BLUE_GREEN, textDecoration: 'none' }}>
-                                  {task.lead.name}
-                                </div>
-                                <div style={{ fontSize: 13, color: COLOR_MUTED, marginTop: 2 }}>{task.lead.phone}</div>
-                              </div>
-                            ) : (
-                              <span style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 5,
-                                padding: '3px 9px',
-                                borderRadius: 6,
-                                background: '#fef3c7',
-                                color: '#92400e',
-                                fontSize: 12,
-                                fontWeight: 500,
-                                border: '1px solid #fde68a'
-                              }}>
-                                📞 Call Follow-up
-                              </span>
-                            )}
-                          </td>
-                        )}
-
-                        {/* Lead for Call Followups Tab */}
-                        {activeTab === 'Call Followups' && (
-                          <td style={{ padding: '14px 18px', fontSize: 14, color: COLOR_DEEP_BLUE }}>
-                            {task.lead?._id ? (
-                              <div
-                                onClick={() => navigate(`/leads/${task.lead._id}`)}
-                                style={{ cursor: 'pointer' }}
-                                title="Open lead details"
-                              >
-                                <div style={{ fontWeight: 500, color: COLOR_BLUE_GREEN, textDecoration: 'none' }}>
-                                  {task.lead.name}
-                                </div>
-                                <div style={{ fontSize: 13, color: COLOR_MUTED, marginTop: 2 }}>{task.lead.phone}</div>
-                              </div>
-                            ) : (
-                              <div style={{ color: COLOR_MUTED }}>—</div>
-                            )}
-                          </td>
-                        )}
-
-                        {/* Description */}
-                        <td style={{ padding: '14px 18px', fontSize: 14, color: '#334155', maxWidth: 280 }}>
-                          <div
-                            onClick={() => setDescriptionPopup(task.title || task.note || task.description || '')}
-                            style={{
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                              cursor: 'pointer',
-                              fontWeight: 400
-                            }}
-                            title="Click to view complete details"
-                          >
-                            {task.title || task.note || task.description || '—'}
-                          </div>
-                        </td>
-
-                        {/* Assignee */}
-                        <td style={{ padding: '14px 18px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <UserAvatar userObj={task.assignedTo || task.assignee} nameFallback="Me" size={28} />
-                            <span style={{ fontSize: 14, color: COLOR_DEEP_BLUE, fontWeight: 400 }}>
-                              {task.assignedTo?.name || task.assignee?.name || 'Me'}
-                            </span>
-                          </div>
-                        </td>
-
-                        {/* Assigned By */}
-                        <td style={{ padding: '14px 18px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            {(task.assignedBy?.name || task.assignedBy === 'all' || task.assignedBy === 'All') ? (
-                              <>
-                                <UserAvatar userObj={typeof task.assignedBy === 'object' ? task.assignedBy : null} nameFallback={(task.assignedBy?.name || task.assignedBy) === 'all' ? 'All' : 'User'} size={28} />
-                                <span style={{ fontSize: 14, color: COLOR_DEEP_BLUE, fontWeight: 400 }}>
-                                  {((task.assignedBy?.name || task.assignedBy) === 'all' || (task.assignedBy?.name || task.assignedBy) === 'All')
-                                    ? 'All'
-                                    : task.assignedBy.name}
-                                </span>
-                              </>
-                            ) : (
-                              <span style={{ fontSize: 14, color: COLOR_MUTED }}>—</span>
-                            )}
-                          </div>
-                        </td>
-
-                        {/* Status Badge */}
-                        <td style={{ padding: '14px 18px' }}>
-                          <span style={{
-                            fontSize: 12,
-                            fontWeight: 500,
-                            padding: '4px 10px',
-                            borderRadius: 6,
-                            background: statusMeta.bg,
-                            color: statusMeta.text,
-                            border: `1px solid ${statusMeta.border}`,
-                            display: 'inline-block',
-                            whiteSpace: 'nowrap'
-                          }}>
-                            {locked
-                              ? `Locked (${new Date(task.scheduledAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })})`
-                              : (isLate ? 'Late' : (statusMeta.label || task.status))}
-                          </span>
-                        </td>
-
-                        {/* Due Date */}
-                        <td style={{ padding: '14px 18px', fontSize: 14, color: COLOR_DEEP_BLUE, whiteSpace: 'nowrap' }}>
-                          {task.scheduledAt ? formatISTDateTime(task.scheduledAt) : '—'}
-                        </td>
-
-                        {/* Priority Badge */}
-                        <td style={{ padding: '14px 18px' }}>
-                          <span style={{
-                            fontSize: 12,
-                            fontWeight: 500,
-                            padding: '4px 10px',
-                            borderRadius: 6,
-                            background: priorityMeta.bg,
-                            color: priorityMeta.text,
-                            border: `1px solid ${priorityMeta.border}`,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 6,
-                            textTransform: 'capitalize'
-                          }}>
-                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: priorityMeta.dot }} />
-                            {task.priority || 'low'}
-                          </span>
-                        </td>
-
-                        {/* Actions */}
-                        <td style={{ padding: '14px 18px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            {/* Edit or View */}
-                            <button
-                              title={canEditTask(task) ? 'Edit Task' : 'View Task Details'}
-                              onClick={() => setEditingTask(task)}
-                              style={{
-                                background: '#fff',
-                                border: `1px solid ${COLOR_BORDER}`,
-                                borderRadius: 6,
-                                padding: '6px 8px',
-                                cursor: 'pointer',
-                                color: COLOR_DEEP_BLUE,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                transition: 'all 0.15s ease'
-                              }}
-                            >
-                              {canEditTask(task) ? (
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={COLOR_BLUE_GREEN} strokeWidth="2">
-                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                                </svg>
-                              ) : (
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={COLOR_BLUE_GREEN} strokeWidth="2">
-                                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
-                                </svg>
-                              )}
-                            </button>
-
-                            {/* Complete button */}
-                            {!historyMode && (
-                              <button
-                                title={locked ? `Locked until ${new Date(task.scheduledAt).toLocaleDateString('en-IN')}` : 'Mark Complete'}
-                                onClick={() => !locked && handleMarkComplete(task._id)}
-                                disabled={locked || markingCompleteId === task._id}
-                                style={{
-                                  background: '#fff',
-                                  border: `1px solid ${locked ? '#e2e8f0' : '#a7f3d0'}`,
-                                  borderRadius: 6,
-                                  padding: '6px 8px',
-                                  cursor: locked ? 'not-allowed' : 'pointer',
-                                  color: locked ? '#94a3b8' : '#059669',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  opacity: (locked || markingCompleteId === task._id) ? 0.5 : 1,
-                                  transition: 'all 0.15s ease'
-                                }}
-                              >
-                                {locked ? (
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                                  </svg>
-                                ) : (
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                    <polyline points="20 6 9 17 4 12" />
-                                  </svg>
-                                )}
-                              </button>
-                            )}
-
-                            {/* Delete button (Admin / Manager) */}
-                            {canDelete && (
-                              <button
-                                title="Delete Task"
-                                onClick={() => handleDelete(task._id)}
-                                disabled={deletingTaskId === task._id}
-                                style={{
-                                  background: '#fff',
-                                  border: '1px solid #fecaca',
-                                  borderRadius: 6,
-                                  padding: '6px 8px',
-                                  cursor: 'pointer',
-                                  color: '#dc2626',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  opacity: deletingTaskId === task._id ? 0.5 : 1,
-                                  transition: 'all 0.15s ease'
-                                }}
-                              >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <polyline points="3 6 5 6 21 6" />
-                                  <path d="M19 6l-1 14H6L5 6" />
-                                  <path d="M10 11v6M14 11v6" />
-                                  <path d="M9 6V4h6v2" />
-                                </svg>
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-
-            {/* ── Pagination Bar (1 of N, Previous / Next) ────────────────────────── */}
-            {!loading && totalItems > 0 && (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '14px 20px',
-                background: '#fff',
-                borderTop: `1px solid ${COLOR_BORDER}`,
-                flexWrap: 'wrap',
-                gap: 12
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                  <span style={{ fontSize: 13, color: COLOR_MUTED, fontWeight: 400 }}>
-                    Showing <strong style={{ color: COLOR_DEEP_BLUE, fontWeight: 500 }}>{startIndex + 1}</strong> to <strong style={{ color: COLOR_DEEP_BLUE, fontWeight: 500 }}>{endIndex}</strong> of <strong style={{ color: COLOR_DEEP_BLUE, fontWeight: 500 }}>{totalItems}</strong> {activeTab === 'Todo' ? 'todos' : 'tasks'}
-                  </span>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 13, color: COLOR_MUTED, fontWeight: 400 }}>Rows:</span>
-                    <select
-                      value={pageSize}
-                      onChange={e => {
-                        setPageSize(Number(e.target.value));
-                        setCurrentPage(1);
-                      }}
-                      style={{
-                        padding: '4px 8px',
-                        border: `1px solid ${COLOR_BORDER}`,
-                        borderRadius: 6,
-                        fontSize: 13,
-                        background: '#fff',
-                        color: COLOR_DEEP_BLUE,
-                        outline: 'none',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <option value={10}>10</option>
-                      <option value={20}>20</option>
-                      <option value={50}>50</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  {/* Previous Button */}
-                  <button
-                    onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
-                    disabled={currentPage <= 1}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      padding: '6px 14px',
-                      borderRadius: 6,
-                      border: `1px solid ${currentPage <= 1 ? '#e2e8f0' : COLOR_BORDER}`,
-                      background: currentPage <= 1 ? '#f8fafc' : '#fff',
-                      color: currentPage <= 1 ? '#94a3b8' : COLOR_DEEP_BLUE,
-                      fontSize: 13,
-                      fontWeight: 500,
-                      cursor: currentPage <= 1 ? 'not-allowed' : 'pointer',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <polyline points="15 18 9 12 15 6" />
-                    </svg>
-                    Previous
-                  </button>
-
-                  {/* Page Indicator (1 of N) */}
-                  <div style={{
-                    fontSize: 13,
-                    color: COLOR_DEEP_BLUE,
-                    padding: '6px 12px',
-                    borderRadius: 6,
-                    background: COLOR_SKY_SURFACE,
-                    border: `1px solid ${COLOR_BORDER}`,
-                    fontWeight: 500
-                  }}>
-                    {currentPage} of {totalPages}
-                  </div>
-
-                  {/* Next Button */}
-                  <button
-                    onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
-                    disabled={currentPage >= totalPages}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      padding: '6px 14px',
-                      borderRadius: 6,
-                      border: `1px solid ${currentPage >= totalPages ? '#e2e8f0' : COLOR_BORDER}`,
-                      background: currentPage >= totalPages ? '#f8fafc' : '#fff',
-                      color: currentPage >= totalPages ? '#94a3b8' : COLOR_DEEP_BLUE,
-                      fontSize: 13,
-                      fontWeight: 500,
-                      cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    Next
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <polyline points="9 18 15 12 9 6" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            )}
+          <div style={{ background: '#fff', border: `1px dashed ${COLOR_BORDER}`, borderRadius: 12, padding: '60px 20px', textAlign: 'center' }}>
+            <div style={{ fontSize: 18, color: COLOR_DEEP_BLUE, fontWeight: 500 }}>
+              No {activeTab === 'Todo' ? 'Todos' : activeTab === 'Call Followups' ? 'Call Follow-ups' : 'Tasks'} Found
+            </div>
+            <p style={{ fontSize: 14, color: COLOR_MUTED, margin: '6px 0 0', fontWeight: 400 }}>
+              {historyMode
+                ? `No completed ${activeTab === 'Todo' ? 'todos' : 'tasks'} in history`
+                : `You're all caught up! Create a new ${activeTab === 'Todo' ? 'todo' : 'task'} or upload an Excel/CSV list.`}
+            </p>
           </div>
         )}
+
       </>
     )}
       </div>

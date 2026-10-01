@@ -92,6 +92,67 @@ function formatSecToText(diffSec) {
   }
 }
 
+const NINE_HOURS_IN_MS = 9 * 60 * 60 * 1000; // 32,400,000 ms = 9 Hours
+
+/**
+ * Auto-close any active attendance session (ON_DUTY / ON_BREAK) across all users that has completed 9 hours
+ */
+async function autoCloseExpiredNineHourSessions() {
+  try {
+    const now = new Date();
+    const cutoffTime = new Date(now.getTime() - NINE_HOURS_IN_MS);
+
+    // Find all active attendance records started 9+ hours ago
+    const expiredRecords = await Attendance.find({
+      status: { $in: ['ON_DUTY', 'ON_BREAK'] },
+      startTime: { $lte: cutoffTime },
+    });
+
+    if (!expiredRecords || expiredRecords.length === 0) return;
+
+    for (const rec of expiredRecords) {
+      // 9 hours completed exact end time
+      const nineHourEndTime = new Date(rec.startTime.getTime() + NINE_HOURS_IN_MS);
+      rec.endTime = nineHourEndTime;
+      rec.status = 'COMPLETED';
+
+      // Close any active break
+      if (Array.isArray(rec.breaks)) {
+        rec.breaks.forEach((b) => {
+          if (b.status === 'ACTIVE') {
+            b.endTime = b.endTime || nineHourEndTime;
+            b.status = 'COMPLETED';
+            if (b.startTime) {
+              const bStart = new Date(b.startTime).getTime();
+              const bEnd = new Date(b.endTime).getTime();
+              b.durationSeconds = Math.max(0, Math.floor((bEnd - bStart) / 1000));
+              b.formattedDuration = formatSecToText(b.durationSeconds);
+            }
+          }
+        });
+      }
+
+      rec.calculateAttendanceDurations(nineHourEndTime);
+      if (!rec.notes || !rec.notes.includes('Auto-completed')) {
+        rec.notes = (rec.notes ? rec.notes + ' | ' : '') + 'Auto-completed after 9 hours shift completion.';
+      }
+      await rec.save();
+
+      // Clean up live location tracking socket
+      if (rec.employeeId) {
+        handleStopTracking(rec.employeeId.toString());
+      }
+    }
+  } catch (err) {
+    console.error('[AutoClose 9-Hour Attendance Error]:', err.message);
+  }
+}
+
+// Periodically run auto-close every 60 seconds
+setInterval(() => {
+  autoCloseExpiredNineHourSessions();
+}, 60000);
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. POST /api/attendance/start — Employee Clock-in & Start Live Location
 // ─────────────────────────────────────────────────────────────────────────────
@@ -467,6 +528,7 @@ router.post('/stop', protect, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/current', protect, async (req, res) => {
   try {
+    await autoCloseExpiredNineHourSessions();
     const userId = req.user._id;
     const { dateStr } = getLocalDateAndDay();
     const now = new Date();
@@ -517,17 +579,41 @@ router.get('/current', protect, async (req, res) => {
   }
 });
 
+// Helper function to check if user has Admin / Executive / HR / Manager privileges to view all attendance
+const canViewAllAttendance = (user) => {
+  if (!user) return false;
+  const role = String(user?.role || '').trim().toLowerCase();
+  if (role === 'admin' || role === 'superadmin' || role === 'manager') return true;
+
+  const userDesig = String(user?.designation || '').trim().toUpperCase();
+  const userDept = String(user?.department || '').trim().toUpperCase();
+
+  return (
+    userDesig === 'MANAGING DIRECTOR' ||
+    userDesig === 'MD' ||
+    userDesig === 'CEO' ||
+    userDesig === 'CTO' ||
+    userDesig === 'ADMIN' ||
+    userDesig.includes('DIRECTOR') ||
+    userDesig.includes('MANAGER') ||
+    userDesig.includes('HR') ||
+    userDept === 'ADMIN' ||
+    userDept === 'MANAGEMENT' ||
+    userDept === 'HR'
+  );
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 6. GET /api/attendance/summary — Admin / Staff Summary Metrics for Date
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/summary', protect, async (req, res) => {
   try {
+    await autoCloseExpiredNineHourSessions();
     const { date } = req.query;
     const targetDate = date || getLocalDateAndDay().dateStr;
     const now = new Date();
 
-    const userDesig = String(req.user?.designation || '').trim().toUpperCase();
-    const isMD = userDesig === 'MANAGING DIRECTOR' || userDesig === 'MD' || userDesig === 'CEO';
+    const isMD = canViewAllAttendance(req.user);
 
     // Staff view: only return personal day metrics for Developer, Trainer, Digital Marketing
     if (!isMD) {
@@ -606,12 +692,12 @@ router.get('/summary', protect, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/records', protect, async (req, res) => {
   try {
+    await autoCloseExpiredNineHourSessions();
     const { date, fromDate, toDate, status, search } = req.query;
     const { dateStr: todayStr, dayStr: todayDay } = getLocalDateAndDay();
     const now = new Date();
 
-    const userDesig = String(req.user?.designation || '').trim().toUpperCase();
-    const isMD = userDesig === 'MANAGING DIRECTOR' || userDesig === 'MD' || userDesig === 'CEO';
+    const isMD = canViewAllAttendance(req.user);
 
     let query = {};
     let isRange = false;
@@ -888,13 +974,13 @@ router.get('/employee/:employeeId/history', protect, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/export', protect, async (req, res) => {
   try {
+    await autoCloseExpiredNineHourSessions();
     const { date, fromDate, toDate, status, search } = req.query;
     const { dateStr: todayStr } = getLocalDateAndDay();
     const queryDate = date || todayStr;
     const now = new Date();
 
-    const userDesig = String(req.user?.designation || '').trim().toUpperCase();
-    const isMD = userDesig === 'MANAGING DIRECTOR' || userDesig === 'MD' || userDesig === 'CEO';
+    const isMD = canViewAllAttendance(req.user);
 
     let query = {};
     if (!isMD) {
