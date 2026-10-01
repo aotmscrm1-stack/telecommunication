@@ -51,49 +51,90 @@ function getTargetModel(type) {
   return FollowUp;
 }
 
-// Helper to check executive/admin status
-function isExecutiveOrAdmin(user) {
+// Helper to check strict Admin / Executive Director privileges (MD, CEO, CTO, Admin)
+function isStrictAdmin(user) {
   if (!user) return false;
-  if (user.role === 'admin' || user.role === 'superadmin') return true;
+  const role = String(user.role || '').trim().toLowerCase();
+  if (role === 'admin' || role === 'superadmin') return true;
+
   const desig = String(user.designation || '').trim().toUpperCase();
-  return ['CEO', 'MANAGING DIRECTOR', 'MD', 'CTO'].includes(desig);
+  const dept = String(user.department || '').trim().toUpperCase();
+
+  return (
+    desig === 'MANAGING DIRECTOR' ||
+    desig === 'MD' ||
+    desig === 'CEO' ||
+    desig === 'CTO' ||
+    desig === 'ADMIN' ||
+    desig === 'SUPERADMIN' ||
+    dept === 'ADMIN' ||
+    dept === 'MANAGEMENT'
+  );
+}
+
+// Helper to check Manager / Team Lead status
+function isManager(user) {
+  if (!user) return false;
+  const role = String(user.role || '').trim().toLowerCase();
+  if (role === 'manager') return true;
+
+  const desig = String(user.designation || '').trim().toUpperCase();
+  return desig.includes('MANAGER') || desig.includes('HEAD') || desig.includes('LEAD') || desig.includes('SUPERVISOR');
+}
+
+function extractId(val) {
+  if (!val) return '';
+  if (typeof val === 'object') {
+    return String(val._id || val.id || '');
+  }
+  return String(val);
 }
 
 // GET /api/followups
 router.get('/', protect, async (req, res) => {
   try {
-    const { status, date, due: dueQuery, callerId, type, forMe: forMeQuery, leadId } = req.query;
+    const { status, date, due: dueQuery, callerId, userId: queryUserId, type, forMe: forMeQuery, leadId } = req.query;
     const query = {};
 
     if (leadId) {
       query.lead = leadId;
     }
 
-    const isAdmin = isExecutiveOrAdmin(req.user);
-    const isMgr = req.user.role === 'manager';
+    const isAdmin = isStrictAdmin(req.user);
+    const isMgr = isManager(req.user);
     const forMe = forMeQuery === 'true';
 
     // Role-based visibility scoping
-    if (!isAdmin) {
+    if (queryUserId) {
+      const targetId = queryUserId === 'me' ? req.user._id : queryUserId;
+      if (!isAdmin && !isMgr && String(targetId) !== String(req.user._id)) {
+        return res.status(403).json({ message: "You are not authorized to view another user's list." });
+      }
+      query.$or = [{ assignedTo: targetId }, { assignedBy: targetId }, { createdBy: targetId }];
+    } else if (!isAdmin) {
       if (isMgr && !forMe) {
+        // Manager Panel: View relative department items & team members
         if (callerId && callerId !== 'all') {
           query.$or = [{ assignedTo: callerId }, { assignedBy: callerId }, { createdBy: callerId }];
         } else if (req.user.department) {
+          const deptUsers = await User.find({ department: req.user.department }).select('_id');
+          const deptUserIds = deptUsers.map(u => u._id);
           query.$or = [
-            { assignedTo: req.user._id },
-            { assignedBy: req.user._id },
-            { createdBy: req.user._id },
+            { assignedTo: { $in: deptUserIds } },
+            { assignedBy: { $in: deptUserIds } },
+            { createdBy: { $in: deptUserIds } },
             { department: req.user.department }
           ];
         } else {
           query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { createdBy: req.user._id }];
         }
       } else {
-        // Employees / Callers see ONLY their own tasks, todos, and follow-ups
+        // Developer, Trainer, Digital Marketing, Employee Panels:
+        // ONLY see their own assigned, created, or assignedBy items!
         query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { createdBy: req.user._id }];
       }
     } else {
-      // Admin Panel: Full Visibility across all members
+      // ONLY Admin Panel: Full Visibility across all members & departments
       if (forMe) {
         query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { createdBy: req.user._id }];
       } else if (callerId && callerId !== 'all') {
@@ -167,6 +208,76 @@ router.get('/', protect, async (req, res) => {
   }
 });
 
+// GET /api/followups/user/:userId — Direct User ID linked endpoint for Todo/Task/Followup list
+router.get('/user/:userId', protect, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { type, status } = req.query;
+    const targetUserId = userId === 'me' ? req.user._id : userId;
+
+    const isAdmin = isStrictAdmin(req.user);
+    const isMgr = isManager(req.user);
+
+    if (!isAdmin && !isMgr && String(targetUserId) !== String(req.user._id)) {
+      return res.status(403).json({ message: "You are not authorized to view another user's todo/task list." });
+    }
+
+    const ModelClass = getTargetModel(type);
+    const query = {
+      $or: [
+        { assignedTo: targetUserId },
+        { createdBy: targetUserId },
+        { assignedBy: targetUserId }
+      ]
+    };
+
+    if (status) {
+      const statuses = status.split(',').map(s => s.trim());
+      query.status = { $in: statuses };
+    }
+
+    let reqQueryFind = ModelClass.find(query)
+      .populate('lead', 'name phone status')
+      .populate('assignedTo', 'name email avatar designation department')
+      .populate('assignedBy', 'name email avatar')
+      .populate('completedBy', 'name email avatar');
+    if (ModelClass === Todo) {
+      reqQueryFind = reqQueryFind.populate('createdBy', 'name email avatar');
+    }
+    const results = await reqQueryFind.sort({ scheduledAt: 1, createdAt: -1 });
+
+    const sanitized = results.map(f => {
+      const doc = f.toObject ? f.toObject() : { ...f };
+      doc.type = type || (ModelClass === Todo ? 'todo' : ModelClass === Task ? 'task' : 'call_followup');
+      doc.scheduledAt = doc.scheduledAt || doc.dueDate || doc.startDate || doc.createdAt;
+      doc.dueDate = doc.dueDate || doc.scheduledAt;
+      doc.note = doc.note || doc.description || doc.title || '';
+      doc.title = doc.title || doc.note || doc.description || '';
+      doc.description = doc.description || doc.note || doc.title || '';
+      if (doc.status === 'completed') doc.status = 'done';
+      else if (doc.status === 'pending' || doc.status === 'in_progress') doc.status = 'upcoming';
+
+      if (!doc.assignedBy) {
+        if (doc.createdBy && typeof doc.createdBy === 'object') {
+          doc.assignedBy = doc.createdBy;
+        } else if (f.get && (f.get('assignedBy') === 'all' || f.get('assignedBy') === 'All')) {
+          doc.assignedBy = { _id: 'all', name: 'All' };
+        } else {
+          doc.assignedBy = doc.assignedTo || { _id: 'all', name: 'All' };
+        }
+      } else if (doc.assignedBy === 'all' || doc.assignedBy === 'All') {
+        doc.assignedBy = { _id: 'all', name: 'All' };
+      }
+      return doc;
+    });
+
+    res.json({ ok: true, userId: targetUserId, followups: sanitized, todos: sanitized, tasks: sanitized });
+  } catch (err) {
+    console.error('[GET /followups/user/:userId]', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
 async function canAssignTo(actor, assigneeId) {
   if (!assigneeId) return true;
   if (actor.role === 'admin' || actor.role === 'superadmin' || actor.role === 'manager') return true;
@@ -189,56 +300,36 @@ router.post('/', protect, async (req, res) => {
     const itemType = body.type || 'call_followup';
     const ModelClass = getTargetModel(itemType);
 
+    const frequency = recurrence?.frequency;
+    const hasRecurrence = frequency && frequency !== 'none';
+
     const baseDoc = {
       ...body,
       type: itemType,
       assignedTo: req.body.assignedTo || req.user._id,
       assignedBy: req.body.assignedBy || req.user._id,
       createdBy: req.user._id,
+      department: req.body.department || req.user.department || '',
+      initialScheduledAt: body.initialScheduledAt || body.scheduledAt,
+      recurrence: hasRecurrence ? {
+        frequency,
+        endDate: recurrence.endDate
+      } : undefined
     };
 
-    const frequency = recurrence?.frequency;
-    const isRecurring = frequency && frequency !== 'none' && recurrence?.endDate;
+    const followup = await ModelClass.create(baseDoc);
 
-    if (!isRecurring) {
-      const followup = await ModelClass.create(baseDoc);
-
-      await followup.populate('lead', 'name phone status');
-      await followup.populate('assignedTo', 'name email');
-      if (baseDoc.assignedBy && mongoose.Types.ObjectId.isValid(baseDoc.assignedBy)) {
-        await followup.populate('assignedBy', 'name email');
-      } else if (baseDoc.assignedBy === 'all' || baseDoc.assignedBy === 'All') {
-        followup.assignedBy = { _id: 'all', name: 'All' };
-      }
-
-      fireAndForget(() => notifyAdminsTaskCreated({ followup, performedByUser: req.user }));
-
-      return res.status(201).json({ followup });
+    await followup.populate('lead', 'name phone status');
+    await followup.populate('assignedTo', 'name email');
+    if (baseDoc.assignedBy && mongoose.Types.ObjectId.isValid(baseDoc.assignedBy)) {
+      await followup.populate('assignedBy', 'name email');
+    } else if (baseDoc.assignedBy === 'all' || baseDoc.assignedBy === 'All') {
+      followup.assignedBy = { _id: 'all', name: 'All' };
     }
 
-    if (!baseDoc.scheduledAt) {
-      return res.status(400).json({ message: 'scheduledAt is required to build a recurring series' });
-    }
-    const occurrenceDates = buildRecurrenceDates(baseDoc.scheduledAt, frequency, recurrence.endDate);
-    const recurringGroupId = new mongoose.Types.ObjectId();
+    fireAndForget(() => notifyAdminsTaskCreated({ followup, performedByUser: req.user }));
 
-    const docs = occurrenceDates.map(scheduledAt => ({
-      ...baseDoc,
-      scheduledAt,
-      recurrence: { frequency, endDate: recurrence.endDate },
-      recurringGroupId,
-    }));
-
-    const created = await ModelClass.insertMany(docs);
-
-    const firstFollowup = await ModelClass.findById(created[0]._id)
-      .populate('lead', 'name phone status')
-      .populate('assignedTo', 'name email')
-      .populate('assignedBy', 'name email');
-
-    fireAndForget(() => notifyAdminsTaskCreated({ followup: firstFollowup, performedByUser: req.user }));
-
-    res.status(201).json({ followup: firstFollowup, seriesCount: created.length });
+    return res.status(201).json({ followup });
   } catch (err) {
     console.error('[POST /followups]', err);
     res.status(500).json({ message: err.message });
@@ -264,11 +355,12 @@ router.put('/:id', protect, async (req, res) => {
     }
     if (!existing) return res.status(404).json({ message: 'Item not found' });
 
-    if (req.user.role === 'employee' || req.user.role === 'caller') {
-      const bodyKeys = Object.keys(req.body).filter(k => k !== 'completedAt');
-      const isStatusOnlyUpdate = bodyKeys.length === 1 && bodyKeys[0] === 'status' && (req.body.status === 'done' || req.body.status === 'completed');
-      if (!isStatusOnlyUpdate) {
-        return res.status(403).json({ message: 'You can only view this task. You may still mark it complete.' });
+    const isAdminOrMgr = req.user.role === 'admin' || req.user.role === 'superadmin' || req.user.role === 'manager';
+    if (!isAdminOrMgr) {
+      const isAssignedUser = String(existing.assignedTo || '') === String(req.user._id) ||
+                             String(existing.createdBy || '') === String(req.user._id);
+      if (!isAssignedUser) {
+        return res.status(403).json({ message: 'You can only update tasks assigned to you.' });
       }
     }
 
@@ -295,7 +387,7 @@ router.put('/:id', protect, async (req, res) => {
 });
 
 // DELETE /api/followups/:id
-router.delete('/:id', protect, authorize('admin', 'superadmin'), async (req, res) => {
+router.delete('/:id', protect, async (req, res) => {
   try {
     let target = await Task.findById(req.params.id);
     let ModelClass = Task;
@@ -309,15 +401,28 @@ router.delete('/:id', protect, authorize('admin', 'superadmin'), async (req, res
     }
     if (!target) return res.status(404).json({ message: 'Item not found' });
 
-    if (req.query.series === 'true' && target.recurringGroupId) {
-      const result = await ModelClass.deleteMany({
-        recurringGroupId: target.recurringGroupId,
-        scheduledAt: { $gte: target.scheduledAt },
-      });
-      return res.json({ message: 'Deleted series', count: result.deletedCount });
+    const isAdmin = isStrictAdmin(req.user) || isManager(req.user);
+
+    const createdById = extractId(target.createdBy);
+    const assignedToId = extractId(target.assignedTo);
+    const assignedById = extractId(target.assignedBy);
+    const currentUserId = String(req.user._id);
+
+    const isOwnerOrAssignee =
+      createdById === currentUserId ||
+      assignedToId === currentUserId ||
+      assignedById === currentUserId;
+
+    if (!isAdmin && !isOwnerOrAssignee) {
+      return res.status(403).json({ message: 'You are not authorized to delete this item.' });
     }
 
-    await ModelClass.findByIdAndDelete(req.params.id);
+    if (target.recurringGroupId) {
+      await ModelClass.deleteMany({ recurringGroupId: target.recurringGroupId });
+    } else {
+      await ModelClass.findByIdAndDelete(target._id);
+    }
+
     res.json({ message: 'Deleted' });
   } catch (err) {
     console.error('[DELETE /followups/:id]', err);

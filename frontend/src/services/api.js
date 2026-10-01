@@ -60,6 +60,7 @@ export const leadsAPI = {
 
 export const followupsAPI = {
   getAll: (params) => api.get('/followups', { params }),
+  getByUser: (userId, params) => api.get(`/followups/user/${userId}`, { params }),
   create: (data) => api.post('/followups', data),
   update: (id, data) => api.put(`/followups/${id}`, data),
   delete: (id) => api.delete(`/followups/${id}`),
@@ -68,6 +69,7 @@ export const followupsAPI = {
 
 export const tasksAPI = {
   getAll: (params) => api.get('/tasks', { params }),
+  getByUser: (userId, params) => api.get(`/tasks/user/${userId}`, { params }),
   create: (data) => api.post('/tasks', data),
   update: (id, data) => api.put(`/tasks/${id}`, data),
   delete: (id) => api.delete(`/tasks/${id}`),
@@ -150,6 +152,7 @@ export const departmentsAPI = {
 
 export const todosAPI = {
   getAll: (params) => api.get('/todos', { params }),
+  getByUser: (userId, params) => api.get(`/todos/user/${userId}`, { params }),
   getStats: () => api.get('/todos/stats'),
   getOne: (id) => api.get(`/todos/${id}`),
   create: (data) => api.post('/todos', data),

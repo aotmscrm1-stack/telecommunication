@@ -10,6 +10,8 @@ const followUpSchema = new mongoose.Schema({
   // Who created / delegated this task (defaults to the creator, but can be overridden by admins)
   assignedBy: { type: mongoose.Schema.Types.Mixed, ref: 'User' },
   scheduledAt: { type: Date, required: true },
+  initialScheduledAt: { type: Date },
+  completedCount: { type: Number, default: 0 },
   status: { type: String, enum: ['upcoming', 'done', 'late', 'cancelled'], default: 'upcoming' },
   type: { type: String, enum: ['call_followup', 'todo', 'task'], default: 'task' },
   note: { type: String, default: '' },

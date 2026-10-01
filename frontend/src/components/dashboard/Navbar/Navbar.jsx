@@ -517,13 +517,13 @@ export default function Navbar() {
       title: 'Attendance',
       icon: FaCalendarCheck,
       items: [
-        { label: 'Attendance', path: '/admin/attendance-records', icon: FaCalendarCheck },
+        { label: 'Attendance', path: user?._id ? `/${user._id}/attendance-records` : '/attendance-records', icon: FaCalendarCheck },
       ]
     }
   ] : [
     { title: 'Info', icon: FaCircleInfo, items: [
       { label: 'Dashboard', path: '/dashboard', icon: FaHouse },
-      { label: 'Task', path: '/tasks', icon: FaListCheck },
+      { label: 'Task', path: user?._id ? `/${user._id}/tasks` : '/tasks', icon: FaListCheck },
     ]},
     { title: 'Marketing', icon: FaBullhorn, items: [
       { label: 'Add Leads', path: '/leads/new', icon: FaUserPlus },
@@ -544,7 +544,7 @@ export default function Navbar() {
     ]},
     { title: 'Management', icon: FaSitemap, items: [
       { label: 'Departments', path: '/admin/departments', icon: FaSitemap },
-      { label: 'Attendance', path: '/admin/attendance-records', icon: FaCalendarCheck },
+      { label: 'Attendance', path: user?._id ? `/${user._id}/attendance-records` : '/attendance-records', icon: FaCalendarCheck },
       ...(canViewCallRecordings(user) ? [{ label: 'Call Recordings', path: '/recordings', icon: FaClock }] : []),
       { label: 'Live Tracking', path: '/admin/employee-tracking', icon: FaLocationDot, adminOnly: !isHR(user) && !isCEO(user) },
       { label: 'Email CRM', path: '/email', icon: FaEnvelopeOpenText },

@@ -6,6 +6,7 @@ import {
   Calendar, 
   Flame, 
   Zap, 
+  Leaf,
   Sparkles, 
   Plus, 
   Trash2, 
@@ -20,8 +21,8 @@ import {
   RotateCcw,
   ListTodo
 } from 'lucide-react';
-import { followupsAPI, usersAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
+import { isExecutive, isHR, isManager } from '../../../utils/permissions';
 
 // Helper for IST DateTime formatting
 function formatIST(dateStr) {
@@ -83,6 +84,39 @@ function Avatar({ user, nameFallback = 'User', size = 32 }) {
   );
 }
 
+// ── AutoScroll Name Component for Long Assignee & Assignor Names ─────────────
+function AutoScrollName({ prefix = '', name = '', className = '', style = {}, maxPx = 135 }) {
+  const fullText = prefix ? `${prefix} ${name}` : name;
+  const isLong = fullText.length > 15;
+
+  return (
+    <div 
+      className={`relative overflow-hidden whitespace-nowrap ${className}`}
+      style={{ maxWidth: maxPx, width: '100%', minWidth: 0, ...style }}
+      title={fullText}
+    >
+      <style>{`
+        @keyframes scroll-name-anim {
+          0%, 20% { transform: translateX(0%); }
+          80%, 100% { transform: translateX(min(0px, calc(-100% + ${maxPx}px))); }
+        }
+        .animate-autoscroll-name {
+          display: inline-block;
+          white-space: nowrap;
+          animation: scroll-name-anim 6s ease-in-out infinite alternate;
+        }
+        .animate-autoscroll-name:hover {
+          animation-play-state: paused;
+        }
+      `}</style>
+      <span className={isLong ? "animate-autoscroll-name" : "truncate block"}>
+        {prefix ? <span className="font-normal text-slate-400">{prefix} </span> : null}
+        <span className="font-semibold text-slate-800">{name}</span>
+      </span>
+    </div>
+  );
+}
+
 // Sub-item Checklist Component with instant MongoDB persistence
 function TodoChecklist({ text, task, onUpdated }) {
   if (!text || !text.trim()) return <span className="text-slate-400 italic text-sm">No description provided</span>;
@@ -129,43 +163,61 @@ function TodoChecklist({ text, task, onUpdated }) {
     const total = rawLines.length;
     const checkedCount = Object.values(checkedMap).filter(Boolean).length;
     const percent = total > 0 ? Math.round((checkedCount / total) * 100) : 0;
+    const hasScroll = total > 2;
 
     return (
-      <div className="flex flex-col gap-3">
-        {total > 1 && (
-          <div className="bg-slate-50/80 p-2.5 rounded-lg border border-slate-100">
-            <div className="flex justify-between items-center text-xs font-semibold text-slate-600 mb-1.5">
-              <span className="flex items-center gap-1.5 text-indigo-600">
-                <CheckSquare size={13} /> Sub-items Progress
-              </span>
-              <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-bold">
-                {checkedCount} / {total} ({percent}%)
-              </span>
-            </div>
-            <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
-              <div
-                className="h-full transition-all duration-300 rounded-full"
-                style={{
-                  width: `${percent}%`,
-                  background: percent === 100 ? 'linear-gradient(90deg, #10b981, #059669)' : 'linear-gradient(90deg, #6366f1, #4f46e5)'
-                }}
-              />
-            </div>
-          </div>
-        )}
+      <div className="flex flex-col gap-2.5 w-full">
+        <style>{`
+          .custom-hidden-scroll::-webkit-scrollbar {
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
+          }
+        `}</style>
 
-        <div className="flex flex-col gap-2">
+        {/* Sub-items Progress Bar (Sticky Header) */}
+        <div className="bg-slate-50/90 p-2.5 rounded-xl border border-slate-200/80 shadow-xs">
+          <div className="flex justify-between items-center text-xs font-semibold text-slate-600 mb-1.5">
+            <span className="flex items-center gap-1.5 text-indigo-600 font-bold">
+              <CheckSquare size={13} /> Sub-items Progress
+            </span>
+            <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-extrabold text-[11px]">
+              {checkedCount} / {total} ({percent}%)
+            </span>
+          </div>
+          <div className="w-full h-1.5 bg-slate-200/80 rounded-full overflow-hidden">
+            <div
+              className="h-full transition-all duration-400 rounded-full"
+              style={{
+                width: `${percent}%`,
+                background: percent === 100 ? 'linear-gradient(90deg, #10b981, #059669)' : 'linear-gradient(90deg, #6366f1, #4f46e5)'
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Scrollable Sub-items Container (Exactly 2 items visible, scroll for rest) */}
+        <div 
+          className="custom-hidden-scroll flex flex-col gap-2"
+          style={{
+            maxHeight: hasScroll ? 80 : 'none',
+            overflowY: hasScroll ? 'auto' : 'visible',
+            scrollBehavior: 'smooth',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none'
+          }}
+        >
           {rawLines.map((line, idx) => {
-            const cleanText = line.replace(/^\d+[\.\)]\s*/, '');
+            const cleanText = line.replace(/^(\d+[\.\)]|[\-\*•])\s*/, '');
             const isChecked = !!checkedMap[idx];
             return (
               <div
                 key={idx}
                 onClick={(e) => handleToggle(idx, e)}
-                className={`flex items-start gap-2.5 p-2 rounded-lg cursor-pointer transition-all duration-150 border ${
+                className={`flex items-start gap-2.5 p-2 rounded-xl cursor-pointer transition-all duration-150 border ${
                   isChecked 
                     ? 'bg-emerald-50/60 border-emerald-200/60 text-slate-500' 
-                    : 'bg-white border-slate-100 hover:border-indigo-200 text-slate-800 shadow-sm'
+                    : 'bg-white border-slate-200/70 hover:border-indigo-300 hover:translate-x-0.5 text-slate-800 shadow-xs'
                 }`}
               >
                 <div className={`w-4 h-4 rounded mt-0.5 flex items-center justify-center flex-shrink-0 transition-all ${
@@ -173,19 +225,41 @@ function TodoChecklist({ text, task, onUpdated }) {
                 }`}>
                   {isChecked && <Check size={11} strokeWidth={3.5} />}
                 </div>
-                <span className={`text-sm font-medium leading-relaxed ${isChecked ? 'line-through text-slate-400' : 'text-slate-800'}`}>
+                <span className={`text-xs font-medium leading-relaxed ${isChecked ? 'line-through text-slate-400' : 'text-slate-800'}`}>
                   {cleanText || line}
                 </span>
               </div>
             );
           })}
         </div>
+
+        {hasScroll && (
+          <div className="text-[10px] font-medium text-slate-400 text-center flex items-center justify-center gap-1">
+            <span>Scroll for more sub-items</span> ↓
+          </div>
+        )}
       </div>
     );
   }
 
+  const isLongText = text.length > 250;
   return (
-    <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap font-normal">
+    <div 
+      className="custom-hidden-scroll text-sm text-slate-700 leading-relaxed whitespace-pre-wrap font-normal"
+      style={{
+        maxHeight: isLongText ? 150 : 'none',
+        overflowY: isLongText ? 'auto' : 'visible',
+        scrollbarWidth: 'none',
+        msOverflowStyle: 'none'
+      }}
+    >
+      <style>{`
+        .custom-hidden-scroll::-webkit-scrollbar {
+          display: none !important;
+          width: 0 !important;
+          height: 0 !important;
+        }
+      `}</style>
       {text}
     </div>
   );
@@ -200,7 +274,9 @@ export default function TodoList({
   onDeleteTask,
   historyMode = false,
   markingId = null,
-  deletingId = null
+  deletingId = null,
+  priorityFilter: parentPriorityFilter,
+  setPriorityFilter: parentSetPriorityFilter
 }) {
   const { user: currentUser } = useAuth();
   
@@ -211,10 +287,28 @@ export default function TodoList({
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
-  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [internalPriorityFilter, setInternalPriorityFilter] = useState('all');
 
-  // Strict Admin Only Delete Permission
-  const canDelete = currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
+  const priorityFilter = (parentPriorityFilter !== undefined && parentPriorityFilter !== '') 
+    ? parentPriorityFilter 
+    : internalPriorityFilter;
+  const setPriorityFilter = parentSetPriorityFilter || setInternalPriorityFilter;
+
+  // Delete Permission Helper (Admin, Executive, HR, Manager, or Todo Creator/Assignee)
+  const checkCanDelete = (todo) => {
+    if (!currentUser) return false;
+    if (
+      currentUser.role === 'admin' ||
+      currentUser.role === 'superadmin' ||
+      currentUser.role === 'manager' ||
+      isExecutive(currentUser) ||
+      isHR(currentUser)
+    ) return true;
+    if (!todo) return true;
+    const cId = todo.createdBy?._id || todo.createdBy || todo.assignedBy?._id || todo.assignedBy;
+    const aId = todo.assignedTo?._id || todo.assignedTo || todo.assignee?._id || todo.assignee;
+    return String(cId || '') === String(currentUser._id) || String(aId || '') === String(currentUser._id);
+  };
 
   // 1-Click Quick Add Handler
   const handleQuickAdd = async (e) => {
@@ -242,7 +336,9 @@ export default function TodoList({
     }
   };
 
-  // Filtered Todos
+  // Filtered Todos with single card deduplication for recurring series
+  const seenGroupIds = new Set();
+  const seenRecurringKeys = new Set();
   const filteredTodos = tasks.filter(t => {
     if (priorityFilter !== 'all' && t.priority !== priorityFilter) return false;
     if (searchQuery.trim()) {
@@ -251,155 +347,38 @@ export default function TodoList({
       const assigneeStr = (t.assignedTo?.name || '').toLowerCase();
       if (!noteStr.includes(q) && !assigneeStr.includes(q)) return false;
     }
+
+    const isRec = !!(t.recurrence?.frequency || t.recurrenceFrequency || (t.recurrence && t.recurrence.frequency !== 'none'));
+    if (isRec) {
+      if (t.recurringGroupId) {
+        const gId = String(t.recurringGroupId);
+        if (seenGroupIds.has(gId)) return false;
+        seenGroupIds.add(gId);
+      } else {
+        const assigneeId = t.assignedTo?._id || t.assignedTo || '';
+        const taskTitle = (t.title || t.note || t.description || '').trim();
+        const freq = t.recurrence?.frequency || t.recurrenceFrequency || '';
+        const recKey = `${taskTitle}_${assigneeId}_${freq}`;
+        if (seenRecurringKeys.has(recKey)) return false;
+        seenRecurringKeys.add(recKey);
+      }
+    }
     return true;
   });
 
-  // KPI Statistics
+  // KPI Statistics & Priority Counts
   const totalCount = tasks.length;
   const completedCount = tasks.filter(t => t.status === 'done' || t.status === 'completed').length;
   const pendingCount = tasks.filter(t => t.status === 'upcoming' || t.status === 'pending').length;
   const overdueCount = tasks.filter(t => t.status === 'upcoming' && new Date(t.scheduledAt) < new Date()).length;
   const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
+  const highCount = tasks.filter(t => t.priority === 'high').length;
+  const mediumCount = tasks.filter(t => t.priority === 'medium').length;
+  const lowCount = tasks.filter(t => t.priority === 'low').length;
+
   return (
     <div className="w-full flex flex-col gap-6 font-sans">
-      {/* ── KPI Statistics Cards ────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Todos */}
-        <div className="bg-gradient-to-br from-white to-indigo-50/30 border border-slate-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Total Todos</span>
-            <div className="w-10 h-10 rounded-xl bg-indigo-100/70 text-indigo-600 flex items-center justify-center">
-              <ListTodo size={20} />
-            </div>
-          </div>
-          <div className="text-3xl font-extrabold text-slate-900 mt-3">{totalCount}</div>
-          <div className="text-xs font-medium text-slate-500 mt-1 flex items-center gap-1">
-            <Sparkles size={12} className="text-indigo-500" /> Active workspace items
-          </div>
-        </div>
-
-        {/* Completed */}
-        <div className="bg-gradient-to-br from-white to-emerald-50/40 border border-emerald-200/70 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-700">Completed</span>
-            <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center">
-              <CheckCircle2 size={20} />
-            </div>
-          </div>
-          <div className="text-3xl font-extrabold text-emerald-900 mt-3">{completedCount}</div>
-          <div className="text-xs font-semibold text-emerald-600 mt-1 flex items-center gap-1">
-            <TrendingUp size={13} /> {completionRate}% rate finished
-          </div>
-        </div>
-
-        {/* Pending */}
-        <div className="bg-gradient-to-br from-white to-amber-50/40 border border-amber-200/70 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-amber-700">Upcoming / Pending</span>
-            <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center">
-              <Clock size={20} />
-            </div>
-          </div>
-          <div className="text-3xl font-extrabold text-amber-900 mt-3">{pendingCount}</div>
-          <div className="text-xs font-medium text-amber-600 mt-1">Pending action checklists</div>
-        </div>
-
-        {/* Overdue Alert */}
-        <div className={`border rounded-2xl p-5 shadow-sm transition-all ${
-          overdueCount > 0 
-            ? 'bg-gradient-to-br from-red-50 to-rose-100/50 border-red-200/90 shadow-red-100/50 animate-pulse' 
-            : 'bg-white border-slate-200/80'
-        }`}>
-          <div className="flex items-center justify-between">
-            <span className={`text-xs font-bold uppercase tracking-wider ${overdueCount > 0 ? 'text-red-700' : 'text-slate-500'}`}>
-              Overdue Alert
-            </span>
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-              overdueCount > 0 ? 'bg-red-200/80 text-red-600' : 'bg-slate-100 text-slate-400'
-            }`}>
-              <AlertTriangle size={20} />
-            </div>
-          </div>
-          <div className={`text-3xl font-extrabold mt-3 ${overdueCount > 0 ? 'text-red-900' : 'text-slate-900'}`}>
-            {overdueCount}
-          </div>
-          <div className={`text-xs font-semibold mt-1 ${overdueCount > 0 ? 'text-red-600' : 'text-slate-400'}`}>
-            {overdueCount > 0 ? '⚠️ Immediate action needed' : 'All items on schedule'}
-          </div>
-        </div>
-      </div>
-
-      {/* ── 1-Click Quick Add Input Bar ─────────────────────────────────────── */}
-      {!historyMode && (
-        <form
-          onSubmit={handleQuickAdd}
-          className="bg-white border-2 border-indigo-500/20 focus-within:border-indigo-500 rounded-2xl p-3.5 shadow-md shadow-indigo-100/50 flex flex-wrap items-center gap-3 transition-all duration-200"
-        >
-          <div className="flex items-center gap-2.5 flex-1 min-w-[280px]">
-            <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
-              <Plus size={18} strokeWidth={2.5} />
-            </div>
-            <input
-              type="text"
-              value={quickTitle}
-              onChange={e => setQuickTitle(e.target.value)}
-              placeholder="Quick add a new Todo item... (e.g. 1. Submit report, 2. Followup call)"
-              className="w-full text-sm font-medium text-slate-800 placeholder-slate-400 outline-none bg-transparent"
-            />
-          </div>
-
-          <div className="flex items-center gap-3">
-            <select
-              value={quickPriority}
-              onChange={e => setQuickPriority(e.target.value)}
-              className="text-xs font-bold text-slate-700 bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 outline-none cursor-pointer hover:bg-slate-200/70 transition-colors"
-            >
-              <option value="high">🔥 High Priority</option>
-              <option value="medium">⚡ Medium Priority</option>
-              <option value="low">🌱 Low Priority</option>
-            </select>
-
-            <button
-              type="submit"
-              disabled={isAdding || !quickTitle.trim()}
-              className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-md shadow-orange-500/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-1.5"
-            >
-              {isAdding ? 'Adding...' : '+ Add Todo'}
-            </button>
-          </div>
-        </form>
-      )}
-
-      {/* ── Filter & Search Toolbar ───────────────────────────────────────── */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 shadow-sm">
-        <div className="flex items-center gap-3 flex-1 min-w-[240px]">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search todo items..."
-            className="w-full text-xs font-medium border border-slate-200 rounded-xl px-3.5 py-2 outline-none focus:border-indigo-500"
-          />
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-slate-500 flex items-center gap-1">
-            <Filter size={13} /> Priority:
-          </span>
-          <select
-            value={priorityFilter}
-            onChange={e => setPriorityFilter(e.target.value)}
-            className="text-xs font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 outline-none cursor-pointer"
-          >
-            <option value="all">All Priorities</option>
-            <option value="high">High Only</option>
-            <option value="medium">Medium Only</option>
-            <option value="low">Low Only</option>
-          </select>
-        </div>
-      </div>
-
       {/* ── Todo Items Cards Grid ───────────────────────────────────────────── */}
       {filteredTodos.length === 0 ? (
         <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-12 text-center">
@@ -408,7 +387,7 @@ export default function TodoList({
           <p className="text-xs text-slate-400 mt-1">There are no active todos matching your current criteria.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredTodos.map(t => {
             const isLate = t.status === 'upcoming' && new Date(t.scheduledAt) < new Date();
             const assigneeObj = t.assignedTo || t.assignee;
@@ -425,27 +404,31 @@ export default function TodoList({
               >
                 {/* Card Top: Assignee & Priority */}
                 <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
                     <Avatar user={assigneeObj} nameFallback={assigneeName} size={36} />
-                    <div>
-                      <div className="text-xs font-bold text-slate-900">{assigneeName}</div>
+                    <div className="flex flex-col min-w-0 overflow-hidden flex-1">
+                      <AutoScrollName name={assigneeName} className="text-xs font-bold text-slate-900" maxPx={130} />
                       {assignedByName && (
-                        <div className="text-[11px] font-medium text-slate-400">
-                          Assigned by: <span className="text-slate-700 font-semibold">{assignedByName}</span>
-                        </div>
+                        <AutoScrollName prefix="Assigned by:" name={assignedByName} className="text-[11px] font-medium text-slate-500" maxPx={130} />
                       )}
                     </div>
                   </div>
 
                   {/* Priority Badge */}
-                  <span className={`text-[11px] font-extrabold px-2.5 py-1 rounded-full border flex items-center gap-1 capitalize ${
+                  <span className={`text-[11px] font-extrabold px-2.5 py-1 rounded-full border flex items-center gap-1.5 capitalize ${
                     t.priority === 'high' 
                       ? 'bg-red-50 text-red-600 border-red-200' 
                       : t.priority === 'medium'
                         ? 'bg-amber-50 text-amber-600 border-amber-200'
                         : 'bg-emerald-50 text-emerald-600 border-emerald-200'
                   }`}>
-                    {t.priority === 'high' ? '🔥 High' : t.priority === 'medium' ? '⚡ Medium' : '🌱 Low'}
+                    {t.priority === 'high' ? (
+                      <><Flame size={12} className="text-red-500 flex-shrink-0" /> High</>
+                    ) : t.priority === 'medium' ? (
+                      <><Zap size={12} className="text-amber-500 flex-shrink-0" /> Medium</>
+                    ) : (
+                      <><Leaf size={12} className="text-emerald-500 flex-shrink-0" /> Low</>
+                    )}
                   </span>
                 </div>
 
@@ -503,13 +486,13 @@ export default function TodoList({
                       <Edit3 size={14} />
                     </button>
 
-                    {/* Strict Admin Only Delete Button */}
-                    {canDelete && (
+                    {/* Delete Button */}
+                    {checkCanDelete(t) && (
                       <button
                         onClick={() => onDeleteTask && onDeleteTask(t._id)}
                         disabled={deletingId === t._id}
                         className="bg-red-50 border border-red-200 text-red-600 p-2 rounded-xl hover:bg-red-100 transition-colors disabled:opacity-50"
-                        title="Delete Todo (Admin Only)"
+                        title="Delete Todo"
                       >
                         <Trash2 size={14} />
                       </button>
