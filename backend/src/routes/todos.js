@@ -38,7 +38,7 @@ function isManager(user) {
 // GET /api/todos — fetch todos from 'todos' collection with role-based visibility
 router.get('/', protect, async (req, res) => {
   try {
-    const { status, date, due: dueQuery, callerId, forMe: forMeQuery } = req.query;
+    const { status, date, due: dueQuery, callerId, userId: queryUserId, forMe: forMeQuery } = req.query;
     const query = {};
 
     const isAdmin = isStrictAdmin(req.user);
@@ -46,7 +46,13 @@ router.get('/', protect, async (req, res) => {
     const forMe = forMeQuery === 'true';
 
     // Role-based visibility scoping
-    if (!isAdmin) {
+    if (queryUserId) {
+      const targetId = queryUserId === 'me' ? req.user._id : queryUserId;
+      if (!isAdmin && !isMgr && String(targetId) !== String(req.user._id)) {
+        return res.status(403).json({ message: "You are not authorized to view another user's todo list." });
+      }
+      query.$or = [{ assignedTo: targetId }, { assignedBy: targetId }, { createdBy: targetId }];
+    } else if (!isAdmin) {
       if (isMgr && !forMe) {
         if (callerId && callerId !== 'all') {
           query.$or = [{ assignedTo: callerId }, { assignedBy: callerId }, { createdBy: callerId }];
@@ -135,6 +141,67 @@ router.get('/', protect, async (req, res) => {
     res.json({ followups: sanitized, todos: sanitized });
   } catch (err) {
     console.error('[GET /todos]', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// GET /api/todos/user/:userId — Direct User ID linked endpoint for Todos
+router.get('/user/:userId', protect, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const targetUserId = userId === 'me' ? req.user._id : userId;
+
+    const isAdmin = isStrictAdmin(req.user);
+    const isMgr = isManager(req.user);
+
+    if (!isAdmin && !isMgr && String(targetUserId) !== String(req.user._id)) {
+      return res.status(403).json({ message: "You are not authorized to view another user's todo list." });
+    }
+
+    const query = {
+      $or: [
+        { assignedTo: targetUserId },
+        { createdBy: targetUserId },
+        { assignedBy: targetUserId }
+      ]
+    };
+
+    if (req.query.status) {
+      query.status = req.query.status;
+    }
+
+    const todos = await Todo.find(query)
+      .populate('lead', 'name phone status')
+      .populate('assignedTo', 'name email avatar designation department')
+      .populate('assignedBy', 'name email avatar')
+      .populate('createdBy', 'name email avatar')
+      .populate('completedBy', 'name email avatar')
+      .sort({ scheduledAt: 1, createdAt: -1 });
+
+    const sanitized = todos.map(f => {
+      const doc = f.toObject ? f.toObject() : { ...f };
+      doc.type = 'todo';
+      doc.scheduledAt = doc.scheduledAt || doc.dueDate || doc.startDate || doc.createdAt;
+      doc.dueDate = doc.dueDate || doc.scheduledAt;
+      doc.note = doc.note || doc.description || doc.title || '';
+      doc.title = doc.title || doc.note || doc.description || '';
+      doc.description = doc.description || doc.note || doc.title || '';
+      if (doc.status === 'completed') doc.status = 'done';
+      else if (doc.status === 'pending' || doc.status === 'in_progress') doc.status = 'upcoming';
+
+      if (!doc.assignedBy) {
+        if (doc.createdBy && typeof doc.createdBy === 'object') {
+          doc.assignedBy = doc.createdBy;
+        } else {
+          doc.assignedBy = doc.assignedTo || { _id: 'all', name: 'All' };
+        }
+      }
+      return doc;
+    });
+
+    res.json({ ok: true, userId: targetUserId, todos: sanitized, followups: sanitized });
+  } catch (err) {
+    console.error('[GET /todos/user/:userId]', err);
     res.status(500).json({ message: err.message });
   }
 });

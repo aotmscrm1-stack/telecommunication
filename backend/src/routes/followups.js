@@ -93,7 +93,7 @@ function extractId(val) {
 // GET /api/followups
 router.get('/', protect, async (req, res) => {
   try {
-    const { status, date, due: dueQuery, callerId, type, forMe: forMeQuery, leadId } = req.query;
+    const { status, date, due: dueQuery, callerId, userId: queryUserId, type, forMe: forMeQuery, leadId } = req.query;
     const query = {};
 
     if (leadId) {
@@ -105,7 +105,13 @@ router.get('/', protect, async (req, res) => {
     const forMe = forMeQuery === 'true';
 
     // Role-based visibility scoping
-    if (!isAdmin) {
+    if (queryUserId) {
+      const targetId = queryUserId === 'me' ? req.user._id : queryUserId;
+      if (!isAdmin && !isMgr && String(targetId) !== String(req.user._id)) {
+        return res.status(403).json({ message: "You are not authorized to view another user's list." });
+      }
+      query.$or = [{ assignedTo: targetId }, { assignedBy: targetId }, { createdBy: targetId }];
+    } else if (!isAdmin) {
       if (isMgr && !forMe) {
         // Manager Panel: View relative department items & team members
         if (callerId && callerId !== 'all') {
@@ -198,6 +204,76 @@ router.get('/', protect, async (req, res) => {
     res.json({ followups: sanitized });
   } catch (err) {
     console.error('[GET /followups]', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// GET /api/followups/user/:userId — Direct User ID linked endpoint for Todo/Task/Followup list
+router.get('/user/:userId', protect, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { type, status } = req.query;
+    const targetUserId = userId === 'me' ? req.user._id : userId;
+
+    const isAdmin = isStrictAdmin(req.user);
+    const isMgr = isManager(req.user);
+
+    if (!isAdmin && !isMgr && String(targetUserId) !== String(req.user._id)) {
+      return res.status(403).json({ message: "You are not authorized to view another user's todo/task list." });
+    }
+
+    const ModelClass = getTargetModel(type);
+    const query = {
+      $or: [
+        { assignedTo: targetUserId },
+        { createdBy: targetUserId },
+        { assignedBy: targetUserId }
+      ]
+    };
+
+    if (status) {
+      const statuses = status.split(',').map(s => s.trim());
+      query.status = { $in: statuses };
+    }
+
+    let reqQueryFind = ModelClass.find(query)
+      .populate('lead', 'name phone status')
+      .populate('assignedTo', 'name email avatar designation department')
+      .populate('assignedBy', 'name email avatar')
+      .populate('completedBy', 'name email avatar');
+    if (ModelClass === Todo) {
+      reqQueryFind = reqQueryFind.populate('createdBy', 'name email avatar');
+    }
+    const results = await reqQueryFind.sort({ scheduledAt: 1, createdAt: -1 });
+
+    const sanitized = results.map(f => {
+      const doc = f.toObject ? f.toObject() : { ...f };
+      doc.type = type || (ModelClass === Todo ? 'todo' : ModelClass === Task ? 'task' : 'call_followup');
+      doc.scheduledAt = doc.scheduledAt || doc.dueDate || doc.startDate || doc.createdAt;
+      doc.dueDate = doc.dueDate || doc.scheduledAt;
+      doc.note = doc.note || doc.description || doc.title || '';
+      doc.title = doc.title || doc.note || doc.description || '';
+      doc.description = doc.description || doc.note || doc.title || '';
+      if (doc.status === 'completed') doc.status = 'done';
+      else if (doc.status === 'pending' || doc.status === 'in_progress') doc.status = 'upcoming';
+
+      if (!doc.assignedBy) {
+        if (doc.createdBy && typeof doc.createdBy === 'object') {
+          doc.assignedBy = doc.createdBy;
+        } else if (f.get && (f.get('assignedBy') === 'all' || f.get('assignedBy') === 'All')) {
+          doc.assignedBy = { _id: 'all', name: 'All' };
+        } else {
+          doc.assignedBy = doc.assignedTo || { _id: 'all', name: 'All' };
+        }
+      } else if (doc.assignedBy === 'all' || doc.assignedBy === 'All') {
+        doc.assignedBy = { _id: 'all', name: 'All' };
+      }
+      return doc;
+    });
+
+    res.json({ ok: true, userId: targetUserId, followups: sanitized, todos: sanitized, tasks: sanitized });
+  } catch (err) {
+    console.error('[GET /followups/user/:userId]', err);
     res.status(500).json({ message: err.message });
   }
 });

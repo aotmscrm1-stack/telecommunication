@@ -49,7 +49,7 @@ function isManager(user) {
 // GET /api/tasks — fetch official tasks from 'tasks' collection
 router.get('/', protect, async (req, res) => {
   try {
-    const { status, date, due: dueQuery, callerId, forMe: forMeQuery, leadId } = req.query;
+    const { status, date, due: dueQuery, callerId, userId: queryUserId, forMe: forMeQuery, leadId } = req.query;
     const query = { type: 'task' };
 
     if (leadId) query.lead = leadId;
@@ -59,7 +59,13 @@ router.get('/', protect, async (req, res) => {
     const forMe = forMeQuery === 'true';
 
     // Role-based visibility scoping
-    if (!isAdmin) {
+    if (queryUserId) {
+      const targetId = queryUserId === 'me' ? req.user._id : queryUserId;
+      if (!isAdmin && !isMgr && String(targetId) !== String(req.user._id)) {
+        return res.status(403).json({ message: "You are not authorized to view another user's task list." });
+      }
+      query.$or = [{ assignedTo: targetId }, { assignedBy: targetId }, { createdBy: targetId }];
+    } else if (!isAdmin) {
       if (isMgr && !forMe) {
         if (callerId && callerId !== 'all') {
           query.$or = [{ assignedTo: callerId }, { assignedBy: callerId }, { createdBy: callerId }];
@@ -116,6 +122,45 @@ router.get('/', protect, async (req, res) => {
     res.json({ followups: tasks, tasks });
   } catch (err) {
     console.error('[GET /tasks]', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// GET /api/tasks/user/:userId — Direct User ID linked endpoint for Tasks
+router.get('/user/:userId', protect, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const targetUserId = userId === 'me' ? req.user._id : userId;
+
+    const isAdmin = isStrictAdmin(req.user);
+    const isMgr = isManager(req.user);
+
+    if (!isAdmin && !isMgr && String(targetUserId) !== String(req.user._id)) {
+      return res.status(403).json({ message: "You are not authorized to view another user's task list." });
+    }
+
+    const query = {
+      type: 'task',
+      $or: [
+        { assignedTo: targetUserId },
+        { createdBy: targetUserId },
+        { assignedBy: targetUserId }
+      ]
+    };
+
+    if (req.query.status) {
+      query.status = req.query.status;
+    }
+
+    const tasks = await Task.find(query)
+      .populate('lead', 'name phone status')
+      .populate('assignedTo', 'name email avatar designation department')
+      .populate('assignedBy', 'name email avatar')
+      .sort({ scheduledAt: 1, createdAt: -1 });
+
+    res.json({ ok: true, userId: targetUserId, tasks, followups: tasks });
+  } catch (err) {
+    console.error('[GET /tasks/user/:userId]', err);
     res.status(500).json({ message: err.message });
   }
 });
