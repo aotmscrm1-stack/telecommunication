@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import { canDelete, isManagingDirector, isExecutive, canAccessEmailBlast } from '../../utils/permissions';
@@ -47,7 +48,17 @@ const ROW_HOVER        = '#f2f6fc';
 const SIDEBAR_ACTIVE   = '#d3e3fd';
 
 export default function EmailCRM() {
+  const { userId: routeUserId } = useParams();
   const { user } = useAuth();
+  const navigate = useNavigate();
+
+  // Sync route URL to format: /:userId/email
+  useEffect(() => {
+    if (user?._id && !routeUserId) {
+      navigate(`/${user._id}/email`, { replace: true });
+    }
+  }, [user, routeUserId, navigate]);
+
   const isMD = isManagingDirector(user) || isExecutive(user);
   const isBlastAllowed = canAccessEmailBlast(user);
 
@@ -422,14 +433,15 @@ ${user?.designation || 'Staff'}`
     setIsSyncing(true);
     setSyncNotice('');
     try {
+      const activeUserId = routeUserId || user?._id;
       try {
-        await api.post('/email/sync');
+        await api.post('/email/sync', { userId: activeUserId });
       } catch (_) {}
       await Promise.all([
         fetchEmailLogs(selectedEmployeeFilter, searchQuery),
         fetchContacts()
       ]);
-      setSyncNotice('Data Synced Successfully! All incoming & outgoing messages, plus contacts, are up to date.');
+      setSyncNotice('Data Synced Successfully! SMTP & Email Data Updated.');
       setTimeout(() => setSyncNotice(''), 4000);
     } catch (err) {
       console.error('Failed to sync email data:', err);

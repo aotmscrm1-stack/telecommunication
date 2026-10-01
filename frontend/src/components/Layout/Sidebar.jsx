@@ -270,7 +270,7 @@ export default function Sidebar() {
                 </>
               )}
               <NavItem to="/maps"            icon={Icons.maps}       label="Interactive Maps" iconColor="#6366f1" />
-              <NavItem to="/email"           icon={Icons.email}      label="Email CRM" iconColor="#ea4335" />
+              <NavItem to={user?._id ? `/${user._id}/email` : "/email"} icon={Icons.email} label="Email CRM" iconColor="#ea4335" />
               {canAccessEmailBlast(user) && (
                 <NavItem to="/email-blast"   icon={Icons.blast}      label="Email Blast" iconColor="#2563eb" badge="n8n" />
               )}

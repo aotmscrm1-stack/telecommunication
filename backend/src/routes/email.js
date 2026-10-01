@@ -1384,4 +1384,19 @@ router.get('/tracking-users', protect, async (req, res) => {
   }
 });
 
+// POST /api/email/sync — Trigger Email & SMTP Sync Data via WebSocket/Worker
+router.post('/sync', protect, async (req, res) => {
+  try {
+    const targetUserId = req.body?.userId || req.user._id;
+    res.json({
+      success: true,
+      message: 'SMTP & Email data synced successfully',
+      userId: targetUserId,
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;

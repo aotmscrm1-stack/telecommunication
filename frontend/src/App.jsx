@@ -177,6 +177,7 @@ export default function App() {
             <Route path="my-preferences" element={<MyPreferences />} />
             <Route path="whatsapp" element={<StaffRestrictedRoute><WhatsApp /></StaffRestrictedRoute>} />
             <Route path="email" element={<EmailCRM />} />
+            <Route path=":userId/email" element={<EmailCRM />} />
             <Route path="email-blast" element={<BlastRoute><BulkEmailBlast /></BlastRoute>} />
             <Route path="offer-letter" element={<AdminRoute><OfferLetter /></AdminRoute>} />
             <Route path="payslips" element={<AdminRoute><Payslip /></AdminRoute>} />
