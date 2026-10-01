@@ -2986,6 +2986,43 @@ export default function Task() {
               </>
             )}
 
+            {/* Refresh Data Button */}
+            <button
+              onClick={() => fetchTasks()}
+              disabled={loading}
+              title={`Refresh ${activeTab === 'Todo' ? 'Todo List' : activeTab === 'Call Followups' ? 'Call Follow-ups' : 'Tasks'}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 7,
+                background: '#fff',
+                border: `1px solid ${COLOR_BORDER}`,
+                borderRadius: 8,
+                cursor: loading ? 'not-allowed' : 'pointer',
+                fontSize: 14,
+                color: COLOR_DEEP_BLUE,
+                fontWeight: 500,
+                padding: '9px 16px',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <svg 
+                width="15" 
+                height="15" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke={COLOR_BLUE_GREEN} 
+                strokeWidth="2.2"
+                style={{
+                  animation: loading ? 'spin 1s linear infinite' : 'none'
+                }}
+              >
+                <path d="M21.5 2v6h-6M2.5 22v-6h6" />
+                <path d="M2 11.5a10 10 0 0 1 18.8-4.3L21.5 8M22 12.5a10 10 0 0 1-18.8 4.3L2.5 16" />
+              </svg>
+              Refresh {activeTab === 'Todo' ? 'Todo' : activeTab === 'Call Followups' ? 'Follow-ups' : 'Tasks'}
+            </button>
+
             {/* Export CSV */}
             <button
               onClick={() => downloadCSV(tasks, activeTab)}

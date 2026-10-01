@@ -168,7 +168,12 @@ router.put('/:id', protect, async (req, res) => {
 // DELETE /api/todos/:id
 router.delete('/:id', protect, async (req, res) => {
   try {
-    const target = await Todo.findById(req.params.id);
+    let target = await Todo.findById(req.params.id);
+    let ModelClass = Todo;
+    if (!target) {
+      target = await Task.findById(req.params.id);
+      ModelClass = Task;
+    }
     if (!target) return res.status(404).json({ message: 'Todo not found' });
 
     const isAdmin = isExecutiveOrAdmin(req.user);
@@ -181,7 +186,7 @@ router.delete('/:id', protect, async (req, res) => {
       return res.status(403).json({ message: 'You are not authorized to delete this todo.' });
     }
 
-    await Todo.findByIdAndDelete(req.params.id);
+    await ModelClass.findByIdAndDelete(req.params.id);
     res.json({ message: 'Deleted' });
   } catch (err) {
     console.error('[DELETE /todos/:id]', err);

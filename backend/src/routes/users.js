@@ -3,10 +3,68 @@ const User = require('../models/User');
 const { protect, authorize } = require('../middleware/auth');
 const router = express.Router();
 
+const isExecutiveOrAdminUser = (user) => {
+  if (!user) return false;
+  const role = String(user.role || '').trim().toLowerCase();
+  if (role === 'admin' || role === 'superadmin') return true;
+
+  const d = String(user.designation || '').trim().toUpperCase();
+  const dept = String(user.department || '').trim().toUpperCase();
+
+  return (
+    d.includes('MD') ||
+    d.includes('MANAGING DIRECTOR') ||
+    d.includes('CEO') ||
+    d.includes('CTO') ||
+    d.includes('HR') ||
+    d.includes('EXECUTIVE') ||
+    d.includes('DIRECTOR') ||
+    d.includes('VICE PRESIDENT') ||
+    dept.includes('HR') ||
+    dept.includes('ADMIN') ||
+    dept.includes('MANAGEMENT')
+  );
+};
+
+const isManagerUser = (user) => {
+  if (!user) return false;
+  const role = String(user.role || '').trim().toLowerCase();
+  if (role === 'manager') return true;
+
+  const d = String(user.designation || '').trim().toUpperCase();
+  return d.includes('MANAGER') || d.includes('HEAD') || d.includes('LEAD') || d.includes('SUPERVISOR');
+};
+
 // GET /api/users
-router.get('/', protect, authorize('manager', 'admin', 'employee', 'caller'), async (req, res) => {
+router.get('/', protect, async (req, res) => {
   try {
-    const users = await User.find({}).select('-password').sort({ name: 1 });
+    let query = {};
+    if (isExecutiveOrAdminUser(req.user)) {
+      // Admin: All departments visible
+      query = {};
+    } else if (isManagerUser(req.user)) {
+      // Manager: Relative department details showing
+      if (req.user.department) {
+        query = {
+          $or: [
+            { department: req.user.department },
+            { _id: req.user._id }
+          ]
+        };
+      } else {
+        query = { _id: req.user._id };
+      }
+    } else {
+      // Employee panel: Only Employee details showing
+      if (req.query.purpose === 'assignment') {
+        // For task/todo assignment dropdowns, return self and manager/admin list
+        query = {};
+      } else {
+        query = { _id: req.user._id };
+      }
+    }
+
+    const users = await User.find(query).select('-password').sort({ name: 1 });
     res.json({ users });
   } catch (err) {
     res.status(500).json({ message: err.message });
