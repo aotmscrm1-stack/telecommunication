@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { attendanceAPI, trackingAPI, usersAPI } from '../../services/api';
 import geoTracker from '../../services/geoTracker';
@@ -192,9 +192,17 @@ function sortEmployeesByCode(aCode = '', bCode = '', aName = '', bName = '') {
 }
 
 export default function AttendanceRecords() {
+  const { userId: routeUserId } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const isMD = isExecutive(user) || isHR(user) || isManager(user) || user?.role === 'admin' || user?.role === 'manager';
+  const isMD = user?.role === 'admin' || user?.role === 'superadmin' || isExecutive(user);
+
+  // Sync route URL to format: /:userId/attendance-records
+  useEffect(() => {
+    if (user?._id && !routeUserId) {
+      navigate(`/${user._id}/attendance-records`, { replace: true });
+    }
+  }, [user, routeUserId, navigate]);
 
   // Live Personal Attendance Session state (Start / Break / Resume / Stop)
   const [currentSession, setCurrentSession] = useState(null);
@@ -315,8 +323,21 @@ export default function AttendanceRecords() {
         params.search = searchQuery.trim();
       }
 
+      const activeEmpId = selectedEmployeeId && selectedEmployeeId !== 'ALL'
+        ? selectedEmployeeId
+        : (routeUserId && routeUserId !== 'attendance-records' ? routeUserId : null);
+
+      if (activeEmpId) {
+        params.employeeId = activeEmpId;
+      }
+
+      const summaryParams = { date: isRangeMode ? endDate : selectedDate };
+      if (activeEmpId) {
+        summaryParams.employeeId = activeEmpId;
+      }
+
       const [summaryRes, recordsRes] = await Promise.allSettled([
-        attendanceAPI.getSummary({ date: isRangeMode ? endDate : selectedDate }),
+        attendanceAPI.getSummary(summaryParams),
         attendanceAPI.getRecords(params),
       ]);
 
@@ -331,7 +352,7 @@ export default function AttendanceRecords() {
     } finally {
       setLoading(false);
     }
-  }, [selectedDate, isRangeMode, startDate, endDate, statusFilter, searchQuery]);
+  }, [selectedDate, isRangeMode, startDate, endDate, statusFilter, searchQuery, selectedEmployeeId, routeUserId]);
 
   useEffect(() => {
     fetchData();
@@ -453,6 +474,11 @@ export default function AttendanceRecords() {
       }
       if (statusFilter !== 'ALL') params.status = statusFilter;
       if (searchQuery.trim()) params.search = searchQuery.trim();
+
+      const activeEmpId = selectedEmployeeId && selectedEmployeeId !== 'ALL'
+        ? selectedEmployeeId
+        : (routeUserId && routeUserId !== 'attendance-records' ? routeUserId : null);
+      if (activeEmpId) params.employeeId = activeEmpId;
 
       const res = await attendanceAPI.exportCSV(params);
       const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8;' });

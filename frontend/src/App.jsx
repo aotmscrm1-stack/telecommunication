@@ -202,6 +202,7 @@ export default function App() {
             <Route path="departments" element={<Navigate to="/admin/departments" replace />} />
             <Route path="admin/attendance-records" element={<AttendanceRoute><AttendanceRecords /></AttendanceRoute>} />
             <Route path="attendance-records" element={<AttendanceRoute><AttendanceRecords /></AttendanceRoute>} />
+            <Route path=":userId/attendance-records" element={<AttendanceRoute><AttendanceRecords /></AttendanceRoute>} />
             <Route path="add-lead" element={<StaffRestrictedRoute><AddLead /></StaffRestrictedRoute>} />
             <Route path="maps" element={<MapsDashboard />} />
             <Route path="recordings" element={<CallRecordingsRoute><CallRecordings /></CallRecordingsRoute>} />

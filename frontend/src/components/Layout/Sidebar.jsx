@@ -265,7 +265,7 @@ export default function Sidebar() {
               <SectionLabel text="Management" />
               {user?.role === 'admin' && (
                 <>
-                  <NavItem to="/admin/attendance-records" icon={Icons.attendanceRecords} label="Attendance Records" iconColor="#10b981" />
+                  <NavItem to={user?._id ? `/${user._id}/attendance-records` : "/attendance-records"} icon={Icons.attendanceRecords} label="Attendance Records" iconColor="#10b981" />
                   <NavItem to="/admin/employee-tracking" icon={Icons.liveTracking} label="Live Employee Tracking" iconColor="#0284c7" />
                 </>
               )}

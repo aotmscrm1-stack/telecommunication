@@ -579,11 +579,11 @@ router.get('/current', protect, async (req, res) => {
   }
 });
 
-// Helper function to check if user has Admin / Executive / HR / Manager privileges to view all attendance
+// Helper function to check if user has Admin privileges to view all attendance ("Role: Admin" only)
 const canViewAllAttendance = (user) => {
   if (!user) return false;
   const role = String(user?.role || '').trim().toLowerCase();
-  if (role === 'admin' || role === 'superadmin' || role === 'manager') return true;
+  if (role === 'admin' || role === 'superadmin') return true;
 
   const userDesig = String(user?.designation || '').trim().toUpperCase();
   const userDept = String(user?.department || '').trim().toUpperCase();
@@ -594,12 +594,7 @@ const canViewAllAttendance = (user) => {
     userDesig === 'CEO' ||
     userDesig === 'CTO' ||
     userDesig === 'ADMIN' ||
-    userDesig.includes('DIRECTOR') ||
-    userDesig.includes('MANAGER') ||
-    userDesig.includes('HR') ||
-    userDept === 'ADMIN' ||
-    userDept === 'MANAGEMENT' ||
-    userDept === 'HR'
+    userDept === 'ADMIN'
   );
 };
 
@@ -609,15 +604,17 @@ const canViewAllAttendance = (user) => {
 router.get('/summary', protect, async (req, res) => {
   try {
     await autoCloseExpiredNineHourSessions();
-    const { date } = req.query;
+    const { date, userId, employeeId } = req.query;
+    const targetUserId = userId || employeeId;
     const targetDate = date || getLocalDateAndDay().dateStr;
     const now = new Date();
 
     const isMD = canViewAllAttendance(req.user);
 
-    // Staff view: only return personal day metrics for Developer, Trainer, Digital Marketing
-    if (!isMD) {
-      const userRecord = await Attendance.findOne({ employeeId: req.user._id, date: targetDate });
+    // Staff view or single user view: return personal metrics only
+    if (!isMD || (targetUserId && targetUserId !== 'ALL')) {
+      const activeEmployeeId = !isMD ? req.user._id : targetUserId;
+      const userRecord = await Attendance.findOne({ employeeId: activeEmployeeId, date: targetDate });
       if (userRecord) userRecord.calculateAttendanceDurations(now);
 
       return res.json({
@@ -635,7 +632,7 @@ router.get('/summary', protect, async (req, res) => {
       });
     }
 
-    // Managing Director View: Total active employees in the system
+    // Admin View: Total active employees in the system
     const totalEmployees = await User.countDocuments({ isActive: true });
 
     // Attendance sessions for the selected date
@@ -693,7 +690,8 @@ router.get('/summary', protect, async (req, res) => {
 router.get('/records', protect, async (req, res) => {
   try {
     await autoCloseExpiredNineHourSessions();
-    const { date, fromDate, toDate, status, search } = req.query;
+    const { date, fromDate, toDate, status, search, userId, employeeId } = req.query;
+    const targetUserId = userId || employeeId;
     const { dateStr: todayStr, dayStr: todayDay } = getLocalDateAndDay();
     const now = new Date();
 
@@ -704,9 +702,17 @@ router.get('/records', protect, async (req, res) => {
     let selectedDate = date || todayStr;
     let selectedDay = todayDay;
 
-    // Strict Scope: Only Managing Director can view all users. Developers, Trainers, Digital Marketing view only own.
+    // Strict Scope: Only Admin can view all users.
+    // Non-admin is strictly restricted to req.user._id. Admin can filter by specific employee.
+    let filterEmployeeId = null;
     if (!isMD) {
-      query.employeeId = req.user._id;
+      filterEmployeeId = req.user._id;
+    } else if (targetUserId && targetUserId !== 'ALL') {
+      filterEmployeeId = targetUserId;
+    }
+
+    if (filterEmployeeId) {
+      query.employeeId = filterEmployeeId;
     }
 
     if (fromDate && toDate) {
@@ -726,8 +732,12 @@ router.get('/records', protect, async (req, res) => {
       query.status = status;
     }
 
-    // Fetch active employees (All users for Managing Director, only self for staff)
-    const allUsers = await User.find(isMD ? { isActive: true } : { _id: req.user._id })
+    // Fetch active employees (All users for Admin when no filter, single user when filtered or non-admin)
+    const userQuery = filterEmployeeId
+      ? { _id: filterEmployeeId }
+      : { isActive: true };
+
+    const allUsers = await User.find(userQuery)
       .select('name email role avatar phone employeeId createdAt')
       .sort({ name: 1 })
       .lean();
@@ -914,8 +924,7 @@ router.get('/records', protect, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/employee/:employeeId/history', protect, async (req, res) => {
   try {
-    const userDesig = String(req.user?.designation || '').trim().toUpperCase();
-    const isMD = userDesig === 'MANAGING DIRECTOR' || userDesig === 'MD' || userDesig === 'CEO';
+    const isMD = canViewAllAttendance(req.user);
     const targetEmployeeId = isMD ? req.params.employeeId : req.user._id;
     const { limit = 100 } = req.query;
     const now = new Date();
@@ -975,17 +984,26 @@ router.get('/employee/:employeeId/history', protect, async (req, res) => {
 router.get('/export', protect, async (req, res) => {
   try {
     await autoCloseExpiredNineHourSessions();
-    const { date, fromDate, toDate, status, search } = req.query;
+    const { date, fromDate, toDate, status, search, userId, employeeId } = req.query;
+    const targetUserId = userId || employeeId;
     const { dateStr: todayStr } = getLocalDateAndDay();
     const queryDate = date || todayStr;
     const now = new Date();
 
     const isMD = canViewAllAttendance(req.user);
 
-    let query = {};
+    let filterEmployeeId = null;
     if (!isMD) {
-      query.employeeId = req.user._id;
+      filterEmployeeId = req.user._id;
+    } else if (targetUserId && targetUserId !== 'ALL') {
+      filterEmployeeId = targetUserId;
     }
+
+    let query = {};
+    if (filterEmployeeId) {
+      query.employeeId = filterEmployeeId;
+    }
+
     if (fromDate && toDate) {
       query.date = { $gte: fromDate, $lte: toDate };
     } else if (date) {
@@ -998,7 +1016,8 @@ router.get('/export', protect, async (req, res) => {
       query.status = status;
     }
 
-    const allUsers = await User.find(isMD ? { isActive: true } : { _id: req.user._id }).lean();
+    const userQuery = filterEmployeeId ? { _id: filterEmployeeId } : { isActive: true };
+    const allUsers = await User.find(userQuery).lean();
     const attendanceList = await Attendance.find(query).sort({ date: -1, startTime: -1 });
 
     let rows = [];
