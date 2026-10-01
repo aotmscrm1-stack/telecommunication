@@ -6,18 +6,33 @@ const { protect, authorize } = require('../middleware/auth');
 
 const router = express.Router();
 
-function isExecutiveOrAdmin(user) {
+function isStrictAdmin(user) {
   if (!user) return false;
-  if (user.role === 'admin' || user.role === 'superadmin' || user.role === 'manager') return true;
+  const role = String(user.role || '').trim().toLowerCase();
+  if (role === 'admin' || role === 'superadmin') return true;
+
   const desig = String(user.designation || '').trim().toUpperCase();
   const dept = String(user.department || '').trim().toUpperCase();
+
   return (
-    ['CEO', 'MANAGING DIRECTOR', 'MD', 'CTO', 'HR', 'ADMIN', 'MANAGER'].includes(desig) ||
-    desig.includes('DIRECTOR') ||
-    desig.includes('MANAGER') ||
-    desig.includes('HR') ||
-    ['ADMIN', 'MANAGEMENT', 'HR'].includes(dept)
+    desig === 'MANAGING DIRECTOR' ||
+    desig === 'MD' ||
+    desig === 'CEO' ||
+    desig === 'CTO' ||
+    desig === 'ADMIN' ||
+    desig === 'SUPERADMIN' ||
+    dept === 'ADMIN' ||
+    dept === 'MANAGEMENT'
   );
+}
+
+function isManager(user) {
+  if (!user) return false;
+  const role = String(user.role || '').trim().toLowerCase();
+  if (role === 'manager') return true;
+
+  const desig = String(user.designation || '').trim().toUpperCase();
+  return desig.includes('MANAGER') || desig.includes('HEAD') || desig.includes('LEAD') || desig.includes('SUPERVISOR');
 }
 
 // GET /api/todos — fetch todos from 'todos' collection with role-based visibility
@@ -26,8 +41,8 @@ router.get('/', protect, async (req, res) => {
     const { status, date, due: dueQuery, callerId, forMe: forMeQuery } = req.query;
     const query = {};
 
-    const isAdmin = isExecutiveOrAdmin(req.user);
-    const isMgr = req.user.role === 'manager';
+    const isAdmin = isStrictAdmin(req.user);
+    const isMgr = isManager(req.user);
     const forMe = forMeQuery === 'true';
 
     // Role-based visibility scoping
@@ -36,21 +51,24 @@ router.get('/', protect, async (req, res) => {
         if (callerId && callerId !== 'all') {
           query.$or = [{ assignedTo: callerId }, { assignedBy: callerId }, { createdBy: callerId }];
         } else if (req.user.department) {
+          const User = require('../models/User');
+          const deptUsers = await User.find({ department: req.user.department }).select('_id');
+          const deptUserIds = deptUsers.map(u => u._id);
           query.$or = [
-            { assignedTo: req.user._id },
-            { assignedBy: req.user._id },
-            { createdBy: req.user._id },
+            { assignedTo: { $in: deptUserIds } },
+            { assignedBy: { $in: deptUserIds } },
+            { createdBy: { $in: deptUserIds } },
             { department: req.user.department }
           ];
         } else {
           query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { createdBy: req.user._id }];
         }
       } else {
-        // Employees / Callers see ONLY their own todos
+        // Developer, Trainer, Digital Marketing, Employee Panels: ONLY see own todos!
         query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { createdBy: req.user._id }];
       }
     } else {
-      // Admin Panel: Full Visibility across all members
+      // ONLY Admin Panel: Full Visibility across all members & departments
       if (forMe) {
         query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { createdBy: req.user._id }];
       } else if (callerId && callerId !== 'all') {
@@ -165,6 +183,12 @@ router.put('/:id', protect, async (req, res) => {
   }
 });
 
+function extractId(val) {
+  if (!val) return '';
+  if (typeof val === 'object') return String(val._id || val.id || '');
+  return String(val);
+}
+
 // DELETE /api/todos/:id
 router.delete('/:id', protect, async (req, res) => {
   try {
@@ -176,17 +200,28 @@ router.delete('/:id', protect, async (req, res) => {
     }
     if (!target) return res.status(404).json({ message: 'Todo not found' });
 
-    const isAdmin = isExecutiveOrAdmin(req.user);
+    const isAdmin = isStrictAdmin(req.user) || isManager(req.user);
+
+    const createdById = extractId(target.createdBy);
+    const assignedToId = extractId(target.assignedTo);
+    const assignedById = extractId(target.assignedBy);
+    const currentUserId = String(req.user._id);
+
     const isOwnerOrAssignee =
-      String(target.createdBy || '') === String(req.user._id) ||
-      String(target.assignedTo || '') === String(req.user._id) ||
-      String(target.assignedBy || '') === String(req.user._id);
+      createdById === currentUserId ||
+      assignedToId === currentUserId ||
+      assignedById === currentUserId;
 
     if (!isAdmin && !isOwnerOrAssignee) {
       return res.status(403).json({ message: 'You are not authorized to delete this todo.' });
     }
 
-    await ModelClass.findByIdAndDelete(req.params.id);
+    if (target.recurringGroupId) {
+      await ModelClass.deleteMany({ recurringGroupId: target.recurringGroupId });
+    } else {
+      await ModelClass.findByIdAndDelete(target._id);
+    }
+
     res.json({ message: 'Deleted' });
   } catch (err) {
     console.error('[DELETE /todos/:id]', err);
