@@ -19,9 +19,16 @@ function fireAndForget(fn) {
 
 function isExecutiveOrAdmin(user) {
   if (!user) return false;
-  if (user.role === 'admin' || user.role === 'superadmin') return true;
+  if (user.role === 'admin' || user.role === 'superadmin' || user.role === 'manager') return true;
   const desig = String(user.designation || '').trim().toUpperCase();
-  return ['CEO', 'MANAGING DIRECTOR', 'MD', 'CTO'].includes(desig);
+  const dept = String(user.department || '').trim().toUpperCase();
+  return (
+    ['CEO', 'MANAGING DIRECTOR', 'MD', 'CTO', 'HR', 'ADMIN', 'MANAGER'].includes(desig) ||
+    desig.includes('DIRECTOR') ||
+    desig.includes('MANAGER') ||
+    desig.includes('HR') ||
+    ['ADMIN', 'MANAGEMENT', 'HR'].includes(dept)
+  );
 }
 
 // GET /api/tasks — fetch official tasks from 'tasks' collection
@@ -141,8 +148,21 @@ router.put('/:id', protect, async (req, res) => {
 });
 
 // DELETE /api/tasks/:id
-router.delete('/:id', protect, authorize('admin', 'superadmin', 'manager'), async (req, res) => {
+router.delete('/:id', protect, async (req, res) => {
   try {
+    const target = await Task.findById(req.params.id);
+    if (!target) return res.status(404).json({ message: 'Task not found' });
+
+    const isAdmin = isExecutiveOrAdmin(req.user);
+    const isOwnerOrAssignee =
+      String(target.createdBy || '') === String(req.user._id) ||
+      String(target.assignedTo || '') === String(req.user._id) ||
+      String(target.assignedBy || '') === String(req.user._id);
+
+    if (!isAdmin && !isOwnerOrAssignee) {
+      return res.status(403).json({ message: 'You are not authorized to delete this task.' });
+    }
+
     await Task.findByIdAndDelete(req.params.id);
     res.json({ message: 'Deleted' });
   } catch (err) {

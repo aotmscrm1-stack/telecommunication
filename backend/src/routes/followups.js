@@ -51,12 +51,19 @@ function getTargetModel(type) {
   return FollowUp;
 }
 
-// Helper to check executive/admin status
+// Helper to check executive/admin/manager/HR status
 function isExecutiveOrAdmin(user) {
   if (!user) return false;
-  if (user.role === 'admin' || user.role === 'superadmin') return true;
+  if (user.role === 'admin' || user.role === 'superadmin' || user.role === 'manager') return true;
   const desig = String(user.designation || '').trim().toUpperCase();
-  return ['CEO', 'MANAGING DIRECTOR', 'MD', 'CTO'].includes(desig);
+  const dept = String(user.department || '').trim().toUpperCase();
+  return (
+    ['CEO', 'MANAGING DIRECTOR', 'MD', 'CTO', 'HR', 'ADMIN', 'MANAGER'].includes(desig) ||
+    desig.includes('DIRECTOR') ||
+    desig.includes('MANAGER') ||
+    desig.includes('HR') ||
+    ['ADMIN', 'MANAGEMENT', 'HR'].includes(dept)
+  );
 }
 
 // GET /api/followups
@@ -275,7 +282,7 @@ router.put('/:id', protect, async (req, res) => {
 });
 
 // DELETE /api/followups/:id
-router.delete('/:id', protect, authorize('admin', 'superadmin', 'manager'), async (req, res) => {
+router.delete('/:id', protect, async (req, res) => {
   try {
     let target = await Task.findById(req.params.id);
     let ModelClass = Task;
@@ -288,6 +295,16 @@ router.delete('/:id', protect, authorize('admin', 'superadmin', 'manager'), asyn
       ModelClass = FollowUp;
     }
     if (!target) return res.status(404).json({ message: 'Item not found' });
+
+    const isAdmin = isExecutiveOrAdmin(req.user);
+    const isOwnerOrAssignee =
+      String(target.createdBy || '') === String(req.user._id) ||
+      String(target.assignedTo || '') === String(req.user._id) ||
+      String(target.assignedBy || '') === String(req.user._id);
+
+    if (!isAdmin && !isOwnerOrAssignee) {
+      return res.status(403).json({ message: 'You are not authorized to delete this item.' });
+    }
 
     if (req.query.series === 'true' && target.recurringGroupId) {
       const result = await ModelClass.deleteMany({

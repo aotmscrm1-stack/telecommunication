@@ -2503,8 +2503,20 @@ export default function Task() {
   const [teamUsers, setTeamUsers] = useState([]);
   const [teamMemberFilter, setTeamMemberFilter] = useState('');
   const [showTeamDrop, setShowTeamDrop] = useState(false);
-  const teamDropRef = useRef(null);
-  const canDelete = currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
+  const checkCanDelete = (task) => {
+    if (!currentUser) return false;
+    if (
+      currentUser.role === 'admin' ||
+      currentUser.role === 'superadmin' ||
+      currentUser.role === 'manager' ||
+      isExecutive(currentUser) ||
+      isHR(currentUser)
+    ) return true;
+    if (!task) return true;
+    const createdBy = task.createdBy?._id || task.createdBy || task.assignedBy?._id || task.assignedBy;
+    const assignedTo = task.assignedTo?._id || task.assignedTo || task.assignee?._id || task.assignee;
+    return String(createdBy || '') === String(currentUser._id) || String(assignedTo || '') === String(currentUser._id);
+  };
   const [markingCompleteId, setMarkingCompleteId] = useState(null);
 
   // Pagination states
@@ -2516,7 +2528,20 @@ export default function Task() {
     setCurrentPage(1);
   }, [activeTab, forFilter, dueFilter, statusFilter, priorityFilter, teamMemberFilter, historyMode]);
 
-  const canEditTask = () => currentUser?.role !== 'caller' && currentUser?.role !== 'employee';
+  const canEditTask = (task) => {
+    if (!currentUser) return false;
+    if (
+      currentUser.role === 'admin' ||
+      currentUser.role === 'superadmin' ||
+      currentUser.role === 'manager' ||
+      isExecutive(currentUser) ||
+      isHR(currentUser)
+    ) return true;
+    if (!task) return true;
+    const createdBy = task.createdBy?._id || task.createdBy || task.assignedBy?._id || task.assignedBy;
+    const assignedTo = task.assignedTo?._id || task.assignedTo || task.assignee?._id || task.assignee;
+    return String(createdBy || '') === String(currentUser._id) || String(assignedTo || '') === String(currentUser._id);
+  };
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);
@@ -3305,7 +3330,7 @@ export default function Task() {
                   onEdit={setEditingTask}
                   onComplete={handleMarkComplete}
                   onDelete={handleDelete}
-                  canDelete={canDelete}
+                  canDelete={checkCanDelete(task)}
                   isLocked={isTaskLocked(task.scheduledAt)}
                   markingId={markingCompleteId}
                   deletingId={deletingTaskId}

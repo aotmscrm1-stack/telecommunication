@@ -21,8 +21,8 @@ import {
   RotateCcw,
   ListTodo
 } from 'lucide-react';
-import { followupsAPI, usersAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
+import { isExecutive, isHR, isManager } from '../../../utils/permissions';
 
 // Helper for IST DateTime formatting
 function formatIST(dateStr) {
@@ -294,8 +294,21 @@ export default function TodoList({
     : internalPriorityFilter;
   const setPriorityFilter = parentSetPriorityFilter || setInternalPriorityFilter;
 
-  // Strict Admin Only Delete Permission
-  const canDelete = currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
+  // Delete Permission Helper (Admin, Executive, HR, Manager, or Todo Creator/Assignee)
+  const checkCanDelete = (todo) => {
+    if (!currentUser) return false;
+    if (
+      currentUser.role === 'admin' ||
+      currentUser.role === 'superadmin' ||
+      currentUser.role === 'manager' ||
+      isExecutive(currentUser) ||
+      isHR(currentUser)
+    ) return true;
+    if (!todo) return true;
+    const cId = todo.createdBy?._id || todo.createdBy || todo.assignedBy?._id || todo.assignedBy;
+    const aId = todo.assignedTo?._id || todo.assignedTo || todo.assignee?._id || todo.assignee;
+    return String(cId || '') === String(currentUser._id) || String(aId || '') === String(currentUser._id);
+  };
 
   // 1-Click Quick Add Handler
   const handleQuickAdd = async (e) => {
@@ -473,13 +486,13 @@ export default function TodoList({
                       <Edit3 size={14} />
                     </button>
 
-                    {/* Strict Admin Only Delete Button */}
-                    {canDelete && (
+                    {/* Delete Button */}
+                    {checkCanDelete(t) && (
                       <button
                         onClick={() => onDeleteTask && onDeleteTask(t._id)}
                         disabled={deletingId === t._id}
                         className="bg-red-50 border border-red-200 text-red-600 p-2 rounded-xl hover:bg-red-100 transition-colors disabled:opacity-50"
-                        title="Delete Todo (Admin Only)"
+                        title="Delete Todo"
                       >
                         <Trash2 size={14} />
                       </button>
