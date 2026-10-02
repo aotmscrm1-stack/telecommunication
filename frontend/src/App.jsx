@@ -34,6 +34,7 @@ import Quotation from './Finance/quotation/Quotation';
 import OfferLetter from './Finance/offerletter/OfferLetter';
 import FeeReceipt from './Finance/feereceipt/FeeReceipt';
 import Landing from './pages/landing_pages/Landing';
+import Logo from './pages/landing_pages/Logo';
 import LiveEmployeeTracking from './Management/Attedence/LiveEmployee/LiveEmployeeTracking';
 import AttendanceRecords from './Management/Attedence/AttendanceRecords';
 import BulkEmailBlast from './Management/Email/BulkEmailBlast';
@@ -142,7 +143,9 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Landing />} />
+          <Route path="/" element={<Logo showLandingDirectly={true} />} />
+          <Route path="/logo" element={<Logo autoRedirect={true} />} />
+          <Route path="/landing" element={<Landing />} />
           <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/sign-up" element={<SignUp />} />
