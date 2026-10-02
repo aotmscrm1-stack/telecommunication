@@ -2713,7 +2713,9 @@ export default function Task() {
     setMarkingCompleteId(taskId);
     try {
       const task = tasks.find(t => t._id === taskId);
-      const isRecurring = !!(task?.recurrence?.frequency || task?.recurrenceFrequency || (task?.recurrence && task?.recurrence?.frequency !== 'none'));
+      const isTodo = task?.type === 'todo';
+
+      const isRecurring = !isTodo && !!(task?.recurrence?.frequency || task?.recurrenceFrequency || (task?.recurrence && task?.recurrence?.frequency !== 'none'));
 
       if (isRecurring && task) {
         const currentCount = task.completedCount || 0;
@@ -2740,8 +2742,14 @@ export default function Task() {
         }
       }
 
-      await followupsAPI.update(taskId, { status: 'done' });
-      setTasks(prev => prev.filter(t => t._id !== taskId));
+      const completedTime = new Date().toISOString();
+      await followupsAPI.update(taskId, { status: 'done', completedAt: completedTime });
+
+      if (historyMode) {
+        setTasks(prev => prev.map(t => t._id === taskId ? { ...t, status: 'done', completedAt: completedTime } : t));
+      } else {
+        setTasks(prev => prev.filter(t => t._id !== taskId));
+      }
     } catch (err) {
       console.error('Failed to mark task complete:', err);
       alert(err.response?.data?.message || 'Failed to mark task complete');
