@@ -20,16 +20,78 @@ api.interceptors.request.use(cfg => {
   return cfg;
 });
 
-// Helper to strip open tracking pixel tags & placeholders
-const cleanEmailBody = (content) => {
+// Helper to strip open tracking pixel tags & placeholders and parse images & links into clean HTML without exposing raw URLs
+const formatEmailBodyHtml = (content) => {
   if (!content || typeof content !== 'string') return '';
-  return content
+
+  let html = content
     .replace(/<img[^>]*class=["']?flm-open["']?[^>]*>/gi, '')
     .replace(/<img[^>]*data-open-tracking-src=[^>]*>/gi, '')
     .replace(/\{\{track-read-receipt\}\}/gi, '')
-    .replace(/<img[^>]*src=["']?\{\{track-read-receipt\}\}["']?[^>]*>/gi, '')
-    .trim();
+    .replace(/<img[^>]*src=["']?\{\{track-read-receipt\}\}["']?[^>]*>/gi, '');
+
+  const isPlainText = !/<[a-z][\s\S]*>/i.test(html);
+
+  if (isPlainText) {
+    // Escape basic HTML entities
+    html = html
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    // 1. Bracketed image followed by link URL: [https://...png]https://click.godaddy...
+    // Wrap image in <a> link tag and do NOT expose raw URL text
+    html = html.replace(/\[(https?:\/\/[^\s\]]+\.(?:png|jpg|jpeg|gif|svg|webp)[^\s\]]*)\]\s*(https?:\/\/[^\s<"']+)/gi, (match, imgUrl, linkUrl) => {
+      return `<div style="margin: 10px 0;"><a href="${linkUrl}" target="_blank" rel="noopener noreferrer"><img src="${imgUrl}" alt="Email Image" style="max-width: 100%; max-height: 480px; height: auto; object-fit: contain; border-radius: 6px; display: block;" onerror="this.style.display='none'" /></a></div>`;
+    });
+
+    // 2. Bracketed text followed by link URL: [Contact Us]https://click.godaddy...
+    html = html.replace(/\[([^\]]+)\]\s*(https?:\/\/[^\s<"']+)/gi, (match, label, linkUrl) => {
+      if (label.match(/^https?:\/\//i)) {
+        if (label.match(/\.(png|jpg|jpeg|gif|svg|webp)$/i)) {
+          return `<div style="margin: 10px 0;"><a href="${linkUrl}" target="_blank" rel="noopener noreferrer"><img src="${label}" alt="Email Image" style="max-width: 100%; max-height: 480px; height: auto; object-fit: contain; border-radius: 6px; display: block;" onerror="this.style.display='none'" /></a></div>`;
+        }
+        return `<a href="${linkUrl}" target="_blank" rel="noopener noreferrer" style="color: #1a73e8; text-decoration: underline;">Link</a>`;
+      }
+      return `<a href="${linkUrl}" target="_blank" rel="noopener noreferrer" style="color: #1a73e8; text-decoration: underline;">${label}</a>`;
+    });
+
+    // 3. Standalone bracketed images: [https://...png]
+    html = html.replace(/\[(https?:\/\/[^\s\]]+\.(?:png|jpg|jpeg|gif|svg|webp)[^\s\]]*)\]/gi, (match, url) => {
+      return `<div style="margin: 10px 0;"><img src="${url}" alt="Email Image" style="max-width: 100%; max-height: 480px; height: auto; object-fit: contain; border-radius: 6px; display: block;" onerror="this.style.display='none'" /></div>`;
+    });
+
+    // 4. Remove unattached long tracking URLs from being printed out as ugly raw text blocks
+    html = html.replace(/(?:^|\s)https?:\/\/(?:click\.godaddy\.com|50analytics\.secureserver\.net|et\.secureserver\.net)[^\s<"']*/gi, '');
+
+    // 5. Hide standalone bracketed tracking URLs: [https://...]
+    html = html.replace(/\[https?:\/\/[^\s\]]+\]/gi, '');
+
+    // Preserve newlines
+    html = html.replace(/\n\s*\n/g, '<br /><br />').replace(/\n/g, '<br />');
+  } else {
+    // Rich HTML email body (e.g. GoDaddy / Titan HTML)
+    // 1. Bracketed image followed by link URL
+    html = html.replace(/\[(https?:\/\/[^\s\]]+\.(?:png|jpg|jpeg|gif|svg|webp)[^\s\]]*)\]\s*(https?:\/\/[^\s<"']+)/gi, (match, imgUrl, linkUrl) => {
+      return `<a href="${linkUrl}" target="_blank" rel="noopener noreferrer"><img src="${imgUrl}" alt="Email Image" style="max-width: 100%; max-height: 480px; height: auto; object-fit: contain; border-radius: 6px; display: inline-block; margin: 6px 0;" onerror="this.style.display='none'" /></a>`;
+    });
+
+    // 2. Bracketed image links [https://...png]
+    html = html.replace(/\[(https?:\/\/[^\s\]]+\.(?:png|jpg|jpeg|gif|svg|webp)[^\s\]]*)\]/gi, (match, url) => {
+      return `<img src="${url}" alt="Email Image" style="max-width: 100%; max-height: 480px; height: auto; object-fit: contain; border-radius: 6px; display: inline-block; margin: 6px 0;" onerror="this.style.display='none'" />`;
+    });
+
+    // 3. Remove raw exposed tracking link text strings
+    html = html.replace(/(?:^|\s)https?:\/\/(?:click\.godaddy\.com|50analytics\.secureserver\.net|et\.secureserver\.net)[^\s<"']*/gi, '');
+
+    // 4. Hide standalone bracketed tracking URLs
+    html = html.replace(/\[https?:\/\/[^\s\]]+\]/gi, '');
+  }
+
+  return html;
 };
+
+const cleanEmailBody = (content) => formatEmailBodyHtml(content);
 
 // Gmail & Brand Colors (Clean White, Google Blue, Sunset Orange accents)
 const GMAIL_BLUE       = '#1a73e8';
@@ -157,7 +219,8 @@ export default function EmailCRM() {
   // Admin / MD Tracking Portal State
   const [mdStats, setMdStats] = useState(null);
   const [trackingUsers, setTrackingUsers] = useState([]);
-  const [selectedEmployeeFilter, setSelectedEmployeeFilter] = useState('all');
+  const [selectedEmployeeFilter, setSelectedEmployeeFilter] = useState(() => user?._id || 'all');
+  const [showEmpDropdown, setShowEmpDropdown] = useState(false);
 
   // Create Template Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -485,6 +548,41 @@ ${user?.designation || 'Staff'}`
     return () => clearInterval(timer);
   }, [selectedEmployeeFilter, searchQuery]);
 
+  // Real-time WebSocket connection for instant incoming email replies & sync updates
+  useEffect(() => {
+    const wsProtocol = (import.meta.env.VITE_API_URL?.startsWith('https') || window.location.protocol === 'https:') ? 'wss:' : 'ws:';
+    let wsHost = window.location.host;
+    if (import.meta.env.VITE_API_URL) {
+      try {
+        const u = new URL(import.meta.env.VITE_API_URL);
+        wsHost = u.host;
+      } catch (e) {}
+    }
+    const wsUrl = `${wsProtocol}//${wsHost}/ws`;
+    
+    let socket;
+    try {
+      socket = new WebSocket(wsUrl);
+      socket.onmessage = (event) => {
+        try {
+          const raw = JSON.parse(event.data);
+          const eventName = raw.event || raw.type;
+          if (eventName === 'email:incoming_reply' || eventName === 'email:new_inbound' || eventName === 'email:sync_completed') {
+            fetchEmailLogs(selectedEmployeeFilter, searchQuery);
+          }
+        } catch (err) {
+          // silent ignore malformed websocket message
+        }
+      };
+    } catch (err) {
+      console.warn('Email CRM WebSocket connection error:', err);
+    }
+
+    return () => {
+      if (socket) socket.close();
+    };
+  }, [selectedEmployeeFilter, searchQuery]);
+
   const handleSelectEmail = (log) => {
     setSelectedEmail(log);
     setInlineReplyText('');
@@ -494,6 +592,69 @@ ${user?.designation || 'Staff'}`
       api.patch(`/email/logs/${log._id || log.id}/read`).catch(() => {});
       setLogs(prev => prev.map(l => (l._id === log._id ? { ...l, isRead: true } : l)));
     }
+  };
+
+  // Action Handlers for Reply, Reply All, Forward
+  const handleReplyClick = () => {
+    if (!selectedEmail) return;
+    const replyToEmail = selectedEmail.direction === 'inbound'
+      ? (selectedEmail.senderEmail || selectedEmail.fromEmail)
+      : (selectedEmail.recipientEmail || selectedEmail.fromEmail);
+
+    const origSubject = selectedEmail.subject || '';
+    const replySubject = origSubject.toLowerCase().startsWith('re:') ? origSubject : `Re: ${origSubject}`;
+
+    const cleanBodyText = (selectedEmail.body || '').replace(/<[^>]*>/g, '');
+    const quoteHeader = `\n\n\n------------------ Original Message ------------------\nFrom: ${selectedEmail.senderName || selectedEmail.fromEmail || replyToEmail}\nDate: ${selectedEmail.createdAt ? new Date(selectedEmail.createdAt).toLocaleString() : ''}\nSubject: ${origSubject}\nTo: ${selectedEmail.recipientEmail || user?.email || ''}\n\n${cleanBodyText}`;
+
+    setFromEmail(user?.email || 'hr@aotms.com');
+    setRecipientEmail(replyToEmail);
+    setSubject(replySubject);
+    setBody(quoteHeader);
+    setComposeTab('write');
+    setComposeMinimized(false);
+    setComposeMaximized(false);
+    setComposeOpen(true);
+  };
+
+  const handleReplyAllClick = () => {
+    if (!selectedEmail) return;
+    const replyToEmail = selectedEmail.direction === 'inbound'
+      ? (selectedEmail.senderEmail || selectedEmail.fromEmail)
+      : (selectedEmail.recipientEmail || selectedEmail.fromEmail);
+
+    const origSubject = selectedEmail.subject || '';
+    const replySubject = origSubject.toLowerCase().startsWith('re:') ? origSubject : `Re: ${origSubject}`;
+
+    const cleanBodyText = (selectedEmail.body || '').replace(/<[^>]*>/g, '');
+    const quoteHeader = `\n\n\n------------------ Original Message ------------------\nFrom: ${selectedEmail.senderName || selectedEmail.fromEmail || replyToEmail}\nDate: ${selectedEmail.createdAt ? new Date(selectedEmail.createdAt).toLocaleString() : ''}\nSubject: ${origSubject}\nTo: ${selectedEmail.recipientEmail || user?.email || ''}\n\n${cleanBodyText}`;
+
+    setFromEmail(user?.email || 'hr@aotms.com');
+    setRecipientEmail(replyToEmail);
+    setSubject(replySubject);
+    setBody(quoteHeader);
+    setComposeTab('write');
+    setComposeMinimized(false);
+    setComposeMaximized(false);
+    setComposeOpen(true);
+  };
+
+  const handleForwardClick = () => {
+    if (!selectedEmail) return;
+    const origSubject = selectedEmail.subject || '';
+    const fwdSubject = origSubject.toLowerCase().startsWith('fwd:') ? origSubject : `Fwd: ${origSubject}`;
+
+    const cleanBodyText = (selectedEmail.body || '').replace(/<[^>]*>/g, '');
+    const fwdHeader = `\n\n---------- Forwarded message ---------\nFrom: ${selectedEmail.senderName || selectedEmail.fromEmail || ''} <${selectedEmail.fromEmail || ''}>\nDate: ${selectedEmail.createdAt ? new Date(selectedEmail.createdAt).toLocaleString() : ''}\nSubject: ${origSubject}\nTo: ${selectedEmail.recipientEmail || ''}\n\n${cleanBodyText}`;
+
+    setFromEmail(user?.email || 'hr@aotms.com');
+    setRecipientEmail('');
+    setSubject(fwdSubject);
+    setBody(fwdHeader);
+    setComposeTab('write');
+    setComposeMinimized(false);
+    setComposeMaximized(false);
+    setComposeOpen(true);
   };
 
   const handleSendInlineReply = async () => {
@@ -638,11 +799,11 @@ ${user?.designation || 'Staff'}`
                   <div style="display: flex; align-items: center; gap: 8px;">
                     ${f.url ? `
                       <a href="${f.url}" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 7px 14px; background: #ffffff; color: #1a73e8; border: 1px solid #1a73e8; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: 600;">
-                        👁️ View
+                         View
                       </a>
                     ` : ''}
                     <a href="${fileHref}" download="${f.name}" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 7px 16px; background: #1a73e8; color: #ffffff; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: 600; box-shadow: 0 1px 2px rgba(26,115,232,0.3);">
-                      ⬇️ Download File
+                      ⬇ Download File
                     </a>
                   </div>
                 </div>
@@ -1057,6 +1218,34 @@ ${user?.designation || 'Staff'}`
   const unreadRepliesCount = logs.filter(l => !(l.isReply && l.parentEmail) && l.isRead === false).length;
   const sentCount = logs.filter(l => !(l.isReply && l.parentEmail) && (l.direction === 'outbound' || l.direction !== 'inbound' || (l.replies && l.replies.some(r => r.direction === 'outbound' || r.senderEmail === user?.email)))).length;
 
+  const renderEmpAvatar = (emp, size = 32) => {
+    const avatarUrl = emp?.avatar || emp?.photo || emp?.profileImage || emp?.profilePicture || emp?.avatarUrl;
+    const initial = ((emp?.name || emp?.email || 'U')[0]).toUpperCase();
+    
+    if (avatarUrl) {
+      return (
+        <img
+          src={avatarUrl}
+          alt={emp?.name || 'Employee'}
+          style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', border: '1px solid #cbd5e1' }}
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+        />
+      );
+    }
+    return (
+      <div
+        style={{
+          width: size, height: size, borderRadius: '50%',
+          background: '#1a73e8', color: '#ffffff',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontWeight: 700, fontSize: Math.max(10, Math.floor(size * 0.45))
+        }}
+      >
+        {initial}
+      </div>
+    );
+  };
+
   return (
     <div className="email-crm-outer-shell" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 84px)', maxHeight: 'calc(100vh - 84px)', minHeight: 0, background: '#f8fafc', color: TEXT_MAIN, fontFamily: 'Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif', overflow: 'hidden' }}>
       <style>{`
@@ -1072,15 +1261,13 @@ ${user?.designation || 'Staff'}`
           .email-crm-compose-text { display: none !important; }
         }
       `}</style>
-
-      {/* Responsive Wrapper Container with max-width */}
       <div className="email-crm-container" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', width: '100%', maxWidth: 1440, margin: '0 auto', padding: '6px 12px', height: '100%', overflow: 'hidden' }}>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: WHITE, borderRadius: 14, border: `1px solid ${BORDER_LIGHT}`, boxShadow: '0 1px 4px rgba(0,0,0,0.03)', overflow: 'hidden', height: '100%' }}>
 
           {/* ── 1. GMAIL STYLE TOP SEARCH & APP BAR ────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 20px', borderBottom: `1px solid ${BORDER_LIGHT}`, background: WHITE, flexShrink: 0, height: 56 }}>
-        {/* Brand / Title */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 230 }}>
+        {/* Left: Brand / Title */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 220 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 38, height: 38, borderRadius: '50%', background: GMAIL_BLUE_LIGHT, color: GMAIL_BLUE }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
@@ -1097,10 +1284,10 @@ ${user?.designation || 'Staff'}`
           </div>
         </div>
 
-        {/* Gmail Search Box */}
-        <div style={{ flex: 1, maxWidth: 680, margin: '0 24px', position: 'relative' }}>
-          <div style={{ display: 'flex', alignItems: 'center', background: '#f1f3f4', borderRadius: 28, padding: '0 16px', height: 44, border: '1px solid transparent', transition: 'all 0.2s', boxShadow: 'none' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5f6368" strokeWidth="2" style={{ marginRight: 12 }}>
+        {/* Center: Gmail Search Box */}
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '0 16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', background: '#f1f3f4', borderRadius: 28, padding: '0 16px', height: 44, width: '100%', maxWidth: 620, border: '1px solid transparent', transition: 'all 0.2s', boxShadow: 'none' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5f6368" strokeWidth="2" style={{ marginRight: 12, flexShrink: 0 }}>
               <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
             <input
@@ -1123,49 +1310,6 @@ ${user?.designation || 'Staff'}`
                 ✕
               </button>
             )}
-          </div>
-        </div>
-
-        {/* Right Status Badges & Sync Data Button */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button
-            onClick={handleSyncData}
-            disabled={isSyncing}
-            title="Sync latest email data & replies"
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              background: '#eff6ff', color: '#1d4ed8',
-              border: '1px solid #bfdbfe',
-              padding: '6px 14px', borderRadius: 20,
-              fontSize: 12, fontWeight: 600, cursor: isSyncing ? 'not-allowed' : 'pointer',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <svg
-              width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
-              style={{ animation: isSyncing ? 'spin 1s linear infinite' : 'none' }}
-            >
-              <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-            </svg>
-            {isSyncing ? 'Syncing...' : 'Sync Data'}
-          </button>
-
-          <button
-            onClick={() => fetchEmailLogs(selectedEmployeeFilter, searchQuery)}
-            title="Refresh mail"
-            style={{ width: 36, height: 36, borderRadius: '50%', border: 'none', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: TEXT_MUTED }}
-            onMouseEnter={e => e.currentTarget.style.background = '#f1f3f4'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-          </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 12px 4px 6px', background: '#f8f9fa', borderRadius: 20, border: `1px solid ${BORDER_LIGHT}` }}>
-            <div style={{ width: 26, height: 26, borderRadius: '50%', background: GMAIL_BLUE, color: WHITE, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
-              {(user?.name || 'U')[0].toUpperCase()}
-            </div>
-            <span style={{ fontSize: 12, fontWeight: 500, color: TEXT_MAIN }}>
-              {user?.name || 'Staff'}
-            </span>
           </div>
         </div>
       </div>
@@ -1569,20 +1713,160 @@ ${user?.designation || 'Staff'}`
 
             {/* Quick Action Buttons */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              {isMD && activeFolder === 'admin_audit' && trackingUsers.length > 0 && (
-                <select
-                  value={selectedEmployeeFilter}
-                  onChange={e => {
-                    setSelectedEmployeeFilter(e.target.value);
-                    fetchEmailLogs(e.target.value, searchQuery);
-                  }}
-                  style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${BORDER_LIGHT}`, fontSize: 12, fontWeight: 500, background: WHITE, color: TEXT_MAIN, outline: 'none' }}
-                >
-                  <option value="all">All Staff ({trackingUsers.length})</option>
-                  {trackingUsers.map(u => (
-                    <option key={u._id} value={u._id}>{u.name} ({u.designation || 'Staff'})</option>
-                  ))}
-                </select>
+              {/* Employee Profile Dropdown for Admin Users */}
+              {isMD && trackingUsers.length > 0 && (
+                <div style={{ position: 'relative' }}>
+                  {showEmpDropdown && (
+                    <div
+                      onClick={() => setShowEmpDropdown(false)}
+                      style={{ position: 'fixed', inset: 0, zIndex: 999 }}
+                    />
+                  )}
+
+                  {/* Dropdown Button showing active selected employee avatar & details */}
+                  <button
+                    type="button"
+                    onClick={() => setShowEmpDropdown(prev => !prev)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '4px 12px 4px 6px',
+                      background: '#ffffff',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: 24,
+                      cursor: 'pointer',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                      transition: 'all 0.15s ease'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = '#1a73e8'}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = '#cbd5e1'}
+                  >
+                    {(() => {
+                      if (selectedEmployeeFilter === 'all') {
+                        return (
+                          <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg, #1a73e8 0%, #7c3aed 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(124,58,237,0.3)', border: '1px solid #c084fc' }}>
+                            <ShinyText text="ALL" speed={2.5} style={{ fontSize: 9.5, fontWeight: 900, color: '#ffffff', letterSpacing: '0.3px' }} />
+                          </div>
+                        );
+                      }
+                      const currentEmp = trackingUsers.find(u => u._id === selectedEmployeeFilter) || user;
+                      return renderEmpAvatar(currentEmp, 28);
+                    })()}
+
+                    <div style={{ textAlign: 'left' }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', lineHeight: 1.2, maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {selectedEmployeeFilter === 'all'
+                          ? 'All Employees'
+                          : (trackingUsers.find(u => u._id === selectedEmployeeFilter)?.name || user?.name || 'Admin')}
+                      </div>
+                      <div style={{ fontSize: 10, color: '#64748b', lineHeight: 1 }}>
+                        {selectedEmployeeFilter === 'all'
+                          ? `Portal Staff (${trackingUsers.length})`
+                          : (trackingUsers.find(u => u._id === selectedEmployeeFilter)?.designation || 'Staff')}
+                      </div>
+                    </div>
+
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+
+                  {/* Dropdown Menu Overlay */}
+                  {showEmpDropdown && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        right: 0,
+                        top: '115%',
+                        zIndex: 1000,
+                        width: 290,
+                        background: '#ffffff',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: 12,
+                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                        overflow: 'hidden',
+                        padding: '6px 0'
+                      }}
+                    >
+                      <div style={{ padding: '8px 14px 6px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', borderBottom: '1px solid #f1f5f9' }}>
+                        Select Employee Email View
+                      </div>
+
+                      <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+                        {/* All Staff Option */}
+                        <div
+                          onClick={() => {
+                            setSelectedEmployeeFilter('all');
+                            fetchEmailLogs('all', searchQuery);
+                            setShowEmpDropdown(false);
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justify: 'space-between',
+                            padding: '10px 14px',
+                            cursor: 'pointer',
+                            background: selectedEmployeeFilter === 'all' ? '#eff6ff' : 'transparent',
+                            transition: 'background 0.15s'
+                          }}
+                          onMouseEnter={e => { if (selectedEmployeeFilter !== 'all') e.currentTarget.style.background = '#f8fafc'; }}
+                          onMouseLeave={e => { if (selectedEmployeeFilter !== 'all') e.currentTarget.style.background = 'transparent'; }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, #1a73e8 0%, #7c3aed 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(124,58,237,0.3)', border: '1px solid #c084fc' }}>
+                              <ShinyText text="ALL" speed={2.5} style={{ fontSize: 10.5, fontWeight: 900, color: '#ffffff', letterSpacing: '0.3px' }} />
+                            </div>
+                            <div>
+                              <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0f172a' }}>All Employees ({trackingUsers.length})</div>
+                              <div style={{ fontSize: 11, color: '#64748b' }}>Show all staff email streams</div>
+                            </div>
+                          </div>
+                          {selectedEmployeeFilter === 'all' && <span style={{ color: '#1a73e8', fontWeight: 800, fontSize: 14 }}>✓</span>}
+                        </div>
+
+                        <div style={{ height: 1, background: '#f1f5f9', margin: '4px 0' }} />
+
+                        {/* List of All Employees with Profile Images */}
+                        {trackingUsers.map(u => {
+                          const isSelected = selectedEmployeeFilter === u._id;
+                          return (
+                            <div
+                              key={u._id}
+                              onClick={() => {
+                                setSelectedEmployeeFilter(u._id);
+                                fetchEmailLogs(u._id, searchQuery);
+                                setShowEmpDropdown(false);
+                              }}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '9px 14px',
+                                cursor: 'pointer',
+                                background: isSelected ? '#eff6ff' : 'transparent',
+                                transition: 'background 0.15s'
+                              }}
+                              onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = '#f8fafc'; }}
+                              onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10, overflow: 'hidden' }}>
+                                {renderEmpAvatar(u, 32)}
+                                <div style={{ overflow: 'hidden' }}>
+                                  <div style={{ fontSize: 12.5, fontWeight: isSelected ? 700 : 600, color: '#0f172a', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                                    {u.name}
+                                  </div>
+                                  <div style={{ fontSize: 11, color: '#64748b', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                                    {u.designation || u.role || 'Staff'} · {u.email}
+                                  </div>
+                                </div>
+                              </div>
+                              {isSelected && <span style={{ color: '#1a73e8', fontWeight: 800, fontSize: 14, marginLeft: 8 }}>✓</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
 
               {activeFolder === 'templates' && (
@@ -1743,13 +2027,14 @@ ${user?.designation || 'Staff'}`
                 </div>
                 {selectedEmail.html ? (
                   <div
-                    style={{ fontSize: 13.5, color: TEXT_MAIN, lineHeight: 1.7, background: '#fafbfc', padding: 20, borderRadius: 8, border: `1px solid ${BORDER_LIGHT}` }}
-                    dangerouslySetInnerHTML={{ __html: cleanEmailBody(selectedEmail.html) }}
+                    style={{ fontSize: 13.5, color: TEXT_MAIN, lineHeight: 1.7, background: '#fafbfc', padding: 20, borderRadius: 8, border: `1px solid ${BORDER_LIGHT}`, overflowX: 'auto' }}
+                    dangerouslySetInnerHTML={{ __html: formatEmailBodyHtml(selectedEmail.html) }}
                   />
                 ) : (
-                  <div style={{ fontSize: 13.5, color: TEXT_MAIN, lineHeight: 1.7, whiteSpace: 'pre-wrap', background: '#fafbfc', padding: 20, borderRadius: 8, border: `1px solid ${BORDER_LIGHT}` }}>
-                    {cleanEmailBody(selectedEmail.body) || '(No message content recorded)'}
-                  </div>
+                  <div
+                    style={{ fontSize: 13.5, color: TEXT_MAIN, lineHeight: 1.7, background: '#fafbfc', padding: 20, borderRadius: 8, border: `1px solid ${BORDER_LIGHT}`, overflowX: 'auto' }}
+                    dangerouslySetInnerHTML={{ __html: formatEmailBodyHtml(selectedEmail.body || '(No message content recorded)') }}
+                  />
                 )}
 
                 {/* Display Attached Files & Media with Download Buttons */}
@@ -1856,280 +2141,232 @@ ${user?.designation || 'Staff'}`
                 )}
               </div>
 
-              {/* ── REPLY STREAM: Notification Style Mail Cards ────────── */}
-              <div style={{ marginTop: 8, marginBottom: 24 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, paddingBottom: 8, borderBottom: `1px solid ${BORDER_LIGHT}` }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: TEXT_MAIN }}>
-                      Conversation & Replies
-                    </span>
-                    <span style={{ fontSize: 11, fontWeight: 700, background: selectedEmail.replies?.length > 0 ? '#7c3aed' : '#e2e8f0', color: selectedEmail.replies?.length > 0 ? WHITE : TEXT_MUTED, padding: '2px 8px', borderRadius: 12 }}>
-                      {selectedEmail.replies?.length || 0}
-                    </span>
-                  </div>
+              {/* ── THREADED CONVERSATION REPLIES ────────────────────────── */}
+              {selectedEmail.replies && selectedEmail.replies.length > 0 && (
+                  <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 8, borderBottom: `1px solid ${BORDER_LIGHT}` }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a73e8" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>
+                        Conversation Replies ({selectedEmail.replies.length})
+                      </span>
+                    </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <button
-                      onClick={handleSyncData}
-                      disabled={isSyncing}
-                      title="Sync latest conversation data & replies"
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 5,
-                        background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe',
-                        borderRadius: 6, padding: '4px 11px', fontSize: 11.5, fontWeight: 600,
-                        cursor: isSyncing ? 'not-allowed' : 'pointer',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" style={{ animation: isSyncing ? 'spin 1s linear infinite' : 'none' }}>
-                        <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-                      </svg>
-                      {isSyncing ? 'Syncing...' : 'Sync Data'}
-                    </button>
-                  </div>
-                </div>
-
-                {/* List of Replies */}
-                {selectedEmail.replies && selectedEmail.replies.length > 0 ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                    {selectedEmail.replies.map((reply, idx) => {
-                      const isInbound = reply.direction === 'inbound' || reply.source === 'webhook' || reply.source === 'n8n_inbound';
-                      const senderInitial = (reply.senderName || reply.senderEmail || 'U')[0].toUpperCase();
+                    {selectedEmail.replies.map((reply, rIdx) => {
+                      const isReplyInbound = reply.direction === 'inbound';
+                      const replySender = reply.senderName || reply.senderEmail || reply.fromEmail || (isReplyInbound ? 'Customer' : 'Staff');
+                      const replySenderEmail = reply.senderEmail || reply.fromEmail || '';
+                      const replyTime = reply.receivedAt || reply.sentAt || reply.createdAt;
+                      const formattedTime = replyTime ? new Date(replyTime).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+                      const avatarInitial = (replySender[0] || 'R').toUpperCase();
 
                       return (
                         <div
-                          key={reply._id || idx}
+                          key={reply._id || reply.id || rIdx}
                           style={{
+                            background: isReplyInbound ? '#f8fafc' : '#ffffff',
+                            border: `1px solid ${isReplyInbound ? '#cbd5e1' : '#e2e8f0'}`,
                             borderRadius: 10,
-                            border: `1px solid ${isInbound ? '#ddd6fe' : '#bfdbfe'}`,
-                            borderLeft: `5px solid ${isInbound ? '#7c3aed' : '#1a73e8'}`,
-                            background: isInbound ? '#faf7ff' : '#f8fbff',
-                            padding: '14px 18px',
-                            boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-                            transition: 'box-shadow 0.15s'
+                            padding: 16,
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                            borderLeft: `4px solid ${isReplyInbound ? '#7c3aed' : '#1a73e8'}`
                           }}
                         >
-                          {/* Notification Header */}
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+                          {/* Reply Header */}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                               <div
                                 style={{
-                                  width: 32, height: 32, borderRadius: '50%',
-                                  background: isInbound ? '#7c3aed' : '#1a73e8',
-                                  color: WHITE, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                  fontSize: 13, fontWeight: 700
+                                  width: 32,
+                                  height: 32,
+                                  borderRadius: '50%',
+                                  background: isReplyInbound ? '#7c3aed' : '#1a73e8',
+                                  color: WHITE,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontWeight: 700,
+                                  fontSize: 13
                                 }}
                               >
-                                {senderInitial}
+                                {avatarInitial}
                               </div>
                               <div>
-                                <div style={{ fontSize: 13, fontWeight: 700, color: TEXT_MAIN }}>
-                                  {reply.senderName || reply.senderEmail}
-                                  <span style={{ fontSize: 11.5, fontWeight: 400, color: TEXT_MUTED, marginLeft: 6 }}>
-                                    &lt;{reply.senderEmail}&gt;
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                  <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
+                                    {replySender}
+                                  </span>
+                                  {replySenderEmail && (
+                                    <span style={{ fontSize: 11.5, color: '#64748b' }}>
+                                      &lt;{replySenderEmail}&gt;
+                                    </span>
+                                  )}
+                                  <span
+                                    style={{
+                                      fontSize: 10,
+                                      fontWeight: 700,
+                                      padding: '1px 6px',
+                                      borderRadius: 4,
+                                      background: isReplyInbound ? '#f3e8ff' : '#e0f2fe',
+                                      color: isReplyInbound ? '#6b21a8' : '#0369a1',
+                                      border: `1px solid ${isReplyInbound ? '#ddd6fe' : '#bae6fd'}`
+                                    }}
+                                  >
+                                    {isReplyInbound ? 'INBOUND REPLY' : 'SENT REPLY'}
                                   </span>
                                 </div>
-                                <div style={{ fontSize: 11, color: TEXT_MUTED }}>
-                                  to: {reply.recipientEmail || selectedEmail.fromEmail || selectedEmail.recipientEmail}
-                                </div>
+                                {reply.recipientEmail && (
+                                  <div style={{ fontSize: 11, color: '#64748b', marginTop: 1 }}>
+                                    to: <strong style={{ color: '#334155' }}>{reply.recipientEmail}</strong>
+                                  </div>
+                                )}
                               </div>
                             </div>
-
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <span
-                                style={{
-                                  fontSize: 10.5, fontWeight: 700,
-                                  background: isInbound ? '#f3e8ff' : '#dbeafe',
-                                  color: isInbound ? '#6b21a8' : '#1e40af',
-                                  border: `1px solid ${isInbound ? '#e9d5ff' : '#bfdbfe'}`,
-                                  padding: '2px 8px', borderRadius: 12,
-                                  display: 'flex', alignItems: 'center', gap: 4
-                                }}
-                              >
-                                {isInbound ? (
-                                  <>
-                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
-                                    Incoming Reply
-                                  </>
-                                ) : (
-                                  <>
-                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                                    Sent Reply
-                                  </>
-                                )}
-                              </span>
-
-                              <span style={{ fontSize: 11, color: TEXT_MUTED }}>
-                                {reply.receivedAt ? new Date(reply.receivedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'Recently'}
-                              </span>
-                            </div>
+                            <span style={{ fontSize: 11, color: '#64748b' }}>
+                              {formattedTime}
+                            </span>
                           </div>
 
-                          {/* Reply Subject (if different or specified) */}
-                          {reply.subject && reply.subject !== selectedEmail.subject && (
-                            <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_MUTED, marginBottom: 6 }}>
+                          {/* Subject if custom */}
+                          {reply.subject && (
+                            <div style={{ fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 8, fontStyle: 'italic' }}>
                               Subject: {reply.subject}
                             </div>
                           )}
 
-                          {/* Reply Message Body */}
+                          {/* Reply Body */}
                           <div
                             style={{
                               fontSize: 13,
-                              color: '#1f2937',
-                              lineHeight: 1.65,
-                              whiteSpace: 'pre-wrap',
-                              fontFamily: 'inherit',
-                              background: WHITE,
-                              padding: '12px 16px',
+                              color: '#1e293b',
+                              lineHeight: 1.6,
+                              background: isReplyInbound ? '#ffffff' : '#f8fafc',
+                              padding: 12,
                               borderRadius: 6,
-                              border: `1px solid ${isInbound ? '#ede9fe' : '#e0e7ff'}`
+                              border: '1px solid #e2e8f0',
+                              overflowX: 'auto'
                             }}
-                          >
-                            {cleanEmailBody(reply.body)}
-                          </div>
+                            dangerouslySetInnerHTML={{ __html: formatEmailBodyHtml(reply.html || reply.body || '(No reply content)') }}
+                          />
+
+                          {/* Reply Attachments if any */}
+                          {reply.attachments && reply.attachments.length > 0 && (
+                            <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                              {reply.attachments.map((att, aIdx) => (
+                                <div key={aIdx} style={{ fontSize: 11, padding: '4px 8px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <span>📄 {att.name}</span>
+                                  {(att.downloadUrl || att.url) && (
+                                    <a href={att.downloadUrl || att.url} download={att.name} target="_blank" rel="noopener noreferrer" style={{ color: '#1a73e8', fontWeight: 600 }}>Download</a>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
                   </div>
-                ) : (
-                  <div
-                    style={{
-                      padding: '18px 20px',
-                      background: '#f8fafc',
-                      borderRadius: 8,
-                      border: `1px dashed ${BORDER_LIGHT}`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                      color: TEXT_MUTED,
-                      fontSize: 12.5
-                    }}
-                  >
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                    <div>
-                      <div style={{ fontWeight: 600, color: TEXT_MAIN }}>No replies recorded yet</div>
-                      <div>When the recipient replies via email, replies will appear right here automatically.</div>
-                    </div>
-                  </div>
                 )}
-              </div>
 
-              {/* ── INLINE REPLY COMPOSER ─────────────────────────────────── */}
-              <div
-                style={{
-                  marginTop: 'auto',
-                  background: '#f8fafd',
-                  border: `1px solid ${BORDER_LIGHT}`,
-                  borderRadius: 10,
-                  padding: 16,
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: TEXT_MAIN }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={GMAIL_BLUE} strokeWidth="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
-                    Quick Reply in Thread
-                  </div>
-                  <span style={{ fontSize: 11.5, color: TEXT_MUTED }}>
-                    To: <strong style={{ color: TEXT_MAIN }}>
-                      {selectedEmail.direction === 'inbound'
-                        ? selectedEmail.fromEmail
-                        : (selectedEmail.recipientEmail || selectedEmail.fromEmail)}
-                    </strong>
-                  </span>
-                </div>
-
-                <textarea
-                  id="inline-reply-textarea"
-                  rows={3}
-                  placeholder={`Write your reply to ${selectedEmail.direction === 'inbound' ? selectedEmail.fromEmail : (selectedEmail.recipientEmail || selectedEmail.fromEmail)}...`}
-                  value={inlineReplyText}
-                  onChange={e => setInlineReplyText(e.target.value)}
+              {/* ── THREE ACTION BUTTONS: Reply, Reply All, Forward ────────── */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 28, paddingTop: 16, borderTop: `1px solid ${BORDER_LIGHT}` }}>
+                <button
+                  type="button"
+                  onClick={handleReplyClick}
                   style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    border: `1px solid ${BORDER_LIGHT}`,
-                    borderRadius: 6,
+                    background: '#ffffff',
+                    color: '#000000',
+                    border: '1px solid #dadce0',
+                    borderRadius: 20,
+                    padding: '8px 20px',
                     fontSize: 13,
-                    fontFamily: 'inherit',
-                    outline: 'none',
-                    resize: 'vertical',
-                    background: WHITE,
-                    boxSizing: 'border-box'
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    transition: 'background 0.15s, box-shadow 0.15s, border-color 0.15s'
                   }}
-                />
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = '#f8fafc';
+                    e.currentTarget.style.borderColor = '#cbd5e1';
+                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                    e.currentTarget.style.cursor = 'pointer';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = '#ffffff';
+                    e.currentTarget.style.borderColor = '#dadce0';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#000000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+                  Reply
+                </button>
 
-                {replyError && (
-                  <div style={{ marginTop: 8, color: '#dc2626', fontSize: 12, fontWeight: 500 }}>
-                    ⚠️ {replyError}
-                  </div>
-                )}
+                <button
+                  type="button"
+                  onClick={handleReplyAllClick}
+                  style={{
+                    background: '#ffffff',
+                    color: '#000000',
+                    border: '1px solid #dadce0',
+                    borderRadius: 20,
+                    padding: '8px 20px',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    transition: 'background 0.15s, box-shadow 0.15s, border-color 0.15s'
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = '#f8fafc';
+                    e.currentTarget.style.borderColor = '#cbd5e1';
+                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                    e.currentTarget.style.cursor = 'pointer';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = '#ffffff';
+                    e.currentTarget.style.borderColor = '#dadce0';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#000000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="7 17 2 12 7 7"/><path d="M12 17l-5-5 5-5"/><path d="M22 18v-2a4 4 0 0 4-4H7"/></svg>
+                  Reply All
+                </button>
 
-                {replySuccess && (
-                  <div style={{ marginTop: 8, color: '#16a34a', fontSize: 12, fontWeight: 600 }}>
-                    ✓ {replySuccess}
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setRecipientEmail(
-                        selectedEmail.direction === 'inbound'
-                          ? selectedEmail.fromEmail
-                          : (selectedEmail.recipientEmail || selectedEmail.fromEmail)
-                      );
-                      setSubject(selectedEmail.subject?.startsWith('Re:') ? selectedEmail.subject : `Re: ${selectedEmail.subject || ''}`);
-                      setBody(inlineReplyText || '');
-                      setComposeOpen(true);
-                    }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: GMAIL_BLUE,
-                      fontSize: 12,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 4
-                    }}
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-                    Open in Full Composer
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleSendInlineReply}
-                    disabled={replying || !inlineReplyText.trim()}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      padding: '8px 20px',
-                      background: !inlineReplyText.trim() ? '#93c5fd' : GMAIL_BLUE,
-                      color: WHITE,
-                      border: 'none',
-                      borderRadius: 18,
-                      fontSize: 12.5,
-                      fontWeight: 600,
-                      cursor: !inlineReplyText.trim() || replying ? 'not-allowed' : 'pointer',
-                      transition: 'background 0.15s'
-                    }}
-                  >
-                    {replying ? (
-                      'Sending...'
-                    ) : (
-                      <>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                        Send Reply
-                      </>
-                    )}
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={handleForwardClick}
+                  style={{
+                    background: '#ffffff',
+                    color: '#000000',
+                    border: '1px solid #dadce0',
+                    borderRadius: 20,
+                    padding: '8px 20px',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    transition: 'background 0.15s, box-shadow 0.15s, border-color 0.15s'
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = '#f8fafc';
+                    e.currentTarget.style.borderColor = '#cbd5e1';
+                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                    e.currentTarget.style.cursor = 'pointer';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = '#ffffff';
+                    e.currentTarget.style.borderColor = '#dadce0';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#000000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 17 20 12 15 7"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/></svg>
+                  Forward
+                </button>
               </div>
             </div>
           ) : activeFolder === 'templates' ? (

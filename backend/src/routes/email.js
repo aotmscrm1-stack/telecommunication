@@ -6,6 +6,7 @@ const EmailLog = require('../models/EmailLog');
 const { protect } = require('../middleware/auth');
 
 const router = express.Router();
+const { broadcastWebSocketEvent } = require('../services/websocket');
 
 const MessageTemplate = require('../models/MessageTemplate');
 const { uploadToCloudinary } = require('../utils/cloudinary');
@@ -793,6 +794,11 @@ router.post('/reply', protect, async (req, res) => {
     parentLog.replies.push(replyEntry);
     await parentLog.save();
 
+    broadcastWebSocketEvent('email:incoming_reply', {
+      threadId: parentLog._id,
+      reply: replyEntry
+    });
+
     res.json({
       success: true,
       message: `Reply sent successfully to ${replyRecipient}`,
@@ -808,7 +814,17 @@ router.post('/reply', protect, async (req, res) => {
 // POST /api/email/sync — Triggers real GoDaddy IMAP synchronization & fetches incoming data
 router.post('/sync', protect, async (req, res) => {
   try {
-    const syncResult = await syncGoDaddyMail(req.user, 50);
+    let targetUser = req.user;
+    const { employeeId, targetUserId } = req.body || {};
+    const empId = employeeId || targetUserId;
+    if (empId && empId !== 'all') {
+      try {
+        const foundUser = await User.findById(empId);
+        if (foundUser) targetUser = foundUser;
+      } catch (_) {}
+    }
+
+    const syncResult = await syncGoDaddyMail(targetUser, 50);
 
     const userDesig = String(req.user?.designation || '').trim().toUpperCase();
     const isMD = userDesig === 'MANAGING DIRECTOR' || userDesig === 'MD' || userDesig === 'CEO' || req.user?.role === 'admin' || req.user?.name?.toLowerCase().trim() === 'ameen';
@@ -927,10 +943,11 @@ function stripQuotedEmailHistory(rawText) {
 
 // GoDaddy Mail IMAP Synchronizer (Syncs both INBOX and Sent Folders)
 async function syncGoDaddyMail(user, limit = 50) {
-  const imapHost = user?.smtpConfig?.imapHost || (user?.smtpConfig?.host ? user.smtpConfig.host.replace('smtpout', 'imap') : null) || process.env.IMAP_HOST || 'imap.secureserver.net';
-  const imapPort = Number(user?.smtpConfig?.imapPort || 993);
-  const imapUser = user?.smtpConfig?.user || (user?.email && user.email.includes('@aotms.com') ? user.email : null) || process.env.SMTP_USER || 'jayaveer@aotms.com';
-  const imapPass = user?.smtpConfig?.pass || process.env.SMTP_PASS || 'Aotms@2026';
+  const userSmtp = user?.smtpConfig || {};
+  const imapHost = userSmtp.imapHost || (userSmtp.host ? userSmtp.host.replace('smtpout', 'imap').replace('smtp.', 'imap.') : null) || process.env.IMAP_HOST || 'imap.secureserver.net';
+  const imapPort = Number(userSmtp.imapPort || 993);
+  const imapUser = userSmtp.user || userSmtp.fromEmail || (user?.email && (user.email.includes('@aotms') || user.email.includes('.in') || user.email.includes('.com')) ? user.email : null) || process.env.SMTP_USER || 'saadiya@aotms.in';
+  const imapPass = userSmtp.pass || process.env.SMTP_PASS || 'Aotms@2026';
 
   if (!imapUser || !imapPass) {
     return { success: false, synced: 0, message: 'No GoDaddy mail credentials configured' };
@@ -1087,6 +1104,14 @@ async function syncGoDaddyMail(user, limit = 50) {
     }
 
     await client.logout();
+
+    if (syncedCount > 0) {
+      broadcastWebSocketEvent('email:sync_completed', {
+        syncedCount,
+        threadedCount
+      });
+    }
+
     return {
       success: true,
       synced: syncedCount,
@@ -1185,6 +1210,11 @@ async function handleInboundEmail(req, res) {
       parentLog.status = 'Received';
       await parentLog.save();
 
+      broadcastWebSocketEvent('email:incoming_reply', {
+        threadId: parentLog._id,
+        reply: replySubDoc
+      });
+
       return res.json({
         success: true,
         message: 'Incoming reply matched and threaded into conversation',
@@ -1213,6 +1243,10 @@ async function handleInboundEmail(req, res) {
       references,
       isRead: false,
       n8nDetails: data
+    });
+
+    broadcastWebSocketEvent('email:new_inbound', {
+      email: newInboundLog
     });
 
     res.json({
@@ -1376,7 +1410,7 @@ router.get('/tracking-users', protect, async (req, res) => {
       });
     }
 
-    const users = await User.find({ isActive: { $ne: false } }, 'name email designation role employeeId')
+    const users = await User.find({ isActive: { $ne: false } }, 'name email designation role employeeId avatar photo profileImage profilePicture avatarUrl')
       .sort({ name: 1 });
     res.json({ users });
   } catch (err) {
