@@ -250,6 +250,50 @@ router.put('/:id', protect, async (req, res) => {
   }
 });
 
+// PATCH /api/todos/:id/status
+router.patch('/:id/status', protect, async (req, res) => {
+  try {
+    const { status } = req.body;
+    const update = { status: (status === 'completed' || status === 'done') ? 'done' : status };
+    if (update.status === 'done') {
+      update.completedAt = new Date();
+      update.completedBy = req.user._id;
+    }
+    const todo = await Todo.findByIdAndUpdate(req.params.id, update, { new: true })
+      .populate('assignedTo', 'name email avatar')
+      .populate('assignedBy', 'name email avatar')
+      .populate('completedBy', 'name email avatar');
+    if (!todo) return res.status(404).json({ message: 'Todo not found' });
+
+    res.json({ followup: todo, todo });
+  } catch (err) {
+    console.error('[PATCH /todos/:id/status]', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// PATCH /api/todos/:id
+router.patch('/:id', protect, async (req, res) => {
+  try {
+    const update = { ...req.body };
+    if (update.status === 'done' || update.status === 'completed') {
+      update.status = 'done';
+      update.completedAt = update.completedAt || new Date();
+      update.completedBy = req.user._id;
+    }
+    const todo = await Todo.findByIdAndUpdate(req.params.id, update, { new: true })
+      .populate('assignedTo', 'name email avatar')
+      .populate('assignedBy', 'name email avatar')
+      .populate('completedBy', 'name email avatar');
+    if (!todo) return res.status(404).json({ message: 'Todo not found' });
+
+    res.json({ followup: todo, todo });
+  } catch (err) {
+    console.error('[PATCH /todos/:id]', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
 function extractId(val) {
   if (!val) return '';
   if (typeof val === 'object') return String(val._id || val.id || '');

@@ -34,6 +34,7 @@ import Quotation from './Finance/quotation/Quotation';
 import OfferLetter from './Finance/offerletter/OfferLetter';
 import FeeReceipt from './Finance/feereceipt/FeeReceipt';
 import Landing from './pages/landing_pages/Landing';
+import Logo from './pages/landing_pages/Logo';
 import LiveEmployeeTracking from './Management/Attedence/LiveEmployee/LiveEmployeeTracking';
 import AttendanceRecords from './Management/Attedence/AttendanceRecords';
 import BulkEmailBlast from './Management/Email/BulkEmailBlast';
@@ -142,7 +143,9 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Landing />} />
+          <Route path="/" element={<Logo showLandingDirectly={true} />} />
+          <Route path="/logo" element={<Logo autoRedirect={true} />} />
+          <Route path="/landing" element={<Landing />} />
           <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/sign-up" element={<SignUp />} />
@@ -177,6 +180,7 @@ export default function App() {
             <Route path="my-preferences" element={<MyPreferences />} />
             <Route path="whatsapp" element={<StaffRestrictedRoute><WhatsApp /></StaffRestrictedRoute>} />
             <Route path="email" element={<EmailCRM />} />
+            <Route path=":userId/email" element={<EmailCRM />} />
             <Route path="email-blast" element={<BlastRoute><BulkEmailBlast /></BlastRoute>} />
             <Route path="offer-letter" element={<AdminRoute><OfferLetter /></AdminRoute>} />
             <Route path="payslips" element={<AdminRoute><Payslip /></AdminRoute>} />

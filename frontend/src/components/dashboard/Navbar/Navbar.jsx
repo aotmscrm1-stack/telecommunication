@@ -510,7 +510,7 @@ export default function Navbar() {
       title: 'Email CRM',
       icon: FaEnvelopeOpenText,
       items: [
-        { label: 'Email CRM', path: '/email', icon: FaEnvelopeOpenText },
+        { label: 'Email CRM', path: user?._id ? `/${user._id}/email` : '/email', icon: FaEnvelopeOpenText },
       ]
     },
     {
@@ -547,7 +547,7 @@ export default function Navbar() {
       { label: 'Attendance', path: user?._id ? `/${user._id}/attendance-records` : '/attendance-records', icon: FaCalendarCheck },
       ...(canViewCallRecordings(user) ? [{ label: 'Call Recordings', path: '/recordings', icon: FaClock }] : []),
       { label: 'Live Tracking', path: '/admin/employee-tracking', icon: FaLocationDot, adminOnly: !isHR(user) && !isCEO(user) },
-      { label: 'Email CRM', path: '/email', icon: FaEnvelopeOpenText },
+      { label: 'Email CRM', path: user?._id ? `/${user._id}/email` : '/email', icon: FaEnvelopeOpenText },
     ]},
     { title: 'Developer', icon: FaCode, items: [
       { label: 'Access Tokens', path: '/access-tokens', icon: FaKey },

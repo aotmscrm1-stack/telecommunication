@@ -1,28 +1,21 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   CheckCircle2, 
-  Clock, 
-  AlertTriangle, 
   Calendar, 
   Flame, 
   Zap, 
   Leaf,
-  Sparkles, 
   Plus, 
   Trash2, 
   Edit3, 
   CheckSquare, 
-  TrendingUp, 
-  UserCheck, 
-  FileSpreadsheet,
-  Filter,
   Check,
-  ChevronDown,
-  RotateCcw,
-  ListTodo
+  ListTodo,
+  AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
-import { isExecutive, isHR, isManager } from '../../../utils/permissions';
+import { isExecutive, isHR } from '../../../utils/permissions';
+import { followupsAPI, todosAPI } from '../../../services/api';
 
 // Helper for IST DateTime formatting
 function formatIST(dateStr) {
@@ -84,7 +77,7 @@ function Avatar({ user, nameFallback = 'User', size = 32 }) {
   );
 }
 
-// ── AutoScroll Name Component for Long Assignee & Assignor Names ─────────────
+// AutoScroll Name Component for Long Assignee & Assignor Names
 function AutoScrollName({ prefix = '', name = '', className = '', style = {}, maxPx = 135 }) {
   const fullText = prefix ? `${prefix} ${name}` : name;
   const isLong = fullText.length > 15;
@@ -117,75 +110,106 @@ function AutoScrollName({ prefix = '', name = '', className = '', style = {}, ma
   );
 }
 
-// Sub-item Checklist Component with instant MongoDB persistence
+// Sub-item Checklist Component with instant MongoDB persistence & percentage calculation
 function TodoChecklist({ text, task, onUpdated }) {
-  if (!text || !text.trim()) return <span className="text-slate-400 italic text-sm">No description provided</span>;
+  const rawLines = text ? text.split('\n').map(l => l.trim()).filter(Boolean) : [];
+  const hasDBChecklist = Array.isArray(task?.checklist) && task.checklist.length > 0;
 
-  const rawLines = text.split('\n').map(l => l.trim()).filter(Boolean);
-  const isNumbered = rawLines.length > 0 && rawLines.some(l => /^\d+[\.\)]\s*/.test(l));
+  // Build items array combining DB checklist or multi-line text
+  const items = hasDBChecklist
+    ? task.checklist.map(c => ({
+        title: (c.title || c.text || '').replace(/^(\d+[\.\)]|[\-\*•])\s*/, ''),
+        completed: !!c.completed,
+        _id: c._id
+      }))
+    : rawLines.map((line) => ({
+        title: line.replace(/^(\d+[\.\)]|[\-\*•])\s*/, ''),
+        completed: false
+      }));
 
   const [checkedMap, setCheckedMap] = useState(() => {
     const initial = {};
-    if (task?.checklist && Array.isArray(task.checklist) && task.checklist.length > 0) {
-      task.checklist.forEach((item, idx) => {
-        if (item.completed) initial[idx] = true;
-      });
-    }
+    items.forEach((item, idx) => {
+      if (item.completed) initial[idx] = true;
+    });
     return initial;
   });
 
+  // Sync state if task prop updates
+  useEffect(() => {
+    const nextMap = {};
+    items.forEach((item, idx) => {
+      if (item.completed) nextMap[idx] = true;
+    });
+    setCheckedMap(nextMap);
+  }, [task?.checklist, task?.updatedAt]);
+
   const handleToggle = async (idx, e) => {
-    e.stopPropagation();
+    if (e) e.stopPropagation();
     const nextState = !checkedMap[idx];
     const newMap = { ...checkedMap, [idx]: nextState };
     setCheckedMap(newMap);
 
     if (task?._id) {
       try {
-        const updatedChecklist = rawLines.map((line, i) => {
-          const cleanText = line.replace(/^\d+[\.\)]\s*/, '');
+        const updatedChecklist = items.map((item, i) => {
           const isChecked = !!newMap[i];
           return {
-            title: cleanText || line,
+            title: item.title,
             completed: isChecked,
             completedAt: isChecked ? new Date().toISOString() : null
           };
         });
-        await followupsAPI.update(task._id, { checklist: updatedChecklist });
+
+        // Persist checkbox selection directly into MongoDB via API
+        await Promise.all([
+          todosAPI.update(task._id, { checklist: updatedChecklist }).catch(() => {}),
+          followupsAPI.update(task._id, { checklist: updatedChecklist }).catch(() => {})
+        ]);
+
         if (onUpdated) onUpdated();
       } catch (err) {
-        console.error('Failed to update DB checklist item:', err);
+        console.error('Failed to update MongoDB checklist item:', err);
       }
     }
   };
 
-  if (isNumbered) {
-    const total = rawLines.length;
-    const checkedCount = Object.values(checkedMap).filter(Boolean).length;
-    const percent = total > 0 ? Math.round((checkedCount / total) * 100) : 0;
-    const hasScroll = total > 2;
+  if (items.length === 0) {
+    return <span className="text-slate-400 italic text-sm">No description provided</span>;
+  }
 
-    return (
-      <div className="flex flex-col gap-2.5 w-full">
-        <style>{`
-          .custom-hidden-scroll::-webkit-scrollbar {
-            display: none !important;
-            width: 0 !important;
-            height: 0 !important;
-          }
-        `}</style>
+  const total = items.length;
+  const checkedCount = Object.keys(checkedMap).filter(k => checkedMap[k]).length;
+  const percent = total > 0 ? Math.round((checkedCount / total) * 100) : 0;
+  const isMultiple = total > 1;
+  const hasScroll = total > 3;
 
-        {/* Sub-items Progress Bar (Sticky Header) */}
+  return (
+    <div className="flex flex-col gap-2.5 w-full">
+      <style>{`
+        .custom-hidden-scroll::-webkit-scrollbar {
+          display: none !important;
+          width: 0 !important;
+          height: 0 !important;
+        }
+      `}</style>
+
+      {/* Sub-items Progress Bar & Percentage calculation */}
+      {isMultiple && (
         <div className="bg-slate-50/90 p-2.5 rounded-xl border border-slate-200/80 shadow-xs">
           <div className="flex justify-between items-center text-xs font-semibold text-slate-600 mb-1.5">
             <span className="flex items-center gap-1.5 text-indigo-600 font-bold">
               <CheckSquare size={13} /> Sub-items Progress
             </span>
-            <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-extrabold text-[11px]">
+            <span className={`px-2 py-0.5 rounded-full font-extrabold text-[11px] ${
+              percent === 100 
+                ? 'bg-emerald-100 text-emerald-800' 
+                : 'bg-indigo-50 text-indigo-700'
+            }`}>
               {checkedCount} / {total} ({percent}%)
             </span>
           </div>
-          <div className="w-full h-1.5 bg-slate-200/80 rounded-full overflow-hidden">
+          <div className="w-full h-2 bg-slate-200/80 rounded-full overflow-hidden">
             <div
               className="h-full transition-all duration-400 rounded-full"
               style={{
@@ -195,77 +219,54 @@ function TodoChecklist({ text, task, onUpdated }) {
             />
           </div>
         </div>
+      )}
 
-        {/* Scrollable Sub-items Container (Exactly 2 items visible, scroll for rest) */}
-        <div 
-          className="custom-hidden-scroll flex flex-col gap-2"
-          style={{
-            maxHeight: hasScroll ? 80 : 'none',
-            overflowY: hasScroll ? 'auto' : 'visible',
-            scrollBehavior: 'smooth',
-            scrollbarWidth: 'none',
-            msOverflowStyle: 'none'
-          }}
-        >
-          {rawLines.map((line, idx) => {
-            const cleanText = line.replace(/^(\d+[\.\)]|[\-\*•])\s*/, '');
-            const isChecked = !!checkedMap[idx];
-            return (
-              <div
-                key={idx}
-                onClick={(e) => handleToggle(idx, e)}
-                className={`flex items-start gap-2.5 p-2 rounded-xl cursor-pointer transition-all duration-150 border ${
-                  isChecked 
-                    ? 'bg-emerald-50/60 border-emerald-200/60 text-slate-500' 
-                    : 'bg-white border-slate-200/70 hover:border-indigo-300 hover:translate-x-0.5 text-slate-800 shadow-xs'
-                }`}
-              >
-                <div className={`w-4 h-4 rounded mt-0.5 flex items-center justify-center flex-shrink-0 transition-all ${
-                  isChecked ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-2 border-slate-300 bg-white'
-                }`}>
-                  {isChecked && <Check size={11} strokeWidth={3.5} />}
-                </div>
-                <span className={`text-xs font-medium leading-relaxed ${isChecked ? 'line-through text-slate-400' : 'text-slate-800'}`}>
-                  {cleanText || line}
-                </span>
+      {/* Scrollable Sub-items Container */}
+      <div 
+        className="custom-hidden-scroll flex flex-col gap-2"
+        style={{
+          maxHeight: hasScroll ? 120 : 'none',
+          overflowY: hasScroll ? 'auto' : 'visible',
+          scrollBehavior: 'smooth',
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none'
+        }}
+      >
+        {items.map((item, idx) => {
+          const isChecked = !!checkedMap[idx];
+          return (
+            <div
+              key={idx}
+              onClick={(e) => handleToggle(idx, e)}
+              className={`flex items-start gap-2.5 p-2 rounded-xl cursor-pointer transition-all duration-150 border ${
+                isChecked 
+                  ? 'bg-emerald-50/60 border-emerald-200/60 text-slate-500' 
+                  : 'bg-white border-slate-200/70 hover:border-indigo-300 hover:translate-x-0.5 text-slate-800 shadow-xs'
+              }`}
+            >
+              <div className={`w-4 h-4 rounded mt-0.5 flex items-center justify-center flex-shrink-0 transition-all ${
+                isChecked ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-2 border-slate-300 bg-white'
+              }`}>
+                {isChecked && <Check size={11} strokeWidth={3.5} />}
               </div>
-            );
-          })}
-        </div>
-
-        {hasScroll && (
-          <div className="text-[10px] font-medium text-slate-400 text-center flex items-center justify-center gap-1">
-            <span>Scroll for more sub-items</span> ↓
-          </div>
-        )}
+              <span className={`text-xs font-medium leading-relaxed ${isChecked ? 'line-through text-slate-400' : 'text-slate-800'}`}>
+                {item.title}
+              </span>
+            </div>
+          );
+        })}
       </div>
-    );
-  }
 
-  const isLongText = text.length > 250;
-  return (
-    <div 
-      className="custom-hidden-scroll text-sm text-slate-700 leading-relaxed whitespace-pre-wrap font-normal"
-      style={{
-        maxHeight: isLongText ? 150 : 'none',
-        overflowY: isLongText ? 'auto' : 'visible',
-        scrollbarWidth: 'none',
-        msOverflowStyle: 'none'
-      }}
-    >
-      <style>{`
-        .custom-hidden-scroll::-webkit-scrollbar {
-          display: none !important;
-          width: 0 !important;
-          height: 0 !important;
-        }
-      `}</style>
-      {text}
+      {hasScroll && (
+        <div className="text-[10px] font-medium text-slate-400 text-center flex items-center justify-center gap-1">
+          <span>Scroll for more sub-items</span> ↓
+        </div>
+      )}
     </div>
   );
 }
 
-// ── Standalone TodoList Main Component ───────────────────────────────────────
+// Standalone TodoList Main Component
 export default function TodoList({ 
   tasks = [], 
   fetchTasks, 
@@ -294,7 +295,7 @@ export default function TodoList({
     : internalPriorityFilter;
   const setPriorityFilter = parentSetPriorityFilter || setInternalPriorityFilter;
 
-  // Delete Permission Helper (Admin, Executive, HR, Manager, or Todo Creator/Assignee)
+  // Delete Permission Helper
   const checkCanDelete = (todo) => {
     if (!currentUser) return false;
     if (
@@ -326,7 +327,7 @@ export default function TodoList({
         assignedTo: currentUser?._id,
         assignedBy: currentUser?._id,
       };
-      await followupsAPI.create(payload);
+      await todosAPI.create(payload);
       setQuickTitle('');
       if (fetchTasks) fetchTasks();
     } catch (err) {
@@ -336,11 +337,11 @@ export default function TodoList({
     }
   };
 
-  // Filtered Todos with single card deduplication for recurring series
+  // Filtered Todos with deduplication for recurring series
   const seenGroupIds = new Set();
   const seenRecurringKeys = new Set();
   const filteredTodos = tasks.filter(t => {
-    if (priorityFilter !== 'all' && t.priority !== priorityFilter) return false;
+    if (priorityFilter !== 'all' && priorityFilter !== '' && t.priority !== priorityFilter) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       const noteStr = (t.title || t.note || t.description || '').toLowerCase();
@@ -366,19 +367,40 @@ export default function TodoList({
     return true;
   });
 
-  // KPI Statistics & Priority Counts
-  const totalCount = tasks.length;
-  const completedCount = tasks.filter(t => t.status === 'done' || t.status === 'completed').length;
-  const pendingCount = tasks.filter(t => t.status === 'upcoming' || t.status === 'pending').length;
-  const overdueCount = tasks.filter(t => t.status === 'upcoming' && new Date(t.scheduledAt) < new Date()).length;
-  const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-
-  const highCount = tasks.filter(t => t.priority === 'high').length;
-  const mediumCount = tasks.filter(t => t.priority === 'medium').length;
-  const lowCount = tasks.filter(t => t.priority === 'low').length;
-
   return (
     <div className="w-full flex flex-col gap-6 font-sans">
+      {/* ── Quick Add Todo Bar ─────────────────────────────────────────────── */}
+      {!historyMode && (
+        <form onSubmit={handleQuickAdd} className="bg-white border border-slate-200/90 p-3 rounded-2xl shadow-xs flex flex-wrap sm:flex-nowrap items-center gap-3">
+          <input
+            type="text"
+            placeholder="Add a new Todo item (e.g. 1. data analytics)..."
+            value={quickTitle}
+            onChange={(e) => setQuickTitle(e.target.value)}
+            className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all"
+          />
+          
+          <select
+            value={quickPriority}
+            onChange={(e) => setQuickPriority(e.target.value)}
+            className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 capitalize focus:outline-none focus:border-indigo-500"
+          >
+            <option value="low">Low Priority</option>
+            <option value="medium">Medium Priority</option>
+            <option value="high">High Priority</option>
+          </select>
+
+          <button
+            type="submit"
+            disabled={isAdding || !quickTitle.trim()}
+            className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 shrink-0"
+          >
+            <Plus size={15} />
+            {isAdding ? 'Adding...' : 'Add Todo'}
+          </button>
+        </form>
+      )}
+
       {/* ── Todo Items Cards Grid ───────────────────────────────────────────── */}
       {filteredTodos.length === 0 ? (
         <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-12 text-center">
@@ -441,11 +463,11 @@ export default function TodoList({
                   />
                 </div>
 
-                {/* Completion Audit Log */}
-                {t.completedAt && (
+                {/* Completion Audit Log Badge for Completed History */}
+                {(t.completedAt || t.status === 'done' || t.status === 'completed') && (
                   <div className="bg-emerald-50 border border-emerald-200/70 rounded-xl p-2.5 flex items-center gap-2 text-xs font-medium text-emerald-800">
                     <CheckCircle2 size={14} className="text-emerald-600 flex-shrink-0" />
-                    <span>Completed {formatIST(t.completedAt)}</span>
+                    <span>Completed {t.completedAt ? formatIST(t.completedAt) : 'Recently'}</span>
                     {t.completedBy && (
                       <span className="font-bold ml-auto text-emerald-900">by {t.completedBy.name || 'User'}</span>
                     )}
@@ -469,14 +491,16 @@ export default function TodoList({
 
                   {/* Actions Buttons Toolbar */}
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => onCompleteTask && onCompleteTask(t._id)}
-                      disabled={markingId === t._id}
-                      className="flex-1 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold text-xs py-2 px-3 rounded-xl hover:from-orange-600 hover:to-amber-600 shadow-sm shadow-orange-200 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
-                    >
-                      <CheckCircle2 size={14} />
-                      {markingId === t._id ? 'Saving...' : 'Mark Complete'}
-                    </button>
+                    {t.status !== 'done' && t.status !== 'completed' && (
+                      <button
+                        onClick={() => onCompleteTask && onCompleteTask(t._id)}
+                        disabled={markingId === t._id}
+                        className="flex-1 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold text-xs py-2 px-3 rounded-xl hover:from-orange-600 hover:to-amber-600 shadow-sm shadow-orange-200 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                      >
+                        <CheckCircle2 size={14} />
+                        {markingId === t._id ? 'Saving...' : 'Mark Complete'}
+                      </button>
+                    )}
 
                     <button
                       onClick={() => onEditTask && onEditTask(t)}

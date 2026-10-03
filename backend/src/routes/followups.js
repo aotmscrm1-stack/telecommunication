@@ -386,6 +386,76 @@ router.put('/:id', protect, async (req, res) => {
   }
 });
 
+// PATCH /api/followups/:id/status
+router.patch('/:id/status', protect, async (req, res) => {
+  try {
+    const { status } = req.body;
+    let existing = await Task.findById(req.params.id);
+    let ModelClass = Task;
+    if (!existing) {
+      existing = await Todo.findById(req.params.id);
+      ModelClass = Todo;
+    }
+    if (!existing) {
+      existing = await FollowUp.findById(req.params.id);
+      ModelClass = FollowUp;
+    }
+    if (!existing) return res.status(404).json({ message: 'Item not found' });
+
+    const update = { status: (status === 'completed' || status === 'done') ? 'done' : status };
+    if (update.status === 'done') {
+      update.completedAt = new Date();
+      update.completedBy = req.user._id;
+    }
+
+    const followup = await ModelClass.findByIdAndUpdate(req.params.id, update, { new: true })
+      .populate('lead', 'name phone status')
+      .populate('assignedTo', 'name email avatar')
+      .populate('assignedBy', 'name email avatar')
+      .populate('completedBy', 'name email avatar');
+
+    res.json({ followup });
+  } catch (err) {
+    console.error('[PATCH /followups/:id/status]', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// PATCH /api/followups/:id
+router.patch('/:id', protect, async (req, res) => {
+  try {
+    let existing = await Task.findById(req.params.id);
+    let ModelClass = Task;
+    if (!existing) {
+      existing = await Todo.findById(req.params.id);
+      ModelClass = Todo;
+    }
+    if (!existing) {
+      existing = await FollowUp.findById(req.params.id);
+      ModelClass = FollowUp;
+    }
+    if (!existing) return res.status(404).json({ message: 'Item not found' });
+
+    const update = { ...req.body };
+    if (update.status === 'done' || update.status === 'completed') {
+      update.status = 'done';
+      update.completedAt = update.completedAt || new Date();
+      update.completedBy = req.user._id;
+    }
+
+    const followup = await ModelClass.findByIdAndUpdate(req.params.id, update, { new: true })
+      .populate('lead', 'name phone status')
+      .populate('assignedTo', 'name email avatar')
+      .populate('assignedBy', 'name email avatar')
+      .populate('completedBy', 'name email avatar');
+
+    res.json({ followup });
+  } catch (err) {
+    console.error('[PATCH /followups/:id]', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // DELETE /api/followups/:id
 router.delete('/:id', protect, async (req, res) => {
   try {
