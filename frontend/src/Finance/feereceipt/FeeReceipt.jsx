@@ -124,11 +124,12 @@ export default function FeeReceipt() {
     } else if (items.length === 1) {
       items[0] = { ...items[0], amount: remainingAmount };
     } else {
-      const prevTotal = items.slice(0, -1).reduce((s, it) => s + (Number(it.amount) || 0), 0);
-      items[items.length - 1] = {
-        ...items[items.length - 1],
-        amount: Math.max(0, remainingAmount - prevTotal),
-      };
+      const perItemAmount = Math.floor(remainingAmount / items.length);
+      const remainder = remainingAmount - (perItemAmount * items.length);
+      items = items.map((it, idx) => ({
+        ...it,
+        amount: idx === items.length - 1 ? perItemAmount + remainder : perItemAmount,
+      }));
     }
 
     const subtotal = items.reduce((s, it) => s + (Number(it.amount) || 0), 0);
@@ -152,60 +153,8 @@ export default function FeeReceipt() {
     };
   };
 
-  // Recalculate if user edits item amount directly
-  const updateFromItems = (itemsList, cgstRateVal, sgstRateVal) => {
-    const items = itemsList !== undefined ? itemsList : (form.items || []);
-    let cRate = (cgstRateVal !== undefined && cgstRateVal !== '' && !isNaN(Number(cgstRateVal)))
-      ? Number(cgstRateVal)
-      : (form.cgst_rate !== undefined && form.cgst_rate !== '' ? Number(form.cgst_rate) : 9);
-
-    let sRate = (sgstRateVal !== undefined && sgstRateVal !== '' && !isNaN(Number(sgstRateVal)))
-      ? Number(sgstRateVal)
-      : cRate;
-
-    const subtotal = items.reduce((sum, it) => sum + (Number(it.amount) || 0), 0);
-    const taxRateSum = (cRate + sRate) / 100;
-
-    let totalAmount = 0;
-    let cgstAmount = 0;
-    let sgstAmount = 0;
-
-    if (subtotal > 0) {
-      if (taxRateSum < 1) {
-        totalAmount = Math.round(subtotal / (1 - taxRateSum));
-        cgstAmount = Math.round(totalAmount * (cRate / 100));
-        sgstAmount = Math.round(totalAmount * (sRate / 100));
-      } else {
-        cgstAmount = Math.round(subtotal * (cRate / 100));
-        sgstAmount = Math.round(subtotal * (sRate / 100));
-        totalAmount = subtotal + cgstAmount + sgstAmount;
-      }
-    }
-
-    let inWords = 'Zero rupees only';
-    if (totalAmount > 0) {
-      const raw = numberToWords(Math.round(totalAmount));
-      const cleaned = raw.replace(/^Rupees\s+/i, '').replace(/\s+Only$/i, '').trim();
-      inWords = `${cleaned} rupees only`;
-    }
-
-    return {
-      items,
-      subtotal,
-      cgst_rate: cRate,
-      cgst_amount: cgstAmount,
-      sgst_rate: sRate,
-      sgst_amount: sgstAmount,
-      total_amount: totalAmount,
-      amount_in_words: inWords,
-    };
-  };
-
   const updateCalculations = () => {
-    if (form.total_amount !== undefined && form.total_amount !== '' && Number(form.total_amount) > 0) {
-      return updateFromGrandTotal(form.total_amount, form.cgst_rate, form.sgst_rate, form.items);
-    }
-    return updateFromItems(form.items, form.cgst_rate, form.sgst_rate);
+    return updateFromGrandTotal(form.total_amount, form.cgst_rate, form.sgst_rate, form.items);
   };
 
   const loadHistory = async () => {
@@ -381,18 +330,10 @@ export default function FeeReceipt() {
     if (field === 'course_name') {
       updated[index].particulars = value;
     }
-    if (field === 'amount') {
-      const calcs = updateFromItems(updated, form.cgst_rate, form.sgst_rate);
-      setForm(prev => ({
-        ...prev,
-        ...calcs,
-      }));
-    } else {
-      setForm(prev => ({
-        ...prev,
-        items: updated,
-      }));
-    }
+    setForm(prev => ({
+      ...prev,
+      items: updated,
+    }));
   };
 
   const addItem = () => {
@@ -408,9 +349,10 @@ export default function FeeReceipt() {
         amount: 0,
       }
     ];
+    const calcs = updateFromGrandTotal(form.total_amount, form.cgst_rate, form.sgst_rate, updated);
     setForm(prev => ({
       ...prev,
-      items: updated,
+      ...calcs,
     }));
   };
 
@@ -732,11 +674,11 @@ export default function FeeReceipt() {
                         <div>
                           <label className="text-[11px] font-semibold text-slate-600 mb-0.5 block">Amount (₹)</label>
                           <input
-                            type="number"
-                            value={item.amount !== undefined ? item.amount : ''}
-                            onChange={(e) => handleItemChange(idx, 'amount', e.target.value === '' ? '' : Number(e.target.value))}
-                            placeholder="24600"
-                            className="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-emerald-500 font-bold text-emerald-700"
+                            type="text"
+                            readOnly
+                            value={item.amount !== undefined && item.amount !== '' ? Number(item.amount).toLocaleString('en-IN') : '0'}
+                            className="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg bg-slate-100 text-slate-700 font-bold cursor-not-allowed select-none focus:outline-none"
+                            title="Calculated automatically from Grand Total"
                           />
                         </div>
                       </div>
