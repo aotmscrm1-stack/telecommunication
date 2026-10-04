@@ -1,12 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Navbar from './Navbar';
 import HeroSection from './HeroSection';
+import AiCallingHerosection from './AiCallingHerosection';
 import FeaturesSection from './FeaturesSection';
 import IntegrationsSection from './IntegrationsSection';
 import PricingSection from './PricingSection';
 import Footer from './Footer';
 
 export default function Landing() {
+  const [activeSlideIndex, setActiveSlideIndex] = useState(0);
+
   return (
     <div className="nk-landing-root">
       {/* Dynamic Font & Responsive Styles */}
@@ -337,11 +340,11 @@ export default function Landing() {
         }
       `}</style>
 
-      {/* Segregated Top Navbar */}
-      <Navbar />
+      {/* Segregated Top Navbar (Blue on Slide 0, Orange on Slide 1) */}
+      <Navbar activeSlideIndex={activeSlideIndex} />
 
-      {/* Segregated Hero Section */}
-      <HeroSection />
+      {/* Segregated Hero Section (Auto Scroll between CRM Pipeline & AI Telecaller v2.0) */}
+      <HeroSection activeSlideIndex={activeSlideIndex} setActiveSlideIndex={setActiveSlideIndex} />
 
       {/* Content Sections */}
       <FeaturesSection />

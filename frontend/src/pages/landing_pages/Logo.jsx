@@ -1,35 +1,105 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import Landing from './Landing';
-import aotmsLogo from '../../assets/aotms-global-logo.png';
+import introVideo from '../../assets/Intro_aotms.mp4';
+import { Volume2, VolumeX, SkipForward } from 'lucide-react';
 
 const EASE = [0.22, 1, 0.36, 1];
 
 export default function Logo({ showLandingDirectly = true, onComplete, autoRedirect = false }) {
   const navigate = useNavigate();
-  const [stage, setStage] = useState('fadeIn'); // 'fadeIn' | 'moveToNav' | 'done'
+  const videoRef = useRef(null);
+  const [stage, setStage] = useState('playing'); // 'playing' | 'fadeOut' | 'done'
+  const [isMuted, setIsMuted] = useState(false);
 
   useEffect(() => {
-    // Stage 1: Fade in logo in center with ambient glow (0 -> 1.3s)
-    const timer1 = setTimeout(() => {
-      setStage('moveToNav');
-    }, 1400);
+    const video = videoRef.current;
+    if (!video) return;
 
-    // Stage 2: Move logo smoothly up toward top Navbar while black background fades out (1.4s -> 2.6s)
-    const timer2 = setTimeout(() => {
+    // Enforce default sound output
+    video.muted = false;
+    video.volume = 1.0;
+
+    const enableAudio = () => {
+      if (videoRef.current) {
+        videoRef.current.muted = false;
+        videoRef.current.volume = 1.0;
+        setIsMuted(false);
+        videoRef.current.play().catch(() => {});
+      }
+    };
+
+    // Background silent listener so any click/tap on the site un-mutes automatically without popups
+    window.addEventListener('pointerdown', enableAudio, { once: true });
+    window.addEventListener('click', enableAudio, { once: true });
+    window.addEventListener('keydown', enableAudio, { once: true });
+    window.addEventListener('touchstart', enableAudio, { once: true });
+
+    // Attempt direct play with audio
+    const playPromise = video.play();
+    if (playPromise !== undefined) {
+      playPromise
+        .then(() => {
+          setIsMuted(false);
+        })
+        .catch((err) => {
+          console.warn('Autoplay with sound blocked by browser, playing muted until interaction:', err);
+          video.muted = true;
+          setIsMuted(true);
+          video.play().catch(() => {});
+        });
+    }
+
+    return () => {
+      window.removeEventListener('pointerdown', enableAudio);
+      window.removeEventListener('click', enableAudio);
+      window.removeEventListener('keydown', enableAudio);
+      window.removeEventListener('touchstart', enableAudio);
+    };
+  }, []);
+
+  const handleVideoEnd = () => {
+    setStage('fadeOut');
+    setTimeout(() => {
       setStage('done');
       if (onComplete) onComplete();
       if (autoRedirect) {
         navigate('/');
       }
-    }, 2600);
+    }, 1000);
+  };
 
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-    };
-  }, [navigate, onComplete, autoRedirect]);
+  const handleSkip = () => {
+    if (videoRef.current) {
+      videoRef.current.pause();
+    }
+    handleVideoEnd();
+  };
+
+  const toggleMute = (e) => {
+    e.stopPropagation();
+    if (videoRef.current) {
+      const nextMuted = !videoRef.current.muted;
+      videoRef.current.muted = nextMuted;
+      videoRef.current.volume = 1.0;
+      setIsMuted(nextMuted);
+      if (videoRef.current.paused) {
+        videoRef.current.play().catch(() => {});
+      }
+    }
+  };
+
+  const handleScreenClick = () => {
+    if (videoRef.current && videoRef.current.muted) {
+      videoRef.current.muted = false;
+      videoRef.current.volume = 1.0;
+      setIsMuted(false);
+      if (videoRef.current.paused) {
+        videoRef.current.play().catch(() => {});
+      }
+    }
+  };
 
   return (
     <div className="relative w-full min-h-screen bg-black overflow-hidden select-none">
@@ -37,7 +107,7 @@ export default function Logo({ showLandingDirectly = true, onComplete, autoRedir
       {showLandingDirectly && (
         <div
           style={{
-            opacity: stage === 'fadeIn' ? 0 : 1,
+            opacity: stage === 'playing' ? 0 : 1,
             transition: 'opacity 1s ease',
           }}
         >
@@ -45,15 +115,16 @@ export default function Logo({ showLandingDirectly = true, onComplete, autoRedir
         </div>
       )}
 
-      {/* Intro Splash Screen Overlay */}
+      {/* Full Screen MP4 Intro Video Splash Overlay */}
       <AnimatePresence>
         {stage !== 'done' && (
           <motion.div
-            key="logo-splash-screen"
+            key="video-splash-screen"
             initial={{ opacity: 1 }}
-            animate={{ opacity: stage === 'moveToNav' ? 0 : 1 }}
+            animate={{ opacity: stage === 'fadeOut' ? 0 : 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 1.0, ease: EASE }}
+            onClick={handleScreenClick}
             style={{
               position: 'fixed',
               inset: 0,
@@ -62,81 +133,100 @@ export default function Logo({ showLandingDirectly = true, onComplete, autoRedir
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              pointerEvents: stage === 'moveToNav' ? 'none' : 'auto',
+              overflow: 'hidden',
+              cursor: 'pointer',
+              pointerEvents: stage === 'fadeOut' ? 'none' : 'auto',
             }}
           >
-            {/* Subtle radial aura behind logo */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.6 }}
-              animate={{
-                opacity: stage === 'fadeIn' ? [0, 0.7, 0.3] : 0,
-                scale: stage === 'fadeIn' ? [0.6, 1.3, 1] : 0.5,
-              }}
-              transition={{ duration: 1.6, ease: 'easeInOut' }}
+            {/* MP4 Full Screen Video */}
+            <video
+              ref={videoRef}
+              src={introVideo}
+              autoPlay
+              playsInline
+              onEnded={handleVideoEnd}
               style={{
-                position: 'absolute',
-                width: 360,
-                height: 360,
-                borderRadius: '50%',
-                background: 'radial-gradient(circle, rgba(4, 102, 200, 0.45) 0%, rgba(249, 115, 22, 0.25) 45%, transparent 75%)',
-                filter: 'blur(50px)',
+                width: '100vw',
+                height: '100vh',
+                objectFit: 'cover',
+                display: 'block',
               }}
             />
 
-            {/* Logo Card Animating from Center to Navbar Position */}
-            <motion.div
-              initial={{
-                opacity: 0,
-                scale: 0.7,
-                y: 20,
-                filter: 'blur(12px)',
-              }}
-              animate={
-                stage === 'fadeIn'
-                  ? {
-                      opacity: 1,
-                      scale: 1,
-                      y: 0,
-                      x: 0,
-                      filter: 'blur(0px)',
-                    }
-                  : {
-                      opacity: 0.2,
-                      scale: 0.4,
-                      y: '-42vh',
-                      x: '-36vw',
-                      filter: 'blur(1px)',
-                    }
-              }
-              transition={
-                stage === 'fadeIn'
-                  ? { duration: 1.0, ease: EASE }
-                  : { duration: 1.1, ease: [0.16, 1, 0.3, 1] }
-              }
+            {/* Bottom Controls Overlay (Sound toggle & Skip button only) */}
+            <div
               style={{
+                position: 'absolute',
+                bottom: 28,
+                right: 28,
                 display: 'flex',
-                flexDirection: 'column',
                 alignItems: 'center',
-                justifyContent: 'center',
-                gap: 14,
-                padding: '20px 32px',
-                borderRadius: 24,
-                background: 'rgba(255, 255, 255, 0.98)',
-                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 30px rgba(4, 102, 200, 0.3)',
-                backdropFilter: 'blur(10px)',
-                WebkitBackdropFilter: 'blur(10px)',
+                gap: 12,
+                zIndex: 100000,
               }}
             >
-              <img
-                src={aotmsLogo}
-                alt="AOTMS"
+              {/* Sound Toggle Button */}
+              <button
+                onClick={toggleMute}
                 style={{
-                  height: 52,
-                  width: 'auto',
-                  objectFit: 'contain',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '10px 18px',
+                  borderRadius: 9999,
+                  background: isMuted ? 'rgba(239, 68, 68, 0.85)' : 'rgba(4, 102, 200, 0.85)',
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
+                  color: '#ffffff',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  boxShadow: '0 8px 20px rgba(0,0,0,0.3)',
+                  transition: 'all 0.25s ease',
                 }}
-              />
-            </motion.div>
+              >
+                {isMuted ? (
+                  <>
+                    <VolumeX size={16} />
+                    <span>Unmute Sound</span>
+                  </>
+                ) : (
+                  <>
+                    <Volume2 size={16} />
+                    <span>Audio Enabled</span>
+                  </>
+                )}
+              </button>
+
+              {/* Skip Intro Button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSkip();
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '10px 18px',
+                  borderRadius: 9999,
+                  background: 'rgba(255, 255, 255, 0.15)',
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
+                  color: '#ffffff',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  boxShadow: '0 8px 20px rgba(0,0,0,0.3)',
+                  transition: 'all 0.25s ease',
+                }}
+              >
+                <span>Skip</span>
+                <SkipForward size={14} />
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

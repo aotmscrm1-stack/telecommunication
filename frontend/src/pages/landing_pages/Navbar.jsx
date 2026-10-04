@@ -1,7 +1,7 @@
-// src/pages/landing_pages/Navbar.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { animate } from 'animejs';
 import { Menu, X } from 'lucide-react';
 import aotmsLogo from '../../assets/aotms-global-logo.png';
 
@@ -93,12 +93,28 @@ const C = {
   ctaText: '#ffffff',
 };
 
-export function Navbar() {
+export function Navbar({ activeSlideIndex = 0 }) {
   const navigate = useNavigate();
+  const logoRef = useRef(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [hoveredId, setHoveredId] = useState(null);
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState('home');
+
+  // Slide 0 = Transaction 1 (Blue), Slide 1 = AI Calling (Orange)
+  const isAiCallingSlide = activeSlideIndex === 1;
+
+  const btnBg = isAiCallingSlide
+    ? 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)'
+    : 'linear-gradient(135deg, #0466c8 0%, #0353a4 100%)';
+
+  const btnShadow = isAiCallingSlide
+    ? '0 6px 18px rgba(249, 115, 22, 0.35)'
+    : '0 6px 18px rgba(4, 102, 200, 0.35)';
+
+  const hoverGlow = isAiCallingSlide
+    ? `0 0 0 2px #f97316, 0 0 20px rgba(249, 115, 22, 0.45), 0 10px 26px rgba(249, 115, 22, 0.25)`
+    : `0 0 0 2px #0466c8, 0 0 20px rgba(4, 102, 200, 0.45), 0 10px 26px rgba(4, 102, 200, 0.25)`;
 
   // Track scroll position to update navbar style & highlight active section
   useEffect(() => {
@@ -177,9 +193,9 @@ export function Navbar() {
       >
         {/* BRAND LOGO */}
         <motion.div
+          ref={logoRef}
           onClick={() => handleNavClick('home')}
-          whileHover={{ scale: 1.03, y: -1 }}
-          whileTap={{ scale: 0.97 }}
+          whileTap={{ scale: 0.96 }}
           transition={{ duration: 0.28, ease: EASE }}
           style={{
             display: 'flex',
@@ -197,14 +213,22 @@ export function Navbar() {
             transition: 'box-shadow .3s ease, background .3s ease, border-color .3s ease, padding .3s ease',
           }}
           onMouseEnter={(e) => {
+            if (logoRef.current) {
+              try {
+                animate(logoRef.current, {
+                  scale: [1, 1.05, 1.02],
+                  duration: 600,
+                  ease: 'easeOutElastic(1, .5)',
+                });
+              } catch (err) {}
+            }
             e.currentTarget.style.boxShadow = `
-              0 0 0 2px ${ORANGE.DEFAULT},
-              0 0 18px ${ORANGE.GLOW},
-              0 8px 24px ${ORANGE.GLOW_SOFT}
+              0 0 0 2px ${isAiCallingSlide ? '#f97316' : '#0466c8'},
+              0 0 18px ${isAiCallingSlide ? 'rgba(249, 115, 22, 0.45)' : 'rgba(4, 102, 200, 0.45)'}
             `;
             if (isScrolled) {
               e.currentTarget.style.background = '#ffffff';
-              e.currentTarget.style.borderColor = ORANGE.DEFAULT;
+              e.currentTarget.style.borderColor = isAiCallingSlide ? '#f97316' : '#0466c8';
             }
           }}
           onMouseLeave={(e) => {
@@ -312,11 +336,7 @@ export function Navbar() {
             whileHover={{
               scale: 1.04,
               y: -2,
-              boxShadow: `
-                0 0 0 2px ${ORANGE.DEFAULT},
-                0 0 20px ${ORANGE.GLOW},
-                0 10px 26px ${ORANGE.GLOW_SOFT}
-              `,
+              boxShadow: hoverGlow,
             }}
             whileTap={{ scale: 0.96 }}
             transition={{ duration: 0.28, ease: EASE }}
@@ -326,14 +346,14 @@ export function Navbar() {
               padding: '10px 22px',
               borderRadius: 9999,
               border: 'none',
-              background: `linear-gradient(135deg, ${C.brandMark1}, ${C.brandMark2})`,
-              color: C.ctaText,
+              background: btnBg,
+              color: '#ffffff',
               fontSize: 13.5,
               fontWeight: 700,
               cursor: 'pointer',
-              boxShadow: '0 6px 18px rgba(4, 102, 200, 0.35)',
+              boxShadow: btnShadow,
               fontFamily: '"Inter", system-ui, sans-serif',
-              transition: 'box-shadow .3s ease',
+              transition: 'background .4s ease, box-shadow .4s ease',
             }}
           >
             Get Started
@@ -430,11 +450,7 @@ export function Navbar() {
                   setMobileOpen(false);
                 }}
                 whileHover={{
-                  boxShadow: `
-                    0 0 0 2px ${ORANGE.DEFAULT},
-                    0 0 22px ${ORANGE.GLOW},
-                    0 14px 32px ${ORANGE.GLOW_SOFT}
-                  `,
+                  boxShadow: hoverGlow,
                 }}
                 whileTap={{ scale: 0.97 }}
                 style={{
@@ -442,14 +458,14 @@ export function Navbar() {
                   padding: '14px 20px',
                   borderRadius: 12,
                   border: 'none',
-                  background: `linear-gradient(135deg, ${C.brandMark1}, ${C.brandMark2})`,
-                  color: C.ctaText,
+                  background: btnBg,
+                  color: '#ffffff',
                   fontSize: 14.5,
                   fontWeight: 800,
                   cursor: 'pointer',
-                  boxShadow: '0 6px 18px rgba(4, 102, 200, 0.35)',
+                  boxShadow: btnShadow,
                   fontFamily: '"Inter", system-ui, sans-serif',
-                  transition: 'box-shadow .3s ease',
+                  transition: 'background .4s ease, box-shadow .4s ease',
                 }}
               >
                 Get Started

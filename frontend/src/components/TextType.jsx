@@ -22,12 +22,13 @@ const TextType = ({
   onSentenceComplete,
   startOnVisible = false,
   reverseMode = false,
+  initialTextIndex = 0,
   ...props
 }) => {
   const [displayedText, setDisplayedText] = useState('');
   const [currentCharIndex, setCurrentCharIndex] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [currentTextIndex, setCurrentTextIndex] = useState(0);
+  const [currentTextIndex, setCurrentTextIndex] = useState(initialTextIndex);
   const [isVisible, setIsVisible] = useState(!startOnVisible);
   const cursorRef = useRef(null);
   const containerRef = useRef(null);

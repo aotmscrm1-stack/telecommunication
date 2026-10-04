@@ -5,15 +5,14 @@ import { animate } from 'animejs';
 import { 
   ArrowUpRight, 
   Play, 
-  Video, 
-  MessageSquare, 
-  Globe, 
-  Coffee, 
   PhoneCall, 
   Bot, 
+  Sparkles, 
+  Activity, 
+  Zap, 
+  ShieldCheck, 
   Mic, 
-  Radio,
-  Sparkles
+  Radio
 } from 'lucide-react';
 import GradientWaves from './GradientWaves';
 import useBreakpoint from '../../hooks/useBreakpoint';
@@ -23,47 +22,13 @@ import crmImage from '../../assets/CRM.png';
 const EASE = [0.22, 1, 0.36, 1];
 
 /* ─────────────────────────────────────────────────────────
-   TWO ROTATING HERO SLIDES (5-SECOND AUTO SCROLL)
-   SLIDE 0 (DEFAULT): Old CRM Dashboard Pipeline
-   SLIDE 1: AI Telecaller v2.0 Autonomous Voice Agents
+   5-SECOND ROTATING THEMES CONFIGURATION
    ───────────────────────────────────────────────────────── */
-const HERO_SLIDES = [
-  {
-    id: 'crm-dashboard',
-    badgeText: "WHAT'S NEW",
-    badgeSubtext: 'AI-Powered CRM Platform',
-    badgeIcon: <Sparkles size={14} style={{ color: '#ea580c' }} />,
-    badgeBg: '#ffffff',
-    badgeColor: '#0f172a',
-    gradient: 'linear-gradient(180deg, #f97316 0%, #ea580c 25%, #c2410c 45%, #7c3aed 70%, #4c1d95 100%)',
-    accentColor: '#fdba74',
-    glowColor: 'rgba(124, 58, 237, 0.45)',
-    titleLine1: 'Manage Your CRM Pipeline',
-    typingTexts: [
-      'Track Every Lead.',
-      'Close Deals Faster.',
-      'Automate Follow-ups.',
-      'Grow Revenue 3x.'
-    ],
-    description: 'The unified CRM for telecom & enterprise sales teams — pipeline, live leads, follow-ups, and analytics, all in one intelligent workspace.',
-    primaryBtnText: 'Get Started',
-    primaryBtnBg: '#ffffff',
-    primaryBtnTextColor: '#000000',
-    secondaryBtnText: 'Watch Demo',
-    waveConfig: { horizonColor: '#4c1d95', waveColor: '#7c3aed', crestColor: '#fdba74' },
-    trustBadges: [
-      { text: 'Enterprise Grade', dot: '#34d399' },
-      { text: 'No credit card required' },
-      { text: '99.9% Pipeline Uptime' }
-    ]
-  },
+const HERO_THEMES = [
   {
     id: 'ai-telecaller',
     badgeText: 'AI TELECALLER V2.0',
-    badgeSubtext: '100k+ Automated Calls / Day',
     badgeIcon: <Bot size={15} style={{ color: '#ea580c' }} />,
-    badgeBg: '#ffffff',
-    badgeColor: '#0f172a',
     gradient: 'linear-gradient(180deg, #0284c7 0%, #0369a1 25%, #0f172a 70%, #020617 100%)',
     accentColor: '#38bdf8',
     glowColor: 'rgba(56, 189, 248, 0.45)',
@@ -75,91 +40,109 @@ const HERO_SLIDES = [
       'Zero Hold Time.'
     ],
     description: 'Deploy intelligent AI voice telecallers that speak natural Telugu, Hindi & English to qualify leads, book appointments, and close sales 24/7.',
-    primaryBtnText: 'Start Free AI Calling',
-    primaryBtnBg: '#ffffff',
-    primaryBtnTextColor: '#000000',
-    secondaryBtnText: 'Listen AI Voice Demo',
-    waveConfig: { horizonColor: '#020617', waveColor: '#0369a1', crestColor: '#38bdf8' },
-    trustBadges: [
-      { text: 'Multi-Language AI Voice', dot: '#34d399' },
-      { text: 'Instant CRM Sync' },
-      { text: '99.9% Call Uptime' }
-    ]
+    metric: '100k+ Automated Calls / Day',
+    waveConfig: { horizonColor: '#020617', waveColor: '#0369a1', crestColor: '#38bdf8' }
+  },
+  {
+    id: 'speech-analytics',
+    badgeText: 'REAL-TIME SPEECH INTELLIGENCE',
+    badgeIcon: <Mic size={15} style={{ color: '#ea580c' }} />,
+    gradient: 'linear-gradient(180deg, #059669 0%, #047857 25%, #064e3b 60%, #022c22 100%)',
+    accentColor: '#34d399',
+    glowColor: 'rgba(52, 211, 153, 0.45)',
+    titleLine1: 'Smart Conversation Analytics',
+    typingTexts: [
+      'Live Sentiment Analysis.',
+      'Instant Call Summaries.',
+      'Auto CRM Tagging.',
+      'Objection Handling.'
+    ],
+    description: 'Analyze every call live with AI-driven sentiment analysis, automated transcriptions, and instant lead scoring directly synced into your CRM.',
+    metric: '99.4% Voice Recognition Accuracy',
+    waveConfig: { horizonColor: '#022c22', waveColor: '#047857', crestColor: '#34d399' }
+  },
+  {
+    id: 'campaign-engine',
+    badgeText: 'AUTO-DIALER & CAMPAIGN ENGINE',
+    badgeIcon: <Zap size={15} style={{ color: '#ea580c' }} />,
+    gradient: 'linear-gradient(180deg, #9333ea 0%, #7e22ce 25%, #4c1d95 65%, #2e1065 100%)',
+    accentColor: '#c084fc',
+    glowColor: 'rgba(192, 132, 252, 0.45)',
+    titleLine1: 'Supercharge Sales Outreach',
+    typingTexts: [
+      '10x More Connect Rates.',
+      'Smart Broadcast Blast.',
+      'Multi-Channel Sync.',
+      'Zero Agent Idle Time.'
+    ],
+    description: 'Launch automated AI calling campaigns with predictive dialing, dynamic script adaptation, and automatic CRM field updates.',
+    metric: '300% Higher Conversions',
+    waveConfig: { horizonColor: '#2e1065', waveColor: '#7e22ce', crestColor: '#c084fc' }
+  },
+  {
+    id: 'hyper-realistic',
+    badgeText: 'HYPER-REALISTIC VOICE AI',
+    badgeIcon: <Sparkles size={15} style={{ color: '#ea580c' }} />,
+    gradient: 'linear-gradient(180deg, #ea580c 0%, #c2410c 25%, #9f1239 65%, #4c0519 100%)',
+    accentColor: '#fb923c',
+    glowColor: 'rgba(251, 146, 60, 0.45)',
+    titleLine1: 'Conversations That Convert',
+    typingTexts: [
+      'Sub-Second Latency.',
+      'Natural Accent Tone.',
+      'Multi-Lingual AI.',
+      'Live Transfer to Human.'
+    ],
+    description: 'Human-sounding voice bots with ultra-low 400ms response latency. Seamlessly hand off warm calls to human sales managers.',
+    metric: '< 400ms Speech Latency',
+    waveConfig: { horizonColor: '#4c0519', waveColor: '#be123c', crestColor: '#fb923c' }
   }
 ];
 
-export function HeroSection({
-  activeSlideIndex: propActiveSlideIndex,
-  setActiveSlideIndex: propSetActiveSlideIndex,
-}) {
+export function AiCallingHerosection() {
   const navigate = useNavigate();
   const bp = useBreakpoint();
   const isMobile = bp === 'mobile';
 
-  const [internalSlideIndex, setInternalSlideIndex] = useState(0);
+  const [activeThemeIndex, setActiveThemeIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
 
-  // Maintain persistent typing index per slide so it doesn't restart from 0!
-  const [typingIndices, setTypingIndices] = useState({
-    'crm-dashboard': 0,
-    'ai-telecaller': 0,
-  });
-
-  const activeSlideIndex = propActiveSlideIndex !== undefined ? propActiveSlideIndex : internalSlideIndex;
-
-  const updateSlideIndex = (val) => {
-    if (propSetActiveSlideIndex) {
-      if (typeof val === 'function') {
-        propSetActiveSlideIndex((prev) => val(prev));
-      } else {
-        propSetActiveSlideIndex(val);
-      }
-    } else {
-      setInternalSlideIndex(val);
-    }
-  };
-
-  // 7.5-Second Auto Scroll loop between Slide 0 (Old CRM) & Slide 1 (AI Telecaller v2.0)
+  // 5-Second Automatic Theme Shift
   useEffect(() => {
     if (isPaused) return;
 
-    const timer = setInterval(() => {
-      updateSlideIndex((prev) => (prev + 1) % HERO_SLIDES.length);
-    }, 7500);
+    const interval = setInterval(() => {
+      setActiveThemeIndex((prev) => (prev + 1) % HERO_THEMES.length);
+    }, 5000);
 
-    return () => clearInterval(timer);
-  }, [isPaused, propActiveSlideIndex]);
+    return () => clearInterval(interval);
+  }, [isPaused]);
 
-  const currentSlide = HERO_SLIDES[activeSlideIndex];
+  const iconsContainerRef = useRef(null);
 
-  const dashboardRef = useRef(null);
-
-  const handleSentenceComplete = (_sentence, index) => {
-    const slideId = currentSlide.id;
-    const nextIndex = (index + 1) % currentSlide.typingTexts.length;
-    setTypingIndices((prev) => ({
-      ...prev,
-      [slideId]: nextIndex,
-    }));
-  };
-
-  // Anime.js smooth continuous floating tilt effect for CRM dashboard preview
+  // Anime.js organic floating micro-animations for decorative icons
   useEffect(() => {
-    if (dashboardRef.current) {
+    if (iconsContainerRef.current) {
       try {
-        animate(dashboardRef.current, {
-          translateY: [-8, 8],
-          rotateX: [1, -1],
-          duration: 4800,
-          ease: 'easeInOutSine',
-          loop: true,
-          alternate: true,
-        });
+        const iconNodes = iconsContainerRef.current.querySelectorAll('.anime-floating-icon');
+        if (iconNodes.length > 0) {
+          animate(iconNodes, {
+            translateY: (el, i) => [i % 2 === 0 ? -14 : 14, i % 2 === 0 ? 14 : -14],
+            rotate: (el, i) => [i % 2 === 0 ? -5 : 5, i % 2 === 0 ? 5 : -5],
+            scale: [0.94, 1.06],
+            duration: (el, i) => 4000 + i * 800,
+            ease: 'easeInOutSine',
+            loop: true,
+            alternate: true,
+          });
+        }
       } catch (e) {
-        console.warn('Anime.js animation error:', e);
+        console.warn('Anime.js icons animation error:', e);
       }
     }
   }, []);
+
+  const currentTheme = HERO_THEMES[activeThemeIndex];
 
   return (
     <section
@@ -170,7 +153,7 @@ export function HeroSection({
         position: 'relative',
         width: '100%',
         minHeight: '100vh',
-        backgroundColor: '#0f172a',
+        backgroundColor: '#020617',
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
@@ -185,16 +168,16 @@ export function HeroSection({
       {/* ══════════════════════════════════════════════
           DYNAMIC SEAMLESS GRADIENT CROSS-FADE (NO WHITE FLASH)
           ══════════════════════════════════════════════ */}
-      {HERO_SLIDES.map((slide, idx) => (
+      {HERO_THEMES.map((theme, idx) => (
         <motion.div
-          key={slide.id + '-bg'}
+          key={theme.id + '-bg'}
           initial={false}
-          animate={{ opacity: idx === activeSlideIndex ? 1 : 0 }}
+          animate={{ opacity: idx === activeThemeIndex ? 1 : 0 }}
           transition={{ duration: 1.2, ease: EASE }}
           style={{
             position: 'absolute',
             inset: 0,
-            background: slide.gradient,
+            background: theme.gradient,
             zIndex: 0,
             pointerEvents: 'none',
           }}
@@ -220,90 +203,49 @@ export function HeroSection({
       />
 
       {/* ══════════════════════════════════════════════
-          FLOATING DYNAMIC DECORATIVE ICONS
+          DECORATIVE FLOATING AI CALLING ICONS (ANIME.JS POWERED)
           ══════════════════════════════════════════════ */}
       <div
+        ref={iconsContainerRef}
         style={{
           position: 'absolute',
           inset: 0,
           pointerEvents: 'none',
-          opacity: 0.18,
+          opacity: 0.2,
           zIndex: 2,
         }}
       >
-        {currentSlide.id === 'crm-dashboard' ? (
-          <>
-            <motion.div
-              animate={{ y: [0, -8, 0] }}
-              transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-              style={{ position: 'absolute', top: '26%', right: '18%', color: '#ffffff' }}
-            >
-              <Video size={isMobile ? 40 : 64} strokeWidth={1.2} />
-            </motion.div>
+        <div
+          className="anime-floating-icon"
+          style={{ position: 'absolute', top: '24%', right: '16%', color: '#ffffff' }}
+        >
+          <PhoneCall size={isMobile ? 38 : 64} strokeWidth={1.3} />
+        </div>
 
-            <motion.div
-              animate={{ y: [0, 6, 0] }}
-              transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-              style={{ position: 'absolute', top: '42%', right: '26%', color: '#ffffff' }}
-            >
-              <MessageSquare size={isMobile ? 36 : 58} strokeWidth={1.2} />
-            </motion.div>
+        <div
+          className="anime-floating-icon"
+          style={{ position: 'absolute', top: '44%', right: '24%', color: '#ffffff' }}
+        >
+          <Bot size={isMobile ? 34 : 58} strokeWidth={1.3} />
+        </div>
 
-            <motion.div
-              animate={{ y: [0, -6, 0] }}
-              transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
-              style={{ position: 'absolute', top: '58%', right: '20%', color: '#ffffff' }}
-            >
-              <Globe size={isMobile ? 42 : 68} strokeWidth={1.2} />
-            </motion.div>
+        <div
+          className="anime-floating-icon"
+          style={{ position: 'absolute', top: '60%', right: '18%', color: '#ffffff' }}
+        >
+          <Mic size={isMobile ? 40 : 66} strokeWidth={1.3} />
+        </div>
 
-            <motion.div
-              animate={{ y: [0, 6, 0] }}
-              transition={{ duration: 7.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
-              style={{ position: 'absolute', top: '62%', right: '32%', color: '#ffffff' }}
-            >
-              <Coffee size={isMobile ? 34 : 54} strokeWidth={1.2} />
-            </motion.div>
-          </>
-        ) : (
-          <>
-            <motion.div
-              animate={{ y: [0, -10, 0] }}
-              transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
-              style={{ position: 'absolute', top: '24%', right: '16%', color: '#ffffff' }}
-            >
-              <PhoneCall size={isMobile ? 38 : 64} strokeWidth={1.3} />
-            </motion.div>
-
-            <motion.div
-              animate={{ y: [0, 8, 0] }}
-              transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-              style={{ position: 'absolute', top: '44%', right: '24%', color: '#ffffff' }}
-            >
-              <Bot size={isMobile ? 34 : 58} strokeWidth={1.3} />
-            </motion.div>
-
-            <motion.div
-              animate={{ y: [0, -8, 0] }}
-              transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
-              style={{ position: 'absolute', top: '60%', right: '18%', color: '#ffffff' }}
-            >
-              <Mic size={isMobile ? 40 : 66} strokeWidth={1.3} />
-            </motion.div>
-
-            <motion.div
-              animate={{ y: [0, 6, 0] }}
-              transition={{ duration: 6.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
-              style={{ position: 'absolute', top: '64%', right: '30%', color: '#ffffff' }}
-            >
-              <Radio size={isMobile ? 32 : 52} strokeWidth={1.3} />
-            </motion.div>
-          </>
-        )}
+        <div
+          className="anime-floating-icon"
+          style={{ position: 'absolute', top: '64%', right: '30%', color: '#ffffff' }}
+        >
+          <Radio size={isMobile ? 32 : 52} strokeWidth={1.3} />
+        </div>
       </div>
 
       {/* ══════════════════════════════════════════════
-          ANIMATED WAVES ACCENT
+          ANIMATED GRADIENT WAVES ACCENT
           ══════════════════════════════════════════════ */}
       <div
         style={{
@@ -312,16 +254,16 @@ export function HeroSection({
           width: '100%',
           height: '100%',
           zIndex: 1,
-          opacity: 0.32,
+          opacity: 0.35,
           mixBlendMode: 'overlay',
         }}
       >
         <GradientWaves
-          horizonColor={currentSlide.waveConfig.horizonColor}
-          waveColor={currentSlide.waveConfig.waveColor}
-          crestColor={currentSlide.waveConfig.crestColor}
-          speed={0.3}
-          amplitude={2.4}
+          horizonColor={currentTheme.waveConfig.horizonColor}
+          waveColor={currentTheme.waveConfig.waveColor}
+          crestColor={currentTheme.waveConfig.crestColor}
+          speed={0.35}
+          amplitude={2.5}
           waveScale={0.6}
           waveRatio={0.9}
           swell={32}
@@ -341,7 +283,7 @@ export function HeroSection({
       </div>
 
       {/* ══════════════════════════════════════════════
-          HERO CONTENT (SMOOTH 5-SECOND SHIFT)
+          HERO CONTENT (SMOOTH TRANSITION EVERY 5s)
           ══════════════════════════════════════════════ */}
       <motion.div
         initial={{ y: 30, opacity: 0 }}
@@ -351,7 +293,7 @@ export function HeroSection({
           position: 'relative',
           zIndex: 20,
           width: '100%',
-          maxWidth: 1000,
+          maxWidth: 1020,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -359,10 +301,10 @@ export function HeroSection({
           boxSizing: 'border-box',
         }}
       >
-        {/* EXECUTIVE GLASS BADGE WITH WHITE LEFT PILL & REACT BITS ICON */}
+        {/* BADGE WITH WHITE BACKGROUND PILL & REACT BITS ICON */}
         <AnimatePresence mode="wait">
           <motion.div
-            key={currentSlide.id + '-badge'}
+            key={currentTheme.id + '-badge'}
             initial={{ y: 10, opacity: 0, scale: 0.95 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: -10, opacity: 0, scale: 0.95 }}
@@ -371,17 +313,17 @@ export function HeroSection({
               display: 'inline-flex',
               alignItems: 'center',
               gap: 10,
-              padding: '5px 16px 5px 6px',
+              padding: '5px 18px 5px 6px',
               borderRadius: 9999,
               background: 'rgba(255, 255, 255, 0.16)',
               border: '1px solid rgba(255, 255, 255, 0.35)',
-              boxShadow: `0 8px 24px rgba(0, 0, 0, 0.16), 0 0 20px ${currentSlide.glowColor}`,
+              boxShadow: `0 8px 24px rgba(0, 0, 0, 0.2), 0 0 20px ${currentTheme.glowColor}`,
               backdropFilter: 'blur(16px)',
               WebkitBackdropFilter: 'blur(16px)',
               marginBottom: isMobile ? 20 : 26,
             }}
           >
-            {/* Left Pill — WHITE BACKGROUND */}
+            {/* White Left Pill */}
             <span
               style={{
                 display: 'inline-flex',
@@ -398,31 +340,30 @@ export function HeroSection({
                 boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
               }}
             >
-              {currentSlide.badgeIcon}
-              <span>{currentSlide.badgeText}</span>
+              {currentTheme.badgeIcon}
+              <span>{currentTheme.badgeText}</span>
             </span>
 
-            {/* Badge Subtext */}
             <span
               style={{
                 color: '#ffffff',
                 fontSize: 13,
-                fontWeight: 600,
+                fontWeight: 650,
                 letterSpacing: '-0.01em',
                 textShadow: '0 1px 4px rgba(0, 0, 0, 0.2)',
               }}
             >
-              {currentSlide.badgeSubtext}
+              {currentTheme.metric}
             </span>
 
-            <span style={{ fontSize: 13, filter: 'drop-shadow(0 0 4px rgba(255, 255, 255, 0.6))' }}>✨</span>
+            <span style={{ fontSize: 13, filter: 'drop-shadow(0 0 6px rgba(255, 255, 255, 0.8))' }}>✨</span>
           </motion.div>
         </AnimatePresence>
 
-        {/* HEADING & DYNAMIC TYPING LINE */}
+        {/* DYNAMIC HEADING & TYPING TEXT */}
         <AnimatePresence mode="wait">
           <motion.h1
-            key={currentSlide.id + '-title'}
+            key={currentTheme.id + '-title'}
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: -20, opacity: 0 }}
@@ -440,7 +381,7 @@ export function HeroSection({
                 '"Bricolage Grotesque", "Plus Jakarta Sans", "Inter", system-ui, sans-serif',
               color: '#ffffff',
               minHeight: isMobile ? '2.4em' : '2.3em',
-              textShadow: '0 4px 28px rgba(0, 0, 0, 0.28), 0 1px 3px rgba(0, 0, 0, 0.3)',
+              textShadow: '0 4px 28px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.3)',
             }}
           >
             <span
@@ -448,10 +389,9 @@ export function HeroSection({
                 display: 'block',
                 color: '#ffffff',
                 whiteSpace: isMobile ? 'normal' : 'nowrap',
-                textShadow: '0 4px 30px rgba(0, 0, 0, 0.25)',
               }}
             >
-              {currentSlide.titleLine1}
+              {currentTheme.titleLine1}
             </span>
 
             <span
@@ -464,13 +404,11 @@ export function HeroSection({
             >
               <TextType
                 as="span"
-                text={currentSlide.typingTexts}
-                initialTextIndex={typingIndices[currentSlide.id] || 0}
-                onSentenceComplete={handleSentenceComplete}
-                typingSpeed={40}
-                deletingSpeed={25}
-                pauseDuration={1400}
-                initialDelay={200}
+                text={currentTheme.typingTexts}
+                typingSpeed={50}
+                deletingSpeed={28}
+                pauseDuration={1600}
+                initialDelay={400}
                 loop
                 showCursor
                 cursorCharacter="|"
@@ -481,10 +419,10 @@ export function HeroSection({
           </motion.h1>
         </AnimatePresence>
 
-        {/* DESCRIPTION */}
+        {/* DYNAMIC SUBTITLE DESCRIPTION */}
         <AnimatePresence mode="wait">
           <motion.p
-            key={currentSlide.id + '-desc'}
+            key={currentTheme.id + '-desc'}
             initial={{ y: 15, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: -15, opacity: 0 }}
@@ -493,24 +431,24 @@ export function HeroSection({
               color: 'rgba(255, 255, 255, 0.94)',
               fontSize: isMobile ? 14 : 'clamp(15px, 1.1vw, 17.5px)',
               lineHeight: 1.7,
-              maxWidth: 640,
+              maxWidth: 680,
               margin: 0,
               marginBottom: isMobile ? 30 : 38,
               fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
               fontWeight: 450,
               letterSpacing: '-0.01em',
-              textShadow: '0 2px 14px rgba(0, 0, 0, 0.22)',
+              textShadow: '0 2px 14px rgba(0, 0, 0, 0.25)',
             }}
           >
-            {currentSlide.description}
+            {currentTheme.description}
           </motion.p>
         </AnimatePresence>
 
-        {/* BUTTONS */}
+        {/* ACTION BUTTONS — ORANGE BACKGROUND PRIMARY CTA BUTTON */}
         <motion.div
           initial={{ y: 18, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.3, duration: 0.8, ease: EASE }}
+          transition={{ delay: 0.4, duration: 0.8, ease: EASE }}
           style={{
             display: 'flex',
             flexDirection: isMobile ? 'column' : 'row',
@@ -521,7 +459,7 @@ export function HeroSection({
             alignItems: 'center',
           }}
         >
-          {/* PRIMARY BUTTON — BG WHITE, TEXT BLACK, HOVER NONE */}
+          {/* PRIMARY CTA — BG WHITE, TEXT BLACK, HOVER NONE */}
           <motion.button
             onClick={() => navigate('/login')}
             whileTap={{ scale: 0.97 }}
@@ -544,7 +482,7 @@ export function HeroSection({
               fontFamily: '"Inter", system-ui, sans-serif',
             }}
           >
-            {currentSlide.primaryBtnText}
+            Start Free AI Calling
             <span
               style={{
                 width: 32,
@@ -562,14 +500,14 @@ export function HeroSection({
             </span>
           </motion.button>
 
-          {/* SECONDARY BUTTON */}
+          {/* SECONDARY CTA */}
           <motion.button
             onClick={() => navigate('/demo')}
             whileHover={{
               y: -3,
               background: 'rgba(255, 255, 255, 0.22)',
               borderColor: 'rgba(255, 255, 255, 0.75)',
-              boxShadow: '0 16px 36px rgba(0, 0, 0, 0.25)',
+              boxShadow: '0 16px 36px rgba(0, 0, 0, 0.28)',
             }}
             whileTap={{ scale: 0.97 }}
             transition={{ duration: 0.28, ease: EASE }}
@@ -577,7 +515,7 @@ export function HeroSection({
               padding: isMobile ? '14px 22px' : '13px 26px 13px 18px',
               borderRadius: 9999,
               border: '1.5px solid rgba(255, 255, 255, 0.45)',
-              background: 'rgba(255, 255, 255, 0.12)',
+              background: 'rgba(255, 255, 255, 0.14)',
               color: '#ffffff',
               fontWeight: 700,
               fontSize: isMobile ? 14 : 15,
@@ -590,7 +528,7 @@ export function HeroSection({
               gap: 12,
               letterSpacing: '-0.01em',
               fontFamily: '"Inter", system-ui, sans-serif',
-              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.18)',
             }}
           >
             <span
@@ -609,11 +547,11 @@ export function HeroSection({
             >
               <Play size={13} fill="#ffffff" strokeWidth={0} />
             </span>
-            {currentSlide.secondaryBtnText}
+            Listen AI Voice Demo
           </motion.button>
         </motion.div>
 
-        {/* 5-SECOND AUTO SCROLL DOT CONTROLS */}
+        {/* 5-SECOND ROTATING THEME INDICATORS (DOT CONTROLS) */}
         <div
           style={{
             display: 'flex',
@@ -624,24 +562,24 @@ export function HeroSection({
             zIndex: 30,
           }}
         >
-          {HERO_SLIDES.map((slide, idx) => {
-            const isActive = idx === activeSlideIndex;
+          {HERO_THEMES.map((theme, idx) => {
+            const isActive = idx === activeThemeIndex;
             return (
               <button
-                key={slide.id}
-                onClick={() => setActiveSlideIndex(idx)}
+                key={theme.id}
+                onClick={() => setActiveThemeIndex(idx)}
                 style={{
                   height: 8,
                   width: isActive ? 34 : 8,
                   borderRadius: 9999,
                   border: 'none',
                   background: isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.35)',
-                  boxShadow: isActive ? `0 0 12px ${slide.accentColor}` : 'none',
+                  boxShadow: isActive ? `0 0 12px ${theme.accentColor}` : 'none',
                   cursor: 'pointer',
                   transition: 'all 0.4s ease',
                   padding: 0,
                 }}
-                title={slide.badgeSubtext}
+                title={theme.badgeText}
               />
             );
           })}
@@ -656,62 +594,58 @@ export function HeroSection({
             flexWrap: 'wrap',
             gap: isMobile ? 12 : 24,
             marginTop: 18,
-            color: 'rgba(255, 255, 255, 0.78)',
+            color: 'rgba(255, 255, 255, 0.85)',
             fontSize: isMobile ? 12 : 13,
             fontWeight: 500,
             letterSpacing: '0.01em',
           }}
         >
-          {currentSlide.trustBadges.map((badge, idx) => (
-            <React.Fragment key={idx}>
-              {idx > 0 && <span style={{ opacity: 0.4 }}>•</span>}
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-                {badge.dot && (
-                  <span
-                    style={{
-                      width: 7,
-                      height: 7,
-                      borderRadius: '50%',
-                      background: badge.dot,
-                      display: 'inline-block',
-                      boxShadow: `0 0 10px ${badge.dot}`,
-                    }}
-                  />
-                )}
-                {badge.text}
-              </span>
-            </React.Fragment>
-          ))}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+            <span
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: '50%',
+                background: '#34d399',
+                display: 'inline-block',
+                boxShadow: '0 0 10px #34d399',
+              }}
+            />
+            Multi-Language AI Voice
+          </span>
+          <span style={{ opacity: 0.4 }}>•</span>
+          <span>Instant CRM Sync</span>
+          <span style={{ opacity: 0.4 }}>•</span>
+          <span>99.9% Call Uptime</span>
         </div>
       </motion.div>
 
       {/* ══════════════════════════════════════════════
-          FLOATING CRM DASHBOARD PREVIEW
+          FLOATING CRM & AI CALLING PREVIEW
           ══════════════════════════════════════════════ */}
       <motion.div
         initial={{ y: 80, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.5, duration: 1.4, ease: EASE }}
+        transition={{ delay: 0.6, duration: 1.2, ease: EASE }}
         style={{
           position: 'relative',
           zIndex: 15,
           width: '100%',
           maxWidth: 1080,
-          marginTop: isMobile ? 44 : 64,
+          marginTop: isMobile ? 40 : 56,
           boxSizing: 'border-box',
           perspective: 1200,
         }}
       >
         <motion.div
-          ref={dashboardRef}
-          initial={{ rotateX: 10, y: 20 }}
+          initial={{ rotateX: 8, y: 15 }}
           animate={{ rotateX: 0, y: 0 }}
-          transition={{ delay: 0.6, duration: 1.6, ease: EASE }}
+          transition={{ delay: 0.7, duration: 1.4, ease: EASE }}
           style={{
             borderRadius: isMobile ? 16 : 24,
             overflow: 'hidden',
             boxShadow: `
-              0 40px 100px rgba(0, 0, 0, 0.50),
+              0 40px 100px rgba(0, 0, 0, 0.55),
               0 0 0 1px rgba(255, 255, 255, 0.22)
             `,
             transformStyle: 'preserve-3d',
@@ -722,7 +656,7 @@ export function HeroSection({
         >
           <img
             src={crmImage}
-            alt="CRM Dashboard Preview"
+            alt="AI Calling CRM Dashboard Preview"
             style={{
               display: 'block',
               width: '100%',
@@ -731,7 +665,7 @@ export function HeroSection({
           />
         </motion.div>
 
-        {/* Soft glow behind dashboard */}
+        {/* Ambient Glow behind Dashboard */}
         <div
           style={{
             position: 'absolute',
@@ -739,7 +673,7 @@ export function HeroSection({
             background: `
               radial-gradient(
                 ellipse at 50% 100%,
-                ${currentSlide.glowColor} 0%,
+                ${currentTheme.glowColor} 0%,
                 transparent 65%
               )
             `,
@@ -782,4 +716,4 @@ export function HeroSection({
   );
 }
 
-export default HeroSection;
+export default AiCallingHerosection;

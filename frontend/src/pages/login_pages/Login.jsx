@@ -1,8 +1,10 @@
-// src/pages/Login.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { canViewDashboard } from '../../utils/permissions';
+import TechText from './TechText';
+import MagicRings from './MagicRings';
+import lampImg from '../../assets/lamp.png';
 
 const lampLoginStyles = `
 /* ==========================================================
@@ -12,7 +14,6 @@ const lampLoginStyles = `
 
 :root {
   --s: 1;
-  --lamp-right: 10%;
   --lamp-w: 220px;
 
   --orange: #f97316;
@@ -66,7 +67,7 @@ body.lamp-page-active {
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse at 15% 20%, rgba(249, 115, 22, 0.06) 0%, transparent 45%),
+    radial-gradient(ellipse at 50% 20%, rgba(249, 115, 22, 0.08) 0%, transparent 45%),
     radial-gradient(ellipse at 85% 80%, rgba(59, 130, 246, 0.08) 0%, transparent 45%);
   z-index: 0;
   transition: opacity 0.9s ease;
@@ -91,116 +92,72 @@ body.lamp-page-active {
 }
 
 /* ==========================================================
-   2. LAMP
+   2. LAMP (MODERN 3-TIER ORGANIC PENDANT LAMP - RIGHT CORNER)
    ========================================================== */
 .lamp {
   position: fixed;
-  top: 0; 
-  right: var(--lamp-right);
-  width: var(--lamp-w); 
-  height: 380px;
-  transform: scale(var(--s));
-  transform-origin: top right;
+  top: 0;
+  right: clamp(15px, 6vw, 100px);
+  width: clamp(200px, 24vw, 340px);
+  height: auto;
   cursor: pointer;
   z-index: 30;
   -webkit-tap-highlight-color: transparent;
+  transition: transform 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.3), filter 0.5s ease;
 }
 
-.wire {
+.lamp:hover {
+  transform: translateY(4px) scale(1.02);
+}
+
+.lamp-img {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.55));
+  transition: filter 0.6s ease;
+}
+
+.lamp-glow-overlay {
   position: absolute;
-  top: 0; left: 50%;
-  transform: translateX(-50%);
-  width: 5px; height: 72px;
-  background: linear-gradient(#0b0b10, #2a1a0a);
-  border-radius: 3px;
+  bottom: 0;
+  left: 5%;
+  right: 5%;
+  height: 65%;
+  background: radial-gradient(
+    ellipse at 50% 70%,
+    rgba(251, 146, 60, 0.75) 0%,
+    rgba(249, 115, 22, 0.45) 45%,
+    transparent 78%
+  );
+  opacity: 0;
+  pointer-events: none;
+  filter: blur(28px);
+  transition: opacity 0.6s ease;
 }
 
-.bulb {
-  position: absolute;
-  top: 180px; left: 50%;
-  transform: translate(-50%, -50%);
-  width: 44px; height: 44px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #4a4a52, #1c1c22 70%);
-  border: 2px solid rgba(148, 163, 184, 0.35);
-  box-shadow:
-    inset 0 -3px 8px rgba(0,0,0,0.6),
-    inset 0 3px 6px rgba(255,255,255,0.06),
-    0 0 0 1px rgba(0,0,0,0.4);
-  transition: background .6s ease, box-shadow .6s ease, border-color .6s ease;
+.lamp-login-root.lit .lamp-img {
+  filter:
+    drop-shadow(0 0 30px rgba(249, 115, 22, 0.75))
+    drop-shadow(0 0 70px rgba(251, 146, 60, 0.55))
+    brightness(1.15);
 }
 
-.bulb::after {
-  content: "";
-  position: absolute;
-  inset: 12px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 180, 100, 0.30), transparent 70%);
-  opacity: 0.45;
-  animation: filamentFlicker 3.5s ease-in-out infinite;
+.lamp-login-root.lit .lamp-glow-overlay {
+  opacity: 1;
+  animation: lampGlowPulse 2.8s ease-in-out infinite alternate;
 }
 
-@keyframes filamentFlicker {
-  0%, 100% { opacity: 0.30; }
-  50%      { opacity: 0.60; }
-}
-
-.shade {
-  position: absolute;
-  top: 70px; left: 50%;
-  transform: translateX(-50%);
-  width: 190px; height: 112px;
-  clip-path: polygon(20% 0, 80% 0, 100% 100%, 0 100%);
-  background: linear-gradient(100deg,
-      #4a3018 0%, #2a1a0a 30%, #16100a 72%, #0a0806 100%);
-  transition: filter .5s ease;
-  box-shadow: inset 0 -6px 20px rgba(0,0,0,0.5);
-}
-
-.cord {
-  position: absolute;
-  top: 180px; left: 50%;
-  transform: translateX(-50%);
-  width: 2px; height: 118px;
-  background: linear-gradient(#3a2a1a, #1a1208);
-  transition: height .5s cubic-bezier(.34,1.56,.64,1);
-}
-
-.knob {
-  position: absolute;
-  bottom: -11px; left: 50%;
-  transform: translateX(-50%);
-  width: 20px; height: 20px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 32% 28%, #8a7a6a, #16161c 72%);
-  box-shadow: 0 3px 9px rgba(0,0,0,.9);
-  transition: box-shadow .5s ease;
-}
-
-.lamp-login-root.lit .bulb {
-  background: radial-gradient(circle at 35% 30%, #fff6d6, #fcd34d 70%);
-  border-color: rgba(251, 191, 36, 0.9);
-  box-shadow:
-    0 0 26px 12px rgba(251, 191, 36, 0.95),
-    0 0 80px 30px rgba(249, 115, 22, 0.70),
-    0 0 160px 70px rgba(234, 88, 12, 0.40),
-    inset 0 -3px 10px rgba(255,200,80,0.5);
-  animation: bulbPulse 2.2s ease-in-out infinite;
-}
-
-.lamp-login-root.lit .bulb::after { opacity: 0; }
-
-.lamp-login-root.lit .shade {
-  filter: drop-shadow(0 8px 36px rgba(249, 115, 22, 0.75));
-  animation: shadeGlow 2.2s ease-in-out infinite;
-}
-
-.lamp-login-root.lit .cord { height: 162px; }
-
-.lamp-login-root.lit .knob {
-  box-shadow: 
-    0 3px 9px rgba(0,0,0,0.9), 
-    0 0 22px rgba(249, 115, 22, 0.80);
+@keyframes lampGlowPulse {
+  0% {
+    opacity: 0.75;
+    filter: blur(24px);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(34px);
+  }
 }
 
 @keyframes bulbPulse {
@@ -752,6 +709,7 @@ const EyeOffIcon = () => (
 
 export default function Login() {
   const [isLit, setIsLit] = useState(false);
+  const [isLampHovered, setIsLampHovered] = useState(false);
 
   /* ── view: 'login' | 'forgot' ────────────────── */
   const [view, setView] = useState('login');
@@ -814,8 +772,11 @@ export default function Login() {
     return () => clearTimeout(t);
   }, [resendCountdown]);
 
-  const handleLampPointerEnter = (e) => {
-    if (e.pointerType === 'mouse') setIsLit(true);
+  const handleLampPointerEnter = () => {
+    setIsLampHovered(true);
+  };
+  const handleLampPointerLeave = () => {
+    setIsLampHovered(false);
   };
   const handleLampClick = (e) => {
     e.stopPropagation();
@@ -943,6 +904,94 @@ export default function Login() {
     <div className={`lamp-login-root ${isLit ? 'lit' : ''}`}>
       <style>{lampLoginStyles}</style>
 
+      {/* ══════════════════════════════════════════════
+          RESPONSIVE HIGH-TECH INTERACTIVE "LAMP" TEXT
+          ══════════════════════════════════════════════ */}
+      {/* ══════════════════════════════════════════════
+          BACKGROUND MAGIC RINGS ANIMATION
+          (Automatically hides when lamp is hovered or lit)
+          ══════════════════════════════════════════════ */}
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          width: '100vw',
+          height: '100vh',
+          pointerEvents: 'none',
+          zIndex: 2,
+          opacity: isLit ? 0 : 1,
+          transition: 'opacity 0.8s ease',
+          overflow: 'hidden'
+        }}
+      >
+        <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+          <MagicRings
+            color="#A855F7"
+            colorTwo="#6366F1"
+            ringCount={6}
+            speed={1}
+            attenuation={10}
+            lineThickness={2}
+            baseRadius={0.35}
+            radiusStep={0.1}
+            scaleRate={0.1}
+            opacity={1}
+            blur={0}
+            noiseAmount={0.1}
+            rotation={0}
+            ringGap={1.5}
+            fadeIn={0.7}
+            fadeOut={0.5}
+            followMouse={false}
+            mouseInfluence={0.2}
+            hoverScale={1.2}
+            parallax={0.05}
+            clickBurst={false}
+          />
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════
+          RESPONSIVE HIGH-TECH INTERACTIVE "LAMP" TEXT (CENTER MIDDLE)
+          ══════════════════════════════════════════════ */}
+      <div
+        className="tech-text-responsive-wrapper"
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: 'clamp(280px, 50vw, 700px)',
+          height: 'clamp(160px, 35vh, 320px)',
+          zIndex: 15,
+          pointerEvents: isLit ? 'none' : 'auto',
+          opacity: isLit ? 0 : 0.85,
+          transition: 'opacity 0.8s ease',
+        }}
+      >
+        <TechText
+          text="CRM"
+          fontWeight={600}
+          fontSize={140}
+          reveal="letter"
+          dashLength={4}
+          dashGap={2}
+          specks={15}
+          fontFamily=""
+          color={isLit ? 'rgba(255, 255, 255, 0.75)' : 'rgba(203, 213, 225, 0.45)'}
+          accentColor={isLit ? '#fb923c' : '#94a3b8'}
+          letterSpacing={-0.05}
+          reach={200}
+          softness={0.7}
+          strokeWidth={1.5}
+          speed={1}
+          lineStyle="dashed"
+          selection
+          labels
+          draggable
+          sweep
+        />
+      </div>
       <main className="stage" onClick={() => !isLit && setIsLit(true)}>
         <form
           className="card lamp-card"
@@ -976,7 +1025,7 @@ export default function Login() {
                   <label htmlFor="email">Email</label>
                   <input
                     id="email"
-                    type="email"
+                    type="email" 
                     placeholder="you@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -1239,19 +1288,16 @@ export default function Login() {
         className="lamp"
         id="lamp"
         onPointerEnter={handleLampPointerEnter}
+        onPointerLeave={handleLampPointerLeave}
         onClick={handleLampClick}
         title="Hover or click to switch lamp"
       >
-        <div className="wire" />
-        <div className="bulb" />
-        <div className="shade" />
-        <div className="cord">
-          <span className="knob" />
-        </div>
+        <img src={lampImg} alt="Modern Organic Pendant Lamps" className="lamp-img" />
+        <div className="lamp-glow-overlay" />
       </div>
 
       <div className="hint" onClick={() => setIsLit(true)} style={{ cursor: 'pointer' }}>
-        Hover the lamp &nbsp;💡
+        Click the lamp &nbsp;💡
       </div>
     </div>
   );
