@@ -19,7 +19,13 @@ const connectDB = async () => {
 
     if (uri) {
       try {
-        const conn = await mongoose.connect(uri, { serverSelectionTimeoutMS: 10000 });
+        const conn = await mongoose.connect(uri, {
+          serverSelectionTimeoutMS: 10000,
+          maxPoolSize: 10,
+          minPoolSize: 2,
+          socketTimeoutMS: 45000,
+          family: 4
+        });
         console.log(`MongoDB Connected: ${conn.connection.host}`);
       } catch (primaryErr) {
         if (!allowMemoryFallback) {

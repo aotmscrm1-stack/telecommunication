@@ -35,7 +35,11 @@ function startTaskReminderChecker(intervalMs = 5 * 60 * 1000) {
         await followup.save();
       }
     } catch (err) {
-      console.error('[taskReminderChecker] sweep error:', err.message);
+      if (err.code === 'ECONNRESET' || err.message?.includes('ECONNRESET')) {
+        console.warn('[taskReminderChecker] Network socket reset, will retry on next sweep.');
+      } else {
+        console.error('[taskReminderChecker] sweep error:', err.message);
+      }
     }
   };
   tick();

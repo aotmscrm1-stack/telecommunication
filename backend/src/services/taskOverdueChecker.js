@@ -25,7 +25,11 @@ function startOverdueTaskChecker(intervalMs = 5 * 60 * 1000) {
         await followup.save();
       }
     } catch (err) {
-      console.error('[taskOverdueChecker] sweep error:', err.message);
+      if (err.code === 'ECONNRESET' || err.message?.includes('ECONNRESET')) {
+        console.warn('[taskOverdueChecker] Network socket reset, will retry on next sweep.');
+      } else {
+        console.error('[taskOverdueChecker] sweep error:', err.message);
+      }
     }
   };
   tick();
