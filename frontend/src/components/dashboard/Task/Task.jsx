@@ -2605,15 +2605,18 @@ export default function Task() {
       else items = items.filter(t => t.status !== 'done' && (t.type === 'task' || (t.type !== 'todo' && t.type !== 'call_followup')));
 
       if (!isAll) {
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+
         if (wantsLate && !wantsPending) {
           items = items.filter(t =>
             (t.status === 'cancelled' && wantsCancelled) ||
-            (t.status === 'upcoming' && new Date(t.scheduledAt) < new Date())
+            (t.status === 'upcoming' && new Date(t.scheduledAt || t.dueDate || t.createdAt) < startOfToday)
           );
         } else if (wantsPending && !wantsLate) {
           items = items.filter(t =>
             (t.status === 'cancelled' && wantsCancelled) ||
-            (t.status === 'upcoming' && new Date(t.scheduledAt) >= new Date())
+            (t.status === 'upcoming' && new Date(t.scheduledAt || t.dueDate || t.createdAt) >= startOfToday)
           );
         }
       }
