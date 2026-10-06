@@ -231,7 +231,7 @@ export default function Payslip() {
   const triggerPdfDownload = async (slip) => {
     if (!slip) return;
     setActiveExportSlip(slip);
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    await new Promise((resolve) => setTimeout(resolve, 200));
 
     const element = document.getElementById('payslip-direct-export-node');
     const filename = formatPayslipFilename(slip.employee_name, slip.employee_id, slip.payslip_month);
@@ -241,12 +241,23 @@ export default function Payslip() {
       const jsPDFModule = (await import('jspdf')).default;
 
       if (element) {
-        const canvas = await html2canvasModule(element, {
+        const pageEl = element.querySelector('.a4-page') || element;
+        const originalShadow = pageEl.style.boxShadow;
+        const originalMargin = pageEl.style.margin;
+        pageEl.style.boxShadow = 'none';
+        pageEl.style.margin = '0';
+
+        const canvas = await html2canvasModule(pageEl, {
           scale: 2,
           useCORS: true,
           logging: false,
+          scrollY: 0,
+          scrollX: 0,
           backgroundColor: '#ffffff',
         });
+
+        pageEl.style.boxShadow = originalShadow;
+        pageEl.style.margin = originalMargin;
 
         const imgData = canvas.toDataURL('image/jpeg', 0.98);
         const pdf = new jsPDFModule({
@@ -261,8 +272,8 @@ export default function Payslip() {
         const imgWidth = a4Width;
         const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-        if (imgHeight <= a4Height) {
-          pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight, undefined, 'FAST');
+        if (imgHeight <= a4Height + 2) {
+          pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, Math.min(imgHeight, a4Height), undefined, 'FAST');
         } else {
           let heightLeft = imgHeight;
           let position = 0;
@@ -1070,7 +1081,7 @@ export default function Payslip() {
                 </div>
 
                 <div className="p-4 sm:p-6 bg-slate-100/70 border border-slate-200 rounded-2xl shadow-inner flex justify-center overflow-x-auto custom-scrollbar">
-                  <PayslipDocument ref={printRef} payslip={draftPayslip} isPreview={true} />
+                  <PayslipDocument ref={printRef} payslip={draftPayslip} />
                 </div>
               </div>
             </div>
@@ -1272,7 +1283,7 @@ export default function Payslip() {
             {/* Modal Document Body */}
             <div style={{ padding: 20, overflowY: 'auto', backgroundColor: '#f1f5f9', display: 'flex', justifyContent: 'center' }}>
               <div style={{ background: '#ffffff', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', borderRadius: 4 }}>
-                <PayslipDocument payslip={selectedPayslip} isPreview={true} />
+                <PayslipDocument payslip={selectedPayslip} />
               </div>
             </div>
           </div>
@@ -1293,16 +1304,16 @@ export default function Payslip() {
         style={{
           position: 'fixed',
           left: '-9999px',
-          top: '-9999px',
-          width: '750px',
+          top: 0,
+          width: '210mm',
           backgroundColor: '#ffffff',
           zIndex: -999,
           pointerEvents: 'none',
         }}
         aria-hidden="true"
       >
-        <div id="payslip-direct-export-node">
-          <PayslipDocument payslip={activeExportSlip || draftPayslip} isPreview={false} />
+        <div id="payslip-direct-export-node" style={{ width: '210mm', backgroundColor: '#ffffff' }}>
+          <PayslipDocument payslip={activeExportSlip || draftPayslip} />
         </div>
       </div>
     </div>
