@@ -46,13 +46,17 @@ function isManager(user) {
   return desig.includes('MANAGER') || desig.includes('HEAD') || desig.includes('LEAD') || desig.includes('SUPERVISOR');
 }
 
+function isValidId(val) {
+  return val && mongoose.Types.ObjectId.isValid(val);
+}
+
 // GET /api/tasks — fetch official tasks from 'tasks' collection
 router.get('/', protect, async (req, res) => {
   try {
     const { status, date, due: dueQuery, callerId, userId: queryUserId, forMe: forMeQuery, leadId } = req.query;
     const query = { type: 'task' };
 
-    if (leadId) query.lead = leadId;
+    if (isValidId(leadId)) query.lead = leadId;
 
     const isAdmin = isStrictAdmin(req.user);
     const isMgr = isManager(req.user);
@@ -61,13 +65,17 @@ router.get('/', protect, async (req, res) => {
     // Role-based visibility scoping
     if (queryUserId) {
       const targetId = queryUserId === 'me' ? req.user._id : queryUserId;
-      if (!isAdmin && !isMgr && String(targetId) !== String(req.user._id)) {
-        return res.status(403).json({ message: "You are not authorized to view another user's task list." });
+      if (!isValidId(targetId)) {
+        query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { createdBy: req.user._id }];
+      } else {
+        if (!isAdmin && !isMgr && String(targetId) !== String(req.user._id)) {
+          return res.status(403).json({ message: "You are not authorized to view another user's task list." });
+        }
+        query.$or = [{ assignedTo: targetId }, { assignedBy: targetId }, { createdBy: targetId }];
       }
-      query.$or = [{ assignedTo: targetId }, { assignedBy: targetId }, { createdBy: targetId }];
     } else if (!isAdmin) {
       if (isMgr && !forMe) {
-        if (callerId && callerId !== 'all') {
+        if (callerId && callerId !== 'all' && isValidId(callerId)) {
           query.$or = [{ assignedTo: callerId }, { assignedBy: callerId }, { createdBy: callerId }];
         } else if (req.user.department) {
           const User = require('../../database/models/User');
@@ -90,7 +98,7 @@ router.get('/', protect, async (req, res) => {
       // ONLY Admin Panel: Full Visibility across all members & departments
       if (forMe) {
         query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { createdBy: req.user._id }];
-      } else if (callerId && callerId !== 'all') {
+      } else if (callerId && callerId !== 'all' && isValidId(callerId)) {
         query.$or = [{ assignedTo: callerId }, { assignedBy: callerId }, { createdBy: callerId }];
       }
     }
@@ -130,7 +138,7 @@ router.get('/', protect, async (req, res) => {
 router.get('/user/:userId', protect, async (req, res) => {
   try {
     const { userId } = req.params;
-    const targetUserId = userId === 'me' ? req.user._id : userId;
+    const targetUserId = userId === 'me' ? req.user._id : (isValidId(userId) ? userId : req.user._id);
 
     const isAdmin = isStrictAdmin(req.user);
     const isMgr = isManager(req.user);
@@ -168,17 +176,20 @@ router.get('/user/:userId', protect, async (req, res) => {
 // POST /api/tasks — create an official task in 'tasks' collection
 router.post('/', protect, async (req, res) => {
   try {
+    const assignedToVal = isValidId(req.body.assignedTo) ? req.body.assignedTo : req.user._id;
+    const assignedByVal = isValidId(req.body.assignedBy) ? req.body.assignedBy : req.user._id;
+
     const baseDoc = {
       ...req.body,
       type: 'task',
-      assignedTo: req.body.assignedTo || req.user._id,
-      assignedBy: req.body.assignedBy || req.user._id,
+      assignedTo: assignedToVal,
+      assignedBy: assignedByVal,
       createdBy: req.user._id,
     };
     const task = await Task.create(baseDoc);
     await task.populate('lead', 'name phone status');
     await task.populate('assignedTo', 'name email');
-    if (baseDoc.assignedBy && mongoose.Types.ObjectId.isValid(baseDoc.assignedBy)) {
+    if (baseDoc.assignedBy && isValidId(baseDoc.assignedBy)) {
       await task.populate('assignedBy', 'name email');
     }
 

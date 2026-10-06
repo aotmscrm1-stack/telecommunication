@@ -211,14 +211,15 @@ export const getTaskAssignorOptions = (currentUser, users = []) => {
     u.name?.toLowerCase().includes('ameen') ||
     u.name?.toLowerCase().includes('rabbani')
   );
+  const fallbackId = currentUser?._id || '000000000000000000000000';
   const primaryAdmin = adminUsers.length > 0 ? adminUsers : [
-    { _id: 'admin_fallback', name: 'Admin', designation: 'Managing Director' }
+    { _id: fallbackId, name: 'Admin', designation: 'Managing Director' }
   ];
 
   // Find Manager users
   const managerUsers = userList.filter(u => isManager(u) || u.role === 'manager');
   const primaryManagers = managerUsers.length > 0 ? managerUsers : [
-    { _id: 'manager_fallback', name: 'Manager', designation: 'Manager' }
+    { _id: fallbackId, name: 'Manager', designation: 'Manager' }
   ];
 
   // Find Developer users

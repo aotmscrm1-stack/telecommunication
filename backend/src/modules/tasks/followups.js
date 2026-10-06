@@ -6,6 +6,7 @@ const FollowUp = require('../../database/models/FollowUp');
 const Task = require('../../database/models/Task');
 const Todo = require('../../database/models/Todo');
 const Lead = require('../../database/models/Lead');
+const User = require('../../database/models/User');
 const { protect, authorize } = require('../../core/middleware/auth');
 const { notifyAdminsTaskCreated, notifyAdminsTaskEdited } = require('../../modules/notifications/notificationService');
 
@@ -90,13 +91,17 @@ function extractId(val) {
   return String(val);
 }
 
+function isValidId(val) {
+  return val && mongoose.Types.ObjectId.isValid(val);
+}
+
 // GET /api/followups
 router.get('/', protect, async (req, res) => {
   try {
     const { status, date, due: dueQuery, callerId, userId: queryUserId, type, forMe: forMeQuery, leadId } = req.query;
     const query = {};
 
-    if (leadId) {
+    if (isValidId(leadId)) {
       query.lead = leadId;
     }
 
@@ -107,14 +112,18 @@ router.get('/', protect, async (req, res) => {
     // Role-based visibility scoping
     if (queryUserId) {
       const targetId = queryUserId === 'me' ? req.user._id : queryUserId;
-      if (!isAdmin && !isMgr && String(targetId) !== String(req.user._id)) {
-        return res.status(403).json({ message: "You are not authorized to view another user's list." });
+      if (!isValidId(targetId)) {
+        query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { createdBy: req.user._id }];
+      } else {
+        if (!isAdmin && !isMgr && String(targetId) !== String(req.user._id)) {
+          return res.status(403).json({ message: "You are not authorized to view another user's list." });
+        }
+        query.$or = [{ assignedTo: targetId }, { assignedBy: targetId }, { createdBy: targetId }];
       }
-      query.$or = [{ assignedTo: targetId }, { assignedBy: targetId }, { createdBy: targetId }];
     } else if (!isAdmin) {
       if (isMgr && !forMe) {
         // Manager Panel: View relative department items & team members
-        if (callerId && callerId !== 'all') {
+        if (callerId && callerId !== 'all' && isValidId(callerId)) {
           query.$or = [{ assignedTo: callerId }, { assignedBy: callerId }, { createdBy: callerId }];
         } else if (req.user.department) {
           const deptUsers = await User.find({ department: req.user.department }).select('_id');
@@ -137,7 +146,7 @@ router.get('/', protect, async (req, res) => {
       // ONLY Admin Panel: Full Visibility across all members & departments
       if (forMe) {
         query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { createdBy: req.user._id }];
-      } else if (callerId && callerId !== 'all') {
+      } else if (callerId && callerId !== 'all' && isValidId(callerId)) {
         query.$or = [{ assignedTo: callerId }, { assignedBy: callerId }, { createdBy: callerId }];
       }
     }

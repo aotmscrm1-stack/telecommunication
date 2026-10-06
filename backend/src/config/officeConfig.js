@@ -34,6 +34,7 @@ function isWithinOfficeGeofence(lat, lon) {
 
 module.exports = {
   OFFICE_CONFIG,
+  getOfficeConfig: () => OFFICE_CONFIG,
   calculateDistance,
   isWithinOfficeGeofence
 };
