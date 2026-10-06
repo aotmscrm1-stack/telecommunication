@@ -312,11 +312,14 @@ router.post('/', protect, async (req, res) => {
     const frequency = recurrence?.frequency;
     const hasRecurrence = frequency && frequency !== 'none';
 
+    const assignedToVal = isValidId(req.body.assignedTo) ? req.body.assignedTo : req.user._id;
+    const assignedByVal = isValidId(req.body.assignedBy) ? req.body.assignedBy : req.user._id;
+
     const baseDoc = {
       ...body,
       type: itemType,
-      assignedTo: req.body.assignedTo || req.user._id,
-      assignedBy: req.body.assignedBy || req.user._id,
+      assignedTo: assignedToVal,
+      assignedBy: assignedByVal,
       createdBy: req.user._id,
       department: req.body.department || req.user.department || '',
       initialScheduledAt: body.initialScheduledAt || body.scheduledAt,
