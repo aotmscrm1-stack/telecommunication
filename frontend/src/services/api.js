@@ -18,7 +18,9 @@ api.interceptors.response.use(
     if (err.response?.status === 401 && !err.config?.url?.includes('/auth/login')) {
       localStorage.removeItem('aotms_token');
       localStorage.removeItem('aotms_user');
-      window.location.href = '/login';
+      if (window.location.pathname !== '/login' && window.location.pathname !== '/sign-up' && window.location.pathname !== '/signup') {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(err);
   }

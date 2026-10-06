@@ -1,0 +1,91 @@
+/* ── A4 Print & Pagination Template Styles ────────────────────────────────── */
+.a4-container {
+  width: 210mm;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.a4-page {
+  position: relative;
+  width: 210mm;
+  min-height: 297mm;
+  padding: 12mm 14mm;
+  margin: 20px auto;
+  background: #ffffff;
+  color: #000000;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.18);
+  box-sizing: border-box;
+  page-break-after: always;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.a4-page:first-child {
+  margin-top: 20px;
+}
+
+.a4-page:last-child {
+  page-break-after: unset;
+  margin-bottom: 20px;
+}
+
+/* Paging Units */
+.a4-unit {
+  page-break-inside: avoid;
+}
+
+.a4-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.a4-unit-wrap {
+  width: 100%;
+}
+
+@media print {
+  body {
+    background: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .no-print,
+  nav,
+  header,
+  aside,
+  button,
+  .sidebar-container {
+    display: none !important;
+  }
+
+  .a4-container {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .a4-container .a4-page {
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 10mm 12mm !important;
+    width: 210mm !important;
+    max-height: 297mm !important;
+    page-break-after: always !important;
+  }
+
+  .a4-page:first-child {
+    margin-top: 0 !important;
+  }
+
+  .a4-page:last-child {
+    page-break-after: avoid !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 0;
+    padding: 0;
+  }
+}

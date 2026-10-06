@@ -16,6 +16,7 @@
     "date-fns": "^3.0.6",
     "framer-motion": "^13.4.0",
     "gsap": "^3.15.0",
+    "html-to-a4-template": "^0.7.4",
     "html2pdf.js": "^0.14.0",
     "lucide-react": "^0.303.0",
     "maplibre-gl": "^6.9.0",

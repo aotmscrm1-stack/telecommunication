@@ -1,27 +1,36 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { authAPI } from '../services/api';
 import geoTracker from '../services/geoTracker';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
+  const [token, setToken] = useState(() => localStorage.getItem('aotms_token'));
   const [user, setUser] = useState(() => {
     const stored = localStorage.getItem('aotms_user');
-    return stored ? JSON.parse(stored) : null;
+    try {
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
   });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('aotms_token');
-    if (token) {
+    const savedToken = localStorage.getItem('aotms_token');
+    if (savedToken) {
       authAPI.me()
         .then(res => {
-          setUser(res.data.user);
-          localStorage.setItem('aotms_user', JSON.stringify(res.data.user));
+          const u = res?.data?.user || res?.data || res?.user;
+          if (u) {
+            setUser(u);
+            localStorage.setItem('aotms_user', JSON.stringify(u));
+          }
         })
         .catch(() => {
           localStorage.removeItem('aotms_token');
           localStorage.removeItem('aotms_user');
+          setToken(null);
           setUser(null);
           geoTracker.stopTracking().catch(() => {});
         })
@@ -31,29 +40,42 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const login = async (email, password) => {
+  const login = useCallback(async (email, password) => {
     const res = await authAPI.login({ email, password });
-    localStorage.setItem('aotms_token', res.data.token);
-    localStorage.setItem('aotms_user', JSON.stringify(res.data.user));
-    setUser(res.data.user);
-    return res.data;
-  };
+    const newToken = res?.data?.token || res?.token;
+    const newUser = res?.data?.user || res?.user;
+    
+    if (newToken) {
+      localStorage.setItem('aotms_token', newToken);
+      setToken(newToken);
+    }
+    if (newUser) {
+      localStorage.setItem('aotms_user', JSON.stringify(newUser));
+      setUser(newUser);
+    }
+    return res.data || res;
+  }, []);
 
-  const logout = () => {
-    // Stop local browser GPS watcher on logout, preserving database attendance state
+  const logout = useCallback(() => {
     geoTracker.stopTracking().catch(() => {});
     localStorage.removeItem('aotms_token');
     localStorage.removeItem('aotms_user');
+    setToken(null);
     setUser(null);
-  };
+  }, []);
 
-  const updateUser = (updatedUser) => {
+  const updateUser = useCallback((updatedUser) => {
     setUser(updatedUser);
     localStorage.setItem('aotms_user', JSON.stringify(updatedUser));
-  };
+  }, []);
+
+  const contextValue = useMemo(
+    () => ({ user, token, login, logout, loading, updateUser }),
+    [user, token, loading, login, logout, updateUser]
+  );
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading, updateUser }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
