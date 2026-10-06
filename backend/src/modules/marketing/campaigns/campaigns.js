@@ -13,6 +13,7 @@
 const express = require('express');
 const Campaign = require('../../../database/models/Campaign');
 const Lead = require('../../../database/models/Lead');
+const Contact = require('../../../database/models/Contact');
 const { protect, authorize } = require('../../../core/middleware/auth');
 const hangupCall = async () => {};
 const releaseLock = async () => {};
@@ -120,21 +121,94 @@ router.delete('/:id', protect, authorize('manager', 'admin'), async (req, res) =
   }
 });
 
-// POST /api/campaigns/:id/add-leads  — bulk assign existing leads to this campaign
+// POST /api/campaigns/:id/add-leads  — bulk assign existing leads or contacts/excel to this campaign
 router.post('/:id/add-leads', protect, authorize('manager', 'admin'), async (req, res) => {
   try {
-    const { leadIds } = req.body; // array of lead _ids
-    if (!leadIds || !Array.isArray(leadIds) || leadIds.length === 0) {
-      return res.status(400).json({ message: 'Provide an array of leadIds' });
-    }
+    const { leadIds, contacts, saveToContacts } = req.body;
     const campaign = await Campaign.findById(req.params.id);
     if (!campaign) return res.status(404).json({ message: 'Campaign not found' });
 
-    const result = await Lead.updateMany(
-      { _id: { $in: leadIds } },
-      { $set: { campaign: campaign._id } }
-    );
-    res.json({ message: `${result.modifiedCount} lead(s) added to campaign`, modifiedCount: result.modifiedCount });
+    let addedCount = 0;
+
+    // 1. If leadIds provided (existing Lead _ids)
+    if (Array.isArray(leadIds) && leadIds.length > 0) {
+      const result = await Lead.updateMany(
+        { _id: { $in: leadIds } },
+        { $set: { campaign: campaign._id } }
+      );
+      addedCount += result.modifiedCount;
+    }
+
+    // 2. If contacts array provided (from Contact collection or Excel upload)
+    if (Array.isArray(contacts) && contacts.length > 0) {
+      for (const c of contacts) {
+        if (!c.phone && !c.name) continue;
+        const rawPhone = String(c.phone || '').trim();
+        let digits = rawPhone.replace(/\D/g, '');
+        if (digits.startsWith('91') && digits.length > 10) digits = digits.slice(2);
+        const clean10 = digits.slice(-10);
+
+        if (!clean10 || clean10.length !== 10) continue;
+
+        const identityTag = String(c.identity || 'Client').trim();
+
+        // Check if lead exists
+        const existingLead = await Lead.findOne({ phone: clean10 });
+        if (existingLead) {
+          existingLead.campaign = campaign._id;
+          existingLead.customFields = {
+            ...(existingLead.customFields || {}),
+            identity: identityTag,
+            segment: c.segment || existingLead.customFields?.segment || 'New'
+          };
+          if (c.email && !existingLead.email) existingLead.email = String(c.email).trim().toLowerCase();
+          if (c.name && (!existingLead.name || existingLead.name === 'Contact')) existingLead.name = String(c.name).trim();
+          if (c.location && !existingLead.location) existingLead.location = String(c.location).trim();
+          await existingLead.save();
+          addedCount++;
+        } else {
+          await Lead.create({
+            name: String(c.name || 'Contact').trim(),
+            phone: clean10,
+            email: c.email ? String(c.email).trim().toLowerCase() : '',
+            status: c.status || 'Fresh',
+            leadSource: 'Campaign Import',
+            campaign: campaign._id,
+            customFields: { identity: identityTag, segment: c.segment || 'New' },
+            location: c.location ? String(c.location).trim() : ''
+          });
+          addedCount++;
+        }
+
+        // Optionally also sync/save to Contacts collection if requested
+        if (saveToContacts) {
+          try {
+            await Contact.findOneAndUpdate(
+              { phone: clean10 },
+              {
+                $set: {
+                  name: String(c.name || 'Contact').trim(),
+                  phone: clean10,
+                  email: c.email ? String(c.email).trim().toLowerCase() : '',
+                  identity: identityTag,
+                  segment: c.segment || 'New',
+                  source: 'campaign'
+                }
+              },
+              { upsert: true }
+            );
+          } catch (e) {
+            // non-fatal
+          }
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `${addedCount} contact(s) added to campaign`,
+      modifiedCount: addedCount
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

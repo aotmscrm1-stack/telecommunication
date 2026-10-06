@@ -1776,12 +1776,12 @@ function TaskAssigneeCheckboxDropdown({ assignableUsers, selectedIds, onChange, 
 
   const filtered = assignableUsers.filter((u) => {
     const q = search.toLowerCase();
-    const name = (u.name || (u.isMe ? 'You' : '')).toLowerCase();
-    const desig = (u.designation || u.displayName || '').toLowerCase();
+    const name = (u.name || '').toLowerCase();
+    const desig = (u.designation || '').toLowerCase();
     return name.includes(q) || desig.includes(q);
   });
 
-  const allSelected = assignableUsers.length > 0 && assignableUsers.every((u) => selectedIds.includes(u._id));
+  const allSelected = assignableUsers.length > 0 && assignableUsers.every((u) => selectedIds.some(id => String(id) === String(u._id)));
   const isSingleOption = assignableUsers.length <= 1;
 
   const toggleSelectAll = () => {
@@ -1794,9 +1794,10 @@ function TaskAssigneeCheckboxDropdown({ assignableUsers, selectedIds, onChange, 
   };
 
   const toggleUser = (id) => {
-    if (selectedIds.includes(id)) {
+    const idStr = String(id);
+    if (selectedIds.some(x => String(x) === idStr)) {
       if (isSingleOption) return;
-      onChange(selectedIds.filter((x) => x !== id));
+      onChange(selectedIds.filter((x) => String(x) !== idStr));
     } else {
       onChange([...selectedIds, id]);
     }
@@ -1808,10 +1809,9 @@ function TaskAssigneeCheckboxDropdown({ assignableUsers, selectedIds, onChange, 
       return `All Employees (${assignableUsers.length})`;
     }
     if (selectedIds.length === 1) {
-      const found = assignableUsers.find((u) => u._id === selectedIds[0]);
+      const found = assignableUsers.find((u) => String(u._id) === String(selectedIds[0]));
       if (found) {
-        return `${found.name || 'User'}${found._id === currentUser?._id ? ' (You)' : ''}${found.displayName || found.designation ? ` (${found.displayName || found.designation})` : ''
-          }`;
+        return `${found.name || 'User'}${found.designation ? ` (${found.designation})` : ''}`;
       }
       return '1 Person Selected';
     }
@@ -1921,8 +1921,7 @@ function TaskAssigneeCheckboxDropdown({ assignableUsers, selectedIds, onChange, 
               <div style={{ padding: 10, textAlign: 'center', fontSize: 12, color: COLOR_MUTED }}>No matching users</div>
             ) : (
               filtered.map((u) => {
-                const isChecked = selectedIds.includes(u._id);
-                const isMe = u._id === currentUser?._id;
+                const isChecked = selectedIds.some(id => String(id) === String(u._id));
                 return (
                   <div
                     key={u._id}
@@ -1947,12 +1946,11 @@ function TaskAssigneeCheckboxDropdown({ assignableUsers, selectedIds, onChange, 
                       style={{ cursor: 'pointer', accentColor: COLOR_BLUE_GREEN, flexShrink: 0 }}
                     />
                     <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {u.name || (isMe ? 'You' : 'User')}
-                      {isMe && <span style={{ color: COLOR_BLUE_GREEN, fontSize: 10, marginLeft: 4, fontWeight: 700 }}>(You)</span>}
+                      {u.name || 'User'}
                     </div>
-                    {(u.displayName || u.designation) && (
+                    {u.designation && (
                       <span style={{ fontSize: 10, padding: '1px 5px', borderRadius: 4, background: '#f1f5f9', color: '#64748b', flexShrink: 0 }}>
-                        {u.displayName || u.designation}
+                        {u.designation}
                       </span>
                     )}
                   </div>
@@ -2370,9 +2368,9 @@ function AddTaskModal({ type = 'todo', onClose, onCreated }) {
                 >
                   {assignedByUsers.map(u => (
                     <option key={u._id} value={u._id}>
-                      {u._id === currentUser?._id
-                        ? `${u.name || 'You'} (You)`
-                        : `${u.name}${u.displayName || u.designation ? ` (${u.displayName || u.designation})` : ''}`}
+                      {u.dropdownLabel || (String(u._id) === String(currentUser?._id)
+                        ? `${u.name || 'Account Holder'} (Account Holder)`
+                        : `${u.name}${u.designation ? ` (${u.designation})` : ' (Admin)'}`)}
                     </option>
                   ))}
                 </select>

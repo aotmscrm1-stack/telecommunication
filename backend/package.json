@@ -11,7 +11,7 @@
   "dependencies": {
     "@chat-adapter/whatsapp": "^4.41.1",
     "axios": "^1.7.7",
-    "basic-auth": "^3.0.0",
+    "basic-auth": "^2.0.1",
     "bcryptjs": "^2.4.3",
     "chat": "^4.41.1",
     "cloudinary": "^2.11.0",

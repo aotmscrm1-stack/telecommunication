@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { campaignsAPI, leadsAPI } from '../../../services/api';
+import { campaignsAPI, leadsAPI, contactsAPI } from '../../../services/api';
+import * as XLSX from 'xlsx';
 import StatusBadge from '../../../components/common/StatusBadge';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import LeadDetailsPage from '../../../components/LeadDetails/LeadDetailsPage';
@@ -290,38 +291,199 @@ function AICallingPanel({ campaignId, campaign, onStatusChange }) {
   );
 }
 
-// ─── Add Leads Modal ─────────────────────────────────────────────────────────
+// ─── Identity Badge Helper ───────────────────────────────────────────────────
+function IdentityBadge({ identity }) {
+  const label = identity && identity !== 'General' ? identity : 'Client';
+  const norm = label.toLowerCase();
+  
+  let bg = '#f0f9ff';
+  let color = '#0284c7';
+  let border = '#bae6fd';
+
+  if (norm.includes('sap') || norm.includes('fico')) {
+    bg = '#eff6ff';
+    color = '#2563eb';
+    border = '#bfdbfe';
+  } else if (norm.includes('python') || norm.includes('full stack') || norm.includes('dev')) {
+    bg = '#ecfdf5';
+    color = '#059669';
+    border = '#a7f3d0';
+  } else if (norm.includes('digital') || norm.includes('marketing')) {
+    bg = '#fff7ed';
+    color = '#ea580c';
+    border = '#fed7aa';
+  } else if (norm.includes('vip') || norm.includes('star')) {
+    bg = '#fdf4ff';
+    color = '#9333ea';
+    border = '#f0abfc';
+  } else if (norm.includes('vendor')) {
+    bg = '#f8fafc';
+    color = '#475569';
+    border = '#cbd5e1';
+  }
+
+  return (
+    <span style={{
+      background: bg,
+      color,
+      borderRadius: 9999,
+      padding: '2px 9px',
+      fontSize: 10.5,
+      fontWeight: 600,
+      border: `1px solid ${border}`,
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 4,
+      whiteSpace: 'nowrap',
+      flexShrink: 0
+    }}>
+      <span style={{ fontSize: 9 }}>🏷️</span> {label}
+    </span>
+  );
+}
+
+// ─── Add Contacts & Leads Modal (With Identities, Identity Filters & Excel Upload) ───
 function AddLeadsModal({ campaignId, onClose, onSuccess }) {
-  const [activeTab, setActiveTab] = useState('select'); // 'select' | 'create'
-  const [allLeads, setAllLeads] = useState([]);
+  const [activeTab, setActiveTab] = useState('contacts'); // 'contacts' | 'excel' | 'create'
+  const [allContacts, setAllContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(new Set());
   const [search, setSearch] = useState('');
+  const [selectedIdentity, setSelectedIdentity] = useState('ALL');
   const [saving, setSaving] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  // New Student Form state
+  // Excel Upload State
+  const [excelRows, setExcelRows] = useState([]);
+  const [excelFileName, setExcelFileName] = useState('');
+  const [saveToContactsDb, setSaveToContactsDb] = useState(true);
+  const fileInputRef = useRef(null);
+
+  // New Contact Form state
   const [newName, setNewName] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [newEmail, setNewEmail] = useState('');
+  const [newIdentity, setNewIdentity] = useState('SAP FICO');
+  const [customIdentity, setCustomIdentity] = useState('');
   const [newLocation, setNewLocation] = useState('');
   const [newStatus, setNewStatus] = useState('Fresh');
   const [createError, setCreateError] = useState('');
 
+  // Fetch all contacts from Marketing -> Contacts AND Leads
   useEffect(() => {
-    leadsAPI.getAll({ limit: 200 })
-      .then(res => {
-        const all = res.data.leads || [];
-        setAllLeads(all.filter(l => !l.campaign || l.campaign._id !== campaignId));
-      })
-      .catch(() => { })
-      .finally(() => setLoading(false));
+    const fetchAllSources = async () => {
+      setLoading(true);
+      try {
+        const [contactsRes, leadsRes] = await Promise.allSettled([
+          contactsAPI.getAll(),
+          leadsAPI.getAll({ limit: 1000 })
+        ]);
+
+        const combinedMap = new Map();
+
+        // 1. Process Marketing Contacts
+        if (contactsRes.status === 'fulfilled' && contactsRes.value?.data?.contacts) {
+          const list = contactsRes.value.data.contacts;
+          list.forEach(c => {
+            const rawPhone = String(c.phone || '').trim();
+            let digits = rawPhone.replace(/\D/g, '');
+            if (digits.startsWith('91') && digits.length > 10) digits = digits.slice(2);
+            const clean10 = digits.slice(-10);
+
+            if (clean10 && clean10.length === 10) {
+              const identity = (c.identity && c.identity !== 'General') ? c.identity : 'SAP FICO';
+              combinedMap.set(clean10, {
+                id: c._id || clean10,
+                name: c.name || 'Contact',
+                phone: clean10,
+                email: c.email || '',
+                identity: identity,
+                segment: c.segment || 'New',
+                source: 'Marketing Contacts',
+                isLead: false,
+                leadId: null,
+                currentCampaign: null
+              });
+            }
+          });
+        }
+
+        // 2. Process Existing Leads (matching & enriching with campaign info)
+        if (leadsRes.status === 'fulfilled' && leadsRes.value?.data?.leads) {
+          const leadsList = leadsRes.value.data.leads;
+          leadsList.forEach(l => {
+            const clean10 = String(l.phone || '').replace(/\D/g, '').slice(-10);
+            if (!clean10 || clean10.length !== 10) return;
+
+            const existing = combinedMap.get(clean10);
+            const leadIdentity = l.identity || l.customFields?.identity || l.customFields?.Identity || (existing?.identity || 'Client');
+            const leadCampaignId = l.campaign?._id || l.campaign;
+
+            combinedMap.set(clean10, {
+              id: l._id,
+              name: l.name || existing?.name || 'Contact',
+              phone: clean10,
+              email: l.email || existing?.email || '',
+              identity: leadIdentity,
+              segment: l.customFields?.segment || existing?.segment || 'New',
+              location: l.location || '',
+              status: l.status || 'Fresh',
+              source: existing ? 'Marketing Contacts' : 'Leads',
+              isLead: true,
+              leadId: l._id,
+              currentCampaign: leadCampaignId
+            });
+          });
+        }
+
+        // Filter out contacts already belonging to THIS campaign
+        const available = Array.from(combinedMap.values()).filter(
+          item => String(item.currentCampaign || '') !== String(campaignId)
+        );
+
+        setAllContacts(available);
+      } catch (err) {
+        console.error('Failed to load contacts for campaign:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAllSources();
   }, [campaignId]);
 
-  const filtered = allLeads.filter(l =>
-    !search ||
-    l.name?.toLowerCase().includes(search.toLowerCase()) ||
-    l.phone?.includes(search)
-  );
+  // Extract unique identities dynamically with counts
+  const availableIdentities = useMemo(() => {
+    const counts = {};
+    allContacts.forEach(c => {
+      const tag = (c.identity || 'Client').trim();
+      counts[tag] = (counts[tag] || 0) + 1;
+    });
+
+    const sortedTags = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+    return [
+      { id: 'ALL', label: 'All Contacts', count: allContacts.length },
+      ...sortedTags.map(tag => ({ id: tag, label: tag, count: counts[tag] }))
+    ];
+  }, [allContacts]);
+
+  // Filter contacts by selected identity & search query
+  const filtered = useMemo(() => {
+    return allContacts.filter(c => {
+      const contactIdentity = (c.identity || 'Client').trim();
+      const matchesIdentity = selectedIdentity === 'ALL' || contactIdentity.toLowerCase() === selectedIdentity.toLowerCase();
+      if (!matchesIdentity) return false;
+
+      if (!search.trim()) return true;
+      const q = search.toLowerCase();
+      return (
+        (c.name || '').toLowerCase().includes(q) ||
+        (c.phone || '').includes(q) ||
+        (c.email || '').toLowerCase().includes(q) ||
+        contactIdentity.toLowerCase().includes(q)
+      );
+    });
+  }, [allContacts, selectedIdentity, search]);
 
   const toggle = (id) => {
     setSelected(prev => {
@@ -332,169 +494,892 @@ function AddLeadsModal({ campaignId, onClose, onSuccess }) {
   };
 
   const toggleAll = () => {
-    if (selected.size === filtered.length) setSelected(new Set());
-    else setSelected(new Set(filtered.map(l => l._id)));
+    const allFilteredIds = filtered.map(c => c.id);
+    const areAllSelected = allFilteredIds.every(id => selected.has(id));
+
+    setSelected(prev => {
+      const n = new Set(prev);
+      if (areAllSelected) {
+        allFilteredIds.forEach(id => n.delete(id));
+      } else {
+        allFilteredIds.forEach(id => n.add(id));
+      }
+      return n;
+    });
   };
 
-  const handleAdd = async () => {
+  const isAllFilteredSelected = filtered.length > 0 && filtered.every(c => selected.has(c.id));
+
+  // Submit selected existing contacts
+  const handleAddSelected = async () => {
     if (selected.size === 0) return;
     setSaving(true);
+    setErrorMsg('');
     try {
-      await campaignsAPI.addLeads(campaignId, [...selected]);
+      const selectedContactsList = allContacts.filter(c => selected.has(c.id));
+      const leadIds = [];
+      const contactsToCreate = [];
+
+      selectedContactsList.forEach(c => {
+        if (c.isLead && c.leadId) {
+          leadIds.push(c.leadId);
+        } else {
+          contactsToCreate.push({
+            name: c.name,
+            phone: c.phone,
+            email: c.email,
+            identity: c.identity,
+            segment: c.segment,
+            status: 'Fresh'
+          });
+        }
+      });
+
+      await campaignsAPI.addLeads(campaignId, {
+        leadIds,
+        contacts: contactsToCreate
+      });
+
       onSuccess();
       onClose();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to add leads');
-    } finally { setSaving(false); }
+      setErrorMsg(err.response?.data?.message || 'Failed to add contacts to campaign');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleCreateStudent = async (e) => {
-    e.preventDefault();
-    if (!newName.trim() || !newPhone.trim()) {
-      setCreateError('Name and Phone are required');
-      return;
-    }
-    setCreateError('');
+  // Excel File Parser
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setExcelFileName(file.name);
+    setErrorMsg('');
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsName = wb.SheetNames[0];
+        const ws = wb.Sheets[wsName];
+        const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+
+        if (!rawRows || rawRows.length < 2) {
+          setErrorMsg('The uploaded file is empty or has no data rows.');
+          return;
+        }
+
+        // Find header row
+        let headerRowIdx = 0;
+        for (let i = 0; i < Math.min(10, rawRows.length); i++) {
+          const rowStr = (rawRows[i] || []).map(c => String(c)).join(' ').toLowerCase();
+          if (rowStr.includes('name') || rowStr.includes('phone') || rowStr.includes('mobile') || rowStr.includes('contact') || rowStr.includes('party')) {
+            headerRowIdx = i;
+            break;
+          }
+        }
+
+        const headers = (rawRows[headerRowIdx] || []).map(h => String(h).trim());
+        const headerLower = headers.map(h => h.toLowerCase());
+
+        let nameIdx = headerLower.findIndex(h => h.includes('name') || h.includes('party') || h.includes('customer') || h.includes('contact'));
+        let phoneIdx = headerLower.findIndex(h => h.includes('phone') || h.includes('mobile') || h.includes('contact no') || h.includes('number') || h.includes('whatsapp') || h.includes('cell'));
+        let emailIdx = headerLower.findIndex(h => h.includes('email') || h.includes('mail'));
+        let identityIdx = headerLower.findIndex(h => h.includes('identity') || h.includes('group') || h.includes('category') || h.includes('type') || h.includes('role') || h.includes('course'));
+
+        if (nameIdx === -1) nameIdx = 0;
+        if (phoneIdx === -1) phoneIdx = headers.length > 1 ? 1 : 0;
+        if (emailIdx === -1) emailIdx = headers.length > 2 ? 2 : -1;
+        if (identityIdx === -1) identityIdx = headers.length > 3 ? 3 : -1;
+
+        const parsed = [];
+        for (let i = headerRowIdx + 1; i < rawRows.length; i++) {
+          const row = rawRows[i];
+          if (!row || row.length === 0) continue;
+
+          const rawName = String(row[nameIdx] !== undefined ? row[nameIdx] : '').trim();
+          const rawPhone = String(row[phoneIdx] !== undefined ? row[phoneIdx] : '').trim();
+          const rawEmail = emailIdx !== -1 && row[emailIdx] !== undefined ? String(row[emailIdx]).trim() : '';
+          const rawIdentity = identityIdx !== -1 && row[identityIdx] !== undefined ? String(row[identityIdx]).trim() : 'SAP FICO';
+
+          if (!rawName && !rawPhone) continue;
+
+          let digits = rawPhone.replace(/\D/g, '');
+          if (digits.startsWith('91') && digits.length > 10) digits = digits.slice(2);
+          const clean10 = digits.slice(-10);
+
+          if (clean10 && clean10.length === 10) {
+            parsed.push({
+              name: rawName || `Contact ${i}`,
+              phone: clean10,
+              email: rawEmail || '',
+              identity: rawIdentity || 'SAP FICO',
+              status: 'Fresh'
+            });
+          }
+        }
+
+        if (parsed.length === 0) {
+          setErrorMsg('No valid 10-digit mobile numbers found in the file.');
+          return;
+        }
+
+        setExcelRows(parsed);
+      } catch (err) {
+        console.error('Failed to parse Excel:', err);
+        setErrorMsg('Failed to parse Excel file. Please ensure it is a valid .xlsx, .xls, or .csv file.');
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const handleImportExcel = async () => {
+    if (excelRows.length === 0) return;
     setSaving(true);
+    setErrorMsg('');
     try {
-      await leadsAPI.create({
-        name: newName.trim(),
-        phone: newPhone.trim(),
-        email: newEmail.trim(),
-        location: newLocation.trim(),
-        status: newStatus,
-        campaign: campaignId
+      await campaignsAPI.addLeads(campaignId, {
+        contacts: excelRows,
+        saveToContacts: saveToContactsDb
       });
       onSuccess();
       onClose();
     } catch (err) {
-      setCreateError(err.response?.data?.message || 'Failed to create student');
+      setErrorMsg(err.response?.data?.message || 'Failed to import Excel contacts into campaign');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Create single contact
+  const handleCreateStudent = async (e) => {
+    e.preventDefault();
+    const finalName = newName.trim();
+    const rawPhone = newPhone.replace(/\D/g, '');
+    const cleanPhone = (rawPhone.startsWith('91') && rawPhone.length > 10 ? rawPhone.slice(2) : rawPhone).slice(-10);
+
+    if (!finalName || cleanPhone.length !== 10) {
+      setCreateError('Name and a valid 10-digit Phone number are required');
+      return;
+    }
+
+    const finalIdentity = newIdentity === 'CUSTOM' ? (customIdentity.trim() || 'Client') : newIdentity;
+
+    setCreateError('');
+    setSaving(true);
+    try {
+      await campaignsAPI.addLeads(campaignId, {
+        contacts: [{
+          name: finalName,
+          phone: cleanPhone,
+          email: newEmail.trim(),
+          identity: finalIdentity,
+          location: newLocation.trim(),
+          status: newStatus
+        }],
+        saveToContacts: true
+      });
+      onSuccess();
+      onClose();
+    } catch (err) {
+      setCreateError(err.response?.data?.message || 'Failed to create contact');
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(2px)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 14 }}>
-      <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 520, maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)', border: `1px solid ${BORDER}` }}>
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(15,23,42,0.45)',
+      backdropFilter: 'blur(3px)',
+      zIndex: 200,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 14
+    }}>
+      <div style={{
+        background: '#fff',
+        borderRadius: 16,
+        width: '100%',
+        maxWidth: 620,
+        height: '90vh',
+        maxHeight: 700,
+        display: 'flex',
+        flexDirection: 'column',
+        boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+        border: `1px solid ${BORDER}`,
+        overflow: 'hidden'
+      }}>
         {/* Header */}
-        <div style={{ padding: '16px 18px 12px', borderBottom: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{
+          padding: '16px 20px 14px',
+          borderBottom: `1px solid ${BORDER}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          background: '#ffffff'
+        }}>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: TEXT }}>Add Students to Campaign</div>
-            <div style={{ fontSize: 11.5, color: MUTED, marginTop: 2, fontWeight: 400 }}>Select existing students or create a new student record</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: TEXT, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>Add Contacts to Campaign</span>
+            </div>
+            <div style={{ fontSize: 12, color: MUTED, marginTop: 2, fontWeight: 400 }}>
+              Select existing contacts from Marketing, upload an Excel file, or create a new contact
+            </div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#94a3b8', lineHeight: 1 }}>✕</button>
+          <button
+            onClick={onClose}
+            style={{
+              background: '#f1f5f9',
+              border: 'none',
+              borderRadius: '50%',
+              width: 28,
+              height: 28,
+              cursor: 'pointer',
+              fontSize: 14,
+              color: '#64748b',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            ✕
+          </button>
         </div>
 
-        {/* Sub-tabs */}
+        {/* Navigation Tabs */}
         <div style={{ display: 'flex', borderBottom: `1px solid ${BORDER}`, background: '#f8fafc' }}>
-          <button onClick={() => setActiveTab('select')}
-            style={{ flex: 1, padding: '9px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 500, color: activeTab === 'select' ? ORANGE : MUTED, borderBottom: `2px solid ${activeTab === 'select' ? ORANGE : 'transparent'}` }}>
-            Existing Students ({filtered.length})
+          <button
+            onClick={() => setActiveTab('contacts')}
+            style={{
+              flex: 1,
+              padding: '11px 8px',
+              border: 'none',
+              background: 'none',
+              cursor: 'pointer',
+              fontSize: 12.5,
+              fontWeight: activeTab === 'contacts' ? 600 : 500,
+              color: activeTab === 'contacts' ? ORANGE : MUTED,
+              borderBottom: `2.5px solid ${activeTab === 'contacts' ? ORANGE : 'transparent'}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6
+            }}
+          >
+            <span>Marketing Contacts</span>
+            <span style={{
+              fontSize: 11,
+              background: activeTab === 'contacts' ? ORANGE_LIGHT : '#e2e8f0',
+              color: activeTab === 'contacts' ? ORANGE : '#475569',
+              padding: '1px 7px',
+              borderRadius: 12,
+              fontWeight: 600
+            }}>
+              {allContacts.length}
+            </span>
           </button>
-          <button onClick={() => setActiveTab('create')}
-            style={{ flex: 1, padding: '9px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 500, color: activeTab === 'create' ? BLUE : MUTED, borderBottom: `2px solid ${activeTab === 'create' ? BLUE : 'transparent'}` }}>
-            + Create New Student
+
+          <button
+            onClick={() => setActiveTab('excel')}
+            style={{
+              flex: 1,
+              padding: '11px 8px',
+              border: 'none',
+              background: 'none',
+              cursor: 'pointer',
+              fontSize: 12.5,
+              fontWeight: activeTab === 'excel' ? 600 : 500,
+              color: activeTab === 'excel' ? BLUE : MUTED,
+              borderBottom: `2.5px solid ${activeTab === 'excel' ? BLUE : 'transparent'}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6
+            }}
+          >
+            <span>📊 Upload Excel / CSV</span>
+            {excelRows.length > 0 && (
+              <span style={{
+                fontSize: 11,
+                background: BLUE_LIGHT,
+                color: BLUE,
+                padding: '1px 7px',
+                borderRadius: 12,
+                fontWeight: 600
+              }}>
+                {excelRows.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('create')}
+            style={{
+              flex: 1,
+              padding: '11px 8px',
+              border: 'none',
+              background: 'none',
+              cursor: 'pointer',
+              fontSize: 12.5,
+              fontWeight: activeTab === 'create' ? 600 : 500,
+              color: activeTab === 'create' ? '#16a34a' : MUTED,
+              borderBottom: `2.5px solid ${activeTab === 'create' ? '#16a34a' : 'transparent'}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 4
+            }}
+          >
+            <span>+ Create Contact</span>
           </button>
         </div>
 
-        {activeTab === 'select' ? (
+        {/* Global Error Notice */}
+        {errorMsg && (
+          <div style={{
+            background: '#fef2f2',
+            borderBottom: '1px solid #fecaca',
+            color: '#dc2626',
+            fontSize: 12,
+            padding: '8px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between'
+          }}>
+            <span>⚠️ {errorMsg}</span>
+            <button onClick={() => setErrorMsg('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626' }}>✕</button>
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════════
+            TAB 1: EXISTING CONTACTS WITH DYNAMIC IDENTITY FILTER
+            ══════════════════════════════════════════════════════════════════ */}
+        {activeTab === 'contacts' && (
           <>
-            {/* Search */}
-            <div style={{ padding: '10px 18px', borderBottom: `1px solid ${BORDER}` }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7, background: '#f8fafc', border: `1px solid ${BORDER}`, borderRadius: 8, padding: '6px 10px' }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or phone..." style={{ background: 'none', border: 'none', outline: 'none', fontSize: 12.5, color: TEXT, width: '100%', fontWeight: 400 }} />
+            {/* Search Input */}
+            <div style={{ padding: '12px 18px 8px', borderBottom: `1px solid ${BORDER}`, background: '#ffffff' }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                background: '#f8fafc',
+                border: `1px solid ${BORDER}`,
+                borderRadius: 9,
+                padding: '7px 12px'
+              }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2.2">
+                  <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search by name, phone, email, or identity..."
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    outline: 'none',
+                    fontSize: 12.5,
+                    color: TEXT,
+                    width: '100%',
+                    fontWeight: 400
+                  }}
+                />
+                {search && (
+                  <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: MUTED, fontSize: 13 }}>✕</button>
+                )}
+              </div>
+
+              {/* 🏷️ Dynamic Identity Filter Pill Bar */}
+              <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.04em', flexShrink: 0 }}>
+                  Identities:
+                </span>
+                <div style={{
+                  display: 'flex',
+                  gap: 6,
+                  overflowX: 'auto',
+                  paddingBottom: 4,
+                  scrollbarWidth: 'none',
+                  msOverflowStyle: 'none'
+                }}>
+                  {availableIdentities.map(identity => {
+                    const isSelected = selectedIdentity.toLowerCase() === identity.id.toLowerCase();
+                    return (
+                      <button
+                        key={identity.id}
+                        type="button"
+                        onClick={() => setSelectedIdentity(identity.id)}
+                        style={{
+                          padding: '3px 10px',
+                          borderRadius: 20,
+                          fontSize: 11.5,
+                          fontWeight: isSelected ? 600 : 500,
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          border: isSelected ? `1.5px solid ${ORANGE}` : `1px solid ${BORDER}`,
+                          background: isSelected ? ORANGE_LIGHT : '#ffffff',
+                          color: isSelected ? ORANGE : '#475569',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 5,
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <span>{identity.label}</span>
+                        <span style={{
+                          fontSize: 10,
+                          padding: '0.5px 5px',
+                          borderRadius: 10,
+                          background: isSelected ? ORANGE : '#f1f5f9',
+                          color: isSelected ? '#ffffff' : '#64748b',
+                          fontWeight: 600
+                        }}>
+                          {identity.count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
-            {/* List */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '0 18px' }}>
-              {loading ? <Spinner /> : filtered.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '32px 0', color: MUTED, fontSize: 12.5, fontWeight: 400 }}>No available students found</div>
+            {/* Contacts List */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '0 18px', background: '#ffffff' }}>
+              {loading ? (
+                <Spinner />
+              ) : filtered.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: MUTED }}>
+                  <div style={{ fontSize: 24, marginBottom: 6 }}>🔍</div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: TEXT }}>No matching contacts found</div>
+                  <div style={{ fontSize: 12, marginTop: 3 }}>
+                    {search || selectedIdentity !== 'ALL' ? 'Try clearing your identity filter or search query' : 'No contacts available in Marketing to add.'}
+                  </div>
+                </div>
               ) : (
                 <>
-                  <div onClick={toggleAll} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', cursor: 'pointer', borderBottom: `1px solid ${BORDER}` }}>
-                    <input type="checkbox" readOnly checked={selected.size === filtered.length && filtered.length > 0} style={{ accentColor: ORANGE, width: 14, height: 14 }} />
-                    <span style={{ fontSize: 12, fontWeight: 500, color: ORANGE }}>Select All ({filtered.length})</span>
-                  </div>
-                  {filtered.map(lead => (
-                    <div key={lead._id} onClick={() => toggle(lead._id)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', cursor: 'pointer', borderBottom: `1px solid #f1f5f9` }}>
-                      <input type="checkbox" readOnly checked={selected.has(lead._id)} style={{ accentColor: ORANGE, width: 14, height: 14, flexShrink: 0 }} />
-                      <Avatar name={lead.name} size={28} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12.5, fontWeight: 500, color: TEXT }}>{lead.name}</div>
-                        <div style={{ fontSize: 11, color: MUTED, fontWeight: 400 }}>{lead.phone}</div>
-                      </div>
-                      <MiniStatus status={lead.status} />
-                      <div style={{ fontSize: 11, color: MUTED, flexShrink: 0, fontWeight: 400 }}>{lead.location || ''}</div>
+                  {/* Select All Row */}
+                  <div
+                    onClick={toggleAll}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '10px 4px',
+                      cursor: 'pointer',
+                      borderBottom: `1px solid ${BORDER}`,
+                      position: 'sticky',
+                      top: 0,
+                      background: '#ffffff',
+                      zIndex: 10
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <input
+                        type="checkbox"
+                        readOnly
+                        checked={isAllFilteredSelected}
+                        style={{ accentColor: ORANGE, width: 16, height: 16, cursor: 'pointer' }}
+                      />
+                      <span style={{ fontSize: 12.5, fontWeight: 600, color: ORANGE }}>
+                        Select All Filtered ({filtered.length})
+                      </span>
                     </div>
-                  ))}
+                    {selectedIdentity !== 'ALL' && (
+                      <span style={{ fontSize: 11, color: MUTED }}>
+                        Filtering by <strong>{selectedIdentity}</strong>
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Contact Rows */}
+                  {filtered.map(contact => {
+                    const isChecked = selected.has(contact.id);
+                    return (
+                      <div
+                        key={contact.id}
+                        onClick={() => toggle(contact.id)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 12,
+                          padding: '10px 4px',
+                          cursor: 'pointer',
+                          borderBottom: '1px solid #f1f5f9',
+                          background: isChecked ? '#fffaf5' : '#ffffff',
+                          transition: 'background 0.1s'
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          readOnly
+                          checked={isChecked}
+                          style={{ accentColor: ORANGE, width: 15, height: 15, flexShrink: 0, cursor: 'pointer' }}
+                        />
+
+                        <Avatar name={contact.name} size={32} />
+
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: TEXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {contact.name}
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 1 }}>
+                            <span style={{ fontSize: 11.5, color: '#059669', fontFamily: 'monospace', fontWeight: 500 }}>
+                              +91 {contact.phone}
+                            </span>
+                            {contact.email && (
+                              <span style={{ fontSize: 11, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>
+                                • {contact.email}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Identity Badge */}
+                        <IdentityBadge identity={contact.identity} />
+                      </div>
+                    );
+                  })}
                 </>
               )}
             </div>
 
             {/* Footer */}
-            <div style={{ padding: '12px 18px', borderTop: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8fafc' }}>
-              <span style={{ fontSize: 11.5, color: MUTED, fontWeight: 400 }}>{selected.size} student{selected.size !== 1 ? 's' : ''} selected</span>
+            <div style={{
+              padding: '12px 20px',
+              borderTop: `1px solid ${BORDER}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: '#f8fafc'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 12, color: TEXT, fontWeight: 600 }}>
+                  {selected.size} contact{selected.size !== 1 ? 's' : ''} selected
+                </span>
+                {selected.size > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setSelected(new Set())}
+                    style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: 11.5, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+
               <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={onClose} style={{ padding: '7px 14px', border: `1px solid ${BORDER}`, borderRadius: 7, fontSize: 12, cursor: 'pointer', background: '#fff', color: TEXT, fontWeight: 500 }}>Cancel</button>
-                <button onClick={handleAdd} disabled={saving || selected.size === 0}
-                  style={{ padding: '7px 16px', border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: selected.size === 0 ? 'not-allowed' : 'pointer', background: selected.size === 0 ? '#fdba74' : ORANGE, color: '#fff' }}>
-                  {saving ? 'Adding...' : `Add ${selected.size > 0 ? selected.size : ''} Student${selected.size !== 1 ? 's' : ''}`}
+                <button
+                  type="button"
+                  onClick={onClose}
+                  style={{
+                    padding: '8px 16px',
+                    border: `1px solid ${BORDER}`,
+                    borderRadius: 8,
+                    fontSize: 12.5,
+                    cursor: 'pointer',
+                    background: '#fff',
+                    color: TEXT,
+                    fontWeight: 500
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAddSelected}
+                  disabled={saving || selected.size === 0}
+                  style={{
+                    padding: '8px 18px',
+                    border: 'none',
+                    borderRadius: 8,
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    cursor: selected.size === 0 || saving ? 'not-allowed' : 'pointer',
+                    background: selected.size === 0 ? '#fdba74' : ORANGE,
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    boxShadow: selected.size > 0 ? '0 2px 6px rgba(234, 88, 12, 0.3)' : 'none'
+                  }}
+                >
+                  {saving ? 'Adding Contacts...' : `Add ${selected.size > 0 ? selected.size : ''} Contact${selected.size !== 1 ? 's' : ''}`}
                 </button>
               </div>
             </div>
           </>
-        ) : (
-          /* Create New Student Form */
-          <form onSubmit={handleCreateStudent} style={{ padding: 18, overflowY: 'auto', flex: 1 }}>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════════
+            TAB 2: EXCEL / CSV DIRECT UPLOAD WITH IDENTITY DETECTION
+            ══════════════════════════════════════════════════════════════════ */}
+        {activeTab === 'excel' && (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto', padding: 20 }}>
+            {/* Upload Drag & Drop Area */}
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                border: `2px dashed ${excelRows.length > 0 ? '#10b981' : BLUE}`,
+                borderRadius: 12,
+                background: excelRows.length > 0 ? '#f0fdf4' : BLUE_LIGHT,
+                padding: '24px 20px',
+                textAlign: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={handleFileUpload}
+                style={{ display: 'none' }}
+              />
+              <div style={{ fontSize: 32, marginBottom: 8 }}>
+                {excelRows.length > 0 ? '✅' : '📁'}
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: TEXT }}>
+                {excelFileName ? excelFileName : 'Click to Upload Excel or CSV Spreadsheet'}
+              </div>
+              <div style={{ fontSize: 12, color: MUTED, marginTop: 4 }}>
+                Supported formats: <strong>.xlsx</strong>, <strong>.xls</strong>, or <strong>.csv</strong>
+              </div>
+              <div style={{ fontSize: 11, color: BLUE, marginTop: 6, fontWeight: 500 }}>
+                Auto-detects Name, Phone, Email, and Identity / Group columns
+              </div>
+            </div>
+
+            {/* Parsed Preview */}
+            {excelRows.length > 0 && (
+              <div style={{ marginTop: 16, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: TEXT }}>
+                    Detected Contacts ({excelRows.length})
+                  </span>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: TEXT, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={saveToContactsDb}
+                      onChange={e => setSaveToContactsDb(e.target.checked)}
+                      style={{ accentColor: BLUE }}
+                    />
+                    Save to Marketing Contacts as well
+                  </label>
+                </div>
+
+                {/* Table Preview */}
+                <div style={{ flex: 1, overflowY: 'auto', border: `1px solid ${BORDER}`, borderRadius: 8, maxHeight: 240 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ background: '#f8fafc', borderBottom: `1px solid ${BORDER}`, position: 'sticky', top: 0 }}>
+                        <th style={{ padding: '8px 12px', fontWeight: 600, color: MUTED }}>#</th>
+                        <th style={{ padding: '8px 12px', fontWeight: 600, color: MUTED }}>Name</th>
+                        <th style={{ padding: '8px 12px', fontWeight: 600, color: MUTED }}>Phone</th>
+                        <th style={{ padding: '8px 12px', fontWeight: 600, color: MUTED }}>Email</th>
+                        <th style={{ padding: '8px 12px', fontWeight: 600, color: MUTED }}>Identity</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {excelRows.slice(0, 50).map((row, idx) => (
+                        <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '7px 12px', color: MUTED, fontSize: 11 }}>{idx + 1}</td>
+                          <td style={{ padding: '7px 12px', fontWeight: 500, color: TEXT }}>{row.name}</td>
+                          <td style={{ padding: '7px 12px', color: '#059669', fontFamily: 'monospace' }}>+91 {row.phone}</td>
+                          <td style={{ padding: '7px 12px', color: MUTED }}>{row.email || '—'}</td>
+                          <td style={{ padding: '7px 12px' }}>
+                            <IdentityBadge identity={row.identity} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {excelRows.length > 50 && (
+                    <div style={{ padding: '8px 12px', textAlign: 'center', fontSize: 11, color: MUTED, background: '#f8fafc' }}>
+                      + {excelRows.length - 50} more contacts ready to import
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div style={{ marginTop: 'auto', paddingTop: 16, display: 'flex', justifyContent: 'flex-end', gap: 8, borderTop: `1px solid ${BORDER}` }}>
+              <button
+                type="button"
+                onClick={onClose}
+                style={{ padding: '8px 16px', border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12.5, cursor: 'pointer', background: '#fff', color: TEXT, fontWeight: 500 }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={saving || excelRows.length === 0}
+                onClick={handleImportExcel}
+                style={{
+                  padding: '8px 20px',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  cursor: excelRows.length === 0 || saving ? 'not-allowed' : 'pointer',
+                  background: excelRows.length === 0 ? '#93c5fd' : BLUE,
+                  color: '#fff'
+                }}
+              >
+                {saving ? 'Importing...' : `Import & Add ${excelRows.length} Contacts to Campaign`}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════════
+            TAB 3: CREATE NEW CONTACT
+            ══════════════════════════════════════════════════════════════════ */}
+        {activeTab === 'create' && (
+          <form onSubmit={handleCreateStudent} style={{ padding: 20, overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column' }}>
             {createError && (
-              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 7, padding: '7px 10px', marginBottom: 10, fontSize: 11.5, color: '#dc2626' }}>
+              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '8px 12px', marginBottom: 12, fontSize: 12, color: '#dc2626' }}>
                 ⚠️ {createError}
               </div>
             )}
-            <div style={{ marginBottom: 10 }}>
-              <label style={{ fontSize: 11.5, fontWeight: 500, color: TEXT, display: 'block', marginBottom: 3 }}>Student Name <span style={{ color: '#ef4444' }}>*</span></label>
-              <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g. Rahul Sharma"
-                style={{ width: '100%', padding: '7px 10px', borderRadius: 7, border: `1px solid ${BORDER}`, fontSize: 12.5, outline: 'none', boxSizing: 'border-box', fontWeight: 400 }} />
-            </div>
-            <div style={{ marginBottom: 10 }}>
-              <label style={{ fontSize: 11.5, fontWeight: 500, color: TEXT, display: 'block', marginBottom: 3 }}>Phone Number <span style={{ color: '#ef4444' }}>*</span></label>
-              <input value={newPhone} onChange={e => setNewPhone(e.target.value)} placeholder="e.g. +919876543210"
-                style={{ width: '100%', padding: '7px 10px', borderRadius: 7, border: `1px solid ${BORDER}`, fontSize: 12.5, outline: 'none', boxSizing: 'border-box', fontWeight: 400 }} />
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
               <div>
-                <label style={{ fontSize: 11.5, fontWeight: 500, color: TEXT, display: 'block', marginBottom: 3 }}>Email</label>
-                <input value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="rahul@example.com"
-                  style={{ width: '100%', padding: '7px 10px', borderRadius: 7, border: `1px solid ${BORDER}`, fontSize: 12.5, outline: 'none', boxSizing: 'border-box', fontWeight: 400 }} />
+                <label style={{ fontSize: 12, fontWeight: 600, color: TEXT, display: 'block', marginBottom: 4 }}>
+                  Contact Name <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  value={newName}
+                  onChange={e => setNewName(e.target.value)}
+                  placeholder="e.g. Rahul Sharma"
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 12.5, outline: 'none', boxSizing: 'border-box' }}
+                />
               </div>
+
               <div>
-                <label style={{ fontSize: 11.5, fontWeight: 500, color: TEXT, display: 'block', marginBottom: 3 }}>Location / City</label>
-                <input value={newLocation} onChange={e => setNewLocation(e.target.value)} placeholder="Hyderabad"
-                  style={{ width: '100%', padding: '7px 10px', borderRadius: 7, border: `1px solid ${BORDER}`, fontSize: 12.5, outline: 'none', boxSizing: 'border-box', fontWeight: 400 }} />
+                <label style={{ fontSize: 12, fontWeight: 600, color: TEXT, display: 'block', marginBottom: 4 }}>
+                  Phone Number (10 digits) <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  value={newPhone}
+                  onChange={e => setNewPhone(e.target.value)}
+                  placeholder="e.g. 9876543210"
+                  maxLength={13}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 12.5, outline: 'none', boxSizing: 'border-box' }}
+                />
               </div>
             </div>
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 11.5, fontWeight: 500, color: TEXT, display: 'block', marginBottom: 3 }}>Status</label>
-              <select value={newStatus} onChange={e => setNewStatus(e.target.value)}
-                style={{ width: '100%', padding: '7px 10px', borderRadius: 7, border: `1px solid ${BORDER}`, fontSize: 12.5, outline: 'none', background: '#fff', fontWeight: 400 }}>
-                <option value="Fresh">Fresh</option>
-                <option value="Interested">Interested</option>
-                <option value="Connected">Connected</option>
-                <option value="Not Answered">Not Answered</option>
-                <option value="Call Back">Call Back</option>
-                <option value="Call Back Later">Call Back Later</option>
-                <option value="Enrolled">Enrolled</option>
-              </select>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: TEXT, display: 'block', marginBottom: 4 }}>
+                  Email Address
+                </label>
+                <input
+                  value={newEmail}
+                  onChange={e => setNewEmail(e.target.value)}
+                  placeholder="rahul@example.com"
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 12.5, outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: TEXT, display: 'block', marginBottom: 4 }}>
+                  Identity / Course Category
+                </label>
+                <select
+                  value={newIdentity}
+                  onChange={e => setNewIdentity(e.target.value)}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 12.5, outline: 'none', background: '#fff' }}
+                >
+                  <option value="SAP FICO">SAP FICO</option>
+                  <option value="Python Full Stack">Python Full Stack</option>
+                  <option value="Digital Marketing">Digital Marketing</option>
+                  <option value="Client">Client</option>
+                  <option value="VIP">VIP</option>
+                  <option value="Lead">Lead</option>
+                  <option value="CUSTOM">+ Enter Custom Identity...</option>
+                </select>
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 10, borderTop: `1px solid ${BORDER}` }}>
-              <button type="button" onClick={onClose} style={{ padding: '7px 14px', border: `1px solid ${BORDER}`, borderRadius: 7, fontSize: 12, cursor: 'pointer', background: '#fff', color: TEXT, fontWeight: 500 }}>Cancel</button>
-              <button type="submit" disabled={saving}
-                style={{ padding: '7px 18px', border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: saving ? 'not-allowed' : 'pointer', background: ORANGE, color: '#fff' }}>
-                {saving ? 'Creating...' : 'Create & Add Student'}
+
+            {newIdentity === 'CUSTOM' && (
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: TEXT, display: 'block', marginBottom: 4 }}>
+                  Custom Identity Name
+                </label>
+                <input
+                  value={customIdentity}
+                  onChange={e => setCustomIdentity(e.target.value)}
+                  placeholder="e.g. Data Science, AWS Cloud"
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 12.5, outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: TEXT, display: 'block', marginBottom: 4 }}>
+                  Location / City
+                </label>
+                <input
+                  value={newLocation}
+                  onChange={e => setNewLocation(e.target.value)}
+                  placeholder="Hyderabad"
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 12.5, outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: TEXT, display: 'block', marginBottom: 4 }}>
+                  Initial Status
+                </label>
+                <select
+                  value={newStatus}
+                  onChange={e => setNewStatus(e.target.value)}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 12.5, outline: 'none', background: '#fff' }}
+                >
+                  <option value="Fresh">Fresh</option>
+                  <option value="Interested">Interested</option>
+                  <option value="Connected">Connected</option>
+                  <option value="Not Answered">Not Answered</option>
+                  <option value="Call Back">Call Back</option>
+                  <option value="Demo Scheduled">Demo Scheduled</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ marginTop: 'auto', display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 14, borderTop: `1px solid ${BORDER}` }}>
+              <button
+                type="button"
+                onClick={onClose}
+                style={{ padding: '8px 16px', border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12.5, cursor: 'pointer', background: '#fff', color: TEXT, fontWeight: 500 }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                style={{
+                  padding: '8px 20px',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                  background: ORANGE,
+                  color: '#fff'
+                }}
+              >
+                {saving ? 'Creating...' : 'Create & Add to Campaign'}
               </button>
             </div>
           </form>

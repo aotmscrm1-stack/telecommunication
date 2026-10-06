@@ -83,7 +83,12 @@ export const campaignsAPI = {
   create: (data) => api.post('/campaigns', data),
   update: (id, data) => api.put(`/campaigns/${id}`, data),
   delete: (id) => api.delete(`/campaigns/${id}`),
-  addLeads: (id, leadIds) => api.post(`/campaigns/${id}/add-leads`, { leadIds }),
+  addLeads: (id, payload) => {
+    if (Array.isArray(payload)) {
+      return api.post(`/campaigns/${id}/add-leads`, { leadIds: payload });
+    }
+    return api.post(`/campaigns/${id}/add-leads`, payload);
+  },
   removeLead: (id, leadId) => api.delete(`/campaigns/${id}/remove-lead/${leadId}`),
   // ====================== NEW (AI Telecaller upgrade) ======================
   aiStart: (id, config) => api.post(`/campaigns/${id}/ai-start`, config),

@@ -40,12 +40,12 @@ function AssigneeCheckboxDropdown({ assignableUsers, selectedIds, onChange, curr
 
   const filtered = assignableUsers.filter((u) => {
     const q = search.toLowerCase();
-    const name = (u.name || (u.isMe ? 'You' : '')).toLowerCase();
+    const name = (u.name || '').toLowerCase();
     const desig = (u.designation || '').toLowerCase();
     return name.includes(q) || desig.includes(q);
   });
 
-  const allSelected = assignableUsers.length > 0 && assignableUsers.every((u) => selectedIds.includes(u._id));
+  const allSelected = assignableUsers.length > 0 && assignableUsers.every((u) => selectedIds.some(id => String(id) === String(u._id)));
   const isSingleOption = assignableUsers.length <= 1;
 
   const toggleSelectAll = () => {
@@ -58,9 +58,10 @@ function AssigneeCheckboxDropdown({ assignableUsers, selectedIds, onChange, curr
   };
 
   const toggleUser = (id) => {
-    if (selectedIds.includes(id)) {
+    const idStr = String(id);
+    if (selectedIds.some(x => String(x) === idStr)) {
       if (isSingleOption) return;
-      onChange(selectedIds.filter((x) => x !== id));
+      onChange(selectedIds.filter((x) => String(x) !== idStr));
     } else {
       onChange([...selectedIds, id]);
     }
@@ -72,10 +73,9 @@ function AssigneeCheckboxDropdown({ assignableUsers, selectedIds, onChange, curr
       return `All Employees (${assignableUsers.length})`;
     }
     if (selectedIds.length === 1) {
-      const found = assignableUsers.find((u) => u._id === selectedIds[0]);
+      const found = assignableUsers.find((u) => String(u._id) === String(selectedIds[0]));
       if (found) {
-        return `${found.name || 'User'}${found._id === currentUser?._id ? ' (You)' : ''}${found.designation ? ` (${found.designation})` : ''
-          }`;
+        return `${found.name || 'User'}${found.designation ? ` (${found.designation})` : ''}`;
       }
       return '1 Person Selected';
     }
@@ -141,8 +141,7 @@ function AssigneeCheckboxDropdown({ assignableUsers, selectedIds, onChange, curr
               <div className="p-3 text-center text-xs text-slate-400">No matching employees</div>
             ) : (
               filtered.map((u) => {
-                const isChecked = selectedIds.includes(u._id);
-                const isMe = u._id === currentUser?._id;
+                const isChecked = selectedIds.some(id => String(id) === String(u._id));
                 return (
                   <div
                     key={u._id}
@@ -160,8 +159,7 @@ function AssigneeCheckboxDropdown({ assignableUsers, selectedIds, onChange, curr
                       {u.name ? u.name.charAt(0).toUpperCase() : 'U'}
                     </div>
                     <div className="flex-1 min-w-0 truncate">
-                      <span className="truncate">{u.name || (isMe ? 'You' : 'User')}</span>
-                      {isMe && <span className="text-[10px] text-blue-600 ml-1 font-bold">(You)</span>}
+                      <span className="truncate">{u.name || 'User'}</span>
                     </div>
                     {u.designation && (
                       <span className="text-[10px] font-normal px-1.5 py-0.2 rounded bg-slate-100 text-slate-500 shrink-0">
@@ -851,9 +849,9 @@ export default function MandatoryAttendanceModal() {
                     >
                       {assignedByUsers.map((u) => (
                         <option key={u._id} value={u._id}>
-                          {u._id === user?._id
-                            ? `${u.name || 'You'} (You)`
-                            : `${u.name} ${u.designation ? `(${u.designation})` : ''}`}
+                          {u.dropdownLabel || (String(u._id) === String(user?._id)
+                            ? `${u.name || 'Account Holder'} (Account Holder)`
+                            : `${u.name}${u.designation ? ` (${u.designation})` : ' (Admin)'}`)}
                         </option>
                       ))}
                     </select>
