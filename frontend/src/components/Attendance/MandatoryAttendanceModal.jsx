@@ -344,7 +344,7 @@ export default function MandatoryAttendanceModal() {
     }
   }, [teamUsers, assignedBy, user]);
 
-  // Check overall Check-in Status on mount
+  // Check overall Check-in Status & Today's Todo Requirement on mount / refresh
   const evaluateCheckInStatus = useCallback(async () => {
     if (!user) {
       setCurrentStep('CLOSED');
@@ -366,8 +366,30 @@ export default function MandatoryAttendanceModal() {
         // Attendance not started for today -> Step 1: Attendance Modal
         setCurrentStep('ATTENDANCE');
       } else {
-        // Attendance active or completed -> Close modal immediately
-        setCurrentStep('CLOSED');
+        // Attendance active or completed -> Check if user has created at least 1 Todo item for TODAY!
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+
+        try {
+          const todoRes = await followupsAPI.getAll({ userId: user._id });
+          const allItems = todoRes.data?.followups || todoRes.data?.todos || todoRes.data?.tasks || [];
+          const hasTodayTodo = allItems.some((item) => {
+            const isTodoItem = item.type === 'todo' || !item.type;
+            const itemDate = new Date(item.createdAt || item.scheduledAt || item.dueDate);
+            return isTodoItem && itemDate >= startOfToday;
+          });
+
+          if (hasTodayTodo) {
+            // User ALREADY created at least 1 Todo item for today -> Close modal & allow Dashboard access
+            setCurrentStep('CLOSED');
+          } else {
+            // Attendance active, but NO Todo created today -> Trigger Mandatory Todo Form!
+            setCurrentStep('TODO');
+          }
+        } catch (todoErr) {
+          console.warn('[MandatoryCheckIn] Todo check error:', todoErr.message);
+          setCurrentStep('CLOSED');
+        }
       }
     } catch (err) {
       console.warn('[MandatoryCheckIn] Evaluation error:', err.message);
@@ -468,11 +490,11 @@ export default function MandatoryAttendanceModal() {
         setAttendanceSuccess(true);
         window.dispatchEvent(new CustomEvent('attendance-updated', { detail: res.data.attendance }));
 
-        // Close modal immediately after clocking in so workspace opens cleanly
+        // Transition immediately to Step 2: Mandatory Todo Creation Form
         setTimeout(() => {
           setClockingIn(false);
           setAttendanceSuccess(false);
-          setCurrentStep('CLOSED');
+          setCurrentStep('TODO');
         }, 500);
       } else {
         setAttendanceError(res.data?.message || 'Failed to start attendance. Please try again.');
@@ -587,20 +609,22 @@ export default function MandatoryAttendanceModal() {
           className="relative w-full max-w-md max-h-[92vh] flex flex-col rounded-2xl overflow-hidden shadow-xl border border-slate-200 bg-white"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Header Section with Centered Middle Logo */}
-          <div className="relative p-4 shrink-0 border-b border-slate-100 bg-slate-50/50 flex items-center justify-center">
-            <img src={logoImg} alt="AOTMS" className="h-9 object-contain mx-auto" />
-
+          {/* Header Section with Centered Middle Logo and Mandatory Step Badge */}
+          <div className="relative p-4 shrink-0 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                {currentStep === 'ATTENDANCE' ? 'Step 1/2: Attendance' : 'Step 2/2: Todo Required'}
+              </span>
+            </div>
+            <img src={logoImg} alt="AOTMS" className="h-8 object-contain" />
             <button
               type="button"
-              onClick={() => {
-                if (currentStep === 'TODO') {
-                  setCurrentStep('CLOSED');
-                }
-              }}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-2xl font-medium leading-none px-2 py-1 rounded-lg hover:bg-slate-200/50 transition-colors"
+              onClick={logout}
+              title="Sign Out"
+              className="text-xs font-semibold text-slate-500 hover:text-red-600 px-2.5 py-1 rounded-lg hover:bg-slate-100 transition-colors flex items-center gap-1"
             >
-              ×
+              <FiLogOut className="w-3.5 h-3.5" />
+              <span>Sign Out</span>
             </button>
           </div>
 
