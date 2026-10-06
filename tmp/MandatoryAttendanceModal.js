@@ -251,8 +251,18 @@ ${nextNum}. ` : "1. ");
       setAssignedBy(assignedByUsers[0]._id);
     }
   }, [teamUsers, assignedBy, user]);
+  const getTodayDoneKey = (userId) => {
+    const dateStr = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+    return `mandatory_todo_done_${userId}_${dateStr}`;
+  };
   const evaluateCheckInStatus = useCallback(async () => {
     if (!user) {
+      setCurrentStep("CLOSED");
+      setChecking(false);
+      return;
+    }
+    const todayDoneKey = getTodayDoneKey(user._id);
+    if (localStorage.getItem(todayDoneKey) === "true") {
       setCurrentStep("CLOSED");
       setChecking(false);
       return;
@@ -268,7 +278,7 @@ ${nextNum}. ` : "1. ");
         const startOfToday = /* @__PURE__ */ new Date();
         startOfToday.setHours(0, 0, 0, 0);
         try {
-          const todoRes = await followupsAPI.getAll({ userId: user._id });
+          const todoRes = await followupsAPI.getAll({ userId: user._id, type: "todo" });
           const allItems = todoRes.data?.followups || todoRes.data?.todos || todoRes.data?.tasks || [];
           const hasTodayTodo = allItems.some((item) => {
             const isTodoItem = item.type === "todo" || !item.type;
@@ -276,6 +286,7 @@ ${nextNum}. ` : "1. ");
             return isTodoItem && itemDate >= startOfToday;
           });
           if (hasTodayTodo) {
+            localStorage.setItem(todayDoneKey, "true");
             setCurrentStep("CLOSED");
           } else {
             setCurrentStep("TODO");
@@ -423,7 +434,9 @@ ${nextNum}. ` : "1. ");
           window.dispatchEvent(new CustomEvent("tasks-updated", { detail: res.data.followup }));
         }
       });
-      window.dispatchEvent(new CustomEvent("attendance-updated"));
+      if (user?._id) {
+        localStorage.setItem(getTodayDoneKey(user._id), "true");
+      }
       setCurrentStep("CLOSED");
     } catch (err) {
       console.error("[MandatoryTask] Create error:", err);

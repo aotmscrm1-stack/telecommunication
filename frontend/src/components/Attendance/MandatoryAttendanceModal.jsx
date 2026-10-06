@@ -355,9 +355,21 @@ export default function MandatoryAttendanceModal() {
     }
   }, [teamUsers, assignedBy, user]);
 
+  const getTodayDoneKey = (userId) => {
+    const dateStr = new Date().toISOString().slice(0, 10);
+    return `mandatory_todo_done_${userId}_${dateStr}`;
+  };
+
   // Check overall Check-in Status & Today's Todo Requirement on mount / refresh
   const evaluateCheckInStatus = useCallback(async () => {
     if (!user) {
+      setCurrentStep('CLOSED');
+      setChecking(false);
+      return;
+    }
+
+    const todayDoneKey = getTodayDoneKey(user._id);
+    if (localStorage.getItem(todayDoneKey) === 'true') {
       setCurrentStep('CLOSED');
       setChecking(false);
       return;
@@ -382,7 +394,7 @@ export default function MandatoryAttendanceModal() {
         startOfToday.setHours(0, 0, 0, 0);
 
         try {
-          const todoRes = await followupsAPI.getAll({ userId: user._id });
+          const todoRes = await followupsAPI.getAll({ userId: user._id, type: 'todo' });
           const allItems = todoRes.data?.followups || todoRes.data?.todos || todoRes.data?.tasks || [];
           const hasTodayTodo = allItems.some((item) => {
             const isTodoItem = item.type === 'todo' || !item.type;
@@ -391,10 +403,9 @@ export default function MandatoryAttendanceModal() {
           });
 
           if (hasTodayTodo) {
-            // User ALREADY created at least 1 Todo item for today -> Close modal & allow Dashboard access
+            localStorage.setItem(todayDoneKey, 'true');
             setCurrentStep('CLOSED');
           } else {
-            // Attendance active, but NO Todo created today -> Trigger Mandatory Todo Form!
             setCurrentStep('TODO');
           }
         } catch (todoErr) {
@@ -563,8 +574,10 @@ export default function MandatoryAttendanceModal() {
           window.dispatchEvent(new CustomEvent('tasks-updated', { detail: res.data.followup }));
         }
       });
-      // Close modal and open workspace
-      window.dispatchEvent(new CustomEvent('attendance-updated'));
+      // Mark mandatory Todo completed for today locally & close modal
+      if (user?._id) {
+        localStorage.setItem(getTodayDoneKey(user._id), 'true');
+      }
       setCurrentStep('CLOSED');
     } catch (err) {
       console.error('[MandatoryTask] Create error:', err);
