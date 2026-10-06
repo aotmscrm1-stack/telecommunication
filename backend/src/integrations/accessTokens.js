@@ -1,6 +1,6 @@
 const express = require('express');
 const crypto = require('crypto');
-const AccessToken = require('../database/models/accessToken');
+const AccessToken = require('../database/models/AccessToken');
 const { protect, authorize } = require('../core/middleware/auth');
 
 const router = express.Router();
