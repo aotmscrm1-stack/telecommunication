@@ -230,9 +230,12 @@ export const getTaskAssignorOptions = (currentUser, users = []) => {
     return false;
   };
 
+  // Find logged-in user (Account Holder)
   const existingMe = userList.find(u => isSameUser(u, currentUser));
   const meUser = existingMe ? {
     ...existingMe,
+    _id: existingMe._id || currentUser._id || currentUser.id,
+    name: existingMe.name || currentUser.name || 'Account Holder',
     designation: existingMe.designation || currentUser.designation || 'Account Holder'
   } : {
     _id: currentUser._id || currentUser.id,
@@ -241,7 +244,7 @@ export const getTaskAssignorOptions = (currentUser, users = []) => {
     isMe: true,
   };
 
-  // Find Admin / Executive / CEO / MD / CTO / superadmin users
+  // Find Admin / Executive / CEO / MD / CTO / superadmin users in CRM
   const adminUsers = userList.filter(u =>
     isExecutive(u) ||
     u.role === 'admin' ||
@@ -249,37 +252,38 @@ export const getTaskAssignorOptions = (currentUser, users = []) => {
     u.name?.toLowerCase().includes('ameen') ||
     u.name?.toLowerCase().includes('rabbani')
   );
-  const fallbackId = currentUser?._id || '000000000000000000000000';
+  const fallbackAdminId = '000000000000000000000000';
   const primaryAdmin = adminUsers.length > 0 ? adminUsers : [
-    { _id: fallbackId, name: 'Admin', designation: 'Managing Director' }
+    { _id: fallbackAdminId, name: 'Admin', designation: 'Managing Director' }
   ];
 
   const result = [];
   const addedUsers = [];
 
-  // 1. Add Admin users
+  // 1. Add Admin option(s)
   primaryAdmin.forEach(admin => {
     if (!addedUsers.some(u => isSameUser(u, admin))) {
       addedUsers.push(admin);
-      const isMe = isSameUser(admin, currentUser);
       result.push({
         ...admin,
-        isAccountHolder: isMe,
-        dropdownLabel: isMe
-          ? `${admin.name} (Admin / Account Holder)`
-          : `${admin.name}${admin.designation ? ` (${admin.designation})` : ' (Admin)'}`
+        _id: admin._id,
+        key: `admin-${admin._id}`,
+        isAccountHolder: false,
+        dropdownLabel: admin.name?.toLowerCase() === 'admin'
+          ? 'Admin'
+          : `${admin.name} (Admin)`
       });
     }
   });
 
-  // 2. Add Account Holder (Current User)
-  if (!addedUsers.some(u => isSameUser(u, meUser))) {
-    result.push({
-      ...meUser,
-      isAccountHolder: true,
-      dropdownLabel: `${meUser.name || 'Account Holder'} (Account Holder)`
-    });
-  }
+  // 2. Add Account Holder option (Current logged-in user)
+  result.push({
+    ...meUser,
+    _id: meUser._id,
+    key: `account-holder-${meUser._id}`,
+    isAccountHolder: true,
+    dropdownLabel: `${meUser.name || 'Account Holder'} (Account Holder)`
+  });
 
   return result;
 };
