@@ -289,20 +289,33 @@ export default function MandatoryAttendanceModal() {
   const [attendanceError, setAttendanceError] = useState(null);
   const [gpsCoords, setGpsCoords] = useState(null);
 
-  // Step 2: Rich Todo Item Form state
-  const [taskType, setTaskType] = useState('todo'); // 'todo' | 'call_followup'
-  const [taskDescription, setTaskDescription] = useState('');
+  // Step 2: Create Todo Item Form state (Exact Design Match for Image 2)
+  const [taskDescription, setTaskDescription] = useState('1. ');
   const [dueDate, setDueDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [dueTime, setDueTime] = useState('09:00');
   const [priority, setPriority] = useState('medium');
-  const [recurrence, setRecurrence] = useState('none');
-  const [repeatEndDate, setRepeatEndDate] = useState('');
+  const [deptFilter, setDeptFilter] = useState(() => user?.department || 'Developer');
   const [selectedAssigneeIds, setSelectedAssigneeIds] = useState(() => (user?._id ? [user._id] : []));
   const [assignedBy, setAssignedBy] = useState('');
   const [teamUsers, setTeamUsers] = useState([]);
 
   const [addingTask, setAddingTask] = useState(false);
   const [taskError, setTaskError] = useState(null);
+
+  const handleKeyDownDescription = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const lines = taskDescription.split('\n');
+      const nextNum = lines.length + 1;
+      setTaskDescription((prev) => (prev ? prev + `\n${nextNum}. ` : '1. '));
+    }
+  };
+
+  const handleAddItemClick = () => {
+    const lines = taskDescription.split('\n');
+    const nextNum = lines.length + 1;
+    setTaskDescription((prev) => (prev ? prev + `\n${nextNum}. ` : '1. '));
+  };
 
   // Real-time digital clock ticker
   useEffect(() => {
@@ -342,9 +355,21 @@ export default function MandatoryAttendanceModal() {
     }
   }, [teamUsers, assignedBy, user]);
 
+  const getTodayDoneKey = (userId) => {
+    const dateStr = new Date().toISOString().slice(0, 10);
+    return `mandatory_todo_done_${userId}_${dateStr}`;
+  };
+
   // Check overall Check-in Status & Today's Todo Requirement on mount / refresh
   const evaluateCheckInStatus = useCallback(async () => {
     if (!user) {
+      setCurrentStep('CLOSED');
+      setChecking(false);
+      return;
+    }
+
+    const todayDoneKey = getTodayDoneKey(user._id);
+    if (localStorage.getItem(todayDoneKey) === 'true') {
       setCurrentStep('CLOSED');
       setChecking(false);
       return;
@@ -369,7 +394,7 @@ export default function MandatoryAttendanceModal() {
         startOfToday.setHours(0, 0, 0, 0);
 
         try {
-          const todoRes = await followupsAPI.getAll({ userId: user._id });
+          const todoRes = await followupsAPI.getAll({ userId: user._id, type: 'todo' });
           const allItems = todoRes.data?.followups || todoRes.data?.todos || todoRes.data?.tasks || [];
           const hasTodayTodo = allItems.some((item) => {
             const isTodoItem = item.type === 'todo' || !item.type;
@@ -378,10 +403,9 @@ export default function MandatoryAttendanceModal() {
           });
 
           if (hasTodayTodo) {
-            // User ALREADY created at least 1 Todo item for today -> Close modal & allow Dashboard access
+            localStorage.setItem(todayDoneKey, 'true');
             setCurrentStep('CLOSED');
           } else {
-            // Attendance active, but NO Todo created today -> Trigger Mandatory Todo Form!
             setCurrentStep('TODO');
           }
         } catch (todoErr) {
@@ -531,18 +555,13 @@ export default function MandatoryAttendanceModal() {
       const createdTasks = await Promise.all(
         targetAssignees.map(async (targetId) => {
           const payload = {
-            type: taskType === 'call_followup' ? 'call_followup' : 'todo',
+            type: 'todo',
             title: desc,
             note: desc,
             description: desc,
             scheduledAt: new Date(scheduledAtIso).toISOString(),
             priority,
-            recurrence: recurrence !== 'none' ? {
-              frequency: recurrence,
-              endDate: repeatEndDate ? new Date(repeatEndDate + 'T23:59:59').toISOString() : undefined,
-            } : undefined,
-            repeatFrequency: recurrence,
-            repeatEndDate: recurrence !== 'none' && repeatEndDate ? new Date(repeatEndDate).toISOString() : undefined,
+            department: deptFilter || user?.department || '',
             assignedTo: targetId,
             assignedBy: finalAssignedBy === 'all' ? user?._id : finalAssignedBy,
           };
@@ -555,8 +574,10 @@ export default function MandatoryAttendanceModal() {
           window.dispatchEvent(new CustomEvent('tasks-updated', { detail: res.data.followup }));
         }
       });
-      // Close modal and open workspace
-      window.dispatchEvent(new CustomEvent('attendance-updated'));
+      // Mark mandatory Todo completed for today locally & close modal
+      if (user?._id) {
+        localStorage.setItem(getTodayDoneKey(user._id), 'true');
+      }
       setCurrentStep('CLOSED');
     } catch (err) {
       console.error('[MandatoryTask] Create error:', err);
@@ -572,7 +593,10 @@ export default function MandatoryAttendanceModal() {
   const roleDisplay = user?.designation || user?.role || 'Staff Member';
   const greeting = getGreeting(now);
 
-  const isCallFollowup = taskType === 'call_followup';
+  const filteredAssignees = assignedToUsers.filter((u) => {
+    if (!deptFilter || deptFilter === 'all') return true;
+    return String(u.department || '').toLowerCase() === String(deptFilter).toLowerCase();
+  });
 
   return (
     <AnimatePresence>
@@ -607,7 +631,7 @@ export default function MandatoryAttendanceModal() {
           className="relative w-full max-w-md max-h-[92vh] flex flex-col rounded-2xl overflow-hidden shadow-xl border border-slate-200 bg-white"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Header Section with Centered Middle Logo and Mandatory Step Badge */}
+          {/* Header Section with Logo and Mandatory Step Badge */}
           <div className="relative p-4 shrink-0 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
@@ -739,54 +763,41 @@ export default function MandatoryAttendanceModal() {
               </>
             )}
 
-            {/* STEP 2: CREATE TODO ITEM FORM (EXACT SPEC FROM TASK.JSX FORM) */}
+            {/* STEP 2: CREATE TODO ITEM FORM (EXACT DESIGN MATCHING IMAGE 2) */}
             {currentStep === 'TODO' && (
               <form onSubmit={handleCreateTodoSubmit} className="space-y-4">
-                {/* Type Switcher Tabs */}
-                <div className="flex bg-blue-50/70 p-1 rounded-xl border border-blue-100">
-                  <button
-                    type="button"
-                    onClick={() => setTaskType('todo')}
-                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${taskType === 'todo'
-                        ? 'bg-white text-slate-800 shadow-sm border border-slate-200/60'
-                        : 'text-slate-500 hover:text-slate-700'
-                      }`}
-                  >
-                    <span>📋</span>
-                    <span>Todo Item</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTaskType('call_followup')}
-                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${taskType === 'call_followup'
-                        ? 'bg-white text-slate-800 shadow-sm border border-slate-200/60'
-                        : 'text-slate-500 hover:text-slate-700'
-                      }`}
-                  >
-                    <span>📞</span>
-                    <span>Call Follow-up</span>
-                  </button>
-                </div>
-
-                {/* Description Input */}
+                {/* Description Header with + Add Item button */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    {isCallFollowup ? 'Follow-up Details' : 'Todo Task Description'}
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-semibold text-slate-800">
+                      Todo Task Description
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleAddItemClick}
+                      className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-sky-50 text-sky-600 hover:bg-sky-100 transition-colors border border-sky-200/60 flex items-center gap-1"
+                    >
+                      + Add Item
+                    </button>
+                  </div>
+
+                  <div className="text-[11px] font-semibold text-amber-600 mb-1.5">
+                    Press <span className="font-bold">Enter</span> to automatically trigger 2., 3., 4.
+                  </div>
+
                   <textarea
                     value={taskDescription}
                     onChange={(e) => setTaskDescription(e.target.value)}
-                    rows={3}
-                    placeholder={
-                      isCallFollowup ? 'What should this call be about?' : 'What needs to be accomplished?'
-                    }
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 bg-slate-50/50 resize-none"
+                    onKeyDown={handleKeyDownDescription}
+                    rows={4}
+                    placeholder="1. "
+                    className="w-full px-3 py-2.5 rounded-xl border border-sky-200 text-xs font-mono text-slate-800 placeholder-slate-400 focus:outline-none focus:border-sky-500 bg-white shadow-xs resize-none"
                   />
                 </div>
 
                 {/* Due Date & Time Picker */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-800 mb-1.5">
                     Due Date & Time
                   </label>
                   <div className="flex items-center gap-2">
@@ -794,7 +805,7 @@ export default function MandatoryAttendanceModal() {
                       type="date"
                       value={dueDate}
                       onChange={(e) => setDueDate(e.target.value)}
-                      className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-blue-500"
+                      className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-sky-500 shadow-xs"
                     />
                     <TimeInput12h value={dueTime} onChange={setDueTime} />
                   </div>
@@ -802,115 +813,99 @@ export default function MandatoryAttendanceModal() {
 
                 {/* Priority */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-800 mb-1.5">
                     Priority
                   </label>
                   <select
                     value={priority}
                     onChange={(e) => setPriority(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-blue-500"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-sky-500 shadow-xs"
                   >
                     <option value="medium">Medium</option>
                     <option value="high">High</option>
                     <option value="low">Low</option>
+                    <option value="urgent">Urgent</option>
                   </select>
                 </div>
 
-                {/* Recurrence */}
+                {/* Department Filter */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    Recurrence
+                  <label className="block text-xs font-semibold text-slate-800 mb-1.5">
+                    Department Filter ({deptFilter || user?.department || 'Developer'})
                   </label>
                   <select
-                    value={recurrence}
-                    onChange={(e) => setRecurrence(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-blue-500"
+                    value={deptFilter}
+                    onChange={(e) => setDeptFilter(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-sky-500 shadow-xs"
                   >
-                    <option value="none">Does not repeat</option>
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
+                    <option value={user?.department || 'Developer'}>
+                      {user?.department || 'Developer'} Department Only
+                    </option>
+                    <option value="all">All Departments</option>
+                    <option value="Developer">Developer</option>
+                    <option value="Marketing">Marketing</option>
+                    <option value="HR">HR</option>
+                    <option value="Trainer">Trainer</option>
+                    <option value="Management">Management</option>
                   </select>
-
-                  {recurrence !== 'none' && (
-                    <div className="mt-2">
-                      <label className="block text-[11px] font-semibold text-slate-500 mb-1">
-                        Repeat Until
-                      </label>
-                      <input
-                        type="date"
-                        value={repeatEndDate}
-                        min={dueDate}
-                        onChange={(e) => setRepeatEndDate(e.target.value)}
-                        className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-blue-500"
-                      />
-                    </div>
-                  )}
                 </div>
 
-                {/* Assigned To & Assigned By */}
-                <div className="flex flex-col gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                      Assigned To
-                    </label>
-                    <AssigneeCheckboxDropdown
-                      assignableUsers={assignedToUsers}
-                      selectedIds={selectedAssigneeIds}
-                      onChange={setSelectedAssigneeIds}
-                      currentUser={user}
-                    />
-                  </div>
+                {/* Assigned To */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-800 mb-1.5">
+                    Assigned To ({deptFilter || user?.department || 'Developer'})
+                  </label>
+                  <AssigneeCheckboxDropdown
+                    assignableUsers={filteredAssignees.length > 0 ? filteredAssignees : assignedToUsers}
+                    selectedIds={selectedAssigneeIds}
+                    onChange={setSelectedAssigneeIds}
+                    currentUser={user}
+                  />
+                </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                      Assigned By
-                    </label>
-                    <select
-                      value={assignedBy}
-                      onChange={(e) => setAssignedBy(e.target.value)}
-                      className="w-full px-2.5 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-blue-500"
-                    >
-                      {assignedByUsers.map((u) => (
-                        <option key={u._id} value={u._id}>
-                          {u.dropdownLabel || (String(u._id) === String(user?._id)
-                            ? `${u.name || 'Account Holder'} (Account Holder)`
+                {/* Assigned By */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-800 mb-1.5">
+                    Assigned By
+                  </label>
+                  <select
+                    value={assignedBy}
+                    onChange={(e) => setAssignedBy(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-sky-500 shadow-xs"
+                  >
+                    {assignedByUsers.map((u) => (
+                      <option key={u._id} value={u._id}>
+                        {u.dropdownLabel ||
+                          (String(u._id) === String(user?._id)
+                            ? `${u.name || 'Account Holder'} (You)`
                             : `${u.name}${u.designation ? ` (${u.designation})` : ' (Admin)'}`)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Error Banner */}
                 {taskError && (
-                  <div className="p-3 rounded-lg flex items-start gap-2 text-xs text-red-700 bg-red-50 border border-red-200">
+                  <div className="p-3 rounded-xl flex items-start gap-2 text-xs text-red-700 bg-red-50 border border-red-200">
                     <FiAlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
                     <div className="flex-1 font-medium">{taskError}</div>
                   </div>
                 )}
 
-                {/* Action Buttons: Cancel / Create Todo */}
-                <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
-                  <button
-                    type="button"
-                    onClick={() => setCurrentStep('CLOSED')}
-                    className="flex-1 py-2.5 px-4 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 bg-white hover:bg-slate-50 transition-colors"
-                  >
-                    Cancel
-                  </button>
+                {/* Action Buttons: Create Todo Item Button */}
+                <div className="pt-2">
                   <button
                     type="submit"
                     disabled={addingTask}
-                    className="flex-1 py-2.5 px-4 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-1.5"
+                    className="w-full py-3 px-4 rounded-xl text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 active:bg-amber-800 transition-colors shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {addingTask ? (
                       <>
-                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        <span>Creating...</span>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Creating Todo Item...</span>
                       </>
                     ) : (
-                      <span>Create Todo</span>
+                      <span>Create Todo Item</span>
                     )}
                   </button>
                 </div>

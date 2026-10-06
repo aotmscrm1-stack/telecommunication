@@ -34,11 +34,11 @@ function AssigneeCheckboxDropdown({ assignableUsers, selectedIds, onChange, curr
   }, []);
   const filtered = assignableUsers.filter((u) => {
     const q = search.toLowerCase();
-    const name = (u.name || (u.isMe ? "You" : "")).toLowerCase();
+    const name = (u.name || "").toLowerCase();
     const desig = (u.designation || "").toLowerCase();
     return name.includes(q) || desig.includes(q);
   });
-  const allSelected = assignableUsers.length > 0 && assignableUsers.every((u) => selectedIds.includes(u._id));
+  const allSelected = assignableUsers.length > 0 && assignableUsers.every((u) => selectedIds.some((id) => String(id) === String(u._id)));
   const isSingleOption = assignableUsers.length <= 1;
   const toggleSelectAll = () => {
     if (allSelected) {
@@ -49,9 +49,10 @@ function AssigneeCheckboxDropdown({ assignableUsers, selectedIds, onChange, curr
     }
   };
   const toggleUser = (id) => {
-    if (selectedIds.includes(id)) {
+    const idStr = String(id);
+    if (selectedIds.some((x) => String(x) === idStr)) {
       if (isSingleOption) return;
-      onChange(selectedIds.filter((x) => x !== id));
+      onChange(selectedIds.filter((x) => String(x) !== idStr));
     } else {
       onChange([...selectedIds, id]);
     }
@@ -62,9 +63,9 @@ function AssigneeCheckboxDropdown({ assignableUsers, selectedIds, onChange, curr
       return `All Employees (${assignableUsers.length})`;
     }
     if (selectedIds.length === 1) {
-      const found = assignableUsers.find((u) => u._id === selectedIds[0]);
+      const found = assignableUsers.find((u) => String(u._id) === String(selectedIds[0]));
       if (found) {
-        return `${found.name || "User"}${found._id === currentUser?._id ? " (You)" : ""}${found.designation ? ` (${found.designation})` : ""}`;
+        return `${found.name || "User"}${found.designation ? ` (${found.designation})` : ""}`;
       }
       return "1 Person Selected";
     }
@@ -97,8 +98,7 @@ function AssigneeCheckboxDropdown({ assignableUsers, selectedIds, onChange, curr
       className: "w-full px-2 py-1 text-xs border border-slate-200 rounded-md outline-none focus:border-blue-500"
     }
   )), /* @__PURE__ */ React.createElement("div", { className: "max-h-48 overflow-y-auto space-y-0.5 pr-0.5" }, filtered.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "p-3 text-center text-xs text-slate-400" }, "No matching employees") : filtered.map((u) => {
-    const isChecked = selectedIds.includes(u._id);
-    const isMe = u._id === currentUser?._id;
+    const isChecked = selectedIds.some((id) => String(id) === String(u._id));
     return /* @__PURE__ */ React.createElement(
       "div",
       {
@@ -117,7 +117,7 @@ function AssigneeCheckboxDropdown({ assignableUsers, selectedIds, onChange, curr
         }
       ),
       /* @__PURE__ */ React.createElement("div", { className: "w-5 h-5 rounded-full bg-blue-100 text-blue-700 font-bold text-[10px] flex items-center justify-center shrink-0" }, u.name ? u.name.charAt(0).toUpperCase() : "U"),
-      /* @__PURE__ */ React.createElement("div", { className: "flex-1 min-w-0 truncate" }, /* @__PURE__ */ React.createElement("span", { className: "truncate" }, u.name || (isMe ? "You" : "User")), isMe && /* @__PURE__ */ React.createElement("span", { className: "text-[10px] text-blue-600 ml-1 font-bold" }, "(You)")),
+      /* @__PURE__ */ React.createElement("div", { className: "flex-1 min-w-0 truncate" }, /* @__PURE__ */ React.createElement("span", { className: "truncate" }, u.name || "User")),
       u.designation && /* @__PURE__ */ React.createElement("span", { className: "text-[10px] font-normal px-1.5 py-0.2 rounded bg-slate-100 text-slate-500 shrink-0" }, u.designation)
     );
   }))));
@@ -197,18 +197,31 @@ export default function MandatoryAttendanceModal() {
   const [attendanceSuccess, setAttendanceSuccess] = useState(false);
   const [attendanceError, setAttendanceError] = useState(null);
   const [gpsCoords, setGpsCoords] = useState(null);
-  const [taskType, setTaskType] = useState("todo");
-  const [taskDescription, setTaskDescription] = useState("");
+  const [taskDescription, setTaskDescription] = useState("1. ");
   const [dueDate, setDueDate] = useState(() => (/* @__PURE__ */ new Date()).toISOString().slice(0, 10));
   const [dueTime, setDueTime] = useState("09:00");
   const [priority, setPriority] = useState("medium");
-  const [recurrence, setRecurrence] = useState("none");
-  const [repeatEndDate, setRepeatEndDate] = useState("");
+  const [deptFilter, setDeptFilter] = useState(() => user?.department || "Developer");
   const [selectedAssigneeIds, setSelectedAssigneeIds] = useState(() => user?._id ? [user._id] : []);
   const [assignedBy, setAssignedBy] = useState("");
   const [teamUsers, setTeamUsers] = useState([]);
   const [addingTask, setAddingTask] = useState(false);
   const [taskError, setTaskError] = useState(null);
+  const handleKeyDownDescription = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const lines = taskDescription.split("\n");
+      const nextNum = lines.length + 1;
+      setTaskDescription((prev) => prev ? prev + `
+${nextNum}. ` : "1. ");
+    }
+  };
+  const handleAddItemClick = () => {
+    const lines = taskDescription.split("\n");
+    const nextNum = lines.length + 1;
+    setTaskDescription((prev) => prev ? prev + `
+${nextNum}. ` : "1. ");
+  };
   useEffect(() => {
     const timer = setInterval(() => {
       setNow(/* @__PURE__ */ new Date());
@@ -238,8 +251,18 @@ export default function MandatoryAttendanceModal() {
       setAssignedBy(assignedByUsers[0]._id);
     }
   }, [teamUsers, assignedBy, user]);
+  const getTodayDoneKey = (userId) => {
+    const dateStr = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+    return `mandatory_todo_done_${userId}_${dateStr}`;
+  };
   const evaluateCheckInStatus = useCallback(async () => {
     if (!user) {
+      setCurrentStep("CLOSED");
+      setChecking(false);
+      return;
+    }
+    const todayDoneKey = getTodayDoneKey(user._id);
+    if (localStorage.getItem(todayDoneKey) === "true") {
       setCurrentStep("CLOSED");
       setChecking(false);
       return;
@@ -255,7 +278,7 @@ export default function MandatoryAttendanceModal() {
         const startOfToday = /* @__PURE__ */ new Date();
         startOfToday.setHours(0, 0, 0, 0);
         try {
-          const todoRes = await followupsAPI.getAll({ userId: user._id });
+          const todoRes = await followupsAPI.getAll({ userId: user._id, type: "todo" });
           const allItems = todoRes.data?.followups || todoRes.data?.todos || todoRes.data?.tasks || [];
           const hasTodayTodo = allItems.some((item) => {
             const isTodoItem = item.type === "todo" || !item.type;
@@ -263,6 +286,7 @@ export default function MandatoryAttendanceModal() {
             return isTodoItem && itemDate >= startOfToday;
           });
           if (hasTodayTodo) {
+            localStorage.setItem(todayDoneKey, "true");
             setCurrentStep("CLOSED");
           } else {
             setCurrentStep("TODO");
@@ -392,18 +416,13 @@ export default function MandatoryAttendanceModal() {
       const createdTasks = await Promise.all(
         targetAssignees.map(async (targetId) => {
           const payload = {
-            type: taskType === "call_followup" ? "call_followup" : "todo",
+            type: "todo",
             title: desc,
             note: desc,
             description: desc,
             scheduledAt: new Date(scheduledAtIso).toISOString(),
             priority,
-            recurrence: recurrence !== "none" ? {
-              frequency: recurrence,
-              endDate: repeatEndDate ? (/* @__PURE__ */ new Date(repeatEndDate + "T23:59:59")).toISOString() : void 0
-            } : void 0,
-            repeatFrequency: recurrence,
-            repeatEndDate: recurrence !== "none" && repeatEndDate ? new Date(repeatEndDate).toISOString() : void 0,
+            department: deptFilter || user?.department || "",
             assignedTo: targetId,
             assignedBy: finalAssignedBy === "all" ? user?._id : finalAssignedBy
           };
@@ -415,7 +434,9 @@ export default function MandatoryAttendanceModal() {
           window.dispatchEvent(new CustomEvent("tasks-updated", { detail: res.data.followup }));
         }
       });
-      window.dispatchEvent(new CustomEvent("attendance-updated"));
+      if (user?._id) {
+        localStorage.setItem(getTodayDoneKey(user._id), "true");
+      }
       setCurrentStep("CLOSED");
     } catch (err) {
       console.error("[MandatoryTask] Create error:", err);
@@ -428,7 +449,10 @@ export default function MandatoryAttendanceModal() {
   const initials = user?.name?.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) || "EMP";
   const roleDisplay = user?.designation || user?.role || "Staff Member";
   const greeting = getGreeting(now);
-  const isCallFollowup = taskType === "call_followup";
+  const filteredAssignees = assignedToUsers.filter((u) => {
+    if (!deptFilter || deptFilter === "all") return true;
+    return String(u.department || "").toLowerCase() === String(deptFilter).toLowerCase();
+  });
   return /* @__PURE__ */ React.createElement(AnimatePresence, null, /* @__PURE__ */ React.createElement(
     "div",
     {
@@ -494,103 +518,81 @@ export default function MandatoryAttendanceModal() {
           className: "w-full py-3.5 px-4 rounded-xl font-medium text-sm text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-sm flex items-center justify-center gap-2 disabled:opacity-50"
         },
         clockingIn ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" }), /* @__PURE__ */ React.createElement("span", null, "Clocking In...")) : attendanceSuccess ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(FiCheckCircle, { className: "w-4 h-4" }), /* @__PURE__ */ React.createElement("span", null, "Attendance Active")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(FiPlay, { className: "w-4 h-4 fill-current" }), /* @__PURE__ */ React.createElement("span", null, "Start Attendance"))
-      )), currentStep === "TODO" && /* @__PURE__ */ React.createElement("form", { onSubmit: handleCreateTodoSubmit, className: "space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex bg-blue-50/70 p-1 rounded-xl border border-blue-100" }, /* @__PURE__ */ React.createElement(
+      )), currentStep === "TODO" && /* @__PURE__ */ React.createElement("form", { onSubmit: handleCreateTodoSubmit, className: "space-y-4" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-1" }, /* @__PURE__ */ React.createElement("label", { className: "text-xs font-semibold text-slate-800" }, "Todo Task Description"), /* @__PURE__ */ React.createElement(
         "button",
         {
           type: "button",
-          onClick: () => setTaskType("todo"),
-          className: `flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${taskType === "todo" ? "bg-white text-slate-800 shadow-sm border border-slate-200/60" : "text-slate-500 hover:text-slate-700"}`
+          onClick: handleAddItemClick,
+          className: "px-2.5 py-1 rounded-lg text-xs font-semibold bg-sky-50 text-sky-600 hover:bg-sky-100 transition-colors border border-sky-200/60 flex items-center gap-1"
         },
-        /* @__PURE__ */ React.createElement("span", null, "\u{1F4CB}"),
-        /* @__PURE__ */ React.createElement("span", null, "Todo Item")
-      ), /* @__PURE__ */ React.createElement(
-        "button",
-        {
-          type: "button",
-          onClick: () => setTaskType("call_followup"),
-          className: `flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${taskType === "call_followup" ? "bg-white text-slate-800 shadow-sm border border-slate-200/60" : "text-slate-500 hover:text-slate-700"}`
-        },
-        /* @__PURE__ */ React.createElement("span", null, "\u{1F4DE}"),
-        /* @__PURE__ */ React.createElement("span", null, "Call Follow-up")
-      )), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "block text-xs font-semibold text-slate-700 mb-1.5" }, isCallFollowup ? "Follow-up Details" : "Todo Task Description"), /* @__PURE__ */ React.createElement(
+        "+ Add Item"
+      )), /* @__PURE__ */ React.createElement("div", { className: "text-[11px] font-semibold text-amber-600 mb-1.5" }, "Press ", /* @__PURE__ */ React.createElement("span", { className: "font-bold" }, "Enter"), " to automatically trigger 2., 3., 4."), /* @__PURE__ */ React.createElement(
         "textarea",
         {
           value: taskDescription,
           onChange: (e) => setTaskDescription(e.target.value),
-          rows: 3,
-          placeholder: isCallFollowup ? "What should this call be about?" : "What needs to be accomplished?",
-          className: "w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 bg-slate-50/50 resize-none"
+          onKeyDown: handleKeyDownDescription,
+          rows: 4,
+          placeholder: "1. ",
+          className: "w-full px-3 py-2.5 rounded-xl border border-sky-200 text-xs font-mono text-slate-800 placeholder-slate-400 focus:outline-none focus:border-sky-500 bg-white shadow-xs resize-none"
         }
-      )), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "block text-xs font-semibold text-slate-700 mb-1.5" }, "Due Date & Time"), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement(
+      )), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "block text-xs font-semibold text-slate-800 mb-1.5" }, "Due Date & Time"), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement(
         "input",
         {
           type: "date",
           value: dueDate,
           onChange: (e) => setDueDate(e.target.value),
-          className: "flex-1 px-3 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-blue-500"
+          className: "flex-1 px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-sky-500 shadow-xs"
         }
-      ), /* @__PURE__ */ React.createElement(TimeInput12h, { value: dueTime, onChange: setDueTime }))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "block text-xs font-semibold text-slate-700 mb-1.5" }, "Priority"), /* @__PURE__ */ React.createElement(
+      ), /* @__PURE__ */ React.createElement(TimeInput12h, { value: dueTime, onChange: setDueTime }))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "block text-xs font-semibold text-slate-800 mb-1.5" }, "Priority"), /* @__PURE__ */ React.createElement(
         "select",
         {
           value: priority,
           onChange: (e) => setPriority(e.target.value),
-          className: "w-full px-3 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-blue-500"
+          className: "w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-sky-500 shadow-xs"
         },
         /* @__PURE__ */ React.createElement("option", { value: "medium" }, "Medium"),
         /* @__PURE__ */ React.createElement("option", { value: "high" }, "High"),
-        /* @__PURE__ */ React.createElement("option", { value: "low" }, "Low")
-      )), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "block text-xs font-semibold text-slate-700 mb-1.5" }, "Recurrence"), /* @__PURE__ */ React.createElement(
+        /* @__PURE__ */ React.createElement("option", { value: "low" }, "Low"),
+        /* @__PURE__ */ React.createElement("option", { value: "urgent" }, "Urgent")
+      )), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "block text-xs font-semibold text-slate-800 mb-1.5" }, "Department Filter (", deptFilter || user?.department || "Developer", ")"), /* @__PURE__ */ React.createElement(
         "select",
         {
-          value: recurrence,
-          onChange: (e) => setRecurrence(e.target.value),
-          className: "w-full px-3 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-blue-500"
+          value: deptFilter,
+          onChange: (e) => setDeptFilter(e.target.value),
+          className: "w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-sky-500 shadow-xs"
         },
-        /* @__PURE__ */ React.createElement("option", { value: "none" }, "Does not repeat"),
-        /* @__PURE__ */ React.createElement("option", { value: "daily" }, "Daily"),
-        /* @__PURE__ */ React.createElement("option", { value: "weekly" }, "Weekly"),
-        /* @__PURE__ */ React.createElement("option", { value: "monthly" }, "Monthly")
-      ), recurrence !== "none" && /* @__PURE__ */ React.createElement("div", { className: "mt-2" }, /* @__PURE__ */ React.createElement("label", { className: "block text-[11px] font-semibold text-slate-500 mb-1" }, "Repeat Until"), /* @__PURE__ */ React.createElement(
-        "input",
-        {
-          type: "date",
-          value: repeatEndDate,
-          min: dueDate,
-          onChange: (e) => setRepeatEndDate(e.target.value),
-          className: "w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-blue-500"
-        }
-      ))), /* @__PURE__ */ React.createElement("div", { className: "flex flex-col gap-3" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "block text-xs font-semibold text-slate-700 mb-1.5" }, "Assigned To"), /* @__PURE__ */ React.createElement(
+        /* @__PURE__ */ React.createElement("option", { value: user?.department || "Developer" }, user?.department || "Developer", " Department Only"),
+        /* @__PURE__ */ React.createElement("option", { value: "all" }, "All Departments"),
+        /* @__PURE__ */ React.createElement("option", { value: "Developer" }, "Developer"),
+        /* @__PURE__ */ React.createElement("option", { value: "Marketing" }, "Marketing"),
+        /* @__PURE__ */ React.createElement("option", { value: "HR" }, "HR"),
+        /* @__PURE__ */ React.createElement("option", { value: "Trainer" }, "Trainer"),
+        /* @__PURE__ */ React.createElement("option", { value: "Management" }, "Management")
+      )), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "block text-xs font-semibold text-slate-800 mb-1.5" }, "Assigned To (", deptFilter || user?.department || "Developer", ")"), /* @__PURE__ */ React.createElement(
         AssigneeCheckboxDropdown,
         {
-          assignableUsers: assignedToUsers,
+          assignableUsers: filteredAssignees.length > 0 ? filteredAssignees : assignedToUsers,
           selectedIds: selectedAssigneeIds,
           onChange: setSelectedAssigneeIds,
           currentUser: user
         }
-      )), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "block text-xs font-semibold text-slate-700 mb-1.5" }, "Assigned By"), /* @__PURE__ */ React.createElement(
+      )), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "block text-xs font-semibold text-slate-800 mb-1.5" }, "Assigned By"), /* @__PURE__ */ React.createElement(
         "select",
         {
           value: assignedBy,
           onChange: (e) => setAssignedBy(e.target.value),
-          className: "w-full px-2.5 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-blue-500"
+          className: "w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-sky-500 shadow-xs"
         },
-        assignedByUsers.map((u) => /* @__PURE__ */ React.createElement("option", { key: u._id, value: u._id }, u._id === user?._id ? `${u.name || "You"} (You)` : `${u.name} ${u.designation ? `(${u.designation})` : ""}`))
-      ))), taskError && /* @__PURE__ */ React.createElement("div", { className: "p-3 rounded-lg flex items-start gap-2 text-xs text-red-700 bg-red-50 border border-red-200" }, /* @__PURE__ */ React.createElement(FiAlertCircle, { className: "w-4 h-4 text-red-500 shrink-0 mt-0.5" }), /* @__PURE__ */ React.createElement("div", { className: "flex-1 font-medium" }, taskError)), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 pt-2 border-t border-slate-100" }, /* @__PURE__ */ React.createElement(
-        "button",
-        {
-          type: "button",
-          onClick: () => setCurrentStep("CLOSED"),
-          className: "flex-1 py-2.5 px-4 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 bg-white hover:bg-slate-50 transition-colors"
-        },
-        "Cancel"
-      ), /* @__PURE__ */ React.createElement(
+        assignedByUsers.map((u) => /* @__PURE__ */ React.createElement("option", { key: u._id, value: u._id }, u.dropdownLabel || (String(u._id) === String(user?._id) ? `${u.name || "Account Holder"} (You)` : `${u.name}${u.designation ? ` (${u.designation})` : " (Admin)"}`)))
+      )), taskError && /* @__PURE__ */ React.createElement("div", { className: "p-3 rounded-xl flex items-start gap-2 text-xs text-red-700 bg-red-50 border border-red-200" }, /* @__PURE__ */ React.createElement(FiAlertCircle, { className: "w-4 h-4 text-red-500 shrink-0 mt-0.5" }), /* @__PURE__ */ React.createElement("div", { className: "flex-1 font-medium" }, taskError)), /* @__PURE__ */ React.createElement("div", { className: "pt-2" }, /* @__PURE__ */ React.createElement(
         "button",
         {
           type: "submit",
           disabled: addingTask,
-          className: "flex-1 py-2.5 px-4 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-1.5"
+          className: "w-full py-3 px-4 rounded-xl text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 active:bg-amber-800 transition-colors shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
         },
-        addingTask ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" }), /* @__PURE__ */ React.createElement("span", null, "Creating...")) : /* @__PURE__ */ React.createElement("span", null, "Create Todo")
+        addingTask ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" }), /* @__PURE__ */ React.createElement("span", null, "Creating Todo Item...")) : /* @__PURE__ */ React.createElement("span", null, "Create Todo Item")
       )))),
       /* @__PURE__ */ React.createElement("div", { className: "p-3 px-6 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between text-[11px] text-slate-400 font-medium shrink-0" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-1" }, /* @__PURE__ */ React.createElement(FiShield, { className: "w-3.5 h-3.5 text-slate-400" }), /* @__PURE__ */ React.createElement("span", null, "Shift check-in policy active")), /* @__PURE__ */ React.createElement(
         "button",
