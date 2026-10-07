@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate, useLocation, useParams } from 'react-rout
 import { followupsAPI, leadsAPI, usersAPI, departmentsAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import { formatISTDateTime, formatISTDate } from '../../../utils/dateFormat';
-import { isExecutive, isHR, isTrainer, isDigitalMarketing, isLimitedStaff, isDeveloper, getTaskAssigneeOptions, getTaskAssignorOptions, filterTeamDropdownUsers } from '../../../utils/permissions';
+import { isExecutive, isHR, isTrainer, isDigitalMarketing, isLimitedStaff, isDeveloper, getTaskAssigneeOptions, getTaskAssignorOptions, filterTeamDropdownUsers, canEditOrDeleteTask } from '../../../utils/permissions';
 import TodoList from './TodoList';
 
 // Theme Palette Constants
@@ -897,7 +897,7 @@ function AutoScrollName({ prefix = '', name = '', className = '', style = {}, ma
 }
 
 // ── Todo Card Component ───────────────────────────────────────────────────────
-function TodoCard({ task, onEdit, onComplete, onDelete, canDelete, isLocked, markingId, deletingId, onDateShift }) {
+function TodoCard({ task, onEdit, onComplete, onDelete, canEdit, canDelete, isLocked, markingId, deletingId, onDateShift }) {
   const isLate = !isLocked && task.status === 'upcoming' && new Date(task.scheduledAt) < new Date();
   const displayKey = isLocked ? 'locked' : (isLate ? 'late' : (task.status || 'upcoming'));
   const statusMeta = STATUS_CONFIG[displayKey] || STATUS_CONFIG.upcoming;
@@ -1317,27 +1317,29 @@ function TodoCard({ task, onEdit, onComplete, onDelete, canDelete, isLocked, mar
           </button>
 
           {/* Edit */}
-          <button
-            onClick={() => onEdit(task)}
-            style={{
-              padding: '8px 10px',
-              borderRadius: 8,
-              border: `1px solid ${COLOR_BORDER}`,
-              background: '#fff',
-              color: COLOR_DEEP_BLUE,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'all 0.15s ease'
-            }}
-            title="Edit Details"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={COLOR_BLUE_GREEN} strokeWidth="2">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-            </svg>
-          </button>
+          {canEdit && (
+            <button
+              onClick={() => onEdit(task)}
+              style={{
+                padding: '8px 10px',
+                borderRadius: 8,
+                border: `1px solid ${COLOR_BORDER}`,
+                background: '#fff',
+                color: COLOR_DEEP_BLUE,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.15s ease'
+              }}
+              title="Edit Details"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={COLOR_BLUE_GREEN} strokeWidth="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+            </button>
+          )}
 
           {/* Delete */}
           {canDelete && (
@@ -2298,7 +2300,7 @@ function AddTaskModal({ type = 'todo', onClose, onCreated }) {
             </div>
           )}
 
-          {canAssign && (
+          {canAssign && isAdminOrExecutive && (
             <div>
               <label style={{ fontSize: 13, fontWeight: 500, color: COLOR_DEEP_BLUE, display: 'block', marginBottom: 6 }}>
                 Department Filter {selectedDepartment !== 'All' ? `(${selectedDepartment})` : ''}
@@ -2336,7 +2338,7 @@ function AddTaskModal({ type = 'todo', onClose, onCreated }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
               <div>
                 <label style={{ fontSize: 13, fontWeight: 500, color: COLOR_DEEP_BLUE, display: 'block', marginBottom: 6 }}>
-                  Assigned To {selectedDepartment !== 'All' ? `(${selectedDepartment})` : ''}
+                  Assigned To {(!isAdminOrExecutive && userDept) ? `(${userDept} Department)` : (selectedDepartment !== 'All' ? `(${selectedDepartment})` : '')}
                 </label>
                 <TaskAssigneeCheckboxDropdown
                   assignableUsers={assignableUsers}
@@ -2500,10 +2502,16 @@ export default function Task() {
   const [teamMemberFilter, setTeamMemberFilter] = useState('');
   const [showTeamDrop, setShowTeamDrop] = useState(false);
   const teamDropRef = useRef(null);
-  const checkCanDelete = (task) => {
-    if (!currentUser) return false;
-    return true;
-  };
+  const isAdminOrExecutive = isExecutive(currentUser) || currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
+  const userDept = currentUser?.department || (
+    isDeveloper(currentUser) ? 'Developer' :
+    isHR(currentUser) ? 'HR' :
+    isTrainer(currentUser) ? 'Trainer' :
+    isDigitalMarketing(currentUser) ? 'Marketing' : ''
+  );
+
+  const checkCanDelete = (task) => canEditOrDeleteTask(task, currentUser);
+  const canEditTask = (task) => canEditOrDeleteTask(task, currentUser);
   const [markingCompleteId, setMarkingCompleteId] = useState(null);
 
   // Pagination states
@@ -2514,11 +2522,6 @@ export default function Task() {
   useEffect(() => {
     setCurrentPage(1);
   }, [activeTab, forFilter, dueFilter, statusFilter, priorityFilter, teamMemberFilter, historyMode]);
-
-  const canEditTask = (task) => {
-    if (!currentUser) return false;
-    return true;
-  };
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);
@@ -2635,9 +2638,9 @@ export default function Task() {
   useEffect(() => {
     usersAPI.getAll().then(r => {
       const all = r.data.users || [];
-      setTeamUsers(filterTeamDropdownUsers(all));
+      setTeamUsers(filterTeamDropdownUsers(all, currentUser));
     }).catch(() => { });
-  }, []);
+  }, [currentUser]);
 
   useEffect(() => {
     const handler = (e) => {
@@ -2853,7 +2856,7 @@ export default function Task() {
             task={editingTask}
             onClose={() => setEditingTask(null)}
             onSaved={handleEditSaved}
-            readOnly={false}
+            readOnly={!canEditTask(editingTask)}
           />
         )}
 
@@ -3204,7 +3207,7 @@ export default function Task() {
                       onClick={() => { setTeamMemberFilter(''); setShowTeamDrop(false); }}
                       style={{ padding: '9px 14px', fontSize: 13, cursor: 'pointer', color: !teamMemberFilter ? COLOR_BLUE_GREEN : COLOR_DEEP_BLUE, fontWeight: 500, background: !teamMemberFilter ? COLOR_SKY_SURFACE : 'transparent' }}
                     >
-                      All (HR, CTO, MD)
+                      {isAdminOrExecutive ? 'All (HR, CTO, MD)' : (userDept ? `All (${userDept})` : 'All Team')}
                     </div>
                     {teamUsers.map(u => (
                       <div
@@ -3357,6 +3360,7 @@ export default function Task() {
                   onEdit={setEditingTask}
                   onComplete={handleMarkComplete}
                   onDelete={handleDelete}
+                  canEdit={canEditTask(task)}
                   canDelete={checkCanDelete(task)}
                   isLocked={isTaskLocked(task.scheduledAt)}
                   markingId={markingCompleteId}

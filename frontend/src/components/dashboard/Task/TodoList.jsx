@@ -14,7 +14,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
-import { isExecutive, isHR } from '../../../utils/permissions';
+import { isExecutive, isHR, canEditOrDeleteTask } from '../../../utils/permissions';
 import { followupsAPI, todosAPI } from '../../../services/api';
 
 // Helper for IST DateTime formatting
@@ -295,11 +295,9 @@ export default function TodoList({
     : internalPriorityFilter;
   const setPriorityFilter = parentSetPriorityFilter || setInternalPriorityFilter;
 
-  // Delete Permission Helper
-  const checkCanDelete = (todo) => {
-    if (!currentUser) return false;
-    return true;
-  };
+  // Edit & Delete Permission Helpers based on MongoDB Auth
+  const checkCanEdit = (todo) => canEditOrDeleteTask(todo, currentUser);
+  const checkCanDelete = (todo) => canEditOrDeleteTask(todo, currentUser);
 
   // 1-Click Quick Add Handler
   const handleQuickAdd = async (e) => {
@@ -314,6 +312,7 @@ export default function TodoList({
         description: quickTitle.trim(),
         scheduledAt: new Date().toISOString(),
         priority: quickPriority,
+        department: currentUser?.department || '',
         assignedTo: currentUser?._id,
         assignedBy: currentUser?._id,
       };
@@ -492,13 +491,16 @@ export default function TodoList({
                       </button>
                     )}
 
-                    <button
-                      onClick={() => onEditTask && onEditTask(t)}
-                      className="bg-white border border-slate-200 text-slate-700 p-2 rounded-xl hover:bg-slate-50 transition-colors"
-                      title="Edit Todo"
-                    >
-                      <Edit3 size={14} />
-                    </button>
+                    {/* Edit Button */}
+                    {checkCanEdit(t) && (
+                      <button
+                        onClick={() => onEditTask && onEditTask(t)}
+                        className="bg-white border border-slate-200 text-slate-700 p-2 rounded-xl hover:bg-slate-50 transition-colors"
+                        title="Edit Todo"
+                      >
+                        <Edit3 size={14} />
+                      </button>
+                    )}
 
                     {/* Delete Button */}
                     {checkCanDelete(t) && (

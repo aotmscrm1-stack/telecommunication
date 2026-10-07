@@ -304,17 +304,41 @@ export const getTaskAssignorOptions = (currentUser, users = []) => {
   return result;
 };
 
+export const isSameUser = (u1, u2) => {
+  if (!u1 || !u2) return false;
+  const id1 = String(u1._id || u1.id || '');
+  const id2 = String(u2._id || u2.id || '');
+  if (id1 && id2 && id1 === id2) return true;
+  const email1 = String(u1.email || '').trim().toLowerCase();
+  const email2 = String(u2.email || '').trim().toLowerCase();
+  if (email1 && email2 && email1 === email2) return true;
+  const name1 = String(u1.name || '').trim().toLowerCase();
+  const name2 = String(u2.name || '').trim().toLowerCase();
+  if (name1 && name2 && name1 === name2) return true;
+  return false;
+};
+
 /**
  * Filter team users for Todo / Task Team dropdown.
- * All employee designations are included so any team member can be selected or assigned.
+ * - Admin / Executive: Full visibility across all employees
+ * - Non-admin employees: Strictly restricted to their own department members from MongoDB
  */
 export const isTeamDropdownMember = (user) => {
   return !!user;
 };
 
-export const filterTeamDropdownUsers = (users = []) => {
+export const filterTeamDropdownUsers = (users = [], currentUser = null) => {
   if (!Array.isArray(users)) return [];
-  return users;
+  if (!currentUser || isExecutive(currentUser) || currentUser?.role === 'admin' || currentUser?.role === 'superadmin') {
+    return users;
+  }
+  const myDept = String(currentUser.department || '').toLowerCase().trim();
+  if (!myDept) return users;
+  return users.filter(u => {
+    const uDept = String(u.department || '').toLowerCase().trim();
+    const uDesig = String(u.designation || '').toLowerCase().trim();
+    return uDept === myDept || uDesig.includes(myDept) || isSameUser(u, currentUser);
+  });
 };
 
 export const getTeamDropdownUsersWithFallback = (users = []) => {
@@ -327,5 +351,35 @@ export const getTeamDropdownUsersWithFallback = (users = []) => {
     { _id: 'hr_deenaz', name: 'Deenaz', designation: 'HR' },
     { _id: 'hr_bhavani', name: 'Bhavani', designation: 'HR' }
   ];
+};
+
+/**
+ * Check if the current authenticated MongoDB user can edit or delete a task/todo.
+ * - Admin / Superadmin / Executive: Full CRUD permissions across all tasks and departments.
+ * - Non-admin: Only allowed if they are the creator (createdBy), assignor (assignedBy), or assignee (assignedTo).
+ *   Otherwise, edit and delete icons are completely hidden.
+ */
+export const canEditOrDeleteTask = (task, currentUser) => {
+  if (!currentUser || !task) return false;
+  if (isExecutive(currentUser) || currentUser?.role === 'admin' || currentUser?.role === 'superadmin') {
+    return true;
+  }
+  const myId = String(currentUser._id || currentUser.id || '');
+  if (!myId) return false;
+
+  const createdById = String(task.createdBy?._id || task.createdBy || '');
+  if (createdById && createdById === myId) return true;
+
+  const assignedById = String(task.assignedBy?._id || task.assignedBy || '');
+  if (assignedById && assignedById === myId) return true;
+
+  if (Array.isArray(task.assignedTo)) {
+    if (task.assignedTo.some(u => String(u?._id || u || '') === myId)) return true;
+  } else {
+    const assignedToId = String(task.assignedTo?._id || task.assignedTo || task.assignee?._id || task.assignee || '');
+    if (assignedToId && assignedToId === myId) return true;
+  }
+
+  return false;
 };
 
