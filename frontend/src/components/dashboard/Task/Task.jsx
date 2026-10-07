@@ -1811,7 +1811,7 @@ function TaskAssigneeCheckboxDropdown({ assignableUsers, selectedIds, onChange, 
     if (selectedIds.length === 1) {
       const found = assignableUsers.find((u) => String(u._id) === String(selectedIds[0]));
       if (found) {
-        return `${found.name || 'User'}${found.designation ? ` (${found.designation})` : ''}`;
+        return found.dropdownLabel || `${found.name || 'User'}${found.designation ? ` — ${found.designation}` : ''}`;
       }
       return '1 Person Selected';
     }
@@ -1946,13 +1946,8 @@ function TaskAssigneeCheckboxDropdown({ assignableUsers, selectedIds, onChange, 
                       style={{ cursor: 'pointer', accentColor: COLOR_BLUE_GREEN, flexShrink: 0 }}
                     />
                     <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {u.name || 'User'}
+                      {u.dropdownLabel || `${u.name || 'User'}${u.designation ? ` — ${u.designation}` : ''}`}
                     </div>
-                    {u.designation && (
-                      <span style={{ fontSize: 10, padding: '1px 5px', borderRadius: 4, background: '#f1f5f9', color: '#64748b', flexShrink: 0 }}>
-                        {u.designation}
-                      </span>
-                    )}
                   </div>
                 );
               })

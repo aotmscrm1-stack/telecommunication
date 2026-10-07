@@ -154,62 +154,78 @@ export const getTaskAssigneeOptions = (currentUser, users = [], selectedDepartme
     isDigitalMarketing(currentUser) ? 'Marketing' : ''
   );
 
-  // If non-admin user, restrict effective department strictly to userDept
-  const targetDepartment = isAdmin ? selectedDepartment : userDept;
+  // If non-admin user, restrict effective department strictly to userDept unless selectedDepartment matches
+  const targetDepartment = selectedDepartment && selectedDepartment !== 'All' && selectedDepartment !== 'all'
+    ? selectedDepartment
+    : (isAdmin ? 'All' : userDept);
 
   // Filter user list by department
   let deptFilteredUsers = userList;
   if (targetDepartment && targetDepartment !== 'all' && targetDepartment !== 'All') {
     deptFilteredUsers = userList.filter(u => {
       const uDept = String(u.department || '').toLowerCase().trim();
+      const uDesig = String(u.designation || '').toLowerCase().trim();
       const target = String(targetDepartment).toLowerCase().trim();
-      if (uDept === target) return true;
-      if (target === 'developer' && (uDept.includes('dev') || isDeveloper(u))) return true;
-      if (target === 'hr' && (uDept.includes('hr') || isHR(u))) return true;
-      if ((target === 'trainer' || target === 'trainers') && (uDept.includes('trainer') || isTrainer(u))) return true;
-      if ((target === 'marketing' || target === 'digital marketing') && (uDept.includes('market') || isDigitalMarketing(u))) return true;
+
+      if (uDept === target || uDesig.includes(target)) return true;
+      if ((target === 'developer' || target === 'development') && (uDept.includes('dev') || uDesig.includes('dev') || isDeveloper(u))) return true;
+      if (target === 'hr' && (uDept.includes('hr') || uDesig.includes('hr') || isHR(u))) return true;
+      if ((target === 'trainer' || target === 'trainers') && (uDept.includes('trainer') || uDesig.includes('trainer') || isTrainer(u))) return true;
+      if ((target === 'marketing' || target === 'digital marketing') && (uDept.includes('market') || uDesig.includes('market') || isDigitalMarketing(u))) return true;
+      if ((target === 'admin' || target === 'management') && (uDept.includes('admin') || uDept.includes('management') || isExecutive(u))) return true;
       return false;
     });
   }
 
-  // Find if current user is already in the database user list
-  const existingMe = userList.find(u => isSameUser(u, currentUser));
-  const meUser = existingMe ? {
-    ...existingMe,
-    designation: existingMe.designation || currentUser.designation || 'Account Holder'
-  } : {
-    _id: currentUser._id || currentUser.id,
-    name: currentUser.name || 'Account Holder',
-    designation: currentUser.designation || 'Account Holder',
-    department: currentUser.department || userDept || '',
-    isMe: true,
-  };
+  // Deduplicate and format dropdownLabel: "Name — Designation"
+  const formattedList = [];
+  deptFilteredUsers.forEach(u => {
+    if (!u) return;
+    if (!formattedList.some(existing => isSameUser(existing, u))) {
+      const isMe = isSameUser(u, currentUser);
+      const name = u.name || 'User';
+      const desig = u.designation || (isMe ? currentUser.designation : '') || u.department || '';
+      formattedList.push({
+        ...u,
+        designation: desig,
+        dropdownLabel: `${name}${desig ? ` — ${desig}` : ''}${isMe ? ' (You)' : ''}`
+      });
+    }
+  });
 
-  const deduplicateList = (rawList) => {
-    const unique = [];
-    rawList.forEach(u => {
-      if (!u) return;
-      if (!unique.some(existing => isSameUser(existing, u))) {
-        unique.push({
-          ...u,
-          designation: u.designation || (isSameUser(u, currentUser) ? currentUser.designation : '') || u.department || ''
-        });
-      }
-    });
-    return unique;
-  };
+  // Ensure current user is in list if not present and target matching
+  const isMeInList = formattedList.some(u => isSameUser(u, currentUser));
+  if (!isMeInList) {
+    const meName = currentUser.name || 'Account Holder';
+    const meDesig = currentUser.designation || 'Account Holder';
+    const meUser = {
+      _id: currentUser._id || currentUser.id,
+      name: meName,
+      designation: meDesig,
+      department: currentUser.department || userDept || '',
+      isMe: true,
+      dropdownLabel: `${meName}${meDesig ? ` — ${meDesig}` : ''} (You)`
+    };
 
-  if (isAdmin) {
-    const list = deduplicateList(deptFilteredUsers);
-    return list.length > 0 ? list : [meUser];
+    if (!isAdmin || targetDepartment === 'All' || targetDepartment.toLowerCase() === String(userDept).toLowerCase()) {
+      formattedList.unshift(meUser);
+    }
   }
 
-  // 2. Non-Admin Employees (Developer, HR, Trainer, Marketing, Manager, Caller, etc.):
-  const list = deduplicateList(deptFilteredUsers);
-  if (!list.some(existing => isSameUser(existing, meUser))) {
-    list.push(meUser);
+  if (formattedList.length === 0) {
+    const meName = currentUser.name || 'Account Holder';
+    const meDesig = currentUser.designation || 'Account Holder';
+    return [{
+      _id: currentUser._id || currentUser.id,
+      name: meName,
+      designation: meDesig,
+      department: currentUser.department || userDept || '',
+      isMe: true,
+      dropdownLabel: `${meName}${meDesig ? ` — ${meDesig}` : ''} (You)`
+    }];
   }
-  return list;
+
+  return formattedList;
 };
 
 export const getTaskAssignorOptions = (currentUser, users = []) => {
@@ -231,53 +247,34 @@ export const getTaskAssignorOptions = (currentUser, users = []) => {
   };
 
   const existingMe = userList.find(u => isSameUser(u, currentUser));
-  const meUser = existingMe ? {
-    ...existingMe,
-    designation: existingMe.designation || currentUser.designation || 'Account Holder'
-  } : {
+  const meName = existingMe?.name || currentUser.name || 'Account Holder';
+  const meDesig = existingMe?.designation || currentUser.designation || 'Account Holder';
+  const meUser = {
+    ...(existingMe || {}),
     _id: currentUser._id || currentUser.id,
-    name: currentUser.name || 'Account Holder',
-    designation: currentUser.designation || 'Account Holder',
+    name: meName,
+    designation: meDesig,
     isMe: true,
+    dropdownLabel: `${meName}${meDesig ? ` — ${meDesig}` : ''} (You)`
   };
 
-  // Find Admin / Executive / CEO / MD / CTO / superadmin users
-  const adminUsers = userList.filter(u =>
-    isExecutive(u) ||
-    u.role === 'admin' ||
-    u.role === 'superadmin' ||
-    u.name?.toLowerCase().includes('ameen') ||
-    u.name?.toLowerCase().includes('rabbani')
-  );
-  const fallbackId = currentUser?._id || '000000000000000000000000';
-  const primaryAdmin = adminUsers.length > 0 ? adminUsers : [
-    { _id: fallbackId, name: 'Admin', designation: 'Managing Director' }
-  ];
+  // 1. Current user is ALWAYS index 0 (default selected for Assigned By)
+  const result = [meUser];
+  const addedIds = new Set([String(meUser._id)]);
 
-  const result = [];
-  const addedUsers = [];
-
-  // 1. Add Admin users
-  primaryAdmin.forEach(admin => {
-    if (!addedUsers.some(u => isSameUser(u, admin))) {
-      addedUsers.push(admin);
-      const isMe = isSameUser(admin, currentUser);
-      result.push({
-        ...admin,
-        isAccountHolder: isMe,
-        dropdownLabel: isMe
-          ? `${admin.name} (Admin / Account Holder)`
-          : `${admin.name}${admin.designation ? ` (${admin.designation})` : ' (Admin)'}`
-      });
-    }
-  });
-
-  // 2. Add Account Holder (Current User)
-  if (!addedUsers.some(u => isSameUser(u, meUser))) {
-    result.push({
-      ...meUser,
-      isAccountHolder: true,
-      dropdownLabel: `${meUser.name || 'Account Holder'} (Account Holder)`
+  // 2. Add other authorized assignors if current user is Admin / Executive / Manager
+  const isAdmin = isExecutive(currentUser) || currentUser.role === 'admin' || currentUser.role === 'superadmin' || isHR(currentUser) || isManager(currentUser);
+  if (isAdmin) {
+    userList.forEach(u => {
+      if (!u || addedIds.has(String(u._id))) return;
+      if (isExecutive(u) || u.role === 'admin' || u.role === 'superadmin' || isHR(u) || isManager(u)) {
+        addedIds.add(String(u._id));
+        const desig = u.designation || (u.role === 'admin' ? 'Admin' : 'Executive');
+        result.push({
+          ...u,
+          dropdownLabel: `${u.name}${desig ? ` — ${desig}` : ''}`
+        });
+      }
     });
   }
 

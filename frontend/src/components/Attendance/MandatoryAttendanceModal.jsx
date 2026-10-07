@@ -75,7 +75,7 @@ function AssigneeCheckboxDropdown({ assignableUsers, selectedIds, onChange, curr
     if (selectedIds.length === 1) {
       const found = assignableUsers.find((u) => String(u._id) === String(selectedIds[0]));
       if (found) {
-        return `${found.name || 'User'}${found.designation ? ` (${found.designation})` : ''}`;
+        return found.dropdownLabel || `${found.name || 'User'}${found.designation ? ` — ${found.designation}` : ''}`;
       }
       return '1 Person Selected';
     }
@@ -159,13 +159,8 @@ function AssigneeCheckboxDropdown({ assignableUsers, selectedIds, onChange, curr
                       {u.name ? u.name.charAt(0).toUpperCase() : 'U'}
                     </div>
                     <div className="flex-1 min-w-0 truncate">
-                      <span className="truncate">{u.name || 'User'}</span>
+                      <span className="truncate">{u.dropdownLabel || `${u.name || 'User'}${u.designation ? ` — ${u.designation}` : ''}`}</span>
                     </div>
-                    {u.designation && (
-                      <span className="text-[10px] font-normal px-1.5 py-0.2 rounded bg-slate-100 text-slate-500 shrink-0">
-                        {u.designation}
-                      </span>
-                    )}
                   </div>
                 );
               })
@@ -336,7 +331,7 @@ export default function MandatoryAttendanceModal() {
       .catch(() => { });
   }, []);
 
-  const assignedToUsers = getTaskAssigneeOptions(user, teamUsers);
+  const assignedToUsers = getTaskAssigneeOptions(user, teamUsers, deptFilter);
   const assignedByUsers = getTaskAssignorOptions(user, teamUsers);
 
   useEffect(() => {
@@ -346,14 +341,14 @@ export default function MandatoryAttendanceModal() {
       if (valid.length > 0) return valid;
       return [assignedToUsers[0]._id];
     });
-  }, [teamUsers, user]);
+  }, [teamUsers, user, deptFilter]);
 
   useEffect(() => {
     if (!assignedByUsers || !assignedByUsers.length) return;
-    if (!assignedByUsers.some((u) => u._id === assignedBy)) {
+    if (!assignedBy || !assignedByUsers.some((u) => u._id === assignedBy)) {
       setAssignedBy(assignedByUsers[0]._id);
     }
-  }, [teamUsers, assignedBy, user]);
+  }, [teamUsers, assignedByUsers, user, assignedBy]);
 
   const getTodayDoneKey = (userId) => {
     const dateStr = new Date().toISOString().slice(0, 10);
