@@ -443,6 +443,10 @@ router.put('/:id', protect, async (req, res) => {
 
     const update = { ...req.body };
     if ((update.status === 'done' || update.status === 'completed')) {
+      const isAdminUser = req.user.role === 'admin' || req.user.role === 'superadmin' || isStrictAdmin(req.user) || isManager(req.user);
+      if (!isAdminUser) {
+        return res.status(403).json({ message: 'Only Admin has permission to confirm and mark tasks as completed' });
+      }
       if (!update.completedAt) update.completedAt = new Date();
       update.completedBy = req.user._id;
     }

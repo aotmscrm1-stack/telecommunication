@@ -245,6 +245,10 @@ router.put('/:id', protect, async (req, res) => {
   try {
     const update = { ...req.body };
     if (update.status === 'done' || update.status === 'completed') {
+      const isAdminUser = req.user.role === 'admin' || req.user.role === 'superadmin' || isStrictAdmin(req.user) || isManager(req.user);
+      if (!isAdminUser) {
+        return res.status(403).json({ message: 'Only Admin has permission to confirm and mark tasks as completed' });
+      }
       update.completedAt = update.completedAt || new Date();
       update.completedBy = req.user._id;
     }
@@ -267,6 +271,10 @@ router.patch('/:id/status', protect, async (req, res) => {
     const { status } = req.body;
     const update = { status: (status === 'completed' || status === 'done') ? 'done' : status };
     if (update.status === 'done') {
+      const isAdminUser = req.user.role === 'admin' || req.user.role === 'superadmin' || isStrictAdmin(req.user) || isManager(req.user);
+      if (!isAdminUser) {
+        return res.status(403).json({ message: 'Only Admin has permission to confirm and mark tasks as completed' });
+      }
       update.completedAt = new Date();
       update.completedBy = req.user._id;
     }
@@ -288,6 +296,10 @@ router.patch('/:id', protect, async (req, res) => {
   try {
     const update = { ...req.body };
     if (update.status === 'done' || update.status === 'completed') {
+      const isAdminUser = req.user.role === 'admin' || req.user.role === 'superadmin' || isStrictAdmin(req.user) || isManager(req.user);
+      if (!isAdminUser) {
+        return res.status(403).json({ message: 'Only Admin has permission to confirm and mark tasks as completed' });
+      }
       update.status = 'done';
       update.completedAt = update.completedAt || new Date();
       update.completedBy = req.user._id;

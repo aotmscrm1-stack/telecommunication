@@ -14,7 +14,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
-import { isExecutive, isHR, canEditOrDeleteTask } from '../../../utils/permissions';
+import { isExecutive, isHR, canEditOrDeleteTask, canMarkCompleteTask } from '../../../utils/permissions';
 import { followupsAPI, todosAPI } from '../../../services/api';
 
 // Helper for IST DateTime formatting
@@ -295,7 +295,8 @@ export default function TodoList({
     : internalPriorityFilter;
   const setPriorityFilter = parentSetPriorityFilter || setInternalPriorityFilter;
 
-  // Edit & Delete Permission Helpers based on MongoDB Auth
+  // Edit, Delete & Complete Permission Helpers based on MongoDB Auth
+  const canComplete = canMarkCompleteTask(currentUser);
   const checkCanEdit = (todo) => canEditOrDeleteTask(todo, currentUser);
   const checkCanDelete = (todo) => canEditOrDeleteTask(todo, currentUser);
 
@@ -479,41 +480,43 @@ export default function TodoList({
                   </div>
 
                   {/* Actions Buttons Toolbar */}
-                  <div className="flex items-center gap-2">
-                    {t.status !== 'done' && t.status !== 'completed' && (
-                      <button
-                        onClick={() => onCompleteTask && onCompleteTask(t._id)}
-                        disabled={markingId === t._id}
-                        className="flex-1 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold text-xs py-2 px-3 rounded-xl hover:from-orange-600 hover:to-amber-600 shadow-sm shadow-orange-200 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
-                      >
-                        <CheckCircle2 size={14} />
-                        {markingId === t._id ? 'Saving...' : 'Mark Complete'}
-                      </button>
-                    )}
+                  {(canComplete || checkCanEdit(t) || checkCanDelete(t)) && (
+                    <div className="flex items-center gap-2">
+                      {canComplete && t.status !== 'done' && t.status !== 'completed' && (
+                        <button
+                          onClick={() => onCompleteTask && onCompleteTask(t._id)}
+                          disabled={markingId === t._id}
+                          className="flex-1 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold text-xs py-2 px-3 rounded-xl hover:from-orange-600 hover:to-amber-600 shadow-sm shadow-orange-200 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                        >
+                          <CheckCircle2 size={14} />
+                          {markingId === t._id ? 'Saving...' : 'Mark Complete'}
+                        </button>
+                      )}
 
-                    {/* Edit Button */}
-                    {checkCanEdit(t) && (
-                      <button
-                        onClick={() => onEditTask && onEditTask(t)}
-                        className="bg-white border border-slate-200 text-slate-700 p-2 rounded-xl hover:bg-slate-50 transition-colors"
-                        title="Edit Todo"
-                      >
-                        <Edit3 size={14} />
-                      </button>
-                    )}
+                      {/* Edit Button */}
+                      {checkCanEdit(t) && (
+                        <button
+                          onClick={() => onEditTask && onEditTask(t)}
+                          className="bg-white border border-slate-200 text-slate-700 p-2 rounded-xl hover:bg-slate-50 transition-colors"
+                          title="Edit Todo"
+                        >
+                          <Edit3 size={14} />
+                        </button>
+                      )}
 
-                    {/* Delete Button */}
-                    {checkCanDelete(t) && (
-                      <button
-                        onClick={() => onDeleteTask && onDeleteTask(t._id)}
-                        disabled={deletingId === t._id}
-                        className="bg-red-50 border border-red-200 text-red-600 p-2 rounded-xl hover:bg-red-100 transition-colors disabled:opacity-50"
-                        title="Delete Todo"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                  </div>
+                      {/* Delete Button */}
+                      {checkCanDelete(t) && (
+                        <button
+                          onClick={() => onDeleteTask && onDeleteTask(t._id)}
+                          disabled={deletingId === t._id}
+                          className="bg-red-50 border border-red-200 text-red-600 p-2 rounded-xl hover:bg-red-100 transition-colors disabled:opacity-50"
+                          title="Delete Todo"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             );

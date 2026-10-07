@@ -363,4 +363,15 @@ export const canEditOrDeleteTask = (task, currentUser) => {
   return isExecutive(currentUser) || currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
 };
 
+/**
+ * Check if the user has permission to confirm / Mark Complete on Todo, Task, or Follow-up.
+ * - Strictly restricted to Admin / Superadmin / Executive.
+ * - All other departments (non-admin employees) have this action hidden/removed.
+ */
+export const canMarkCompleteTask = (currentUser) => {
+  if (!currentUser) return false;
+  return isExecutive(currentUser) || currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
+};
+
+
 
