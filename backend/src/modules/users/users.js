@@ -38,33 +38,8 @@ const isManagerUser = (user) => {
 // GET /api/users
 router.get('/', protect, async (req, res) => {
   try {
-    let query = {};
-    if (isExecutiveOrAdminUser(req.user)) {
-      // Admin: All departments visible
-      query = {};
-    } else if (isManagerUser(req.user)) {
-      // Manager: Relative department details showing
-      if (req.user.department) {
-        query = {
-          $or: [
-            { department: req.user.department },
-            { _id: req.user._id }
-          ]
-        };
-      } else {
-        query = { _id: req.user._id };
-      }
-    } else {
-      // Employee panel: Only Employee details showing
-      if (req.query.purpose === 'assignment') {
-        // For task/todo assignment dropdowns, return self and manager/admin list
-        query = {};
-      } else {
-        query = { _id: req.user._id };
-      }
-    }
-
-    const users = await User.find(query).select('-password').sort({ name: 1 });
+    // Return all users for task/todo assignment and CRM operations
+    const users = await User.find({}).select('-password').sort({ name: 1 });
     res.json({ users });
   } catch (err) {
     res.status(500).json({ message: err.message });

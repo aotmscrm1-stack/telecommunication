@@ -263,21 +263,43 @@ export const getTaskAssignorOptions = (currentUser, users = []) => {
   const result = [meUser];
   const addedIds = new Set([String(meUser._id)]);
 
-  // 2. Add other authorized assignors if current user is Admin / Executive / Manager
-  const isAdmin = isExecutive(currentUser) || currentUser.role === 'admin' || currentUser.role === 'superadmin' || isHR(currentUser) || isManager(currentUser);
-  if (isAdmin) {
-    userList.forEach(u => {
-      if (!u || addedIds.has(String(u._id))) return;
-      if (isExecutive(u) || u.role === 'admin' || u.role === 'superadmin' || isHR(u) || isManager(u)) {
-        addedIds.add(String(u._id));
-        const desig = u.designation || (u.role === 'admin' ? 'Admin' : 'Executive');
-        result.push({
-          ...u,
-          dropdownLabel: `${u.name}${desig ? ` — ${desig}` : ''}`
-        });
-      }
+  // 2. Always include Admin / Executive / CEO / MD / CTO users in Assigned By options
+  userList.forEach(u => {
+    if (!u || addedIds.has(String(u._id))) return;
+    if (isExecutive(u) || u.role === 'admin' || u.role === 'superadmin' || u.name?.toLowerCase().includes('admin')) {
+      addedIds.add(String(u._id));
+      const desig = u.designation || (u.role === 'admin' ? 'Admin' : 'Executive');
+      result.push({
+        ...u,
+        dropdownLabel: `${u.name}${desig ? ` — ${desig}` : ''}`
+      });
+    }
+  });
+
+  // Fallback Admin option if no admin in DB userList
+  if (!result.some(u => isExecutive(u) || u.role === 'admin' || u.name?.toLowerCase().includes('admin'))) {
+    result.push({
+      _id: 'admin_fallback',
+      name: 'Admin',
+      designation: 'Managing Director',
+      dropdownLabel: 'Admin — Managing Director'
     });
   }
+
+  // 3. Include HR, Managers, and Department peers
+  userList.forEach(u => {
+    if (!u || addedIds.has(String(u._id))) return;
+    const uDept = String(u.department || '').toLowerCase().trim();
+    const myDept = String(currentUser.department || '').toLowerCase().trim();
+    if (isHR(u) || isManager(u) || (uDept && myDept && uDept === myDept)) {
+      addedIds.add(String(u._id));
+      const desig = u.designation || u.department || 'Team Member';
+      result.push({
+        ...u,
+        dropdownLabel: `${u.name}${desig ? ` — ${desig}` : ''}`
+      });
+    }
+  });
 
   return result;
 };
