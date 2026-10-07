@@ -9,6 +9,19 @@ const api = axios.create({ baseURL });
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('aotms_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
+
+  // Force real-time fresh network data and bypass browser disk/memory cache
+  config.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+  config.headers['Pragma'] = 'no-cache';
+  config.headers['Expires'] = '0';
+
+  if (config.method?.toLowerCase() === 'get') {
+    config.params = {
+      ...(config.params || {}),
+      _t: Date.now()
+    };
+  }
+
   return config;
 });
 

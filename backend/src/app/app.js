@@ -60,6 +60,19 @@ app.use((req, res, next) => {
   next();
 });
 
+// ── Cache Prevention for Dynamic API Responses ─────────────────────────────
+app.set('etag', false);
+
+app.use('/api', (req, res, next) => {
+  res.set({
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0',
+    'Surrogate-Control': 'no-store'
+  });
+  next();
+});
+
 // ── Master API Routes ────────────────────────────────────────────────────────
 app.use('/api', masterRouter);
 
