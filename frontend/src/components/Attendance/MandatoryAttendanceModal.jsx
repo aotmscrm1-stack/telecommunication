@@ -488,6 +488,13 @@ export default function MandatoryAttendanceModal() {
     }
   }, [currentStep]);
 
+  // Admin users are completely exempt from Todo creation step
+  useEffect(() => {
+    if (isAdminUser(user) && currentStep === 'TODO') {
+      setCurrentStep('CLOSED');
+    }
+  }, [user, currentStep]);
+
   // ── Step 1 Action: Start Attendance -> Immediately Show "Create Todo Item" Form ──
   const handleStartAttendance = async () => {
     try {
@@ -611,7 +618,7 @@ export default function MandatoryAttendanceModal() {
     }
   };
 
-  if (currentStep === 'CLOSED' || checking) return null;
+  if (currentStep === 'CLOSED' || checking || (currentStep === 'TODO' && isAdminUser(user))) return null;
 
   const initials = user?.name?.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) || 'EMP';
   const roleDisplay = user?.designation || user?.role || 'Staff Member';
