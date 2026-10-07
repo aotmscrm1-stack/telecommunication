@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate, useLocation, useParams } from 'react-rout
 import { followupsAPI, leadsAPI, usersAPI, departmentsAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import { formatISTDateTime, formatISTDate } from '../../../utils/dateFormat';
-import { isExecutive, isHR, isTrainer, isDigitalMarketing, isLimitedStaff, isDeveloper, getTaskAssigneeOptions, getTaskAssignorOptions, filterTeamDropdownUsers, canEditOrDeleteTask, canMarkCompleteTask } from '../../../utils/permissions';
+import { isExecutive, isHR, isTrainer, isDigitalMarketing, isLimitedStaff, isDeveloper, getTaskAssigneeOptions, getTaskAssignorOptions, filterTeamDropdownUsers, canEditOrDeleteTask, canMarkCompleteTask, canViewCallFollowups } from '../../../utils/permissions';
 import TodoList from './TodoList';
 
 // Theme Palette Constants
@@ -1968,7 +1968,9 @@ function TaskAssigneeCheckboxDropdown({ assignableUsers, selectedIds, onChange, 
 // ── Add Task Modal ────────────────────────────────────────────────────────────
 function AddTaskModal({ type = 'todo', onClose, onCreated }) {
   const { user: currentUser } = useAuth();
-  const [taskType] = useState(type === 'call_followup' ? 'call_followup' : type === 'task' ? 'task' : 'todo');
+  const allowedCallFollowups = canViewCallFollowups(currentUser);
+  const effectiveType = (!allowedCallFollowups && type === 'call_followup') ? 'todo' : type;
+  const [taskType] = useState(effectiveType === 'call_followup' ? 'call_followup' : effectiveType === 'task' ? 'task' : 'todo');
   const isCallFollowup = taskType === 'call_followup';
   const isTodo = taskType === 'todo';
   const isTask = taskType === 'task';
@@ -2424,20 +2426,22 @@ export default function Task() {
 
   const activeUserId = routeUserId || currentUser?._id;
 
+  const hasCallFollowupsAccess = canViewCallFollowups(currentUser);
+
   const getTabFromLocationOrQuery = useCallback(() => {
     const p = location.pathname.toLowerCase();
     if (p.includes('/todo')) return 'Todo';
-    if (p.includes('/follow-up') || p.includes('/followup')) return 'Call Followups';
+    if ((p.includes('/follow-up') || p.includes('/followup')) && hasCallFollowupsAccess) return 'Call Followups';
     
     const tabParam = searchParams.get('tab');
     if (tabParam) {
       const lower = tabParam.toLowerCase();
       if (lower === 'todo' || lower === 'todo list' || lower === 'todos') return 'Todo';
-      if (lower === 'call followups' || lower === 'call_followup' || lower === 'calls') return 'Call Followups';
+      if ((lower === 'call followups' || lower === 'call_followup' || lower === 'calls') && hasCallFollowupsAccess) return 'Call Followups';
       if (lower === 'tasks' || lower === 'all' || lower === 'all tasks') return 'Tasks';
     }
     return 'Tasks';
-  }, [location.pathname, searchParams]);
+  }, [location.pathname, searchParams, hasCallFollowupsAccess]);
 
   const [activeTab, setActiveTab] = useState(getTabFromLocationOrQuery);
 
@@ -3051,7 +3055,7 @@ export default function Task() {
         {/* Tabs bar */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${COLOR_BORDER}`, marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            {['Tasks', 'Todo', 'Call Followups'].map(tab => {
+            {(hasCallFollowupsAccess ? ['Tasks', 'Todo', 'Call Followups'] : ['Tasks', 'Todo']).map(tab => {
               const isActive = activeTab === tab;
               const isTabHistoryOn = !!historyModeMap[tab];
               const tabLabel = tab === 'Tasks' ? 'Tasks' : tab === 'Todo' ? 'Todo List & Actions' : 'Call Followups';

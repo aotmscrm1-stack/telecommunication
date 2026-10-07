@@ -373,5 +373,16 @@ export const canMarkCompleteTask = (currentUser) => {
   return isExecutive(currentUser) || currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
 };
 
+/**
+ * Call Follow-ups Visibility Guard:
+ * Strictly visible ONLY to Admin and Manager.
+ * Hidden for all other departments (Developers, Trainers, Marketing, HR, etc.).
+ */
+export const canViewCallFollowups = (user) => {
+  if (!user) return false;
+  return isExecutive(user) || isManager(user) || user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'manager';
+};
+
+
 
 
