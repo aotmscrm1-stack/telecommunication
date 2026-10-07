@@ -868,12 +868,12 @@ export default function MandatoryAttendanceModal() {
                     onChange={(e) => setAssignedBy(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-sky-500 shadow-xs"
                   >
-                    {assignedByUsers.map((u) => (
-                      <option key={u._id} value={u._id}>
+                    {assignedByUsers.map((u, idx) => (
+                      <option key={u.key || `${u._id}-${idx}`} value={u._id}>
                         {u.dropdownLabel ||
                           (String(u._id) === String(user?._id)
-                            ? `${u.name || 'Account Holder'} (You)`
-                            : `${u.name}${u.designation ? ` (${u.designation})` : ' (Admin)'}`)}
+                            ? `${u.name || 'Account Holder'} (Account Holder)`
+                            : `${u.name} (Admin)`)}
                       </option>
                     ))}
                   </select>

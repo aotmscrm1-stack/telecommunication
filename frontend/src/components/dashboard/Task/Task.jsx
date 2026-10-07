@@ -2361,8 +2361,8 @@ function AddTaskModal({ type = 'todo', onClose, onCreated }) {
                   onChange={e => setAssignedBy(e.target.value)}
                   style={{ width: '100%', border: `1px solid ${COLOR_BORDER}`, borderRadius: 8, padding: '9px 12px', fontSize: 14, outline: 'none', color: COLOR_DEEP_BLUE, background: '#fff' }}
                 >
-                  {assignedByUsers.map(u => (
-                    <option key={u._id} value={u._id}>
+                  {assignedByUsers.map((u, idx) => (
+                    <option key={u.key || `${u._id}-${idx}`} value={u._id}>
                       {u.dropdownLabel || (String(u._id) === String(currentUser?._id)
                         ? `${u.name || 'Account Holder'} (Account Holder)`
                         : `${u.name}${u.designation ? ` (${u.designation})` : ' (Admin)'}`)}

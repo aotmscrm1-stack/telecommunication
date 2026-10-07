@@ -246,6 +246,7 @@ export const getTaskAssignorOptions = (currentUser, users = []) => {
     return false;
   };
 
+  // Find logged-in user (Account Holder)
   const existingMe = userList.find(u => isSameUser(u, currentUser));
   const meName = existingMe?.name || currentUser.name || 'Account Holder';
   const meDesig = existingMe?.designation || currentUser.designation || 'Account Holder';
