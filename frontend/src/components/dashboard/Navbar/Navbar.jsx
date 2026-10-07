@@ -493,10 +493,12 @@ export default function Navbar() {
 
   const topDropdownGroups = !hasDashboard ? [
     {
-      title: 'TODO List',
+      title: 'Tasks & Todo',
       icon: FaListCheck,
       items: [
+        { label: 'Tasks', path: user?._id ? `/${user._id}/tasks` : '/tasks', icon: FaListCheck },
         { label: 'TODO List', path: '/tasks?tab=Todo', icon: FaListCheck },
+        { label: 'Call Follow-ups', path: '/tasks?tab=Call+Followups', icon: FaClock },
       ]
     },
     ...(canViewCallRecordings(user) ? [{

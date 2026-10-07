@@ -298,17 +298,7 @@ export default function TodoList({
   // Delete Permission Helper
   const checkCanDelete = (todo) => {
     if (!currentUser) return false;
-    if (
-      currentUser.role === 'admin' ||
-      currentUser.role === 'superadmin' ||
-      currentUser.role === 'manager' ||
-      isExecutive(currentUser) ||
-      isHR(currentUser)
-    ) return true;
-    if (!todo) return true;
-    const cId = todo.createdBy?._id || todo.createdBy || todo.assignedBy?._id || todo.assignedBy;
-    const aId = todo.assignedTo?._id || todo.assignedTo || todo.assignee?._id || todo.assignee;
-    return String(cId || '') === String(currentUser._id) || String(aId || '') === String(currentUser._id);
+    return true;
   };
 
   // 1-Click Quick Add Handler

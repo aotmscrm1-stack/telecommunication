@@ -2301,12 +2301,11 @@ function AddTaskModal({ type = 'todo', onClose, onCreated }) {
           {canAssign && (
             <div>
               <label style={{ fontSize: 13, fontWeight: 500, color: COLOR_DEEP_BLUE, display: 'block', marginBottom: 6 }}>
-                Department Filter {!isAdminOrExecutive ? `(${userDept || selectedDepartment})` : ''}
+                Department Filter {selectedDepartment !== 'All' ? `(${selectedDepartment})` : ''}
               </label>
               <select
                 value={selectedDepartment}
                 onChange={e => setSelectedDepartment(e.target.value)}
-                disabled={!isAdminOrExecutive}
                 style={{
                   width: '100%',
                   border: `1px solid ${COLOR_BORDER}`,
@@ -2315,28 +2314,20 @@ function AddTaskModal({ type = 'todo', onClose, onCreated }) {
                   fontSize: 14,
                   outline: 'none',
                   color: COLOR_DEEP_BLUE,
-                  background: !isAdminOrExecutive ? '#f8fafc' : '#fff',
+                  background: '#fff',
                   fontWeight: 500,
-                  cursor: !isAdminOrExecutive ? 'not-allowed' : 'pointer'
+                  cursor: 'pointer'
                 }}
               >
-                {isAdminOrExecutive ? (
-                  <>
-                    <option value="All">All Departments</option>
-                    {departments.map(d => {
-                      const dName = typeof d === 'string' ? d : (d.name || d.code);
-                      return (
-                        <option key={d._id || dName} value={dName}>
-                          {dName} Department
-                        </option>
-                      );
-                    })}
-                  </>
-                ) : (
-                  <option value={userDept || selectedDepartment}>
-                    {(userDept || selectedDepartment)} Department Only
-                  </option>
-                )}
+                <option value="All">All Departments</option>
+                {departments.map(d => {
+                  const dName = typeof d === 'string' ? d : (d.name || d.code);
+                  return (
+                    <option key={d._id || dName} value={dName}>
+                      {dName} Department
+                    </option>
+                  );
+                })}
               </select>
             </div>
           )}
@@ -2511,17 +2502,7 @@ export default function Task() {
   const teamDropRef = useRef(null);
   const checkCanDelete = (task) => {
     if (!currentUser) return false;
-    if (
-      currentUser.role === 'admin' ||
-      currentUser.role === 'superadmin' ||
-      currentUser.role === 'manager' ||
-      isExecutive(currentUser) ||
-      isHR(currentUser)
-    ) return true;
-    if (!task) return true;
-    const createdBy = task.createdBy?._id || task.createdBy || task.assignedBy?._id || task.assignedBy;
-    const assignedTo = task.assignedTo?._id || task.assignedTo || task.assignee?._id || task.assignee;
-    return String(createdBy || '') === String(currentUser._id) || String(assignedTo || '') === String(currentUser._id);
+    return true;
   };
   const [markingCompleteId, setMarkingCompleteId] = useState(null);
 
@@ -2536,17 +2517,7 @@ export default function Task() {
 
   const canEditTask = (task) => {
     if (!currentUser) return false;
-    if (
-      currentUser.role === 'admin' ||
-      currentUser.role === 'superadmin' ||
-      currentUser.role === 'manager' ||
-      isExecutive(currentUser) ||
-      isHR(currentUser)
-    ) return true;
-    if (!task) return true;
-    const createdBy = task.createdBy?._id || task.createdBy || task.assignedBy?._id || task.assignedBy;
-    const assignedTo = task.assignedTo?._id || task.assignedTo || task.assignee?._id || task.assignee;
-    return String(createdBy || '') === String(currentUser._id) || String(assignedTo || '') === String(currentUser._id);
+    return true;
   };
 
   const fetchTasks = useCallback(async () => {
@@ -2882,7 +2853,7 @@ export default function Task() {
             task={editingTask}
             onClose={() => setEditingTask(null)}
             onSaved={handleEditSaved}
-            readOnly={!canEditTask(editingTask)}
+            readOnly={false}
           />
         )}
 

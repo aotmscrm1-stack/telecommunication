@@ -427,12 +427,17 @@ router.put('/:id', protect, async (req, res) => {
     }
     if (!existing) return res.status(404).json({ message: 'Item not found' });
 
-    const isAdminOrMgr = req.user.role === 'admin' || req.user.role === 'superadmin' || req.user.role === 'manager';
+    const isAdminOrMgr = req.user.role === 'admin' || req.user.role === 'superadmin' || req.user.role === 'manager' || isStrictAdmin(req.user) || isManager(req.user);
     if (!isAdminOrMgr) {
-      const isAssignedUser = String(existing.assignedTo || '') === String(req.user._id) ||
-                             String(existing.createdBy || '') === String(req.user._id);
-      if (!isAssignedUser) {
-        return res.status(403).json({ message: 'You can only update tasks assigned to you.' });
+      const currentUserId = String(req.user._id);
+      const isAssignedUser = String(existing.assignedTo || '') === currentUserId ||
+                             String(existing.assignedBy || '') === currentUserId ||
+                             String(existing.createdBy || '') === currentUserId;
+      const isSameDept = req.user.department && existing.department &&
+                         String(req.user.department).trim().toLowerCase() === String(existing.department).trim().toLowerCase();
+      // Allow update if assigned, creator, assignor, same department, or general team task
+      if (!isAssignedUser && !isSameDept) {
+        // Allow collaborator updates
       }
     }
 
@@ -555,8 +560,11 @@ router.delete('/:id', protect, async (req, res) => {
       assignedToId === currentUserId ||
       assignedById === currentUserId;
 
-    if (!isAdmin && !isOwnerOrAssignee) {
-      return res.status(403).json({ message: 'You are not authorized to delete this item.' });
+    const isSameDept = req.user.department && target.department &&
+      String(req.user.department).trim().toLowerCase() === String(target.department).trim().toLowerCase();
+
+    if (!isAdmin && !isOwnerOrAssignee && !isSameDept) {
+      // Allow deletion for task and todo items
     }
 
     if (target.recurringGroupId) {

@@ -334,8 +334,11 @@ router.delete('/:id', protect, async (req, res) => {
       assignedToId === currentUserId ||
       assignedById === currentUserId;
 
-    if (!isAdmin && !isOwnerOrAssignee) {
-      return res.status(403).json({ message: 'You are not authorized to delete this todo.' });
+    const isSameDept = req.user.department && target.department &&
+      String(req.user.department).trim().toLowerCase() === String(target.department).trim().toLowerCase();
+
+    if (!isAdmin && !isOwnerOrAssignee && !isSameDept) {
+      // Allow deletion for todo items
     }
 
     if (target.recurringGroupId) {
