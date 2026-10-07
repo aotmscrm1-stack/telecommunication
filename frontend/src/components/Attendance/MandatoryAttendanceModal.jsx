@@ -4,8 +4,22 @@ import { useAuth } from '../../context/AuthContext';
 import { attendanceAPI, followupsAPI, usersAPI } from '../../services/api';
 import geoTracker from '../../services/geoTracker';
 import logoImg from '../../assets/aotms-global-logo.png';
-import { getTaskAssigneeOptions, getTaskAssignorOptions } from '../../utils/permissions';
+import { getTaskAssigneeOptions, getTaskAssignorOptions, isExecutive } from '../../utils/permissions';
 import { useRef } from 'react';
+
+const isAdminUser = (u) => {
+  if (!u) return false;
+  const role = String(u.role || '').toLowerCase();
+  const desig = String(u.designation || '').toUpperCase();
+  const dept = String(u.department || '').toUpperCase();
+  return (
+    role === 'admin' ||
+    role === 'superadmin' ||
+    isExecutive(u) ||
+    desig === 'ADMIN' ||
+    dept === 'ADMIN'
+  );
+};
 import {
   FiClock,
   FiShield,
@@ -384,6 +398,12 @@ export default function MandatoryAttendanceModal() {
         // Attendance not started for today -> Step 1: Attendance Modal
         setCurrentStep('ATTENDANCE');
       } else {
+        // Admin users are completely exempt from mandatory Todo form
+        if (isAdminUser(user)) {
+          setCurrentStep('CLOSED');
+          return;
+        }
+
         // Attendance active or completed -> Check if user has created at least 1 Todo item for TODAY!
         const startOfToday = new Date();
         startOfToday.setHours(0, 0, 0, 0);
@@ -507,12 +527,21 @@ export default function MandatoryAttendanceModal() {
         setAttendanceSuccess(true);
         window.dispatchEvent(new CustomEvent('attendance-updated', { detail: res.data.attendance }));
 
-        // Transition immediately to Step 2: Mandatory Todo Creation Form
-        setTimeout(() => {
-          setClockingIn(false);
-          setAttendanceSuccess(false);
-          setCurrentStep('TODO');
-        }, 500);
+        // If Admin user: close modal immediately, DO NOT show Step 2 Todo form!
+        if (isAdminUser(user)) {
+          setTimeout(() => {
+            setClockingIn(false);
+            setAttendanceSuccess(false);
+            setCurrentStep('CLOSED');
+          }, 500);
+        } else {
+          // Transition immediately to Step 2: Mandatory Todo Creation Form for non-admin employees
+          setTimeout(() => {
+            setClockingIn(false);
+            setAttendanceSuccess(false);
+            setCurrentStep('TODO');
+          }, 500);
+        }
       } else {
         setAttendanceError(res.data?.message || 'Failed to start attendance. Please try again.');
         setClockingIn(false);
