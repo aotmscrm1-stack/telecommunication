@@ -356,30 +356,11 @@ export const getTeamDropdownUsersWithFallback = (users = []) => {
 /**
  * Check if the current authenticated MongoDB user can edit or delete a task/todo.
  * - Admin / Superadmin / Executive: Full CRUD permissions across all tasks and departments.
- * - Non-admin: Only allowed if they are the creator (createdBy), assignor (assignedBy), or assignee (assignedTo).
- *   Otherwise, edit and delete icons are completely hidden.
+ * - Non-admin employees: Edit and Delete options are NEVER replicated or shown, even in their own Auth Todo list.
  */
 export const canEditOrDeleteTask = (task, currentUser) => {
-  if (!currentUser || !task) return false;
-  if (isExecutive(currentUser) || currentUser?.role === 'admin' || currentUser?.role === 'superadmin') {
-    return true;
-  }
-  const myId = String(currentUser._id || currentUser.id || '');
-  if (!myId) return false;
-
-  const createdById = String(task.createdBy?._id || task.createdBy || '');
-  if (createdById && createdById === myId) return true;
-
-  const assignedById = String(task.assignedBy?._id || task.assignedBy || '');
-  if (assignedById && assignedById === myId) return true;
-
-  if (Array.isArray(task.assignedTo)) {
-    if (task.assignedTo.some(u => String(u?._id || u || '') === myId)) return true;
-  } else {
-    const assignedToId = String(task.assignedTo?._id || task.assignedTo || task.assignee?._id || task.assignee || '');
-    if (assignedToId && assignedToId === myId) return true;
-  }
-
-  return false;
+  if (!currentUser) return false;
+  return isExecutive(currentUser) || currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
 };
+
 

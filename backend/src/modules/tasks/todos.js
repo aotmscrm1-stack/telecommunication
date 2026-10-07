@@ -322,23 +322,9 @@ router.delete('/:id', protect, async (req, res) => {
     }
     if (!target) return res.status(404).json({ message: 'Todo not found' });
 
-    const isAdmin = isStrictAdmin(req.user) || isManager(req.user);
-
-    const createdById = extractId(target.createdBy);
-    const assignedToId = extractId(target.assignedTo);
-    const assignedById = extractId(target.assignedBy);
-    const currentUserId = String(req.user._id);
-
-    const isOwnerOrAssignee =
-      createdById === currentUserId ||
-      assignedToId === currentUserId ||
-      assignedById === currentUserId;
-
-    const isSameDept = req.user.department && target.department &&
-      String(req.user.department).trim().toLowerCase() === String(target.department).trim().toLowerCase();
-
-    if (!isAdmin && !isOwnerOrAssignee && !isSameDept) {
-      // Allow deletion for todo items
+    const isAdmin = isStrictAdmin(req.user) || isManager(req.user) || req.user.role === 'admin' || req.user.role === 'superadmin';
+    if (!isAdmin) {
+      return res.status(403).json({ message: 'Only Admin has permission to delete todos' });
     }
 
     if (target.recurringGroupId) {

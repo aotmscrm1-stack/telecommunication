@@ -3173,7 +3173,7 @@ export default function Task() {
             >
               My {activeTab === 'Todo' ? 'Todos' : 'Tasks'}
             </button>
-            {!isLimitedStaff(currentUser) && (
+            {isAdminOrExecutive && (
               <div ref={teamDropRef} style={{ position: 'relative' }}>
                 <button
                   onClick={() => { setForFilter('Team'); setShowTeamDrop(p => !p); }}
@@ -3207,7 +3207,7 @@ export default function Task() {
                       onClick={() => { setTeamMemberFilter(''); setShowTeamDrop(false); }}
                       style={{ padding: '9px 14px', fontSize: 13, cursor: 'pointer', color: !teamMemberFilter ? COLOR_BLUE_GREEN : COLOR_DEEP_BLUE, fontWeight: 500, background: !teamMemberFilter ? COLOR_SKY_SURFACE : 'transparent' }}
                     >
-                      {isAdminOrExecutive ? 'All (HR, CTO, MD)' : (userDept ? `All (${userDept})` : 'All Team')}
+                      All (HR, CTO, MD)
                     </div>
                     {teamUsers.map(u => (
                       <div
