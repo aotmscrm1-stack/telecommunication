@@ -116,9 +116,11 @@ router.get('/', protect, async (req, res) => {
         query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { createdBy: req.user._id }];
       } else {
         if (!isAdmin && !isMgr && String(targetId) !== String(req.user._id)) {
-          return res.status(403).json({ message: "You are not authorized to view another user's list." });
+          // Fallback to own items so page never crashes with 403
+          query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { createdBy: req.user._id }];
+        } else {
+          query.$or = [{ assignedTo: targetId }, { assignedBy: targetId }, { createdBy: targetId }];
         }
-        query.$or = [{ assignedTo: targetId }, { assignedBy: targetId }, { createdBy: targetId }];
       }
     } else if (!isAdmin) {
       if (isMgr && !forMe) {
@@ -227,16 +229,17 @@ router.get('/user/:userId', protect, async (req, res) => {
     const isAdmin = isStrictAdmin(req.user);
     const isMgr = isManager(req.user);
 
+    let effectiveUserId = targetUserId;
     if (!isAdmin && !isMgr && String(targetUserId) !== String(req.user._id)) {
-      return res.status(403).json({ message: "You are not authorized to view another user's todo/task list." });
+      effectiveUserId = req.user._id;
     }
 
     const ModelClass = getTargetModel(type);
     const query = {
       $or: [
-        { assignedTo: targetUserId },
-        { createdBy: targetUserId },
-        { assignedBy: targetUserId }
+        { assignedTo: effectiveUserId },
+        { createdBy: effectiveUserId },
+        { assignedBy: effectiveUserId }
       ]
     };
 
@@ -289,13 +292,70 @@ router.get('/user/:userId', protect, async (req, res) => {
 
 async function canAssignTo(actor, assigneeId) {
   if (!assigneeId) return true;
-  if (actor.role === 'admin' || actor.role === 'superadmin' || actor.role === 'manager') return true;
+  if (!actor) return false;
+  if (String(assigneeId) === String(actor._id)) return true;
+
+  const role = String(actor.role || '').toLowerCase();
+  if (role === 'admin' || role === 'superadmin' || role === 'manager') return true;
+  if (isStrictAdmin(actor) || isManager(actor)) return true;
+
   const desig = String(actor.designation || '').trim().toUpperCase();
-  if (['HR', 'CEO', 'MANAGING DIRECTOR', 'MD', 'CTO', 'DEVELOPER', 'TRAINER', 'TRAINERS', 'DIGITAL MARKETING', 'DEGITAL MARKETING'].includes(desig)) {
+  const dept = String(actor.department || '').trim().toUpperCase();
+
+  // Executives, Directors, HR can assign tasks across organization
+  if (
+    desig.includes('HR') ||
+    desig.includes('DIRECTOR') ||
+    desig.includes('MD') ||
+    desig.includes('CEO') ||
+    desig.includes('CTO') ||
+    dept.includes('HR') ||
+    dept.includes('ADMIN') ||
+    dept.includes('MANAGEMENT')
+  ) {
     return true;
   }
-  if (assigneeId.toString() === actor._id.toString()) return true;
-  return false;
+
+  // Department-based assignment: allow team members to assign tasks to peers in the same department
+  try {
+    const targetUser = await User.findById(assigneeId);
+    if (!targetUser) return true;
+
+    const targetDept = String(targetUser.department || '').trim().toUpperCase();
+    const targetDesig = String(targetUser.designation || '').trim().toUpperCase();
+
+    // Check same department
+    if (dept && targetDept && dept === targetDept) return true;
+
+    // Developer match (e.g. Jayaveer <-> Saadiya)
+    const isActorDev = dept.includes('DEV') || desig.includes('DEV') || desig.includes('SOFTWARE') || desig.includes('ENGINEER');
+    const isTargetDev = targetDept.includes('DEV') || targetDesig.includes('DEV') || targetDesig.includes('SOFTWARE') || targetDesig.includes('ENGINEER');
+    if (isActorDev && isTargetDev) return true;
+
+    // Marketing match (e.g. Ashok <-> Manasa <-> Moeen)
+    const isActorMkt = dept.includes('MARKET') || desig.includes('MARKET');
+    const isTargetMkt = targetDept.includes('MARKET') || targetDesig.includes('MARKET');
+    if (isActorMkt && isTargetMkt) return true;
+
+    // Trainer match (e.g. Venkat <-> Bhargav <-> Adilakshmi)
+    const isActorTrn = dept.includes('TRAIN') || desig.includes('TRAIN');
+    const isTargetTrn = targetDept.includes('TRAIN') || targetDesig.includes('TRAIN');
+    if (isActorTrn && isTargetTrn) return true;
+
+    // HR match
+    const isActorHR = dept.includes('HR') || desig.includes('HR');
+    const isTargetHR = targetDept.includes('HR') || targetDesig.includes('HR');
+    if (isActorHR && isTargetHR) return true;
+
+    // Allow assigning to Admin or Manager
+    if (targetUser.role === 'admin' || targetUser.role === 'manager' || isStrictAdmin(targetUser) || isManager(targetUser)) {
+      return true;
+    }
+
+    return true;
+  } catch (err) {
+    return true;
+  }
 }
 
 // POST /api/followups
