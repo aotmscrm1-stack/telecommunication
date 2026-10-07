@@ -11,9 +11,9 @@ import {
   FaReceipt, FaCalendarCheck, FaLocationDot, FaPeopleGroup, FaClock,
   FaBan, FaUserGear, FaKey, FaPlug, FaCircleInfo, FaCoins, FaSitemap,
   FaCode, FaBell, FaChevronDown, FaBars, FaXmark, FaRightFromBracket,
-  FaUser, FaLock, FaUserCheck, FaBook
+  FaUser, FaLock, FaUserCheck, FaBook, FaCalendarDays
 } from 'react-icons/fa6';
-import { isCEO, isHR, isManager, isLimitedStaff, canViewDashboard, canViewCallRecordings, normalizeDesignation } from '../../../utils/permissions';
+import { isCEO, isHR, isManager, isLimitedStaff, canViewDashboard, canViewCallRecordings, isDigitalMarketing, canAccessDigitalCalendar, normalizeDesignation } from '../../../utils/permissions';
 
 function WhatsAppBlastIcon({ className, style }) {
   return (
@@ -499,6 +499,13 @@ export default function Navbar() {
         { label: 'TODO List', path: '/tasks?tab=Todo', icon: FaListCheck },
       ]
     },
+    ...(canAccessDigitalCalendar(user) ? [{
+      title: 'Digital Calendar',
+      icon: FaCalendarDays,
+      items: [
+        { label: 'Digital Calendar', path: user?._id ? `/${user._id}/digital-calendar` : '/digital-calendar', icon: FaCalendarDays },
+      ]
+    }] : []),
     ...(canViewCallRecordings(user) ? [{
       title: 'Call Recordings',
       icon: FaClock,
@@ -526,6 +533,7 @@ export default function Navbar() {
       { label: 'Task', path: user?._id ? `/${user._id}/tasks` : '/tasks', icon: FaListCheck },
     ]},
     { title: 'Marketing', icon: FaBullhorn, items: [
+      { label: 'Digital Calendar', path: '/digital-calendar', icon: FaCalendarDays },
       { label: 'Add Leads', path: '/leads/new', icon: FaUserPlus },
       { label: 'All Leads', path: '/leads', icon: FaUsers },
       { label: 'Campaigns', path: '/campaigns', icon: FaBullhorn },

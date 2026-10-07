@@ -1,7 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { canViewDashboard, isLimitedStaff, canAccessEmailBlast, canViewCallRecordings, isCEO, isHR } from '../utils/permissions';
+import { canViewDashboard, isLimitedStaff, canAccessEmailBlast, canViewCallRecordings, isCEO, isHR, canAccessDigitalCalendar } from '../utils/permissions';
 import { ProtectedRoute } from './guards';
 
 // Layouts
@@ -35,6 +35,7 @@ import { WhatsappBlast } from '../modules/marketing/whatsapp-blast';
 import { WhatsApp } from '../modules/marketing/whatsapp';
 import { Leaderboard, LeadProfile } from '../modules/marketing/leaderboard';
 import { Reports } from '../modules/marketing/reports';
+import { DigitalCalendar } from '../modules/marketing/digital-calendar';
 
 // Finance Modules
 import { OfferLetter } from '../modules/finance/offer-letters';
@@ -128,6 +129,13 @@ const CallRecordingsRoute = ({ children }) => {
   return canViewCallRecordings(user) ? children : <Navigate to={canViewDashboard(user) ? "/dashboard" : "/tasks"} replace />;
 };
 
+const DigitalCalendarRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  return canAccessDigitalCalendar(user) ? children : <Navigate to={canViewDashboard(user) ? "/dashboard" : "/tasks"} replace />;
+};
+
 const RootRedirect = () => {
   const { user, loading } = useAuth();
   if (loading) return null;
@@ -159,6 +167,9 @@ export function AppRoutes() {
         <Route path="billing" element={<AdminRoute><Billing /></AdminRoute>} />
         
         {/* Marketing Module Routes */}
+        <Route path="digital-calendar" element={<DigitalCalendarRoute><DigitalCalendar /></DigitalCalendarRoute>} />
+        <Route path="marketing/digital-calendar" element={<DigitalCalendarRoute><DigitalCalendar /></DigitalCalendarRoute>} />
+        <Route path=":userId/digital-calendar" element={<DigitalCalendarRoute><DigitalCalendar /></DigitalCalendarRoute>} />
         <Route path="leads" element={<StaffRestrictedRoute><AllLeads /></StaffRestrictedRoute>} />
         <Route path="all-leads" element={<StaffRestrictedRoute><AllLeads /></StaffRestrictedRoute>} />
         <Route path="leads/new" element={<StaffRestrictedRoute><AddLead /></StaffRestrictedRoute>} />

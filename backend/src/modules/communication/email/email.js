@@ -392,6 +392,13 @@ router.post('/send', protect, async (req, res) => {
       'admin@aotms.com'
     ).trim();
 
+    const ccEmail = (
+      req.body.ccEmail ||
+      req.body.cc ||
+      req.body.ccRecipient ||
+      ''
+    ).trim();
+
     const emailSubject = (req.body.subject || req.body.title || 'Notification from AOTMS CRM').trim();
     const emailBody = (req.body.body || req.body.emailBody || req.body.message || req.body.content || '').trim();
     const templateId = req.body.templateId || 'custom';
@@ -472,6 +479,8 @@ router.post('/send', protect, async (req, res) => {
             receiptEmail: targetRecipient,
             toEmail: targetRecipient,
             to: targetRecipient,
+            cc: ccEmail,
+            ccEmail: ccEmail,
             subject: emailSubject,
             emailBody: emailBody,
             body: emailBody,
@@ -571,7 +580,7 @@ router.post('/send', protect, async (req, res) => {
           tls: { rejectUnauthorized: false }
         });
 
-        await transporter.sendMail({
+        const mailOptions = {
           from: `"${req.user?.name || 'AOTMS'}" <${smtpUser || senderEmail}>`,
           to: targetRecipient,
           replyTo: senderEmail || smtpUser,
@@ -585,7 +594,12 @@ router.post('/send', protect, async (req, res) => {
               Sent via AOTMS Platform · ${smtpUser || senderEmail}
             </div>
           </div>`,
-        });
+        };
+        if (ccEmail) {
+          mailOptions.cc = ccEmail;
+        }
+
+        await transporter.sendMail(mailOptions);
         sentVia = 'GoDaddy SMTP Mailer';
         success = true;
         n8nError = null; // Clear error since fallback succeeded
@@ -608,6 +622,7 @@ router.post('/send', protect, async (req, res) => {
         senderDesignation: req.user?.designation || 'Staff',
         fromEmail: senderEmail,
         recipientEmail: targetRecipient,
+        ccEmail: ccEmail,
         subject: emailSubject,
         body: emailBody,
         html: finalHtml,
@@ -650,6 +665,7 @@ router.post('/send', protect, async (req, res) => {
         recipientEmail: targetRecipient,
         receiptEmail: targetRecipient,
         toEmail: targetRecipient,
+        ccEmail: ccEmail,
         subject: emailSubject,
         sentVia,
         n8nDetails,
@@ -1326,7 +1342,8 @@ router.get('/logs', protect, async (req, res) => {
       filter.$or = [
         { sender: req.user._id },
         { recipientEmail: new RegExp(`^${req.user.email}$`, 'i') },
-        { fromEmail: new RegExp(`^${req.user.email}$`, 'i') }
+        { fromEmail: new RegExp(`^${req.user.email}$`, 'i') },
+        { ccEmail: new RegExp(`${req.user.email}`, 'i') }
       ];
     } else if (req.query.employeeId && req.query.employeeId !== 'all') {
       filter.sender = req.query.employeeId;
@@ -1337,6 +1354,7 @@ router.get('/logs', protect, async (req, res) => {
       const searchRegex = new RegExp(s, 'i');
       const searchCond = [
         { recipientEmail: searchRegex },
+        { ccEmail: searchRegex },
         { fromEmail: searchRegex },
         { subject: searchRegex },
         { senderName: searchRegex },

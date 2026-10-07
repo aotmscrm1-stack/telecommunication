@@ -404,4 +404,14 @@ export const attendanceAPI = {
   exportCSV: (params) => api.get('/attendance/export', { params, responseType: 'blob' }),
 };
 
+export const digitalCalendarAPI = {
+  getAll: (params) => api.get('/marketing/digital-calendar', { params }),
+  getStats: (params) => api.get('/marketing/digital-calendar/stats', { params }),
+  getEmployees: () => api.get('/marketing/digital-calendar/employees'),
+  getOne: (id) => api.get(`/marketing/digital-calendar/${id}`),
+  create: (data) => api.post('/marketing/digital-calendar', data),
+  update: (id, data) => api.put(`/marketing/digital-calendar/${id}`, data),
+  delete: (id) => api.delete(`/marketing/digital-calendar/${id}`),
+};
+
 export default api;

@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate, useLocation, useParams } from 'react-rout
 import { followupsAPI, leadsAPI, usersAPI, departmentsAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import { formatISTDateTime, formatISTDate } from '../../../utils/dateFormat';
-import { isExecutive, isHR, isTrainer, isDigitalMarketing, isLimitedStaff, isDeveloper, getTaskAssigneeOptions, getTaskAssignorOptions, filterTeamDropdownUsers } from '../../../utils/permissions';
+import { isExecutive, isHR, isTrainer, isDigitalMarketing, isLimitedStaff, isDeveloper, canAccessDigitalCalendar, getTaskAssigneeOptions, getTaskAssignorOptions, filterTeamDropdownUsers } from '../../../utils/permissions';
 import TodoList from './TodoList';
 
 // Theme Palette Constants
@@ -163,12 +163,13 @@ function handleNumericKeyDown(e, value, setValue) {
   }
 }
 
-// ── Formatted Description (Renders Interactive Checkboxes & Hidden Scroll Bar) ──
+// ── Formatted Description (Renders Interactive Checkboxes & Expandable Dropdown) ──
 function FormattedDescription({ text, task }) {
   if (!text || !text.trim()) return <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>No description provided</span>;
 
   const rawLines = text.split('\n').map(l => l.trim()).filter(Boolean);
   const isNumbered = rawLines.length > 0 && rawLines.some(l => /^\d+[\.\)]\s*/.test(l) || /^[\-\*•]\s*/.test(l));
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const [checkedMap, setCheckedMap] = useState(() => {
     const initial = {};
@@ -208,7 +209,7 @@ function FormattedDescription({ text, task }) {
     const total = rawLines.length;
     const checkedCount = Object.keys(checkedMap).filter(k => checkedMap[k]).length;
     const percent = total > 0 ? Math.round((checkedCount / total) * 100) : 0;
-    const hasScroll = total > 2;
+    const hasMore = total > 2;
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
@@ -263,23 +264,16 @@ function FormattedDescription({ text, task }) {
           </div>
         </div>
 
-        {/* Scrollable Sub-items Container (Exactly 2 items visible, scroll for rest) */}
+        {/* Sub-items Container (Clean list without cramped scrollbar) */}
         <div 
-          className="custom-hidden-scroll"
           style={{
             display: 'flex',
             flexDirection: 'column',
-            gap: 6,
-            maxHeight: hasScroll ? 80 : 'none',
-            overflowY: hasScroll ? 'auto' : 'visible',
-            paddingRight: hasScroll ? 2 : 0,
-            scrollBehavior: 'smooth',
-            scrollbarWidth: 'none',
-            msOverflowStyle: 'none',
-            WebkitOverflowScrolling: 'touch'
+            gap: 6
           }}
         >
           {rawLines.map((line, idx) => {
+            if (!isExpanded && hasMore && idx >= 2) return null;
             const cleanText = line.replace(/^(\d+[\.\)]|[\-\*•])\s*/, '');
             const isChecked = !!checkedMap[idx];
             return (
@@ -292,7 +286,7 @@ function FormattedDescription({ text, task }) {
                   gap: 8,
                   cursor: 'pointer',
                   userSelect: 'none',
-                  padding: '5px 9px',
+                  padding: '6px 10px',
                   borderRadius: 7,
                   border: `1.5px solid ${isChecked ? '#bbf7d0' : '#f1f5f9'}`,
                   background: isChecked ? '#f0fdf4' : '#ffffff',
@@ -345,24 +339,57 @@ function FormattedDescription({ text, task }) {
           })}
         </div>
 
-        {/* Subtle scroll indicator if overflowed */}
-        {hasScroll && (
-          <div style={{
-            fontSize: 10,
-            fontWeight: 500,
-            color: COLOR_MUTED,
-            textAlign: 'center',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 4,
-            paddingTop: 2
-          }}>
-            <span>Scroll for more items</span>
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <polyline points="6 9 12 15 18 9"/>
+        {/* Dropdown Toggle Button to expand all tasks */}
+        {hasMore && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsExpanded(prev => !prev);
+            }}
+            style={{
+              width: '100%',
+              padding: '6px 12px',
+              marginTop: 2,
+              borderRadius: 8,
+              border: `1px solid ${isExpanded ? '#e2e8f0' : '#bae6fd'}`,
+              background: isExpanded ? '#f8fafc' : '#e0f2fe',
+              color: isExpanded ? '#475569' : '#0369a1',
+              fontSize: 11.5,
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              boxShadow: isExpanded ? 'none' : '0 1px 3px rgba(33, 158, 188, 0.12)',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = isExpanded ? '#f1f5f9' : '#bae6fd';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = isExpanded ? '#f8fafc' : '#e0f2fe';
+            }}
+          >
+            <span>{isExpanded ? 'Show less' : `Show all ${total} tasks (${total - 2} more)`}</span>
+            <svg 
+              width="12" 
+              height="12" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="2.5" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+              style={{
+                transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                transition: 'transform 0.2s ease'
+              }}
+            >
+              <polyline points="6 9 12 15 18 9" />
             </svg>
-          </div>
+          </button>
         )}
       </div>
     );
@@ -370,28 +397,56 @@ function FormattedDescription({ text, task }) {
 
   const isLongText = text.length > 250;
   return (
-    <div 
-      className="custom-hidden-scroll"
-      style={{
-        fontSize: 13.5,
-        color: '#1e293b',
-        lineHeight: 1.5,
-        whiteSpace: 'pre-wrap',
-        fontWeight: 400,
-        maxHeight: isLongText ? 150 : 'none',
-        overflowY: isLongText ? 'auto' : 'visible',
-        scrollbarWidth: 'none',
-        msOverflowStyle: 'none'
-      }}
-    >
-      <style>{`
-        .custom-hidden-scroll::-webkit-scrollbar {
-          display: none !important;
-          width: 0 !important;
-          height: 0 !important;
-        }
-      `}</style>
-      {text}
+    <div>
+      <div 
+        className="custom-hidden-scroll"
+        style={{
+          fontSize: 13.5,
+          color: '#1e293b',
+          lineHeight: 1.5,
+          whiteSpace: 'pre-wrap',
+          fontWeight: 400,
+          maxHeight: (isLongText && !isExpanded) ? 120 : 'none',
+          overflowY: (isLongText && !isExpanded) ? 'hidden' : 'visible',
+          transition: 'max-height 0.3s ease'
+        }}
+      >
+        <style>{`
+          .custom-hidden-scroll::-webkit-scrollbar {
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
+          }
+        `}</style>
+        {text}
+      </div>
+      {isLongText && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsExpanded(prev => !prev);
+          }}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: COLOR_BLUE_GREEN,
+            fontSize: 11.5,
+            fontWeight: 600,
+            cursor: 'pointer',
+            padding: '4px 0',
+            marginTop: 4,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4
+          }}
+        >
+          <span>{isExpanded ? 'Show less' : 'Read more'}</span>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <polyline points={isExpanded ? "18 15 12 9 6 15" : "6 9 12 15 18 9"} />
+          </svg>
+        </button>
+      )}
     </div>
   );
 }
@@ -2480,8 +2535,6 @@ export default function Task() {
     const idPrefix = activeUserId ? `/${activeUserId}` : currentUser?._id ? `/${currentUser._id}` : '';
     if (tab === 'Todo') {
       navigate(`${idPrefix}/todo`);
-    } else if (tab === 'Call Followups') {
-      navigate(`${idPrefix}/follow-ups`);
     } else {
       navigate(`${idPrefix}/tasks`);
     }
@@ -3072,10 +3125,10 @@ export default function Task() {
         {/* Tabs bar */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${COLOR_BORDER}`, marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            {['Tasks', 'Todo', 'Call Followups'].map(tab => {
+            {['Tasks', 'Todo'].map(tab => {
               const isActive = activeTab === tab;
               const isTabHistoryOn = !!historyModeMap[tab];
-              const tabLabel = tab === 'Tasks' ? 'Tasks' : tab === 'Todo' ? 'Todo List & Actions' : 'Call Followups';
+              const tabLabel = tab === 'Tasks' ? 'Tasks' : 'Todo List & Actions';
               return (
                 <button
                   key={tab}
@@ -3101,10 +3154,6 @@ export default function Task() {
                   {tab === 'Tasks' ? (
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={isActive ? COLOR_ORANGE : 'currentColor'} strokeWidth="2.2">
                       <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
-                    </svg>
-                  ) : tab === 'Call Followups' ? (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={isActive ? COLOR_ORANGE : 'currentColor'} strokeWidth="2.2">
-                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9a16 16 0 0 0 6.29 6.29l1.42-1.42a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
                     </svg>
                   ) : (
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={isActive ? COLOR_ORANGE : 'currentColor'} strokeWidth="2.2">

@@ -75,6 +75,15 @@ export const isLimitedStaff = (user) => {
 };
 
 /**
+ * Digital Calendar Access Guard:
+ * Marketing employees, CEO, HR, Admin, and Managers have full access.
+ */
+export const canAccessDigitalCalendar = (user) => {
+  if (!user) return false;
+  return isDigitalMarketing(user) || isCEO(user) || isHR(user) || user?.role === 'admin' || user?.role === 'manager';
+};
+
+/**
  * Email Blast & Broadcast Access Guard:
  * Strictly restricted to CTO, HR, and Managing Director (or CEO/Executive).
  * Developers, Trainers, and Digital Marketing are strictly excluded.

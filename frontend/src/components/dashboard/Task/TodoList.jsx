@@ -11,7 +11,8 @@ import {
   CheckSquare, 
   Check,
   ListTodo,
-  AlertTriangle
+  AlertTriangle,
+  ChevronDown
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { isExecutive, isHR } from '../../../utils/permissions';
@@ -127,6 +128,7 @@ function TodoChecklist({ text, task, onUpdated }) {
         completed: false
       }));
 
+  const [isExpanded, setIsExpanded] = useState(false);
   const [checkedMap, setCheckedMap] = useState(() => {
     const initial = {};
     items.forEach((item, idx) => {
@@ -182,7 +184,7 @@ function TodoChecklist({ text, task, onUpdated }) {
   const checkedCount = Object.keys(checkedMap).filter(k => checkedMap[k]).length;
   const percent = total > 0 ? Math.round((checkedCount / total) * 100) : 0;
   const isMultiple = total > 1;
-  const hasScroll = total > 3;
+  const hasMore = total > 2;
 
   return (
     <div className="flex flex-col gap-2.5 w-full">
@@ -221,18 +223,10 @@ function TodoChecklist({ text, task, onUpdated }) {
         </div>
       )}
 
-      {/* Scrollable Sub-items Container */}
-      <div 
-        className="custom-hidden-scroll flex flex-col gap-2"
-        style={{
-          maxHeight: hasScroll ? 120 : 'none',
-          overflowY: hasScroll ? 'auto' : 'visible',
-          scrollBehavior: 'smooth',
-          scrollbarWidth: 'none',
-          msOverflowStyle: 'none'
-        }}
-      >
+      {/* Sub-items Container */}
+      <div className="flex flex-col gap-2">
         {items.map((item, idx) => {
+          if (!isExpanded && hasMore && idx >= 2) return null;
           const isChecked = !!checkedMap[idx];
           return (
             <div
@@ -257,10 +251,25 @@ function TodoChecklist({ text, task, onUpdated }) {
         })}
       </div>
 
-      {hasScroll && (
-        <div className="text-[10px] font-medium text-slate-400 text-center flex items-center justify-center gap-1">
-          <span>Scroll for more sub-items</span> ↓
-        </div>
+      {hasMore && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsExpanded(prev => !prev);
+          }}
+          className={`w-full py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+            isExpanded
+              ? 'bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200'
+              : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 shadow-xs'
+          }`}
+        >
+          <span>{isExpanded ? 'Show less' : `Show all ${total} tasks (${total - 2} more)`}</span>
+          <ChevronDown 
+            size={13} 
+            className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : 'rotate-0'}`} 
+          />
+        </button>
       )}
     </div>
   );

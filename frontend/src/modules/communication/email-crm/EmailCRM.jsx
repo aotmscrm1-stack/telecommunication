@@ -171,11 +171,26 @@ export default function EmailCRM() {
   const [composeMinimized, setComposeMinimized] = useState(false);
   const [composeMaximized, setComposeMaximized] = useState(false);
 
-  // Compose Fields: From & To are both editable for ANY customer email
+  // Compose Fields: From, To & CC are editable
   const [fromEmail, setFromEmail] = useState(user?.email || '');
   const [recipientEmail, setRecipientEmail] = useState('');
+  const [ccEmail, setCcEmail] = useState('');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
+
+  const handleAddCc = (emailToAdd) => {
+    if (!ccEmail.trim()) {
+      setCcEmail(emailToAdd);
+      return;
+    }
+    const parts = ccEmail.split(',').map(e => e.trim()).filter(Boolean);
+    if (parts.includes(emailToAdd)) {
+      const filtered = parts.filter(e => e !== emailToAdd);
+      setCcEmail(filtered.join(', '));
+    } else {
+      setCcEmail([...parts, emailToAdd].join(', '));
+    }
+  };
 
   // Gmail Style Enhancements: Attachments, Links, Drive, Photos & Preview Mode
   const [composeTab, setComposeTab] = useState('write'); // 'write' | 'preview'
@@ -609,6 +624,7 @@ ${user?.designation || 'Staff'}`
 
     setFromEmail(user?.email || 'hr@aotms.com');
     setRecipientEmail(replyToEmail);
+    setCcEmail('');
     setSubject(replySubject);
     setBody(quoteHeader);
     setComposeTab('write');
@@ -631,6 +647,7 @@ ${user?.designation || 'Staff'}`
 
     setFromEmail(user?.email || 'hr@aotms.com');
     setRecipientEmail(replyToEmail);
+    setCcEmail(selectedEmail.ccEmail || selectedEmail.cc || '');
     setSubject(replySubject);
     setBody(quoteHeader);
     setComposeTab('write');
@@ -649,6 +666,7 @@ ${user?.designation || 'Staff'}`
 
     setFromEmail(user?.email || 'hr@aotms.com');
     setRecipientEmail('');
+    setCcEmail('');
     setSubject(fwdSubject);
     setBody(fwdHeader);
     setComposeTab('write');
@@ -1086,6 +1104,8 @@ ${user?.designation || 'Staff'}`
       const res = await api.post('/email/send', {
         fromEmail: fromEmail.trim(),
         recipientEmail: recipientEmail.trim(),
+        ccEmail: ccEmail.trim(),
+        cc: ccEmail.trim(),
         subject: subject.trim(),
         body: body.trim(),
         html: generatedHtml,
@@ -1105,6 +1125,8 @@ ${user?.designation || 'Staff'}`
       const sentLog = res.data?.log || {
         fromEmail: fromEmail.trim(),
         recipientEmail: recipientEmail.trim(),
+        ccEmail: ccEmail.trim(),
+        cc: ccEmail.trim(),
         subject: subject.trim(),
         body: body.trim(),
         html: generatedHtml,
@@ -1117,7 +1139,7 @@ ${user?.designation || 'Staff'}`
       };
 
       setLastSentEmail(sentLog);
-      const succMsg = res.data?.message || `Email sent successfully to ${recipientEmail}`;
+      const succMsg = res.data?.message || `Email sent successfully to ${recipientEmail}${ccEmail ? ` (CC: ${ccEmail})` : ''}`;
       setSentSuccess(succMsg);
 
       // Close compose modal and immediately show Sent Preview Modal!
@@ -1126,6 +1148,7 @@ ${user?.designation || 'Staff'}`
 
       // Reset compose fields
       setRecipientEmail('');
+      setCcEmail('');
       setSubject('');
       setBody('');
       setAttachments([]);
@@ -1954,6 +1977,11 @@ ${user?.designation || 'Staff'}`
                       </div>
                       <div style={{ fontSize: 12, color: TEXT_MUTED }}>
                         to: <strong style={{ color: TEXT_MAIN }}>{selectedEmail.recipientEmail || selectedEmail.recipient}</strong>
+                        {(selectedEmail.ccEmail || selectedEmail.cc) && (
+                          <span style={{ marginLeft: 10 }}>
+                            cc: <strong style={{ color: TEXT_MAIN }}>{selectedEmail.ccEmail || selectedEmail.cc}</strong>
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -2670,24 +2698,92 @@ ${user?.designation || 'Staff'}`
                 <input
                   value={recipientEmail}
                   onChange={e => setRecipientEmail(e.target.value)}
-                  placeholder="Customer email address (e.g. client@example.com)"
+                  placeholder="Recipient email address (e.g. client@example.com)"
                   style={{ flex: 1, border: 'none', outline: 'none', fontSize: 13, color: TEXT_MAIN }}
                 />
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <button
                     type="button"
-                    onClick={() => setRecipientEmail('hr@aotms.com')}
-                    style={{ fontSize: 11, background: GMAIL_BLUE_LIGHT, color: GMAIL_BLUE, border: 'none', padding: '2px 8px', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}
+                    onClick={() => setRecipientEmail('deenaz@aotms.in')}
+                    style={{
+                      fontSize: 11,
+                      background: recipientEmail === 'deenaz@aotms.in' ? '#e0e7ff' : '#f3e8ff',
+                      color: recipientEmail === 'deenaz@aotms.in' ? '#4338ca' : '#7e22ce',
+                      border: `1px solid ${recipientEmail === 'deenaz@aotms.in' ? '#a5b4fc' : '#e9d5ff'}`,
+                      padding: '2px 8px',
+                      borderRadius: 4,
+                      cursor: 'pointer',
+                      fontWeight: 600
+                    }}
+                    title="Set To: deenaz@aotms.in"
                   >
-                    hr@aotms.com
+                    deenaz@aotms.in
                   </button>
                   <button
                     type="button"
-                    onClick={() => setRecipientEmail('ameen@aotms.com')}
-                    style={{ fontSize: 11, background: ORANGE_LIGHT, color: ORANGE_PRIMARY, border: 'none', padding: '2px 8px', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}
+                    onClick={() => setRecipientEmail('ameen@aotms.in')}
+                    style={{
+                      fontSize: 11,
+                      background: recipientEmail === 'ameen@aotms.in' ? '#fed7aa' : ORANGE_LIGHT,
+                      color: recipientEmail === 'ameen@aotms.in' ? '#9a3412' : ORANGE_PRIMARY,
+                      border: `1px solid ${recipientEmail === 'ameen@aotms.in' ? '#fdba74' : '#fed7aa'}`,
+                      padding: '2px 8px',
+                      borderRadius: 4,
+                      cursor: 'pointer',
+                      fontWeight: 600
+                    }}
+                    title="Set To: ameen@aotms.in"
                   >
-                    MD Ameen
+                    ameen@aotms.in
+                  </button>
+                </div>
+              </div>
+
+              {/* CC FIELD: Editable CC Email with Quick Contact Selector */}
+              <div style={{ display: 'flex', alignItems: 'center', padding: '8px 16px', borderBottom: `1px solid #f1f3f4`, position: 'relative' }}>
+                <span style={{ width: 50, fontSize: 12.5, color: TEXT_MUTED }}>Cc</span>
+                <input
+                  value={ccEmail}
+                  onChange={e => setCcEmail(e.target.value)}
+                  placeholder="Cc email address (e.g. deenaz@aotms.in, ameen@aotms.in)"
+                  style={{ flex: 1, border: 'none', outline: 'none', fontSize: 13, color: TEXT_MAIN }}
+                />
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <button
+                    type="button"
+                    onClick={() => handleAddCc('deenaz@aotms.in')}
+                    style={{
+                      fontSize: 11,
+                      background: ccEmail.includes('deenaz@aotms.in') ? '#e0e7ff' : '#f8fafc',
+                      color: ccEmail.includes('deenaz@aotms.in') ? '#4338ca' : '#64748b',
+                      border: `1px solid ${ccEmail.includes('deenaz@aotms.in') ? '#a5b4fc' : '#cbd5e1'}`,
+                      padding: '2px 8px',
+                      borderRadius: 4,
+                      cursor: 'pointer',
+                      fontWeight: 600
+                    }}
+                    title="Add / Remove CC: deenaz@aotms.in"
+                  >
+                    {ccEmail.includes('deenaz@aotms.in') ? '✓ deenaz@aotms.in' : 'deenaz@aotms.in'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAddCc('ameen@aotms.in')}
+                    style={{
+                      fontSize: 11,
+                      background: ccEmail.includes('ameen@aotms.in') ? '#fed7aa' : '#f8fafc',
+                      color: ccEmail.includes('ameen@aotms.in') ? '#9a3412' : '#64748b',
+                      border: `1px solid ${ccEmail.includes('ameen@aotms.in') ? '#fdba74' : '#cbd5e1'}`,
+                      padding: '2px 8px',
+                      borderRadius: 4,
+                      cursor: 'pointer',
+                      fontWeight: 600
+                    }}
+                    title="Add / Remove CC: ameen@aotms.in"
+                  >
+                    {ccEmail.includes('ameen@aotms.in') ? '✓ ameen@aotms.in' : 'ameen@aotms.in'}
                   </button>
                 </div>
               </div>
@@ -2860,13 +2956,20 @@ ${user?.designation || 'Staff'}`
                       <div style={{ fontSize: 17, fontWeight: 700, color: TEXT_MAIN, marginBottom: 8 }}>
                         {subject || '(No Subject)'}
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: TEXT_MUTED }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: TEXT_MUTED, flexWrap: 'wrap', gap: 6 }}>
                         <div>
                           <span>From: </span>
                           <strong style={{ color: TEXT_MAIN }}>{fromEmail}</strong>
                           <span style={{ margin: '0 8px' }}>•</span>
                           <span>To: </span>
                           <strong style={{ color: TEXT_MAIN }}>{recipientEmail || '(No Recipient Specified)'}</strong>
+                          {ccEmail && (
+                            <>
+                              <span style={{ margin: '0 8px' }}>•</span>
+                              <span>Cc: </span>
+                              <strong style={{ color: TEXT_MAIN }}>{ccEmail}</strong>
+                            </>
+                          )}
                         </div>
                         <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: 10, fontWeight: 600 }}>
                           Live Preview
@@ -3241,6 +3344,12 @@ ${user?.designation || 'Staff'}`
                   <span style={{ color: TEXT_MUTED }}>To: </span>
                   <span style={{ color: TEXT_MAIN, fontWeight: 600 }}>{lastSentEmail.recipientEmail || lastSentEmail.to}</span>
                 </div>
+                {(lastSentEmail.ccEmail || lastSentEmail.cc) && (
+                  <div>
+                    <span style={{ color: TEXT_MUTED }}>Cc: </span>
+                    <span style={{ color: TEXT_MAIN, fontWeight: 600 }}>{lastSentEmail.ccEmail || lastSentEmail.cc}</span>
+                  </div>
+                )}
                 <div>
                   <span style={{ color: TEXT_MUTED }}>Sent Date: </span>
                   <span>{new Date(lastSentEmail.createdAt || Date.now()).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
