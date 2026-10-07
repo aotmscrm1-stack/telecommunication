@@ -859,27 +859,26 @@ export default function MandatoryAttendanceModal() {
                   </select>
                 </div>
 
-                {/* Department Filter */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-800 mb-1.5">
-                    Department Filter ({deptFilter || user?.department || 'Developer'})
-                  </label>
-                  <select
-                    value={deptFilter}
-                    onChange={(e) => setDeptFilter(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-sky-500 shadow-xs"
-                  >
-                    <option value={user?.department || 'Developer'}>
-                      {user?.department || 'Developer'} Department Only
-                    </option>
-                    <option value="all">All Departments</option>
-                    <option value="Developer">Developer</option>
-                    <option value="Marketing">Marketing</option>
-                    <option value="HR">HR</option>
-                    <option value="Trainer">Trainer</option>
-                    <option value="Management">Management</option>
-                  </select>
-                </div>
+                {/* Department Filter (Only for Admin; Hidden for non-admin employees to isolate departments) */}
+                {isAdminUser(user) && (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-800 mb-1.5">
+                      Department Filter ({deptFilter || user?.department || 'Developer'})
+                    </label>
+                    <select
+                      value={deptFilter}
+                      onChange={(e) => setDeptFilter(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-sky-500 shadow-xs"
+                    >
+                      <option value="all">All Departments</option>
+                      <option value="Developer">Developer</option>
+                      <option value="Marketing">Marketing</option>
+                      <option value="HR">HR</option>
+                      <option value="Trainer">Trainer</option>
+                      <option value="Management">Management</option>
+                    </select>
+                  </div>
+                )}
 
                 {/* Assigned To */}
                 <div>

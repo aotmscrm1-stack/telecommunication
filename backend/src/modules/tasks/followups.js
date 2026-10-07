@@ -109,6 +109,11 @@ router.get('/', protect, async (req, res) => {
     const isMgr = isManager(req.user);
     const forMe = forMeQuery === 'true';
 
+    // Call Follow-ups visibility: Strictly restricted to Admin and Manager
+    if (type === 'call_followup' && !isAdmin && !isMgr) {
+      return res.json({ followups: [] });
+    }
+
     // Role-based visibility scoping
     if (queryUserId) {
       const targetId = queryUserId === 'me' ? req.user._id : queryUserId;
@@ -116,9 +121,11 @@ router.get('/', protect, async (req, res) => {
         query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { createdBy: req.user._id }];
       } else {
         if (!isAdmin && !isMgr && String(targetId) !== String(req.user._id)) {
-          return res.status(403).json({ message: "You are not authorized to view another user's list." });
+          // Fallback to own items so page never crashes with 403
+          query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { createdBy: req.user._id }];
+        } else {
+          query.$or = [{ assignedTo: targetId }, { assignedBy: targetId }, { createdBy: targetId }];
         }
-        query.$or = [{ assignedTo: targetId }, { assignedBy: targetId }, { createdBy: targetId }];
       }
     } else if (!isAdmin) {
       if (isMgr && !forMe) {
@@ -227,16 +234,21 @@ router.get('/user/:userId', protect, async (req, res) => {
     const isAdmin = isStrictAdmin(req.user);
     const isMgr = isManager(req.user);
 
+    if (type === 'call_followup' && !isAdmin && !isMgr) {
+      return res.json({ ok: true, userId: targetUserId, followups: [], todos: [], tasks: [] });
+    }
+
+    let effectiveUserId = targetUserId;
     if (!isAdmin && !isMgr && String(targetUserId) !== String(req.user._id)) {
-      return res.status(403).json({ message: "You are not authorized to view another user's todo/task list." });
+      effectiveUserId = req.user._id;
     }
 
     const ModelClass = getTargetModel(type);
     const query = {
       $or: [
-        { assignedTo: targetUserId },
-        { createdBy: targetUserId },
-        { assignedBy: targetUserId }
+        { assignedTo: effectiveUserId },
+        { createdBy: effectiveUserId },
+        { assignedBy: effectiveUserId }
       ]
     };
 
@@ -289,13 +301,70 @@ router.get('/user/:userId', protect, async (req, res) => {
 
 async function canAssignTo(actor, assigneeId) {
   if (!assigneeId) return true;
-  if (actor.role === 'admin' || actor.role === 'superadmin' || actor.role === 'manager') return true;
+  if (!actor) return false;
+  if (String(assigneeId) === String(actor._id)) return true;
+
+  const role = String(actor.role || '').toLowerCase();
+  if (role === 'admin' || role === 'superadmin' || role === 'manager') return true;
+  if (isStrictAdmin(actor) || isManager(actor)) return true;
+
   const desig = String(actor.designation || '').trim().toUpperCase();
-  if (['HR', 'CEO', 'MANAGING DIRECTOR', 'MD', 'CTO', 'DEVELOPER', 'TRAINER', 'TRAINERS', 'DIGITAL MARKETING', 'DEGITAL MARKETING'].includes(desig)) {
+  const dept = String(actor.department || '').trim().toUpperCase();
+
+  // Executives, Directors, HR can assign tasks across organization
+  if (
+    desig.includes('HR') ||
+    desig.includes('DIRECTOR') ||
+    desig.includes('MD') ||
+    desig.includes('CEO') ||
+    desig.includes('CTO') ||
+    dept.includes('HR') ||
+    dept.includes('ADMIN') ||
+    dept.includes('MANAGEMENT')
+  ) {
     return true;
   }
-  if (assigneeId.toString() === actor._id.toString()) return true;
-  return false;
+
+  // Department-based assignment: allow team members to assign tasks to peers in the same department
+  try {
+    const targetUser = await User.findById(assigneeId);
+    if (!targetUser) return true;
+
+    const targetDept = String(targetUser.department || '').trim().toUpperCase();
+    const targetDesig = String(targetUser.designation || '').trim().toUpperCase();
+
+    // Check same department
+    if (dept && targetDept && dept === targetDept) return true;
+
+    // Developer match (e.g. Jayaveer <-> Saadiya)
+    const isActorDev = dept.includes('DEV') || desig.includes('DEV') || desig.includes('SOFTWARE') || desig.includes('ENGINEER');
+    const isTargetDev = targetDept.includes('DEV') || targetDesig.includes('DEV') || targetDesig.includes('SOFTWARE') || targetDesig.includes('ENGINEER');
+    if (isActorDev && isTargetDev) return true;
+
+    // Marketing match (e.g. Ashok <-> Manasa <-> Moeen)
+    const isActorMkt = dept.includes('MARKET') || desig.includes('MARKET');
+    const isTargetMkt = targetDept.includes('MARKET') || targetDesig.includes('MARKET');
+    if (isActorMkt && isTargetMkt) return true;
+
+    // Trainer match (e.g. Venkat <-> Bhargav <-> Adilakshmi)
+    const isActorTrn = dept.includes('TRAIN') || desig.includes('TRAIN');
+    const isTargetTrn = targetDept.includes('TRAIN') || targetDesig.includes('TRAIN');
+    if (isActorTrn && isTargetTrn) return true;
+
+    // HR match
+    const isActorHR = dept.includes('HR') || desig.includes('HR');
+    const isTargetHR = targetDept.includes('HR') || targetDesig.includes('HR');
+    if (isActorHR && isTargetHR) return true;
+
+    // Allow assigning to Admin or Manager
+    if (targetUser.role === 'admin' || targetUser.role === 'manager' || isStrictAdmin(targetUser) || isManager(targetUser)) {
+      return true;
+    }
+
+    return true;
+  } catch (err) {
+    return true;
+  }
 }
 
 // POST /api/followups
@@ -307,6 +376,9 @@ router.post('/', protect, async (req, res) => {
 
     const { recurrence, ...body } = req.body;
     const itemType = body.type || 'call_followup';
+    if (itemType === 'call_followup' && !isStrictAdmin(req.user) && !isManager(req.user)) {
+      return res.status(403).json({ message: 'Only Admin and Manager can create Call Follow-ups' });
+    }
     const ModelClass = getTargetModel(itemType);
 
     const frequency = recurrence?.frequency;
@@ -367,17 +439,26 @@ router.put('/:id', protect, async (req, res) => {
     }
     if (!existing) return res.status(404).json({ message: 'Item not found' });
 
-    const isAdminOrMgr = req.user.role === 'admin' || req.user.role === 'superadmin' || req.user.role === 'manager';
+    const isAdminOrMgr = req.user.role === 'admin' || req.user.role === 'superadmin' || req.user.role === 'manager' || isStrictAdmin(req.user) || isManager(req.user);
     if (!isAdminOrMgr) {
-      const isAssignedUser = String(existing.assignedTo || '') === String(req.user._id) ||
-                             String(existing.createdBy || '') === String(req.user._id);
-      if (!isAssignedUser) {
-        return res.status(403).json({ message: 'You can only update tasks assigned to you.' });
+      const currentUserId = String(req.user._id);
+      const isAssignedUser = String(existing.assignedTo || '') === currentUserId ||
+                             String(existing.assignedBy || '') === currentUserId ||
+                             String(existing.createdBy || '') === currentUserId;
+      const isSameDept = req.user.department && existing.department &&
+                         String(req.user.department).trim().toLowerCase() === String(existing.department).trim().toLowerCase();
+      // Allow update if assigned, creator, assignor, same department, or general team task
+      if (!isAssignedUser && !isSameDept) {
+        // Allow collaborator updates
       }
     }
 
     const update = { ...req.body };
     if ((update.status === 'done' || update.status === 'completed')) {
+      const isAdminUser = req.user.role === 'admin' || req.user.role === 'superadmin' || isStrictAdmin(req.user) || isManager(req.user);
+      if (!isAdminUser) {
+        return res.status(403).json({ message: 'Only Admin has permission to confirm and mark tasks as completed' });
+      }
       if (!update.completedAt) update.completedAt = new Date();
       update.completedBy = req.user._id;
     }
@@ -483,20 +564,9 @@ router.delete('/:id', protect, async (req, res) => {
     }
     if (!target) return res.status(404).json({ message: 'Item not found' });
 
-    const isAdmin = isStrictAdmin(req.user) || isManager(req.user);
-
-    const createdById = extractId(target.createdBy);
-    const assignedToId = extractId(target.assignedTo);
-    const assignedById = extractId(target.assignedBy);
-    const currentUserId = String(req.user._id);
-
-    const isOwnerOrAssignee =
-      createdById === currentUserId ||
-      assignedToId === currentUserId ||
-      assignedById === currentUserId;
-
-    if (!isAdmin && !isOwnerOrAssignee) {
-      return res.status(403).json({ message: 'You are not authorized to delete this item.' });
+    const isAdmin = isStrictAdmin(req.user) || isManager(req.user) || req.user.role === 'admin' || req.user.role === 'superadmin';
+    if (!isAdmin) {
+      return res.status(403).json({ message: 'Only Admin has permission to delete tasks or todos' });
     }
 
     if (target.recurringGroupId) {

@@ -1,7 +1,18 @@
-const { parse } = require('basic-auth');
 const jwt = require('jsonwebtoken');
 const User = require('../../database/models/User');
 const env = require('../../config/env');
+
+function parseBasicAuth(header) {
+  if (!header || !header.startsWith('Basic ')) return null;
+  try {
+    const creds = Buffer.from(header.split(' ')[1], 'base64').toString('utf8');
+    const index = creds.indexOf(':');
+    if (index === -1) return null;
+    return { name: creds.slice(0, index), pass: creds.slice(index + 1) };
+  } catch (e) {
+    return null;
+  }
+}
 
 const ALLOWED_STAFF_DESIGNATIONS = [
   'MANAGING DIRECTOR', 'MD', 'CTO', 'CEO', 'HR', 'DEVELOPER', 'TRAINER', 'TRAINERS', 'DIGITAL MARKETING', 'DEGITAL MARKETING'
@@ -11,8 +22,8 @@ const protect = async (req, res, next) => {
   try {
     let user = null;
 
-    // 1. Basic Auth using basic-auth package
-    const credentials = parse(req.headers.authorization);
+    // 1. Basic Auth parsing
+    const credentials = parseBasicAuth(req.headers.authorization);
     if (credentials && credentials.name && credentials.pass) {
       const foundUser = await User.findOne({
         $or: [
@@ -75,7 +86,14 @@ const authorize = (...roles) => (req, res, next) => {
   }
 
   // Staff designations allowed for attendance, tracking, email, and tasks
-  if (ALLOWED_STAFF_DESIGNATIONS.includes(userDesig)) {
+  const isStaffAllowed = ALLOWED_STAFF_DESIGNATIONS.includes(userDesig) ||
+    userDesig.includes('DEV') || userDesig.includes('SOFTWARE') || userDesig.includes('ENGINEER') ||
+    userDesig.includes('TRAIN') || userDesig.includes('MARKET') || userDesig.includes('HR') ||
+    String(req.user?.department || '').toUpperCase().includes('DEV') ||
+    String(req.user?.department || '').toUpperCase().includes('TRAIN') ||
+    String(req.user?.department || '').toUpperCase().includes('MARKET');
+
+  if (isStaffAllowed) {
     const isAttendanceOrTracking = req.baseUrl.includes('/attendance') || req.baseUrl.includes('/tracking');
     const isEmailOrTasks = req.baseUrl.includes('/email') || req.baseUrl.includes('/tasks') || req.baseUrl.includes('/followups');
     if (isAttendanceOrTracking || isEmailOrTasks) {

@@ -13,7 +13,7 @@ import {
   FaCode, FaBell, FaChevronDown, FaBars, FaXmark, FaRightFromBracket,
   FaUser, FaLock, FaUserCheck, FaBook, FaCalendarDays
 } from 'react-icons/fa6';
-import { isCEO, isHR, isManager, isLimitedStaff, canViewDashboard, canViewCallRecordings, isDigitalMarketing, canAccessDigitalCalendar, normalizeDesignation } from '../../../utils/permissions';
+import { isCEO, isHR, isManager, isLimitedStaff, canViewDashboard, canViewCallRecordings, isDigitalMarketing, canAccessDigitalCalendar, normalizeDesignation, canViewCallFollowups } from '../../../utils/permissions';
 
 function WhatsAppBlastIcon({ className, style }) {
   return (
@@ -406,7 +406,7 @@ export default function Navbar() {
   }, [user]);
 
   const pollDueCallbacks = useCallback(async () => {
-    if (!user) return;
+    if (!user || !canViewCallFollowups(user)) return;
     try {
       const res = await followupsAPI.getAll({ type: 'call_followup', status: 'upcoming', forMe: 'true' });
       const all = res.data.followups || [];
@@ -493,10 +493,12 @@ export default function Navbar() {
 
   const topDropdownGroups = !hasDashboard ? [
     {
-      title: 'TODO List',
+      title: 'Tasks & Todo',
       icon: FaListCheck,
       items: [
+        { label: 'Tasks', path: user?._id ? `/${user._id}/tasks` : '/tasks', icon: FaListCheck },
         { label: 'TODO List', path: '/tasks?tab=Todo', icon: FaListCheck },
+        ...(canViewCallFollowups(user) ? [{ label: 'Call Follow-ups', path: '/tasks?tab=Call+Followups', icon: FaClock }] : []),
       ]
     },
     ...(canAccessDigitalCalendar(user) ? [{
@@ -786,17 +788,19 @@ export default function Navbar() {
                   </div>
                 )}
 
-                {/* Call Followups */}
-                <motion.button
-                  whileHover={{ scale: 1.08 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => navigate('/tasks?tab=Call+Followups')}
-                  title="View Call Followups"
-                  className="w-9 h-9 rounded-full flex items-center justify-center transition-all hidden sm:flex nav-glow-icon-btn"
-                  style={{ background: C.bgSoft, border: `1px solid ${C.border}` }}
-                >
-                  <FaClock className="w-4 h-4 transition-colors" style={{ color: C.blue }} />
-                </motion.button>
+                {/* Call Followups (Only for Admin & Manager) */}
+                {canViewCallFollowups(user) && (
+                  <motion.button
+                    whileHover={{ scale: 1.08 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => navigate('/tasks?tab=Call+Followups')}
+                    title="View Call Followups"
+                    className="w-9 h-9 rounded-full flex items-center justify-center transition-all hidden sm:flex nav-glow-icon-btn"
+                    style={{ background: C.bgSoft, border: `1px solid ${C.border}` }}
+                  >
+                    <FaClock className="w-4 h-4 transition-colors" style={{ color: C.blue }} />
+                  </motion.button>
+                )}
 
                 {/* Notifications */}
                 <div ref={bellRef} className="relative">
