@@ -156,13 +156,13 @@ const INITIAL_SEED_ITEMS = [
     approval_status: 'Pending',
     overall_status: 'Planned',
     instagram_status: 'Planned',
-    instagram_time: '',
-    youtube_status: 'Not Required',
-    youtube_time: '',
+    instagram_time: '11:00 AM',
+    youtube_status: 'Planned',
+    youtube_time: '04:30 PM',
     linkedin_status: 'Planned',
-    linkedin_time: '',
+    linkedin_time: '02:00 PM',
     x_status: 'Planned',
-    x_time: '',
+    x_time: '06:00 PM',
     notes: 'Design under review',
     live_folder_link: ''
   },
@@ -175,13 +175,13 @@ const INITIAL_SEED_ITEMS = [
     approval_status: 'Approved',
     overall_status: 'Ready to Post',
     instagram_status: 'Ready',
-    instagram_time: '',
+    instagram_time: '06:30 PM',
     youtube_status: 'Ready',
-    youtube_time: '',
-    linkedin_status: 'Not Required',
-    linkedin_time: '',
+    youtube_time: '07:00 PM',
+    linkedin_status: 'Ready',
+    linkedin_time: '05:00 PM',
     x_status: 'Ready',
-    x_time: '',
+    x_time: '07:30 PM',
     notes: 'Upload after final check',
     live_folder_link: ''
   }
@@ -236,6 +236,16 @@ async function ensureSeedData(user) {
         }
       }
     }
+
+    // Ensure seed items have all 4 platforms configured properly
+    await DigitalCalendar.updateMany(
+      { content_title: 'Student Testimonial', $or: [{ linkedin_status: 'Not Required' }, { linkedin_status: { $exists: false } }, { linkedin_status: '' }] },
+      { $set: { linkedin_status: 'Ready', linkedin_time: '05:00 PM' } }
+    );
+    await DigitalCalendar.updateMany(
+      { content_title: 'Cyber Security Career Tips', $or: [{ youtube_status: 'Not Required' }, { youtube_status: { $exists: false } }, { youtube_status: '' }] },
+      { $set: { youtube_status: 'Planned', youtube_time: '04:30 PM' } }
+    );
   } catch (err) {
     console.error('Failed to seed Digital Calendar data:', err.message);
   } finally {

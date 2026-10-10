@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { digitalCalendarAPI } from '../../../services/api';
@@ -7,6 +7,7 @@ import {
   FaCalendarDays,
   FaChevronLeft,
   FaChevronRight,
+  FaChevronDown,
   FaPlus,
   FaPenToSquare,
   FaTrashCan,
@@ -551,12 +552,6 @@ export default function DigitalCalendar() {
           boxShadow: '0 8px 30px -4px rgba(2, 132, 199, 0.08), 0 2px 6px rgba(15, 23, 42, 0.03)'
         }}
       >
-        {/* Top Gradient Accent Line */}
-        <div
-          className="absolute top-0 inset-x-0 h-1.5"
-          style={{ background: 'linear-gradient(90deg, #f97316 0%, #fb923c 25%, #0284c7 75%, #38bdf8 100%)' }}
-        />
-
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
           {/* Left Title & Description */}
           <div className="flex items-center gap-4">
@@ -1196,59 +1191,56 @@ export default function DigitalCalendar() {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4">
                 {/* Marketing Content Cards */}
                 {filteredItems.map(item => {
                   const typeStyle = getTypeStyle(item.content_type);
                   const statusStyle = getStatusStyle(item.overall_status);
                   const approvalStyle = getApprovalBadge(item.approval_status);
 
-                  // Platforms array
-                  const activePlatforms = [];
-                  if (item.instagram_status && item.instagram_status !== 'Not Required') {
-                    activePlatforms.push({
+                  // All 4 Platforms List - Always showing complete social media information
+                  const platformList = [
+                    {
                       name: 'Instagram',
                       icon: FaInstagram,
-                      status: item.instagram_status,
+                      status: item.instagram_status || 'Not Required',
                       time: item.instagram_time,
                       color: 'text-pink-600',
-                      badgeBg: 'bg-pink-50',
-                      border: 'border-pink-200'
-                    });
-                  }
-                  if (item.youtube_status && item.youtube_status !== 'Not Required') {
-                    activePlatforms.push({
+                      badgeBg: 'bg-pink-50/70',
+                      border: 'border-pink-200/80',
+                      iconBg: 'bg-pink-100/60'
+                    },
+                    {
                       name: 'YouTube',
                       icon: FaYoutube,
-                      status: item.youtube_status,
+                      status: item.youtube_status || 'Not Required',
                       time: item.youtube_time,
                       color: 'text-red-600',
-                      badgeBg: 'bg-red-50',
-                      border: 'border-red-200'
-                    });
-                  }
-                  if (item.linkedin_status && item.linkedin_status !== 'Not Required') {
-                    activePlatforms.push({
+                      badgeBg: 'bg-red-50/70',
+                      border: 'border-red-200/80',
+                      iconBg: 'bg-red-100/60'
+                    },
+                    {
                       name: 'LinkedIn',
                       icon: FaLinkedinIn,
-                      status: item.linkedin_status,
+                      status: item.linkedin_status || 'Not Required',
                       time: item.linkedin_time,
                       color: 'text-blue-600',
-                      badgeBg: 'bg-blue-50',
-                      border: 'border-blue-200'
-                    });
-                  }
-                  if (item.x_status && item.x_status !== 'Not Required') {
-                    activePlatforms.push({
+                      badgeBg: 'bg-blue-50/70',
+                      border: 'border-blue-200/80',
+                      iconBg: 'bg-blue-100/60'
+                    },
+                    {
                       name: 'X / Twitter',
                       icon: FaXTwitter,
-                      status: item.x_status,
+                      status: item.x_status || 'Not Required',
                       time: item.x_time,
                       color: 'text-slate-900',
-                      badgeBg: 'bg-slate-100',
-                      border: 'border-slate-300'
-                    });
-                  }
+                      badgeBg: 'bg-slate-100/70',
+                      border: 'border-slate-300/80',
+                      iconBg: 'bg-slate-200/60'
+                    }
+                  ];
 
                   const formattedItemDate = new Date(item.content_date).toLocaleDateString('en-US', {
                     month: 'short',
@@ -1260,40 +1252,38 @@ export default function DigitalCalendar() {
                     <div
                       key={item._id}
                       onClick={() => handleEditClick(item)}
-                      className="content-card-elevated bg-white rounded-3xl p-5 border border-slate-200/90 shadow-sm flex flex-col justify-between relative cursor-pointer group"
+                      className="content-card-elevated bg-white rounded-3xl p-4 sm:p-4.5 border border-slate-200 shadow-sm flex flex-col justify-between relative cursor-pointer group"
                       style={{
-                        boxShadow: '0 8px 24px -4px rgba(15, 23, 42, 0.05)',
-                        borderLeftWidth: '5px',
-                        borderLeftColor: typeStyle.dot
+                        boxShadow: '0 8px 24px -4px rgba(15, 23, 42, 0.05)'
                       }}
                     >
                       <div>
                         {/* 1. Card Top Bar: Type Badge, Overall Status, Approval & Edit Controls */}
-                        <div className="flex items-start justify-between gap-2 mb-3">
-                          <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-start justify-between gap-1.5 mb-2.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             {/* Content Type */}
                             <span
-                              className={`px-2.5 py-1 rounded-xl text-xs font-black tracking-wide border ${typeStyle.bg} ${typeStyle.text} ${typeStyle.border}`}
+                              className={`px-2 py-0.5 rounded-lg text-[11px] font-black tracking-wide border ${typeStyle.bg} ${typeStyle.text} ${typeStyle.border}`}
                             >
                               {item.content_type}
                             </span>
 
                             {/* Overall Status Badge */}
                             <span
-                              className="px-2.5 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-2xs"
+                              className="px-2 py-0.5 rounded-lg text-[11px] font-bold flex items-center gap-1 shadow-2xs"
                               style={{
                                 background: statusStyle.bg,
                                 color: statusStyle.text,
                                 border: `1px solid ${statusStyle.border}`
                               }}
                             >
-                              <span className="w-2 h-2 rounded-full" style={{ background: statusStyle.dot }} />
+                              <span className="w-1.5 h-1.5 rounded-full" style={{ background: statusStyle.dot }} />
                               {item.overall_status}
                             </span>
 
                             {/* Approval Status */}
                             <span
-                              className="px-2 py-0.5 rounded-lg text-[10px] font-extrabold flex items-center gap-1"
+                              className="px-1.5 py-0.5 rounded-lg text-[10px] font-extrabold flex items-center gap-1"
                               style={{
                                 background: approvalStyle.bg,
                                 color: approvalStyle.text,
@@ -1306,7 +1296,7 @@ export default function DigitalCalendar() {
                           </div>
 
                           {/* Top Right Action Icons */}
-                          <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                          <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
                             {/* Edit Button */}
                             <button
                               type="button"
@@ -1332,13 +1322,13 @@ export default function DigitalCalendar() {
                         </div>
 
                         {/* 2. Content Title */}
-                        <h3 className="text-base font-extrabold text-slate-900 group-hover:text-sky-600 transition-colors m-0 leading-snug tracking-tight">
+                        <h3 className="text-sm sm:text-base font-extrabold text-slate-900 group-hover:text-sky-600 transition-colors m-0 leading-snug tracking-tight">
                           {item.content_title}
                         </h3>
 
                         {/* 3. Date & Schedule Row */}
-                        <div className="flex items-center gap-2 text-xs font-bold text-slate-500 mt-2 mb-3">
-                          <FaCalendarDays className="w-3.5 h-3.5 text-sky-500" />
+                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 mt-1.5 mb-2.5">
+                          <FaCalendarDays className="w-3 h-3 text-sky-500" />
                           <span>
                             {formattedItemDate} • {item.day || new Date(item.content_date).toLocaleDateString('en-US', { weekday: 'long' })}
                           </span>
@@ -1346,54 +1336,71 @@ export default function DigitalCalendar() {
 
                         {/* 4. Notes / Description */}
                         {item.notes ? (
-                          <p className="text-xs text-slate-600 bg-slate-50/80 p-3 rounded-2xl border border-slate-200/70 font-medium line-clamp-2 mb-3.5">
+                          <p className="text-[11px] text-slate-600 bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/70 font-medium line-clamp-2 mb-3">
                             {item.notes}
                           </p>
                         ) : (
-                          <div className="mb-3" />
+                          <div className="mb-2.5" />
                         )}
 
                         {/* 5. Platform Breakdown & Posting Times */}
-                        <div className="space-y-1.5 mb-4">
+                        <div className="space-y-1.5 mb-3.5">
                           <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block">
                             Social Media Platforms & Times
                           </span>
-                          {activePlatforms.length > 0 ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              {activePlatforms.map((pf, pIdx) => {
-                                const PfIcon = pf.icon;
-                                const pfSt = getStatusStyle(pf.status);
-                                return (
-                                  <div
-                                    key={pIdx}
-                                    className={`p-2 rounded-xl border ${pf.border} ${pf.badgeBg} flex items-center justify-between gap-2 shadow-2xs`}
-                                  >
-                                    <div className="flex items-center gap-2">
-                                      <PfIcon className={`w-3.5 h-3.5 ${pf.color}`} />
-                                      <span className="text-xs font-bold text-slate-800">{pf.name}</span>
+                          <div className="grid grid-cols-2 gap-1.5">
+                            {platformList.map((pf, pIdx) => {
+                              const PfIcon = pf.icon;
+                              const isOff = pf.status === 'Not Required' || !pf.status;
+                              const pfSt = getStatusStyle(pf.status);
+
+                              return (
+                                <div
+                                  key={pIdx}
+                                  className={`p-1.5 rounded-xl border flex items-center justify-between gap-1 transition-all shadow-3xs ${
+                                    isOff
+                                      ? 'bg-slate-50/60 border-slate-200/60 opacity-60'
+                                      : `${pf.badgeBg} ${pf.border}`
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <div
+                                      className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${
+                                        isOff ? 'bg-slate-100 text-slate-400' : `${pf.iconBg} ${pf.color}`
+                                      }`}
+                                    >
+                                      <PfIcon className="w-3 h-3" />
                                     </div>
-                                    <div className="text-right">
-                                      <span
-                                        className="text-[10px] font-bold px-1.5 py-0.2 rounded-md block"
-                                        style={{ background: pfSt.bg, color: pfSt.text }}
-                                      >
-                                        {pf.status}
-                                      </span>
-                                      {pf.time && (
-                                        <span className="text-[9px] text-slate-500 font-bold block mt-0.5">
-                                          {formatTime12h(pf.time)}
-                                        </span>
-                                      )}
-                                    </div>
+                                    <span
+                                      className={`text-[10.5px] font-bold truncate ${
+                                        isOff ? 'text-slate-400' : 'text-slate-800'
+                                      }`}
+                                    >
+                                      {pf.name}
+                                    </span>
                                   </div>
-                                );
-                              })}
-                            </div>
-                          ) : (
-                            <span className="text-xs text-slate-400 italic font-medium">
-                              No platform scheduled yet.
-                            </span>
-                          )}
+
+                                  <div className="text-right shrink-0">
+                                    <span
+                                      className="text-[9px] font-bold px-1.5 py-0.5 rounded-md inline-block shadow-3xs"
+                                      style={{
+                                        background: isOff ? '#f1f5f9' : pfSt.bg,
+                                        color: isOff ? '#94a3b8' : pfSt.text,
+                                        border: `1px solid ${isOff ? '#e2e8f0' : pfSt.border}`
+                                      }}
+                                    >
+                                      {isOff ? 'Not Req' : pf.status}
+                                    </span>
+                                    {pf.time && !isOff && (
+                                      <span className="text-[8.5px] text-slate-500 font-bold block mt-0.5">
+                                        {formatTime12h(pf.time)}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
 
@@ -1600,7 +1607,8 @@ export default function DigitalCalendar() {
                       {/* Responsible Person: Name + Display Name */}
                       <td className="py-3.5 px-4 whitespace-nowrap">
                         <div className="font-bold text-slate-800">
-                          {item.responsible_employee?.name ||
+                          {item.responsible_employee?.actualName ||
+                            item.responsible_employee?.name ||
                             item.responsible_employee_name ||
                             'Unassigned'}
                         </div>
@@ -1771,7 +1779,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
           ? new Date(initialData.content_date).toISOString().split('T')[0]
           : new Date().toISOString().split('T')[0],
         responsible_employee: initialData.responsible_employee?._id || initialData.responsible_employee || '',
-        responsible_employee_name: initialData.responsible_employee?.name || initialData.responsible_employee?.displayName || initialData.responsible_employee_name || '',
+        responsible_employee_name: initialData.responsible_employee?.actualName || initialData.responsible_employee?.name || initialData.responsible_employee?.displayName || initialData.responsible_employee_name || '',
         approval_status: initialData.approval_status || 'Pending',
         overall_status: initialData.overall_status || 'Planned',
         live_folder_link: initialData.live_folder_link || '',
@@ -1795,13 +1803,52 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [showResponsibleDropdown, setShowResponsibleDropdown] = useState(false);
+  const [employeeSearch, setEmployeeSearch] = useState('');
+  const responsibleDropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (responsibleDropdownRef.current && !responsibleDropdownRef.current.contains(event.target)) {
+        setShowResponsibleDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedEmployee = useMemo(() => {
+    if (!formData.responsible_employee) return null;
+    return (employees || []).find(e => String(e._id) === String(formData.responsible_employee)) || null;
+  }, [employees, formData.responsible_employee]);
+
+  const selectedDisplayName =
+    selectedEmployee
+      ? (selectedEmployee.actualName || selectedEmployee.name || selectedEmployee.displayName)
+      : formData.responsible_employee_name;
+
+  const selectedDisplayRole =
+    selectedEmployee
+      ? (selectedEmployee.displayName || selectedEmployee.designation)
+      : '';
+
+  const filteredEmployees = useMemo(() => {
+    const list = employees || [];
+    if (!employeeSearch.trim()) return list;
+    const q = employeeSearch.toLowerCase();
+    return list.filter(emp => {
+      const name = (emp.actualName || emp.name || '').toLowerCase();
+      const role = (emp.displayName || emp.designation || '').toLowerCase();
+      return name.includes(q) || role.includes(q);
+    });
+  }, [employees, employeeSearch]);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleResponsibleChange = (empId) => {
-    const selected = employees.find(e => e._id === empId);
+    const selected = (employees || []).find(e => String(e._id) === String(empId));
     setFormData(prev => ({
       ...prev,
       responsible_employee: empId || null,
@@ -1844,13 +1891,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl border border-slate-200 my-8 overflow-hidden relative">
-        {/* Top Gradient Accent Line */}
-        <div
-          className="absolute top-0 inset-x-0 h-1.5"
-          style={{ background: 'linear-gradient(90deg, #f97316 0%, #0284c7 100%)' }}
-        />
-
+      <div className="bg-white rounded-3xl w-full max-w-3xl shadow-2xl border border-slate-200 my-8 overflow-hidden relative">
         {/* Modal Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-sky-50/60 via-slate-50 to-orange-50/60">
           <h3 className="text-base font-extrabold text-slate-900 m-0 flex items-center gap-2.5">
@@ -1866,7 +1907,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
         </div>
 
         {/* Modal Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[78vh] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
           {error && (
             <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-2xl font-bold">
               {error}
@@ -1888,8 +1929,8 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
             />
           </div>
 
-          {/* Date, Type & Responsible Person */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+          {/* Date & Content Type */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
               <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1">
                 Date <span className="text-rose-500">*</span>
@@ -1899,7 +1940,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
                 required
                 value={formData.content_date}
                 onChange={e => handleChange('content_date', e.target.value)}
-                className="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-sky-500 focus:bg-white transition font-medium"
+                className="w-full px-3 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-sky-500 focus:bg-white transition font-medium"
               />
             </div>
 
@@ -1910,7 +1951,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
               <select
                 value={formData.content_type}
                 onChange={e => handleChange('content_type', e.target.value)}
-                className="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-sky-500 cursor-pointer font-medium"
+                className="w-full px-3 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-sky-500 cursor-pointer font-medium"
               >
                 {CONTENT_TYPES.map(type => (
                   <option key={type} value={type}>
@@ -1919,28 +1960,195 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
                 ))}
               </select>
             </div>
+          </div>
 
-            <div>
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1">
-                Responsible Person (Marketing)
-              </label>
-              <select
-                value={formData.responsible_employee || ''}
-                onChange={e => handleResponsibleChange(e.target.value)}
-                className="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-sky-500 cursor-pointer font-medium"
+          {/* Responsible Person (Bounded Custom Select Component) */}
+          <div className="relative" ref={responsibleDropdownRef}>
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1">
+              Responsible Person
+            </label>
+
+            <button
+              type="button"
+              onClick={() => setShowResponsibleDropdown(prev => !prev)}
+              className={`w-full px-3.5 py-2.5 text-xs sm:text-sm bg-slate-50 hover:bg-slate-100/70 border ${
+                showResponsibleDropdown
+                  ? 'border-sky-500 ring-2 ring-sky-100 bg-white'
+                  : selectedDisplayName
+                  ? 'border-sky-300'
+                  : 'border-slate-200'
+              } rounded-2xl transition font-medium flex items-center justify-between cursor-pointer text-left`}
+            >
+              {selectedDisplayName ? (
+                <div className="flex items-center gap-2.5 min-w-0">
+                  {selectedEmployee?.avatar ? (
+                    <img
+                      src={selectedEmployee.avatar}
+                      alt={selectedDisplayName}
+                      className="w-6 h-6 rounded-lg object-cover shrink-0 border border-slate-200"
+                    />
+                  ) : (
+                    <div
+                      className="w-6 h-6 rounded-lg text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs"
+                      style={{ background: 'linear-gradient(135deg, #0284c7 0%, #f97316 100%)' }}
+                    >
+                      {(selectedDisplayName || 'M').charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <span className="font-bold text-slate-900 truncate">
+                    {selectedDisplayName}
+                  </span>
+                  {selectedDisplayRole && (
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-200/80 shrink-0">
+                      {selectedDisplayRole}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-slate-400">
+                  <FaUser className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Select Marketing Member</span>
+                </div>
+              )}
+
+              <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                {selectedDisplayName && (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    title="Clear member"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleResponsibleChange('');
+                      setShowResponsibleDropdown(false);
+                    }}
+                    className="p-1 hover:bg-slate-200 rounded-md text-slate-400 hover:text-slate-600 transition cursor-pointer"
+                  >
+                    <FaXmark className="w-3 h-3" />
+                  </span>
+                )}
+                <FaChevronDown
+                  className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
+                    showResponsibleDropdown ? 'rotate-180 text-sky-600' : ''
+                  }`}
+                />
+              </div>
+            </button>
+
+            {/* Bounded Dropdown Menu - Strictly bounded inside input boundaries */}
+            {showResponsibleDropdown && (
+              <div
+                className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden"
+                style={{
+                  boxShadow: '0 12px 30px -4px rgba(2, 132, 199, 0.18), 0 4px 12px rgba(15, 23, 42, 0.08)'
+                }}
               >
-                <option value="">Select Marketing Member</option>
-                {employees.map(emp => {
-                  const personName = emp.actualName || emp.name;
-                  const personDisplay = emp.displayName || emp.designation;
-                  return (
-                    <option key={emp._id} value={emp._id}>
-                      {personName}{personDisplay ? ` — ${personDisplay}` : ''}
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
+                {/* Search Bar (if 3+ members) */}
+                {(employees || []).length > 3 && (
+                  <div className="p-2 border-b border-slate-100 bg-slate-50/70">
+                    <div className="relative">
+                      <FaMagnifyingGlass className="w-3 h-3 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        placeholder="Search marketing member..."
+                        value={employeeSearch}
+                        onChange={e => setEmployeeSearch(e.target.value)}
+                        className="w-full pl-7 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-sky-500 font-medium"
+                        onClick={e => e.stopPropagation()}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Option List */}
+                <div className="max-h-56 overflow-y-auto">
+                  {/* Unassigned / None Option */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleResponsibleChange('');
+                      setShowResponsibleDropdown(false);
+                      setEmployeeSearch('');
+                    }}
+                    className={`w-full px-3.5 py-2 text-left flex items-center justify-between text-xs transition cursor-pointer border-b border-slate-100 ${
+                      !formData.responsible_employee
+                        ? 'bg-sky-50 text-sky-800 font-bold'
+                        : 'text-slate-500 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center text-xs">
+                        —
+                      </span>
+                      <span>Unassigned / None</span>
+                    </div>
+                    {!formData.responsible_employee && (
+                      <FaCheck className="w-3 h-3 text-sky-600" />
+                    )}
+                  </button>
+
+                  {filteredEmployees.map(emp => {
+                    const personName = emp.actualName || emp.name;
+                    const personDisplay = emp.displayName || emp.designation;
+                    const isSelected = String(formData.responsible_employee) === String(emp._id);
+
+                    return (
+                      <button
+                        key={emp._id}
+                        type="button"
+                        onClick={() => {
+                          handleResponsibleChange(emp._id);
+                          setShowResponsibleDropdown(false);
+                          setEmployeeSearch('');
+                        }}
+                        className={`w-full px-3.5 py-2 text-left flex items-center justify-between gap-2.5 transition cursor-pointer border-b border-slate-50 last:border-0 ${
+                          isSelected
+                            ? 'bg-sky-50/90 text-sky-900 font-bold'
+                            : 'hover:bg-slate-50 text-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {emp.avatar ? (
+                            <img
+                              src={emp.avatar}
+                              alt={personName}
+                              className="w-7 h-7 rounded-lg object-cover shrink-0 border border-slate-200"
+                            />
+                          ) : (
+                            <div
+                              className="w-7 h-7 rounded-lg text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs"
+                              style={{ background: 'linear-gradient(135deg, #0284c7 0%, #f97316 100%)' }}
+                            >
+                              {(personName || 'M').charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          <div className="truncate">
+                            <span className="text-xs font-bold block truncate">
+                              {personName}
+                            </span>
+                            {personDisplay && (
+                              <span className="text-[10px] text-slate-500 font-medium block truncate">
+                                {personDisplay}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {isSelected && (
+                          <FaCheck className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                        )}
+                      </button>
+                    );
+                  })}
+
+                  {filteredEmployees.length === 0 && (
+                    <div className="px-3 py-4 text-center text-xs text-slate-400">
+                      No matching team members found
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Approval & Overall Status */}
@@ -1952,7 +2160,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
               <select
                 value={formData.approval_status}
                 onChange={e => handleChange('approval_status', e.target.value)}
-                className="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-sky-500 cursor-pointer font-medium"
+                className="w-full px-3 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-sky-500 cursor-pointer font-medium"
               >
                 {APPROVAL_OPTIONS.map(opt => (
                   <option key={opt} value={opt}>
@@ -1969,7 +2177,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
               <select
                 value={formData.overall_status}
                 onChange={e => handleChange('overall_status', e.target.value)}
-                className="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-sky-500 cursor-pointer font-medium"
+                className="w-full px-3 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-sky-500 cursor-pointer font-medium"
               >
                 {OVERALL_STATUS_OPTIONS.map(st => (
                   <option key={st} value={st}>

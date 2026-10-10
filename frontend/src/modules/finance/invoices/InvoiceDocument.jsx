@@ -471,7 +471,6 @@ function InvoiceDocumentComponent({ invoiceData, isPreview = false }, ref) {
                     />
                   </div>
                   <div style={{ textAlign: 'right' }}>
-              
                     <div style={{ fontSize: '11px', fontWeight: '700', color: '#334155' }}>
                       Managing Director
                     </div>

@@ -277,9 +277,6 @@ function QuotationDocumentComponent({ quotationData, isPreview = false }, ref) {
                       />
                     </div>
 
-                    <div style={{ fontWeight: '800', fontSize: '12.5px', color: '#000000' }}>
-                      {signatoryName}
-                    </div>
                     <div style={{ fontSize: '11px', fontWeight: '700', color: '#334155' }}>
                       {signatoryRole}
                     </div>
