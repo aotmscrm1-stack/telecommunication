@@ -165,6 +165,128 @@ function formatTime12h(timeStr) {
   return `${String(h).padStart(2, '0')}:${m} ${ampm}`;
 }
 
+// ── Smooth Synchronized Same-Direction Auto-Scroll (Horizontal) ───────────────
+const UNIFIED_SCROLL_DURATION = 7.0; // In seconds - synchronized rhythm across all fields
+
+function AutoScrollText({ children, className = '', title }) {
+  const containerRef = useRef(null);
+  const textRef = useRef(null);
+  const [overflowDistance, setOverflowDistance] = useState(0);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    const txt = textRef.current;
+    if (!el || !txt) return;
+
+    const measure = () => {
+      if (!el || !txt) return;
+      const diff = txt.scrollWidth - el.clientWidth;
+      setOverflowDistance(diff > 3 ? diff : 0);
+    };
+
+    measure();
+    if (typeof document !== 'undefined' && document.fonts?.ready) {
+      document.fonts.ready.then(measure);
+    }
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    if (txt) ro.observe(txt);
+    return () => ro.disconnect();
+  }, [children]);
+
+  const isOverflowing = overflowDistance > 0;
+
+  return (
+    <div
+      ref={containerRef}
+      title={title || (typeof children === 'string' ? children : undefined)}
+      className={`overflow-hidden relative whitespace-nowrap min-w-0 ${className}`}
+    >
+      <div
+        ref={textRef}
+        className={`inline-block w-max auto-scroll-marquee-item ${isOverflowing ? 'cursor-default' : ''}`}
+        style={
+          isOverflowing
+            ? {
+                animation: `autoScrollSameDirection ${UNIFIED_SCROLL_DURATION}s ease-in-out infinite`,
+                '--max-scroll': `-${overflowDistance + 6}px`
+              }
+            : {}
+        }
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ── Smooth Auto-Scroll Flex Container (Horizontal for Badges & Multi-Items) ───
+function AutoScrollContainer({ children, className = '' }) {
+  const containerRef = useRef(null);
+  const contentRef = useRef(null);
+  const [overflowDistance, setOverflowDistance] = useState(0);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    const cnt = contentRef.current;
+    if (!el || !cnt) return;
+
+    const measure = () => {
+      if (!el || !cnt) return;
+      const diff = cnt.scrollWidth - el.clientWidth;
+      setOverflowDistance(diff > 4 ? diff : 0);
+    };
+
+    measure();
+    if (typeof document !== 'undefined' && document.fonts?.ready) {
+      document.fonts.ready.then(measure);
+    }
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    if (cnt) ro.observe(cnt);
+    return () => ro.disconnect();
+  }, [children]);
+
+  const isOverflowing = overflowDistance > 0;
+
+  return (
+    <div ref={containerRef} className={`overflow-hidden relative min-w-0 ${className}`}>
+      <div
+        ref={contentRef}
+        className={`inline-flex items-center gap-1.5 w-max auto-scroll-marquee-item ${
+          isOverflowing ? 'cursor-default' : ''
+        }`}
+        style={
+          isOverflowing
+            ? {
+                animation: `autoScrollSameDirection ${UNIFIED_SCROLL_DURATION}s ease-in-out infinite`,
+                '--max-scroll': `-${overflowDistance + 6}px`
+              }
+            : {}
+        }
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ── Smooth Auto-Scroll Notes Component (Horizontal Unified Scroller) ───────────
+function AutoScrollNotes({ text }) {
+  if (!text) return <div className="mb-3 h-[38px]" />;
+
+  return (
+    <div
+      className="text-[11px] text-slate-600 bg-slate-50/80 px-2.5 py-2 rounded-xl border border-slate-200/70 font-medium h-[38px] relative mb-3 group/notes flex items-center min-w-0 overflow-hidden"
+      title={text}
+    >
+      <AutoScrollText className="w-full text-[11px] text-slate-600 font-medium">
+        {text}
+      </AutoScrollText>
+    </div>
+  );
+}
+
 export default function DigitalCalendar() {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -541,6 +663,38 @@ export default function DigitalCalendar() {
         .metric-card-elevated:hover {
           transform: translateY(-2px);
           box-shadow: 0 10px 24px -4px rgba(2, 132, 199, 0.12);
+        }
+        @keyframes autoScrollSameDirection {
+          0%, 20% {
+            transform: translateX(0);
+            opacity: 1;
+          }
+          75%, 88% {
+            transform: translateX(var(--max-scroll, -20px));
+            opacity: 1;
+          }
+          92% {
+            transform: translateX(var(--max-scroll, -20px));
+            opacity: 0;
+          }
+          94% {
+            transform: translateX(0);
+            opacity: 0;
+          }
+          100% {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        .auto-scroll-marquee-item:hover {
+          animation-play-state: paused !important;
+        }
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
         }
       `}</style>
 
@@ -1260,17 +1414,17 @@ export default function DigitalCalendar() {
                       <div>
                         {/* 1. Card Top Bar: Type Badge, Overall Status, Approval & Edit Controls */}
                         <div className="flex items-start justify-between gap-1.5 mb-2.5">
-                          <div className="flex items-center gap-1.5 flex-wrap">
+                          <AutoScrollContainer className="flex-1 min-w-0 py-0.5">
                             {/* Content Type */}
                             <span
-                              className={`px-2 py-0.5 rounded-lg text-[11px] font-black tracking-wide border ${typeStyle.bg} ${typeStyle.text} ${typeStyle.border}`}
+                              className={`px-2 py-0.5 rounded-lg text-[11px] font-black tracking-wide border shrink-0 ${typeStyle.bg} ${typeStyle.text} ${typeStyle.border}`}
                             >
                               {item.content_type}
                             </span>
 
                             {/* Overall Status Badge */}
                             <span
-                              className="px-2 py-0.5 rounded-lg text-[11px] font-bold flex items-center gap-1 shadow-2xs"
+                              className="px-2 py-0.5 rounded-lg text-[11px] font-bold flex items-center gap-1 shadow-2xs shrink-0"
                               style={{
                                 background: statusStyle.bg,
                                 color: statusStyle.text,
@@ -1283,7 +1437,7 @@ export default function DigitalCalendar() {
 
                             {/* Approval Status */}
                             <span
-                              className="px-1.5 py-0.5 rounded-lg text-[10px] font-extrabold flex items-center gap-1"
+                              className="px-1.5 py-0.5 rounded-lg text-[10px] font-extrabold flex items-center gap-1 shrink-0"
                               style={{
                                 background: approvalStyle.bg,
                                 color: approvalStyle.text,
@@ -1293,10 +1447,10 @@ export default function DigitalCalendar() {
                               <span>{approvalStyle.icon}</span>
                               <span>{approvalStyle.label}</span>
                             </span>
-                          </div>
+                          </AutoScrollContainer>
 
                           {/* Top Right Action Icons */}
-                          <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+                          <div className="flex items-center gap-1 shrink-0 ml-1" onClick={e => e.stopPropagation()}>
                             {/* Edit Button */}
                             <button
                               type="button"
@@ -1321,29 +1475,25 @@ export default function DigitalCalendar() {
                           </div>
                         </div>
 
-                        {/* 2. Content Title */}
-                        <h3 className="text-sm sm:text-base font-extrabold text-slate-900 group-hover:text-sky-600 transition-colors m-0 leading-snug tracking-tight">
-                          {item.content_title}
-                        </h3>
-
-                        {/* 3. Date & Schedule Row */}
-                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 mt-1.5 mb-2.5">
-                          <FaCalendarDays className="w-3 h-3 text-sky-500" />
-                          <span>
-                            {formattedItemDate} • {item.day || new Date(item.content_date).toLocaleDateString('en-US', { weekday: 'long' })}
-                          </span>
+                        {/* 2. Content Title - Auto Scroll if large */}
+                        <div className="mb-1">
+                          <AutoScrollText className="text-sm sm:text-base font-extrabold text-slate-900 group-hover:text-sky-600 transition-colors leading-snug">
+                            {item.content_title}
+                          </AutoScrollText>
                         </div>
 
-                        {/* 4. Notes / Description */}
-                        {item.notes ? (
-                          <p className="text-[11px] text-slate-600 bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/70 font-medium line-clamp-2 mb-3">
-                            {item.notes}
-                          </p>
-                        ) : (
-                          <div className="mb-2.5" />
-                        )}
+                        {/* 3. Date & Schedule Row - Auto Scroll if large */}
+                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 mt-1.5 mb-2.5">
+                          <FaCalendarDays className="w-3 h-3 text-sky-500 shrink-0" />
+                          <AutoScrollText className="text-[11px] font-bold text-slate-500 flex-1 min-w-0">
+                            {formattedItemDate} • {item.day || new Date(item.content_date).toLocaleDateString('en-US', { weekday: 'long' })}
+                          </AutoScrollText>
+                        </div>
 
-                        {/* 5. Platform Breakdown & Posting Times */}
+                        {/* 4. Notes / Description - Auto Scroll if large */}
+                        <AutoScrollNotes text={item.notes} />
+
+                        {/* 5. Platform Breakdown & Posting Times - Auto Scroll text on overflow */}
                         <div className="space-y-1.5 mb-3.5">
                           <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block">
                             Social Media Platforms & Times
@@ -1357,42 +1507,50 @@ export default function DigitalCalendar() {
                               return (
                                 <div
                                   key={pIdx}
-                                  className={`p-1.5 rounded-xl border flex items-center justify-between gap-1 transition-all shadow-3xs ${
+                                  className={`p-1.5 rounded-xl border flex flex-col justify-between gap-1 transition-all shadow-3xs min-h-[50px] ${
                                     isOff
                                       ? 'bg-slate-50/60 border-slate-200/60 opacity-60'
                                       : `${pf.badgeBg} ${pf.border}`
                                   }`}
                                 >
-                                  <div className="flex items-center gap-1.5 min-w-0">
+                                  {/* Top: Icon + Full Name (Auto-scrolls if long) */}
+                                  <div className="flex items-center gap-1.5 w-full min-w-0">
                                     <div
-                                      className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${
+                                      className={`w-4 h-4 rounded-md flex items-center justify-center shrink-0 ${
                                         isOff ? 'bg-slate-100 text-slate-400' : `${pf.iconBg} ${pf.color}`
                                       }`}
                                     >
-                                      <PfIcon className="w-3 h-3" />
+                                      <PfIcon className="w-2.5 h-2.5" />
                                     </div>
-                                    <span
-                                      className={`text-[10.5px] font-bold truncate ${
-                                        isOff ? 'text-slate-400' : 'text-slate-800'
-                                      }`}
-                                    >
-                                      {pf.name}
-                                    </span>
+                                    <div className="w-full min-w-0 overflow-hidden">
+                                      <AutoScrollText
+                                        className={`text-[11px] font-bold leading-tight ${
+                                          isOff ? 'text-slate-400' : 'text-slate-800'
+                                        }`}
+                                      >
+                                        {pf.name}
+                                      </AutoScrollText>
+                                    </div>
                                   </div>
 
-                                  <div className="text-right shrink-0">
-                                    <span
-                                      className="text-[9px] font-bold px-1.5 py-0.5 rounded-md inline-block shadow-3xs"
-                                      style={{
-                                        background: isOff ? '#f1f5f9' : pfSt.bg,
-                                        color: isOff ? '#94a3b8' : pfSt.text,
-                                        border: `1px solid ${isOff ? '#e2e8f0' : pfSt.border}`
-                                      }}
-                                    >
-                                      {isOff ? 'Not Req' : pf.status}
-                                    </span>
+                                  {/* Bottom: Status Tag + Time */}
+                                  <div className="flex items-center justify-between gap-1 w-full pt-0.5 border-t border-slate-100/70 min-w-0">
+                                    <div className="min-w-0 flex-1 overflow-hidden">
+                                      <AutoScrollText className="w-full">
+                                        <span
+                                          className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-md inline-block shadow-3xs"
+                                          style={{
+                                            background: isOff ? '#f1f5f9' : pfSt.bg,
+                                            color: isOff ? '#94a3b8' : pfSt.text,
+                                            border: `1px solid ${isOff ? '#e2e8f0' : pfSt.border}`
+                                          }}
+                                        >
+                                          {isOff ? 'Not Req' : pf.status}
+                                        </span>
+                                      </AutoScrollText>
+                                    </div>
                                     {pf.time && !isOff && (
-                                      <span className="text-[8.5px] text-slate-500 font-bold block mt-0.5">
+                                      <span className="text-[8.5px] text-slate-500 font-bold block shrink-0 ml-1">
                                         {formatTime12h(pf.time)}
                                       </span>
                                     )}
@@ -1405,18 +1563,18 @@ export default function DigitalCalendar() {
                       </div>
 
                       {/* 6. Card Footer: Responsible Person + Drive Link */}
-                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3 mt-1">
-                        {/* Responsible Member: Actual Name + Display Name */}
-                        <div className="flex items-center gap-2 min-w-0">
+                      <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2 mt-1">
+                        {/* Responsible Member: Actual Name + Display Name with Auto-Scroll */}
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
                           {item.responsible_employee?.avatar ? (
                             <img
                               src={item.responsible_employee.avatar}
                               alt={item.responsible_employee?.name || item.responsible_employee_name || 'M'}
-                              className="w-7 h-7 rounded-lg object-cover shrink-0 border border-slate-200 shadow-2xs"
+                              className="w-6 h-6 rounded-lg object-cover shrink-0 border border-slate-200 shadow-2xs"
                             />
                           ) : (
                             <div
-                              className="w-7 h-7 rounded-lg text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs"
+                              className="w-6 h-6 rounded-lg text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs"
                               style={{ background: 'linear-gradient(135deg, #0284c7 0%, #f97316 100%)' }}
                             >
                               {(item.responsible_employee?.name || item.responsible_employee_name || 'M')
@@ -1424,17 +1582,18 @@ export default function DigitalCalendar() {
                                 .toUpperCase()}
                             </div>
                           )}
-                          <div className="truncate">
-                            <span className="text-xs font-bold text-slate-800 block truncate">
-                              {item.responsible_employee?.name ||
+                          <div className="min-w-0 flex-1 overflow-hidden">
+                            <AutoScrollText className="text-xs font-bold text-slate-800">
+                              {item.responsible_employee?.actualName ||
+                                item.responsible_employee?.name ||
                                 item.responsible_employee_name ||
                                 'Unassigned'}
-                            </span>
-                            <span className="text-[10px] text-slate-500 font-medium block truncate">
-                              {item.responsible_employee?.displayName ||
-                                item.responsible_employee?.designation ||
-                                'Marketing Team'}
-                            </span>
+                            </AutoScrollText>
+                            {(item.responsible_employee?.displayName || item.responsible_employee?.designation) && (
+                              <AutoScrollText className="text-[10px] text-slate-500 font-medium">
+                                {item.responsible_employee?.displayName || item.responsible_employee?.designation}
+                              </AutoScrollText>
+                            )}
                           </div>
                         </div>
 
@@ -1445,10 +1604,10 @@ export default function DigitalCalendar() {
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={e => e.stopPropagation()}
-                            className="px-2.5 py-1 text-[11px] font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-xl transition flex items-center gap-1.5 shrink-0"
+                            className="px-2 py-1 text-[11px] font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-xl transition flex items-center gap-1 shrink-0"
                           >
-                            <FaLink className="w-3 h-3" />
-                            <span>Asset Link</span>
+                            <FaLink className="w-2.5 h-2.5" />
+                            <span className="hidden sm:inline">Asset</span>
                           </a>
                         )}
                       </div>
@@ -1470,16 +1629,6 @@ export default function DigitalCalendar() {
             <span className="text-base font-extrabold text-slate-900 tracking-tight">
               All Marketing Content Items ({items.length})
             </span>
-            <button
-              onClick={() => {
-                setPrefilledDate(new Date().toISOString().split('T')[0]);
-                setShowAddModal(true);
-              }}
-              className="px-3.5 py-1.5 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer"
-            >
-              <FaPlus className="w-3 h-3" />
-              <span>Add Content</span>
-            </button>
           </div>
 
           <div className="overflow-x-auto">
