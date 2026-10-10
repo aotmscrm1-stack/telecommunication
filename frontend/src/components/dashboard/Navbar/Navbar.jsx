@@ -533,9 +533,9 @@ export default function Navbar() {
     { title: 'Info', icon: FaCircleInfo, items: [
       { label: 'Dashboard', path: '/dashboard', icon: FaHouse },
       { label: 'Task', path: user?._id ? `/${user._id}/tasks` : '/tasks', icon: FaListCheck },
+      { label: 'Digital Calendar', path: '/digital-calendar', icon: FaCalendarDays },
     ]},
     { title: 'Marketing', icon: FaBullhorn, items: [
-      { label: 'Digital Calendar', path: '/digital-calendar', icon: FaCalendarDays },
       { label: 'Add Leads', path: '/leads/new', icon: FaUserPlus },
       { label: 'All Leads', path: '/leads', icon: FaUsers },
       { label: 'Campaigns', path: '/campaigns', icon: FaBullhorn },
@@ -1079,7 +1079,7 @@ export default function Navbar() {
                     </div>
                     <div className="grid grid-cols-2 gap-1.5">
                       {group.items
-                        .filter(item => !item.adminOnly || user?.role === 'admin' || isCEO(user) || isHR(user) || item.path.includes('attendance'))
+                        .filter(item => !item.adminOnly || user?.role === 'admin' || isCEO(user) || isHR(user) || isManager(user) || user?.role === 'manager' || item.path.includes('attendance'))
                         .map(item => {
                           const ItemIcon = item.icon;
                           return (

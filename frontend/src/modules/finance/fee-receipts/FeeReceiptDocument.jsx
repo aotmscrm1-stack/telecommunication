@@ -4,7 +4,7 @@ import atmLogoImg from '../../../assets/atm-logo.jpeg';
 import { A4Container, A4Page } from '../../../components/Finance/A4TemplateWrapper';
 import { numberToWords } from '../../../utils/numberToWords';
 
-export const FeeReceiptDocument = forwardRef(({ receiptData, isPreview = false }, ref) => {
+function FeeReceiptDocumentComponent({ receiptData, isPreview = false }, ref) {
   if (!receiptData) return null;
 
   const invoiceNo = receiptData.invoice_number !== undefined ? receiptData.invoice_number : (receiptData.receipt_number !== undefined ? receiptData.receipt_number : '');
@@ -330,6 +330,7 @@ export const FeeReceiptDocument = forwardRef(({ receiptData, isPreview = false }
       </A4Page>
     </A4Container>
   );
-});
+}
 
+export const FeeReceiptDocument = forwardRef(FeeReceiptDocumentComponent);
 export default FeeReceiptDocument;

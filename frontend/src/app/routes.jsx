@@ -166,8 +166,9 @@ export function AppRoutes() {
         <Route path="dashboard" element={<DashboardRoute><Dashboard /></DashboardRoute>} />
         <Route path="billing" element={<AdminRoute><Billing /></AdminRoute>} />
         
-        {/* Marketing Module Routes */}
+        {/* Digital Calendar & Info Module Routes */}
         <Route path="digital-calendar" element={<DigitalCalendarRoute><DigitalCalendar /></DigitalCalendarRoute>} />
+        <Route path="info/digital-calendar" element={<DigitalCalendarRoute><DigitalCalendar /></DigitalCalendarRoute>} />
         <Route path="marketing/digital-calendar" element={<DigitalCalendarRoute><DigitalCalendar /></DigitalCalendarRoute>} />
         <Route path=":userId/digital-calendar" element={<DigitalCalendarRoute><DigitalCalendar /></DigitalCalendarRoute>} />
         <Route path="leads" element={<StaffRestrictedRoute><AllLeads /></StaffRestrictedRoute>} />
@@ -219,6 +220,8 @@ export function AppRoutes() {
         <Route path="admin/attendance-records" element={<AttendanceRecords />} />
         <Route path="attendance-records" element={<AttendanceRecords />} />
         <Route path=":userId/attendance-records" element={<AttendanceRecords />} />
+        <Route path="management/digital-calendar" element={<DigitalCalendarRoute><DigitalCalendar /></DigitalCalendarRoute>} />
+        <Route path="admin/digital-calendar" element={<DigitalCalendarRoute><DigitalCalendar /></DigitalCalendarRoute>} />
 
         {/* Communication Module Routes */}
         <Route path="email" element={<EmailCRM />} />

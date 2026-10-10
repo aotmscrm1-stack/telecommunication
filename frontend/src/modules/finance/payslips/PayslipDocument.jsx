@@ -24,7 +24,7 @@ function formatDisplayMonth(monthVal) {
   return str || '__________';
 }
 
-export const PayslipDocument = forwardRef(({ payslip }, ref) => {
+function PayslipDocumentComponent({ payslip }, ref) {
   if (!payslip) return null;
 
   const fmt = (v) => {
@@ -378,6 +378,7 @@ export const PayslipDocument = forwardRef(({ payslip }, ref) => {
       </A4Page>
     </A4Container>
   );
-});
+}
 
+export const PayslipDocument = forwardRef(PayslipDocumentComponent);
 export default PayslipDocument;

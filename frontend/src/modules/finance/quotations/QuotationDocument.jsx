@@ -1,9 +1,10 @@
 import React, { forwardRef } from 'react';
 import atmLogoImg from '../../../assets/atm-logo.jpeg';
 import logoImg from '../../../assets/aotms-global-logo.png';
+import sirSignImg from '../../../assets/sir sign.png';
 import { A4Container, A4Page } from '../../../components/Finance/A4TemplateWrapper';
 
-export const QuotationDocument = forwardRef(({ quotationData, isPreview = false }, ref) => {
+function QuotationDocumentComponent({ quotationData, isPreview = false }, ref) {
   if (!quotationData) return null;
 
   const fmtCurrency = (val) => {
@@ -73,65 +74,67 @@ export const QuotationDocument = forwardRef(({ quotationData, isPreview = false 
 
   const innerFrameStyle = {
     border: '2px solid #000000',
-    minHeight: '1091px',
+    height: '100%',
+    maxHeight: '100%',
     boxSizing: 'border-box',
-    padding: '20px 24px',
+    padding: '16px 20px',
     display: 'flex',
     flexDirection: 'column',
+    justifyContent: 'space-between',
     backgroundColor: '#ffffff',
     position: 'relative',
   };
 
-  const spacerHeight = Math.max(20, 80 - (items.length * 15));
+  const spacerHeight = Math.max(8, 40 - (items.length * 12));
 
   return (
-    <A4Container ref={ref} className="pdf-quotation-container">
-      <A4Page className="quotation-page">
+    <A4Container ref={ref} id="quotation-printable-container" className="pdf-quotation-container a4-single-page">
+      <A4Page className="quotation-page a4-single-page single-page" style={{ padding: '8mm 10mm' }}>
         <div style={innerFrameStyle}>
           {/* Main Top & Middle Content Flow */}
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {/* Top Branding Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', position: 'relative' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', position: 'relative' }}>
               <div style={{ width: '130px' }} />
               <div style={{ display: 'flex', justifyContent: 'center', flex: 1 }}>
                 <img
                   src={logoImg}
                   alt="AOTMS Global Logo"
-                  style={{ height: '62px', objectFit: 'contain' }}
+                  style={{ height: '54px', objectFit: 'contain' }}
                   onError={(e) => { e.target.src = atmLogoImg; }}
                 />
               </div>
-              <div style={{ textAlign: 'right', fontSize: '12px', color: '#000000', fontWeight: '700', width: '130px' }}>
+              <div style={{ textAlign: 'right', fontSize: '11.5px', color: '#000000', fontWeight: '700', width: '130px' }}>
                 <div>📞 +91 80199 42233</div>
                 <div>📞 +91 80199 52233</div>
               </div>
             </div>
 
             {/* Header Accent Bar / Dividing Border */}
-            <div style={{ height: '2px', background: '#000000', width: '100%', marginBottom: '16px' }} />
+            <div style={{ height: '2px', background: '#000000', width: '100%', marginBottom: '10px' }} />
 
             {/* Title: Quotation */}
-            <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-              <span style={{ fontSize: '20px', fontWeight: '800', textDecoration: 'underline', color: '#000000', letterSpacing: '0.5px' }}>
+            <div style={{ textAlign: 'center', marginBottom: '10px' }}>
+              <span style={{ fontSize: '18px', fontWeight: '800', textDecoration: 'underline', color: '#000000', letterSpacing: '0.5px' }}>
                 Quotation
               </span>
             </div>
 
             {/* Quotation Meta */}
-            <div style={{ marginBottom: '16px', lineHeight: '1.6', fontSize: '12.5px', fontWeight: '700' }}>
-              <div>Quotation No: <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px' }}>{quotationNo}</span></div>
+            <div style={{ marginBottom: '10px', lineHeight: '1.45', fontSize: '12px', fontWeight: '700' }}>
+              <div>Quotation No: <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '12.5px' }}>{quotationNo}</span></div>
               <div>Date: {quotationDate}</div>
               <div>Valid Till : {validTill}</div>
             </div>
 
             {/* Quotation From & Quotation To Grid Table */}
-            <table style={{ width: '100%', borderCollapse: 'collapse', border: '1.5px solid #000000', marginBottom: '18px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', border: '1.5px solid #000000', marginBottom: '10px' }}>
               <thead>
                 <tr style={{ background: '#ffffff', borderBottom: '1.5px solid #000000' }}>
-                  <th style={{ width: '50%', padding: '8px 12px', textAlign: 'left', fontWeight: '800', fontSize: '13px', borderRight: '1.5px solid #000000' }}>
+                  <th style={{ width: '50%', padding: '6px 10px', textAlign: 'left', fontWeight: '800', fontSize: '12.5px', borderRight: '1.5px solid #000000' }}>
                     Quotation From
                   </th>
-                  <th style={{ width: '50%', padding: '8px 12px', textAlign: 'left', fontWeight: '800', fontSize: '13px' }}>
+                  <th style={{ width: '50%', padding: '6px 10px', textAlign: 'left', fontWeight: '800', fontSize: '12.5px' }}>
                     Quotation To
                   </th>
                 </tr>
@@ -139,8 +142,8 @@ export const QuotationDocument = forwardRef(({ quotationData, isPreview = false 
               <tbody>
                 <tr>
                   {/* Quotation From Cell */}
-                  <td style={{ padding: '10px 12px', verticalAlign: 'top', borderRight: '1.5px solid #000000', lineHeight: '1.5' }}>
-                    <div style={{ fontWeight: '800', fontSize: '13px' }}>{companyName}</div>
+                  <td style={{ padding: '8px 10px', verticalAlign: 'top', borderRight: '1.5px solid #000000', lineHeight: '1.45', fontSize: '11.5px' }}>
+                    <div style={{ fontWeight: '800', fontSize: '12.5px' }}>{companyName}</div>
                     <div>{companyAddress}</div>
                     <div>Mobile: {companyMobile}</div>
                     <div>Email : {companyEmail}</div>
@@ -148,8 +151,8 @@ export const QuotationDocument = forwardRef(({ quotationData, isPreview = false 
                   </td>
 
                   {/* Quotation To Cell */}
-                  <td style={{ padding: '10px 12px', verticalAlign: 'top', lineHeight: '1.5' }}>
-                    <div style={{ fontWeight: '800', fontSize: '13px' }}>{clientName}</div>
+                  <td style={{ padding: '8px 10px', verticalAlign: 'top', lineHeight: '1.45', fontSize: '11.5px' }}>
+                    <div style={{ fontWeight: '800', fontSize: '12.5px' }}>{clientName}</div>
                     <div>{clientAddress}</div>
                     <div>Mobile: {clientMobile}</div>
                     <div>Email:{clientEmail}</div>
@@ -159,22 +162,22 @@ export const QuotationDocument = forwardRef(({ quotationData, isPreview = false 
             </table>
 
             {/* Section Heading: Description & Pricing */}
-            <div style={{ textAlign: 'center', marginBottom: '12px' }}>
-              <span style={{ fontSize: '15px', fontWeight: '800', textDecoration: 'underline', color: '#000000' }}>
+            <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+              <span style={{ fontSize: '14px', fontWeight: '800', textDecoration: 'underline', color: '#000000' }}>
                 Description &amp; Pricing
               </span>
             </div>
 
             {/* Description & Pricing Table */}
-            <table style={{ width: '100%', borderCollapse: 'collapse', border: '1.5px solid #000000', marginBottom: '18px', fontSize: '12.5px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', border: '1.5px solid #000000', marginBottom: '10px', fontSize: '11.5px' }}>
               <thead>
                 <tr style={{ borderBottom: '1.5px solid #000000', background: '#ffffff', textAlign: 'center', fontWeight: '800' }}>
-                  <th style={{ padding: '8px 6px', borderRight: '1.5px solid #000000', width: '7%' }}>S.No</th>
-                  <th style={{ padding: '8px 10px', borderRight: '1.5px solid #000000', width: '38%', textAlign: 'left' }}>Particulars</th>
-                  <th style={{ padding: '8px 6px', borderRight: '1.5px solid #000000', width: '13%' }}>To</th>
-                  <th style={{ padding: '8px 6px', borderRight: '1.5px solid #000000', width: '13%' }}>Days</th>
-                  <th style={{ padding: '8px 8px', borderRight: '1.5px solid #000000', width: '14%', textAlign: 'right' }}>Price Per Day</th>
-                  <th style={{ padding: '8px 10px', width: '15%', textAlign: 'right' }}>Final Price</th>
+                  <th style={{ padding: '6px', borderRight: '1.5px solid #000000', width: '7%' }}>S.No</th>
+                  <th style={{ padding: '6px 8px', borderRight: '1.5px solid #000000', width: '38%', textAlign: 'left' }}>Particulars</th>
+                  <th style={{ padding: '6px', borderRight: '1.5px solid #000000', width: '13%' }}>To</th>
+                  <th style={{ padding: '6px', borderRight: '1.5px solid #000000', width: '13%' }}>Days</th>
+                  <th style={{ padding: '6px 8px', borderRight: '1.5px solid #000000', width: '14%', textAlign: 'right' }}>Price Per Day</th>
+                  <th style={{ padding: '6px 8px', width: '15%', textAlign: 'right' }}>Final Price</th>
                 </tr>
               </thead>
               <tbody>
@@ -226,21 +229,21 @@ export const QuotationDocument = forwardRef(({ quotationData, isPreview = false 
             </table>
 
             {/* Payment Terms Section */}
-            <div style={{ marginBottom: '18px', lineHeight: '1.5' }}>
-              <div style={{ fontWeight: '800', fontSize: '13px', marginBottom: '4px' }}>
+            <div style={{ marginBottom: '10px', lineHeight: '1.4' }}>
+              <div style={{ fontWeight: '800', fontSize: '12.5px', marginBottom: '3px' }}>
                 Payment Terms :
               </div>
-              <ul style={{ margin: '0 0 4px 20px', padding: 0, fontSize: '12px', fontWeight: '700' }}>
+              <ul style={{ margin: '0 0 3px 18px', padding: 0, fontSize: '11.5px', fontWeight: '700' }}>
                 <li>{paymentTerms1}</li>
                 <li>{paymentTerms2}</li>
               </ul>
-              <div style={{ fontWeight: '700', fontSize: '11.5px', color: '#1e293b', fontStyle: 'italic', marginLeft: '4px' }}>
+              <div style={{ fontWeight: '700', fontSize: '11px', color: '#1e293b', fontStyle: 'italic', marginLeft: '4px' }}>
                 {paymentNote}
               </div>
             </div>
 
             {/* ACCOUNT DETAILS & Authorized Signatory Block Table */}
-            <table style={{ width: '100%', borderCollapse: 'collapse', border: '1.5px solid #000000', marginBottom: '16px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', border: '1.5px solid #000000', marginBottom: '10px' }}>
               <tbody>
                 <tr>
                   {/* Account Details */}
@@ -261,8 +264,17 @@ export const QuotationDocument = forwardRef(({ quotationData, isPreview = false 
                       Authorized Signatory
                     </div>
 
-                    <div style={{ fontFamily: "'Brush Script MT', 'cursive', cursive", fontSize: '22px', color: '#0f172a', fontWeight: 'bold', margin: '4px 0', transform: 'rotate(-4deg)' }}>
-                      SD. Ameenuddin
+                    <div style={{ display: 'flex', justifyContent: 'center', margin: '3px 0' }}>
+                      <img
+                        src={sirSignImg}
+                        alt="Authorized Signatory"
+                        style={{
+                          height: '36px',
+                          maxWidth: '135px',
+                          objectFit: 'contain',
+                          display: 'block',
+                        }}
+                      />
                     </div>
 
                     <div style={{ fontWeight: '800', fontSize: '12.5px', color: '#000000' }}>
@@ -289,6 +301,7 @@ export const QuotationDocument = forwardRef(({ quotationData, isPreview = false 
       </A4Page>
     </A4Container>
   );
-});
+}
 
+export const QuotationDocument = forwardRef(QuotationDocumentComponent);
 export default QuotationDocument;

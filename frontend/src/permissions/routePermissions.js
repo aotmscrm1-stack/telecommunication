@@ -10,7 +10,10 @@ export const ROUTE_PERMISSIONS = {
   '/dashboard': [ROLES.ADMIN, ROLES.MANAGER, ROLES.EMPLOYEE],
   '/tasks': [ROLES.ADMIN, ROLES.MANAGER, ROLES.EMPLOYEE],
 
-  // Marketing Routes
+  // Marketing & Info Routes
+  '/digital-calendar': [ROLES.ADMIN, ROLES.MANAGER, ROLES.EMPLOYEE],
+  '/info/digital-calendar': [ROLES.ADMIN, ROLES.MANAGER, ROLES.EMPLOYEE],
+  '/marketing/digital-calendar': [ROLES.ADMIN, ROLES.MANAGER, ROLES.EMPLOYEE],
   '/leads': [ROLES.ADMIN, ROLES.MANAGER, ROLES.EMPLOYEE],
   '/leads/add': [ROLES.ADMIN, ROLES.MANAGER],
   '/leads/import': [ROLES.ADMIN, ROLES.MANAGER],
@@ -28,6 +31,7 @@ export const ROUTE_PERMISSIONS = {
   '/finance/fee-receipts': [ROLES.ADMIN, ROLES.MANAGER],
 
   // Management Routes
+  '/management/digital-calendar': [ROLES.ADMIN, ROLES.MANAGER],
   '/management/departments': [ROLES.ADMIN, ROLES.MANAGER],
   '/management/attendance': [ROLES.ADMIN, ROLES.MANAGER, ROLES.EMPLOYEE],
   '/management/call-recordings': [ROLES.ADMIN, ROLES.MANAGER],

@@ -42,7 +42,8 @@ export const isHR = (user) => {
 export const isManager = (user) => {
   if (!user) return false;
   const d = normalizeDesignation(user);
-  return d.includes('MANAGER') || user?.role === 'manager';
+  const dept = String(user?.department || '').trim().toUpperCase();
+  return d.includes('MANAGER') || user?.role === 'manager' || dept.includes('MANAGER') || dept.includes('MANAGEMENT');
 };
 
 export const isDeveloper = (user) => {
@@ -80,7 +81,7 @@ export const isLimitedStaff = (user) => {
  */
 export const canAccessDigitalCalendar = (user) => {
   if (!user) return false;
-  return isDigitalMarketing(user) || isCEO(user) || isHR(user) || user?.role === 'admin' || user?.role === 'manager';
+  return isDigitalMarketing(user) || isCEO(user) || isHR(user) || isManager(user) || user?.role === 'admin' || user?.role === 'manager';
 };
 
 /**

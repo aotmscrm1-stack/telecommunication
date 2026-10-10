@@ -425,6 +425,9 @@ export const digitalCalendarAPI = {
   create: (data) => api.post('/marketing/digital-calendar', data),
   update: (id, data) => api.put(`/marketing/digital-calendar/${id}`, data),
   delete: (id) => api.delete(`/marketing/digital-calendar/${id}`),
+  getGoogleConfig: () => api.get('/marketing/digital-calendar/google/config'),
+  getGoogleEvents: (params) => api.get('/marketing/digital-calendar/google/events', { params }),
+  importGoogleEvent: (data) => api.post('/marketing/digital-calendar/google/import-event', data),
 };
 
 export default api;

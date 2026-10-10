@@ -12,6 +12,11 @@ export const ROUTES = {
   MODULES: {
     DASHBOARD: '/dashboard',
     TASKS: '/tasks',
+    INFO: {
+      DASHBOARD: '/dashboard',
+      TASKS: '/tasks',
+      DIGITAL_CALENDAR: '/digital-calendar',
+    },
     MARKETING: {
       LEADS: '/leads',
       ADD_LEAD: '/leads/add',

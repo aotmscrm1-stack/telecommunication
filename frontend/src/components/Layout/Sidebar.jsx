@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import useBreakpoint from '../../hooks/useBreakpoint';
 import { useSidebar } from '../../context/SidebarContext';
-import { canAccessEmailBlast, canViewCallRecordings } from '../../utils/permissions';
+import { canAccessEmailBlast, canViewCallRecordings, canAccessDigitalCalendar, isManager, isExecutive } from '../../utils/permissions';
 
 const ACTIVE_BG = '#edf8f8';
 const ACTIVE_COLOR = '#1d3557';
@@ -29,6 +29,7 @@ const Icons = {
   upload:       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>,
   integration:  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>,
   campaigns:    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>,
+  calendar:     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
   templates:    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>,
   whatsapp:     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" stroke="currentColor"/></svg>,
   whatsappBlast: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/><polygon points="12 6 9.5 11 13 11 11.5 16 15 10 12 10 12 6" fill="currentColor" stroke="none"/></svg>,
@@ -70,7 +71,7 @@ export default function Sidebar() {
   const isOpen = isMobile ? mobileOpen : hoverOpen;
   const [addLeadsOpen, setAddLeadsOpen] = useState(false);
 
-  const isAdmin = user?.role === 'admin' || user?.role === 'manager';
+  const isAdmin = user?.role === 'admin' || user?.role === 'manager' || isManager(user) || isExecutive(user);
 
   const goTo = (path) => {
     navigate(path);
@@ -232,6 +233,9 @@ export default function Sidebar() {
           <NavItem to="/tasks"         icon={Icons.tasks}       label="Tasks" />
           {canViewCallRecordings(user) && (
             <NavItem to="/recordings"  icon={Icons.recordings}  label="Call Recordings" iconColor="#0284c7" />
+          )}
+          {canAccessDigitalCalendar(user) && (
+            <NavItem to="/digital-calendar" icon={Icons.calendar} label="Digital Calendar" iconColor="#f97316" />
           )}
 
           {isAdmin && (

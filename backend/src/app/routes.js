@@ -49,8 +49,11 @@ router.use('/message-templates', apiLimiter, require('../modules/marketing/whats
 // Leaderboard / Learning
 router.use('/courses', apiLimiter, require('../modules/marketing/leaderboard/courses'));
 
-// Digital Calendar (Marketing)
+// Digital Calendar (Info, Marketing, Management, Admin)
+router.use('/info/digital-calendar', apiLimiter, require('../modules/marketing/digital-calendar/digitalCalendar'));
 router.use('/marketing/digital-calendar', apiLimiter, require('../modules/marketing/digital-calendar/digitalCalendar'));
+router.use('/management/digital-calendar', apiLimiter, require('../modules/marketing/digital-calendar/digitalCalendar'));
+router.use('/admin/digital-calendar', apiLimiter, require('../modules/marketing/digital-calendar/digitalCalendar'));
 router.use('/digital-calendar', apiLimiter, require('../modules/marketing/digital-calendar/digitalCalendar'));
 
 // ── Finance Modules ──────────────────────────────────────────────────────────

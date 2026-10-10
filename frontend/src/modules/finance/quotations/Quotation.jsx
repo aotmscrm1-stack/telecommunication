@@ -112,66 +112,61 @@ export default function Quotation() {
     }
   }, [activeTab, search]);
 
-  // PDF Download Handler matching Offer Letter standard A4 export
+  // PDF Download Handler: Robust single-page A4 export
   const handleDownloadPDF = async (targetRef = printRef, clientName = form.client_name) => {
-    if (!targetRef.current) return;
+    const element = targetRef?.current ||
+                    document.getElementById('quotation-printable-container') ||
+                    document.querySelector('.pdf-quotation-container') ||
+                    document.querySelector('.quotation-page');
+    if (!element) {
+      setErrorMessage('Could not locate quotation document. Please try again.');
+      setTimeout(() => setErrorMessage(''), 4000);
+      return;
+    }
     setDownloadingPdf(true);
 
     try {
-      const element = targetRef.current;
       const cleanName = (clientName || 'Client').replace(/[^a-zA-Z0-9]+/g, '_');
       const quoteNo = (form.invoice_number || 'QUOTE').replace(/[^a-zA-Z0-9]+/g, '_');
       const filename = `AOTMS_Quotation_${quoteNo}_${cleanName}.pdf`;
 
-      const quotePages = element.querySelectorAll('.quotation-page');
-      const targetPages = (quotePages && quotePages.length > 0) ? quotePages : [element];
+      const pageEl = element.classList.contains('quotation-page')
+        ? element
+        : (element.querySelector('.quotation-page') || element);
 
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4',
-        compress: true,
-      });
-
-      // Temporarily remove shadow and bottom margins during PDF capture
-      const originalShadows = [];
-      const originalMargins = [];
-      targetPages.forEach((p, idx) => {
-        originalShadows[idx] = p.style.boxShadow;
-        originalMargins[idx] = p.style.marginBottom;
-        p.style.boxShadow = 'none';
-        p.style.marginBottom = '0px';
-      });
+      const originalShadow = pageEl.style.boxShadow;
+      const originalMargin = pageEl.style.margin;
+      pageEl.style.boxShadow = 'none';
+      pageEl.style.margin = '0 auto';
 
       try {
-        for (let i = 0; i < targetPages.length; i++) {
-          const pageEl = targetPages[i];
-          const canvas = await html2canvas(pageEl, {
-            scale: 2,
-            useCORS: true,
-            logging: false,
-            scrollY: 0,
-            scrollX: 0,
-            backgroundColor: '#ffffff',
-          });
-
-          const imgData = canvas.toDataURL('image/jpeg', 0.98);
-          if (i > 0) {
-            pdf.addPage('a4', 'portrait');
-          }
-          pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
-        }
-
-        pdf.save(filename);
-      } finally {
-        targetPages.forEach((p, idx) => {
-          p.style.boxShadow = originalShadows[idx];
-          p.style.marginBottom = originalMargins[idx];
+        const canvas = await html2canvas(pageEl, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          scrollY: 0,
+          scrollX: 0,
+          backgroundColor: '#ffffff',
         });
-      }
 
-      setSuccessMessage(`PDF downloaded successfully: ${filename}`);
-      setTimeout(() => setSuccessMessage(''), 4000);
+        const imgData = canvas.toDataURL('image/jpeg', 0.98);
+        const jsPDFConstructor = jsPDF.jsPDF || jsPDF.default || jsPDF;
+        const pdf = new jsPDFConstructor({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'a4',
+          compress: true,
+        });
+
+        pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
+        pdf.save(filename);
+
+        setSuccessMessage(`PDF downloaded successfully: ${filename}`);
+        setTimeout(() => setSuccessMessage(''), 4000);
+      } finally {
+        pageEl.style.boxShadow = originalShadow;
+        pageEl.style.margin = originalMargin;
+      }
     } catch (err) {
       console.error('PDF Generation failed:', err);
       setErrorMessage('Failed to generate PDF. Please try again.');

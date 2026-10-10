@@ -42,6 +42,23 @@
   width: 100%;
 }
 
+/* Single Page A4 strict enforcement */
+.a4-single-page,
+.a4-page.single-page,
+.a4-container.a4-single-page .a4-page {
+  height: 297mm !important;
+  max-height: 297mm !important;
+  min-height: 297mm !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+  page-break-after: avoid !important;
+  page-break-before: avoid !important;
+  page-break-inside: avoid !important;
+  break-after: avoid !important;
+  break-before: avoid !important;
+  break-inside: avoid !important;
+}
+
 @media print {
   body {
     background: #ffffff !important;
@@ -72,7 +89,7 @@
     padding: 10mm 12mm !important;
     width: 210mm !important;
     max-height: 297mm !important;
-    page-break-after: always !important;
+    page-break-inside: avoid !important;
   }
 
   .a4-page:first-child {
@@ -81,6 +98,23 @@
 
   .a4-page:last-child {
     page-break-after: avoid !important;
+  }
+
+  /* Single Page print rules - guarantee exactly 1 page */
+  .a4-single-page,
+  .a4-page.single-page,
+  .a4-container.a4-single-page .a4-page {
+    page-break-after: avoid !important;
+    page-break-before: avoid !important;
+    page-break-inside: avoid !important;
+    break-after: avoid !important;
+    break-before: avoid !important;
+    break-inside: avoid !important;
+    height: 297mm !important;
+    max-height: 297mm !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    box-shadow: none !important;
   }
 
   @page {

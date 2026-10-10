@@ -1,11 +1,41 @@
 const express = require('express');
 const mongoose = require('mongoose');
+const axios = require('axios');
 const DigitalCalendar = require('../../../database/models/DigitalCalendar');
 const User = require('../../../database/models/User');
 const Department = require('../../../database/models/Department');
 const { protect, authorize } = require('../../../core/middleware/auth');
 
 const router = express.Router();
+
+// Supported preset Google Calendar IDs
+const PRESET_GOOGLE_CALENDARS = {
+  indian_holidays: {
+    id: 'en.indian#holiday@group.v.calendar.google.com',
+    name: 'Holidays & Observances in India',
+    badge: '🇮🇳 India'
+  },
+  indian_official: {
+    id: 'en.indian.official#holiday@group.v.calendar.google.com',
+    name: 'Indian Gazetted & Public Holidays',
+    badge: '🏛️ Gazetted'
+  },
+  usa_holidays: {
+    id: 'en.usa#holiday@group.v.calendar.google.com',
+    name: 'US & Global Holidays',
+    badge: '🌐 Global / US'
+  },
+  uk_holidays: {
+    id: 'en.uk#holiday@group.v.calendar.google.com',
+    name: 'UK Public Holidays',
+    badge: '🇬🇧 UK'
+  },
+  islamic_holidays: {
+    id: 'en.islamic#holiday@group.v.calendar.google.com',
+    name: 'Islamic Holidays & Festivals',
+    badge: '🌙 Islamic'
+  }
+};
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -20,8 +50,10 @@ function isStrictAdminOrCEO(user) {
     desig.includes('MANAGING DIRECTOR') ||
     desig.includes('CEO') ||
     desig.includes('CTO') ||
+    desig.includes('MANAGER') ||
     dept.includes('ADMIN') ||
-    dept.includes('MANAGEMENT')
+    dept.includes('MANAGEMENT') ||
+    dept.includes('MANAGER')
   );
 }
 
@@ -173,18 +205,35 @@ async function ensureSeedData(user) {
       for (let idx = 0; idx < INITIAL_SEED_ITEMS.length; idx++) {
         const item = INITIAL_SEED_ITEMS[idx];
         const assignedUser = mktUsers[idx % (mktUsers.length || 1)];
+        const personName = assignedUser
+          ? (assignedUser.name || `${assignedUser.firstName || ''} ${assignedUser.lastName || ''}`.trim() || assignedUser.displayName)
+          : item.responsible_employee_name;
         await DigitalCalendar.findOneAndUpdate(
           { content_title: item.content_title, content_date: item.content_date },
           {
             $setOnInsert: {
               ...item,
               responsible_employee: assignedUser ? assignedUser._id : null,
-              responsible_employee_name: assignedUser ? (assignedUser.displayName || assignedUser.name) : item.responsible_employee_name,
+              responsible_employee_name: personName,
               createdBy: user ? user._id : (assignedUser ? assignedUser._id : null)
             }
           },
           { upsert: true, new: true }
         );
+      }
+    }
+
+    // Auto-align any existing items where responsible_employee user has a real name
+    const existingWithUser = await DigitalCalendar.find({ responsible_employee: { $ne: null } })
+      .populate('responsible_employee', 'name firstName lastName displayName')
+      .limit(50);
+    for (const doc of existingWithUser) {
+      if (doc.responsible_employee) {
+        const actualPersonName = (doc.responsible_employee.name || `${doc.responsible_employee.firstName || ''} ${doc.responsible_employee.lastName || ''}`.trim()).trim();
+        if (actualPersonName && doc.responsible_employee_name !== actualPersonName) {
+          doc.responsible_employee_name = actualPersonName;
+          await doc.save();
+        }
       }
     }
   } catch (err) {
@@ -194,43 +243,58 @@ async function ensureSeedData(user) {
   }
 }
 
-// GET /api/marketing/digital-calendar/employees — Get the marketing employees dynamically
+// GET /api/marketing/digital-calendar/employees — Get marketing department employees dynamically
 router.get('/employees', protect, async (req, res) => {
   try {
-    // Look up users in marketing department or with marketing/design/video designations
-    let marketingUsers = await User.find({
+    // Strictly find active users belonging to Marketing department or with marketing roles
+    const marketingQuery = {
       isActive: true,
       $or: [
-        { department: { $regex: /marketing/i } },
-        { designation: { $regex: /marketing|designer|editor|content|social|digital/i } }
+        { department: { $regex: /marketing|digital/i } },
+        { designation: { $regex: /marketing|designer|editor|content|social|creative|growth|seo|copywriter|videographer/i } }
       ]
-    })
-      .select('_id name firstName lastName displayName email designation department avatar')
+    };
+
+    let marketingUsers = await User.find(marketingQuery)
+      .select('_id name firstName lastName displayName email designation department avatar role')
       .sort({ name: 1 });
 
-    // If fewer than 3 users matched by department/designation, also provide other non-admin active users or fallback
-    if (marketingUsers.length < 3) {
-      const allActive = await User.find({ isActive: true })
-        .select('_id name firstName lastName displayName email designation department avatar')
-        .limit(10);
-      const existingIds = new Set(marketingUsers.map(u => String(u._id)));
-      for (const u of allActive) {
-        if (!existingIds.has(String(u._id)) && marketingUsers.length < 3) {
-          marketingUsers.push(u);
-        }
-      }
+    // Fallback: if no specific marketing users found, search for any user with 'market'
+    if (marketingUsers.length === 0) {
+      marketingUsers = await User.find({
+        isActive: true,
+        $or: [
+          { department: { $regex: /market/i } },
+          { designation: { $regex: /market/i } }
+        ]
+      })
+        .select('_id name firstName lastName displayName email designation department avatar role')
+        .sort({ name: 1 });
+    }
+
+    // Final fallback: return active employees so dropdown doesn't break if DB hasn't set department tags
+    if (marketingUsers.length === 0) {
+      marketingUsers = await User.find({ isActive: true })
+        .select('_id name firstName lastName displayName email designation department avatar role')
+        .sort({ name: 1 });
     }
 
     res.json({
       ok: true,
-      employees: marketingUsers.map(u => ({
-        _id: u._id,
-        name: u.displayName || u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim(),
-        email: u.email,
-        designation: u.designation || 'Marketing Specialist',
-        department: u.department || 'Marketing',
-        avatar: u.avatar || ''
-      }))
+      employees: marketingUsers.map(u => {
+        const actualName = (u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || 'Marketing Member').trim();
+        const displayName = (u.displayName || u.designation || 'Marketing Executive').trim();
+        return {
+          _id: u._id,
+          name: actualName,
+          actualName,
+          displayName,
+          designation: u.designation || displayName || 'Marketing',
+          department: u.department || 'Marketing',
+          email: u.email,
+          avatar: u.avatar || ''
+        };
+      })
     });
   } catch (err) {
     res.status(500).json({ ok: false, message: err.message });
@@ -402,6 +466,199 @@ router.get('/stats', protect, async (req, res) => {
   }
 });
 
+// GET /api/marketing/digital-calendar/google/config — Get Google Calendar config & presets
+router.get('/google/config', protect, (req, res) => {
+  const apiKey = (process.env.GOOGLE_CALENDAR_API_KEY || '').trim();
+  res.json({
+    ok: true,
+    configured: !!apiKey,
+    presets: PRESET_GOOGLE_CALENDARS,
+    defaultCalendar: 'indian_holidays'
+  });
+});
+
+// GET /api/marketing/digital-calendar/google/events — Fetch Google Calendar events live
+router.get('/google/events', protect, async (req, res) => {
+  try {
+    const apiKey = (process.env.GOOGLE_CALENDAR_API_KEY || '').trim();
+    if (!apiKey) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Google Calendar API key is not configured in backend environment (GOOGLE_CALENDAR_API_KEY).'
+      });
+    }
+
+    const {
+      calendarId = 'indian_holidays',
+      year,
+      month,
+      timeMin,
+      timeMax,
+      search
+    } = req.query;
+
+    let resolvedCalendarId = calendarId;
+    let calendarName = 'Google Calendar';
+
+    if (PRESET_GOOGLE_CALENDARS[calendarId]) {
+      resolvedCalendarId = PRESET_GOOGLE_CALENDARS[calendarId].id;
+      calendarName = PRESET_GOOGLE_CALENDARS[calendarId].name;
+    }
+
+    let startIso = timeMin;
+    let endIso = timeMax;
+
+    if (!startIso || !endIso) {
+      if (year && month) {
+        const y = parseInt(year, 10);
+        const m = parseInt(month, 10) - 1;
+        // Buffer by 15 days before and after so all visible grid days have data
+        startIso = new Date(Date.UTC(y, m - 1, 20, 0, 0, 0)).toISOString();
+        endIso = new Date(Date.UTC(y, m + 2, 10, 23, 59, 59)).toISOString();
+      } else if (year) {
+        const y = parseInt(year, 10);
+        startIso = new Date(Date.UTC(y, 0, 1, 0, 0, 0)).toISOString();
+        endIso = new Date(Date.UTC(y, 11, 31, 23, 59, 59)).toISOString();
+      } else {
+        const now = new Date();
+        const y = now.getFullYear();
+        startIso = new Date(Date.UTC(y, 0, 1, 0, 0, 0)).toISOString();
+        endIso = new Date(Date.UTC(y, 11, 31, 23, 59, 59)).toISOString();
+      }
+    }
+
+    const googleUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(resolvedCalendarId)}/events`;
+
+    const gResponse = await axios.get(googleUrl, {
+      params: {
+        key: apiKey,
+        timeMin: startIso,
+        timeMax: endIso,
+        singleEvents: true,
+        orderBy: 'startTime',
+        maxResults: 2500,
+        q: search && search.trim() ? search.trim() : undefined
+      },
+      timeout: 10000
+    });
+
+    const googleItems = (gResponse.data.items || []).map(item => {
+      const rawStart = item.start?.dateTime || item.start?.date;
+      const rawEnd = item.end?.dateTime || item.end?.date;
+      const isAllDay = !item.start?.dateTime && !!item.start?.date;
+
+      return {
+        _id: `gcal_${item.id}`,
+        id: item.id,
+        googleEventId: item.id,
+        summary: item.summary || 'Untitled Google Event',
+        content_title: item.summary || 'Untitled Google Event',
+        description: item.description || '',
+        notes: item.description || '',
+        location: item.location || '',
+        content_date: rawStart,
+        start: rawStart,
+        end: rawEnd,
+        isAllDay,
+        htmlLink: item.htmlLink || '',
+        status: item.status || 'confirmed',
+        content_type: 'Event',
+        overall_status: 'Google Calendar',
+        approval_status: 'Approved',
+        calendarId: resolvedCalendarId,
+        calendarName: gResponse.data.summary || calendarName,
+        source: 'google'
+      };
+    });
+
+    res.json({
+      ok: true,
+      count: googleItems.length,
+      calendarTitle: gResponse.data.summary || calendarName,
+      calendarDescription: gResponse.data.description || '',
+      calendarTimeZone: gResponse.data.timeZone || 'UTC',
+      data: googleItems
+    });
+  } catch (err) {
+    const status = err.response?.status || 500;
+    const errorDetails = err.response?.data?.error?.message || err.message;
+    console.error('Google Calendar API fetch error:', errorDetails);
+    res.status(status).json({
+      ok: false,
+      message: `Failed to fetch Google Calendar events: ${errorDetails}`,
+      details: err.response?.data || null
+    });
+  }
+});
+
+// POST /api/marketing/digital-calendar/google/import-event — Import a Google event into Digital Calendar
+router.post('/google/import-event', protect, async (req, res) => {
+  try {
+    const {
+      summary,
+      description,
+      start,
+      content_type = 'Post',
+      responsible_employee,
+      responsible_employee_name,
+      notes,
+      instagram_status = 'Planned',
+      youtube_status = 'Not Required',
+      linkedin_status = 'Planned',
+      x_status = 'Planned'
+    } = req.body;
+
+    if (!summary || !start) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Google event summary and start date are required'
+      });
+    }
+
+    const dateObj = new Date(start);
+    const day = DAYS_OF_WEEK[dateObj.getDay()];
+
+    let finalResponsibleName = responsible_employee_name || '';
+    if (responsible_employee && mongoose.Types.ObjectId.isValid(responsible_employee)) {
+      const emp = await User.findById(responsible_employee).select('name displayName firstName lastName');
+      if (emp) {
+        finalResponsibleName = emp.displayName || emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim();
+      }
+    }
+
+    const newItem = new DigitalCalendar({
+      content_title: summary.trim(),
+      content_type: content_type || 'Post',
+      content_date: dateObj,
+      day,
+      responsible_employee: responsible_employee && mongoose.Types.ObjectId.isValid(responsible_employee) ? responsible_employee : null,
+      responsible_employee_name: finalResponsibleName,
+      approval_status: 'Approved',
+      overall_status: 'Planned',
+      notes: (notes || description || `Imported from Google Calendar (${summary})`).trim(),
+      instagram_status,
+      youtube_status,
+      linkedin_status,
+      x_status,
+      createdBy: req.user._id
+    });
+
+    await newItem.save();
+
+    const populatedItem = await DigitalCalendar.findById(newItem._id)
+      .populate('responsible_employee', 'name firstName lastName displayName email designation avatar')
+      .populate('createdBy', 'name email designation avatar');
+
+    res.status(201).json({
+      ok: true,
+      message: `Successfully imported "${summary}" into Digital Content Calendar`,
+      data: populatedItem
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
 // GET /api/marketing/digital-calendar/:id — Get a single item
 router.get('/:id', protect, async (req, res) => {
   try {
@@ -457,7 +714,7 @@ router.post('/', protect, async (req, res) => {
     if (responsible_employee && mongoose.Types.ObjectId.isValid(responsible_employee)) {
       const emp = await User.findById(responsible_employee).select('name displayName firstName lastName');
       if (emp) {
-        finalResponsibleName = emp.displayName || emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim();
+        finalResponsibleName = (emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.displayName).trim();
       }
     }
 
@@ -552,7 +809,7 @@ router.put('/:id', protect, async (req, res) => {
         item.responsible_employee = responsible_employee;
         const emp = await User.findById(responsible_employee).select('name displayName firstName lastName');
         if (emp) {
-          item.responsible_employee_name = emp.displayName || emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim();
+          item.responsible_employee_name = (emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.displayName).trim();
         }
       } else {
         item.responsible_employee = null;

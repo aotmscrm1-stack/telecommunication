@@ -3,10 +3,11 @@ import atmLogoImg from '../../../assets/atm-logo.jpeg';
 import logoImg from '../../../assets/aotms-global-logo.png';
 import paymentQrImg from '../../../assets/payment-qr.png';
 import aotmsStampImg from '../../../assets/image-removebg-preview.png';
+import sirSignImg from '../../../assets/sir sign.png';
 import { A4Container, A4Page } from '../../../components/Finance/A4TemplateWrapper';
 import { numberToWords } from '../../../utils/numberToWords';
 
-export const InvoiceDocument = forwardRef(({ invoiceData, isPreview = false }, ref) => {
+function InvoiceDocumentComponent({ invoiceData, isPreview = false }, ref) {
   if (!invoiceData) return null;
 
   const fmtCurrency = (val) => {
@@ -93,7 +94,8 @@ export const InvoiceDocument = forwardRef(({ invoiceData, isPreview = false }, r
 
   const innerFrameStyle = {
     border: '2px solid #000000',
-    minHeight: '1091px',
+    height: '100%',
+    maxHeight: '100%',
     boxSizing: 'border-box',
     display: 'flex',
     flexDirection: 'column',
@@ -103,8 +105,8 @@ export const InvoiceDocument = forwardRef(({ invoiceData, isPreview = false }, r
   };
 
   return (
-    <A4Container ref={ref} className="pdf-invoice-container">
-      <A4Page className="invoice-page">
+    <A4Container ref={ref} id="invoice-printable-container" className="pdf-invoice-container a4-single-page">
+      <A4Page className="invoice-page a4-single-page single-page" style={{ padding: '8mm 10mm' }}>
         <div style={innerFrameStyle}>
           {/* Main Outer Table Grid */}
           <table style={{ width: '100%', height: '100%', borderCollapse: 'collapse', border: 'none', flex: 1 }}>
@@ -322,7 +324,7 @@ export const InvoiceDocument = forwardRef(({ invoiceData, isPreview = false }, r
                     )}
 
                     {/* Spacer rows for clean PDF layout matching sample */}
-                    <tr style={{ height: '40px' }}>
+                    <tr style={{ height: items.length > 2 ? '8px' : '20px' }}>
                       <td style={{ borderRight: '1px solid #000000' }}></td>
                       <td style={{ borderRight: '1px solid #000000' }}></td>
                       <td style={{ borderRight: '1px solid #000000' }}></td>
@@ -380,12 +382,12 @@ export const InvoiceDocument = forwardRef(({ invoiceData, isPreview = false }, r
                 {/* Payment QR Code Box */}
                 <div
                   style={{
-                    width: '168px',
-                    height: '168px',
+                    width: '120px',
+                    height: '120px',
                     margin: '0 auto',
                     border: '1.5px solid #000000',
-                    borderRadius: '10px',
-                    padding: '6px',
+                    borderRadius: '8px',
+                    padding: '5px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -452,18 +454,28 @@ export const InvoiceDocument = forwardRef(({ invoiceData, isPreview = false }, r
                 </div>
 
                 {/* Authorised Signatory Box */}
-                <div style={{ padding: '8px 12px', minHeight: '85px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                  <div style={{ fontWeight: '700', fontSize: '12px', textAlign: 'right' }}>
+                <div style={{ padding: '6px 12px', minHeight: '85px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div style={{ fontWeight: '700', fontSize: '11.5px', textAlign: 'right' }}>
                     Authorised Signatory
                   </div>
-                  <div style={{ textAlign: 'right', marginTop: '16px' }}>
-                    <div style={{ fontWeight: '800', fontSize: '13px', color: '#000000' }}>
-                      Ameenuddin Sayyed
-                    </div>
-                    <div style={{ fontSize: '11.5px', fontWeight: '700', color: '#334155' }}>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '2px 0' }}>
+                    <img
+                      src={sirSignImg}
+                      alt="Authorised Signatory"
+                      style={{
+                        height: '38px',
+                        maxWidth: '140px',
+                        objectFit: 'contain',
+                        display: 'block',
+                      }}
+                    />
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+              
+                    <div style={{ fontSize: '11px', fontWeight: '700', color: '#334155' }}>
                       Managing Director
                     </div>
-                    <div style={{ fontSize: '11px', fontWeight: '800', color: '#000000' }}>
+                    <div style={{ fontSize: '10.5px', fontWeight: '800', color: '#000000' }}>
                       AOTMS GLOBAL PVT LTD
                     </div>
                   </div>
@@ -491,6 +503,7 @@ export const InvoiceDocument = forwardRef(({ invoiceData, isPreview = false }, r
       </A4Page>
     </A4Container>
   );
-});
+}
 
+export const InvoiceDocument = forwardRef(InvoiceDocumentComponent);
 export default InvoiceDocument;
