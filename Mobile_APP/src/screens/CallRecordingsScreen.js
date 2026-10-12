@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,9 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
 import { colors } from '../theme/colors';
 import { recordingsApi } from '../api/recordingsApi';
 import Header from '../components/Header';
@@ -19,12 +19,6 @@ export default function CallRecordingsScreen({ onNavigate }) {
   const [recordings, setRecordings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
-  // Audio Playback State
-  const [sound, setSound] = useState(null);
-  const [playingId, setPlayingId] = useState(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [buffering, setBuffering] = useState(false);
 
   const fetchRecordings = useCallback(async () => {
     try {
@@ -41,11 +35,6 @@ export default function CallRecordingsScreen({ onNavigate }) {
 
   useEffect(() => {
     fetchRecordings();
-    return () => {
-      if (sound) {
-        sound.unloadAsync();
-      }
-    };
   }, [fetchRecordings]);
 
   const onRefresh = () => {
@@ -53,70 +42,48 @@ export default function CallRecordingsScreen({ onNavigate }) {
     fetchRecordings();
   };
 
-  const handlePlayToggle = async (rec) => {
+  const handlePlayAudio = async (rec) => {
     const streamUrl = recordingsApi.getStreamUrl(rec);
     if (!streamUrl) {
-      Alert.alert('Playback Error', 'No audio stream URL available for this recording.');
+      Alert.alert('Audio Unavailable', 'No audio stream URL is available for this recording.');
       return;
     }
 
     try {
-      // If same recording is playing, toggle pause
-      if (playingId === rec._id && sound) {
-        if (isPlaying) {
-          await sound.pauseAsync();
-          setIsPlaying(false);
-        } else {
-          await sound.playAsync();
-          setIsPlaying(true);
-        }
-        return;
+      const supported = await Linking.canOpenURL(streamUrl);
+      if (supported) {
+        await Linking.openURL(streamUrl);
+      } else {
+        // Fallback open
+        await Linking.openURL(streamUrl);
       }
-
-      // If different recording, stop existing
-      if (sound) {
-        await sound.unloadAsync();
-        setSound(null);
-      }
-
-      setBuffering(true);
-      setPlayingId(rec._id);
-
-      await Audio.setAudioModeAsync({
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: false,
-      });
-
-      const { sound: newSound } = await Audio.Sound.createAsync(
-        { uri: streamUrl },
-        { shouldPlay: true },
-        (status) => {
-          if (status.isLoaded) {
-            setBuffering(false);
-            setIsPlaying(status.isPlaying);
-            if (status.didJustFinish) {
-              setIsPlaying(false);
-              setPlayingId(null);
-            }
-          } else if (status.error) {
-            setBuffering(false);
-            setIsPlaying(false);
-          }
-        }
-      );
-
-      setSound(newSound);
-      setIsPlaying(true);
     } catch (err) {
-      setBuffering(false);
-      setIsPlaying(false);
-      setPlayingId(null);
-      Alert.alert('Audio Error', 'Unable to stream audio recording from server.');
+      Alert.alert(
+        'Playback Notice',
+        `Streaming audio via browser/player:\n${streamUrl}`,
+        [
+          { text: 'Open URL', onPress: () => Linking.openURL(streamUrl) },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
     }
   };
 
+  const handleCall = (phone) => {
+    if (!phone) return;
+    Linking.openURL(`tel:${phone.replace(/[^0-9+]/g, '')}`);
+  };
+
+  const handleWhatsApp = (phone, name) => {
+    if (!phone) return;
+    let p = phone.replace(/[^0-9]/g, '');
+    if (p.length === 10) p = '91' + p;
+    const msg = encodeURIComponent(`Hello ${name || ''}, regarding our recent call on AOTMS CRM.`);
+    Linking.openURL(`https://wa.me/${p}?text=${msg}`);
+  };
+
   const formatDuration = (sec) => {
-    if (!sec) return '0:00';
+    if (!sec && sec !== 0) return '0:00';
     const m = Math.floor(sec / 60);
     const s = Math.floor(sec % 60);
     return `${m}:${String(s).padStart(2, '0')}`;
@@ -126,7 +93,7 @@ export default function CallRecordingsScreen({ onNavigate }) {
     <View style={styles.container}>
       <Header
         title="Call Recordings"
-        subtitle={`${recordings.length} Logged calls with audio`}
+        subtitle={`${recordings.length} Recorded calls with audio`}
         showBack
         onBack={() => onNavigate('dashboard')}
       />
@@ -134,7 +101,7 @@ export default function CallRecordingsScreen({ onNavigate }) {
       {loading ? (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading call recordings...</Text>
+          <Text style={styles.loadingText}>Fetching call logs and audio streams...</Text>
         </View>
       ) : (
         <FlatList
@@ -143,57 +110,63 @@ export default function CallRecordingsScreen({ onNavigate }) {
           contentContainerStyle={styles.listContent}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
           renderItem={({ item }) => {
-            const isThisPlaying = playingId === item._id && isPlaying;
-            const isThisBuffering = playingId === item._id && buffering;
+            const phone = item.phone || item.lead?.phone || '';
+            const leadName = item.lead?.name || item.contactName || item.phone || 'Call Log';
+            const duration = formatDuration(item.duration || item.callDuration);
 
             return (
               <View style={styles.card}>
                 <View style={styles.topRow}>
+                  <View style={styles.avatar}>
+                    <Ionicons name="mic" size={20} color={colors.primary} />
+                  </View>
+
                   <View style={styles.infoCol}>
-                    <Text style={styles.leadName} numberOfLines={1}>
-                      {item.lead?.name || item.contactName || item.phone || 'Caller Recording'}
-                    </Text>
-                    <Text style={styles.phoneText}>
-                      {item.phone || item.lead?.phone || 'Unknown phone'}
+                    <Text style={styles.leadName} numberOfLines={1}>{leadName}</Text>
+                    <Text style={styles.phoneText}>{phone || 'Unknown phone'}</Text>
+                    <Text style={styles.dateText}>
+                      {item.recordedAt || item.createdAt
+                        ? new Date(item.recordedAt || item.createdAt).toLocaleString()
+                        : 'Recent Recording'}
                     </Text>
                   </View>
 
                   <View style={styles.durationBadge}>
-                    <Ionicons name="time-outline" size={12} color={colors.textSecondary} />
-                    <Text style={styles.durationText}>
-                      {formatDuration(item.duration || item.callDuration)}
-                    </Text>
+                    <Ionicons name="time-outline" size={13} color={colors.accent} />
+                    <Text style={styles.durationText}>{duration}</Text>
                   </View>
                 </View>
 
-                {/* Player Row */}
-                <View style={styles.playerRow}>
+                {/* Audio Stream & Actions Row */}
+                <View style={styles.actionsRow}>
                   <TouchableOpacity
-                    style={[styles.playBtn, isThisPlaying && styles.playingBtn]}
-                    onPress={() => handlePlayToggle(item)}
+                    style={styles.playBtn}
+                    onPress={() => handlePlayAudio(item)}
                     activeOpacity={0.8}
                   >
-                    {isThisBuffering ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                      <Ionicons
-                        name={isThisPlaying ? 'pause' : 'play'}
-                        size={18}
-                        color="#FFFFFF"
-                      />
-                    )}
+                    <Ionicons name="play" size={16} color="#FFFFFF" />
+                    <Text style={styles.playBtnText}>Play Recording</Text>
                   </TouchableOpacity>
 
-                  <View style={styles.trackInfo}>
-                    <View style={styles.waveformPlaceholder}>
-                      <View style={[styles.progressFill, { width: isThisPlaying ? '60%' : '0%' }]} />
+                  {phone ? (
+                    <View style={styles.contactActions}>
+                      <TouchableOpacity
+                        style={[styles.smallBtn, styles.callBtn]}
+                        onPress={() => handleCall(phone)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="call" size={14} color="#FFFFFF" />
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[styles.smallBtn, styles.waBtn]}
+                        onPress={() => handleWhatsApp(phone, leadName)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="logo-whatsapp" size={15} color="#FFFFFF" />
+                      </TouchableOpacity>
                     </View>
-                    <Text style={styles.dateText}>
-                      {item.recordedAt || item.createdAt
-                        ? new Date(item.recordedAt || item.createdAt).toLocaleString()
-                        : 'Recorded Call'}
-                    </Text>
-                  </View>
+                  ) : null}
                 </View>
               </View>
             );
@@ -201,8 +174,8 @@ export default function CallRecordingsScreen({ onNavigate }) {
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="mic-off-outline" size={48} color={colors.textMuted} />
-              <Text style={styles.emptyTitle}>No recordings found</Text>
-              <Text style={styles.emptySub}>Connected call recordings will appear here automatically</Text>
+              <Text style={styles.emptyTitle}>No call recordings found</Text>
+              <Text style={styles.emptySub}>Connected call recordings from CRM dialer will appear here</Text>
             </View>
           }
         />
@@ -240,13 +213,22 @@ const styles = StyleSheet.create({
   },
   topRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: 12,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(14, 165, 233, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(14, 165, 233, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
   },
   infoCol: {
     flex: 1,
-    marginRight: 10,
   },
   leadName: {
     color: colors.text,
@@ -257,59 +239,68 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 12,
     marginTop: 2,
+    fontWeight: '500',
+  },
+  dateText: {
+    color: colors.textMuted,
+    fontSize: 11,
+    marginTop: 2,
   },
   durationBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
   },
   durationText: {
-    color: colors.textSecondary,
-    fontSize: 11,
-    fontWeight: '600',
+    color: colors.accent,
+    fontSize: 12,
+    fontWeight: '700',
   },
-  playerRow: {
+  actionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'space-between',
     borderTopWidth: 1,
     borderTopColor: colors.surfaceLight,
     paddingTop: 12,
   },
   playBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     backgroundColor: colors.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  playBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  contactActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  smallBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  playingBtn: {
-    backgroundColor: colors.accent,
-  },
-  trackInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  waveformPlaceholder: {
-    height: 6,
+  callBtn: {
     backgroundColor: colors.surfaceLight,
-    borderRadius: 3,
-    overflow: 'hidden',
   },
-  progressFill: {
-    height: '100%',
-    backgroundColor: colors.primary,
-  },
-  dateText: {
-    color: colors.textMuted,
-    fontSize: 11,
+  waBtn: {
+    backgroundColor: colors.whatsapp,
   },
   emptyContainer: {
     alignItems: 'center',
