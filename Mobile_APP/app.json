@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "AOTMS CRM",
+    "slug": "aotms-crm",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/Logo.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#0F172A"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.aotms.crm"
+    },
+    "android": {
+      "package": "com.aotms.crm",
+      "adaptiveIcon": {
+        "backgroundColor": "#0F172A",
+        "foregroundImage": "./assets/Logo.png"
+      },
+      "permissions": [
+        "INTERNET",
+        "CALL_PHONE",
+        "READ_EXTERNAL_STORAGE",
+        "RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
