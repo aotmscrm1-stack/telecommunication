@@ -1,0 +1,518 @@
+# Implementation Plan: Meta Leads Module & Dynamic Google Sheets n8n Integration
+
+---
+
+## 1. Executive Summary & Goals
+
+* **Module Name:** `Meta_Leads`
+* **Parent Section:** Marketing (`Marketing` → `Meta Leads`)
+* **Primary Objective:** 
+  1. Add a dedicated **Meta Leads** module in the Marketing navigation bar.
+  2. Implement an interactive **Campaign Headings** bar where clicking any campaign immediately filters and displays its corresponding leads.
+  3. **Zero Column Alteration / No Loss of Headers:** Dynamically render the exact Google Sheet column headers as they exist in each tab, without stripping, renaming, or hardcoding fields.
+  4. Provide a refined, production-ready **n8n Workflow** that solves the data mixing and field-loss flaws in the previous version.
+
+---
+
+## 2. Architecture & Data Flow
+
+```
+[ Google Spreadsheet ]
+   ├── Tab: Digital Marketing_Leads (Custom Headers: e.g. Ad Name, City, Phone...)
+   ├── Tab: SAP_Leads               (Custom Headers: e.g. SAP Module, Experience...)
+   ├── Tab: Python_Leads            (Custom Headers: e.g. College, Batch Timing...)
+   └── Tab: CyberSecurity_Leads     (Custom Headers: e.g. Qualification, Domain...)
+             │
+             ▼
+   [ n8n Automation Engine ]
+   ├── Step 1: Webhook Trigger (`/webhook/Meta_Leads`)
+   ├── Step 2: Read each Tab (A:ZZ)
+   ├── Step 3: Tag each stream with its `campaign` name while preserving all row fields
+   ├── Step 4: Merge 4 streams (`Combine All Tabs`, 4 inputs)
+   └── Step 5: HTTP POST to CRM (`/api/meta-leads`) with full dynamic payload
+             │
+             ▼
+   [ CRM Backend API & Database ]
+   ├── Route: `/api/meta-leads`
+   ├── Storage: `campaign`, `source`, `createdAt`, `rawData` (flexible key-value container)
+             │
+             ▼
+   [ Frontend: Meta Leads UI ]
+   ├── Top: Interactive Campaign Navigation Bar (Tabs/Pills with lead counts)
+   └── Bottom: Dynamic-Header Table (renders exact Google Sheet columns per campaign)
+```
+
+---
+
+## 3. Implementation Form (Step-by-Step Checklist)
+
+### Phase 1: n8n Workflow Configuration
+- [ ] Import the updated n8n workflow JSON below into your n8n workspace.
+- [ ] Connect your active Google Sheets OAuth2 credential to each of the 4 Read nodes.
+- [ ] Verify that each tab name matches your Google Sheet tabs exactly.
+- [ ] Set your CRM API token in the HTTP Request node headers.
+- [ ] Test the workflow with test execution to verify incoming payloads retain all custom columns.
+
+### Phase 2: Backend API & Database Schema
+- [ ] **Data Model:** Create a flexible schema for Meta Leads:
+  - `campaign`: String (e.g. `SAP_Leads`, `Python_Leads`)
+  - `source`: String (default: `google_sheets_meta`)
+  - `rawData`: Mixed / Flexible Object (stores all original sheet column names and values dynamically)
+  - `status`: String (default: `New`)
+  - `createdAt`: Date
+- [ ] **Routes:**
+  - `POST /api/meta-leads` — Bulk or single lead ingestion endpoint (used by n8n).
+  - `GET /api/meta-leads/campaigns` — Returns list of distinct campaign names with lead counts.
+  - `GET /api/meta-leads?campaign=...` — Returns leads filtered by selected campaign.
+
+### Phase 3: Frontend Navigation & UI Assembly
+- [ ] **Navbar Integration:** Add `Meta Leads` to the Marketing section dropdown/sidebar in the application navigation.
+- [ ] **Campaign Selector Bar:** Build interactive campaign selector cards/tabs across the top:
+  - `All Campaigns`
+  - `Digital Marketing_Leads`
+  - `SAP_Leads`
+  - `Python_Leads`
+  - `CyberSecurity_Leads`
+- [ ] **Dynamic Table Engine:**
+  - Read object keys from the active campaign's `rawData`.
+  - Dynamically generate table `<th />` headers matching the exact sheet columns.
+  - Implement horizontal scroll, keyword search, and pagination.
+
+---
+
+## 4. Production-Ready n8n Workflow Specification
+
+This workflow resolves all previous flaws:
+1. **Preserves Tab Identity:** Each tab branch has a tagging node adding `campaign: "<Tab_Name>"` before merging.
+2. **Zero Loss of Column Headings:** Transmits the full `$json` object inside `rawData` instead of cherry-picking fields.
+3. **Correct Merge Sizing:** Merge node inputs adjusted to 4 inputs.
+4. **Target Endpoint:** Configured for `/api/meta-leads`.
+
+```json
+{
+  "name": "Meta Leads - Multi-Campaign Google Sheets Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "Meta_Leads",
+        "options": {}
+      },
+      "id": "37674129-7e79-400e-8c48-3557dc2b920a",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [-160, 416]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "sheetId": "1NK3yVkkKxAOjgTCL46nEaC1lzpOxnn1vCeTAY9nX2Jg",
+        "range": "'Digital Marketing_Leads'!A:ZZ",
+        "options": {}
+      },
+      "id": "c3b18d95-cc93-46f2-a8fb-f0795feb6270",
+      "name": "Read - Digital Marketing",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [160, 160],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Z78t7YLL8GqHco4o",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "campaign_tag_dm",
+              "name": "campaign",
+              "value": "Digital Marketing_Leads",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1111111-1111-1111-1111-111111111111",
+      "name": "Tag - Digital Marketing",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [440, 160]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "sheetId": "1NK3yVkkKxAOjgTCL46nEaC1lzpOxnn1vCeTAY9nX2Jg",
+        "range": "'SAP_Leads'!A:ZZ",
+        "options": {}
+      },
+      "id": "feccae78-fda0-41f7-9149-a0f876e2c5c6",
+      "name": "Read - SAP Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [160, 320],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Z78t7YLL8GqHco4o",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "campaign_tag_sap",
+              "name": "campaign",
+              "value": "SAP_Leads",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a2222222-2222-2222-2222-222222222222",
+      "name": "Tag - SAP Leads",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [440, 320]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "sheetId": "1NK3yVkkKxAOjgTCL46nEaC1lzpOxnn1vCeTAY9nX2Jg",
+        "range": "'Python_Leads'!A:ZZ",
+        "options": {}
+      },
+      "id": "bed451e4-c0ec-4e74-9c82-d94e19961d91",
+      "name": "Read - Python Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [160, 480],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Z78t7YLL8GqHco4o",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "campaign_tag_python",
+              "name": "campaign",
+              "value": "Python_Leads",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a3333333-3333-3333-3333-333333333333",
+      "name": "Tag - Python Leads",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [440, 480]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "sheetId": "1NK3yVkkKxAOjgTCL46nEaC1lzpOxnn1vCeTAY9nX2Jg",
+        "range": "'CyberSecurity_Leads'!A:ZZ",
+        "options": {}
+      },
+      "id": "5c281f54-6337-4d67-bada-c9081624078d",
+      "name": "Read - CyberSecurity Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [160, 640],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Z78t7YLL8GqHco4o",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "campaign_tag_cyber",
+              "name": "campaign",
+              "value": "CyberSecurity_Leads",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a4444444-4444-4444-4444-444444444444",
+      "name": "Tag - CyberSecurity Leads",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [440, 640]
+    },
+    {
+      "parameters": {
+        "numberInputs": 4
+      },
+      "id": "78b5c18c-9a0c-450e-92eb-21273ef53882",
+      "name": "Combine All Tabs",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [780, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://telecommunication-l3oz.onrender.com/api/meta-leads",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_CRM_TOKEN_HERE"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { campaign: $json.campaign, source: 'google_sheets_meta', rawData: $json } }}",
+        "options": {}
+      },
+      "id": "676b1d29-9d7e-45e0-bd4e-5a230216587a",
+      "name": "Sync Lead to CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1080, 400],
+      "disabled": false
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          { "node": "Read - Digital Marketing", "type": "main", "index": 0 },
+          { "node": "Read - SAP Leads", "type": "main", "index": 0 },
+          { "node": "Read - Python Leads", "type": "main", "index": 0 },
+          { "node": "Read - CyberSecurity Leads", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Read - Digital Marketing": {
+      "main": [[{ "node": "Tag - Digital Marketing", "type": "main", "index": 0 }]]
+    },
+    "Tag - Digital Marketing": {
+      "main": [[{ "node": "Combine All Tabs", "type": "main", "index": 0 }]]
+    },
+    "Read - SAP Leads": {
+      "main": [[{ "node": "Tag - SAP Leads", "type": "main", "index": 0 }]]
+    },
+    "Tag - SAP Leads": {
+      "main": [[{ "node": "Combine All Tabs", "type": "main", "index": 1 }]]
+    },
+    "Read - Python Leads": {
+      "main": [[{ "node": "Tag - Python Leads", "type": "main", "index": 0 }]]
+    },
+    "Tag - Python Leads": {
+      "main": [[{ "node": "Combine All Tabs", "type": "main", "index": 2 }]]
+    },
+    "Read - CyberSecurity Leads": {
+      "main": [[{ "node": "Tag - CyberSecurity Leads", "type": "main", "index": 0 }]]
+    },
+    "Tag - CyberSecurity Leads": {
+      "main": [[{ "node": "Combine All Tabs", "type": "main", "index": 3 }]]
+    },
+    "Combine All Tabs": {
+      "main": [[{ "node": "Sync Lead to CRM", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
+```
+
+---
+
+## 5. Frontend UI/UX Design Specification: Meta Leads Module
+
+---
+
+### A. Design System Tokens (Harmonized with Existing `Campaigns.jsx`)
+
+The Meta Leads module directly shares the **White, Blue, Orange & Emerald** design token system (`T`) established in the core Campaigns module:
+
+```
+Theme Tokens:
+├── Base Surfaces:
+│   ├── T.white: '#ffffff'
+│   ├── T.bg: '#f8fafc'              (Page canvas background)
+│   ├── T.bgCard: '#ffffff'          (Card and table background)
+│   ├── T.border: '#e2e8f0'          (Standard card/table borders)
+│   └── T.borderSoft: '#f1f5f9'      (Subtle dividers)
+│
+├── Typography & Contrast:
+│   ├── T.text: '#1e293b'            (Primary dark slate)
+│   ├── T.textSecondary: '#475569'   (Body text)
+│   ├── T.muted: '#64748b'           (Secondary labels & captions)
+│   └── T.subtle: '#94a3b8'          (Placeholder & helper text)
+│
+├── Brand Accents & Interactive:
+│   ├── Blue Accent (Primary Sync & Navigation):
+│   │   ├── T.blue: '#2563eb'        (Primary buttons, active tabs, links)
+│   │   ├── T.blueHover: '#1d4ed8'   (Button hover states)
+│   │   ├── T.blueLight: '#eff6ff'   (Active tab background & badges)
+│   │   └── T.blueBorder: '#bfdbfe'  (Active tab border outline)
+│   │
+│   ├── Orange Accent (Action & Alerts):
+│   │   ├── T.orange: '#ea580c'      (Highlight indicators, callouts)
+│   │   ├── T.orangeLight: '#fff7ed' (Tag background)
+│   │   └── T.orangeBorder: '#fed7aa'
+│   │
+│   ├── Emerald Accent (Live Sync & Success):
+│   │   ├── T.emerald: '#10b981'     (Live sync status, WhatsApp action)
+│   │   ├── T.emeraldLight: '#ecfdf5'
+│   │   └── T.emeraldBorder: '#a7f3d0'
+│   │
+│   └── Amber & Rose (Warnings & Errors):
+│       ├── T.amber: '#f59e0b' / T.amberLight: '#fffbeb'
+│       └── T.rose: '#f43f5e' / T.roseLight: '#fff1f2'
+```
+
+---
+
+### B. React Icons Catalog
+
+Every UI element is assigned a designated icon from standard React Icon packages (`react-icons/fi`, `react-icons/ri`, `react-icons/fa`, `react-icons/si`):
+
+| UI Component | React Icon Symbol | Package | Visual Purpose |
+| :--- | :--- | :--- | :--- |
+| **Page Title Badge** | `<RiMegaphoneLine />` | `react-icons/ri` | Campaign header badge |
+| **Module Hub Icon** | `<RiFolderChartLine />` | `react-icons/ri` | Meta Leads marketing icon |
+| **Meta Platform Icon** | `<SiMeta />` / `<SiFacebook />` | `react-icons/si` | Meta source badge |
+| **All Campaigns Tab** | `<FiTarget />` | `react-icons/fi` | Comprehensive view pill |
+| **Campaign Heading Tab** | `<FiLayers />` | `react-icons/fi` | Individual category tabs |
+| **Active Selection** | `<FiCheck />` | `react-icons/fi` | Checkmark on active pill/dropdown |
+| **Global Search** | `<FiSearch />` | `react-icons/fi` | Search input adornment |
+| **Live Sync Button** | `<FiRefreshCw />` | `react-icons/fi` | Spin animation during live Google Sheets pull |
+| **Export Data** | `<FiDownload />` | `react-icons/fi` | CSV/Excel export trigger |
+| **Column Manager** | `<FiFilter />` / `<FiColumns />` | `react-icons/fi` | Dynamic column visibility toggle |
+| **Sort Glyph** | `<FiChevronDown />` | `react-icons/fi` | Table column sort indicator |
+| **WhatsApp Action** | `<FaWhatsapp />` | `react-icons/fa` | Direct green WhatsApp blast/chat |
+| **Direct Call Action** | `<FiPhoneCall />` | `react-icons/fi` | Primary blue tele-caller trigger |
+| **Direct Email Action** | `<FiMail />` | `react-icons/fi` | Mailto client trigger |
+| **Deep Inspect / View** | `<FiEye />` | `react-icons/fi` | Open row in slide-over drawer |
+| **Google Sheet Link** | `<FiArrowUpRight />` | `react-icons/fi` | Jump directly to origin Google Sheet |
+| **Time & Ingestion** | `<FiClock />` | `react-icons/fi` | Ingestion timestamp marker |
+| **Total Inflow** | `<FiUsers />` | `react-icons/fi` | Lead count counter icon |
+
+---
+
+### C. Visual Layout Wireframe (Same Existing Campaign Style)
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│  Navbar: CRM Telecommunication  |  Dashboard  |  [Marketing ▾]  |  Sales  |  Finance  |  👤 Profile     │
+└────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+  Marketing  /  Campaigns  /  Meta Leads Hub (Google Sheets Dynamic Sync)
+  
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ 📢 HEADER SECTION (Matching Campaigns.jsx Header Layout)                                               │
+│                                                                                                        │
+│  [<RiFolderChartLine />]  Meta Leads Ingestion Hub                       [ ⟳ FiRefreshCw Sync Now ]    │
+│  Multi-tab Google Sheets sync with dynamic zero-loss column mapping     [ ⤓ FiDownload Export CSV ]   │
+└────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ 📊 TOP METRIC CARDS (White Cards, T.border, Circular Progress / Accented Badges)                       │
+│ ┌────────────────────────┐  ┌────────────────────────┐  ┌────────────────────────┐  ┌────────────────┐│
+│ │ [<FiUsers />] Total    │  │ [<FiLayers />] Active   │  │ [<FiActivity />] Today │  │ [<FiClock />]  ││
+│ │ 1,248 Leads            │  │ 4 Campaign Tabs         │  │ +84 Ingested           │  │ 5 mins ago 🟢  ││
+│ │ (T.blue Light Badge)   │  │ (T.orange Light Badge)  │  │ (T.emerald Light Badge)│  │ Live & Synced  ││
+│ └────────────────────────┘  └────────────────────────┘  └────────────────────────┘  └────────────────┘│
+└────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ 🗂️ INTERACTIVE CAMPAIGN HEADINGS (Same Pill Filter Styling as Campaigns.jsx)                           │
+│                                                                                                        │
+│  [ <FiTarget /> All Campaigns (1,248) ]                                                                │
+│  [ <FiLayers /> Digital Marketing_Leads (342) ]  ◄── ACTIVE (T.blue bg, T.blueBorder, T.blue text)    │
+│  [ <FiLayers /> SAP_Leads (184) ]                                                                      │
+│  [ <FiLayers /> Python_Leads (420) ]                                                                   │
+│  [ <FiLayers /> CyberSecurity_Leads (302) ]                                                            │
+└────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ 🛠️ TOOLBAR (Search, Columns Filter, Actions)                                                          │
+│  [ <FiSearch /> Search any lead, mobile, city, or custom sheet attribute... ]                         │
+│  [ <FiFilter /> Columns (All) <FiChevronDown /> ]   [ Clear Filter ]                                   │
+└────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ 📋 DYNAMIC ZERO-LOSS TABLE (White bg, T.border, Crisp Typography, Row Actions)                         │
+│                                                                                                        │
+│  [#] │ [Sheet Column 1 <FiChevronDown />] │ [Sheet Column 2]  │ [Sheet Column 3]  │ Quick Actions      │
+│ ─────┼────────────────────────────────────┼───────────────────┼───────────────────┼────────────────────│
+│  01  │ John Doe                           │ +91 98765 43210   │ Cloud SAP-MM      │ [WhatsApp] [Call]  │
+│      │                                    │                   │                   │ [<FiEye /> View]   │
+│  02  │ Sarah Smith                        │ +91 91234 56789   │ Python Full Stack │ [WhatsApp] [Call]  │
+│      │                                    │                   │                   │ [<FiEye /> View]   │
+│                                                                                                        │
+│  * Table renders dynamically: Whatever columns exist in that Google Sheet tab are shown with 0 loss!   │
+└────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ 📄 FOOTER PAGINATION                                                                                   │
+│  Showing 1 - 25 of 342 leads       Rows per page: [ 25 ▾ ]               ‹  1  [2]  3  4  5  ›         │
+└────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### D. Component Details & Interactive Behavior
+
+#### 1. Interactive Campaign Heading Pills (Tabs)
+* **Styling:** Follows the exact pill buttons from `Campaigns.jsx`.
+* **Inactive State:** 
+  * `background: T.white`, `border: 1px solid T.border`, `color: T.muted`.
+  * Hover: `border: 1px solid T.blueBorder`, `color: T.blue`, `background: T.blueLight`.
+* **Active State:** 
+  * `background: T.blueLight`, `border: 1px solid T.blueBorder`, `color: T.blue`, font-weight 600.
+  * Tag counter inside the pill has `background: T.blue`, `color: T.white`, rounded-full.
+* **Click Interaction:** 
+  * Instantly loads that campaign's leads and recalculates column headers dynamically from the sheet data without reloading the page.
+
+#### 2. Dynamic Zero-Loss Data Table
+* **Header Rendering:** Reads `Object.keys(lead.rawData)`.
+  * Every original Google Sheet column header appears with bold typography (`T.text`), clean slate background (`#f8fafc`), and `FiChevronDown` sort indicator.
+* **Quick Contact Action Cluster (Inside Table Row):**
+  * `<FaWhatsapp />` Icon Button: Green (`#25D366`), clicking opens WhatsApp chat directly with the lead's number.
+  * `<FiPhoneCall />` Icon Button: Blue (`T.blue`), initiates calling via CRM tele-calling pipeline.
+  * `<FiEye />` Icon Button: Opens the Lead Detail Slide-Over Drawer.
+
+#### 3. Lead Detail Slide-Over Drawer
+* Emerges smoothly from the right (480px width, `bg: T.white`, subtle backdrop overlay).
+* **Header:** Displays Lead Name + Campaign Badge (`T.blueLight` pill) + Ingestion Time (`FiClock`).
+* **Complete Sheet Data Grid:** Renders every single key-value pair from the Google Sheet row cleanly in two-column cards, ensuring zero custom fields are missed.
+* **Footer Actions:**
+  * Primary Button: `[ Convert to Active CRM Lead ]` (`background: T.blue`, `hover: T.blueHover`).
+  * Secondary Button: `[ <FiArrowUpRight /> Open in Google Sheet ]` (`background: T.bg`, `border: T.border`).
+
+#### 4. Action & Sync Bar
+* **Sync Button:** Uses `T.blue` background with `<FiRefreshCw />`. When clicked, it rotates smoothly with a CSS spin animation while the n8n sync is executing.
+* **Export Button:** Uses `T.white` background, `border: T.border`, `<FiDownload />` icon, exporting the active campaign table with all original Google Sheet headers intact.
+
+

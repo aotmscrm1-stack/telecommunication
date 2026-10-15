@@ -103,20 +103,6 @@ export default function DashboardScreen({ onNavigate }) {
       color: '#8B5CF6',
     },
     {
-      id: 'whatsapp_blast',
-      title: 'WhatsApp Blast',
-      subtitle: 'Bulk messages',
-      icon: 'paper-plane',
-      color: colors.whatsappDark,
-    },
-    {
-      id: 'whatsapp_direct',
-      title: 'WhatsApp Direct',
-      subtitle: 'Instant chat',
-      icon: 'logo-whatsapp',
-      color: colors.whatsapp,
-    },
-    {
       id: 'attendance',
       title: 'Attendance',
       subtitle: 'Punch In / Out',

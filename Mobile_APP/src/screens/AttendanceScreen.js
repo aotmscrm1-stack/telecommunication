@@ -8,8 +8,10 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import { colors } from '../theme/colors';
 import { attendanceApi } from '../api/attendanceApi';
 import Header from '../components/Header';
@@ -26,21 +28,32 @@ export default function AttendanceScreen({ onNavigate }) {
     try {
       const [statusRes, recordsRes] = await Promise.allSettled([
         attendanceApi.getCurrentStatus(),
-        attendanceApi.getRecords({ limit: 10 }),
+        attendanceApi.getRecords({ limit: 15 }),
       ]);
 
       if (statusRes.status === 'fulfilled') {
-        setCurrentStatus(statusRes.value);
-        if (statusRes.value?.checkInTime) {
-          const start = new Date(statusRes.value.checkInTime).getTime();
+        const val = statusRes.value;
+        setCurrentStatus(val);
+
+        // Derive active session start time
+        const session = val?.attendance;
+        const startTime = session?.startTime || session?.checkInTime;
+
+        if (val?.active && startTime) {
+          const start = new Date(startTime).getTime();
           const now = Date.now();
           setElapsedSeconds(Math.max(0, Math.floor((now - start) / 1000)));
+        } else if (!val?.active) {
+          setElapsedSeconds(0);
         }
       }
 
       if (recordsRes.status === 'fulfilled') {
         const data = recordsRes.value;
-        setRecords(Array.isArray(data) ? data : data?.records || []);
+        const list = Array.isArray(data)
+          ? data
+          : data?.records || data?.attendance || [];
+        setRecords(list);
       }
     } catch (err) {
       console.warn('[Attendance] Fetch error:', err);
@@ -54,10 +67,11 @@ export default function AttendanceScreen({ onNavigate }) {
     fetchAttendance();
   }, [fetchAttendance]);
 
-  // Live Timer Counter
+  // Live Timer Counter for active shift
   useEffect(() => {
     let timer;
-    if (currentStatus?.active && !currentStatus?.isOnBreak) {
+    const isWorking = currentStatus?.active && currentStatus?.status === 'ON_DUTY';
+    if (isWorking) {
       timer = setInterval(() => {
         setElapsedSeconds((prev) => prev + 1);
       }, 1000);
@@ -77,46 +91,125 @@ export default function AttendanceScreen({ onNavigate }) {
     return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
+  /**
+   * Acquire high-accuracy GPS coordinates for attendance
+   */
+  const acquireLocation = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        return null; // Gracefully continue if permission denied
+      }
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      return {
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+        accuracy: loc.coords.accuracy || 0,
+        speed: loc.coords.speed || 0,
+        heading: loc.coords.heading || 0,
+      };
+    } catch (locErr) {
+      console.warn('[Location Error]:', locErr.message);
+      return null;
+    }
+  };
+
   const handlePunchToggle = async () => {
+    if (processing) return;
+
     try {
       setProcessing(true);
+      const locData = await acquireLocation();
+
       if (currentStatus?.active) {
         // Punch Out
-        await attendanceApi.stopAttendance({ notes: 'Mobile App Punch Out' });
-        Alert.alert('Punched Out', 'Your attendance shift has been concluded.');
+        const payload = {
+          notes: 'Mobile App Clock Out',
+          ...(locData || {}),
+        };
+        const res = await attendanceApi.stopAttendance(payload);
+        Alert.alert(
+          'Clocked Out',
+          res.message || 'Your attendance shift has been concluded.'
+        );
       } else {
         // Punch In
-        await attendanceApi.startAttendance({ notes: 'Mobile App Punch In' });
-        Alert.alert('Punched In', 'Your attendance shift is now active!');
+        const payload = {
+          notes: 'Mobile App Clock In',
+          ...(locData || {}),
+        };
+        const res = await attendanceApi.startAttendance(payload);
+        Alert.alert(
+          'Clocked In',
+          res.message || 'Your attendance shift is now active!'
+        );
       }
       fetchAttendance();
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.message || 'Failed to update attendance');
+      const data = err.response?.data;
+      if (data?.code === 'NINE_HOURS_INCOMPLETE') {
+        Alert.alert(
+          'Shift Incomplete',
+          `${data.message}\nRemaining: ${data.remainingHms || 'several hours'}.\n\nDo you want to force end attendance?`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Force Clock Out',
+              style: 'destructive',
+              onPress: async () => {
+                try {
+                  setProcessing(true);
+                  const locData = await acquireLocation();
+                  await attendanceApi.stopAttendance({
+                    force: true,
+                    notes: 'Mobile App Force Clock Out',
+                    ...(locData || {}),
+                  });
+                  Alert.alert('Clocked Out', 'Shift ended.');
+                  fetchAttendance();
+                } catch (forceErr) {
+                  Alert.alert('Error', forceErr.response?.data?.message || 'Failed to stop attendance');
+                } finally {
+                  setProcessing(false);
+                }
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert('Error', data?.message || err.message || 'Failed to update attendance');
+      }
     } finally {
       setProcessing(false);
     }
   };
 
   const handleBreakToggle = async () => {
+    if (processing) return;
+
     try {
       setProcessing(true);
-      if (currentStatus?.isOnBreak) {
-        await attendanceApi.resumeBreak();
-        Alert.alert('Resumed', 'Welcome back from break!');
+      if (currentStatus?.status === 'ON_BREAK') {
+        const res = await attendanceApi.resumeBreak();
+        Alert.alert('Resumed', res.message || 'Welcome back from break!');
       } else {
-        await attendanceApi.startBreak({ reason: 'Regular Break' });
-        Alert.alert('On Break', 'Break started.');
+        const res = await attendanceApi.startBreak({ reason: 'Regular Break' });
+        Alert.alert('On Break', res.message || 'Break started.');
       }
       fetchAttendance();
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.message || 'Failed to toggle break');
+      Alert.alert('Error', err.response?.data?.message || err.message || 'Failed to toggle break');
     } finally {
       setProcessing(false);
     }
   };
 
   const isCheckedIn = !!currentStatus?.active;
-  const isOnBreak = !!currentStatus?.isOnBreak;
+  const isOnBreak = currentStatus?.status === 'ON_BREAK';
+  const session = currentStatus?.attendance;
+  const inTimeDisplay = session?.startTime || session?.checkInTime;
 
   return (
     <View style={styles.container}>
@@ -172,8 +265,8 @@ export default function AttendanceScreen({ onNavigate }) {
               {isCheckedIn ? formatTimer(elapsedSeconds) : '00:00:00'}
             </Text>
             <Text style={styles.timerSub}>
-              {isCheckedIn && currentStatus?.checkInTime
-                ? `Clocked In at ${new Date(currentStatus.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+              {isCheckedIn && inTimeDisplay
+                ? `Clocked In at ${new Date(inTimeDisplay).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
                 : 'Ready for today’s shift'}
             </Text>
           </View>
@@ -240,41 +333,47 @@ export default function AttendanceScreen({ onNavigate }) {
               <Text style={styles.emptyText}>No previous attendance records found</Text>
             </View>
           ) : (
-            records.map((rec, idx) => (
-              <View key={rec._id || idx} style={styles.recordCard}>
-                <View style={styles.recordTop}>
-                  <Text style={styles.recordDate}>
-                    {rec.date || (rec.checkInTime ? new Date(rec.checkInTime).toLocaleDateString() : 'Date')}
-                  </Text>
-                  <View style={styles.recordStatusBadge}>
-                    <Text style={styles.recordStatusText}>{rec.status || 'Present'}</Text>
+            records.map((rec, idx) => {
+              const inTime = rec.startTime || rec.checkInTime || rec.checkIn?.time;
+              const outTime = rec.endTime || rec.checkOutTime || rec.checkOut?.time;
+              const totalDuration = rec.formattedWorkDuration || rec.totalHours || (rec.totalWorkSeconds ? `${Math.floor(rec.totalWorkSeconds / 3600)}h ${Math.floor((rec.totalWorkSeconds % 3600) / 60)}m` : '--');
+
+              return (
+                <View key={rec._id || idx} style={styles.recordCard}>
+                  <View style={styles.recordTop}>
+                    <Text style={styles.recordDate}>
+                      {rec.date || (inTime ? new Date(inTime).toLocaleDateString() : 'Today')}
+                    </Text>
+                    <View style={styles.recordStatusBadge}>
+                      <Text style={styles.recordStatusText}>{rec.status || 'PRESENT'}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.recordTimes}>
+                    <View style={styles.timeCol}>
+                      <Text style={styles.timeLabel}>In Time</Text>
+                      <Text style={styles.timeValue}>
+                        {inTime ? new Date(inTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                      </Text>
+                    </View>
+
+                    <View style={styles.timeCol}>
+                      <Text style={styles.timeLabel}>Out Time</Text>
+                      <Text style={styles.timeValue}>
+                        {outTime ? new Date(outTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                      </Text>
+                    </View>
+
+                    <View style={styles.timeCol}>
+                      <Text style={styles.timeLabel}>Total Hours</Text>
+                      <Text style={styles.timeValue}>
+                        {totalDuration}
+                      </Text>
+                    </View>
                   </View>
                 </View>
-
-                <View style={styles.recordTimes}>
-                  <View style={styles.timeCol}>
-                    <Text style={styles.timeLabel}>In Time</Text>
-                    <Text style={styles.timeValue}>
-                      {rec.checkInTime ? new Date(rec.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
-                    </Text>
-                  </View>
-
-                  <View style={styles.timeCol}>
-                    <Text style={styles.timeLabel}>Out Time</Text>
-                    <Text style={styles.timeValue}>
-                      {rec.checkOutTime ? new Date(rec.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
-                    </Text>
-                  </View>
-
-                  <View style={styles.timeCol}>
-                    <Text style={styles.timeLabel}>Total Hours</Text>
-                    <Text style={styles.timeValue}>
-                      {rec.totalHours ? `${rec.totalHours} hrs` : '--'}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            ))
+              );
+            })
           )}
         </View>
       </ScrollView>
@@ -299,6 +398,11 @@ const styles = StyleSheet.create({
     borderColor: colors.cardBorder,
     alignItems: 'center',
     marginBottom: 24,
+    elevation: 3,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
   },
   statusBadgeRow: {
     marginBottom: 16,
@@ -321,13 +425,13 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(245, 158, 11, 0.3)',
   },
   badgeGray: {
-    backgroundColor: 'rgba(107, 114, 128, 0.15)',
-    borderColor: 'rgba(107, 114, 128, 0.3)',
+    backgroundColor: 'rgba(100, 116, 139, 0.1)',
+    borderColor: 'rgba(100, 116, 139, 0.25)',
   },
   dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   dotGreen: {
     backgroundColor: colors.accent,
@@ -339,51 +443,57 @@ const styles = StyleSheet.create({
     backgroundColor: colors.textMuted,
   },
   badgeText: {
-    color: colors.text,
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '800',
     letterSpacing: 0.5,
+    color: colors.text,
   },
   timerContainer: {
     alignItems: 'center',
-    marginVertical: 12,
+    marginVertical: 10,
   },
   timerLabel: {
     color: colors.textMuted,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1.5,
+    marginBottom: 6,
   },
   timerDisplay: {
     color: colors.text,
-    fontSize: 42,
-    fontWeight: '800',
-    letterSpacing: 1,
-    marginVertical: 6,
+    fontSize: 44,
+    fontWeight: '900',
+    letterSpacing: 2,
+    fontVariant: ['tabular-nums'],
   },
   timerSub: {
     color: colors.textSecondary,
-    fontSize: 12,
+    fontSize: 13,
+    marginTop: 6,
   },
   actionsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 20,
     width: '100%',
-    gap: 10,
-    marginTop: 14,
   },
   punchBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 15,
     borderRadius: 14,
     gap: 8,
-    width: '100%',
   },
   punchInBtn: {
-    backgroundColor: colors.accent,
+    backgroundColor: colors.primary,
   },
   punchOutBtn: {
     backgroundColor: colors.danger,
+  },
+  disabledBtn: {
+    opacity: 0.6,
   },
   punchBtnText: {
     color: '#FFFFFF',
@@ -394,35 +504,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    paddingHorizontal: 18,
+    paddingVertical: 15,
+    borderRadius: 14,
+    backgroundColor: colors.surfaceLight,
     borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.4)',
+    borderColor: colors.cardBorder,
     gap: 6,
   },
   resumeBtn: {
     backgroundColor: colors.warning,
+    borderColor: colors.warning,
   },
   breakBtnText: {
     color: colors.warning,
     fontSize: 14,
     fontWeight: '700',
   },
-  disabledBtn: {
-    opacity: 0.7,
-  },
   historySection: {
     gap: 12,
   },
   sectionTitle: {
     color: colors.textMuted,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1.2,
+    marginBottom: 4,
   },
   emptyContainer: {
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 30,
     gap: 8,
   },
@@ -433,23 +544,28 @@ const styles = StyleSheet.create({
   recordCard: {
     backgroundColor: colors.card,
     borderRadius: 14,
-    padding: 14,
+    padding: 16,
     borderWidth: 1,
     borderColor: colors.cardBorder,
+    elevation: 2,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
   },
   recordTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   recordDate: {
     color: colors.text,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
   },
   recordStatusBadge: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
@@ -463,19 +579,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     borderTopWidth: 1,
-    borderTopColor: colors.surfaceLight,
-    paddingTop: 10,
+    borderTopColor: colors.border,
+    paddingTop: 12,
   },
   timeCol: {
-    gap: 2,
+    alignItems: 'flex-start',
   },
   timeLabel: {
     color: colors.textMuted,
     fontSize: 11,
+    fontWeight: '600',
+    marginBottom: 2,
   },
   timeValue: {
-    color: colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '600',
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

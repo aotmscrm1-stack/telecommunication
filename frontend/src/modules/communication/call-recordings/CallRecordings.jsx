@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   AudioLines, Table, LayoutGrid, PhoneCall, FileAudio, 
   Clock, Edit3, MoreVertical, Download, ExternalLink, RefreshCw, User, UserPlus, Sparkles, FileText,
-  Maximize2, MessageSquare, Copy, Check, Volume2
+  Maximize2, MessageSquare, Copy, Check, Volume2, Trash2, Briefcase
 } from 'lucide-react';
 import { recordingsAPI, leadsAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
@@ -11,16 +11,250 @@ import { formatISTDateTime } from '../../../utils/dateFormat';
 import { isHR, isCEO, isManager, canViewCallRecordings } from '../../../utils/permissions';
 import TranscriptConversationModal from '../../../components/TranscriptConversationModal';
 
-// ── MEMOIZED AUDIO PLAYER (Prevents audio reset/pause on parent state change)
+// ── ADVANCED CUSTOM AUDIO PLAYER (Play/Pause, Seek, Current Time, Duration, Volume, Error handling)
 const MemoizedAudioPlayer = memo(function MemoizedAudioPlayer({ audioUrl, mimeType }) {
-  if (!audioUrl) return <span style={{ color: '#dc2626', fontSize: '11px' }}>No audio file available</span>;
+  const audioRef = useRef(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(1);
+  const [isMuted, setIsMuted] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    // Reset player states if audioUrl changes
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+    setLoadError(false);
+  }, [audioUrl]);
+
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play().catch(err => {
+        console.warn('Audio play error:', err);
+        setLoadError(true);
+      });
+    }
+  };
+
+  const onTimeUpdate = () => {
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime);
+    }
+  };
+
+  const onLoadedMetadata = () => {
+    if (audioRef.current) {
+      setDuration(audioRef.current.duration || 0);
+      setIsLoading(false);
+    }
+  };
+
+  const handleSeek = (e) => {
+    const newTime = Number(e.target.value);
+    setCurrentTime(newTime);
+    if (audioRef.current) {
+      audioRef.current.currentTime = newTime;
+    }
+  };
+
+  const handleVolumeChange = (e) => {
+    const val = Number(e.target.value);
+    setVolume(val);
+    setIsMuted(val === 0);
+    if (audioRef.current) {
+      audioRef.current.volume = val;
+    }
+  };
+
+  const toggleMute = () => {
+    if (!audioRef.current) return;
+    if (isMuted) {
+      audioRef.current.volume = volume || 0.5;
+      setIsMuted(false);
+    } else {
+      audioRef.current.volume = 0;
+      setIsMuted(true);
+    }
+  };
+
+  const formatSec = (sec) => {
+    if (!sec || isNaN(sec)) return '0:00';
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${String(s).padStart(2, '0')}`;
+  };
+
+  const [currentUrlIndex, setCurrentUrlIndex] = useState(0);
+
+  // Generate candidate URLs (primary backend stream + remote Render fallback)
+  const candidateUrls = [audioUrl];
+  if (audioUrl) {
+    const filename = audioUrl.split('/').pop().split('?')[0];
+    const remoteStreamUrl = `https://telecommunication-l3oz.onrender.com/api/recordings/stream/${filename}`;
+    if (!audioUrl.includes('telecommunication-l3oz.onrender.com')) {
+      candidateUrls.push(remoteStreamUrl);
+    }
+  }
+
+  const effectiveAudioUrl = candidateUrls[currentUrlIndex] || audioUrl;
+
+  const handleAudioError = (e) => {
+    // If first candidate failed, try fallback remote URL before giving error
+    if (currentUrlIndex < candidateUrls.length - 1) {
+      console.warn(`Primary audio playback failed at ${effectiveAudioUrl}. Trying fallback stream...`);
+      setCurrentUrlIndex(prev => prev + 1);
+      setIsLoading(true);
+      return;
+    }
+    setLoadError(true);
+    setIsLoading(false);
+  };
+
+  if (!audioUrl) {
+    return <span style={{ color: '#dc2626', fontSize: '11px', fontWeight: 600 }}>No audio file available</span>;
+  }
+
+  if (loadError) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px', color: '#dc2626', fontSize: '12px' }}>
+        <span>⚠️ Playback error</span>
+        <button
+          onClick={() => {
+            setLoadError(false);
+            setCurrentUrlIndex(0);
+            if (audioRef.current) {
+              audioRef.current.load();
+            }
+          }}
+          style={{ background: '#fef2f2', border: '1px solid #fecaca', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', color: '#dc2626', fontWeight: 600 }}
+        >
+          Retry
+        </button>
+        <a
+          href={effectiveAudioUrl}
+          target="_blank"
+          rel="noreferrer"
+          style={{ color: '#0284c7', fontSize: '11px', textDecoration: 'underline' }}
+        >
+          Open Link
+        </a>
+      </div>
+    );
+  }
+
   return (
-    <audio controls style={{ width: '100%', height: '32px' }} preload="metadata">
-      <source src={audioUrl} type={mimeType || 'audio/mp4'} />
-      <source src={audioUrl} type="audio/mp4" />
-      <source src={audioUrl} type="audio/mpeg" />
-      Your browser does not support audio playback.
-    </audio>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%', padding: '4px 0' }}>
+      <audio
+        ref={audioRef}
+        src={effectiveAudioUrl}
+        preload="metadata"
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        onTimeUpdate={onTimeUpdate}
+        onLoadedMetadata={onLoadedMetadata}
+        onWaiting={() => setIsLoading(true)}
+        onCanPlay={() => setIsLoading(false)}
+        onError={handleAudioError}
+      />
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        {/* Play/Pause Button */}
+        <button
+          onClick={togglePlay}
+          title={isPlaying ? 'Pause' : 'Play'}
+          style={{
+            width: '32px',
+            height: '32px',
+            borderRadius: '50%',
+            background: '#0284c7',
+            color: '#ffffff',
+            border: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            flexShrink: 0,
+            boxShadow: '0 2px 6px rgba(2, 132, 199, 0.35)',
+            transition: 'transform 0.1s',
+          }}
+          onMouseDown={e => e.currentTarget.style.transform = 'scale(0.92)'}
+          onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+        >
+          {isPlaying ? (
+            <span style={{ fontSize: '12px', fontWeight: 900 }}>❚❚</span>
+          ) : (
+            <span style={{ fontSize: '12px', marginLeft: '2px' }}>▶</span>
+          )}
+        </button>
+
+        {/* Current Time */}
+        <span style={{ fontSize: '11px', fontWeight: 600, color: '#475569', minWidth: '32px', fontVariant: ['tabular-nums'] }}>
+          {formatSec(currentTime)}
+        </span>
+
+        {/* Seek Scrubber Progress Bar */}
+        <input
+          type="range"
+          min={0}
+          max={duration || 100}
+          step="0.1"
+          value={currentTime}
+          onChange={handleSeek}
+          style={{
+            flex: 1,
+            height: '6px',
+            borderRadius: '3px',
+            cursor: 'pointer',
+            accentColor: '#0284c7',
+          }}
+        />
+
+        {/* Total Duration */}
+        <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', minWidth: '32px', fontVariant: ['tabular-nums'] }}>
+          {formatSec(duration)}
+        </span>
+
+        {/* Volume & Mute */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+          <button
+            onClick={toggleMute}
+            title={isMuted ? 'Unmute' : 'Mute'}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '2px',
+              display: 'flex',
+              alignItems: 'center',
+              color: '#64748b',
+            }}
+          >
+            <Volume2 style={{ width: '15px', height: '15px', opacity: isMuted ? 0.4 : 1 }} />
+          </button>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={isMuted ? 0 : volume}
+            onChange={handleVolumeChange}
+            title="Volume"
+            style={{
+              width: '45px',
+              height: '4px',
+              accentColor: '#0284c7',
+              cursor: 'pointer',
+            }}
+          />
+        </div>
+      </div>
+    </div>
   );
 });
 
@@ -43,7 +277,7 @@ const C = {
 };
 
 // ── THREE DOTS MENU DROPDOWN ────────────────────────────────────────────────
-function ThreeDotsMenu({ audioUrl, originalName }) {
+function ThreeDotsMenu({ audioUrl, originalName, onDelete }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -57,7 +291,7 @@ function ThreeDotsMenu({ audioUrl, originalName }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  if (!audioUrl) return null;
+  if (!audioUrl && !onDelete) return null;
 
   return (
     <div ref={menuRef} style={{ position: 'relative' }}>
@@ -87,42 +321,65 @@ function ThreeDotsMenu({ audioUrl, originalName }) {
             style={{
               position: 'absolute', right: 0, top: '34px', zIndex: 100,
               background: '#ffffff', border: `1px solid ${C.border}`, borderRadius: '10px',
-              boxShadow: '0 10px 25px -5px rgba(0,0,0,0.12)', padding: '6px', width: '150px',
+              boxShadow: '0 10px 25px -5px rgba(0,0,0,0.12)', padding: '6px', width: '160px',
               display: 'flex', flexDirection: 'column', gap: '4px'
             }}
           >
-            <a
-              href={audioUrl}
-              target="_blank"
-              rel="noreferrer"
-              onClick={() => setOpen(false)}
-              style={{
-                padding: '7px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 600,
-                color: C.dark, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px',
-                transition: 'background 0.15s'
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = C.bgSoft}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-            >
-              <ExternalLink style={{ width: '13px', height: '13px', color: C.green }} /> Open Stream
-            </a>
+            {audioUrl ? (
+              <>
+                <a
+                  href={audioUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => setOpen(false)}
+                  style={{
+                    padding: '7px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 600,
+                    color: C.dark, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px',
+                    transition: 'background 0.15s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = C.bgSoft}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  <ExternalLink style={{ width: '13px', height: '13px', color: C.green }} /> Open Stream
+                </a>
 
-            <a
-              href={audioUrl}
-              download={originalName || 'recording.m4a'}
-              target="_blank"
-              rel="noreferrer"
-              onClick={() => setOpen(false)}
-              style={{
-                padding: '7px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 600,
-                color: C.dark, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px',
-                transition: 'background 0.15s'
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = C.bgSoft}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-            >
-              <Download style={{ width: '13px', height: '13px', color: C.blue }} /> Download
-            </a>
+                <a
+                  href={audioUrl}
+                  download={originalName || 'recording.m4a'}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => setOpen(false)}
+                  style={{
+                    padding: '7px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 600,
+                    color: C.dark, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px',
+                    transition: 'background 0.15s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = C.bgSoft}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  <Download style={{ width: '13px', height: '13px', color: C.blue }} /> Download
+                </a>
+              </>
+            ) : null}
+
+            {onDelete ? (
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  onDelete();
+                }}
+                style={{
+                  padding: '7px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 600,
+                  color: '#dc2626', background: 'none', border: 'none', textAlign: 'left',
+                  display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer',
+                  transition: 'background 0.15s', width: '100%'
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                <Trash2 style={{ width: '13px', height: '13px', color: '#dc2626' }} /> Delete Audio
+              </button>
+            ) : null}
           </motion.div>
         )}
       </AnimatePresence>
@@ -403,6 +660,23 @@ export default function CallRecordings() {
       setRematchMsg('Auto-match operation failed.');
     } finally {
       setRematching(false);
+    }
+  };
+
+  const handleDeleteRecording = async (rec) => {
+    const recId = rec._id || rec.id;
+    if (!recId) return;
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete "${rec.originalName || 'this recording'}"?\nThis removes the audio from CRM storage permanently.`
+    );
+    if (!confirmDelete) return;
+
+    try {
+      await recordingsAPI.delete(recId);
+      setRecordings(prev => prev.filter(r => (r._id || r.id) !== recId));
+    } catch (err) {
+      console.error('Delete recording error:', err);
+      alert(err.response?.data?.error || err.message || 'Failed to delete recording.');
     }
   };
 
@@ -707,9 +981,29 @@ export default function CallRecordings() {
                       </motion.button>
                     )}
 
-                    {/* Three Dots Menu for Download & Open */}
-                    <ThreeDotsMenu audioUrl={audioUrl} originalName={rec.originalName} />
+                    {/* Three Dots Menu for Download, Open, & Delete */}
+                    <ThreeDotsMenu
+                      audioUrl={audioUrl}
+                      originalName={rec.originalName}
+                      onDelete={canManageCRUD ? () => handleDeleteRecording(rec) : undefined}
+                    />
                   </div>
+                </div>
+
+                {/* Caller Profile Badge (Employee / Caller Tracking) */}
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  background: '#f1f5f9', padding: '5px 8px', borderRadius: '6px', fontSize: '11px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#475569', fontWeight: 600 }}>
+                    <User style={{ width: '12px', height: '12px', color: C.blue }} />
+                    <span>Caller: <strong style={{ color: C.dark }}>{rec.userName || 'Assigned Caller'}</strong></span>
+                  </div>
+                  {rec.userDepartment || rec.userDesignation ? (
+                    <span style={{ fontSize: '10px', color: '#64748b', background: '#e2e8f0', padding: '1px 6px', borderRadius: '4px' }}>
+                      {rec.userDepartment || rec.userDesignation}
+                    </span>
+                  ) : null}
                 </div>
 
                 {/* 2. SECOND LINE: Call Record Name */}
@@ -720,13 +1014,13 @@ export default function CallRecordings() {
                   </span>
                 </div>
 
-                {/* 3. THIRD LINE: NEW LINE for Date & Time */}
+                {/* 3. THIRD LINE: Date & Time */}
                 <div style={{ fontSize: '11px', color: C.textSoft, display: 'flex', alignItems: 'center', gap: '6px', background: C.bgSoft, padding: '4px 8px', borderRadius: '6px', border: `1px solid ${C.border}` }}>
                   <Clock style={{ width: '12px', height: '12px', color: '#94a3b8', flexShrink: 0 }} />
                   <span>{rec.recordedAt ? formatISTDateTime(rec.recordedAt) : `${rec.callDate || ''} ${rec.callTime || ''}`}</span>
                 </div>
 
-                {/* 4. FOURTH LINE: Phone Number with PhoneCall Icon */}
+                {/* 4. FOURTH LINE: Phone Number */}
                 <div style={{ fontSize: '12px', fontWeight: 600, color: C.dark, display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <div style={{ background: '#f1f5f9', border: `1px solid ${C.border}`, padding: '3px 8px', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: 'monospace' }}>
                     <PhoneCall style={{ width: '13px', height: '13px', color: C.green }} />
@@ -798,6 +1092,7 @@ export default function CallRecordings() {
               <thead>
                 <tr style={{ background: C.bgSoft, borderBottom: `1px solid ${C.border}`, color: C.textSoft, fontSize: '11px', textTransform: 'uppercase' }}>
                   <th style={{ padding: '14px 16px' }}>Lead / Contact</th>
+                  <th style={{ padding: '14px 16px' }}>Caller Profile</th>
                   <th style={{ padding: '14px 16px' }}>Phone Number</th>
                   <th style={{ padding: '14px 16px' }}>Date & Time</th>
                   <th style={{ padding: '14px 16px' }}>Audio Player</th>
@@ -819,6 +1114,20 @@ export default function CallRecordings() {
                         <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
                           {rec.originalName}
                         </div>
+                      </td>
+
+                      <td style={{ padding: '14px 16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <User style={{ width: '13px', height: '13px', color: C.blue }} />
+                          <span style={{ fontWeight: 600, color: C.dark, fontSize: '12px' }}>
+                            {rec.userName || 'Assigned Caller'}
+                          </span>
+                        </div>
+                        {rec.userDepartment || rec.userDesignation ? (
+                          <div style={{ fontSize: '10px', color: C.textSoft, marginTop: '2px' }}>
+                            {rec.userDepartment || rec.userDesignation}
+                          </div>
+                        ) : null}
                       </td>
 
                       <td style={{ padding: '14px 16px', fontWeight: 600 }}>
@@ -849,7 +1158,11 @@ export default function CallRecordings() {
                               {hasLead ? ' Edit Link' : ' Link Lead'}
                             </button>
                           )}
-                          <ThreeDotsMenu audioUrl={audioUrl} originalName={rec.originalName} />
+                          <ThreeDotsMenu
+                            audioUrl={audioUrl}
+                            originalName={rec.originalName}
+                            onDelete={canManageCRUD ? () => handleDeleteRecording(rec) : undefined}
+                          />
                         </div>
                       </td>
                     </tr>

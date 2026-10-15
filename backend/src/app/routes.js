@@ -31,6 +31,7 @@ router.use('/custom-actions', apiLimiter, require('../modules/marketing/leads/cu
 
 // Campaigns
 router.use('/campaigns', apiLimiter, require('../modules/marketing/campaigns/campaigns'));
+router.use('/meta-leads', apiLimiter, require('../modules/marketing/meta-leads/metaLeads'));
 router.use('/email-campaigns', apiLimiter, require('../modules/marketing/campaigns/emailCampaigns'));
 router.use('/whatsapp-campaigns', apiLimiter, require('../modules/marketing/campaigns/whatsappCampaigns'));
 

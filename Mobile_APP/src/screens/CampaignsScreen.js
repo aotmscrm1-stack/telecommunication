@@ -27,6 +27,27 @@ export default function CampaignsScreen({ onNavigate }) {
   const [description, setDescription] = useState('');
   const [creating, setCreating] = useState(false);
 
+  // View campaign details modal
+  const [selectedCampaign, setSelectedCampaign] = useState(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [campaignDetailData, setCampaignDetailData] = useState(null);
+
+  const handleOpenCampaign = async (campaign) => {
+    setSelectedCampaign(campaign);
+    setCampaignDetailData(null);
+    setLoadingDetail(true);
+    try {
+      const res = await campaignsApi.getCampaign(campaign._id);
+      if (res && res.campaign) {
+        setCampaignDetailData(res.campaign);
+      }
+    } catch (err) {
+      console.warn('[Campaign Detail Fetch Error]:', err);
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+
   const fetchCampaigns = useCallback(async () => {
     try {
       const data = await campaignsApi.getCampaigns();
@@ -103,7 +124,11 @@ export default function CampaignsScreen({ onNavigate }) {
           contentContainerStyle={styles.listContent}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
           renderItem={({ item }) => (
-            <View style={styles.card}>
+            <TouchableOpacity
+              style={styles.card}
+              onPress={() => handleOpenCampaign(item)}
+              activeOpacity={0.7}
+            >
               <View style={styles.cardHeader}>
                 <View style={styles.campaignIcon}>
                   <Ionicons name="megaphone" size={20} color={colors.primary} />
@@ -137,8 +162,13 @@ export default function CampaignsScreen({ onNavigate }) {
                     <Text style={styles.statText}>{item.type}</Text>
                   </View>
                 ) : null}
+
+                <View style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Text style={{ fontSize: 12, color: colors.primary, fontWeight: '600' }}>View</Text>
+                  <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+                </View>
               </View>
-            </View>
+            </TouchableOpacity>
           )}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
@@ -149,6 +179,109 @@ export default function CampaignsScreen({ onNavigate }) {
           }
         />
       )}
+
+      {/* Campaign Details Modal */}
+      <Modal
+        visible={!!selectedCampaign}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSelectedCampaign(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <View style={{ flex: 1, paddingRight: 8 }}>
+                <Text style={styles.modalTitle} numberOfLines={1}>
+                  {selectedCampaign?.name}
+                </Text>
+                <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
+                  Status: {selectedCampaign?.status || 'Active'}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setSelectedCampaign(null)}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            {loadingDetail ? (
+              <View style={{ paddingVertical: 30, alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={{ fontSize: 12, color: colors.textSecondary }}>Loading campaign metrics...</Text>
+              </View>
+            ) : (
+              <View style={styles.detailBody}>
+                <View style={styles.detailRowItem}>
+                  <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+                  <Text style={styles.detailLabel}>Created Date:</Text>
+                  <Text style={styles.detailValue}>
+                    {selectedCampaign?.createdAt ? new Date(selectedCampaign.createdAt).toLocaleDateString() : 'Active'}
+                  </Text>
+                </View>
+
+                <View style={styles.detailRowItem}>
+                  <Ionicons name="people-outline" size={16} color={colors.primary} />
+                  <Text style={styles.detailLabel}>Total Campaign Leads:</Text>
+                  <Text style={styles.detailValue}>
+                    {campaignDetailData?.totalLeads ?? (selectedCampaign?.leads?.length || selectedCampaign?.totalLeads || 0)}
+                  </Text>
+                </View>
+
+                {selectedCampaign?.type ? (
+                  <View style={styles.detailRowItem}>
+                    <Ionicons name="pricetag-outline" size={16} color={colors.primary} />
+                    <Text style={styles.detailLabel}>Campaign Type:</Text>
+                    <Text style={styles.detailValue}>{selectedCampaign.type}</Text>
+                  </View>
+                ) : null}
+
+                {/* Status Breakdown Chips if available */}
+                {campaignDetailData?.statusBreakdown && campaignDetailData.statusBreakdown.length > 0 ? (
+                  <View style={{ marginTop: 6 }}>
+                    <Text style={styles.label}>LEAD STAGES BREAKDOWN</Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                      {campaignDetailData.statusBreakdown.map((st) => (
+                        <View
+                          key={st._id || 'unknown'}
+                          style={{
+                            backgroundColor: colors.surface,
+                            borderWidth: 1,
+                            borderColor: colors.cardBorder,
+                            paddingHorizontal: 8,
+                            paddingVertical: 4,
+                            borderRadius: 6,
+                          }}
+                        >
+                          <Text style={{ fontSize: 11, color: colors.text, fontWeight: '600' }}>
+                            {st._id || 'Fresh'}: <Text style={{ color: colors.primary }}>{st.count}</Text>
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                ) : null}
+
+                <View style={{ marginTop: 8 }}>
+                  <Text style={styles.label}>CAMPAIGN DESCRIPTION</Text>
+                  <Text style={{ fontSize: 14, color: colors.text, marginTop: 4, lineHeight: 20 }}>
+                    {selectedCampaign?.description || 'No campaign description provided.'}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={[styles.createBtn, { marginTop: 12 }]}
+              onPress={() => {
+                setSelectedCampaign(null);
+                onNavigate('all_leads');
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.createBtnText}>Explore Leads for this Campaign</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Create Modal */}
       <Modal
@@ -381,6 +514,25 @@ const styles = StyleSheet.create({
   createBtnText: {
     color: '#FFFFFF',
     fontSize: 15,
+    fontWeight: '700',
+  },
+  detailBody: {
+    gap: 12,
+    paddingVertical: 8,
+  },
+  detailRowItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  detailLabel: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  detailValue: {
+    fontSize: 13,
+    color: colors.text,
     fontWeight: '700',
   },
 });

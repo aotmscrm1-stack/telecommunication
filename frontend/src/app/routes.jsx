@@ -36,6 +36,7 @@ import { WhatsApp } from '../modules/marketing/whatsapp';
 import { Leaderboard, LeadProfile } from '../modules/marketing/leaderboard';
 import { Reports } from '../modules/marketing/reports';
 import { DigitalCalendar } from '../modules/marketing/digital-calendar';
+import { MetaLeads } from '../modules/marketing/meta-leads';
 
 // Finance Modules
 import { OfferLetter } from '../modules/finance/offer-letters';
@@ -69,7 +70,7 @@ import PermissionTemplates from '../pages/PermissionTemplates';
 import Fields from '../pages/Fields';
 import CustomActions from '../pages/CustomActions';
 import Billing from '../pages/Billing';
-import MapsDashboard from '../Maps';
+import MapsDashboard from '../modules/developer/maps';
 
 // Error Pages
 import Forbidden from '../pages/errors/403/Forbidden';
@@ -178,6 +179,8 @@ export function AppRoutes() {
         <Route path="leads/:id/edit" element={<StaffRestrictedRoute><AddLead /></StaffRestrictedRoute>} />
         <Route path="campaigns" element={<StaffRestrictedRoute><Campaigns /></StaffRestrictedRoute>} />
         <Route path="campaigns/:id" element={<StaffRestrictedRoute><CampaignDetail /></StaffRestrictedRoute>} />
+        <Route path="meta-leads" element={<StaffRestrictedRoute><MetaLeads /></StaffRestrictedRoute>} />
+        <Route path="marketing/meta-leads" element={<StaffRestrictedRoute><MetaLeads /></StaffRestrictedRoute>} />
         <Route path="leaderboard" element={<StaffRestrictedRoute><Leaderboard /></StaffRestrictedRoute>} />
         <Route path="reports" element={<StaffRestrictedRoute><Reports /></StaffRestrictedRoute>} />
         <Route path="contacts" element={<StaffRestrictedRoute><Contacts /></StaffRestrictedRoute>} />

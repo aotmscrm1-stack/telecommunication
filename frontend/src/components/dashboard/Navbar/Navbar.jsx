@@ -11,7 +11,7 @@ import {
   FaReceipt, FaCalendarCheck, FaLocationDot, FaPeopleGroup, FaClock,
   FaBan, FaUserGear, FaKey, FaPlug, FaCircleInfo, FaCoins, FaSitemap,
   FaCode, FaBell, FaChevronDown, FaBars, FaXmark, FaRightFromBracket,
-  FaUser, FaLock, FaUserCheck, FaBook, FaCalendarDays
+  FaUser, FaLock, FaUserCheck, FaBook, FaCalendarDays, FaTableList
 } from 'react-icons/fa6';
 import { isCEO, isHR, isManager, isLimitedStaff, canViewDashboard, canViewCallRecordings, isDigitalMarketing, canAccessDigitalCalendar, normalizeDesignation, canViewCallFollowups } from '../../../utils/permissions';
 
@@ -539,6 +539,7 @@ export default function Navbar() {
       { label: 'Add Leads', path: '/leads/new', icon: FaUserPlus },
       { label: 'All Leads', path: '/leads', icon: FaUsers },
       { label: 'Campaigns', path: '/campaigns', icon: FaBullhorn },
+      { label: 'Meta Leads', path: '/meta-leads', icon: FaTableList },
       { label: 'Contact', path: '/contacts', icon: FaBook },
       { label: 'WhatsApp Blast', path: '/whatsapp-blast', icon: WhatsAppBlastIcon },
       { label: 'WhatsApp', path: '/whatsapp', icon: FaWhatsapp },

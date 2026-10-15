@@ -5,25 +5,30 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/Logo.png",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "light",
     "splash": {
-      "backgroundColor": "#0F172A"
+      "backgroundColor": "#FFFFFF"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.aotms.crm"
+      "bundleIdentifier": "com.aotms.crm",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "AOTMS CRM requires your location to accurately record check-in and check-out attendance on your shifts."
+      }
     },
     "android": {
       "package": "com.aotms.crm",
       "adaptiveIcon": {
-        "backgroundColor": "#0F172A",
+        "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/Logo.png"
       },
       "permissions": [
         "INTERNET",
         "CALL_PHONE",
         "READ_EXTERNAL_STORAGE",
-        "RECORD_AUDIO"
+        "RECORD_AUDIO",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
       ]
     },
     "web": {

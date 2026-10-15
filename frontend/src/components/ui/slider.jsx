@@ -1,5 +1,5 @@
 import * as React from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 
 const Slider = React.forwardRef(
   ({ className, min = 0, max = 1, step = 0.01, value = [0], onValueChange, ...props }, ref) => {
