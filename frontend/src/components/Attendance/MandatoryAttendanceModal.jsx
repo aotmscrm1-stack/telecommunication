@@ -295,6 +295,7 @@ export default function MandatoryAttendanceModal() {
   // Step 1: Attendance state
   const [clockingIn, setClockingIn] = useState(false);
   const [attendanceSuccess, setAttendanceSuccess] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('Attendance Clocked In!');
   const [attendanceError, setAttendanceError] = useState(null);
   const [gpsCoords, setGpsCoords] = useState(null);
 
@@ -303,6 +304,8 @@ export default function MandatoryAttendanceModal() {
   const [dueDate, setDueDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [dueTime, setDueTime] = useState('09:00');
   const [priority, setPriority] = useState('medium');
+  const [repeatFrequency, setRepeatFrequency] = useState('none');
+  const [repeatEndDate, setRepeatEndDate] = useState('');
   const [deptFilter, setDeptFilter] = useState(() => user?.department || 'Developer');
   const [selectedAssigneeIds, setSelectedAssigneeIds] = useState(() => (user?._id ? [user._id] : []));
   const [assignedBy, setAssignedBy] = useState('');
@@ -369,6 +372,55 @@ export default function MandatoryAttendanceModal() {
     return `mandatory_todo_done_${userId}_${dateStr}`;
   };
 
+  // Helper to check if user has an active Daily Recurring Todo OR a Todo created for today
+  const checkHasDailyRecurringOrTodayTodo = useCallback(async (userId) => {
+    if (!userId) return false;
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    try {
+      const todoRes = await followupsAPI.getAll({ userId, type: 'todo' });
+      const allItems = todoRes.data?.followups || todoRes.data?.todos || todoRes.data?.tasks || [];
+
+      return allItems.some((item) => {
+        const isTodoItem = item.type === 'todo' || !item.type;
+        if (!isTodoItem) return false;
+
+        const isUserItem =
+          String(item.assignedTo?._id || item.assignedTo || '') === String(userId) ||
+          String(item.createdBy?._id || item.createdBy || '') === String(userId);
+        if (!isUserItem) return false;
+
+        // Check 1: Active Daily Recurring Todo
+        const freq = (
+          (typeof item.recurrence === 'string' ? item.recurrence : item.recurrence?.frequency) ||
+          item.recurrenceFrequency ||
+          ''
+        ).toLowerCase();
+        const isDaily = freq === 'daily';
+
+        if (isDaily && item.status !== 'cancelled') {
+          const repeatEndDate = item.recurrence?.endDate || item.repeatEndDate;
+          const isNotExpired = !repeatEndDate || new Date(repeatEndDate).getTime() >= startOfToday.getTime();
+          if (isNotExpired) {
+            return true;
+          }
+        }
+
+        // Check 2: Todo created or scheduled for today or later
+        const itemDate = new Date(item.createdAt || item.scheduledAt || item.dueDate);
+        if (itemDate >= startOfToday && item.status !== 'cancelled') {
+          return true;
+        }
+
+        return false;
+      });
+    } catch (err) {
+      console.warn('[MandatoryCheckIn] Check daily/today todo error:', err.message);
+      return false;
+    }
+  }, []);
+
   // Check overall Check-in Status & Today's Todo Requirement on mount / refresh
   const evaluateCheckInStatus = useCallback(async () => {
     if (!user) {
@@ -404,20 +456,11 @@ export default function MandatoryAttendanceModal() {
           return;
         }
 
-        // Attendance active or completed -> Check if user has created at least 1 Todo item for TODAY!
-        const startOfToday = new Date();
-        startOfToday.setHours(0, 0, 0, 0);
-
+        // Attendance active or completed -> Check if user has an active Daily Recurring Todo OR a Todo for today
         try {
-          const todoRes = await followupsAPI.getAll({ userId: user._id, type: 'todo' });
-          const allItems = todoRes.data?.followups || todoRes.data?.todos || todoRes.data?.tasks || [];
-          const hasTodayTodo = allItems.some((item) => {
-            const isTodoItem = item.type === 'todo' || !item.type;
-            const itemDate = new Date(item.createdAt || item.scheduledAt || item.dueDate);
-            return isTodoItem && itemDate >= startOfToday;
-          });
+          const hasExemptTodo = await checkHasDailyRecurringOrTodayTodo(user._id);
 
-          if (hasTodayTodo) {
+          if (hasExemptTodo) {
             localStorage.setItem(todayDoneKey, 'true');
             setCurrentStep('CLOSED');
           } else {
@@ -531,23 +574,42 @@ export default function MandatoryAttendanceModal() {
           console.warn('[MandatoryAttendance] GeoTracker start:', gErr.message);
         });
 
-        setAttendanceSuccess(true);
         window.dispatchEvent(new CustomEvent('attendance-updated', { detail: res.data.attendance }));
 
         // If Admin user: close modal immediately, DO NOT show Step 2 Todo form!
         if (isAdminUser(user)) {
+          setSuccessMsg('Attendance Clocked In Successfully!');
+          setAttendanceSuccess(true);
           setTimeout(() => {
             setClockingIn(false);
             setAttendanceSuccess(false);
             setCurrentStep('CLOSED');
-          }, 500);
+          }, 600);
+          return;
+        }
+
+        // For non-admin employees: check if user already has an active daily recurring Todo or today's Todo
+        const hasExemptTodo = await checkHasDailyRecurringOrTodayTodo(user._id);
+
+        if (hasExemptTodo) {
+          // Exempt: User has daily recurrence or today's Todo -> close modal directly, no Todo form!
+          localStorage.setItem(getTodayDoneKey(user._id), 'true');
+          setSuccessMsg('Attendance Clocked In! Daily recurring Todo active.');
+          setAttendanceSuccess(true);
+          setTimeout(() => {
+            setClockingIn(false);
+            setAttendanceSuccess(false);
+            setCurrentStep('CLOSED');
+          }, 600);
         } else {
-          // Transition immediately to Step 2: Mandatory Todo Creation Form for non-admin employees
+          // Transition to Step 2: Mandatory Todo Creation Form
+          setSuccessMsg('Attendance Clocked In! Opening Create Todo Item form...');
+          setAttendanceSuccess(true);
           setTimeout(() => {
             setClockingIn(false);
             setAttendanceSuccess(false);
             setCurrentStep('TODO');
-          }, 500);
+          }, 600);
         }
       } else {
         setAttendanceError(res.data?.message || 'Failed to start attendance. Please try again.');
@@ -581,6 +643,15 @@ export default function MandatoryAttendanceModal() {
       setTaskError(null);
 
       const scheduledAtIso = `${dueDate || new Date().toISOString().slice(0, 10)}T${dueTime || '09:00'}:00`;
+      if (repeatFrequency !== 'none' && !repeatEndDate) {
+        setTaskError('Please choose an end date for the repeating Todo item.');
+        return;
+      }
+      if (repeatFrequency !== 'none' && new Date(repeatEndDate) < new Date(scheduledAtIso)) {
+        setTaskError('Repeat end date must be after the due date.');
+        return;
+      }
+
       const finalAssignedBy = assignedBy || user?._id;
 
       const createdTasks = await Promise.all(
@@ -596,6 +667,12 @@ export default function MandatoryAttendanceModal() {
             assignedTo: targetId,
             assignedBy: finalAssignedBy === 'all' ? user?._id : finalAssignedBy,
           };
+          if (repeatFrequency !== 'none') {
+            payload.recurrence = {
+              frequency: repeatFrequency,
+              endDate: new Date(repeatEndDate + 'T23:59:59').toISOString(),
+            };
+          }
           return followupsAPI.create(payload);
         })
       );
@@ -763,7 +840,7 @@ export default function MandatoryAttendanceModal() {
                 {attendanceSuccess && (
                   <div className="p-3 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200">
                     <FiCheckCircle className="w-4 h-4 text-emerald-600" />
-                    <span>Attendance Clocked In! Opening Create Todo Item form...</span>
+                    <span>{successMsg}</span>
                   </div>
                 )}
 
@@ -857,6 +934,37 @@ export default function MandatoryAttendanceModal() {
                     <option value="low">Low</option>
                     <option value="urgent">Urgent</option>
                   </select>
+                </div>
+
+                {/* Recurrence */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-800 mb-1.5">
+                    Recurrence
+                  </label>
+                  <select
+                    value={repeatFrequency}
+                    onChange={(e) => setRepeatFrequency(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-sky-500 shadow-xs"
+                  >
+                    <option value="none">Does not repeat</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
+                  {repeatFrequency !== 'none' && (
+                    <div className="mt-2.5">
+                      <label className="block text-xs font-semibold text-slate-800 mb-1">
+                        Repeat Until
+                      </label>
+                      <input
+                        type="date"
+                        value={repeatEndDate}
+                        min={dueDate || undefined}
+                        onChange={(e) => setRepeatEndDate(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-800 bg-white outline-none focus:border-sky-500 shadow-xs"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* Department Filter (Only for Admin; Hidden for non-admin employees to isolate departments) */}
