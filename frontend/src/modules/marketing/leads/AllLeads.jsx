@@ -12,7 +12,7 @@ import {
 import {
   Search, Plus, RefreshCw, Download, Star, Trash2, Ban,
   BarChart2, ChevronLeft, ChevronRight, Users, CheckCircle,
-  Phone, Mail, MapPin, Sparkles, Filter, Eye, ArrowUpDown, ChevronDown
+  Phone, PhoneCall, Mail, MapPin, Sparkles, Filter, Eye, ArrowUpDown, ChevronDown
 } from 'lucide-react';
 import { FiUserPlus, FiLink, FiChevronRight } from 'react-icons/fi';
 import { RiFileExcel2Line } from 'react-icons/ri';
@@ -770,7 +770,19 @@ export default function AllLeads() {
                             </button>
                             <div>
                               <div className="font-medium text-xs text-slate-800">{lead.name}</div>
-                              <div className="text-[11px] font-normal text-slate-400">{lead.phone}</div>
+                              <div className="text-[11px] font-normal text-slate-400">
+                                {lead.phone ? (
+                                  <a
+                                    href={`tel:${String(lead.phone).replace(/\D/g, '')}`}
+                                    onClick={e => e.stopPropagation()}
+                                    title={`📞 Click to Call ${lead.phone}`}
+                                    className="inline-flex items-center gap-1 hover:text-emerald-600 transition-colors"
+                                  >
+                                    <Phone className="w-2.5 h-2.5 text-slate-400" />
+                                    <span>{lead.phone}</span>
+                                  </a>
+                                ) : '—'}
+                              </div>
                             </div>
                           </div>
                         </td>
@@ -807,25 +819,39 @@ export default function AllLeads() {
                         {/* Actions */}
                         {(isAdmin || isCaller) && (
                           <td className="px-3.5 py-2.5 whitespace-nowrap" onClick={e => e.stopPropagation()}>
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              {isAdmin && (
-                                <button
-                                  onClick={e => handleBlock(lead, e)}
-                                  className="p-1 rounded-md text-slate-400 hover:bg-amber-50 hover:text-amber-600 transition-colors"
-                                  title="Block Lead"
+                            <div className="flex items-center gap-1.5">
+                              {/* Dedicated Call Action Button with Call Symbol & Click to Activate */}
+                              {lead.phone && (
+                                <a
+                                  href={`tel:${String(lead.phone).replace(/\D/g, '')}`}
+                                  onClick={e => e.stopPropagation()}
+                                  title={`📞 Click to Call ${lead.name || 'Lead'} (${lead.phone})`}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-all shadow-xs"
                                 >
-                                  <Ban className="w-3.5 h-3.5" />
-                                </button>
+                                  <PhoneCall className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span>Call</span>
+                                </a>
                               )}
-                              {canDelete(user) && (
-                                <button
-                                  onClick={e => handleDelete(lead._id, e)}
-                                  className="p-1 rounded-md text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
-                                  title="Delete Lead"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              )}
+                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {isAdmin && (
+                                  <button
+                                    onClick={e => handleBlock(lead, e)}
+                                    className="p-1 rounded-md text-slate-400 hover:bg-amber-50 hover:text-amber-600 transition-colors"
+                                    title="Block Lead"
+                                  >
+                                    <Ban className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                                {canDelete(user) && (
+                                  <button
+                                    onClick={e => handleDelete(lead._id, e)}
+                                    className="p-1 rounded-md text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                                    title="Delete Lead"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </td>
                         )}

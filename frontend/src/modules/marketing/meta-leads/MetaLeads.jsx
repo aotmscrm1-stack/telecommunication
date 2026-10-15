@@ -1,14 +1,16 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { metaLeadsAPI } from '../../../services/api';
+import { metaLeadsAPI, usersAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
+import AssignMembersModal from './AssignMembersModal';
 import {
   FiPlus, FiRefreshCw, FiSearch, FiLayers, FiUsers, FiCalendar,
   FiFlag, FiBarChart2, FiTrash2, FiArrowRight, FiX, FiCheck,
   FiCheckCircle, FiAlertTriangle, FiClock, FiChevronDown,
   FiTarget, FiActivity, FiEye, FiArrowUpRight, FiFilter,
-  FiDownload, FiPhoneCall, FiMail, FiColumns, FiDatabase
+  FiDownload, FiPhoneCall, FiMail, FiColumns, FiDatabase,
+  FiUserPlus, FiShield
 } from 'react-icons/fi';
 import { RiMegaphoneLine, RiFolderChartLine } from 'react-icons/ri';
 import { FaWhatsapp } from 'react-icons/fa';
@@ -88,15 +90,60 @@ export default function MetaLeads() {
   const [showColumnDropdown, setShowColumnDropdown] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
 
-  // Fetch campaign stats
+  // Assignment & Role Management State
+  const [isAdmin, setIsAdmin] = useState(true);
+  const [isRestricted, setIsRestricted] = useState(false);
+  const [employees, setEmployees] = useState([]);
+  const [assignments, setAssignments] = useState([]);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [assignModalCampaign, setAssignModalCampaign] = useState('');
+
+  // Fetch campaign stats and role boundaries
   const fetchCampaigns = async () => {
     try {
       const res = await metaLeadsAPI.getCampaigns();
       if (res.data?.success) {
-        setCampaignStats(res.data.campaigns || []);
+        const fetchedCampaigns = res.data.campaigns || [];
+        setCampaignStats(fetchedCampaigns);
+        const adminFlag = res.data.isAdmin !== undefined ? res.data.isAdmin : true;
+        const restrictedFlag = !!res.data.isRestricted;
+        setIsAdmin(adminFlag);
+        setIsRestricted(restrictedFlag);
+
+        // Auto-select first accessible campaign for restricted employees
+        if (restrictedFlag && fetchedCampaigns.length > 0) {
+          const allowedNames = fetchedCampaigns.map(c => c.campaign);
+          if (selectedCampaign === 'all' || !allowedNames.includes(selectedCampaign)) {
+            setSelectedCampaign(allowedNames[0]);
+          }
+        }
       }
     } catch (err) {
       console.error('Failed to fetch campaigns:', err);
+    }
+  };
+
+  // Fetch employees list (for Admin assignment modal)
+  const fetchEmployees = async () => {
+    try {
+      const res = await usersAPI.getAll();
+      if (res.data?.users) {
+        setEmployees(res.data.users);
+      }
+    } catch (err) {
+      console.error('Failed to fetch employees:', err);
+    }
+  };
+
+  // Fetch all assignments (for Admin assignment modal)
+  const fetchAssignments = async () => {
+    try {
+      const res = await metaLeadsAPI.getAssignments();
+      if (res.data?.success) {
+        setAssignments(res.data.assignments || []);
+      }
+    } catch (err) {
+      // Non-admins will receive 403, which is expected
     }
   };
 
@@ -125,6 +172,8 @@ export default function MetaLeads() {
 
   useEffect(() => {
     fetchCampaigns();
+    fetchEmployees();
+    fetchAssignments();
   }, []);
 
   useEffect(() => {
@@ -142,6 +191,11 @@ export default function MetaLeads() {
 
   // Combine default campaigns with discovered database campaigns
   const allCampaignTabs = useMemo(() => {
+    if (isRestricted) {
+      // Standard telecallers only see campaigns assigned to them
+      return campaignStats.map(c => c.campaign);
+    }
+
     const list = [...DEFAULT_CAMPAIGNS];
     campaignStats.forEach(c => {
       if (c.campaign && !list.includes(c.campaign)) {
@@ -149,7 +203,7 @@ export default function MetaLeads() {
       }
     });
     return list;
-  }, [campaignStats]);
+  }, [campaignStats, isRestricted]);
 
   // Map of campaign lead counts
   const campaignCountMap = useMemo(() => {
@@ -162,6 +216,41 @@ export default function MetaLeads() {
     map['all'] = sum;
     return map;
   }, [campaignStats]);
+
+  // Assignees for the currently selected campaign tab
+  const activeCampaignAssignees = useMemo(() => {
+    if (selectedCampaign === 'all') {
+      // Return distinct assignees across all campaigns
+      const memberMap = new Map();
+      campaignStats.forEach(c => {
+        (c.assignedUsers || []).forEach(u => {
+          if (u && u._id) memberMap.set(u._id, u);
+        });
+      });
+      return Array.from(memberMap.values());
+    }
+
+    // Specific campaign
+    const stat = campaignStats.find(c => c.campaign === selectedCampaign);
+    if (stat && stat.assignedUsers) return stat.assignedUsers;
+
+    const asgn = assignments.find(a => a.campaign === selectedCampaign);
+    return asgn?.assignedUsers || [];
+  }, [selectedCampaign, campaignStats, assignments]);
+
+  // Handle opening the assignment modal
+  const handleOpenAssignModal = (targetCampaign) => {
+    const campaignToAssign = targetCampaign || (selectedCampaign !== 'all' ? selectedCampaign : (allCampaignTabs[0] || DEFAULT_CAMPAIGNS[0]));
+    setAssignModalCampaign(campaignToAssign);
+    setShowAssignModal(true);
+  };
+
+  // Handle confirm assignment
+  const handleConfirmAssignment = async (campaignName, userIds) => {
+    await metaLeadsAPI.saveAssignments({ campaign: campaignName, userIds });
+    setStatusMessage(`✅ Updated member assignments for ${campaignName}!`);
+    await Promise.all([fetchCampaigns(), fetchAssignments()]);
+  };
 
   // Extract all unique dynamic Google Sheet headers from current leads
   const dynamicHeaders = useMemo(() => {
@@ -307,13 +396,47 @@ export default function MetaLeads() {
     URL.revokeObjectURL(url);
   };
 
-  // Helper to get phone and name
+  // Helper to get phone, name, and email from dynamic Google Sheet columns
   const getLeadIdentifiers = (lead) => {
     const raw = lead?.rawData || {};
-    const phone = raw.phone || raw.Phone || raw.mobile || raw.Mobile || raw['Phone Number'] || raw.Contact || '';
+    let phone = raw.phone || raw.Phone || raw.mobile || raw.Mobile || raw['Phone Number'] || raw.Contact || raw['Contact Number'] || raw['Candidate Mobile'] || raw['Student Mobile'] || raw['Phone number'] || '';
+    
+    // Fallback: search any key in rawData that has phone/mobile/contact in its name
+    if (!phone) {
+      for (const k of Object.keys(raw)) {
+        if (/phone|mobile|contact|cell/i.test(k) && raw[k]) {
+          phone = raw[k];
+          break;
+        }
+      }
+    }
+    
+    // Fallback 2: check if any value in rawData matches 10 digits
+    if (!phone) {
+      for (const k of Object.keys(raw)) {
+        const strVal = String(raw[k] || '').replace(/\D/g, '');
+        if (strVal.length === 10) {
+          phone = raw[k];
+          break;
+        }
+      }
+    }
+
     const name = raw.name || raw.Name || raw['Full Name'] || raw['Candidate Name'] || raw['Student Name'] || 'Unknown Lead';
     const email = raw.email || raw.Email || raw['Email Address'] || '';
     return { phone: String(phone).trim(), name: String(name).trim(), email: String(email).trim() };
+  };
+
+  // Click Phone Call Activate
+  const handleActivatePhoneCall = (lead) => {
+    const { phone, name } = getLeadIdentifiers(lead);
+    if (!phone) {
+      alert(`No phone number available for ${name}. Check the sheet fields.`);
+      return;
+    }
+    const cleanPhone = phone.replace(/\D/g, '');
+    setStatusMessage(`📞 Activating phone call to ${name} (${cleanPhone})...`);
+    window.location.href = `tel:${cleanPhone}`;
   };
 
   return (
@@ -352,8 +475,81 @@ export default function MetaLeads() {
         </div>
 
         {/* Action Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {leads.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          {/* Assign Members Action (Admin Only) */}
+          {isAdmin && (
+            <div
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '4px 8px 4px 10px', borderRadius: 10,
+                background: T.white, border: `1px solid ${T.border}`
+              }}
+            >
+              {/* Avatar Stack for Active Campaign */}
+              {activeCampaignAssignees.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', marginRight: 4 }}>
+                  {activeCampaignAssignees.slice(0, 3).map((member, idx) => {
+                    const initials = (member.name || 'EM').slice(0, 2).toUpperCase();
+                    return member.avatar ? (
+                      <img
+                        key={member._id || idx}
+                        src={member.avatar}
+                        alt={member.name}
+                        title={`${member.name} (${member.designation || 'Staff'})`}
+                        style={{
+                          width: 26, height: 26, borderRadius: '50%',
+                          border: '2px solid #ffffff', marginLeft: idx > 0 ? -8 : 0,
+                          objectFit: 'cover'
+                        }}
+                      />
+                    ) : (
+                      <div
+                        key={member._id || idx}
+                        title={`${member.name} (${member.designation || 'Staff'})`}
+                        style={{
+                          width: 26, height: 26, borderRadius: '50%',
+                          border: '2px solid #ffffff', marginLeft: idx > 0 ? -8 : 0,
+                          background: '#dbeafe', color: '#1d4ed8',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 10, fontWeight: 700
+                        }}
+                      >
+                        {initials}
+                      </div>
+                    );
+                  })}
+                  {activeCampaignAssignees.length > 3 && (
+                    <div
+                      style={{
+                        width: 26, height: 26, borderRadius: '50%',
+                        border: '2px solid #ffffff', marginLeft: -8,
+                        background: '#f1f5f9', color: '#475569',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 10, fontWeight: 600
+                      }}
+                    >
+                      +{activeCampaignAssignees.length - 3}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <button
+                onClick={() => handleOpenAssignModal()}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '7px 13px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+                  background: T.blue, color: T.white, border: 'none', cursor: 'pointer',
+                  boxShadow: '0 1px 2px rgba(37,99,235,0.2)'
+                }}
+              >
+                <FiUserPlus size={14} />
+                Assign Members
+              </button>
+            </div>
+          )}
+
+          {leads.length > 0 && isAdmin && (
             <button
               onClick={handleClearAll}
               title="Clear all leads from the database"
@@ -459,77 +655,145 @@ export default function MetaLeads() {
             {campaignStats[0]?.lastSynced ? timeAgo(campaignStats[0].lastSynced) : 'Connected'}
           </div>
           <div style={{ fontSize: 12, color: T.muted, marginTop: 4 }}>
-            n8n Webhook /api/meta-leads
+            meta-leads
           </div>
         </div>
       </div>
 
-      {/* ── INTERACTIVE CAMPAIGN HEADINGS (Same Pill Filter Styling as Campaigns.jsx) ── */}
-      <div style={{ background: T.white, border: `1px solid ${T.border}`, borderRadius: 14, padding: '14px 18px', marginBottom: 18 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
-          Click Campaign Heading to View Specific Leads:
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
-          {/* All Campaigns Pill */}
-          <button
-            onClick={() => { setSelectedCampaign('all'); setPage(1); }}
+      {/* ── Zero Assigned Campaigns Empty State for Tele-callers ── */}
+      {isRestricted && allCampaignTabs.length === 0 && (
+        <div
+          style={{
+            background: T.white, border: `1px solid ${T.border}`, borderRadius: 16,
+            padding: '44px 24px', textAlign: 'center', marginBottom: 24, maxWidth: 540, margin: '20px auto',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+          }}
+        >
+          <div
             style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              padding: '8px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600,
-              cursor: 'pointer', transition: 'all 0.15s ease',
-              background: selectedCampaign === 'all' ? T.blueLight : T.white,
-              border: `1px solid ${selectedCampaign === 'all' ? T.blueBorder : T.border}`,
-              color: selectedCampaign === 'all' ? T.blue : T.muted,
-              whiteSpace: 'nowrap'
+              width: 56, height: 56, borderRadius: '50%', background: T.blueLight,
+              color: T.blue, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 16px'
             }}
           >
-            <FiTarget size={14} />
-            <span>All Campaigns</span>
-            <span
-              style={{
-                fontSize: 11, padding: '1px 7px', borderRadius: 12,
-                background: selectedCampaign === 'all' ? T.blue : T.borderSoft,
-                color: selectedCampaign === 'all' ? T.white : T.textSecondary
-              }}
-            >
-              {campaignCountMap['all'] || totalLeads}
-            </span>
-          </button>
+            <FiUsers size={26} />
+          </div>
+          <h3 style={{ fontSize: 17, fontWeight: 700, color: T.text, margin: '0 0 8px' }}>
+            No campaigns assigned yet
+          </h3>
+          <p style={{ fontSize: 13, color: T.muted, lineHeight: 1.6, margin: 0 }}>
+            You don't currently have access to a Meta Leads campaign. Please contact your system administrator to request access.
+          </p>
+        </div>
+      )}
 
-          {/* Individual Campaign Headings */}
-          {allCampaignTabs.map(tab => {
-            const isSelected = selectedCampaign === tab;
-            const count = campaignCountMap[tab] || 0;
-            return (
+      {/* ── INTERACTIVE CAMPAIGN HEADINGS (Same Pill Filter Styling as Campaigns.jsx) ── */}
+      {allCampaignTabs.length > 0 && (
+        <div style={{ background: T.white, border: `1px solid ${T.border}`, borderRadius: 14, padding: '14px 18px', marginBottom: 18 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              {isRestricted ? 'Your Assigned Campaigns:' : 'Click Campaign Heading to View Specific Leads:'}
+            </div>
+            {isAdmin && (
               <button
-                key={tab}
-                onClick={() => { setSelectedCampaign(tab); setPage(1); }}
+                onClick={() => handleOpenAssignModal(selectedCampaign !== 'all' ? selectedCampaign : allCampaignTabs[0])}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  fontSize: 12, fontWeight: 600, color: T.blue,
+                  background: 'transparent', border: 'none', cursor: 'pointer',
+                  padding: '2px 6px', borderRadius: 6
+                }}
+                className="hover:underline"
+              >
+                <FiUserPlus size={13} />
+                Manage Campaign Access
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+            {/* All Campaigns Pill (Admin only) */}
+            {!isRestricted && (
+              <button
+                onClick={() => { setSelectedCampaign('all'); setPage(1); }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 8,
                   padding: '8px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600,
                   cursor: 'pointer', transition: 'all 0.15s ease',
-                  background: isSelected ? T.blueLight : T.white,
-                  border: `1px solid ${isSelected ? T.blueBorder : T.border}`,
-                  color: isSelected ? T.blue : T.muted,
+                  background: selectedCampaign === 'all' ? T.blueLight : T.white,
+                  border: `1px solid ${selectedCampaign === 'all' ? T.blueBorder : T.border}`,
+                  color: selectedCampaign === 'all' ? T.blue : T.muted,
                   whiteSpace: 'nowrap'
                 }}
               >
-                <FiLayers size={14} style={{ color: isSelected ? T.blue : T.subtle }} />
-                <span>{tab.replace(/_/g, ' ')}</span>
+                <FiTarget size={14} />
+                <span>All Campaigns</span>
                 <span
                   style={{
                     fontSize: 11, padding: '1px 7px', borderRadius: 12,
-                    background: isSelected ? T.blue : T.borderSoft,
-                    color: isSelected ? T.white : T.textSecondary
+                    background: selectedCampaign === 'all' ? T.blue : T.borderSoft,
+                    color: selectedCampaign === 'all' ? T.white : T.textSecondary
                   }}
                 >
-                  {count}
+                  {campaignCountMap['all'] || totalLeads}
                 </span>
               </button>
-            );
-          })}
+            )}
+
+            {/* Individual Campaign Headings */}
+            {allCampaignTabs.map(tab => {
+              const isSelected = selectedCampaign === tab;
+              const count = campaignCountMap[tab] || 0;
+              const tabStat = campaignStats.find(c => c.campaign === tab);
+              const tabAssignees = tabStat?.assignedUsers || assignments.find(a => a.campaign === tab)?.assignedUsers || [];
+
+              return (
+                <button
+                  key={tab}
+                  onClick={() => { setSelectedCampaign(tab); setPage(1); }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '8px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600,
+                    cursor: 'pointer', transition: 'all 0.15s ease',
+                    background: isSelected ? T.blueLight : T.white,
+                    border: `1px solid ${isSelected ? T.blueBorder : T.border}`,
+                    color: isSelected ? T.blue : T.muted,
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  <FiLayers size={14} style={{ color: isSelected ? T.blue : T.subtle }} />
+                  <span>{tab.replace(/_/g, ' ')}</span>
+                  <span
+                    style={{
+                      fontSize: 11, padding: '1px 7px', borderRadius: 12,
+                      background: isSelected ? T.blue : T.borderSoft,
+                      color: isSelected ? T.white : T.textSecondary
+                    }}
+                  >
+                    {count}
+                  </span>
+
+                  {/* Member count indicator badge on tab */}
+                  {tabAssignees.length > 0 && (
+                    <span
+                      title={`${tabAssignees.length} assigned member(s)`}
+                      style={{
+                        fontSize: 10, padding: '1px 6px', borderRadius: 10,
+                        background: isSelected ? '#dbeafe' : '#f1f5f9',
+                        color: isSelected ? '#1e40af' : '#64748b',
+                        fontWeight: 700, display: 'flex', alignItems: 'center', gap: 3
+                      }}
+                    >
+                      <FiUsers size={10} />
+                      {tabAssignees.length}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ── Search & Action Toolbar ─────────────────────────────────────────── */}
       <div
@@ -766,9 +1030,18 @@ export default function MetaLeads() {
                               }}
                             >
                               {isPhoneCol && val ? (
-                                <span style={{ fontWeight: 600, color: T.blue }}>
-                                  {strVal}
-                                </span>
+                                <a
+                                  href={`tel:${String(val).replace(/\D/g, '')}`}
+                                  onClick={e => e.stopPropagation()}
+                                  title={`📞 Click to Call ${strVal}`}
+                                  style={{
+                                    fontWeight: 600, color: '#059669', display: 'inline-flex',
+                                    alignItems: 'center', gap: 5, textDecoration: 'none'
+                                  }}
+                                >
+                                  <FiPhoneCall size={12} style={{ color: '#059669' }} />
+                                  <span>{strVal}</span>
+                                </a>
                               ) : isEmailCol && val ? (
                                 <span style={{ color: T.muted }}>
                                   {strVal}
@@ -783,38 +1056,44 @@ export default function MetaLeads() {
                       {/* Actions Column (Call, WhatsApp, View Details, Delete) */}
                       <td style={{ padding: '12px 14px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
-                          {phone && (
-                            <>
-                              <a
-                                href={`https://wa.me/${phone.replace(/\D/g, '')}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                title="Chat on WhatsApp"
-                                style={{
-                                  width: 30, height: 30, borderRadius: 6,
-                                  background: T.emeraldLight, color: T.emerald,
-                                  border: `1px solid ${T.emeraldBorder}`,
-                                  display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                }}
-                              >
-                                <FaWhatsapp size={14} />
-                              </a>
+                          {/* Dedicated Call Action Button with Call Symbol & Click to Activate */}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleActivatePhoneCall(lead); }}
+                            title={phone ? `📞 Click to Call ${phone}` : 'No phone number available in sheet'}
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 6,
+                              padding: '6px 12px', borderRadius: 7, fontSize: 12, fontWeight: 600,
+                              background: phone ? '#ecfdf5' : '#f8fafc',
+                              color: phone ? '#059669' : '#94a3b8',
+                              border: `1px solid ${phone ? '#a7f3d0' : '#e2e8f0'}`,
+                              cursor: phone ? 'pointer' : 'not-allowed',
+                              boxShadow: phone ? '0 1px 3px rgba(16,185,129,0.18)' : 'none',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            <FiPhoneCall size={13} style={{ color: phone ? '#059669' : '#94a3b8' }} />
+                            <span>Call</span>
+                          </button>
 
-                              <a
-                                href={`tel:${phone}`}
-                                title="Call Lead"
-                                style={{
-                                  width: 30, height: 30, borderRadius: 6,
-                                  background: T.blueLight, color: T.blue,
-                                  border: `1px solid ${T.blueBorder}`,
-                                  display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                }}
-                              >
-                                <FiPhoneCall size={13} />
-                              </a>
-                            </>
+                          {/* WhatsApp Action Button */}
+                          {phone && (
+                            <a
+                              href={`https://wa.me/${phone.replace(/\D/g, '')}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              title="Chat on WhatsApp"
+                              style={{
+                                width: 30, height: 30, borderRadius: 6,
+                                background: T.emeraldLight, color: T.emerald,
+                                border: `1px solid ${T.emeraldBorder}`,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                              }}
+                            >
+                              <FaWhatsapp size={14} />
+                            </a>
                           )}
 
+                          {/* View Details Button */}
                           <button
                             onClick={() => setSelectedLead(lead)}
                             title="Inspect All Sheet Fields"
@@ -828,6 +1107,7 @@ export default function MetaLeads() {
                             <FiEye size={14} />
                           </button>
 
+                          {/* Delete Lead Button */}
                           <button
                             onClick={() => handleDeleteLead(lead._id)}
                             title="Delete Lead"
@@ -964,16 +1244,34 @@ export default function MetaLeads() {
                     {getLeadIdentifiers(selectedLead).name}
                   </h2>
                 </div>
-                <button
-                  onClick={() => setSelectedLead(null)}
-                  style={{
-                    width: 32, height: 32, borderRadius: 8, border: `1px solid ${T.border}`,
-                    background: T.white, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', color: T.muted
-                  }}
-                >
-                  <FiX size={18} />
-                </button>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {getLeadIdentifiers(selectedLead).phone && (
+                    <button
+                      onClick={() => handleActivatePhoneCall(selectedLead)}
+                      title={`Click to call ${getLeadIdentifiers(selectedLead).phone}`}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 6,
+                        padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                        background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0',
+                        cursor: 'pointer', boxShadow: '0 1px 2px rgba(16,185,129,0.12)'
+                      }}
+                    >
+                      <FiPhoneCall size={13} />
+                      <span>Call</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setSelectedLead(null)}
+                    style={{
+                      width: 32, height: 32, borderRadius: 8, border: `1px solid ${T.border}`,
+                      background: T.white, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      cursor: 'pointer', color: T.muted
+                    }}
+                  >
+                    <FiX size={18} />
+                  </button>
+                </div>
               </div>
 
               {/* Drawer Content: Renders All Raw Sheet Key-Values */}
@@ -985,6 +1283,7 @@ export default function MetaLeads() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
                   {selectedLead.rawData && Object.keys(selectedLead.rawData).map(key => {
                     const val = selectedLead.rawData[key];
+                    const isPhoneField = /phone|mobile|contact|cell/i.test(key) && val;
                     return (
                       <div
                         key={key}
@@ -997,9 +1296,29 @@ export default function MetaLeads() {
                         <span style={{ fontSize: 11, fontWeight: 600, color: T.muted }}>
                           {key}
                         </span>
-                        <span style={{ fontSize: 13, fontWeight: 500, color: T.text, wordBreak: 'break-word' }}>
-                          {val !== undefined && val !== null ? String(val) : '—'}
-                        </span>
+                        {isPhoneField ? (
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: '#059669', wordBreak: 'break-word' }}>
+                              {String(val)}
+                            </span>
+                            <button
+                              onClick={() => handleActivatePhoneCall({ rawData: { phone: val } })}
+                              style={{
+                                display: 'inline-flex', alignItems: 'center', gap: 4,
+                                padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+                                background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <FiPhoneCall size={11} />
+                              <span>Call</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: 13, fontWeight: 500, color: T.text, wordBreak: 'break-word' }}>
+                            {val !== undefined && val !== null ? String(val) : '—'}
+                          </span>
+                        )}
                       </div>
                     );
                   })}
@@ -1013,6 +1332,21 @@ export default function MetaLeads() {
                   background: '#f8fafc', display: 'flex', alignItems: 'center', gap: 10
                 }}
               >
+                {getLeadIdentifiers(selectedLead).phone && (
+                  <button
+                    onClick={() => handleActivatePhoneCall(selectedLead)}
+                    style={{
+                      padding: '10px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+                      background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0',
+                      cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                      boxShadow: '0 1px 2px rgba(16,185,129,0.12)'
+                    }}
+                  >
+                    <FiPhoneCall size={15} />
+                    Call Lead
+                  </button>
+                )}
+
                 {selectedLead.status !== 'Converted' ? (
                   <button
                     onClick={() => handleConvertLead(selectedLead._id)}
@@ -1052,6 +1386,24 @@ export default function MetaLeads() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* ── Assign Members Modal (Admin Only) ── */}
+      {isAdmin && (
+        <AssignMembersModal
+          isOpen={showAssignModal}
+          onClose={() => setShowAssignModal(false)}
+          campaign={assignModalCampaign}
+          employees={employees}
+          currentAssignedUserIds={
+            (
+              campaignStats.find(c => c.campaign === assignModalCampaign)?.assignedUsers ||
+              assignments.find(a => a.campaign === assignModalCampaign)?.assignedUsers ||
+              []
+            ).map(u => (u?._id ? u._id : u))
+          }
+          onConfirm={handleConfirmAssignment}
+        />
+      )}
     </div>
   );
 }

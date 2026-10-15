@@ -5,6 +5,22 @@ import api from '../../../services/api';
 
 // Official brand logos, fetched live from each company's real domain.
 // Falls back to colored initials if the logo can't be loaded.
+// Official brand logos (high-res vector/SVG and CDN images)
+const REAL_BRAND_LOGOS = {
+  google_sheets: 'https://upload.wikimedia.org/wikipedia/commons/3/30/Google_Sheets_logo_%282014-2020%29.svg',
+  whatsapp: 'https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg',
+  whatsapp_cloud: 'https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg',
+  facebook: 'https://upload.wikimedia.org/wikipedia/commons/b/b8/2021_Facebook_icon.svg',
+  justdial: 'https://akam.cdn.jdmagicbox.com/images/icontent/jdlogos/jdlogosvg.svg',
+  indiamart: 'https://utils.imimg.com/imhome_gifs/indiamart-logo1.png',
+  magicbricks: 'https://img.mbstatic.com/mbimages/rent/static/images/mb-logo.svg',
+  '99acres': 'https://static.99acres.com/universalapp/img/favicon.ico',
+  housing: 'https://c.housingcdn.com/demand/s/common/assets/favicon.62886f4a.ico',
+  callerdesk: 'https://callerdesk.io/wp-content/uploads/2021/08/callerdesk-logo.png',
+  knowlarity: 'https://www.knowlarity.com/images/knowlarity-logo.svg',
+  maqsam: 'https://maqsam.com/wp-content/uploads/2021/04/maqsam-logo.svg',
+};
+
 const LOGO_DOMAINS = {
   facebook: 'facebook.com',
   justdial: 'justdial.com',
@@ -13,7 +29,7 @@ const LOGO_DOMAINS = {
   '99acres': '99acres.com',
   callerdesk: 'callerdesk.io',
   google_meet: 'meet.google.com',
-  google_sheets: 'google.com',
+  google_sheets: 'sheets.google.com',
   housing: 'housing.com',
   indiamart: 'indiamart.com',
   knowlarity: 'knowlarity.com',
@@ -25,20 +41,25 @@ const LOGO_DOMAINS = {
 
 const IntegrationLogo = ({ type, name, size = 52 }) => {
   const initials = (name || type || '??').slice(0, 2).toUpperCase();
+  const directLogo = REAL_BRAND_LOGOS[type];
   const domain = LOGO_DOMAINS[type];
-  const sources = domain ? [
-    `https://logo.clearbit.com/${domain}?size=128`,
-    `https://www.google.com/s2/favicons?domain=${domain}&sz=128`,
-  ] : [];
+  const sources = [
+    ...(directLogo ? [directLogo] : []),
+    ...(domain ? [
+      `https://www.google.com/s2/favicons?domain=${domain}&sz=128`,
+      `https://logo.clearbit.com/${domain}?size=128`
+    ] : [])
+  ];
   const [srcIdx, setSrcIdx] = useState(0);
 
-  if (domain && srcIdx < sources.length) {
+  if (sources.length > 0 && srcIdx < sources.length) {
     return (
       <div style={{
         width: size, height: size, borderRadius: 12, background: '#fff',
         border: '1px solid var(--theme-border-tint)', display: 'flex',
         alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-        padding: size * 0.16, boxSizing: 'border-box'
+        padding: size * 0.14, boxSizing: 'border-box', overflow: 'hidden',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.06)'
       }}>
         <img
           src={sources[srcIdx]}

@@ -243,6 +243,7 @@ export default function Sidebar() {
             <>
               <SectionLabel text="Marketing & Campaigns" />
 
+              {/* 1. Leads */}
               <ExpandGroup
                 icon={Icons.addLead} label="Add Leads"
                 isActiveGroup={isAddLeadsActive} open={addLeadsOpen} setOpen={setAddLeadsOpen}
@@ -251,15 +252,20 @@ export default function Sidebar() {
                 <SubItem to="/bulk-import" icon={Icons.upload}     label="Add From Excel" />
                 <SubItem to="/integrations" icon={Icons.integration} label="Add From Integration" />
               </ExpandGroup>
-
               <NavItem to="/campaigns"        icon={Icons.campaigns}   label="Campaigns" />
-              <NavItem to="/meta-leads"       icon={Icons.metaLeads}   label="Meta Leads" iconColor="#0284c7" />
-              <NavItem to="/message-templates" icon={Icons.templates}  label="Message Templates" />
+
+              {/* 2. WhatsApp */}
               <NavItem to="/contacts" icon={Icons.contactBook} label="Contact" iconColor="#3b82f6" />
               <NavItem to="/whatsapp-blast"   icon={Icons.whatsappBlast} label="WhatsApp Blast" iconColor="#25D366" />
               <NavItem to="/whatsapp"         icon={Icons.whatsapp}    label="WhatsApp" iconColor="#25D366" />
+
+              {/* 3. Meta Leads */}
+              <NavItem to="/meta-leads"       icon={Icons.metaLeads}   label="Meta Leads" iconColor="#0284c7" />
+
+              {/* 4. Performance */}
               <NavItem to="/leaderboard"      icon={Icons.leaderboard} label="Leaderboard" />
               <NavItem to="/reports"          icon={Icons.reports}     label="Reports" />
+              <NavItem to="/message-templates" icon={Icons.templates}  label="Message Templates" />
 
               <SectionLabel text="Finance & Documents" />
               <NavItem to="/offer-letter"     icon={Icons.offerLetter} label="Offer letter" iconColor="#3b82f6" />

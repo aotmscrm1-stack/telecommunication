@@ -3,8 +3,34 @@ const router = express.Router();
 const axios = require('axios');
 const MetaLead = require('../../../database/models/MetaLead');
 const Lead = require('../../../database/models/Lead');
+const MetaCampaignAssignment = require('../../../database/models/MetaCampaignAssignment');
 const { protect } = require('../../../core/middleware/auth');
 const env = require('../../../config/env');
+
+// Helper to determine if user has full administrative / management access
+function isExecutiveOrAdminUser(user) {
+  if (!user) return false;
+  const role = String(user.role || '').trim().toLowerCase();
+  if (role === 'admin' || role === 'superadmin' || role === 'manager') return true;
+
+  const d = String(user.designation || '').trim().toUpperCase();
+  const dept = String(user.department || '').trim().toUpperCase();
+
+  return (
+    d.includes('MD') ||
+    d.includes('MANAGING DIRECTOR') ||
+    d.includes('CEO') ||
+    d.includes('CTO') ||
+    d.includes('HR') ||
+    d.includes('EXECUTIVE') ||
+    d.includes('DIRECTOR') ||
+    d.includes('VICE PRESIDENT') ||
+    d.includes('HEAD') ||
+    dept.includes('HR') ||
+    dept.includes('ADMIN') ||
+    dept.includes('MANAGEMENT')
+  );
+}
 
 // Helper to extract phone/email/name from dynamic rawData object
 function extractCoreIdentifiers(rawData = {}) {
@@ -111,11 +137,106 @@ router.post('/', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GET /api/meta-leads/campaigns (Returns distinct campaigns with lead counts)
+// GET /api/meta-leads/assignments (List all campaign employee assignments)
 // ─────────────────────────────────────────────────────────────────────────────
-router.get('/campaigns', async (req, res) => {
+router.get('/assignments', protect, async (req, res) => {
   try {
-    const stats = await MetaLead.aggregate([
+    if (!isExecutiveOrAdminUser(req.user)) {
+      return res.status(403).json({ success: false, message: 'Forbidden. Admin access required.' });
+    }
+
+    const assignments = await MetaCampaignAssignment.find({})
+      .populate('assignedUsers', 'name email designation department avatar status')
+      .populate('assignedBy', 'name email')
+      .sort({ campaign: 1 })
+      .lean();
+
+    res.json({
+      success: true,
+      assignments
+    });
+  } catch (err) {
+    console.error('Error fetching campaign assignments:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch assignments', error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/meta-leads/assignments (Assign single or multiple employees to a campaign)
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/assignments', protect, async (req, res) => {
+  try {
+    if (!isExecutiveOrAdminUser(req.user)) {
+      return res.status(403).json({ success: false, message: 'Forbidden. Admin access required to assign members.' });
+    }
+
+    const { campaign, userIds } = req.body;
+    if (!campaign || !String(campaign).trim()) {
+      return res.status(400).json({ success: false, message: 'Campaign name is required.' });
+    }
+
+    const trimmedCampaign = String(campaign).trim();
+    const cleanUserIds = Array.isArray(userIds) ? userIds.filter(id => id && String(id).trim()) : [];
+
+    const assignment = await MetaCampaignAssignment.findOneAndUpdate(
+      { campaign: trimmedCampaign },
+      {
+        assignedUsers: cleanUserIds,
+        assignedBy: req.user._id,
+        updatedAt: new Date()
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    )
+      .populate('assignedUsers', 'name email designation department avatar status')
+      .populate('assignedBy', 'name email');
+
+    res.json({
+      success: true,
+      message: `Successfully assigned ${cleanUserIds.length} member(s) to campaign "${trimmedCampaign}"`,
+      assignment
+    });
+  } catch (err) {
+    console.error('Error saving campaign assignment:', err);
+    res.status(500).json({ success: false, message: 'Failed to save campaign assignment', error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/meta-leads/campaigns (Returns distinct campaigns with lead counts & assignees)
+// ─────────────────────────────────────────────────────────────────────────────
+router.get('/campaigns', protect, async (req, res) => {
+  try {
+    const isAdmin = isExecutiveOrAdminUser(req.user);
+    let allowedCampaigns = null;
+
+    if (!isAdmin) {
+      // Find campaigns specifically assigned to this user
+      const userAssignments = await MetaCampaignAssignment.find({
+        assignedUsers: req.user._id
+      }).select('campaign').lean();
+
+      allowedCampaigns = userAssignments.map(a => a.campaign);
+
+      if (allowedCampaigns.length === 0) {
+        return res.json({
+          success: true,
+          isAdmin: false,
+          isRestricted: true,
+          totalLeads: 0,
+          totalCampaigns: 0,
+          campaigns: [],
+          allowedCampaigns: [],
+          message: 'No campaigns assigned to your profile yet. Please contact your CRM Administrator.'
+        });
+      }
+    }
+
+    // Build aggregation match filter
+    const matchStage = allowedCampaigns ? { $match: { campaign: { $in: allowedCampaigns } } } : null;
+    const pipeline = [];
+    if (matchStage) pipeline.push(matchStage);
+
+    pipeline.push(
       {
         $group: {
           _id: '$campaign',
@@ -130,23 +251,56 @@ router.get('/campaigns', async (req, res) => {
         }
       },
       { $sort: { count: -1 } }
-    ]);
+    );
+
+    const stats = await MetaLead.aggregate(pipeline);
+
+    // Fetch all assignments to populate assignedUsers for each campaign
+    const assignmentQuery = allowedCampaigns ? { campaign: { $in: allowedCampaigns } } : {};
+    const assignments = await MetaCampaignAssignment.find(assignmentQuery)
+      .populate('assignedUsers', 'name email designation department avatar status')
+      .lean();
+
+    const assignmentMap = {};
+    assignments.forEach(a => {
+      assignmentMap[a.campaign] = a.assignedUsers || [];
+    });
 
     const campaigns = stats.map(s => ({
       campaign: s._id,
       count: s.count,
       lastSynced: s.lastSynced,
       newCount: s.newCount,
-      convertedCount: s.convertedCount
+      convertedCount: s.convertedCount,
+      assignedUsers: assignmentMap[s._id] || []
     }));
+
+    // If an assigned campaign doesn't have leads in MetaLead yet, include it so the tele-caller can see the tab
+    if (allowedCampaigns) {
+      allowedCampaigns.forEach(ac => {
+        if (!campaigns.find(c => c.campaign === ac)) {
+          campaigns.push({
+            campaign: ac,
+            count: 0,
+            lastSynced: null,
+            newCount: 0,
+            convertedCount: 0,
+            assignedUsers: assignmentMap[ac] || []
+          });
+        }
+      });
+    }
 
     const totalLeads = campaigns.reduce((acc, c) => acc + c.count, 0);
 
     res.json({
       success: true,
+      isAdmin,
+      isRestricted: !isAdmin,
       totalLeads,
       totalCampaigns: campaigns.length,
-      campaigns
+      campaigns,
+      allowedCampaigns: allowedCampaigns || []
     });
   } catch (err) {
     console.error('Error fetching meta campaigns:', err);
@@ -157,13 +311,50 @@ router.get('/campaigns', async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/meta-leads (List leads with dynamic query & campaign filter)
 // ─────────────────────────────────────────────────────────────────────────────
-router.get('/', async (req, res) => {
+router.get('/', protect, async (req, res) => {
   try {
+    const isAdmin = isExecutiveOrAdminUser(req.user);
     const { campaign, search, status, page = 1, limit = 25 } = req.query;
     const query = {};
 
-    if (campaign && campaign !== 'all' && campaign !== 'All') {
-      query.campaign = campaign;
+    let allowedCampaigns = null;
+    if (!isAdmin) {
+      const userAssignments = await MetaCampaignAssignment.find({
+        assignedUsers: req.user._id
+      }).select('campaign').lean();
+
+      allowedCampaigns = userAssignments.map(a => a.campaign);
+
+      if (allowedCampaigns.length === 0) {
+        return res.json({
+          success: true,
+          leads: [],
+          total: 0,
+          page: 1,
+          pages: 1,
+          availableHeaders: [],
+          isRestricted: true,
+          message: 'No campaigns assigned to your profile.'
+        });
+      }
+
+      // Security enforcement: if tele-caller specifies a campaign they are NOT assigned to, block access
+      if (campaign && campaign !== 'all' && campaign !== 'All') {
+        if (!allowedCampaigns.includes(campaign)) {
+          return res.status(403).json({
+            success: false,
+            message: `Access denied. You are not assigned to campaign "${campaign}".`
+          });
+        }
+        query.campaign = campaign;
+      } else {
+        // Enforce restriction to only their assigned campaigns
+        query.campaign = { $in: allowedCampaigns };
+      }
+    } else {
+      if (campaign && campaign !== 'all' && campaign !== 'All') {
+        query.campaign = campaign;
+      }
     }
 
     if (status && status !== 'all' && status !== 'All') {
@@ -215,6 +406,8 @@ router.get('/', async (req, res) => {
 
     res.json({
       success: true,
+      isAdmin,
+      isRestricted: !isAdmin,
       leads,
       total,
       page: pageNum,

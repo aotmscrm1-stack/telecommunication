@@ -11,7 +11,8 @@ import {
   FaReceipt, FaCalendarCheck, FaLocationDot, FaPeopleGroup, FaClock,
   FaBan, FaUserGear, FaKey, FaPlug, FaCircleInfo, FaCoins, FaSitemap,
   FaCode, FaBell, FaChevronDown, FaBars, FaXmark, FaRightFromBracket,
-  FaUser, FaLock, FaUserCheck, FaBook, FaCalendarDays, FaTableList
+  FaUser, FaLock, FaUserCheck, FaBook, FaCalendarDays, FaTableList,
+  FaChartLine
 } from 'react-icons/fa6';
 import { isCEO, isHR, isManager, isLimitedStaff, canViewDashboard, canViewCallRecordings, isDigitalMarketing, canAccessDigitalCalendar, normalizeDesignation, canViewCallFollowups } from '../../../utils/permissions';
 
@@ -375,6 +376,16 @@ export default function Navbar() {
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [openSubMenus, setOpenSubMenus] = useState({
+    leads: false,
+    whatsapp: false,
+    performance: false,
+  });
+
+  const toggleSubMenu = (id, e) => {
+    e.stopPropagation();
+    setOpenSubMenus(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -448,6 +459,7 @@ export default function Navbar() {
       }
       if (navDropdownRef.current && !navDropdownRef.current.contains(e.target)) {
         setActiveDropdown(null);
+        setOpenSubMenus({ leads: false, whatsapp: false, performance: false });
       }
     };
     document.addEventListener('mousedown', handler);
@@ -535,17 +547,60 @@ export default function Navbar() {
       { label: 'Task', path: user?._id ? `/${user._id}/tasks` : '/tasks', icon: FaListCheck },
       { label: 'Digital Calendar', path: '/digital-calendar', icon: FaCalendarDays },
     ]},
-    { title: 'Marketing', icon: FaBullhorn, items: [
-      { label: 'Add Leads', path: '/leads/new', icon: FaUserPlus },
-      { label: 'All Leads', path: '/leads', icon: FaUsers },
-      { label: 'Campaigns', path: '/campaigns', icon: FaBullhorn },
-      { label: 'Meta Leads', path: '/meta-leads', icon: FaTableList },
-      { label: 'Contact', path: '/contacts', icon: FaBook },
-      { label: 'WhatsApp Blast', path: '/whatsapp-blast', icon: WhatsAppBlastIcon },
-      { label: 'WhatsApp', path: '/whatsapp', icon: FaWhatsapp },
-      { label: 'Leaderboard', path: '/leaderboard', icon: FaTrophy },
-      { label: 'Reports', path: '/reports', icon: FaChartPie },
-    ]},
+    {
+      title: 'Marketing',
+      icon: FaBullhorn,
+      sections: [
+        {
+          id: 'leads',
+          title: 'Leads',
+          icon: FaUsers,
+          items: [
+            { label: 'Add Leads', path: '/leads/new', icon: FaUserPlus },
+            { label: 'All Leads', path: '/leads', icon: FaUsers },
+            { label: 'Campaigns', path: '/campaigns', icon: FaBullhorn },
+          ]
+        },
+        {
+          id: 'whatsapp',
+          title: 'WhatsApp',
+          icon: FaWhatsapp,
+          items: [
+            { label: 'Contact', path: '/contacts', icon: FaBook },
+            { label: 'WhatsApp Blast', path: '/whatsapp-blast', icon: WhatsAppBlastIcon },
+            { label: 'WhatsApp', path: '/whatsapp', icon: FaWhatsapp },
+          ]
+        },
+        {
+          id: 'meta-leads',
+          title: 'Meta Leads',
+          icon: FaTableList,
+          path: '/meta-leads',
+          isDirect: true,
+          badge: 'Google Sheets'
+        },
+        {
+          id: 'performance',
+          title: 'Performance',
+          icon: FaChartLine,
+          items: [
+            { label: 'Leaderboard', path: '/leaderboard', icon: FaTrophy },
+            { label: 'Report', path: '/reports', icon: FaChartPie },
+          ]
+        }
+      ],
+      items: [
+        { label: 'Add Leads', path: '/leads/new', icon: FaUserPlus },
+        { label: 'All Leads', path: '/leads', icon: FaUsers },
+        { label: 'Campaigns', path: '/campaigns', icon: FaBullhorn },
+        { label: 'Contact', path: '/contacts', icon: FaBook },
+        { label: 'WhatsApp Blast', path: '/whatsapp-blast', icon: WhatsAppBlastIcon },
+        { label: 'WhatsApp', path: '/whatsapp', icon: FaWhatsapp },
+        { label: 'Meta Leads', path: '/meta-leads', icon: FaTableList },
+        { label: 'Leaderboard', path: '/leaderboard', icon: FaTrophy },
+        { label: 'Report', path: '/reports', icon: FaChartPie },
+      ]
+    },
     { title: 'Finance', icon: FaCoins, items: [
       { label: 'Offer letter', path: '/offer-letter', icon: FaFileInvoiceDollar },
       { label: 'Payslip', path: '/payslips', icon: FaReceipt },
@@ -662,7 +717,7 @@ export default function Navbar() {
               </div>
 
               {/* Desktop nav */}
-              <nav ref={navDropdownRef} className="hidden lg:flex gap-1.5 xl:gap-3 shrink-0 items-center">
+              <nav ref={navDropdownRef} className="hidden lg:flex gap-1 xl:gap-2 shrink-0 items-center">
                 {topDropdownGroups.map(group => {
                   const GroupIcon = group.icon;
                   const isOpen = activeDropdown === group.title;
@@ -681,7 +736,7 @@ export default function Navbar() {
                             setActiveDropdown(isOpen ? null : group.title);
                           }
                         }}
-                        className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all nav-glow-btn"
+                        className="flex items-center gap-1.5 xl:gap-2 px-2.5 xl:px-3 py-1.5 xl:py-2 rounded-xl text-xs font-semibold transition-all nav-glow-btn whitespace-nowrap"
                         style={{
                           background: (isOpen || isGroupActive) ? C.blueSoft : 'transparent',
                           color: C.blue,
@@ -722,7 +777,7 @@ export default function Navbar() {
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 10, scale: 0.95 }}
                             transition={{ duration: 0.15 }}
-                            className="absolute left-0 top-12 w-60 rounded-2xl z-50 overflow-hidden py-2 nav-dropdown-glow"
+                            className={`absolute left-0 top-12 ${group.sections ? 'w-64' : 'w-60'} rounded-2xl z-50 overflow-hidden py-2 nav-dropdown-glow`}
                             style={{
                               background: C.bgSolid,
                               border: `1.5px solid ${C.orange}`,
@@ -730,48 +785,177 @@ export default function Navbar() {
                             }}
                           >
                             <div className="h-0.5 w-full -mt-2 mb-1" style={{ background: `linear-gradient(90deg, ${C.orange}, ${C.orangeLt}, ${C.blue})` }} />
-                            {group.items
-                              .filter(item => !item.adminOnly || user?.role === 'admin' || isCEO(user) || isHR(user) || isManager(user) || user?.role === 'manager' || item.path.includes('attendance'))
-                              .map(item => {
-                                const ItemIcon = item.icon;
-                                const active = location.pathname === item.path;
-                                return (
-                                  <div
-                                    key={item.path}
-                                    onClick={() => {
-                                      setActiveDropdown(null);
-                                      navigate(item.path);
-                                    }}
-                                    className={`flex items-center gap-3 px-4 py-2.5 text-xs font-medium cursor-pointer transition-all nav-dropdown-item-glow mx-1 rounded-xl ${
-                                      active ? 'border-l-4' : ''
-                                    }`}
-                                    style={{
-                                      color: C.blue,
-                                      border: `1px solid ${active ? C.orange : 'transparent'}`,
-                                      background: active ? C.blueSoft : 'transparent',
-                                    }}
-                                    onMouseEnter={(e) => {
-                                      if (!active) {
-                                        e.currentTarget.style.borderColor = C.orange;
-                                      }
-                                    }}
-                                    onMouseLeave={(e) => {
-                                      if (!active) {
-                                        e.currentTarget.style.borderColor = 'transparent';
-                                      }
-                                    }}
-                                  >
-                                    <ItemIcon
-                                      className="w-4 h-4 transition-colors"
+
+                            {group.sections ? (
+                              <div className="py-1 px-2 flex flex-col gap-2 max-h-[460px] overflow-y-auto">
+                                {group.sections.map(sec => {
+                                  if (sec.isDirect) {
+                                    const active = location.pathname === sec.path;
+                                    const DirectIcon = sec.icon;
+                                    return (
+                                      <div
+                                        key={sec.id}
+                                        onClick={() => {
+                                          setActiveDropdown(null);
+                                          setOpenSubMenus({ leads: false, whatsapp: false, performance: false });
+                                          navigate(sec.path);
+                                        }}
+                                        className="flex items-center justify-between px-3 py-2 text-xs font-semibold cursor-pointer transition-all rounded-xl"
+                                        style={{
+                                          color: C.blue,
+                                          background: active ? C.blueSoft : 'transparent',
+                                        }}
+                                        onMouseEnter={(e) => {
+                                          if (!active) e.currentTarget.style.background = C.bgHover;
+                                        }}
+                                        onMouseLeave={(e) => {
+                                          if (!active) e.currentTarget.style.background = 'transparent';
+                                        }}
+                                      >
+                                        <div className="flex items-center gap-2.5">
+                                          <DirectIcon
+                                            className="w-4 h-4 transition-colors"
+                                            style={{ color: C.blue, filter: `drop-shadow(0 0 3px ${C.blueGlow})` }}
+                                          />
+                                          <span style={{ color: C.blue }}>{sec.title}</span>
+                                        </div>
+                                        {sec.badge && (
+                                          <span
+                                            style={{
+                                              fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 10,
+                                              background: 'rgba(16, 185, 129, 0.12)', color: '#059669',
+                                            }}
+                                          >
+                                            {sec.badge}
+                                          </span>
+                                        )}
+                                      </div>
+                                    );
+                                  }
+
+                                  const isOpenSub = !!openSubMenus[sec.id];
+                                  const hasActiveChild = sec.items.some(it => location.pathname === it.path);
+                                  const SecIcon = sec.icon;
+
+                                  return (
+                                    <div key={sec.id} className="flex flex-col gap-1.5">
+                                      {/* Sub-dropdown category toggle (Border removed, clean gap) */}
+                                      <div
+                                        onClick={(e) => toggleSubMenu(sec.id, e)}
+                                        className="flex items-center justify-between px-3 py-2 text-xs font-bold cursor-pointer transition-all select-none rounded-xl"
+                                        style={{
+                                          background: isOpenSub ? C.blueSoft : (hasActiveChild ? 'rgba(2, 132, 199, 0.06)' : 'transparent'),
+                                          color: C.blue,
+                                        }}
+                                        onMouseEnter={(e) => {
+                                          if (!isOpenSub) e.currentTarget.style.background = C.bgHover;
+                                        }}
+                                        onMouseLeave={(e) => {
+                                          if (!isOpenSub) e.currentTarget.style.background = hasActiveChild ? 'rgba(2, 132, 199, 0.06)' : 'transparent';
+                                        }}
+                                      >
+                                        <div className="flex items-center gap-2.5">
+                                          <SecIcon
+                                            className="w-3.5 h-3.5"
+                                            style={{ color: C.blue, filter: `drop-shadow(0 0 2px ${C.blueGlow})` }}
+                                          />
+                                          <span>{sec.title}</span>
+                                        </div>
+                                        <FaChevronDown
+                                          className={`w-3 h-3 transition-transform duration-200 ${isOpenSub ? 'rotate-180' : ''}`}
+                                          style={{ color: isOpenSub ? C.orange : C.blue }}
+                                        />
+                                      </div>
+
+                                      {/* Sub-dropdown child items (Closed by default, clean gaps, border removed) */}
+                                      <AnimatePresence>
+                                        {isOpenSub && (
+                                          <motion.div
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: 'auto' }}
+                                            exit={{ opacity: 0, height: 0 }}
+                                            transition={{ duration: 0.15 }}
+                                            className="pl-3 pr-1 py-0.5 flex flex-col gap-1.5 overflow-hidden"
+                                          >
+                                            {sec.items.map(subItem => {
+                                              const SubIcon = subItem.icon;
+                                              const isSubActive = location.pathname === subItem.path;
+                                              return (
+                                                <div
+                                                  key={subItem.path}
+                                                  onClick={() => {
+                                                    setActiveDropdown(null);
+                                                    setOpenSubMenus({ leads: false, whatsapp: false, performance: false });
+                                                    navigate(subItem.path);
+                                                  }}
+                                                  className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-all"
+                                                  style={{
+                                                    background: isSubActive ? C.blueSoft : 'transparent',
+                                                    color: isSubActive ? C.orangeDk : C.blue,
+                                                  }}
+                                                  onMouseEnter={(e) => {
+                                                    if (!isSubActive) e.currentTarget.style.background = C.bgHover;
+                                                  }}
+                                                  onMouseLeave={(e) => {
+                                                    if (!isSubActive) e.currentTarget.style.background = 'transparent';
+                                                  }}
+                                                >
+                                                  <SubIcon className="w-3.5 h-3.5" style={{ color: isSubActive ? C.orange : C.blue }} />
+                                                  <span>{subItem.label}</span>
+                                                </div>
+                                              );
+                                            })}
+                                          </motion.div>
+                                        )}
+                                      </AnimatePresence>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              group.items
+                                .filter(item => !item.adminOnly || user?.role === 'admin' || isCEO(user) || isHR(user) || isManager(user) || user?.role === 'manager' || item.path.includes('attendance'))
+                                .map(item => {
+                                  const ItemIcon = item.icon;
+                                  const active = location.pathname === item.path;
+                                  return (
+                                    <div
+                                      key={item.path}
+                                      onClick={() => {
+                                        setActiveDropdown(null);
+                                        navigate(item.path);
+                                      }}
+                                      className={`flex items-center gap-3 px-4 py-2.5 text-xs font-medium cursor-pointer transition-all nav-dropdown-item-glow mx-1 rounded-xl ${
+                                        active ? 'border-l-4' : ''
+                                      }`}
                                       style={{
                                         color: C.blue,
-                                        filter: `drop-shadow(0 0 3px ${C.blueGlow})`,
+                                        border: `1px solid ${active ? C.orange : 'transparent'}`,
+                                        background: active ? C.blueSoft : 'transparent',
                                       }}
-                                    />
-                                    <span style={{ color: C.blue }}>{item.label}</span>
-                                  </div>
-                                );
-                              })}
+                                      onMouseEnter={(e) => {
+                                        if (!active) {
+                                          e.currentTarget.style.borderColor = C.orange;
+                                        }
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        if (!active) {
+                                          e.currentTarget.style.borderColor = 'transparent';
+                                        }
+                                      }}
+                                    >
+                                      <ItemIcon
+                                        className="w-4 h-4 transition-colors"
+                                        style={{
+                                          color: C.blue,
+                                          filter: `drop-shadow(0 0 3px ${C.blueGlow})`,
+                                        }}
+                                      />
+                                      <span style={{ color: C.blue }}>{item.label}</span>
+                                    </div>
+                                  );
+                                })
+                            )}
                           </motion.div>
                         )}
                       </AnimatePresence>
@@ -1078,37 +1262,95 @@ export default function Navbar() {
                       <GroupIcon className="w-4 h-4" style={{ color: C.blue }} />
                       <span>{group.title}</span>
                     </div>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {group.items
-                        .filter(item => !item.adminOnly || user?.role === 'admin' || isCEO(user) || isHR(user) || isManager(user) || user?.role === 'manager' || item.path.includes('attendance'))
-                        .map(item => {
-                          const ItemIcon = item.icon;
+                    {group.sections ? (
+                      <div className="space-y-2">
+                        {group.sections.map(sec => {
+                          if (sec.isDirect) {
+                            const DirectIcon = sec.icon;
+                            return (
+                              <div
+                                key={sec.id}
+                                onClick={() => {
+                                  setMobileMenuOpen(false);
+                                  navigate(sec.path);
+                                }}
+                                className="flex items-center justify-between p-2.5 rounded-xl text-xs font-semibold cursor-pointer"
+                                style={{ background: '#ffffff', color: C.blue }}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <DirectIcon className="w-3.5 h-3.5" style={{ color: C.blue }} />
+                                  <span>{sec.title}</span>
+                                </div>
+                                {sec.badge && (
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold">
+                                    {sec.badge}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          }
+                          const SecIcon = sec.icon;
                           return (
-                            <div
-                              key={item.path}
-                              onClick={() => {
-                                setMobileMenuOpen(false);
-                                navigate(item.path);
-                              }}
-                              className="flex items-center gap-2 p-2 rounded-xl text-xs font-medium cursor-pointer transition-all nav-dropdown-item-glow"
-                              style={{
-                                background: '#ffffff',
-                                border: `1px solid ${C.border}`,
-                                color: C.blue,
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.borderColor = C.orange;
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.borderColor = C.border;
-                              }}
-                            >
-                              <ItemIcon className="w-3.5 h-3.5 transition-colors" style={{ color: C.blue }} />
-                              <span className="truncate" style={{ color: C.blue }}>{item.label}</span>
+                            <div key={sec.id} className="p-2.5 rounded-xl bg-white flex flex-col gap-2">
+                              <div className="flex items-center gap-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider px-1">
+                                <SecIcon className="w-3.5 h-3.5 text-sky-600" />
+                                <span>{sec.title}</span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                {sec.items.map(subItem => {
+                                  const SubIcon = subItem.icon;
+                                  return (
+                                    <div
+                                      key={subItem.path}
+                                      onClick={() => {
+                                        setMobileMenuOpen(false);
+                                        navigate(subItem.path);
+                                      }}
+                                      className="flex items-center gap-2 p-2 rounded-lg text-xs font-medium cursor-pointer hover:bg-orange-50 text-sky-700"
+                                    >
+                                      <SubIcon className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                                      <span className="truncate">{subItem.label}</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             </div>
                           );
                         })}
-                    </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {group.items
+                          .filter(item => !item.adminOnly || user?.role === 'admin' || isCEO(user) || isHR(user) || isManager(user) || user?.role === 'manager' || item.path.includes('attendance'))
+                          .map(item => {
+                            const ItemIcon = item.icon;
+                            return (
+                              <div
+                                key={item.path}
+                                onClick={() => {
+                                  setMobileMenuOpen(false);
+                                  navigate(item.path);
+                                }}
+                                className={`flex items-center gap-2 p-2 rounded-xl text-xs font-medium cursor-pointer transition-all nav-dropdown-item-glow ${group.items.length === 1 ? 'col-span-2' : ''}`}
+                                style={{
+                                  background: '#ffffff',
+                                  border: `1px solid ${C.border}`,
+                                  color: C.blue,
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.borderColor = C.orange;
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.borderColor = C.border;
+                                }}
+                              >
+                                <ItemIcon className="w-3.5 h-3.5 transition-colors" style={{ color: C.blue }} />
+                                <span className="truncate" style={{ color: C.blue }}>{item.label}</span>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    )}
                   </div>
                 );
               })}

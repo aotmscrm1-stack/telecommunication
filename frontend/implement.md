@@ -515,4 +515,427 @@ Every UI element is assigned a designated icon from standard React Icon packages
 * **Sync Button:** Uses `T.blue` background with `<FiRefreshCw />`. When clicked, it rotates smoothly with a CSS spin animation while the n8n sync is executing.
 * **Export Button:** Uses `T.white` background, `border: T.border`, `<FiDownload />` icon, exporting the active campaign table with all original Google Sheet headers intact.
 
+---
 
+## Phase 5: Meta Leads Campaign Employee Assignment & Restricted Visibility Engine
+
+### 1. Business Logic & Workflow Architecture
+1. **Admin Campaign Assignment Flow:**
+   * Inside the Meta Leads Ingestion Hub (`/marketing/meta-leads`), Admins/Managers have an **"Assign Members"** (`<FiUserPlus />` or `<FiShield />`) control linked to each Google Sheet Campaign tab (e.g., `Digital Marketing_Leads`, `SAP_Leads`, `Python_Leads`, `CyberSecurity_Leads`).
+   * Clicking opens an **Employee Assignment Modal** displaying all active CRM staff with their complete profile cards (Avatar, Full Name, Designation, Department, Email).
+   * Supports flexible assignment:
+     * **Single Member Assignment:** Assign 1 specific tele-caller/executive to a campaign.
+     * **Multiple Members Assignment:** Assign 2 or more tele-callers to share a high-volume campaign.
+   * Clicking **"Confirm Assignment"** commits the association to the database and dispatches an audit log event.
+
+2. **Automatic Role-Based Lead Visibility Flow:**
+   * **Admins & Executives (MD, CEO, CTO, Admin, Superadmin, HR):**
+     * See the complete dashboard: All campaign tabs (`Digital Marketing_Leads`, `SAP_Leads`, `Python_Leads`, `CyberSecurity_Leads`), total aggregated leads, and the assignment settings button.
+   * **Assigned Employees / Tele-callers:**
+     * Upon loading `/marketing/meta-leads`, the system automatically resolves `req.user._id`.
+     * The backend queries the assignment ledger. If the employee is assigned to `SAP_Leads`, the API returns **ONLY** `SAP_Leads` data.
+     * The frontend automatically hides unassigned tabs, hides the "All" tab, and directly loads the employee's assigned campaign.
+     * The employee has zero visibility of unassigned campaigns (no leaking of student leads from other departments).
+     * If an employee is not yet assigned to any campaign, a dedicated empty state displays: *"No campaigns assigned to your profile yet. Please contact your CRM Administrator."*
+
+---
+
+### 2. Database Schema (`MetaCampaignAssignment`)
+
+* **File Location:** `backend/src/database/models/MetaCampaignAssignment.js`
+* **Schema Definition:**
+  ```javascript
+  const mongoose = require('mongoose');
+
+  const metaCampaignAssignmentSchema = new mongoose.Schema({
+    campaign: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+      index: true // e.g. 'SAP_Leads', 'Python_Leads'
+    },
+    assignedUsers: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    }],
+    assignedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }, { timestamps: true });
+  ```
+
+---
+
+### 3. Backend API Specifications
+
+#### A. `GET /api/meta-leads/assignments`
+* **Access:** Admin / Manager / Executive only (`protect`, `authorize`).
+* **Purpose:** Returns the current employee assignment list mapped by campaign.
+* **Response:**
+  ```json
+  {
+    "success": true,
+    "assignments": [
+      {
+        "campaign": "SAP_Leads",
+        "assignedUsers": [
+          { "_id": "usr_1", "name": "Rahul Sharma", "email": "rahul@crm.com", "designation": "Telecaller", "avatar": "" }
+        ],
+        "assignedBy": { "name": "Admin" },
+        "updatedAt": "2026-10-15T22:00:00.000Z"
+      }
+    ]
+  }
+  ```
+
+#### B. `POST /api/meta-leads/assignments`
+* **Access:** Admin / Manager / Executive only.
+* **Payload:**
+  ```json
+  {
+    "campaign": "SAP_Leads",
+    "userIds": ["usr_1", "usr_2"]
+  }
+  ```
+* **Behavior:** Atomically upserts the campaign record using `findOneAndUpdate({ campaign }, { assignedUsers, assignedBy, updatedAt }, { upsert: true, new: true })`.
+
+#### C. `GET /api/meta-leads/campaigns` (Role-Filtered)
+* **Access:** All authenticated users (`protect`).
+* **Behavior:**
+  * Checks if `isExecutiveOrAdminUser(req.user)`.
+  * If **Admin**: Aggregates and returns all campaigns as usual.
+  * If **Employee**: Fetches assigned campaigns for `req.user._id`:
+    ```javascript
+    const userAssignments = await MetaCampaignAssignment.find({ assignedUsers: req.user._id });
+    const allowedCampaigns = userAssignments.map(a => a.campaign);
+    ```
+    Aggregates only leads matching `{ campaign: { $in: allowedCampaigns } }`.
+
+#### D. `GET /api/meta-leads` (Row-Level Security Enforcement)
+* **Access:** All authenticated users (`protect`).
+* **Behavior:**
+  * Non-admin users are strictly locked to `allowedCampaigns`.
+  * If a tele-caller attempts to pass `?campaign=CyberSecurity_Leads` when only assigned to `SAP_Leads`, the backend returns `403 Forbidden` or an empty list, preventing URL manipulation.
+
+---
+
+### 4. Frontend UI/UX Architecture (`MetaLeads.jsx`)
+
+#### A. Campaign Toolbar Enhancements (Admin View)
+* Next to the Campaign Tabs, render an **"Assign Members"** button:
+  * Icon: `<FiUserPlus />`
+  * Shows mini avatar stack of currently assigned users for the active tab.
+  * Click triggers the Assignment Modal.
+
+#### B. Employee Assignment Modal (`AssignMembersModal.jsx`)
+* **Header:**
+  * Title: "Assign Campaign Access"
+  * Campaign Badge: Active Sheet Tab (e.g. `[ SAP_Leads ]` pill)
+  * Close Icon (`<FiX />`)
+* **Search & Filter Bar:**
+  * `<FiSearch />` input for fast search by employee name, email, or designation.
+  * Designation filter chips (e.g., "All", "Tele-callers", "Marketing").
+* **Employee Profile Cards Grid:**
+  * Each card includes:
+    * **Profile Avatar:** User photo or styled circle with initials.
+    * **Name & Status:** Full name with green active dot.
+    * **Designation & Department:** e.g. "Telecaller • Sales Dept".
+    * **Email:** Subtle slate text.
+    * **Selection Indicator:** Clean checkbox that highlights card border in `T.blue` (`#2563eb`) with smooth transition.
+  * Multi-select and single-select supported seamlessly.
+* **Footer Actions:**
+  * Summary Counter: e.g. *"2 Employees selected"*
+  * `[ Cancel ]` button.
+  * `[ Confirm Assignment ]` button: Primary Blue (`#2563eb`), with loading spinner when saving.
+
+#### C. Tele-caller User Experience (Restricted Mode)
+* When a tele-caller logs in:
+  1. The page only renders the tabs assigned to them.
+  2. The "Assign Members" button is hidden.
+  3. The first assigned campaign is automatically selected by default.
+  4. Empty State: If no campaigns are assigned, displays a friendly notice with contact info for the system admin.
+
+
+
+# Meta Leads Campaign Assignment UI — Design Specification
+
+## 1. Overview
+
+Design a professional, responsive CRM interface for assigning employees to individual Meta Lead campaigns.
+
+**Theme**
+- Background: White
+- Primary actions: Blue (`#2563EB`)
+- Active status indicators: Green
+- Text: Dark charcoal
+- Borders: Light grey
+- Style: Clean, spacious, modern CRM dashboard
+
+## 2. Campaign Dashboard
+
+### Header
+- Page title: **Meta Leads**
+- Supporting text: Manage campaign leads and employee access.
+- Primary action: **Assign Members** with the `FiUserPlus` icon.
+- Show the assigned-member avatar stack beside the assignment action.
+- Display the number of assigned employees where useful.
+
+### Campaign Tabs
+Render campaign tabs for:
+- `Digital Marketing_Leads`
+- `SAP_Leads`
+- `Python_Leads`
+- `CyberSecurity_Leads`
+
+Each tab should:
+- Be selectable and clearly highlight the active campaign.
+- Display the campaign's lead count when available.
+- Show the assigned-member avatar stack for the active campaign.
+- Load the selected campaign's leads and assignment data.
+
+### Example Layout
+
+```text
+Meta Leads                                      [ + Assign Members ]
+Manage campaign leads and employee access.       [JA] [SK] [RM]
+
+[ Digital Marketing_Leads ] [ SAP_Leads ] [ Python_Leads ] [ CyberSecurity_Leads ]
+
+Campaign leads table
+```
+
+## 3. Assign Members Modal
+
+Component: `AssignMembersModal.jsx`
+
+### Modal Header
+- Title: **Assign Campaign Access**
+- Show the active campaign as a badge, for example `[ SAP_Leads ]`.
+- Add a close button using `FiX`.
+- Use a centered white modal, subtle shadow, rounded corners, and dimmed backdrop.
+
+### Search
+- Search input with the `FiSearch` icon.
+- Placeholder: `Search by name, email, or designation...`
+- Filter the employee list as the user types.
+- Search should be case-insensitive.
+
+### Designation Filter Chips
+Provide:
+- **All**
+- **Tele-callers**
+- **Marketing**
+
+Highlight the active filter with blue styling. Keep inactive filters neutral.
+
+### Employee Profile Cards
+Each card should show:
+- Profile photo, or initials avatar when no photo exists.
+- Full name.
+- Green active-status dot when the employee is active.
+- Designation and department, such as `Telecaller • Sales Dept`.
+- Email address.
+- Checkbox for selection.
+
+Card behavior:
+- Clicking the card toggles selection.
+- Selected cards use a blue border (`#2563EB`) and subtle blue-tinted background.
+- Checkbox state must match card selection.
+- Add a smooth, brief selection transition.
+- Support selecting one or multiple employees.
+
+### Modal Footer
+- Show selected count, for example **3 members selected**.
+- **Cancel** closes the modal without saving changes.
+- **Confirm Assignment** saves the selected campaign members.
+- Disable confirmation when nothing has changed or while saving, as appropriate.
+- Show a loading spinner and `Saving...` label during the save request.
+- Display success or error feedback after the API responds.
+
+### Example Modal Layout
+
+```text
+┌────────────────────────────────────────────────────────────────┐
+│ Assign Campaign Access                                    [ X ] │
+│ Campaign: [ SAP_Leads ]                                        │
+├────────────────────────────────────────────────────────────────┤
+│ [ Search by name, email, or designation...                  🔍 ]│
+│ [ All ] [ Tele-callers ] [ Marketing ]                         │
+│                                                                │
+│ ┌────────────────────────────┐  ┌────────────────────────────┐ │
+│ │ [JA] Jayaveer           [✓]│  │ [SK] Saadiya             [ ]│ │
+│ │      ● Active              │  │      ● Active               │ │
+│ │      Sr. Software Developer│  │      Jr. Software Developer │ │
+│ │      Development Dept      │  │      Development Dept       │ │
+│ │      jayaveer@example.com  │  │      saadiya@example.com    │ │
+│ └────────────────────────────┘  └────────────────────────────┘ │
+│                                                                │
+├────────────────────────────────────────────────────────────────┤
+│ 3 members selected                 [ Cancel ] [ Confirm Assignment ] │
+└────────────────────────────────────────────────────────────────┘
+```
+
+Names and email addresses above are illustrative placeholders. Load real employee data from the CRM API.
+
+## 4. Admin Experience
+
+Administrators can:
+1. View all configured campaign tabs.
+2. Select a campaign.
+3. See members currently assigned to that campaign.
+4. Open **Assign Members**.
+5. Search employees and filter by designation group.
+6. Select or deselect employees.
+7. Confirm and save campaign assignments.
+8. See updated avatar stacks after a successful save.
+
+Assignments are campaign-specific. Updating one campaign must not accidentally overwrite assignments for another campaign.
+
+## 5. Tele-caller Restricted Experience
+
+### Assigned Campaigns
+- Render only campaigns assigned to the authenticated tele-caller.
+- Hide the **Assign Members** button.
+- Automatically select the first accessible campaign.
+- Do not briefly display unauthorized campaigns while data is loading.
+- Ensure the leads table only shows data from an authorized campaign.
+
+### No Assigned Campaigns
+Show a friendly empty state:
+
+**No campaigns assigned yet**
+
+You don't currently have access to a Meta Leads campaign. Please contact your system administrator to request access.
+
+If the CRM provides administrator contact details, display them using trusted backend data. Do not hardcode a personal email address.
+
+## 6. Responsive Behavior
+
+### Desktop
+- Display campaign tabs in one row when space permits.
+- Use a two-column employee-card grid in the modal.
+- Keep modal content scrollable if the employee list is long.
+- Keep the footer and confirmation actions visible.
+
+### Tablet
+- Allow campaign tabs to scroll horizontally.
+- Use a two-column or one-column card grid depending on available width.
+
+### Mobile
+- Allow campaign tabs to scroll horizontally.
+- Use a one-column employee-card list.
+- Make search and filter chips easy to tap.
+- Keep Cancel and Confirm actions accessible without horizontal scrolling.
+- Avoid clipping the modal beyond the viewport.
+
+## 7. UI States
+
+Implement explicit states for:
+- Loading campaign list.
+- Loading employees.
+- Loading existing assignments.
+- Search with no matching employees.
+- No campaigns assigned to a tele-caller.
+- Saving assignments.
+- Assignment save success.
+- Assignment save failure.
+- API/network failure.
+- Empty campaign lead list.
+
+Use real backend responses. Do not display fabricated employee counts, campaign counts, or assignment success messages.
+
+## 8. Suggested React Component Structure
+
+```text
+src/
+└── modules/
+    └── marketing/
+        └── meta-leads/
+            ├── pages/
+            │   └── MetaLeadsPage.jsx
+            ├── components/
+            │   ├── CampaignTabs.jsx
+            │   ├── AssignedMemberAvatars.jsx
+            │   ├── AssignMembersModal.jsx
+            │   ├── EmployeeSearch.jsx
+            │   ├── EmployeeFilterChips.jsx
+            │   ├── EmployeeSelectionCard.jsx
+            │   └── CampaignAccessEmptyState.jsx
+            └── services/
+                └── campaignAccessService.js
+```
+
+Use the existing project structure if it differs; avoid creating duplicate components that already exist.
+
+## 9. Backend and Authorization Requirements
+
+The UI must be backed by server-side authorization.
+
+Recommended API contract (confirm or adapt to actual backend routes before implementation):
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/api/meta-leads/campaigns` | Return campaigns the current user may access |
+| `GET` | `/api/meta-leads/campaigns/:campaignId/members` | Return employees assigned to a campaign |
+| `GET` | `/api/employees?search=&designation=` | Search/filter eligible employees |
+| `PUT` | `/api/meta-leads/campaigns/:campaignId/members` | Replace the campaign's assigned-member list |
+
+Example assignment request:
+
+```json
+{
+  "memberIds": ["employee_id_1", "employee_id_2"]
+}
+```
+
+Example response:
+
+```json
+{
+  "campaignId": "campaign_id",
+  "memberIds": ["employee_id_1", "employee_id_2"],
+  "message": "Campaign access updated"
+}
+```
+
+These endpoints and response formats are a proposed contract, not a claim that the routes already exist.
+
+### Security Rules
+- Only authorized administrators may change campaign assignments.
+- Enforce permissions in backend middleware/controllers, not only by hiding frontend controls.
+- Tele-callers may read only campaigns assigned to them.
+- Validate campaign IDs and employee IDs on the server.
+- Confirm selected employees are active and eligible for assignment.
+- Scope campaign and lead queries to the authenticated user's permissions.
+- Record assignment changes in an audit log when the CRM supports auditing.
+- Never trust a client-supplied role or user ID as proof of authorization.
+
+## 10. Acceptance Checklist
+
+- [ ] Campaign tabs load from the backend.
+- [ ] Active campaign is visually clear.
+- [ ] Admin sees Assign Members with `FiUserPlus`.
+- [ ] Avatar stack matches saved assignments.
+- [ ] Modal shows the correct campaign badge.
+- [ ] Search works by employee name, email, and designation.
+- [ ] All, Tele-callers, and Marketing filters work.
+- [ ] Employee cards show photo/initials, active status, designation, department, and email.
+- [ ] Multi-select and deselect work correctly.
+- [ ] Selected cards have a blue border and checked checkbox.
+- [ ] Selected count updates immediately.
+- [ ] Cancel does not save changes.
+- [ ] Confirm Assignment persists changes and shows loading/error/success states.
+- [ ] Tele-callers only see assigned campaigns.
+- [ ] Tele-callers do not see the Assign Members button.
+- [ ] The first assigned campaign is auto-selected.
+- [ ] Users with no assignments see the empty state.
+- [ ] Backend rejects unauthorized assignment updates and campaign reads.
+- [ ] Desktop, tablet, and mobile layouts are usable.
+- [ ] No mock data or fake success states are used in production.
