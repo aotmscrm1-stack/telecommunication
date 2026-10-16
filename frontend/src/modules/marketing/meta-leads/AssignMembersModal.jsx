@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiX, FiSearch, FiCheck, FiUsers, FiAlertTriangle, FiCheckCircle, FiLoader
@@ -59,31 +59,62 @@ export default function AssignMembersModal({
   currentAssignedUserIds = [],
   onConfirm
 }) {
-  const [selectedIds, setSelectedIds] = useState(() => new Set(currentAssignedUserIds));
+  const [selectedIds, setSelectedIds] = useState(() => new Set((currentAssignedUserIds || []).map(String)));
   const [search, setSearch] = useState('');
-  const [filterChip, setFilterChip] = useState('all'); // 'all' | 'telecaller' | 'marketing'
+  const [filterChip, setFilterChip] = useState('all'); // 'all' | 'assigned' | 'telecaller' | 'marketing'
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState(null); // { type: 'success' | 'error', message: string }
 
+  // Sync selectedIds whenever the modal opens or campaign/currentAssignedUserIds changes
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedIds(new Set((currentAssignedUserIds || []).map(id => String(id?._id || id))));
+      setSearch('');
+      setFilterChip('all');
+      setFeedback(null);
+    }
+  }, [isOpen, campaign, currentAssignedUserIds]);
+
   // Toggle selection for a user
   const toggleUser = (userId) => {
+    const idStr = String(userId);
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(userId)) {
-        next.delete(userId);
+      if (next.has(idStr)) {
+        next.delete(idStr);
       } else {
-        next.add(userId);
+        next.add(idStr);
       }
       return next;
     });
+  };
+
+  // Direct remove / deselect function
+  const removeMember = (userId, e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    const idStr = String(userId);
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(idStr);
+      return next;
+    });
+  };
+
+  // Deselect All / Clear All assigned members
+  const clearAllSelected = () => {
+    setSelectedIds(new Set());
   };
 
   // Filtered employees based on search & filter chip
   const filteredEmployees = useMemo(() => {
     const s = search.toLowerCase().trim();
     return employees.filter((emp) => {
+      const empIdStr = String(emp._id || emp.id);
+
       // 1. Filter Chip
-      if (filterChip === 'telecaller') {
+      if (filterChip === 'assigned') {
+        if (!selectedIds.has(empIdStr)) return false;
+      } else if (filterChip === 'telecaller') {
         const desig = (emp.designation || '').toLowerCase();
         const dept = (emp.department || '').toLowerCase();
         const isTele = desig.includes('tele') || desig.includes('call') || desig.includes('sales') || dept.includes('sales');
@@ -103,7 +134,12 @@ export default function AssignMembersModal({
       const dept = (emp.department || '').toLowerCase();
       return name.includes(s) || email.includes(s) || desig.includes(s) || dept.includes(s);
     });
-  }, [employees, search, filterChip]);
+  }, [employees, search, filterChip, selectedIds]);
+
+  // List of currently selected employee objects for the top assigned chips
+  const selectedEmployeeObjects = useMemo(() => {
+    return employees.filter(emp => selectedIds.has(String(emp._id || emp.id)));
+  }, [employees, selectedIds]);
 
   // Handle Confirm Submission
   const handleConfirm = async () => {
@@ -198,42 +234,90 @@ export default function AssignMembersModal({
               )}
             </div>
 
-            {/* Filter Chips */}
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setFilterChip('all')}
-                className={`px-3 py-1 text-xs font-medium rounded-lg transition-all ${
-                  filterChip === 'all'
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                All ({employees.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilterChip('telecaller')}
-                className={`px-3 py-1 text-xs font-medium rounded-lg transition-all ${
-                  filterChip === 'telecaller'
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                Tele-callers
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilterChip('marketing')}
-                className={`px-3 py-1 text-xs font-medium rounded-lg transition-all ${
-                  filterChip === 'marketing'
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                Marketing
-              </button>
+            {/* Filter Chips & Clear Action */}
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setFilterChip('all')}
+                  className={`px-3 py-1 text-xs font-medium rounded-lg transition-all ${
+                    filterChip === 'all'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  All ({employees.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterChip('assigned')}
+                  className={`px-3 py-1 text-xs font-medium rounded-lg transition-all ${
+                    filterChip === 'assigned'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  Assigned ({selectedIds.size})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterChip('telecaller')}
+                  className={`px-3 py-1 text-xs font-medium rounded-lg transition-all ${
+                    filterChip === 'telecaller'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  Tele-callers
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterChip('marketing')}
+                  className={`px-3 py-1 text-xs font-medium rounded-lg transition-all ${
+                    filterChip === 'marketing'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  Marketing
+                </button>
+              </div>
+
+              {selectedIds.size > 0 && (
+                <button
+                  type="button"
+                  onClick={clearAllSelected}
+                  className="text-xs font-medium text-rose-600 hover:text-rose-700 hover:underline px-1 py-0.5"
+                >
+                  Deselect All ({selectedIds.size})
+                </button>
+              )}
             </div>
+
+            {/* Currently Assigned Removable Pills (Instant Deselect / Remove) */}
+            {selectedEmployeeObjects.length > 0 && (
+              <div className="flex items-center gap-1.5 overflow-x-auto py-1 border-t border-slate-200/60 pt-2">
+                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide shrink-0">
+                  Assigned:
+                </span>
+                {selectedEmployeeObjects.map((emp) => (
+                  <span
+                    key={emp._id || emp.id}
+                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100/80 text-blue-800 border border-blue-200 shrink-0"
+                  >
+                    <span>{emp.name || emp.email}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => removeMember(emp._id || emp.id, e)}
+                      title="Remove / Deselect"
+                      className="w-3.5 h-3.5 rounded-full bg-blue-200 hover:bg-rose-500 hover:text-white flex items-center justify-center transition-colors text-blue-700"
+                    >
+                      <FiX className="w-2.5 h-2.5" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Feedback Alert if any */}
@@ -319,12 +403,21 @@ export default function AssignMembersModal({
                         </p>
                       </div>
 
-                      {/* Custom Checkbox */}
-                      <div className="absolute right-3 top-3.5">
+                      {/* Action Status Badge & Checkbox */}
+                      <div className="absolute right-3 top-3 flex items-center gap-1.5">
+                        <span
+                          className={`text-[11px] font-semibold px-2 py-0.5 rounded-md transition-colors ${
+                            isSelected
+                              ? 'bg-rose-100 text-rose-700 hover:bg-rose-200'
+                              : 'bg-blue-50 text-blue-700'
+                          }`}
+                        >
+                          {isSelected ? 'Remove' : '+ Add'}
+                        </span>
                         <div
                           className={`w-5 h-5 rounded-md flex items-center justify-center transition-all ${
                             isSelected
-                              ? 'bg-blue-600 border border-blue-600 text-white'
+                              ? 'bg-blue-600 border border-blue-600 text-white shadow-sm'
                               : 'border border-slate-300 bg-white hover:border-slate-400'
                           }`}
                         >
