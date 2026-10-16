@@ -62,6 +62,7 @@ function computeIntelligentOverallStatus(data) {
     overall_status,
     approval_status,
     instagram_status,
+    facebook_status,
     youtube_status,
     linkedin_status,
     x_status
@@ -77,6 +78,7 @@ function computeIntelligentOverallStatus(data) {
 
   const activePlatforms = [
     instagram_status,
+    facebook_status,
     youtube_status,
     linkedin_status,
     x_status
@@ -105,6 +107,72 @@ function computeIntelligentOverallStatus(data) {
   if (allPlanned) return 'Planned';
 
   return 'Pending Platforms';
+}
+
+async function normalizeContentsList(contents, fallback = {}) {
+  let list = Array.isArray(contents) && contents.length > 0 ? contents : [];
+  if (list.length === 0) {
+    if (fallback.content_title || fallback.content_type) {
+      list = [fallback];
+    }
+  }
+
+  const normalized = [];
+  for (const c of list) {
+    if (!c) continue;
+    const title = (c.content_title || '').trim();
+    if (!title && !c.notes) continue;
+
+    let respName = c.responsible_employee_name || '';
+    let respId = c.responsible_employee && mongoose.Types.ObjectId.isValid(c.responsible_employee)
+      ? c.responsible_employee
+      : null;
+
+    if (respId && !respName) {
+      try {
+        const emp = await User.findById(respId).select('name displayName firstName lastName');
+        if (emp) {
+          respName = (emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.displayName).trim();
+        }
+      } catch (e) {
+        // ignore lookup error
+      }
+    }
+
+    const calculatedOverall = computeIntelligentOverallStatus({
+      overall_status: c.overall_status,
+      approval_status: c.approval_status || 'Pending',
+      instagram_status: c.instagram_status || 'Not Required',
+      facebook_status: c.facebook_status || 'Not Required',
+      youtube_status: c.youtube_status || 'Not Required',
+      linkedin_status: c.linkedin_status || 'Not Required',
+      x_status: c.x_status || 'Not Required'
+    });
+
+    normalized.push({
+      _id: c._id || new mongoose.Types.ObjectId(),
+      content_title: title,
+      content_type: c.content_type || 'Post',
+      responsible_employee: respId,
+      responsible_employee_name: respName,
+      approval_status: c.approval_status || 'Pending',
+      overall_status: calculatedOverall,
+      live_folder_link: (c.live_folder_link || '').trim(),
+      notes: (c.notes || '').trim(),
+      instagram_status: c.instagram_status || 'Not Required',
+      instagram_time: c.instagram_time || '',
+      facebook_status: c.facebook_status || 'Not Required',
+      facebook_time: c.facebook_time || '',
+      youtube_status: c.youtube_status || 'Not Required',
+      youtube_time: c.youtube_time || '',
+      linkedin_status: c.linkedin_status || 'Not Required',
+      linkedin_time: c.linkedin_time || '',
+      x_status: c.x_status || 'Not Required',
+      x_time: c.x_time || ''
+    });
+  }
+
+  return normalized;
 }
 
 // Initial seed data from Excel specification
@@ -396,13 +464,18 @@ router.get('/', protect, async (req, res) => {
           { notes: regex },
           { responsible_employee_name: regex },
           { content_type: regex },
-          { overall_status: regex }
+          { overall_status: regex },
+          { 'contents.content_title': regex },
+          { 'contents.notes': regex },
+          { 'contents.responsible_employee_name': regex },
+          { 'contents.content_type': regex }
         ]
       });
     }
 
     const items = await DigitalCalendar.find(query)
       .populate('responsible_employee', 'name firstName lastName displayName email designation avatar')
+      .populate('contents.responsible_employee', 'name firstName lastName displayName email designation avatar')
       .populate('createdBy', 'name email designation avatar')
       .populate('updatedBy', 'name email designation avatar')
       .sort({ content_date: 1, createdAt: 1 });
@@ -435,30 +508,38 @@ router.get('/stats', protect, async (req, res) => {
 
     const allItems = await DigitalCalendar.find(query);
 
-    let totalContent = allItems.length;
+    let totalContent = 0;
     let scheduled = 0;
     let posted = 0;
     let pending = 0;
     let needsApproval = 0;
 
     allItems.forEach(item => {
-      if (item.approval_status === 'Pending') {
-        needsApproval++;
-      }
+      const subItems = (item.contents && item.contents.length > 0)
+        ? item.contents
+        : [item];
 
-      if (item.overall_status === 'Posted') {
-        posted++;
-      } else if (item.overall_status === 'Scheduled') {
-        scheduled++;
-      } else if (
-        item.overall_status === 'Pending Platforms' ||
-        item.overall_status === 'Planned' ||
-        item.overall_status === 'Draft' ||
-        item.overall_status === 'In Design' ||
-        item.overall_status === 'Ready to Post'
-      ) {
-        pending++;
-      }
+      totalContent += subItems.length;
+
+      subItems.forEach(sub => {
+        if (sub.approval_status === 'Pending') {
+          needsApproval++;
+        }
+
+        if (sub.overall_status === 'Posted') {
+          posted++;
+        } else if (sub.overall_status === 'Scheduled') {
+          scheduled++;
+        } else if (
+          sub.overall_status === 'Pending Platforms' ||
+          sub.overall_status === 'Planned' ||
+          sub.overall_status === 'Draft' ||
+          sub.overall_status === 'In Design' ||
+          sub.overall_status === 'Ready to Post'
+        ) {
+          pending++;
+        }
+      });
     });
 
     res.json({
@@ -613,6 +694,7 @@ router.post('/google/import-event', protect, async (req, res) => {
       responsible_employee_name,
       notes,
       instagram_status = 'Planned',
+      facebook_status = 'Planned',
       youtube_status = 'Not Required',
       linkedin_status = 'Planned',
       x_status = 'Planned'
@@ -647,6 +729,7 @@ router.post('/google/import-event', protect, async (req, res) => {
       overall_status: 'Planned',
       notes: (notes || description || `Imported from Google Calendar (${summary})`).trim(),
       instagram_status,
+      facebook_status,
       youtube_status,
       linkedin_status,
       x_status,
@@ -674,6 +757,7 @@ router.get('/:id', protect, async (req, res) => {
   try {
     const item = await DigitalCalendar.findById(req.params.id)
       .populate('responsible_employee', 'name firstName lastName displayName email designation avatar')
+      .populate('contents.responsible_employee', 'name firstName lastName displayName email designation avatar')
       .populate('createdBy', 'name email designation avatar')
       .populate('updatedBy', 'name email designation avatar');
 
@@ -694,6 +778,7 @@ router.post('/', protect, async (req, res) => {
       content_title,
       content_type,
       content_date,
+      contents,
       responsible_employee,
       responsible_employee_name,
       approval_status,
@@ -702,6 +787,8 @@ router.post('/', protect, async (req, res) => {
       notes,
       instagram_status,
       instagram_time,
+      facebook_status,
+      facebook_time,
       youtube_status,
       youtube_time,
       linkedin_status,
@@ -710,54 +797,50 @@ router.post('/', protect, async (req, res) => {
       x_time
     } = req.body;
 
-    if (!content_title || !content_date) {
+    if (!content_date) {
       return res.status(400).json({
         ok: false,
-        message: 'Content title and date are required'
+        message: 'Content date is required'
       });
     }
 
     const dateObj = new Date(content_date);
     const day = DAYS_OF_WEEK[dateObj.getDay()];
 
-    let finalResponsibleName = responsible_employee_name || '';
-    if (responsible_employee && mongoose.Types.ObjectId.isValid(responsible_employee)) {
-      const emp = await User.findById(responsible_employee).select('name displayName firstName lastName');
-      if (emp) {
-        finalResponsibleName = (emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.displayName).trim();
-      }
+    const normalizedContents = await normalizeContentsList(contents, req.body);
+
+    if (normalizedContents.length === 0) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Content title/topic is required'
+      });
     }
 
-    const finalOverallStatus = computeIntelligentOverallStatus({
-      overall_status,
-      approval_status: approval_status || 'Pending',
-      instagram_status: instagram_status || 'Not Required',
-      youtube_status: youtube_status || 'Not Required',
-      linkedin_status: linkedin_status || 'Not Required',
-      x_status: x_status || 'Not Required'
-    });
+    // First content defines top-level primary fields
+    const primary = normalizedContents[0];
 
     const newItem = new DigitalCalendar({
-      content_title: content_title.trim(),
-      content_type: content_type || 'Post',
+      content_title: primary.content_title,
+      content_type: primary.content_type,
       content_date: dateObj,
       day,
-      responsible_employee: responsible_employee && mongoose.Types.ObjectId.isValid(responsible_employee) ? responsible_employee : null,
-      responsible_employee_name: finalResponsibleName,
-      approval_status: approval_status || 'Pending',
-      overall_status: finalOverallStatus,
-      live_folder_link: live_folder_link ? live_folder_link.trim() : '',
-      notes: notes ? notes.trim() : '',
-
-      instagram_status: instagram_status || 'Not Required',
-      instagram_time: instagram_time || '',
-      youtube_status: youtube_status || 'Not Required',
-      youtube_time: youtube_time || '',
-      linkedin_status: linkedin_status || 'Not Required',
-      linkedin_time: linkedin_time || '',
-      x_status: x_status || 'Not Required',
-      x_time: x_time || '',
-
+      contents: normalizedContents,
+      responsible_employee: primary.responsible_employee,
+      responsible_employee_name: primary.responsible_employee_name,
+      approval_status: primary.approval_status,
+      overall_status: primary.overall_status,
+      live_folder_link: primary.live_folder_link,
+      notes: primary.notes,
+      instagram_status: primary.instagram_status,
+      instagram_time: primary.instagram_time,
+      facebook_status: primary.facebook_status,
+      facebook_time: primary.facebook_time,
+      youtube_status: primary.youtube_status,
+      youtube_time: primary.youtube_time,
+      linkedin_status: primary.linkedin_status,
+      linkedin_time: primary.linkedin_time,
+      x_status: primary.x_status,
+      x_time: primary.x_time,
       createdBy: req.user._id
     });
 
@@ -765,6 +848,7 @@ router.post('/', protect, async (req, res) => {
 
     const populatedItem = await DigitalCalendar.findById(newItem._id)
       .populate('responsible_employee', 'name firstName lastName displayName email designation avatar')
+      .populate('contents.responsible_employee', 'name firstName lastName displayName email designation avatar')
       .populate('createdBy', 'name email designation avatar');
 
     res.status(201).json({
@@ -786,6 +870,7 @@ router.put('/:id', protect, async (req, res) => {
     }
 
     const {
+      contents,
       content_title,
       content_type,
       content_date,
@@ -797,6 +882,8 @@ router.put('/:id', protect, async (req, res) => {
       notes,
       instagram_status,
       instagram_time,
+      facebook_status,
+      facebook_time,
       youtube_status,
       youtube_time,
       linkedin_status,
@@ -805,57 +892,110 @@ router.put('/:id', protect, async (req, res) => {
       x_time
     } = req.body;
 
-    if (content_title !== undefined) item.content_title = content_title.trim();
-    if (content_type !== undefined) item.content_type = content_type;
-
     if (content_date !== undefined) {
       const dateObj = new Date(content_date);
       item.content_date = dateObj;
       item.day = DAYS_OF_WEEK[dateObj.getDay()];
     }
 
-    if (responsible_employee !== undefined) {
-      if (responsible_employee && mongoose.Types.ObjectId.isValid(responsible_employee)) {
-        item.responsible_employee = responsible_employee;
-        const emp = await User.findById(responsible_employee).select('name displayName firstName lastName');
-        if (emp) {
-          item.responsible_employee_name = (emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.displayName).trim();
-        }
-      } else {
-        item.responsible_employee = null;
-        if (responsible_employee_name !== undefined) {
-          item.responsible_employee_name = responsible_employee_name;
-        }
+    if (Array.isArray(contents) && contents.length > 0) {
+      const normalizedContents = await normalizeContentsList(contents, req.body);
+      item.contents = normalizedContents;
+
+      if (normalizedContents.length > 0) {
+        const primary = normalizedContents[0];
+        item.content_title = primary.content_title;
+        item.content_type = primary.content_type;
+        item.responsible_employee = primary.responsible_employee;
+        item.responsible_employee_name = primary.responsible_employee_name;
+        item.approval_status = primary.approval_status;
+        item.overall_status = primary.overall_status;
+        item.live_folder_link = primary.live_folder_link;
+        item.notes = primary.notes;
+        item.instagram_status = primary.instagram_status;
+        item.instagram_time = primary.instagram_time;
+        item.facebook_status = primary.facebook_status;
+        item.facebook_time = primary.facebook_time;
+        item.youtube_status = primary.youtube_status;
+        item.youtube_time = primary.youtube_time;
+        item.linkedin_status = primary.linkedin_status;
+        item.linkedin_time = primary.linkedin_time;
+        item.x_status = primary.x_status;
+        item.x_time = primary.x_time;
       }
-    } else if (responsible_employee_name !== undefined) {
-      item.responsible_employee_name = responsible_employee_name;
+    } else {
+      // Legacy single content update
+      if (content_title !== undefined) item.content_title = content_title.trim();
+      if (content_type !== undefined) item.content_type = content_type;
+
+      if (responsible_employee !== undefined) {
+        if (responsible_employee && mongoose.Types.ObjectId.isValid(responsible_employee)) {
+          item.responsible_employee = responsible_employee;
+          const emp = await User.findById(responsible_employee).select('name displayName firstName lastName');
+          if (emp) {
+            item.responsible_employee_name = (emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.displayName).trim();
+          }
+        } else {
+          item.responsible_employee = null;
+          if (responsible_employee_name !== undefined) {
+            item.responsible_employee_name = responsible_employee_name;
+          }
+        }
+      } else if (responsible_employee_name !== undefined) {
+        item.responsible_employee_name = responsible_employee_name;
+      }
+
+      if (approval_status !== undefined) item.approval_status = approval_status;
+      if (live_folder_link !== undefined) item.live_folder_link = live_folder_link.trim();
+      if (notes !== undefined) item.notes = notes.trim();
+
+      if (instagram_status !== undefined) item.instagram_status = instagram_status;
+      if (instagram_time !== undefined) item.instagram_time = instagram_time;
+
+      if (facebook_status !== undefined) item.facebook_status = facebook_status;
+      if (facebook_time !== undefined) item.facebook_time = facebook_time;
+
+      if (youtube_status !== undefined) item.youtube_status = youtube_status;
+      if (youtube_time !== undefined) item.youtube_time = youtube_time;
+
+      if (linkedin_status !== undefined) item.linkedin_status = linkedin_status;
+      if (linkedin_time !== undefined) item.linkedin_time = linkedin_time;
+
+      if (x_status !== undefined) item.x_status = x_status;
+      if (x_time !== undefined) item.x_time = x_time;
+
+      item.overall_status = computeIntelligentOverallStatus({
+        overall_status: overall_status !== undefined ? overall_status : item.overall_status,
+        approval_status: item.approval_status,
+        instagram_status: item.instagram_status,
+        facebook_status: item.facebook_status,
+        youtube_status: item.youtube_status,
+        linkedin_status: item.linkedin_status,
+        x_status: item.x_status
+      });
+
+      // Also sync into contents[0] if present
+      if (item.contents && item.contents.length > 0) {
+        item.contents[0].content_title = item.content_title;
+        item.contents[0].content_type = item.content_type;
+        item.contents[0].responsible_employee = item.responsible_employee;
+        item.contents[0].responsible_employee_name = item.responsible_employee_name;
+        item.contents[0].approval_status = item.approval_status;
+        item.contents[0].overall_status = item.overall_status;
+        item.contents[0].live_folder_link = item.live_folder_link;
+        item.contents[0].notes = item.notes;
+        item.contents[0].instagram_status = item.instagram_status;
+        item.contents[0].instagram_time = item.instagram_time;
+        item.contents[0].facebook_status = item.facebook_status;
+        item.contents[0].facebook_time = item.facebook_time;
+        item.contents[0].youtube_status = item.youtube_status;
+        item.contents[0].youtube_time = item.youtube_time;
+        item.contents[0].linkedin_status = item.linkedin_status;
+        item.contents[0].linkedin_time = item.linkedin_time;
+        item.contents[0].x_status = item.x_status;
+        item.contents[0].x_time = item.x_time;
+      }
     }
-
-    if (approval_status !== undefined) item.approval_status = approval_status;
-    if (live_folder_link !== undefined) item.live_folder_link = live_folder_link.trim();
-    if (notes !== undefined) item.notes = notes.trim();
-
-    if (instagram_status !== undefined) item.instagram_status = instagram_status;
-    if (instagram_time !== undefined) item.instagram_time = instagram_time;
-
-    if (youtube_status !== undefined) item.youtube_status = youtube_status;
-    if (youtube_time !== undefined) item.youtube_time = youtube_time;
-
-    if (linkedin_status !== undefined) item.linkedin_status = linkedin_status;
-    if (linkedin_time !== undefined) item.linkedin_time = linkedin_time;
-
-    if (x_status !== undefined) item.x_status = x_status;
-    if (x_time !== undefined) item.x_time = x_time;
-
-    // Recalculate or apply overall status
-    item.overall_status = computeIntelligentOverallStatus({
-      overall_status: overall_status !== undefined ? overall_status : item.overall_status,
-      approval_status: item.approval_status,
-      instagram_status: item.instagram_status,
-      youtube_status: item.youtube_status,
-      linkedin_status: item.linkedin_status,
-      x_status: item.x_status
-    });
 
     item.updatedBy = req.user._id;
 
@@ -863,6 +1003,7 @@ router.put('/:id', protect, async (req, res) => {
 
     const populatedItem = await DigitalCalendar.findById(item._id)
       .populate('responsible_employee', 'name firstName lastName displayName email designation avatar')
+      .populate('contents.responsible_employee', 'name firstName lastName displayName email designation avatar')
       .populate('createdBy', 'name email designation avatar')
       .populate('updatedBy', 'name email designation avatar');
 

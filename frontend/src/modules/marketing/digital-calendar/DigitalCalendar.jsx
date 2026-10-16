@@ -19,6 +19,7 @@ import {
   FaMagnifyingGlass,
   FaTableList,
   FaInstagram,
+  FaFacebook,
   FaYoutube,
   FaLinkedinIn,
   FaXTwitter,
@@ -154,15 +155,38 @@ function getApprovalBadge(status) {
 // 12-Hour Time Formatter
 function formatTime12h(timeStr) {
   if (!timeStr) return '';
-  if (timeStr.includes('AM') || timeStr.includes('PM')) return timeStr;
-  const parts = timeStr.split(':');
-  if (parts.length < 2) return timeStr;
+  const str = String(timeStr).trim();
+  if (str.toUpperCase().includes('AM') || str.toUpperCase().includes('PM')) return str;
+  const parts = str.split(':');
+  if (parts.length < 2) return str;
   let h = parseInt(parts[0], 10);
   const m = parts[1];
   const ampm = h >= 12 ? 'PM' : 'AM';
   h = h % 12;
   if (h === 0) h = 12;
   return `${String(h).padStart(2, '0')}:${m} ${ampm}`;
+}
+
+// Convert any time string ('07:00 PM', '7:00 PM', '19:00', etc.) to 24-hour 'HH:mm' for <input type="time">
+function to24HourTime(timeStr) {
+  if (!timeStr) return '';
+  const str = String(timeStr).trim();
+  const match24 = str.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+  if (match24) {
+    return `${String(match24[1]).padStart(2, '0')}:${match24[2]}`;
+  }
+  const match12 = str.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i);
+  if (match12) {
+    let [_, hours, minutes, ampm] = match12;
+    let h = parseInt(hours, 10);
+    if (ampm) {
+      const upper = ampm.toUpperCase();
+      if (upper === 'PM' && h < 12) h += 12;
+      if (upper === 'AM' && h === 12) h = 0;
+    }
+    return `${String(h).padStart(2, '0')}:${minutes}`;
+  }
+  return '';
 }
 
 // ── Smooth Synchronized Same-Direction Auto-Scroll (Horizontal) ───────────────
@@ -271,18 +295,19 @@ function AutoScrollContainer({ children, className = '' }) {
   );
 }
 
-// ── Smooth Auto-Scroll Notes Component (Horizontal Unified Scroller) ───────────
+// ── Compact Notes Component (Renders only when notes exist) ───────────────────
 function AutoScrollNotes({ text }) {
-  if (!text) return <div className="mb-3 h-[38px]" />;
+  if (!text || !text.trim()) return null;
 
   return (
     <div
-      className="text-[11px] text-slate-600 bg-slate-50/80 px-2.5 py-2 rounded-xl border border-slate-200/70 font-medium h-[38px] relative mb-3 group/notes flex items-center min-w-0 overflow-hidden"
+      className="text-xs text-slate-600 bg-slate-50/90 px-3 py-2 rounded-xl border border-slate-200/80 font-medium relative mb-2.5 flex items-start gap-2"
       title={text}
     >
-      <AutoScrollText className="w-full text-[11px] text-slate-600 font-medium">
+      <span className="text-slate-400 shrink-0 text-xs mt-0.5">📝</span>
+      <span className="line-clamp-2 leading-relaxed text-slate-600 flex-1">
         {text}
-      </AutoScrollText>
+      </span>
     </div>
   );
 }
@@ -314,6 +339,7 @@ export default function DigitalCalendar() {
   const [loading, setLoading] = useState(true);
   const [selectedItemId, setSelectedItemId] = useState(null);
   const [selectedDateFilter, setSelectedDateFilter] = useState(null); // 'YYYY-MM-DD' or null
+  const [cardSubIndexMap, setCardSubIndexMap] = useState({}); // { [itemId]: activeSubIndex }
 
   // Filters State
   const [filterEmployee, setFilterEmployee] = useState('all');
@@ -505,7 +531,8 @@ export default function DigitalCalendar() {
       if (!it.content_date) return;
       const d = new Date(it.content_date);
       const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      map[dateKey] = (map[dateKey] || 0) + 1;
+      const count = (it.contents && it.contents.length > 0) ? it.contents.length : 1;
+      map[dateKey] = (map[dateKey] || 0) + count;
     });
     return map;
   }, [items]);
@@ -531,24 +558,29 @@ export default function DigitalCalendar() {
 
   // Dynamic Live Counts for the 5 Status Filters
   const statusCounts = useMemo(() => {
-    let total = items.length;
+    let total = 0;
     let scheduled = 0;
     let posted = 0;
     let inProgress = 0;
     let needsApproval = 0;
 
     items.forEach(it => {
-      const st = it.overall_status;
-      if (st === 'Posted') {
-        posted++;
-      } else if (st === 'Scheduled') {
-        scheduled++;
-      } else if (['In Design', 'Draft', 'Planned', 'Pending', 'Pending Platforms'].includes(st)) {
-        inProgress++;
-      }
-      if (it.approval_status === 'Pending' || st === 'Needs Approval') {
-        needsApproval++;
-      }
+      const subItems = (it.contents && it.contents.length > 0) ? it.contents : [it];
+      total += subItems.length;
+
+      subItems.forEach(sub => {
+        const st = sub.overall_status;
+        if (st === 'Posted') {
+          posted++;
+        } else if (st === 'Scheduled') {
+          scheduled++;
+        } else if (['In Design', 'Draft', 'Planned', 'Pending', 'Pending Platforms'].includes(st)) {
+          inProgress++;
+        }
+        if (sub.approval_status === 'Pending' || st === 'Needs Approval') {
+          needsApproval++;
+        }
+      });
     });
 
     return { total, scheduled, posted, inProgress, needsApproval };
@@ -568,39 +600,83 @@ export default function DigitalCalendar() {
       });
     }
 
-    // 5 Status Filter Tabs
-    if (filterStatus === 'scheduled') {
-      list = list.filter(it => it.overall_status === 'Scheduled');
-    } else if (filterStatus === 'posted') {
-      list = list.filter(it => it.overall_status === 'Posted');
-    } else if (filterStatus === 'in_progress') {
-      list = list.filter(it => ['In Design', 'Draft', 'Planned', 'Pending', 'Pending Platforms'].includes(it.overall_status));
-    } else if (filterStatus === 'needs_approval') {
-      list = list.filter(it => it.approval_status === 'Pending' || it.overall_status === 'Needs Approval');
+    // 5 Status Filter Tabs (checks all sub-contents if present)
+    if (filterStatus !== 'all') {
+      list = list.filter(it => {
+        const subItems = (it.contents && it.contents.length > 0) ? it.contents : [it];
+        if (filterStatus === 'scheduled') {
+          return subItems.some(s => s.overall_status === 'Scheduled');
+        } else if (filterStatus === 'posted') {
+          return subItems.some(s => s.overall_status === 'Posted');
+        } else if (filterStatus === 'in_progress') {
+          return subItems.some(s => ['In Design', 'Draft', 'Planned', 'Pending', 'Pending Platforms'].includes(s.overall_status));
+        } else if (filterStatus === 'needs_approval') {
+          return subItems.some(s => s.approval_status === 'Pending' || s.overall_status === 'Needs Approval');
+        }
+        return true;
+      });
     }
 
-    // Client search fallback (supports searching by title, notes, employee name, or display name)
+    // Content Type filter
+    if (filterType !== 'all') {
+      list = list.filter(it => {
+        const subItems = (it.contents && it.contents.length > 0) ? it.contents : [it];
+        return subItems.some(s => s.content_type === filterType);
+      });
+    }
+
+    // Platform filter
+    if (filterPlatform !== 'all') {
+      const p = filterPlatform.toLowerCase();
+      list = list.filter(it => {
+        const subItems = (it.contents && it.contents.length > 0) ? it.contents : [it];
+        return subItems.some(s => {
+          if (p === 'instagram') return s.instagram_status && s.instagram_status !== 'Not Required';
+          if (p === 'facebook') return s.facebook_status && s.facebook_status !== 'Not Required';
+          if (p === 'youtube') return s.youtube_status && s.youtube_status !== 'Not Required';
+          if (p === 'linkedin') return s.linkedin_status && s.linkedin_status !== 'Not Required';
+          if (p === 'x' || p === 'twitter') return s.x_status && s.x_status !== 'Not Required';
+          return true;
+        });
+      });
+    }
+
+    // Responsible Employee filter
+    if (filterEmployee !== 'all') {
+      list = list.filter(it => {
+        const subItems = (it.contents && it.contents.length > 0) ? it.contents : [it];
+        return subItems.some(s => {
+          const empId = s.responsible_employee?._id || s.responsible_employee;
+          return String(empId) === String(filterEmployee);
+        });
+      });
+    }
+
+    // Client search fallback (supports searching across all sub-contents)
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
-      list = list.filter(it =>
-        (it.content_title || '').toLowerCase().includes(q) ||
-        (it.notes || '').toLowerCase().includes(q) ||
-        (it.responsible_employee_name || '').toLowerCase().includes(q) ||
-        (it.responsible_employee?.name || '').toLowerCase().includes(q) ||
-        (it.responsible_employee?.displayName || '').toLowerCase().includes(q) ||
-        (it.content_type || '').toLowerCase().includes(q) ||
-        (it.overall_status || '').toLowerCase().includes(q)
-      );
+      list = list.filter(it => {
+        const subItems = (it.contents && it.contents.length > 0) ? it.contents : [it];
+        return subItems.some(s =>
+          (s.content_title || '').toLowerCase().includes(q) ||
+          (s.notes || '').toLowerCase().includes(q) ||
+          (s.responsible_employee_name || '').toLowerCase().includes(q) ||
+          (s.responsible_employee?.name || '').toLowerCase().includes(q) ||
+          (s.responsible_employee?.displayName || '').toLowerCase().includes(q) ||
+          (s.content_type || '').toLowerCase().includes(q) ||
+          (s.overall_status || '').toLowerCase().includes(q)
+        );
+      });
     }
 
     // Sort by content_date ascending
     return list.sort((a, b) => new Date(a.content_date) - new Date(b.content_date));
-  }, [items, selectedDateFilter, filterStatus, searchQuery]);
+  }, [items, selectedDateFilter, filterStatus, filterType, filterPlatform, filterEmployee, searchQuery]);
 
   // Open edit modal
-  const handleEditClick = (item) => {
+  const handleEditClick = (item, initialActiveIndex = 0) => {
     setSelectedItemId(item._id);
-    setEditingItem(item);
+    setEditingItem({ ...item, initialActiveIndex });
     setShowEditModal(true);
   };
 
@@ -996,6 +1072,7 @@ export default function DigitalCalendar() {
                 {[
                   { id: 'all', label: 'All Platforms', icon: FaBorderAll, color: 'text-slate-600' },
                   { id: 'instagram', label: 'Instagram', icon: FaInstagram, color: 'text-pink-600' },
+                  { id: 'facebook', label: 'Facebook', icon: FaFacebook, color: 'text-blue-700' },
                   { id: 'youtube', label: 'YouTube', icon: FaYoutube, color: 'text-red-600' },
                   { id: 'linkedin', label: 'LinkedIn', icon: FaLinkedinIn, color: 'text-blue-600' },
                   { id: 'x', label: 'X / Twitter', icon: FaXTwitter, color: 'text-slate-900' }
@@ -1345,30 +1422,69 @@ export default function DigitalCalendar() {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4 items-start">
                 {/* Marketing Content Cards */}
                 {filteredItems.map(item => {
-                  const typeStyle = getTypeStyle(item.content_type);
-                  const statusStyle = getStatusStyle(item.overall_status);
-                  const approvalStyle = getApprovalBadge(item.approval_status);
+                  const allContents = (item.contents && item.contents.length > 0)
+                    ? item.contents
+                    : [{
+                        _id: item._id,
+                        content_title: item.content_title,
+                        content_type: item.content_type,
+                        responsible_employee: item.responsible_employee,
+                        responsible_employee_name: item.responsible_employee_name,
+                        approval_status: item.approval_status,
+                        overall_status: item.overall_status,
+                        live_folder_link: item.live_folder_link,
+                        notes: item.notes,
+                        instagram_status: item.instagram_status,
+                        instagram_time: item.instagram_time,
+                        facebook_status: item.facebook_status,
+                        facebook_time: item.facebook_time,
+                        youtube_status: item.youtube_status,
+                        youtube_time: item.youtube_time,
+                        linkedin_status: item.linkedin_status,
+                        linkedin_time: item.linkedin_time,
+                        x_status: item.x_status,
+                        x_time: item.x_time
+                      }];
 
-                  // All 4 Platforms List - Always showing complete social media information
+                  const activeSubIdx = cardSubIndexMap[item._id] !== undefined
+                    ? Math.min(cardSubIndexMap[item._id], allContents.length - 1)
+                    : 0;
+                  const currentItem = allContents[activeSubIdx] || allContents[0];
+
+                  const typeStyle = getTypeStyle(currentItem.content_type);
+                  const statusStyle = getStatusStyle(currentItem.overall_status);
+                  const approvalStyle = getApprovalBadge(currentItem.approval_status);
+
+                  // Platforms List - Showing information for currently selected content
                   const platformList = [
                     {
                       name: 'Instagram',
                       icon: FaInstagram,
-                      status: item.instagram_status || 'Not Required',
-                      time: item.instagram_time,
+                      status: currentItem.instagram_status || 'Not Required',
+                      time: currentItem.instagram_time,
                       color: 'text-pink-600',
                       badgeBg: 'bg-pink-50/70',
                       border: 'border-pink-200/80',
                       iconBg: 'bg-pink-100/60'
                     },
                     {
+                      name: 'Facebook',
+                      icon: FaFacebook,
+                      status: currentItem.facebook_status || 'Not Required',
+                      time: currentItem.facebook_time,
+                      color: 'text-blue-700',
+                      badgeBg: 'bg-blue-50/70',
+                      border: 'border-blue-200/80',
+                      iconBg: 'bg-blue-100/60'
+                    },
+                    {
                       name: 'YouTube',
                       icon: FaYoutube,
-                      status: item.youtube_status || 'Not Required',
-                      time: item.youtube_time,
+                      status: currentItem.youtube_status || 'Not Required',
+                      time: currentItem.youtube_time,
                       color: 'text-red-600',
                       badgeBg: 'bg-red-50/70',
                       border: 'border-red-200/80',
@@ -1377,8 +1493,8 @@ export default function DigitalCalendar() {
                     {
                       name: 'LinkedIn',
                       icon: FaLinkedinIn,
-                      status: item.linkedin_status || 'Not Required',
-                      time: item.linkedin_time,
+                      status: currentItem.linkedin_status || 'Not Required',
+                      time: currentItem.linkedin_time,
                       color: 'text-blue-600',
                       badgeBg: 'bg-blue-50/70',
                       border: 'border-blue-200/80',
@@ -1387,8 +1503,8 @@ export default function DigitalCalendar() {
                     {
                       name: 'X / Twitter',
                       icon: FaXTwitter,
-                      status: item.x_status || 'Not Required',
-                      time: item.x_time,
+                      status: currentItem.x_status || 'Not Required',
+                      time: currentItem.x_time,
                       color: 'text-slate-900',
                       badgeBg: 'bg-slate-100/70',
                       border: 'border-slate-300/80',
@@ -1405,171 +1521,223 @@ export default function DigitalCalendar() {
                   return (
                     <div
                       key={item._id}
-                      onClick={() => handleEditClick(item)}
-                      className="content-card-elevated bg-white rounded-3xl p-4 sm:p-4.5 border border-slate-200 shadow-sm flex flex-col justify-between relative cursor-pointer group"
+                      onClick={() => handleEditClick(item, activeSubIdx)}
+                      className="content-card-elevated bg-white rounded-3xl p-4 sm:p-4.5 border border-slate-200 shadow-sm flex flex-col relative cursor-pointer group transition-all"
                       style={{
                         boxShadow: '0 8px 24px -4px rgba(15, 23, 42, 0.05)'
                       }}
                     >
-                      <div>
-                        {/* 1. Card Top Bar: Type Badge, Overall Status, Approval & Edit Controls */}
-                        <div className="flex items-start justify-between gap-1.5 mb-2.5">
-                          <AutoScrollContainer className="flex-1 min-w-0 py-0.5">
-                            {/* Content Type */}
-                            <span
-                              className={`px-2 py-0.5 rounded-lg text-[11px] font-black tracking-wide border shrink-0 ${typeStyle.bg} ${typeStyle.text} ${typeStyle.border}`}
-                            >
-                              {item.content_type}
-                            </span>
+                      {/* 1. Header: Date Pill + Content Type Badge + Action Controls */}
+                      <div className="flex items-center justify-between gap-1.5 mb-2.5">
+                        <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                          {/* Content Type Badge */}
+                          <span
+                            className={`px-2.5 py-0.5 rounded-lg text-[11px] font-black tracking-wide border shrink-0 ${typeStyle.bg} ${typeStyle.text} ${typeStyle.border}`}
+                          >
+                            {currentItem.content_type}
+                          </span>
 
-                            {/* Overall Status Badge */}
-                            <span
-                              className="px-2 py-0.5 rounded-lg text-[11px] font-bold flex items-center gap-1 shadow-2xs shrink-0"
-                              style={{
-                                background: statusStyle.bg,
-                                color: statusStyle.text,
-                                border: `1px solid ${statusStyle.border}`
-                              }}
-                            >
-                              <span className="w-1.5 h-1.5 rounded-full" style={{ background: statusStyle.dot }} />
-                              {item.overall_status}
-                            </span>
+                          {/* Date Pill */}
+                          <span className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold text-slate-600 bg-slate-100/90 border border-slate-200/80 shrink-0">
+                            <FaCalendarDays className="w-2.5 h-2.5 text-sky-600 shrink-0" />
+                            <span>{formattedItemDate}</span>
+                            <span className="text-slate-400 font-normal">•</span>
+                            <span className="text-slate-500">{item.day || new Date(item.content_date).toLocaleDateString('en-US', { weekday: 'short' })}</span>
+                          </span>
+                        </div>
 
-                            {/* Approval Status */}
-                            <span
-                              className="px-1.5 py-0.5 rounded-lg text-[10px] font-extrabold flex items-center gap-1 shrink-0"
-                              style={{
-                                background: approvalStyle.bg,
-                                color: approvalStyle.text,
-                                border: `1px solid ${approvalStyle.border}`
-                              }}
-                            >
-                              <span>{approvalStyle.icon}</span>
-                              <span>{approvalStyle.label}</span>
-                            </span>
-                          </AutoScrollContainer>
+                        {/* Top Right Action Icons */}
+                        <div className="flex items-center gap-0.5 shrink-0 ml-1" onClick={e => e.stopPropagation()}>
+                          {/* Quick Add Content to this Day */}
+                          <button
+                            type="button"
+                            onClick={() => handleEditClick(item, allContents.length)}
+                            title="Add another content to this day"
+                            className="p-1.5 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition cursor-pointer"
+                          >
+                            <FaPlus className="w-3 h-3" />
+                          </button>
 
-                          {/* Top Right Action Icons */}
-                          <div className="flex items-center gap-1 shrink-0 ml-1" onClick={e => e.stopPropagation()}>
-                            {/* Edit Button */}
+                          {/* Edit Button */}
+                          <button
+                            type="button"
+                            onClick={() => handleEditClick(item, activeSubIdx)}
+                            title="Edit content"
+                            className="p-1.5 text-slate-500 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition cursor-pointer"
+                          >
+                            <FaPenToSquare className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Delete Button */}
+                          {canDeleteContent && (
                             <button
                               type="button"
-                              onClick={() => handleEditClick(item)}
-                              title="Edit content"
-                              className="p-1.5 text-slate-500 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition cursor-pointer"
+                              onClick={() => handleDeleteClick(item)}
+                              title="Delete content"
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
                             >
-                              <FaPenToSquare className="w-3.5 h-3.5" />
+                              <FaTrashCan className="w-3.5 h-3.5" />
                             </button>
-
-                            {/* Delete Button */}
-                            {canDeleteContent && (
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteClick(item)}
-                                title="Delete content"
-                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
-                              >
-                                <FaTrashCan className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* 2. Content Title - Auto Scroll if large */}
-                        <div className="mb-1">
-                          <AutoScrollText className="text-sm sm:text-base font-extrabold text-slate-900 group-hover:text-sky-600 transition-colors leading-snug">
-                            {item.content_title}
-                          </AutoScrollText>
-                        </div>
-
-                        {/* 3. Date & Schedule Row - Auto Scroll if large */}
-                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 mt-1.5 mb-2.5">
-                          <FaCalendarDays className="w-3 h-3 text-sky-500 shrink-0" />
-                          <AutoScrollText className="text-[11px] font-bold text-slate-500 flex-1 min-w-0">
-                            {formattedItemDate} • {item.day || new Date(item.content_date).toLocaleDateString('en-US', { weekday: 'long' })}
-                          </AutoScrollText>
-                        </div>
-
-                        {/* 4. Notes / Description - Auto Scroll if large */}
-                        <AutoScrollNotes text={item.notes} />
-
-                        {/* 5. Platform Breakdown & Posting Times - Auto Scroll text on overflow */}
-                        <div className="space-y-1.5 mb-3.5">
-                          <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block">
-                            Social Media Platforms & Times
-                          </span>
-                          <div className="grid grid-cols-2 gap-1.5">
-                            {platformList.map((pf, pIdx) => {
-                              const PfIcon = pf.icon;
-                              const isOff = pf.status === 'Not Required' || !pf.status;
-                              const pfSt = getStatusStyle(pf.status);
-
-                              return (
-                                <div
-                                  key={pIdx}
-                                  className={`p-1.5 rounded-xl border flex flex-col justify-between gap-1 transition-all shadow-3xs min-h-[50px] ${
-                                    isOff
-                                      ? 'bg-slate-50/60 border-slate-200/60 opacity-60'
-                                      : `${pf.badgeBg} ${pf.border}`
-                                  }`}
-                                >
-                                  {/* Top: Icon + Full Name (Auto-scrolls if long) */}
-                                  <div className="flex items-center gap-1.5 w-full min-w-0">
-                                    <div
-                                      className={`w-4 h-4 rounded-md flex items-center justify-center shrink-0 ${
-                                        isOff ? 'bg-slate-100 text-slate-400' : `${pf.iconBg} ${pf.color}`
-                                      }`}
-                                    >
-                                      <PfIcon className="w-2.5 h-2.5" />
-                                    </div>
-                                    <div className="w-full min-w-0 overflow-hidden">
-                                      <AutoScrollText
-                                        className={`text-[11px] font-bold leading-tight ${
-                                          isOff ? 'text-slate-400' : 'text-slate-800'
-                                        }`}
-                                      >
-                                        {pf.name}
-                                      </AutoScrollText>
-                                    </div>
-                                  </div>
-
-                                  {/* Bottom: Status Tag + Time */}
-                                  <div className="flex items-center justify-between gap-1 w-full pt-0.5 border-t border-slate-100/70 min-w-0">
-                                    <div className="min-w-0 flex-1 overflow-hidden">
-                                      <AutoScrollText className="w-full">
-                                        <span
-                                          className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-md inline-block shadow-3xs"
-                                          style={{
-                                            background: isOff ? '#f1f5f9' : pfSt.bg,
-                                            color: isOff ? '#94a3b8' : pfSt.text,
-                                            border: `1px solid ${isOff ? '#e2e8f0' : pfSt.border}`
-                                          }}
-                                        >
-                                          {isOff ? 'Not Req' : pf.status}
-                                        </span>
-                                      </AutoScrollText>
-                                    </div>
-                                    {pf.time && !isOff && (
-                                      <span className="text-[8.5px] text-slate-500 font-bold block shrink-0 ml-1">
-                                        {formatTime12h(pf.time)}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
+                          )}
                         </div>
                       </div>
 
-                      {/* 6. Card Footer: Responsible Person + Drive Link */}
-                      <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2 mt-1">
-                        {/* Responsible Member: Actual Name + Display Name with Auto-Scroll */}
+                      {/* 2. Multi-Content Switcher (if > 1 content) */}
+                      {allContents.length > 1 && (
+                        <div
+                          className="flex items-center gap-1.5 p-1 bg-slate-100/90 rounded-2xl border border-slate-200/80 mb-2.5 overflow-x-auto no-scrollbar shadow-3xs"
+                          onClick={e => e.stopPropagation()}
+                        >
+                          <span className="text-[10px] font-black uppercase text-slate-500 pl-1.5 shrink-0 flex items-center gap-1">
+                            <FaLayerGroup className="w-2.5 h-2.5 text-sky-600" />
+                            <span>Contents:</span>
+                          </span>
+                          <div className="flex items-center gap-1 min-w-0 flex-1">
+                            {allContents.map((sub, sIdx) => {
+                              const isSel = activeSubIdx === sIdx;
+                              return (
+                                <button
+                                  key={sIdx}
+                                  type="button"
+                                  onClick={() => setCardSubIndexMap(prev => ({ ...prev, [item._id]: sIdx }))}
+                                  className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-black transition cursor-pointer shrink-0 ${
+                                    isSel
+                                      ? 'bg-sky-600 text-white shadow-xs'
+                                      : 'bg-white hover:bg-slate-200/70 text-slate-700 border border-slate-200/60'
+                                  }`}
+                                >
+                                  <span>#{sIdx + 1}</span>
+                                  <span className="truncate max-w-[65px]">{sub.content_type}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleEditClick(item, allContents.length)}
+                            title="Add another content to this day"
+                            className="p-1 text-sky-600 hover:text-sky-800 hover:bg-white rounded-lg transition cursor-pointer shrink-0"
+                          >
+                            <FaPlus className="w-2.5 h-2.5" />
+                          </button>
+                        </div>
+                      )}
+
+                      {/* 3. Content Title */}
+                      <h4
+                        title={currentItem.content_title}
+                        className="text-sm sm:text-base font-extrabold text-slate-900 group-hover:text-sky-600 transition-colors leading-snug line-clamp-2 mt-0.5 mb-2"
+                      >
+                        {currentItem.content_title || 'Untitled Content'}
+                      </h4>
+
+                      {/* 4. Overall Status & Approval Badges */}
+                      <div className="flex items-center flex-wrap gap-1.5 mb-2.5">
+                        {/* Overall Status Badge */}
+                        <span
+                          className="px-2 py-0.5 rounded-lg text-[11px] font-bold flex items-center gap-1.5 shadow-2xs shrink-0"
+                          style={{
+                            background: statusStyle.bg,
+                            color: statusStyle.text,
+                            border: `1px solid ${statusStyle.border}`
+                          }}
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: statusStyle.dot }} />
+                          <span>{currentItem.overall_status}</span>
+                        </span>
+
+                        {/* Approval Status */}
+                        <span
+                          className="px-2 py-0.5 rounded-lg text-[10px] font-extrabold flex items-center gap-1 shadow-2xs shrink-0"
+                          style={{
+                            background: approvalStyle.bg,
+                            color: approvalStyle.text,
+                            border: `1px solid ${approvalStyle.border}`
+                          }}
+                        >
+                          <span>{approvalStyle.icon}</span>
+                          <span>{approvalStyle.label}</span>
+                        </span>
+                      </div>
+
+                      {/* 5. Notes / Description (Renders only if present) */}
+                      <AutoScrollNotes text={currentItem.notes} />
+
+                      {/* 6. Platform Breakdown & Posting Times */}
+                      <div className="space-y-1.5 mb-3">
+                        <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block">
+                          Social Media Platforms & Times
+                        </span>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {platformList.map((pf, pIdx) => {
+                            const PfIcon = pf.icon;
+                            const isOff = pf.status === 'Not Required' || !pf.status;
+                            const pfSt = getStatusStyle(pf.status);
+                            const isLastOdd = pIdx === 4; // 5th item (X / Twitter) spans 2 columns to fill row
+
+                            return (
+                              <div
+                                key={pIdx}
+                                className={`p-1.5 rounded-xl border flex flex-col justify-between gap-1 transition-all shadow-3xs min-h-[46px] ${
+                                  isLastOdd ? 'col-span-2' : ''
+                                } ${
+                                  isOff
+                                    ? 'bg-slate-50/60 border-slate-200/60 opacity-60'
+                                    : `${pf.badgeBg} ${pf.border}`
+                                }`}
+                              >
+                                {/* Top: Icon + Full Name */}
+                                <div className="flex items-center gap-1.5 w-full min-w-0">
+                                  <div
+                                    className={`w-4 h-4 rounded-md flex items-center justify-center shrink-0 ${
+                                      isOff ? 'bg-slate-100 text-slate-400' : `${pf.iconBg} ${pf.color}`
+                                    }`}
+                                  >
+                                    <PfIcon className="w-2.5 h-2.5" />
+                                  </div>
+                                  <span
+                                    title={pf.name}
+                                    className={`text-[11px] font-bold leading-tight truncate ${
+                                      isOff ? 'text-slate-400' : 'text-slate-800'
+                                    }`}
+                                  >
+                                    {pf.name}
+                                  </span>
+                                </div>
+
+                                {/* Bottom: Status Tag + Time */}
+                                <div className="flex items-center justify-between gap-1 w-full pt-0.5 border-t border-slate-100/70 min-w-0">
+                                  <span
+                                    className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-md inline-block shadow-3xs truncate max-w-[80px]"
+                                    style={{
+                                      background: isOff ? '#f1f5f9' : pfSt.bg,
+                                      color: isOff ? '#94a3b8' : pfSt.text,
+                                      border: `1px solid ${isOff ? '#e2e8f0' : pfSt.border}`
+                                    }}
+                                  >
+                                    {isOff ? 'Not Req' : pf.status}
+                                  </span>
+                                  {pf.time && !isOff && (
+                                    <span className="text-[8.5px] text-slate-500 font-bold shrink-0 ml-1 flex items-center gap-0.5">
+                                      <FaClock className="w-2 h-2 text-slate-400" />
+                                      {formatTime12h(pf.time)}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* 7. Card Footer: Responsible Person + Drive Link */}
+                      <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2 mt-auto">
+                        {/* Responsible Member */}
                         <div className="flex items-center gap-2 min-w-0 flex-1">
-                          {item.responsible_employee?.avatar ? (
+                          {currentItem.responsible_employee?.avatar ? (
                             <img
-                              src={item.responsible_employee.avatar}
-                              alt={item.responsible_employee?.name || item.responsible_employee_name || 'M'}
+                              src={currentItem.responsible_employee.avatar}
+                              alt={currentItem.responsible_employee?.name || currentItem.responsible_employee_name || 'M'}
                               className="w-6 h-6 rounded-lg object-cover shrink-0 border border-slate-200 shadow-2xs"
                             />
                           ) : (
@@ -1577,30 +1745,36 @@ export default function DigitalCalendar() {
                               className="w-6 h-6 rounded-lg text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs"
                               style={{ background: 'linear-gradient(135deg, #0284c7 0%, #f97316 100%)' }}
                             >
-                              {(item.responsible_employee?.name || item.responsible_employee_name || 'M')
+                              {(currentItem.responsible_employee?.name || currentItem.responsible_employee_name || 'M')
                                 .charAt(0)
                                 .toUpperCase()}
                             </div>
                           )}
-                          <div className="min-w-0 flex-1 overflow-hidden">
-                            <AutoScrollText className="text-xs font-bold text-slate-800">
-                              {item.responsible_employee?.actualName ||
-                                item.responsible_employee?.name ||
-                                item.responsible_employee_name ||
+                          <div className="min-w-0 flex-1 truncate">
+                            <span
+                              title={currentItem.responsible_employee?.actualName || currentItem.responsible_employee?.name || currentItem.responsible_employee_name || 'Unassigned'}
+                              className="text-xs font-bold text-slate-800 block truncate"
+                            >
+                              {currentItem.responsible_employee?.actualName ||
+                                currentItem.responsible_employee?.name ||
+                                currentItem.responsible_employee_name ||
                                 'Unassigned'}
-                            </AutoScrollText>
-                            {(item.responsible_employee?.displayName || item.responsible_employee?.designation) && (
-                              <AutoScrollText className="text-[10px] text-slate-500 font-medium">
-                                {item.responsible_employee?.displayName || item.responsible_employee?.designation}
-                              </AutoScrollText>
+                            </span>
+                            {(currentItem.responsible_employee?.displayName || currentItem.responsible_employee?.designation) && (
+                              <span
+                                title={currentItem.responsible_employee?.displayName || currentItem.responsible_employee?.designation}
+                                className="text-[10px] text-slate-500 font-medium block truncate"
+                              >
+                                {currentItem.responsible_employee?.displayName || currentItem.responsible_employee?.designation}
+                              </span>
                             )}
                           </div>
                         </div>
 
                         {/* Live Drive Link (if provided) */}
-                        {item.live_folder_link && (
+                        {currentItem.live_folder_link && (
                           <a
-                            href={item.live_folder_link}
+                            href={currentItem.live_folder_link}
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={e => e.stopPropagation()}
@@ -1627,7 +1801,7 @@ export default function DigitalCalendar() {
           {/* Table Header Bar */}
           <div className="p-4 sm:p-5 border-b border-slate-200/80 bg-gradient-to-r from-sky-50/70 via-white to-blue-50/60 flex items-center justify-between">
             <span className="text-base font-extrabold text-slate-900 tracking-tight">
-              All Marketing Content Items ({items.length})
+              All Marketing Content Items ({statusCounts.total})
             </span>
           </div>
 
@@ -1640,6 +1814,7 @@ export default function DigitalCalendar() {
                   <th className="py-3.5 px-3">Date</th>
                   <th className="py-3.5 px-3">Day</th>
                   <th className="py-3.5 px-3">Instagram</th>
+                  <th className="py-3.5 px-3">Facebook</th>
                   <th className="py-3.5 px-3">YouTube</th>
                   <th className="py-3.5 px-3">LinkedIn</th>
                   <th className="py-3.5 px-3">X (Twitter)</th>
@@ -1650,32 +1825,50 @@ export default function DigitalCalendar() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
-                {items.map(item => {
-                  const t = getTypeStyle(item.content_type);
-                  const st = getStatusStyle(item.overall_status);
-                  const app = getApprovalBadge(item.approval_status);
+                {items.flatMap(item => {
+                  const allContents = (item.contents && item.contents.length > 0)
+                    ? item.contents
+                    : [item];
+                  return allContents.map((sub, sIdx) => ({
+                    parentItem: item,
+                    sub,
+                    sIdx,
+                    totalSubs: allContents.length,
+                    rowKey: `${item._id}-${sIdx}`
+                  }));
+                }).map(({ parentItem, sub, sIdx, totalSubs, rowKey }) => {
+                  const t = getTypeStyle(sub.content_type);
+                  const st = getStatusStyle(sub.overall_status);
+                  const app = getApprovalBadge(sub.approval_status);
 
                   return (
                     <tr
-                      key={item._id}
-                      onClick={() => handleEditClick(item)}
+                      key={rowKey}
+                      onClick={() => handleEditClick(parentItem, sIdx)}
                       className="hover:bg-sky-50/40 transition cursor-pointer"
                     >
                       {/* Title */}
-                      <td className="py-3.5 px-4 font-bold text-slate-900 max-w-[220px] truncate">
-                        {item.content_title}
+                      <td className="py-3.5 px-4 font-bold text-slate-900 max-w-[220px]">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          {totalSubs > 1 && (
+                            <span className="px-1.5 py-0.5 rounded text-[9.5px] font-black bg-sky-100 text-sky-800 border border-sky-200 shrink-0">
+                              #{sIdx + 1} of {totalSubs}
+                            </span>
+                          )}
+                          <span className="truncate">{sub.content_title}</span>
+                        </div>
                       </td>
 
                       {/* Type */}
                       <td className="py-3.5 px-3 whitespace-nowrap">
                         <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold ${t.bg} ${t.text} border ${t.border}`}>
-                          {item.content_type}
+                          {sub.content_type}
                         </span>
                       </td>
 
                       {/* Date */}
                       <td className="py-3.5 px-3 whitespace-nowrap font-semibold text-slate-700">
-                        {new Date(item.content_date).toLocaleDateString('en-US', {
+                        {new Date(parentItem.content_date).toLocaleDateString('en-US', {
                           month: 'short',
                           day: 'numeric',
                           year: 'numeric'
@@ -1684,16 +1877,30 @@ export default function DigitalCalendar() {
 
                       {/* Day */}
                       <td className="py-3.5 px-3 whitespace-nowrap text-slate-500 font-semibold">
-                        {item.day || new Date(item.content_date).toLocaleDateString('en-US', { weekday: 'short' })}
+                        {parentItem.day || new Date(parentItem.content_date).toLocaleDateString('en-US', { weekday: 'short' })}
                       </td>
 
                       {/* Instagram */}
                       <td className="py-3.5 px-3 whitespace-nowrap">
-                        {item.instagram_status && item.instagram_status !== 'Not Required' ? (
+                        {sub.instagram_status && sub.instagram_status !== 'Not Required' ? (
                           <div>
-                            <span className="font-bold text-pink-600">{item.instagram_status}</span>
-                            {item.instagram_time && (
-                              <div className="text-[10px] text-slate-400 font-medium">{formatTime12h(item.instagram_time)}</div>
+                            <span className="font-bold text-pink-600">{sub.instagram_status}</span>
+                            {sub.instagram_time && (
+                              <div className="text-[10px] text-slate-400 font-medium">{formatTime12h(sub.instagram_time)}</div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-slate-300 font-bold">—</span>
+                        )}
+                      </td>
+
+                      {/* Facebook */}
+                      <td className="py-3.5 px-3 whitespace-nowrap">
+                        {sub.facebook_status && sub.facebook_status !== 'Not Required' ? (
+                          <div>
+                            <span className="font-bold text-blue-700">{sub.facebook_status}</span>
+                            {sub.facebook_time && (
+                              <div className="text-[10px] text-slate-400 font-medium">{formatTime12h(sub.facebook_time)}</div>
                             )}
                           </div>
                         ) : (
@@ -1703,11 +1910,11 @@ export default function DigitalCalendar() {
 
                       {/* YouTube */}
                       <td className="py-3.5 px-3 whitespace-nowrap">
-                        {item.youtube_status && item.youtube_status !== 'Not Required' ? (
+                        {sub.youtube_status && sub.youtube_status !== 'Not Required' ? (
                           <div>
-                            <span className="font-bold text-red-600">{item.youtube_status}</span>
-                            {item.youtube_time && (
-                              <div className="text-[10px] text-slate-400 font-medium">{formatTime12h(item.youtube_time)}</div>
+                            <span className="font-bold text-red-600">{sub.youtube_status}</span>
+                            {sub.youtube_time && (
+                              <div className="text-[10px] text-slate-400 font-medium">{formatTime12h(sub.youtube_time)}</div>
                             )}
                           </div>
                         ) : (
@@ -1717,11 +1924,11 @@ export default function DigitalCalendar() {
 
                       {/* LinkedIn */}
                       <td className="py-3.5 px-3 whitespace-nowrap">
-                        {item.linkedin_status && item.linkedin_status !== 'Not Required' ? (
+                        {sub.linkedin_status && sub.linkedin_status !== 'Not Required' ? (
                           <div>
-                            <span className="font-bold text-blue-600">{item.linkedin_status}</span>
-                            {item.linkedin_time && (
-                              <div className="text-[10px] text-slate-400 font-medium">{formatTime12h(item.linkedin_time)}</div>
+                            <span className="font-bold text-blue-600">{sub.linkedin_status}</span>
+                            {sub.linkedin_time && (
+                              <div className="text-[10px] text-slate-400 font-medium">{formatTime12h(sub.linkedin_time)}</div>
                             )}
                           </div>
                         ) : (
@@ -1731,11 +1938,11 @@ export default function DigitalCalendar() {
 
                       {/* X / Twitter */}
                       <td className="py-3.5 px-3 whitespace-nowrap">
-                        {item.x_status && item.x_status !== 'Not Required' ? (
+                        {sub.x_status && sub.x_status !== 'Not Required' ? (
                           <div>
-                            <span className="font-bold text-slate-900">{item.x_status}</span>
-                            {item.x_time && (
-                              <div className="text-[10px] text-slate-400 font-medium">{formatTime12h(item.x_time)}</div>
+                            <span className="font-bold text-slate-900">{sub.x_status}</span>
+                            {sub.x_time && (
+                              <div className="text-[10px] text-slate-400 font-medium">{formatTime12h(sub.x_time)}</div>
                             )}
                           </div>
                         ) : (
@@ -1749,21 +1956,21 @@ export default function DigitalCalendar() {
                           className="px-2.5 py-0.5 rounded-lg text-[11px] font-bold"
                           style={{ background: st.bg, color: st.text, border: `1px solid ${st.border}` }}
                         >
-                          {item.overall_status}
+                          {sub.overall_status}
                         </span>
                       </td>
 
                       {/* Responsible Person: Name + Display Name */}
                       <td className="py-3.5 px-4 whitespace-nowrap">
                         <div className="font-bold text-slate-800">
-                          {item.responsible_employee?.actualName ||
-                            item.responsible_employee?.name ||
-                            item.responsible_employee_name ||
+                          {sub.responsible_employee?.actualName ||
+                            sub.responsible_employee?.name ||
+                            sub.responsible_employee_name ||
                             'Unassigned'}
                         </div>
-                        {(item.responsible_employee?.displayName || item.responsible_employee?.designation) && (
+                        {(sub.responsible_employee?.displayName || sub.responsible_employee?.designation) && (
                           <div className="text-[10px] text-slate-500 font-semibold">
-                            {item.responsible_employee?.displayName || item.responsible_employee?.designation}
+                            {sub.responsible_employee?.displayName || sub.responsible_employee?.designation}
                           </div>
                         )}
                       </td>
@@ -1782,16 +1989,16 @@ export default function DigitalCalendar() {
                       <td className="py-3.5 px-4 text-right whitespace-nowrap" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1.5">
                           <button
-                            onClick={() => handleEditClick(item)}
-                            title="Edit"
+                            onClick={() => handleEditClick(parentItem, sIdx)}
+                            title="Edit this item"
                             className="p-1.5 text-slate-500 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition cursor-pointer"
                           >
                             <FaPenToSquare className="w-3.5 h-3.5" />
                           </button>
                           {canDeleteContent && (
                             <button
-                              onClick={() => handleDeleteClick(item)}
-                              title="Delete"
+                              onClick={() => handleDeleteClick(parentItem)}
+                              title="Delete content card"
                               className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
                             >
                               <FaTrashCan className="w-3.5 h-3.5" />
@@ -1890,65 +2097,237 @@ export default function DigitalCalendar() {
   );
 }
 
+// ── Platform Time Input with Instant Click-to-Open Time Picker ────────────────
+function PlatformTimeInput({
+  value,
+  onChange,
+  focusBorderClass = 'focus:border-sky-500',
+  textColorClass = 'text-sky-600'
+}) {
+  const inputRef = useRef(null);
+
+  const openPicker = () => {
+    if (inputRef.current) {
+      try {
+        if (typeof inputRef.current.showPicker === 'function') {
+          inputRef.current.showPicker();
+        } else {
+          inputRef.current.focus();
+        }
+      } catch (err) {
+        inputRef.current.focus();
+      }
+    }
+  };
+
+  return (
+    <div className="relative group cursor-pointer" onClick={openPicker}>
+      <input
+        ref={inputRef}
+        type="time"
+        value={to24HourTime(value)}
+        onChange={e => {
+          const val = e.target.value;
+          onChange(val ? formatTime12h(val) : '');
+        }}
+        onClick={e => {
+          try {
+            if (typeof e.currentTarget.showPicker === 'function') {
+              e.currentTarget.showPicker();
+            }
+          } catch (err) {}
+        }}
+        onFocus={e => {
+          try {
+            if (typeof e.currentTarget.showPicker === 'function') {
+              e.currentTarget.showPicker();
+            }
+          } catch (err) {}
+        }}
+        className={`w-full px-2 py-1.5 text-xs bg-white border border-slate-200 hover:border-slate-300 rounded-xl focus:outline-none ${focusBorderClass} font-medium cursor-pointer transition-colors shadow-2xs`}
+        style={{ colorScheme: 'light' }}
+      />
+      {value && (
+        <span className={`text-[9.5px] ${textColorClass} font-bold block mt-0.5 truncate`}>
+          {formatTime12h(value)}
+        </span>
+      )}
+    </div>
+  );
+}
+
 // ── Content Form Modal Component ──────────────────────────────────────────────
 function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }) {
-  const [formData, setFormData] = useState({
-    content_title: initialData?.content_title || '',
-    content_type: initialData?.content_type || 'Post',
-    content_date: initialData?.content_date
+  const createEmptyContent = (empId = null, empName = '') => ({
+    _id: null,
+    content_title: '',
+    content_type: 'Post',
+    responsible_employee: empId,
+    responsible_employee_name: empName,
+    approval_status: 'Pending',
+    overall_status: 'Planned',
+    live_folder_link: '',
+    notes: '',
+    instagram_status: 'Not Required',
+    instagram_time: '',
+    facebook_status: 'Not Required',
+    facebook_time: '',
+    youtube_status: 'Not Required',
+    youtube_time: '',
+    linkedin_status: 'Not Required',
+    linkedin_time: '',
+    x_status: 'Not Required',
+    x_time: ''
+  });
+
+  const [contentDate, setContentDate] = useState(() => {
+    return initialData?.content_date
       ? new Date(initialData.content_date).toISOString().split('T')[0]
-      : new Date().toISOString().split('T')[0],
-    responsible_employee: initialData?.responsible_employee?._id || initialData?.responsible_employee || '',
-    responsible_employee_name: initialData?.responsible_employee_name || '',
-    approval_status: initialData?.approval_status || 'Pending',
-    overall_status: initialData?.overall_status || 'Planned',
-    live_folder_link: initialData?.live_folder_link || '',
-    notes: initialData?.notes || '',
+      : new Date().toISOString().split('T')[0];
+  });
 
-    // Platform Trackings
-    instagram_status: initialData?.instagram_status || 'Not Required',
-    instagram_time: initialData?.instagram_time || '',
+  const [contents, setContents] = useState(() => {
+    if (initialData?.contents && initialData.contents.length > 0) {
+      return initialData.contents.map(c => ({
+        _id: c._id || null,
+        content_title: c.content_title || '',
+        content_type: c.content_type || 'Post',
+        responsible_employee: c.responsible_employee?._id || c.responsible_employee || '',
+        responsible_employee_name:
+          c.responsible_employee?.actualName ||
+          c.responsible_employee?.name ||
+          c.responsible_employee?.displayName ||
+          c.responsible_employee_name ||
+          '',
+        approval_status: c.approval_status || 'Pending',
+        overall_status: c.overall_status || 'Planned',
+        live_folder_link: c.live_folder_link || '',
+        notes: c.notes || '',
+        instagram_status: c.instagram_status || 'Not Required',
+        instagram_time: c.instagram_time || '',
+        facebook_status: c.facebook_status || 'Not Required',
+        facebook_time: c.facebook_time || '',
+        youtube_status: c.youtube_status || 'Not Required',
+        youtube_time: c.youtube_time || '',
+        linkedin_status: c.linkedin_status || 'Not Required',
+        linkedin_time: c.linkedin_time || '',
+        x_status: c.x_status || 'Not Required',
+        x_time: c.x_time || ''
+      }));
+    }
+    if (initialData?.content_title) {
+      return [
+        {
+          _id: initialData._id || null,
+          content_title: initialData.content_title || '',
+          content_type: initialData.content_type || 'Post',
+          responsible_employee: initialData.responsible_employee?._id || initialData.responsible_employee || '',
+          responsible_employee_name:
+            initialData.responsible_employee?.actualName ||
+            initialData.responsible_employee?.name ||
+            initialData.responsible_employee?.displayName ||
+            initialData.responsible_employee_name ||
+            '',
+          approval_status: initialData.approval_status || 'Pending',
+          overall_status: initialData.overall_status || 'Planned',
+          live_folder_link: initialData.live_folder_link || '',
+          notes: initialData.notes || '',
+          instagram_status: initialData?.instagram_status || 'Not Required',
+          instagram_time: initialData?.instagram_time || '',
+          facebook_status: initialData?.facebook_status || 'Not Required',
+          facebook_time: initialData?.facebook_time || '',
+          youtube_status: initialData?.youtube_status || 'Not Required',
+          youtube_time: initialData?.youtube_time || '',
+          linkedin_status: initialData?.linkedin_status || 'Not Required',
+          linkedin_time: initialData?.linkedin_time || '',
+          x_status: initialData?.x_status || 'Not Required',
+          x_time: initialData?.x_time || ''
+        }
+      ];
+    }
+    return [createEmptyContent()];
+  });
 
-    youtube_status: initialData?.youtube_status || 'Not Required',
-    youtube_time: initialData?.youtube_time || '',
-
-    linkedin_status: initialData?.linkedin_status || 'Not Required',
-    linkedin_time: initialData?.linkedin_time || '',
-
-    x_status: initialData?.x_status || 'Not Required',
-    x_time: initialData?.x_time || ''
+  const [activeContentIndex, setActiveContentIndex] = useState(() => {
+    if (initialData?.initialActiveIndex !== undefined) {
+      return initialData.initialActiveIndex;
+    }
+    return 0;
   });
 
   useEffect(() => {
     if (initialData) {
-      setFormData({
-        content_title: initialData.content_title || '',
-        content_type: initialData.content_type || 'Post',
-        content_date: initialData.content_date
-          ? new Date(initialData.content_date).toISOString().split('T')[0]
-          : new Date().toISOString().split('T')[0],
-        responsible_employee: initialData.responsible_employee?._id || initialData.responsible_employee || '',
-        responsible_employee_name: initialData.responsible_employee?.actualName || initialData.responsible_employee?.name || initialData.responsible_employee?.displayName || initialData.responsible_employee_name || '',
-        approval_status: initialData.approval_status || 'Pending',
-        overall_status: initialData.overall_status || 'Planned',
-        live_folder_link: initialData.live_folder_link || '',
-        notes: initialData.notes || '',
-
-        // Platform Trackings
-        instagram_status: initialData?.instagram_status || 'Not Required',
-        instagram_time: initialData?.instagram_time || '',
-
-        youtube_status: initialData?.youtube_status || 'Not Required',
-        youtube_time: initialData?.youtube_time || '',
-
-        linkedin_status: initialData?.linkedin_status || 'Not Required',
-        linkedin_time: initialData?.linkedin_time || '',
-
-        x_status: initialData?.x_status || 'Not Required',
-        x_time: initialData?.x_time || ''
-      });
+      if (initialData.content_date) {
+        setContentDate(new Date(initialData.content_date).toISOString().split('T')[0]);
+      }
+      if (initialData.contents && initialData.contents.length > 0) {
+        setContents(
+          initialData.contents.map(c => ({
+            _id: c._id || null,
+            content_title: c.content_title || '',
+            content_type: c.content_type || 'Post',
+            responsible_employee: c.responsible_employee?._id || c.responsible_employee || '',
+            responsible_employee_name:
+              c.responsible_employee?.actualName ||
+              c.responsible_employee?.name ||
+              c.responsible_employee?.displayName ||
+              c.responsible_employee_name ||
+              '',
+            approval_status: c.approval_status || 'Pending',
+            overall_status: c.overall_status || 'Planned',
+            live_folder_link: c.live_folder_link || '',
+            notes: c.notes || '',
+            instagram_status: c.instagram_status || 'Not Required',
+            instagram_time: c.instagram_time || '',
+            facebook_status: c.facebook_status || 'Not Required',
+            facebook_time: c.facebook_time || '',
+            youtube_status: c.youtube_status || 'Not Required',
+            youtube_time: c.youtube_time || '',
+            linkedin_status: c.linkedin_status || 'Not Required',
+            linkedin_time: c.linkedin_time || '',
+            x_status: c.x_status || 'Not Required',
+            x_time: c.x_time || ''
+          }))
+        );
+      } else if (initialData.content_title) {
+        setContents([
+          {
+            _id: initialData._id || null,
+            content_title: initialData.content_title || '',
+            content_type: initialData.content_type || 'Post',
+            responsible_employee: initialData.responsible_employee?._id || initialData.responsible_employee || '',
+            responsible_employee_name:
+              initialData.responsible_employee?.actualName ||
+              initialData.responsible_employee?.name ||
+              initialData.responsible_employee?.displayName ||
+              initialData.responsible_employee_name ||
+              '',
+            approval_status: initialData.approval_status || 'Pending',
+            overall_status: initialData.overall_status || 'Planned',
+            live_folder_link: initialData.live_folder_link || '',
+            notes: initialData.notes || '',
+            instagram_status: initialData?.instagram_status || 'Not Required',
+            instagram_time: initialData?.instagram_time || '',
+            facebook_status: initialData?.facebook_status || 'Not Required',
+            facebook_time: initialData?.facebook_time || '',
+            youtube_status: initialData?.youtube_status || 'Not Required',
+            youtube_time: initialData?.youtube_time || '',
+            linkedin_status: initialData?.linkedin_status || 'Not Required',
+            linkedin_time: initialData?.linkedin_time || '',
+            x_status: initialData?.x_status || 'Not Required',
+            x_time: initialData?.x_time || ''
+          }
+        ]);
+      }
+      if (initialData.initialActiveIndex !== undefined) {
+        setActiveContentIndex(initialData.initialActiveIndex);
+      }
     }
   }, [initialData]);
+
+  // Ensure activeContentIndex is within bounds
+  const safeActiveIndex = Math.min(activeContentIndex, Math.max(0, contents.length - 1));
+  const activeContent = contents[safeActiveIndex] || createEmptyContent();
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -1967,14 +2346,14 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
   }, []);
 
   const selectedEmployee = useMemo(() => {
-    if (!formData.responsible_employee) return null;
-    return (employees || []).find(e => String(e._id) === String(formData.responsible_employee)) || null;
-  }, [employees, formData.responsible_employee]);
+    if (!activeContent.responsible_employee) return null;
+    return (employees || []).find(e => String(e._id) === String(activeContent.responsible_employee)) || null;
+  }, [employees, activeContent.responsible_employee]);
 
   const selectedDisplayName =
     selectedEmployee
       ? (selectedEmployee.actualName || selectedEmployee.name || selectedEmployee.displayName)
-      : formData.responsible_employee_name;
+      : activeContent.responsible_employee_name || '';
 
   const selectedDisplayRole =
     selectedEmployee
@@ -1992,47 +2371,118 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
     });
   }, [employees, employeeSearch]);
 
-  const handleChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const handleActiveChange = (field, value) => {
+    setContents(prev => {
+      const next = [...prev];
+      if (!next[safeActiveIndex]) return prev;
+      next[safeActiveIndex] = {
+        ...next[safeActiveIndex],
+        [field]: value
+      };
+      return next;
+    });
   };
 
-  const handleResponsibleChange = (empId) => {
+  const handleActiveResponsibleChange = (empId) => {
     const selected = (employees || []).find(e => String(e._id) === String(empId));
-    setFormData(prev => ({
-      ...prev,
-      responsible_employee: empId || null,
-      responsible_employee_name: selected ? (selected.actualName || selected.name || selected.displayName) : ''
-    }));
+    setContents(prev => {
+      const next = [...prev];
+      if (!next[safeActiveIndex]) return prev;
+      next[safeActiveIndex] = {
+        ...next[safeActiveIndex],
+        responsible_employee: empId || null,
+        responsible_employee_name: selected ? (selected.actualName || selected.name || selected.displayName) : ''
+      };
+      return next;
+    });
+  };
+
+  const handleAddContent = () => {
+    const newCnt = createEmptyContent(activeContent.responsible_employee, activeContent.responsible_employee_name);
+    setContents(prev => {
+      const next = [...prev, newCnt];
+      setActiveContentIndex(next.length - 1);
+      return next;
+    });
+  };
+
+  const handleRemoveContent = (indexToRemove, e) => {
+    if (e) e.stopPropagation();
+    if (contents.length <= 1) return;
+    setContents(prev => {
+      const next = prev.filter((_, idx) => idx !== indexToRemove);
+      if (safeActiveIndex >= next.length) {
+        setActiveContentIndex(Math.max(0, next.length - 1));
+      } else if (safeActiveIndex === indexToRemove) {
+        setActiveContentIndex(Math.max(0, indexToRemove - 1));
+      }
+      return next;
+    });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.content_title.trim()) {
-      setError('Content title/topic is required.');
-      return;
-    }
-    if (!formData.content_date) {
+    if (!contentDate) {
       setError('Content date is required.');
       return;
+    }
+
+    // Validate that every content has a title
+    for (let i = 0; i < contents.length; i++) {
+      if (!contents[i].content_title || !contents[i].content_title.trim()) {
+        setActiveContentIndex(i);
+        setError(`Content #${i + 1} requires a content topic / title.`);
+        return;
+      }
     }
 
     setSaving(true);
     setError('');
 
+    const payload = {
+      content_date: contentDate,
+      contents: contents.map(c => ({
+        ...c,
+        content_title: c.content_title.trim(),
+        responsible_employee: c.responsible_employee || null,
+        live_folder_link: (c.live_folder_link || '').trim(),
+        notes: (c.notes || '').trim()
+      })),
+      // Also provide primary fields for backwards compatibility:
+      content_title: contents[0].content_title.trim(),
+      content_type: contents[0].content_type,
+      responsible_employee: contents[0].responsible_employee || null,
+      responsible_employee_name: contents[0].responsible_employee_name,
+      approval_status: contents[0].approval_status,
+      overall_status: contents[0].overall_status,
+      live_folder_link: (contents[0].live_folder_link || '').trim(),
+      notes: (contents[0].notes || '').trim(),
+      instagram_status: contents[0].instagram_status,
+      instagram_time: contents[0].instagram_time,
+      facebook_status: contents[0].facebook_status,
+      facebook_time: contents[0].facebook_time,
+      youtube_status: contents[0].youtube_status,
+      youtube_time: contents[0].youtube_time,
+      linkedin_status: contents[0].linkedin_status,
+      linkedin_time: contents[0].linkedin_time,
+      x_status: contents[0].x_status,
+      x_time: contents[0].x_time
+    };
+
     try {
       if (isEdit && initialData?._id) {
-        const res = await digitalCalendarAPI.update(initialData._id, formData);
+        const res = await digitalCalendarAPI.update(initialData._id, payload);
         if (res.data?.ok) {
           onSuccess(res.data.data);
         }
       } else {
-        const res = await digitalCalendarAPI.create(formData);
+        const res = await digitalCalendarAPI.create(payload);
         if (res.data?.ok) {
           onSuccess(res.data.data);
         }
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to save content item');
+      setError(err.response?.data?.message || 'Failed to save content schedule');
     } finally {
       setSaving(false);
     }
@@ -2043,11 +2493,21 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
       <div className="bg-white rounded-3xl w-full max-w-3xl shadow-2xl border border-slate-200 my-8 overflow-hidden relative">
         {/* Modal Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-sky-50/60 via-slate-50 to-orange-50/60">
-          <h3 className="text-base font-extrabold text-slate-900 m-0 flex items-center gap-2.5">
-            <FaCalendarDays className="w-4 h-4 text-sky-600" />
-            {isEdit ? 'Edit Content Item' : '+ Schedule New Content'}
-          </h3>
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-sky-100 text-sky-600 flex items-center justify-center shadow-xs">
+              <FaCalendarDays className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-base font-extrabold text-slate-900 m-0 leading-tight">
+                {isEdit ? 'Edit Content Schedule' : '+ Schedule Content for Day'}
+              </h3>
+              <p className="text-[11px] text-slate-500 font-semibold m-0 mt-0.5">
+                Add 1, 2, 3 or more contents per day within this same card
+              </p>
+            </div>
+          </div>
           <button
+            type="button"
             onClick={onClose}
             className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg transition cursor-pointer"
           >
@@ -2056,65 +2516,165 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
         </div>
 
         {/* Modal Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[82vh] overflow-y-auto">
           {error && (
-            <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-2xl font-bold">
-              {error}
+            <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-2xl font-bold flex items-center gap-2">
+              <FaTriangleExclamation className="w-3.5 h-3.5 shrink-0" />
+              <span>{error}</span>
             </div>
           )}
 
-          {/* Title / Topic */}
+          {/* 1. Date Picker Row & Item Count */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-slate-50 border border-slate-200/90 rounded-2xl">
+            <div className="flex-1">
+              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1">
+                Scheduled Date <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="date"
+                required
+                value={contentDate}
+                onChange={e => setContentDate(e.target.value)}
+                className="w-full px-3 py-2 text-xs sm:text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-sky-500 font-medium"
+              />
+            </div>
+
+            <div className="sm:self-end flex items-center gap-2 pb-0.5">
+              <div className="px-3 py-2 rounded-xl bg-sky-100/70 border border-sky-200 text-sky-800 text-xs font-bold flex items-center gap-1.5 shadow-2xs">
+                <FaLayerGroup className="w-3.5 h-3.5 text-sky-600" />
+                <span>{contents.length} Content{contents.length > 1 ? 's' : ''} in this Card</span>
+              </div>
+            </div>
+          </div>
+
+          {/* 2. Contents Selector Tab Bar with "+ Add Another Content" */}
+          <div className="p-3 bg-gradient-to-r from-sky-50/70 via-slate-50 to-orange-50/60 rounded-2xl border border-sky-100 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-black text-slate-800 uppercase tracking-wider">
+                <FaLayerGroup className="w-3.5 h-3.5 text-sky-600" />
+                <span>Contents for this Day's Card:</span>
+              </div>
+              <span className="text-[11px] text-slate-500 font-medium hidden sm:inline">
+                Click tabs to switch • Add 2nd, 3rd, etc. below
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+              {contents.map((cnt, idx) => {
+                const isCurrent = safeActiveIndex === idx;
+                const cStyle = getTypeStyle(cnt.content_type);
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => setActiveContentIndex(idx)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all cursor-pointer whitespace-nowrap shrink-0 shadow-2xs select-none ${
+                      isCurrent
+                        ? 'bg-sky-600 text-white border-sky-700 ring-2 ring-sky-200 font-extrabold shadow-sm'
+                        : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200 font-bold'
+                    }`}
+                  >
+                    <span
+                      className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${
+                        isCurrent ? 'bg-white text-sky-700 shadow-2xs' : 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      {idx + 1}
+                    </span>
+                    <span className="text-xs max-w-[130px] truncate">
+                      {cnt.content_title || `Content #${idx + 1}`}
+                    </span>
+                    <span
+                      className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${
+                        isCurrent ? 'bg-sky-700 text-white' : `${cStyle.bg} ${cStyle.text}`
+                      }`}
+                    >
+                      {cnt.content_type}
+                    </span>
+                    {contents.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={(e) => handleRemoveContent(idx, e)}
+                        title={`Delete Content #${idx + 1}`}
+                        className={`p-1 rounded transition cursor-pointer ml-0.5 ${
+                          isCurrent
+                            ? 'hover:bg-sky-700 text-sky-200 hover:text-white'
+                            : 'hover:bg-rose-50 text-slate-400 hover:text-rose-600'
+                        }`}
+                      >
+                        <FaTrashCan className="w-2.5 h-2.5" />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* + Add Another Content CTA Button */}
+              <button
+                type="button"
+                onClick={handleAddContent}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 border border-dashed border-orange-300 transition-all cursor-pointer whitespace-nowrap shrink-0 active:scale-95 shadow-2xs"
+              >
+                <FaPlus className="w-3 h-3 text-orange-600" />
+                <span>+ Add Another Content</span>
+              </button>
+            </div>
+          </div>
+
+          {/* 3. Active Content Form Header */}
+          <div className="flex items-center justify-between text-xs font-bold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200/60">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-sky-500 animate-pulse" />
+              <span>Editing Content #{safeActiveIndex + 1} of {contents.length}</span>
+            </div>
+            {contents.length > 1 && (
+              <button
+                type="button"
+                onClick={(e) => handleRemoveContent(safeActiveIndex, e)}
+                className="text-rose-600 hover:underline text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+              >
+                <FaTrashCan className="w-2.5 h-2.5" />
+                <span>Remove Content #{safeActiveIndex + 1}</span>
+              </button>
+            )}
+          </div>
+
+          {/* 4. Content Topic / Title */}
           <div>
             <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1">
-              Content Topic / Title <span className="text-rose-500">*</span>
+              Content #{safeActiveIndex + 1} Topic / Title <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
               required
-              value={formData.content_title}
-              onChange={e => handleChange('content_title', e.target.value)}
+              value={activeContent.content_title}
+              onChange={e => handleActiveChange('content_title', e.target.value)}
               placeholder="e.g. Website Design Optimization, Cyber Security Reel..."
               className="w-full px-4 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-100 transition font-medium"
             />
           </div>
 
-          {/* Date & Content Type */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <div>
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1">
-                Date <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="date"
-                required
-                value={formData.content_date}
-                onChange={e => handleChange('content_date', e.target.value)}
-                className="w-full px-3 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-sky-500 focus:bg-white transition font-medium"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1">
-                Content Type
-              </label>
-              <select
-                value={formData.content_type}
-                onChange={e => handleChange('content_type', e.target.value)}
-                className="w-full px-3 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-sky-500 cursor-pointer font-medium"
-              >
-                {CONTENT_TYPES.map(type => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
-              </select>
-            </div>
+          {/* 5. Content Type */}
+          <div>
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1">
+              Content Type
+            </label>
+            <select
+              value={activeContent.content_type}
+              onChange={e => handleActiveChange('content_type', e.target.value)}
+              className="w-full px-3 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-sky-500 cursor-pointer font-medium"
+            >
+              {CONTENT_TYPES.map(type => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
           </div>
 
-          {/* Responsible Person (Bounded Custom Select Component) */}
+          {/* 6. Responsible Person */}
           <div className="relative" ref={responsibleDropdownRef}>
             <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1">
-              Responsible Person
+              Responsible Person (Content #{safeActiveIndex + 1})
             </label>
 
             <button
@@ -2168,7 +2728,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
                     title="Clear member"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleResponsibleChange('');
+                      handleActiveResponsibleChange('');
                       setShowResponsibleDropdown(false);
                     }}
                     className="p-1 hover:bg-slate-200 rounded-md text-slate-400 hover:text-slate-600 transition cursor-pointer"
@@ -2184,7 +2744,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
               </div>
             </button>
 
-            {/* Bounded Dropdown Menu - Strictly bounded inside input boundaries */}
+            {/* Bounded Dropdown Menu */}
             {showResponsibleDropdown && (
               <div
                 className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden"
@@ -2192,7 +2752,6 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
                   boxShadow: '0 12px 30px -4px rgba(2, 132, 199, 0.18), 0 4px 12px rgba(15, 23, 42, 0.08)'
                 }}
               >
-                {/* Search Bar (if 3+ members) */}
                 {(employees || []).length > 3 && (
                   <div className="p-2 border-b border-slate-100 bg-slate-50/70">
                     <div className="relative">
@@ -2209,18 +2768,16 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
                   </div>
                 )}
 
-                {/* Option List */}
                 <div className="max-h-56 overflow-y-auto">
-                  {/* Unassigned / None Option */}
                   <button
                     type="button"
                     onClick={() => {
-                      handleResponsibleChange('');
+                      handleActiveResponsibleChange('');
                       setShowResponsibleDropdown(false);
                       setEmployeeSearch('');
                     }}
                     className={`w-full px-3.5 py-2 text-left flex items-center justify-between text-xs transition cursor-pointer border-b border-slate-100 ${
-                      !formData.responsible_employee
+                      !activeContent.responsible_employee
                         ? 'bg-sky-50 text-sky-800 font-bold'
                         : 'text-slate-500 hover:bg-slate-50'
                     }`}
@@ -2231,7 +2788,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
                       </span>
                       <span>Unassigned / None</span>
                     </div>
-                    {!formData.responsible_employee && (
+                    {!activeContent.responsible_employee && (
                       <FaCheck className="w-3 h-3 text-sky-600" />
                     )}
                   </button>
@@ -2239,14 +2796,14 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
                   {filteredEmployees.map(emp => {
                     const personName = emp.actualName || emp.name;
                     const personDisplay = emp.displayName || emp.designation;
-                    const isSelected = String(formData.responsible_employee) === String(emp._id);
+                    const isSelected = String(activeContent.responsible_employee) === String(emp._id);
 
                     return (
                       <button
                         key={emp._id}
                         type="button"
                         onClick={() => {
-                          handleResponsibleChange(emp._id);
+                          handleActiveResponsibleChange(emp._id);
                           setShowResponsibleDropdown(false);
                           setEmployeeSearch('');
                         }}
@@ -2300,15 +2857,15 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
             )}
           </div>
 
-          {/* Approval & Overall Status */}
+          {/* 7. Approval & Overall Status */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
               <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1">
                 Approval Status
               </label>
               <select
-                value={formData.approval_status}
-                onChange={e => handleChange('approval_status', e.target.value)}
+                value={activeContent.approval_status}
+                onChange={e => handleActiveChange('approval_status', e.target.value)}
                 className="w-full px-3 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-sky-500 cursor-pointer font-medium"
               >
                 {APPROVAL_OPTIONS.map(opt => (
@@ -2324,8 +2881,8 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
                 Overall Status
               </label>
               <select
-                value={formData.overall_status}
-                onChange={e => handleChange('overall_status', e.target.value)}
+                value={activeContent.overall_status}
+                onChange={e => handleActiveChange('overall_status', e.target.value)}
                 className="w-full px-3 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-sky-500 cursor-pointer font-medium"
               >
                 {OVERALL_STATUS_OPTIONS.map(st => (
@@ -2337,11 +2894,11 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
             </div>
           </div>
 
-          {/* ── Social Media Posting Breakdown ── */}
+          {/* 8. Social Media Platforms Breakdown */}
           <div className="pt-3 border-t border-slate-100">
             <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
               <FaBullhorn className="w-3.5 h-3.5 text-sky-600" />
-              Social Media Platforms Breakdown
+              Social Media Platforms Breakdown (Content #{safeActiveIndex + 1})
             </h4>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
@@ -2355,9 +2912,9 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
                   <div>
                     <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Status</label>
                     <select
-                      value={formData.instagram_status}
-                      onChange={e => handleChange('instagram_status', e.target.value)}
-                      className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none font-medium"
+                      value={activeContent.instagram_status}
+                      onChange={e => handleActiveChange('instagram_status', e.target.value)}
+                      className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-pink-500 font-medium cursor-pointer"
                     >
                       {PLATFORM_STATUS_OPTIONS.map(opt => (
                         <option key={opt} value={opt}>{opt}</option>
@@ -2366,12 +2923,42 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
                   </div>
                   <div>
                     <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Time</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. 07:00 PM"
-                      value={formData.instagram_time}
-                      onChange={e => handleChange('instagram_time', e.target.value)}
-                      className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none font-medium"
+                    <PlatformTimeInput
+                      value={activeContent.instagram_time}
+                      onChange={val => handleActiveChange('instagram_time', val)}
+                      focusBorderClass="focus:border-pink-500"
+                      textColorClass="text-pink-600"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Facebook */}
+              <div className="p-3.5 bg-gradient-to-br from-blue-50/50 to-white rounded-2xl border border-blue-200/80 space-y-2.5 shadow-xs">
+                <div className="flex items-center gap-2 text-blue-700 font-extrabold text-xs">
+                  <FaFacebook className="w-4 h-4" />
+                  <span>Facebook</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Status</label>
+                    <select
+                      value={activeContent.facebook_status}
+                      onChange={e => handleActiveChange('facebook_status', e.target.value)}
+                      className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 font-medium cursor-pointer"
+                    >
+                      {PLATFORM_STATUS_OPTIONS.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Time</label>
+                    <PlatformTimeInput
+                      value={activeContent.facebook_time}
+                      onChange={val => handleActiveChange('facebook_time', val)}
+                      focusBorderClass="focus:border-blue-500"
+                      textColorClass="text-blue-700"
                     />
                   </div>
                 </div>
@@ -2387,9 +2974,9 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
                   <div>
                     <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Status</label>
                     <select
-                      value={formData.youtube_status}
-                      onChange={e => handleChange('youtube_status', e.target.value)}
-                      className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none font-medium"
+                      value={activeContent.youtube_status}
+                      onChange={e => handleActiveChange('youtube_status', e.target.value)}
+                      className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-red-500 font-medium cursor-pointer"
                     >
                       {PLATFORM_STATUS_OPTIONS.map(opt => (
                         <option key={opt} value={opt}>{opt}</option>
@@ -2398,12 +2985,11 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
                   </div>
                   <div>
                     <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Time</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. 07:00 PM"
-                      value={formData.youtube_time}
-                      onChange={e => handleChange('youtube_time', e.target.value)}
-                      className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none font-medium"
+                    <PlatformTimeInput
+                      value={activeContent.youtube_time}
+                      onChange={val => handleActiveChange('youtube_time', val)}
+                      focusBorderClass="focus:border-red-500"
+                      textColorClass="text-red-600"
                     />
                   </div>
                 </div>
@@ -2419,9 +3005,9 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
                   <div>
                     <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Status</label>
                     <select
-                      value={formData.linkedin_status}
-                      onChange={e => handleChange('linkedin_status', e.target.value)}
-                      className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none font-medium"
+                      value={activeContent.linkedin_status}
+                      onChange={e => handleActiveChange('linkedin_status', e.target.value)}
+                      className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 font-medium cursor-pointer"
                     >
                       {PLATFORM_STATUS_OPTIONS.map(opt => (
                         <option key={opt} value={opt}>{opt}</option>
@@ -2430,19 +3016,18 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
                   </div>
                   <div>
                     <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Time</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. 07:10 PM"
-                      value={formData.linkedin_time}
-                      onChange={e => handleChange('linkedin_time', e.target.value)}
-                      className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none font-medium"
+                    <PlatformTimeInput
+                      value={activeContent.linkedin_time}
+                      onChange={val => handleActiveChange('linkedin_time', val)}
+                      focusBorderClass="focus:border-blue-500"
+                      textColorClass="text-blue-600"
                     />
                   </div>
                 </div>
               </div>
 
               {/* X / Twitter */}
-              <div className="p-3.5 bg-gradient-to-br from-slate-100/50 to-white rounded-2xl border border-slate-200 space-y-2.5 shadow-xs">
+              <div className="p-3.5 bg-gradient-to-br from-slate-100/50 to-white rounded-2xl border border-slate-200 space-y-2.5 shadow-xs sm:col-span-2 sm:max-w-[calc(50%-0.45rem)]">
                 <div className="flex items-center gap-2 text-slate-900 font-extrabold text-xs">
                   <FaXTwitter className="w-4 h-4" />
                   <span>X / Twitter</span>
@@ -2451,9 +3036,9 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
                   <div>
                     <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Status</label>
                     <select
-                      value={formData.x_status}
-                      onChange={e => handleChange('x_status', e.target.value)}
-                      className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none font-medium"
+                      value={activeContent.x_status}
+                      onChange={e => handleActiveChange('x_status', e.target.value)}
+                      className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-slate-500 font-medium cursor-pointer"
                     >
                       {PLATFORM_STATUS_OPTIONS.map(opt => (
                         <option key={opt} value={opt}>{opt}</option>
@@ -2462,12 +3047,11 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
                   </div>
                   <div>
                     <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Time</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. 06:40 PM"
-                      value={formData.x_time}
-                      onChange={e => handleChange('x_time', e.target.value)}
-                      className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none font-medium"
+                    <PlatformTimeInput
+                      value={activeContent.x_time}
+                      onChange={val => handleActiveChange('x_time', val)}
+                      focusBorderClass="focus:border-slate-500"
+                      textColorClass="text-slate-900"
                     />
                   </div>
                 </div>
@@ -2475,54 +3059,69 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
             </div>
           </div>
 
-          {/* Live / Folder Link */}
+          {/* 9. Live / Folder Link */}
           <div className="pt-2">
             <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1">
-              Live Link / Google Drive Asset Folder
+              Live Link / Google Drive Asset Folder (Content #{safeActiveIndex + 1})
             </label>
             <input
               type="url"
-              value={formData.live_folder_link}
-              onChange={e => handleChange('live_folder_link', e.target.value)}
+              value={activeContent.live_folder_link}
+              onChange={e => handleActiveChange('live_folder_link', e.target.value)}
               placeholder="https://drive.google.com/... or Canva post link"
               className="w-full px-4 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-sky-500 focus:bg-white transition font-medium"
             />
           </div>
 
-          {/* Notes */}
+          {/* 10. Notes */}
           <div>
             <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1">
-              Internal Notes / Copy Instructions
+              Internal Notes / Copy Instructions (Content #{safeActiveIndex + 1})
             </label>
             <textarea
               rows={3}
-              value={formData.notes}
-              onChange={e => handleChange('notes', e.target.value)}
+              value={activeContent.notes}
+              onChange={e => handleActiveChange('notes', e.target.value)}
               placeholder="Add any internal instructions, hashtags, or campaign remarks..."
               className="w-full px-4 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-sky-500 focus:bg-white transition font-medium"
             />
           </div>
 
-          {/* Modal Footer */}
-          <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100">
+          {/* 11. Modal Footer */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-100">
             <button
               type="button"
-              onClick={onClose}
-              className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+              onClick={handleAddContent}
+              className="w-full sm:w-auto px-4 py-2.5 text-xs font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
             >
-              Cancel
+              <FaPlus className="w-3 h-3 text-orange-600" />
+              <span>+ Add Another Content for this Day</span>
             </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="px-6 py-2.5 text-xs font-bold text-white rounded-xl shadow-md transition active:scale-95 cursor-pointer"
-              style={{
-                background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-                boxShadow: '0 4px 15px rgba(2, 132, 199, 0.35)'
-              }}
-            >
-              {saving ? 'Saving...' : isEdit ? 'Update Content' : 'Save & Schedule'}
-            </button>
+
+            <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="px-6 py-2.5 text-xs font-bold text-white rounded-xl shadow-md transition active:scale-95 cursor-pointer"
+                style={{
+                  background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                  boxShadow: '0 4px 15px rgba(2, 132, 199, 0.35)'
+                }}
+              >
+                {saving
+                  ? 'Saving...'
+                  : isEdit
+                  ? `Update Card (${contents.length} Items)`
+                  : `Save & Schedule Card (${contents.length} Items)`}
+              </button>
+            </div>
           </div>
         </form>
       </div>

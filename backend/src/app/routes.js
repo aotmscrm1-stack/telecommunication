@@ -56,6 +56,9 @@ router.use('/management/digital-calendar', apiLimiter, require('../modules/marke
 router.use('/admin/digital-calendar', apiLimiter, require('../modules/marketing/digital-calendar/digitalCalendar'));
 router.use('/digital-calendar', apiLimiter, require('../modules/marketing/digital-calendar/digitalCalendar'));
 
+// ── Daily Activities & Telecaller Dashboard ──────────────────────────────────
+router.use('/daily-activities', apiLimiter, require('../modules/daily-activities/dailyActivities'));
+
 // ── Finance Modules ──────────────────────────────────────────────────────────
 router.use('/payslips', apiLimiter, require('../modules/finance/payslips/payslips'));
 router.use('/invoices', apiLimiter, require('../modules/finance/invoices/invoices'));

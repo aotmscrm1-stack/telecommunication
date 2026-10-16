@@ -26,6 +26,7 @@ import VerifyAccount from '../pages/auth/verify-account/VerifyAccount';
 // Dashboard & Tasks Modules
 import Dashboard from '../modules/dashboard';
 import Tasks from '../modules/tasks';
+import DailyActivityPage from '../modules/daily-activities/DailyActivityPage';
 
 // Marketing Modules
 import { AllLeads, AddLead, BulkImport } from '../modules/marketing/leads';
@@ -188,6 +189,12 @@ export function AppRoutes() {
         <Route path="whatsapp" element={<StaffRestrictedRoute><WhatsApp /></StaffRestrictedRoute>} />
         <Route path="bulk-import" element={<StaffRestrictedRoute><BulkImport /></StaffRestrictedRoute>} />
         <Route path="add-lead" element={<StaffRestrictedRoute><AddLead /></StaffRestrictedRoute>} />
+
+        {/* Daily Activity & Telecaller Module */}
+        <Route path="daily-activity" element={<DailyActivityPage />} />
+        <Route path="daily-activities" element={<DailyActivityPage />} />
+        <Route path=":userId/daily-activity" element={<DailyActivityPage />} />
+        <Route path=":userId/daily-activities" element={<DailyActivityPage />} />
 
         {/* Tasks & Todo */}
         <Route path="tasks" element={<Tasks />} />

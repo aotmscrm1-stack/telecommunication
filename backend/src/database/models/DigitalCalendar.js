@@ -42,12 +42,112 @@ const OVERALL_STATUSES = [
 
 const APPROVAL_STATUSES = ['Pending', 'Approved', 'Rejected'];
 
+const contentSubItemSchema = new mongoose.Schema(
+  {
+    content_title: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    content_type: {
+      type: String,
+      enum: CONTENT_TYPES,
+      default: 'Post'
+    },
+    responsible_employee: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    responsible_employee_name: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    approval_status: {
+      type: String,
+      enum: APPROVAL_STATUSES,
+      default: 'Pending'
+    },
+    overall_status: {
+      type: String,
+      enum: OVERALL_STATUSES,
+      default: 'Planned'
+    },
+    live_folder_link: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    notes: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    instagram_status: {
+      type: String,
+      enum: PLATFORM_STATUSES,
+      default: 'Not Required'
+    },
+    instagram_time: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    facebook_status: {
+      type: String,
+      enum: PLATFORM_STATUSES,
+      default: 'Not Required'
+    },
+    facebook_time: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    youtube_status: {
+      type: String,
+      enum: PLATFORM_STATUSES,
+      default: 'Not Required'
+    },
+    youtube_time: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    linkedin_status: {
+      type: String,
+      enum: PLATFORM_STATUSES,
+      default: 'Not Required'
+    },
+    linkedin_time: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    x_status: {
+      type: String,
+      enum: PLATFORM_STATUSES,
+      default: 'Not Required'
+    },
+    x_time: {
+      type: String,
+      trim: true,
+      default: ''
+    }
+  },
+  { _id: true }
+);
+
 const digitalCalendarSchema = new mongoose.Schema(
   {
     content_title: {
       type: String,
       required: [true, 'Content / Topic title is required'],
       trim: true
+    },
+    contents: {
+      type: [contentSubItemSchema],
+      default: []
     },
     content_type: {
       type: String,
@@ -104,6 +204,17 @@ const digitalCalendarSchema = new mongoose.Schema(
       default: 'Not Required'
     },
     instagram_time: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+
+    facebook_status: {
+      type: String,
+      enum: PLATFORM_STATUSES,
+      default: 'Not Required'
+    },
+    facebook_time: {
       type: String,
       trim: true,
       default: ''

@@ -493,9 +493,10 @@ export default function Navbar() {
 
   const topDropdownGroups = !hasDashboard ? [
     {
-      title: 'Tasks & Todo',
-      icon: FaListCheck,
+      title: 'Daily Activity',
+      icon: FaCalendarCheck,
       items: [
+        { label: 'Daily Activity', path: '/daily-activity', icon: FaCalendarCheck },
         { label: 'Tasks', path: user?._id ? `/${user._id}/tasks` : '/tasks', icon: FaListCheck },
         { label: 'TODO List', path: '/tasks?tab=Todo', icon: FaListCheck },
         ...(canViewCallFollowups(user) ? [{ label: 'Call Follow-ups', path: '/tasks?tab=Call+Followups', icon: FaClock }] : []),
@@ -532,6 +533,7 @@ export default function Navbar() {
   ] : [
     { title: 'Info', icon: FaCircleInfo, items: [
       { label: 'Dashboard', path: '/dashboard', icon: FaHouse },
+      { label: 'Daily Activity', path: '/daily-activity', icon: FaCalendarCheck },
       { label: 'Task', path: user?._id ? `/${user._id}/tasks` : '/tasks', icon: FaListCheck },
       { label: 'Digital Calendar', path: '/digital-calendar', icon: FaCalendarDays },
     ]},

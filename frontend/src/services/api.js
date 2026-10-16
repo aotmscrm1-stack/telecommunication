@@ -430,4 +430,16 @@ export const digitalCalendarAPI = {
   importGoogleEvent: (data) => api.post('/marketing/digital-calendar/google/import-event', data),
 };
 
+export const dailyActivityAPI = {
+  getCalendar: (params) => api.get('/daily-activities/calendar', { params }),
+  getByDate: (params) => api.get('/daily-activities', { params }),
+  saveDraft: (data) => api.post('/daily-activities', data),
+  submitActivity: (id, data) => api.post(`/daily-activities/${id}/submit`, data),
+  getHistory: (params) => api.get('/daily-activities/history', { params }),
+  getFollowUps: () => api.get('/daily-activities/follow-ups'),
+  getAdminOverview: (params) => api.get('/daily-activities/admin/overview', { params }),
+  getOne: (id) => api.get(`/daily-activities/${id}`),
+  reviewActivity: (id, data) => api.patch(`/daily-activities/${id}/review`, data),
+};
+
 export default api;

@@ -1,0 +1,49 @@
+{
+  "_id": "6ab6449b62b25645faae28ed",
+  "name": "Dasari Durga Bhavani",
+  "firstName": "Dasari",
+  "lastName": "Durga Bhavani",
+  "email": "bhavani@aotms.in",
+  "password": "$2a$12$ptFI.oStx5hOTC8Ucha6wu2eS0XHiUazppRFfFejHlyfHRF/VONnW",
+  "role": "manager",
+  "employeeId": "AOTMS-18",
+  "avatar": "https://res.cloudinary.com/dlxveseav/image/upload/v1790330011/aotms_avatars/nk8djvl9fsnhdqqyoqlh.png",
+  "isActive": true,
+  "phone": "7842995153",
+  "designation": "Jr. HR Executive",
+  "displayName": "JR HR",
+  "bloodGroup": "AB+",
+  "address": "PVP OPPOSITE SAMRUDHI HOSTEL",
+  "department": "Manager",
+  "officeLocation": "",
+  "joiningDate": null,
+  "approvalStatus": "accepted",
+  "rejectionReason": "",
+  "preferences": {
+    "email": "Send to Mobile",
+    "whatsapp": "Send to Mobile",
+    "notifications": {
+      "paymentPending": true,
+      "paymentCompleted": true,
+      "paymentFailed": true,
+      "newLeadInCampaign": true,
+      "callReminder": true
+    }
+  },
+  "fcmToken": "",
+  "createdAt": "2026-09-25T09:53:31.756Z",
+  "updatedAt": "2026-09-29T10:45:46.307Z",
+  "__v": 0,
+  "approvedAt": "2026-09-25T09:53:43.336Z",
+  "approvedBy": "6ab6449b62b25645faae28ed",
+  "smtpConfig": {
+    "fromEmail": "bhavani@aotms.in",
+    "host": "smtpout.secureserver.net",
+    "isConfigured": true,
+    "pass": "Aotms.in",
+    "port": 465,
+    "provider": "godaddy",
+    "secure": true,
+    "user": "bhavani@aotms.in"
+  }
+}
