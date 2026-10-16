@@ -518,8 +518,6 @@ export default function Navbar() {
       icon: FaBullhorn,
       items: [
         { label: 'Meta Leads', path: '/meta-leads', icon: FaTableList },
-        { label: 'All Leads', path: '/leads', icon: FaUsers },
-        { label: 'Campaigns', path: '/campaigns', icon: FaBullhorn },
       ]
     }] : []),
     ...(canAccessDigitalCalendar(user) ? [{

@@ -110,13 +110,20 @@ const StaffRestrictedRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
-  if (canAccessMarketingLeads(user)) {
-    return children;
-  }
   if (!canViewDashboard(user) || isLimitedStaff(user)) {
     return <Navigate to="/tasks" replace />;
   }
   return children;
+};
+
+const MetaLeadsRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  if (canAccessMarketingLeads(user)) {
+    return children;
+  }
+  return <Navigate to={canViewDashboard(user) ? "/dashboard" : "/tasks"} replace />;
 };
 
 const BlastRoute = ({ children }) => {
@@ -182,8 +189,8 @@ export function AppRoutes() {
         <Route path="leads/:id/edit" element={<StaffRestrictedRoute><AddLead /></StaffRestrictedRoute>} />
         <Route path="campaigns" element={<StaffRestrictedRoute><Campaigns /></StaffRestrictedRoute>} />
         <Route path="campaigns/:id" element={<StaffRestrictedRoute><CampaignDetail /></StaffRestrictedRoute>} />
-        <Route path="meta-leads" element={<StaffRestrictedRoute><MetaLeads /></StaffRestrictedRoute>} />
-        <Route path="marketing/meta-leads" element={<StaffRestrictedRoute><MetaLeads /></StaffRestrictedRoute>} />
+        <Route path="meta-leads" element={<MetaLeadsRoute><MetaLeads /></MetaLeadsRoute>} />
+        <Route path="marketing/meta-leads" element={<MetaLeadsRoute><MetaLeads /></MetaLeadsRoute>} />
         <Route path="leaderboard" element={<StaffRestrictedRoute><Leaderboard /></StaffRestrictedRoute>} />
         <Route path="reports" element={<StaffRestrictedRoute><Reports /></StaffRestrictedRoute>} />
         <Route path="contacts" element={<StaffRestrictedRoute><Contacts /></StaffRestrictedRoute>} />
