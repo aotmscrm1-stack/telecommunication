@@ -16,19 +16,31 @@ function isExecutiveOrAdminUser(user) {
   const d = String(user.designation || '').trim().toUpperCase();
   const dept = String(user.department || '').trim().toUpperCase();
 
+  // If user is a junior or staff marketing/sales executive or telecaller, they are restricted staff, NOT admin
+  const isMarketingOrSalesStaff = 
+    d.includes('MARKETING') || 
+    d.includes('SALES') || 
+    d.includes('CALLER') || 
+    d.includes('TELE') || 
+    d.includes('JR') || 
+    d.includes('JUNIOR');
+
+  if (isMarketingOrSalesStaff && role !== 'admin' && role !== 'superadmin' && role !== 'manager') {
+    return false;
+  }
+
   return (
-    d.includes('MD') ||
+    d === 'MD' ||
     d.includes('MANAGING DIRECTOR') ||
-    d.includes('CEO') ||
-    d.includes('CTO') ||
-    d.includes('HR') ||
-    d.includes('EXECUTIVE') ||
+    d === 'CEO' ||
+    d === 'CTO' ||
+    d === 'HR' ||
     d.includes('DIRECTOR') ||
     d.includes('VICE PRESIDENT') ||
     d.includes('HEAD') ||
-    dept.includes('HR') ||
-    dept.includes('ADMIN') ||
-    dept.includes('MANAGEMENT')
+    dept === 'HR' ||
+    dept === 'ADMIN' ||
+    dept === 'MANAGEMENT'
   );
 }
 
