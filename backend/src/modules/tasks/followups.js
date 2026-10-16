@@ -3,8 +3,6 @@ const multer = require('multer');
 const xlsx = require('xlsx');
 const mongoose = require('mongoose');
 const FollowUp = require('../../database/models/FollowUp');
-const Task = require('../../database/models/Task');
-const Todo = require('../../database/models/Todo');
 const Lead = require('../../database/models/Lead');
 const User = require('../../database/models/User');
 const { protect, authorize } = require('../../core/middleware/auth');
@@ -47,8 +45,6 @@ function fireAndForget(fn) {
 }
 
 function getTargetModel(type) {
-  if (type === 'todo') return Todo;
-  if (type === 'task') return Task;
   return FollowUp;
 }
 
@@ -187,9 +183,6 @@ router.get('/', protect, async (req, res) => {
       .populate('assignedTo', 'name avatar')
       .populate('assignedBy', 'name avatar')
       .populate('completedBy', 'name avatar');
-    if (ModelClass === Todo) {
-      reqQueryFind = reqQueryFind.populate('createdBy', 'name avatar');
-    }
     const results = await reqQueryFind.sort({ scheduledAt: 1, createdAt: -1 });
 
     const sanitized = results.map(f => {
@@ -262,9 +255,6 @@ router.get('/user/:userId', protect, async (req, res) => {
       .populate('assignedTo', 'name email avatar designation department')
       .populate('assignedBy', 'name email avatar')
       .populate('completedBy', 'name email avatar');
-    if (ModelClass === Todo) {
-      reqQueryFind = reqQueryFind.populate('createdBy', 'name email avatar');
-    }
     const results = await reqQueryFind.sort({ scheduledAt: 1, createdAt: -1 });
 
     const sanitized = results.map(f => {
@@ -427,27 +417,17 @@ router.put('/:id', protect, async (req, res) => {
       return res.status(403).json({ message: 'You are not allowed to assign tasks to this user' });
     }
 
-    let existing = await Task.findById(req.params.id);
-    let ModelClass = Task;
-    if (!existing) {
-      existing = await Todo.findById(req.params.id);
-      ModelClass = Todo;
-    }
-    if (!existing) {
-      existing = await FollowUp.findById(req.params.id);
-      ModelClass = FollowUp;
-    }
-    if (!existing) return res.status(404).json({ message: 'Item not found' });
+    const followup = await FollowUp.findById(req.params.id);
+    if (!followup) return res.status(404).json({ message: 'Item not found' });
 
     const isAdminOrMgr = req.user.role === 'admin' || req.user.role === 'superadmin' || req.user.role === 'manager' || isStrictAdmin(req.user) || isManager(req.user);
     if (!isAdminOrMgr) {
       const currentUserId = String(req.user._id);
-      const isAssignedUser = String(existing.assignedTo || '') === currentUserId ||
-                             String(existing.assignedBy || '') === currentUserId ||
-                             String(existing.createdBy || '') === currentUserId;
-      const isSameDept = req.user.department && existing.department &&
-                         String(req.user.department).trim().toLowerCase() === String(existing.department).trim().toLowerCase();
-      // Allow update if assigned, creator, assignor, same department, or general team task
+      const isAssignedUser = String(followup.assignedTo || '') === currentUserId ||
+                             String(followup.assignedBy || '') === currentUserId ||
+                             String(followup.createdBy || '') === currentUserId;
+      const isSameDept = req.user.department && followup.department &&
+                         String(req.user.department).trim().toLowerCase() === String(followup.department).trim().toLowerCase();
       if (!isAssignedUser && !isSameDept) {
         // Allow collaborator updates
       }
@@ -462,17 +442,17 @@ router.put('/:id', protect, async (req, res) => {
       if (!update.completedAt) update.completedAt = new Date();
       update.completedBy = req.user._id;
     }
-    const followup = await ModelClass.findByIdAndUpdate(req.params.id, update, { new: true })
+    const updatedFollowup = await FollowUp.findByIdAndUpdate(req.params.id, update, { new: true })
       .populate('lead', 'name phone status')
       .populate('assignedTo', 'name email avatar')
       .populate('assignedBy', 'name email avatar')
       .populate('completedBy', 'name email avatar');
 
-    if (!followup) return res.status(404).json({ message: 'Item not found' });
+    if (!updatedFollowup) return res.status(404).json({ message: 'Item not found' });
 
-    fireAndForget(() => notifyAdminsTaskEdited({ followup, performedByUser: req.user }));
+    fireAndForget(() => notifyAdminsTaskEdited({ followup: updatedFollowup, performedByUser: req.user }));
 
-    res.json({ followup });
+    res.json({ followup: updatedFollowup });
   } catch (err) {
     console.error('[PUT /followups/:id]', err);
     res.status(500).json({ message: err.message });
@@ -483,16 +463,7 @@ router.put('/:id', protect, async (req, res) => {
 router.patch('/:id/status', protect, async (req, res) => {
   try {
     const { status } = req.body;
-    let existing = await Task.findById(req.params.id);
-    let ModelClass = Task;
-    if (!existing) {
-      existing = await Todo.findById(req.params.id);
-      ModelClass = Todo;
-    }
-    if (!existing) {
-      existing = await FollowUp.findById(req.params.id);
-      ModelClass = FollowUp;
-    }
+    const existing = await FollowUp.findById(req.params.id);
     if (!existing) return res.status(404).json({ message: 'Item not found' });
 
     const update = { status: (status === 'completed' || status === 'done') ? 'done' : status };
@@ -501,7 +472,7 @@ router.patch('/:id/status', protect, async (req, res) => {
       update.completedBy = req.user._id;
     }
 
-    const followup = await ModelClass.findByIdAndUpdate(req.params.id, update, { new: true })
+    const followup = await FollowUp.findByIdAndUpdate(req.params.id, update, { new: true })
       .populate('lead', 'name phone status')
       .populate('assignedTo', 'name email avatar')
       .populate('assignedBy', 'name email avatar')
@@ -517,16 +488,7 @@ router.patch('/:id/status', protect, async (req, res) => {
 // PATCH /api/followups/:id
 router.patch('/:id', protect, async (req, res) => {
   try {
-    let existing = await Task.findById(req.params.id);
-    let ModelClass = Task;
-    if (!existing) {
-      existing = await Todo.findById(req.params.id);
-      ModelClass = Todo;
-    }
-    if (!existing) {
-      existing = await FollowUp.findById(req.params.id);
-      ModelClass = FollowUp;
-    }
+    const existing = await FollowUp.findById(req.params.id);
     if (!existing) return res.status(404).json({ message: 'Item not found' });
 
     const update = { ...req.body };
@@ -536,7 +498,7 @@ router.patch('/:id', protect, async (req, res) => {
       update.completedBy = req.user._id;
     }
 
-    const followup = await ModelClass.findByIdAndUpdate(req.params.id, update, { new: true })
+    const followup = await FollowUp.findByIdAndUpdate(req.params.id, update, { new: true })
       .populate('lead', 'name phone status')
       .populate('assignedTo', 'name email avatar')
       .populate('assignedBy', 'name email avatar')
@@ -552,16 +514,7 @@ router.patch('/:id', protect, async (req, res) => {
 // DELETE /api/followups/:id
 router.delete('/:id', protect, async (req, res) => {
   try {
-    let target = await Task.findById(req.params.id);
-    let ModelClass = Task;
-    if (!target) {
-      target = await Todo.findById(req.params.id);
-      ModelClass = Todo;
-    }
-    if (!target) {
-      target = await FollowUp.findById(req.params.id);
-      ModelClass = FollowUp;
-    }
+    const target = await FollowUp.findById(req.params.id);
     if (!target) return res.status(404).json({ message: 'Item not found' });
 
     const isAdmin = isStrictAdmin(req.user) || isManager(req.user) || req.user.role === 'admin' || req.user.role === 'superadmin';
@@ -570,9 +523,9 @@ router.delete('/:id', protect, async (req, res) => {
     }
 
     if (target.recurringGroupId) {
-      await ModelClass.deleteMany({ recurringGroupId: target.recurringGroupId });
+      await FollowUp.deleteMany({ recurringGroupId: target.recurringGroupId });
     } else {
-      await ModelClass.findByIdAndDelete(target._id);
+      await FollowUp.findByIdAndDelete(target._id);
     }
 
     res.json({ message: 'Deleted' });

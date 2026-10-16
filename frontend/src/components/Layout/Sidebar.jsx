@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import useBreakpoint from '../../hooks/useBreakpoint';
 import { useSidebar } from '../../context/SidebarContext';
-import { canAccessEmailBlast, canViewCallRecordings, canAccessDigitalCalendar, isManager, isExecutive } from '../../utils/permissions';
+import { canAccessEmailBlast, canViewCallRecordings, canAccessDigitalCalendar, canAccessDailyActivity, isManager, isExecutive } from '../../utils/permissions';
 
 const ACTIVE_BG = '#edf8f8';
 const ACTIVE_COLOR = '#1d3557';
@@ -231,8 +231,9 @@ export default function Sidebar() {
         <div style={{ flex: 1, paddingTop: 6 }}>
           <NavItem to="/dashboard"     icon={Icons.dashboard}   label="Dashboard" />
           <NavItem to="/leads"         icon={Icons.leads}       label="All Leads" />
-          <NavItem to="/daily-activity" icon={Icons.calendar}   label="Daily Activity" iconColor="#10b981" />
-          <NavItem to="/tasks"         icon={Icons.tasks}       label="Tasks" />
+          {canAccessDailyActivity(user) && (
+            <NavItem to="/daily-activity" icon={Icons.calendar}   label="Daily Activity" iconColor="#10b981" />
+          )}
           {canViewCallRecordings(user) && (
             <NavItem to="/recordings"  icon={Icons.recordings}  label="Call Recordings" iconColor="#0284c7" />
           )}

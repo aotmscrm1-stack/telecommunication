@@ -92,12 +92,12 @@ export default function TelecallingActivityFields({
           </div>
         )}
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3">
           {/* 1. Calls Attempted */}
-          <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 flex flex-col justify-between">
-            <div className="flex items-center justify-between text-slate-600 text-xs font-semibold mb-1">
+          <div className="bg-slate-50/80 p-2.5 sm:p-3 rounded-xl border border-slate-200/90 flex flex-col justify-between transition hover:border-slate-300">
+            <div className="flex items-center justify-between text-slate-600 text-[11px] sm:text-xs font-medium mb-1.5">
               <span>Attempted</span>
-              <Phone className="w-3.5 h-3.5 text-slate-500" />
+              <Phone className="w-3.5 h-3.5 text-slate-400" />
             </div>
             <input
               type="number"
@@ -105,16 +105,17 @@ export default function TelecallingActivityFields({
               disabled={disabled}
               value={callsAttempted === 0 ? '' : callsAttempted}
               onChange={(e) => handleMetricChange('callsAttempted', e.target.value)}
-              placeholder="0"
-              className="text-lg font-extrabold text-slate-900 bg-white border border-slate-200 rounded-xl px-2 py-1 focus:outline-none focus:border-sky-500 w-full"
+              placeholder="Total calls"
+              title="Total calls dialed today"
+              className="text-sm sm:text-base font-semibold text-slate-800 bg-white border border-slate-200 rounded-lg px-2.5 py-1 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-400/30 w-full placeholder:text-slate-400 placeholder:font-normal placeholder:text-xs transition"
             />
           </div>
 
           {/* 2. Connected Calls */}
-          <div className="bg-emerald-50/60 p-3 rounded-2xl border border-emerald-200/80 flex flex-col justify-between">
-            <div className="flex items-center justify-between text-emerald-800 text-xs font-semibold mb-1">
+          <div className="bg-emerald-50/50 p-2.5 sm:p-3 rounded-xl border border-emerald-200/70 flex flex-col justify-between transition hover:border-emerald-300">
+            <div className="flex items-center justify-between text-emerald-800 text-[11px] sm:text-xs font-medium mb-1.5">
               <span>Connected</span>
-              <PhoneCall className="w-3.5 h-3.5 text-emerald-600" />
+              <PhoneCall className="w-3.5 h-3.5 text-emerald-500" />
             </div>
             <input
               type="number"
@@ -122,16 +123,17 @@ export default function TelecallingActivityFields({
               disabled={disabled}
               value={connectedCalls === 0 ? '' : connectedCalls}
               onChange={(e) => handleMetricChange('connectedCalls', e.target.value)}
-              placeholder="0"
-              className="text-lg font-extrabold text-emerald-900 bg-white border border-emerald-200 rounded-xl px-2 py-1 focus:outline-none focus:border-emerald-500 w-full"
+              placeholder="Answered"
+              title="Calls picked up by candidates / clients"
+              className="text-sm sm:text-base font-semibold text-emerald-900 bg-white border border-emerald-200/90 rounded-lg px-2.5 py-1 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-400/30 w-full placeholder:text-emerald-400 placeholder:font-normal placeholder:text-xs transition"
             />
           </div>
 
           {/* 3. Unanswered Calls */}
-          <div className="bg-rose-50/60 p-3 rounded-2xl border border-rose-200/80 flex flex-col justify-between">
-            <div className="flex items-center justify-between text-rose-800 text-xs font-semibold mb-1">
+          <div className="bg-rose-50/50 p-2.5 sm:p-3 rounded-xl border border-rose-200/70 flex flex-col justify-between transition hover:border-rose-300">
+            <div className="flex items-center justify-between text-rose-800 text-[11px] sm:text-xs font-medium mb-1.5">
               <span>Unanswered</span>
-              <PhoneOff className="w-3.5 h-3.5 text-rose-600" />
+              <PhoneOff className="w-3.5 h-3.5 text-rose-500" />
             </div>
             <input
               type="number"
@@ -139,16 +141,17 @@ export default function TelecallingActivityFields({
               disabled={disabled}
               value={unansweredCalls === 0 ? '' : unansweredCalls}
               onChange={(e) => handleMetricChange('unansweredCalls', e.target.value)}
-              placeholder="0"
-              className="text-lg font-extrabold text-rose-900 bg-white border border-rose-200 rounded-xl px-2 py-1 focus:outline-none focus:border-rose-500 w-full"
+              placeholder="No reply"
+              title="Ringing unanswered, busy, or switched off"
+              className="text-sm sm:text-base font-semibold text-rose-900 bg-white border border-rose-200/90 rounded-lg px-2.5 py-1 focus:outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-400/30 w-full placeholder:text-rose-400 placeholder:font-normal placeholder:text-xs transition"
             />
           </div>
 
           {/* 4. Interested Leads */}
-          <div className="bg-sky-50/60 p-3 rounded-2xl border border-sky-200/80 flex flex-col justify-between">
-            <div className="flex items-center justify-between text-sky-800 text-xs font-semibold mb-1">
+          <div className="bg-sky-50/50 p-2.5 sm:p-3 rounded-xl border border-sky-200/70 flex flex-col justify-between transition hover:border-sky-300">
+            <div className="flex items-center justify-between text-sky-800 text-[11px] sm:text-xs font-medium mb-1.5">
               <span>Interested</span>
-              <UserCheck className="w-3.5 h-3.5 text-sky-600" />
+              <UserCheck className="w-3.5 h-3.5 text-sky-500" />
             </div>
             <input
               type="number"
@@ -156,16 +159,17 @@ export default function TelecallingActivityFields({
               disabled={disabled}
               value={interestedLeads === 0 ? '' : interestedLeads}
               onChange={(e) => handleMetricChange('interestedLeads', e.target.value)}
-              placeholder="0"
-              className="text-lg font-extrabold text-sky-900 bg-white border border-sky-200 rounded-xl px-2 py-1 focus:outline-none focus:border-sky-500 w-full"
+              placeholder="Positive"
+              title="Prospects who expressed interest or asked for details"
+              className="text-sm sm:text-base font-semibold text-sky-900 bg-white border border-sky-200/90 rounded-lg px-2.5 py-1 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-400/30 w-full placeholder:text-sky-400 placeholder:font-normal placeholder:text-xs transition"
             />
           </div>
 
           {/* 5. Follow-ups Scheduled */}
-          <div className="bg-amber-50/60 p-3 rounded-2xl border border-amber-200/80 flex flex-col justify-between">
-            <div className="flex items-center justify-between text-amber-800 text-xs font-semibold mb-1">
+          <div className="bg-amber-50/50 p-2.5 sm:p-3 rounded-xl border border-amber-200/70 flex flex-col justify-between transition hover:border-amber-300">
+            <div className="flex items-center justify-between text-amber-800 text-[11px] sm:text-xs font-medium mb-1.5">
               <span>Follow-ups</span>
-              <CalendarClock className="w-3.5 h-3.5 text-amber-600" />
+              <CalendarClock className="w-3.5 h-3.5 text-amber-500" />
             </div>
             <input
               type="number"
@@ -173,16 +177,17 @@ export default function TelecallingActivityFields({
               disabled={disabled}
               value={followUpsScheduled === 0 ? '' : followUpsScheduled}
               onChange={(e) => handleMetricChange('followUpsScheduled', e.target.value)}
-              placeholder="0"
-              className="text-lg font-extrabold text-amber-900 bg-white border border-amber-200 rounded-xl px-2 py-1 focus:outline-none focus:border-amber-500 w-full"
+              placeholder="Callbacks"
+              title="Callbacks booked for upcoming dates"
+              className="text-sm sm:text-base font-semibold text-amber-900 bg-white border border-amber-200/90 rounded-lg px-2.5 py-1 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-400/30 w-full placeholder:text-amber-400 placeholder:font-normal placeholder:text-xs transition"
             />
           </div>
 
           {/* 6. Conversions */}
-          <div className="bg-purple-50/60 p-3 rounded-2xl border border-purple-200/80 flex flex-col justify-between">
-            <div className="flex items-center justify-between text-purple-800 text-xs font-semibold mb-1">
+          <div className="bg-purple-50/50 p-2.5 sm:p-3 rounded-xl border border-purple-200/70 flex flex-col justify-between transition hover:border-purple-300">
+            <div className="flex items-center justify-between text-purple-800 text-[11px] sm:text-xs font-medium mb-1.5">
               <span>Conversions</span>
-              <Trophy className="w-3.5 h-3.5 text-purple-600" />
+              <Trophy className="w-3.5 h-3.5 text-purple-500" />
             </div>
             <input
               type="number"
@@ -190,8 +195,9 @@ export default function TelecallingActivityFields({
               disabled={disabled}
               value={conversions === 0 ? '' : conversions}
               onChange={(e) => handleMetricChange('conversions', e.target.value)}
-              placeholder="0"
-              className="text-lg font-extrabold text-purple-900 bg-white border border-purple-200 rounded-xl px-2 py-1 focus:outline-none focus:border-purple-500 w-full"
+              placeholder="Confirmed"
+              title="Admissions, registrations, or sales confirmed"
+              className="text-sm sm:text-base font-semibold text-purple-900 bg-white border border-purple-200/90 rounded-lg px-2.5 py-1 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-400/30 w-full placeholder:text-purple-400 placeholder:font-normal placeholder:text-xs transition"
             />
           </div>
         </div>
@@ -246,7 +252,7 @@ export default function TelecallingActivityFields({
                   <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-start">
                     {/* Lead Name */}
                     <div className="sm:col-span-4">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+                      <label className="text-[11px] font-medium text-slate-600 block mb-1">
                         Lead Name / Contact #{idx + 1}
                       </label>
                       <input
@@ -254,21 +260,21 @@ export default function TelecallingActivityFields({
                         disabled={disabled}
                         value={outcome.leadName || ''}
                         onChange={(e) => handleOutcomeChange(idx, 'leadName', e.target.value)}
-                        placeholder="e.g. Ramesh Chandra (+91 98...)"
-                        className="w-full text-xs bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-sky-500 font-medium"
+                        placeholder="e.g. Ramesh Kumar (+91 98765 43210)"
+                        className="w-full text-xs bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-sky-500 font-normal placeholder:text-slate-400"
                       />
                     </div>
 
                     {/* Category Dropdown */}
                     <div className="sm:col-span-3">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+                      <label className="text-[11px] font-medium text-slate-600 block mb-1">
                         Outcome Category
                       </label>
                       <select
                         disabled={disabled}
                         value={outcome.category || 'Interested'}
                         onChange={(e) => handleOutcomeChange(idx, 'category', e.target.value)}
-                        className="w-full text-xs bg-white border border-slate-200 rounded-xl px-2 py-1.5 focus:outline-none focus:border-sky-500 font-medium cursor-pointer"
+                        className="w-full text-xs bg-white border border-slate-200 rounded-xl px-2 py-1.5 focus:outline-none focus:border-sky-500 font-normal text-slate-800 cursor-pointer"
                       >
                         {CATEGORY_OPTIONS.map((cat) => (
                           <option key={cat} value={cat}>
@@ -280,15 +286,15 @@ export default function TelecallingActivityFields({
 
                     {/* Next Follow-up Date/Time */}
                     <div className="sm:col-span-4">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
-                        Next Follow-up {isFollowUpReq && <span className="text-rose-500 font-extrabold">*</span>}
+                      <label className="text-[11px] font-medium text-slate-600 block mb-1">
+                        Next Follow-up {isFollowUpReq && <span className="text-rose-500 font-semibold">*</span>}
                       </label>
                       <input
                         type="datetime-local"
                         disabled={disabled}
                         value={outcome.followUpAt ? outcome.followUpAt.slice(0, 16) : ''}
                         onChange={(e) => handleOutcomeChange(idx, 'followUpAt', e.target.value)}
-                        className={`w-full text-xs bg-white border rounded-xl px-2 py-1.5 focus:outline-none font-medium ${
+                        className={`w-full text-xs bg-white border rounded-xl px-2 py-1.5 focus:outline-none font-normal ${
                           isFollowUpReq && !outcome.followUpAt
                             ? 'border-rose-400 bg-rose-50/40 focus:border-rose-500'
                             : 'border-slate-200 focus:border-sky-500'
@@ -302,7 +308,7 @@ export default function TelecallingActivityFields({
                         <button
                           type="button"
                           onClick={() => handleRemoveOutcome(idx)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
                           title="Remove Outcome"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -313,7 +319,7 @@ export default function TelecallingActivityFields({
 
                   {/* Notes / Conversation Remarks */}
                   <div>
-                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+                    <label className="text-[11px] font-medium text-slate-600 block mb-1">
                       Call Discussion Notes / Next Steps
                     </label>
                     <input
@@ -321,8 +327,8 @@ export default function TelecallingActivityFields({
                       disabled={disabled}
                       value={outcome.notes || ''}
                       onChange={(e) => handleOutcomeChange(idx, 'notes', e.target.value)}
-                      placeholder="e.g. Interested in AWS course; requested syllabus copy on WhatsApp"
-                      className="w-full text-xs bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-sky-500 font-medium"
+                      placeholder="e.g. Interested in Full Stack course; requested syllabus & fee structure on WhatsApp"
+                      className="w-full text-xs bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-sky-500 font-normal placeholder:text-slate-400"
                     />
                   </div>
                 </div>

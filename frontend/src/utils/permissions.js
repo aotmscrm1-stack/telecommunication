@@ -138,6 +138,18 @@ export const canViewCallRecordings = (user) => {
 };
 
 /**
+ * Daily Activity Access Guard:
+ * - Digital Department is already assigned Digital Calendar.
+ * - Daily Activity is removed for Digital Marketing staff (unless Admin/Executive/Manager).
+ */
+export const canAccessDailyActivity = (user) => {
+  if (!user) return false;
+  if (isExecutive(user) || user?.role === 'admin' || user?.role === 'manager') return true;
+  if (isDigitalMarketing(user)) return false;
+  return true;
+};
+
+/**
  * Task Creation "Assigned To" allowed options per Designation:
  * - Admin (Admin role, CEO, Managing Director, CTO): All employees, Me.
  * - HR (HR designation): Me, Trainers, Digital Marketing.

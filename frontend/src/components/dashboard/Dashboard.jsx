@@ -1849,7 +1849,7 @@ export default function Dashboard() {
         subtitle: 'Live pipeline appointments',
         btnLabel: 'Demos',
         btnIcon: FaCalendarDays,
-        path: '/tasks',
+        path: '/daily-activity',
       },
       {
         id: 'telephony',
@@ -2212,7 +2212,7 @@ export default function Dashboard() {
                 </div>
               </div>
               <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
-                onClick={() => navigate('/tasks')}
+                onClick={() => navigate('/daily-activity')}
                 className="w-9 h-9 rounded-xl grid place-items-center cursor-pointer transition"
                 style={{ background: 'rgba(249, 115, 22, 0.12)', color: '#ea580c' }}>
                 <FaArrowUpRightFromSquare className="w-3.5 h-3.5" />

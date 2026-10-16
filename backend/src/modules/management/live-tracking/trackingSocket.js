@@ -567,18 +567,19 @@ async function handleGpsUpdate(user, payload = {}) {
  * Handle Stop Location Sharing
  */
 async function handleStopTracking(user) {
-  const employeeId = user._id.toString();
+  if (!user) return;
+  const employeeId = typeof user === 'object' && user._id ? user._id.toString() : String(user);
   const now = new Date();
   const prev = liveLocations.get(employeeId);
 
   const offlineData = {
     ...(prev || {}),
     employeeId,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-    avatar: user.avatar || '',
-    phone: user.phone || '',
+    name: typeof user === 'object' ? user.name : (prev?.name || ''),
+    email: typeof user === 'object' ? user.email : (prev?.email || ''),
+    role: typeof user === 'object' ? user.role : (prev?.role || ''),
+    avatar: typeof user === 'object' ? (user.avatar || '') : (prev?.avatar || ''),
+    phone: typeof user === 'object' ? (user.phone || '') : (prev?.phone || ''),
     trackingStatus: 'OFFLINE',
     isLive: false,
     speed: 0,

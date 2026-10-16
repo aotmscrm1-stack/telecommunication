@@ -11,10 +11,10 @@ export const ROUTES = {
   },
   MODULES: {
     DASHBOARD: '/dashboard',
-    TASKS: '/tasks',
+    DAILY_ACTIVITY: '/daily-activity',
     INFO: {
       DASHBOARD: '/dashboard',
-      TASKS: '/tasks',
+      DAILY_ACTIVITY: '/daily-activity',
       DIGITAL_CALENDAR: '/digital-calendar',
     },
     MARKETING: {

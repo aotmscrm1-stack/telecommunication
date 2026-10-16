@@ -306,15 +306,15 @@ export default function DailyActivityPage() {
       {/* 1. Page Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-sky-600 text-xs font-extrabold uppercase tracking-widest mb-1">
-            <Sparkles className="w-4 h-4" />
+          <div className="flex items-center gap-2 text-sky-600 text-xs font-semibold uppercase tracking-wider mb-1">
+            <Sparkles className="w-3.5 h-3.5" />
             <span>AOTMS Performance & Accountability</span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-            <span>Daily Activity & Telecaller Workspace</span>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
+            <span>Daily Activity Workspace</span>
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Track daily calls, manage scheduled follow-ups, and submit verified activity reports.
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+            Log today's work progress, track deliverables, and submit daily activity reports.
           </p>
         </div>
 
@@ -413,10 +413,32 @@ export default function DailyActivityPage() {
             </div>
           </div>
 
-          {/* Bottom Grid: History & Follow-Up Tracker */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-            {/* Left: Activity History Table */}
-            <div>
+          {/* Bottom Grid: History Table & Telecalling Follow-Up Tracker */}
+          {String(user?.department || '').trim().toLowerCase() === 'telecalling' ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+              <div>
+                <ActivityHistoryTable
+                  history={history}
+                  total={historyTotal}
+                  page={historyPage}
+                  totalPages={historyTotalPages}
+                  onPageChange={(p) => loadHistory(p)}
+                  onSelectDate={setSelectedDate}
+                  loading={loadingHistory}
+                />
+              </div>
+
+              <div>
+                <FollowUpTracker
+                  followUps={followUps}
+                  directLeads={directLeads}
+                  loading={loadingFollowUps}
+                  onLogFollowUp={handleLogFollowUp}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="w-full">
               <ActivityHistoryTable
                 history={history}
                 total={historyTotal}
@@ -427,17 +449,7 @@ export default function DailyActivityPage() {
                 loading={loadingHistory}
               />
             </div>
-
-            {/* Right: Follow-up Call Tracker */}
-            <div>
-              <FollowUpTracker
-                followUps={followUps}
-                directLeads={directLeads}
-                loading={loadingFollowUps}
-                onLogFollowUp={handleLogFollowUp}
-              />
-            </div>
-          </div>
+          )}
         </div>
       )}
     </div>

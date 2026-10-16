@@ -1,0 +1,2910 @@
+[
+  {
+    "_id": "6ac5c2610f84d4edbdf10639",
+    "title": "1. video recording and scripts generating",
+    "note": "1. video recording and scripts generating",
+    "description": "1. video recording and scripts generating",
+    "type": "todo",
+    "createdBy": "6abe21442605716ce3869045",
+    "assignedTo": "6abe21442605716ce3869045",
+    "assignedBy": "6abe21442605716ce3869045",
+    "department": "Marketing",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-07T12:30:00.000Z",
+    "initialScheduledAt": "2026-10-07T03:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "video recording and scripts generating",
+        "completed": true,
+        "completedAt": "2026-10-08T08:26:15.795Z",
+        "_id": "6ac753a861fd03d19edaaac5",
+        "createdAt": "2026-10-08T08:26:16.726Z",
+        "updatedAt": "2026-10-08T08:26:16.726Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-07T03:54:09.442Z",
+    "updatedAt": "2026-10-08T08:26:16.726Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac5c2ac0f84d4edbdf10667",
+    "title": "1. follow ups",
+    "note": "1. follow ups",
+    "description": "1. follow ups",
+    "type": "todo",
+    "createdBy": "6ab6449b62b25645faae28ed",
+    "assignedTo": "6ab6449b62b25645faae28ed",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "department": "Manager",
+    "priority": "medium",
+    "status": "done",
+    "scheduledAt": "2026-10-07T12:30:00.000Z",
+    "initialScheduledAt": "2026-10-07T04:00:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "follow ups",
+        "completed": true,
+        "completedAt": "2026-10-07T12:33:53.381Z",
+        "_id": "6ac63c32d1d4fb71f8f672a5",
+        "createdAt": "2026-10-07T12:33:54.983Z",
+        "updatedAt": "2026-10-07T12:33:54.983Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-07T03:55:24.991Z",
+    "updatedAt": "2026-10-07T12:34:18.029Z",
+    "__v": 0,
+    "completedAt": "2026-10-07T12:33:57.964Z",
+    "completedBy": "6ab6449b62b25645faae28ed"
+  },
+  {
+    "_id": "6ac5c38c0f84d4edbdf10763",
+    "title": "1. Editing ML Video recordings",
+    "note": "1. Editing ML Video recordings",
+    "description": "1. Editing ML Video recordings",
+    "type": "todo",
+    "createdBy": "6aba63a7ffdd149e03195cb7",
+    "assignedTo": "6aba63a7ffdd149e03195cb7",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "department": "Trainer",
+    "priority": "urgent",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-07T07:00:00.000Z",
+    "initialScheduledAt": "2026-10-07T12:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "Editing ML Video recordings",
+        "completed": true,
+        "completedAt": "2026-10-07T12:29:03.986Z",
+        "_id": "6ac63b11d1d4fb71f8f67077",
+        "createdAt": "2026-10-07T12:29:05.367Z",
+        "updatedAt": "2026-10-07T12:29:05.367Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-07T03:59:08.987Z",
+    "updatedAt": "2026-10-07T12:29:05.367Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac5c4570f84d4edbdf10825",
+    "title": "1. AIML classes from 10 a.m to 1 p.m\n2. work on CRM",
+    "note": "1. AIML classes from 10 a.m to 1 p.m\n2. work on CRM",
+    "description": "1. AIML classes from 10 a.m to 1 p.m\n2. work on CRM",
+    "type": "todo",
+    "createdBy": "6ab386d83312a90866e3c6d5",
+    "assignedTo": "6ab386d83312a90866e3c6d5",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "department": "Development",
+    "priority": "high",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-07T12:30:00.000Z",
+    "initialScheduledAt": "2026-10-07T12:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "AIML classes from 10 a.m to 1 p.m",
+        "completed": true,
+        "completedAt": "2026-10-07T12:37:22.290Z",
+        "_id": "6ac63d05d1d4fb71f8f674bc",
+        "createdAt": "2026-10-07T12:37:25.285Z",
+        "updatedAt": "2026-10-07T12:37:25.285Z"
+      },
+      {
+        "title": "work on CRM",
+        "completed": true,
+        "completedAt": "2026-10-07T12:37:22.290Z",
+        "_id": "6ac63d05d1d4fb71f8f674bd",
+        "createdAt": "2026-10-07T12:37:25.285Z",
+        "updatedAt": "2026-10-07T12:37:25.285Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-07T04:02:31.020Z",
+    "updatedAt": "2026-10-07T12:37:25.285Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac5c63e0f84d4edbdf108cd",
+    "title": "1. Uploading You Tube videos\n2. Take a video",
+    "note": "1. Uploading You Tube videos\n2. Take a video",
+    "description": "1. Uploading You Tube videos\n2. Take a video",
+    "type": "todo",
+    "createdBy": "6abe233b2605716ce38691a2",
+    "assignedTo": "6abe233b2605716ce38691a2",
+    "assignedBy": "6ab63ad762b25645faae244e",
+    "department": "Marketing",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-07T12:30:00.000Z",
+    "initialScheduledAt": "2026-10-07T15:42:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "Uploading You Tube videos",
+        "completed": true,
+        "completedAt": "2026-10-07T11:43:27.125Z",
+        "_id": "6ac63068d1d4fb71f8f668d5",
+        "createdAt": "2026-10-07T11:43:36.001Z",
+        "updatedAt": "2026-10-07T11:43:36.001Z"
+      },
+      {
+        "title": "Take a video",
+        "completed": true,
+        "completedAt": "2026-10-07T11:43:27.125Z",
+        "_id": "6ac63068d1d4fb71f8f668d6",
+        "createdAt": "2026-10-07T11:43:36.001Z",
+        "updatedAt": "2026-10-07T11:43:36.001Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-07T04:10:38.112Z",
+    "updatedAt": "2026-10-07T11:43:36.001Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac5cc3a0f84d4edbdf10e04",
+    "title": "1. Have to Complete 5 Class \n2. Make 15 to 20 ppts\n3. Demo at 12:30",
+    "note": "1. Have to Complete 5 Class \n2. Make 15 to 20 ppts\n3. Demo at 12:30",
+    "description": "1. Have to Complete 5 Class \n2. Make 15 to 20 ppts \n3.",
+    "type": "todo",
+    "createdBy": "6ab7af419b0606da1d050728",
+    "assignedTo": "6ab7af419b0606da1d050728",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "department": "Trainer",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-07T14:30:00.000Z",
+    "initialScheduledAt": "2026-10-07T03:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "Have to Complete 5 Class",
+        "completed": true,
+        "completedAt": "2026-10-07T14:09:49.464Z",
+        "_id": "6ac652aecf827de480f35260",
+        "createdAt": "2026-10-07T14:09:50.918Z",
+        "updatedAt": "2026-10-07T14:09:50.918Z"
+      },
+      {
+        "title": "Make 15 to 20 ppts",
+        "completed": true,
+        "completedAt": "2026-10-07T14:09:49.464Z",
+        "_id": "6ac652aecf827de480f35261",
+        "createdAt": "2026-10-07T14:09:50.918Z",
+        "updatedAt": "2026-10-07T14:09:50.918Z"
+      },
+      {
+        "title": "Demo at 12:30",
+        "completed": true,
+        "completedAt": "2026-10-07T14:09:49.464Z",
+        "_id": "6ac652aecf827de480f35262",
+        "createdAt": "2026-10-07T14:09:50.918Z",
+        "updatedAt": "2026-10-07T14:09:50.918Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-07T04:36:10.124Z",
+    "updatedAt": "2026-10-07T14:09:50.918Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac5df78c18850bc43d9fc83",
+    "title": "1. 10:00 to 11:30 -- DA Class\n2. 11:30 to 12:00 -- DA Demo(Assigned by Bhavani)\n3. 12:00 to 12:45 -- 1 ML Video editing\n4. 01:30 to 02:00 -- Demo given to mythili\n5. 01:30 to 03:00 -- DA Class\n6. 03:00 to 06:00 --  ML Videos editing",
+    "note": "1. 10:00 to 11:30 -- DA Class\n2. 11:30 to 12:00 -- DA Demo(Assigned by Bhavani)\n3. 12:00 to 12:45 -- 1 ML Video editing\n4. 01:30 to 02:00 -- Demo given to mythili\n5. 01:30 to 03:00 -- DA Class\n6. 03:00 to 06:00 --  ML Videos editing",
+    "description": "1. 10:00 to 11:30 -- DA Class\n2. 11:30 to 12:00 -- DA Demo(Assigned by Bhavani)\n3. 12:00 to 12:45 -- 1 ML Video editing\n4. 01:30 to 03:00 -- DA Class\n5. 03:00 to 06:00 --  ML Videos editing",
+    "type": "todo",
+    "createdBy": "6aba63a7ffdd149e03195cb7",
+    "assignedTo": "6aba63a7ffdd149e03195cb7",
+    "assignedBy": "6ab38a233312a90866e3c76c",
+    "department": "Trainer",
+    "departmentId": "6abb925b777e36dabd65ec80",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-07T12:30:00.000Z",
+    "initialScheduledAt": "2026-10-07T12:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "10:00 to 11:30 -- DA Class",
+        "completed": true,
+        "completedAt": "2026-10-08T04:01:23.485Z",
+        "_id": "6ac7159561fd03d19eda836d",
+        "createdAt": "2026-10-08T04:01:25.530Z",
+        "updatedAt": "2026-10-08T04:01:25.530Z"
+      },
+      {
+        "title": "11:30 to 12:00 -- DA Demo(Assigned by Bhavani)",
+        "completed": true,
+        "completedAt": "2026-10-08T04:01:23.485Z",
+        "_id": "6ac7159561fd03d19eda836e",
+        "createdAt": "2026-10-08T04:01:25.530Z",
+        "updatedAt": "2026-10-08T04:01:25.530Z"
+      },
+      {
+        "title": "12:00 to 12:45 -- 1 ML Video editing",
+        "completed": true,
+        "completedAt": "2026-10-08T04:01:23.485Z",
+        "_id": "6ac7159561fd03d19eda836f",
+        "createdAt": "2026-10-08T04:01:25.530Z",
+        "updatedAt": "2026-10-08T04:01:25.530Z"
+      },
+      {
+        "title": "01:30 to 02:00 -- Demo given to mythili",
+        "completed": true,
+        "completedAt": "2026-10-08T04:01:23.485Z",
+        "_id": "6ac7159561fd03d19eda8370",
+        "createdAt": "2026-10-08T04:01:25.530Z",
+        "updatedAt": "2026-10-08T04:01:25.530Z"
+      },
+      {
+        "title": "01:30 to 03:00 -- DA Class",
+        "completed": true,
+        "completedAt": "2026-10-08T04:01:23.485Z",
+        "_id": "6ac7159561fd03d19eda8371",
+        "createdAt": "2026-10-08T04:01:25.530Z",
+        "updatedAt": "2026-10-08T04:01:25.530Z"
+      },
+      {
+        "title": "03:00 to 06:00 --  ML Videos editing",
+        "completed": true,
+        "completedAt": "2026-10-08T04:01:23.485Z",
+        "_id": "6ac7159561fd03d19eda8372",
+        "createdAt": "2026-10-08T04:01:25.530Z",
+        "updatedAt": "2026-10-08T04:01:25.530Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-07T05:58:16.184Z",
+    "updatedAt": "2026-10-08T04:01:25.530Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac5e15bc18850bc43d9ff2e",
+    "title": "1. 11:30 DA demo \n2. 12:30 cs demo",
+    "note": "1. 11:30 DA demo \n2. 12:30 cs demo",
+    "description": "1. 11:30 DA demo \n2. 12:30 cs demo",
+    "type": "todo",
+    "createdBy": "6ab6449b62b25645faae28ed",
+    "assignedTo": "6ab6449b62b25645faae28ed",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "department": "Manager",
+    "departmentId": "auto_manager",
+    "priority": "high",
+    "status": "done",
+    "scheduledAt": "2026-10-07T06:00:00.000Z",
+    "initialScheduledAt": "2026-10-07T06:00:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "11:30 DA demo",
+        "completed": true,
+        "completedAt": "2026-10-07T07:13:55.128Z",
+        "_id": "6ac5f1344532ce66a539bc2a",
+        "createdAt": "2026-10-07T07:13:56.116Z",
+        "updatedAt": "2026-10-07T07:13:56.116Z"
+      },
+      {
+        "title": "12:30 cs demo",
+        "completed": true,
+        "completedAt": "2026-10-07T07:13:55.128Z",
+        "_id": "6ac5f1344532ce66a539bc2b",
+        "createdAt": "2026-10-07T07:13:56.116Z",
+        "updatedAt": "2026-10-07T07:13:56.116Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-07T06:06:19.463Z",
+    "updatedAt": "2026-10-07T12:33:59.560Z",
+    "__v": 0,
+    "completedAt": "2026-10-07T12:33:56.887Z",
+    "completedBy": "6ab6449b62b25645faae28ed"
+  },
+  {
+    "_id": "6ac5e29bc18850bc43da0188",
+    "title": "1. simrah dues followup\n2. my potential leads followup",
+    "note": "1. simrah dues followup\n2. my potential leads followup",
+    "description": "1. simrah dues followup\n2. my potential leads followup",
+    "type": "todo",
+    "createdBy": "6ab38a233312a90866e3c76c",
+    "assignedTo": "6ab38a233312a90866e3c76c",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "department": "Manager",
+    "departmentId": "auto_manager",
+    "priority": "high",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-07T13:00:00.000Z",
+    "initialScheduledAt": "2026-10-07T13:00:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "simrah dues followup",
+        "completed": true,
+        "completedAt": "2026-10-10T04:09:20.712Z",
+        "_id": "6ac9bae499556955ed718fea",
+        "createdAt": "2026-10-10T04:11:16.253Z",
+        "updatedAt": "2026-10-10T04:11:16.253Z"
+      },
+      {
+        "title": "my potential leads followup",
+        "completed": true,
+        "completedAt": "2026-10-10T04:09:20.712Z",
+        "_id": "6ac9bae499556955ed718feb",
+        "createdAt": "2026-10-10T04:11:16.253Z",
+        "updatedAt": "2026-10-10T04:11:16.253Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-07T06:11:39.766Z",
+    "updatedAt": "2026-10-10T04:11:16.253Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac5ecd81e5adffb5a44ccba",
+    "title": "1. Working on CRM, SEO, and LMS.\n2. Python Class 6:00 to 7:00 pm",
+    "note": "1. Working on CRM, SEO, and LMS.\n2. Python Class 6:00 to 7:00 pm",
+    "description": "1. Working on CRM, SEO, and LMS.\n2. Python Class 6:00 to 7:00 pm",
+    "type": "todo",
+    "createdBy": "6ab25b5dc6d2062c7cd12eea",
+    "assignedTo": "6ab25b5dc6d2062c7cd12eea",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "department": "Development",
+    "departmentId": "auto_development",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-07T12:30:00.000Z",
+    "initialScheduledAt": "2026-10-07T12:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "Working on CRM, SEO, and LMS.",
+        "completed": true,
+        "completedAt": "2026-10-08T04:20:26.724Z",
+        "_id": "6ac71a0a61fd03d19eda87f4",
+        "createdAt": "2026-10-08T04:20:26.999Z",
+        "updatedAt": "2026-10-08T04:20:26.999Z"
+      },
+      {
+        "title": "Python Class 6:00 to 7:00 pm",
+        "completed": true,
+        "completedAt": "2026-10-08T04:20:26.724Z",
+        "_id": "6ac71a0a61fd03d19eda87f5",
+        "createdAt": "2026-10-08T04:20:26.999Z",
+        "updatedAt": "2026-10-08T04:20:26.999Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-07T06:55:20.344Z",
+    "updatedAt": "2026-10-08T04:20:26.999Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac7117861fd03d19eda808c",
+    "title": "1. working on calendar module in CRM and updating the changes in CRM\n2. AIML class at 10 a.m (Online)\n3. AIML class at 11:30 a.m (Offline)",
+    "note": "1. working on calendar module in CRM and updating the changes in CRM\n2. AIML class at 10 a.m (Online)\n3. AIML class at 11:30 a.m (Offline)",
+    "description": "1. working on calendar module in CRM and updating the changes in CRM\n2. AIML class at 10 a.m (Online)\n3. AIML class at 11:30 a.m (Offline)",
+    "type": "todo",
+    "createdBy": "6ab386d83312a90866e3c6d5",
+    "assignedTo": "6ab386d83312a90866e3c6d5",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "department": "Development",
+    "priority": "high",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-08T13:00:00.000Z",
+    "initialScheduledAt": "2026-10-08T13:00:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "working on calendar module in CRM and updating the changes in CRM",
+        "completed": true,
+        "completedAt": "2026-10-09T03:48:53.472Z",
+        "_id": "6ac86426fdd6adf733466361",
+        "createdAt": "2026-10-09T03:48:54.595Z",
+        "updatedAt": "2026-10-09T03:48:54.595Z"
+      },
+      {
+        "title": "AIML class at 10 a.m (Online)",
+        "completed": true,
+        "completedAt": "2026-10-09T03:48:53.472Z",
+        "_id": "6ac86426fdd6adf733466362",
+        "createdAt": "2026-10-09T03:48:54.595Z",
+        "updatedAt": "2026-10-09T03:48:54.595Z"
+      },
+      {
+        "title": "AIML class at 11:30 a.m (Offline)",
+        "completed": true,
+        "completedAt": "2026-10-09T03:48:53.472Z",
+        "_id": "6ac86426fdd6adf733466363",
+        "createdAt": "2026-10-09T03:48:54.595Z",
+        "updatedAt": "2026-10-09T03:48:54.595Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-08T03:43:52.230Z",
+    "updatedAt": "2026-10-09T03:48:54.595Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac7138461fd03d19eda8179",
+    "title": "1. meta follow ups\n2. just dail follo ups",
+    "note": "1. meta follow ups\n2. just dail follo ups",
+    "description": "1. meta follow ups\n2. just dail follo ups",
+    "type": "todo",
+    "createdBy": "6ab6449b62b25645faae28ed",
+    "assignedTo": "6ab6449b62b25645faae28ed",
+    "assignedBy": "6ab38a233312a90866e3c76c",
+    "department": "Manager",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-08T04:00:00.000Z",
+    "initialScheduledAt": "2026-10-08T04:00:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "meta follow ups",
+        "completed": true,
+        "completedAt": "2026-10-08T12:49:12.345Z",
+        "_id": "6ac79148daf828a452ba7394",
+        "createdAt": "2026-10-08T12:49:12.711Z",
+        "updatedAt": "2026-10-08T12:49:12.711Z"
+      },
+      {
+        "title": "just dail follo ups",
+        "completed": true,
+        "completedAt": "2026-10-08T12:49:12.345Z",
+        "_id": "6ac79148daf828a452ba7395",
+        "createdAt": "2026-10-08T12:49:12.711Z",
+        "updatedAt": "2026-10-08T12:49:12.711Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-08T03:52:36.096Z",
+    "updatedAt": "2026-10-08T12:49:12.711Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac7153061fd03d19eda82d2",
+    "title": "1. 10:00-11:30:-DA Class\n2. 11:30-01:00:-DA Class\n3. 01:30-03:00:-DA Class",
+    "note": "1. 10:00-11:30:-DA Class\n2. 11:30-01:00:-DA Class\n3. 01:30-03:00:-DA Class",
+    "description": "1. 10:00-11:30:-DA Class\n2. 11:30-01:00:-DA Class\n3. 01:30-03:00:-DA Class",
+    "type": "todo",
+    "createdBy": "6aba63a7ffdd149e03195cb7",
+    "assignedTo": "6aba63a7ffdd149e03195cb7",
+    "assignedBy": "6ab38a233312a90866e3c76c",
+    "department": "Trainer",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-08T09:30:00.000Z",
+    "initialScheduledAt": "2026-10-08T09:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "10:00-11:30:-DA Class",
+        "completed": true,
+        "completedAt": "2026-10-08T09:28:44.006Z",
+        "_id": "6ac7624c61fd03d19edab27f",
+        "createdAt": "2026-10-08T09:28:44.890Z",
+        "updatedAt": "2026-10-08T09:28:44.890Z"
+      },
+      {
+        "title": "11:30-01:00:-DA Class",
+        "completed": true,
+        "completedAt": "2026-10-08T09:28:44.006Z",
+        "_id": "6ac7624c61fd03d19edab280",
+        "createdAt": "2026-10-08T09:28:44.890Z",
+        "updatedAt": "2026-10-08T09:28:44.890Z"
+      },
+      {
+        "title": "01:30-03:00:-DA Class",
+        "completed": true,
+        "completedAt": "2026-10-08T09:28:44.006Z",
+        "_id": "6ac7624c61fd03d19edab281",
+        "createdAt": "2026-10-08T09:28:44.890Z",
+        "updatedAt": "2026-10-08T09:28:44.890Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-08T03:59:44.347Z",
+    "updatedAt": "2026-10-08T09:28:44.890Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac7155161fd03d19eda830b",
+    "title": "1. Scripts generating \n2. video shooting\n3. review linkedIn page reach, comments and messages, reply to relevant enquiries",
+    "note": "1. Scripts generating \n2. video shooting\n3. review linkedIn page reach, comments and messages, reply to relevant enquiries",
+    "description": "1. Scripts generating \n2. video shooting\n3. review linkedIn page reach, comments and messages, reply to relevant enquiries",
+    "type": "todo",
+    "createdBy": "6abe21442605716ce3869045",
+    "assignedTo": "6abe21442605716ce3869045",
+    "assignedBy": "6ab63ad762b25645faae244e",
+    "department": "Marketing",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-08T03:30:00.000Z",
+    "initialScheduledAt": "2026-10-08T03:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "Scripts generating",
+        "completed": true,
+        "completedAt": "2026-10-09T04:03:21.817Z",
+        "_id": "6ac8678afdd6adf733466721",
+        "createdAt": "2026-10-09T04:03:22.048Z",
+        "updatedAt": "2026-10-09T04:03:22.048Z"
+      },
+      {
+        "title": "video shooting",
+        "completed": true,
+        "completedAt": "2026-10-09T04:03:21.817Z",
+        "_id": "6ac8678afdd6adf733466722",
+        "createdAt": "2026-10-09T04:03:22.048Z",
+        "updatedAt": "2026-10-09T04:03:22.048Z"
+      },
+      {
+        "title": "review linkedIn page reach, comments and messages, reply to relevant enquiries",
+        "completed": true,
+        "completedAt": "2026-10-09T04:03:21.817Z",
+        "_id": "6ac8678afdd6adf733466723",
+        "createdAt": "2026-10-09T04:03:22.048Z",
+        "updatedAt": "2026-10-09T04:03:22.048Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-08T04:00:17.702Z",
+    "updatedAt": "2026-10-09T04:03:22.048Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac717ce61fd03d19eda861a",
+    "title": "1. simrah today payment followup \n2. my potential leads update",
+    "note": "1. simrah today payment followup \n2. my potential leads update",
+    "description": "1. simrah today payment followup \n2. my potential leads update",
+    "type": "todo",
+    "createdBy": "6ab38a233312a90866e3c76c",
+    "assignedTo": "6ab38a233312a90866e3c76c",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "department": "Manager",
+    "departmentId": "auto_manager",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-08T12:30:00.000Z",
+    "initialScheduledAt": "2026-10-08T12:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "simrah today payment followup",
+        "completed": true,
+        "completedAt": "2026-10-10T04:09:30.254Z",
+        "_id": "6ac9baed99556955ed71902a",
+        "createdAt": "2026-10-10T04:11:25.591Z",
+        "updatedAt": "2026-10-10T04:11:25.591Z"
+      },
+      {
+        "title": "my potential leads update",
+        "completed": true,
+        "completedAt": "2026-10-10T04:09:30.254Z",
+        "_id": "6ac9baed99556955ed71902b",
+        "createdAt": "2026-10-10T04:11:25.591Z",
+        "updatedAt": "2026-10-10T04:11:25.591Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-08T04:10:54.807Z",
+    "updatedAt": "2026-10-10T04:11:25.591Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac719f761fd03d19eda87c6",
+    "title": "1.Working on CRM \n2.Python Class 6:00 to 7:00 pm",
+    "note": "1.Working on CRM \n2.Python Class 6:00 to 7:00 pm",
+    "description": "1.Working on CRM \n2.Python Class 6:00 to 7:00 pm",
+    "type": "todo",
+    "createdBy": "6ab25b5dc6d2062c7cd12eea",
+    "assignedTo": "6ab25b5dc6d2062c7cd12eea",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "department": "Development",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-08T13:30:00.000Z",
+    "initialScheduledAt": "2026-10-08T13:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "Working on CRM",
+        "completed": true,
+        "completedAt": "2026-10-09T04:39:19.860Z",
+        "_id": "6ac86ff7fdd6adf733467432",
+        "createdAt": "2026-10-09T04:39:19.972Z",
+        "updatedAt": "2026-10-09T04:39:19.972Z"
+      },
+      {
+        "title": "Python Class 6:00 to 7:00 pm",
+        "completed": true,
+        "completedAt": "2026-10-09T04:39:19.860Z",
+        "_id": "6ac86ff7fdd6adf733467433",
+        "createdAt": "2026-10-09T04:39:19.972Z",
+        "updatedAt": "2026-10-09T04:39:19.972Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-08T04:20:07.748Z",
+    "updatedAt": "2026-10-09T04:39:19.972Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac71d1561fd03d19eda8aae",
+    "title": "1. 03:00-06:00 - ML Videos 55,57,60 editings",
+    "note": "1. 03:00-06:00 - ML Videos 55,57,60 editings",
+    "description": "1. 03:00-06:00 - ML Videos 55,57,60 editings",
+    "type": "todo",
+    "createdBy": "6aba63a7ffdd149e03195cb7",
+    "assignedTo": "6aba63a7ffdd149e03195cb7",
+    "assignedBy": "6ab38a233312a90866e3c76c",
+    "department": "Trainer",
+    "departmentId": "6abb925b777e36dabd65ec80",
+    "priority": "high",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-08T12:30:00.000Z",
+    "initialScheduledAt": "2026-10-08T12:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "03:00-06:00 - ML Videos 55,57,60 editings",
+        "completed": true,
+        "completedAt": "2026-10-08T12:30:03.698Z",
+        "_id": "6ac78ccda131ccfd2cff61d0",
+        "createdAt": "2026-10-08T12:30:05.089Z",
+        "updatedAt": "2026-10-08T12:30:05.089Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-08T04:33:25.507Z",
+    "updatedAt": "2026-10-08T12:30:05.089Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac71d6161fd03d19eda8b52",
+    "title": "1. 11:00 to 12.15 Cs class \n2. 01.00 to 02:30 Cs class\n3. 03:00 to 04:30 Cs class \n4. 05:00 to 06:30 Cs class \n5. 06:30 to 08:00 Cs class \n6. In Free Time Make ppt",
+    "note": "1. 11:00 to 12.15 Cs class \n2. 01.00 to 02:30 Cs class\n3. 03:00 to 04:30 Cs class \n4. 05:00 to 06:30 Cs class \n5. 06:30 to 08:00 Cs class \n6. In Free Time Make ppt",
+    "description": "1. 11:00 to 12.15 Cs class \n2. 01.00 to 02:30 Cs class\n3. 03:00 to 04:30 Cs class \n4. 05:00 to 06:30 Cs class \n5. 06:30 to 08:00 Cs class \n6. In Free Time Make ppt",
+    "type": "todo",
+    "createdBy": "6ab7af419b0606da1d050728",
+    "assignedTo": "6ab7af419b0606da1d050728",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "department": "Trainer",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-08T03:30:00.000Z",
+    "initialScheduledAt": "2026-10-08T03:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "11:00 to 12.15 Cs class",
+        "completed": true,
+        "completedAt": "2026-10-09T04:37:23.260Z",
+        "_id": "6ac86f84fdd6adf73346724f",
+        "createdAt": "2026-10-09T04:37:24.708Z",
+        "updatedAt": "2026-10-09T04:37:24.708Z"
+      },
+      {
+        "title": "00 to 02:30 Cs class",
+        "completed": true,
+        "completedAt": "2026-10-09T04:37:23.260Z",
+        "_id": "6ac86f84fdd6adf733467250",
+        "createdAt": "2026-10-09T04:37:24.708Z",
+        "updatedAt": "2026-10-09T04:37:24.708Z"
+      },
+      {
+        "title": "03:00 to 04:30 Cs class",
+        "completed": true,
+        "completedAt": "2026-10-09T04:37:23.260Z",
+        "_id": "6ac86f84fdd6adf733467251",
+        "createdAt": "2026-10-09T04:37:24.708Z",
+        "updatedAt": "2026-10-09T04:37:24.708Z"
+      },
+      {
+        "title": "05:00 to 06:30 Cs class",
+        "completed": true,
+        "completedAt": "2026-10-09T04:37:23.260Z",
+        "_id": "6ac86f84fdd6adf733467252",
+        "createdAt": "2026-10-09T04:37:24.708Z",
+        "updatedAt": "2026-10-09T04:37:24.708Z"
+      },
+      {
+        "title": "06:30 to 08:00 Cs class",
+        "completed": true,
+        "completedAt": "2026-10-09T04:37:23.260Z",
+        "_id": "6ac86f84fdd6adf733467253",
+        "createdAt": "2026-10-09T04:37:24.708Z",
+        "updatedAt": "2026-10-09T04:37:24.708Z"
+      },
+      {
+        "title": "In Free Time Make ppt",
+        "completed": true,
+        "completedAt": "2026-10-09T04:37:23.260Z",
+        "_id": "6ac86f84fdd6adf733467254",
+        "createdAt": "2026-10-09T04:37:24.708Z",
+        "updatedAt": "2026-10-09T04:37:24.708Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-08T04:34:41.225Z",
+    "updatedAt": "2026-10-09T04:37:24.708Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac729b661fd03d19eda9356",
+    "title": "1.taking scripts \n2. taking shoot",
+    "note": "1.taking scripts \n2. taking shoot",
+    "description": "1.taking scripts \n2. taking shoot",
+    "type": "todo",
+    "createdBy": "6abe233b2605716ce38691a2",
+    "assignedTo": "6abe233b2605716ce38691a2",
+    "assignedBy": "6ab63ad762b25645faae244e",
+    "department": "Marketing",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-08T03:52:00.000Z",
+    "initialScheduledAt": "2026-10-08T03:52:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "taking scripts",
+        "completed": true,
+        "completedAt": "2026-10-08T08:45:05.977Z",
+        "_id": "6ac7581c61fd03d19edaad39",
+        "createdAt": "2026-10-08T08:45:16.150Z",
+        "updatedAt": "2026-10-08T08:45:16.150Z"
+      },
+      {
+        "title": "taking shoot",
+        "completed": true,
+        "completedAt": "2026-10-08T08:45:05.977Z",
+        "_id": "6ac7581c61fd03d19edaad3a",
+        "createdAt": "2026-10-08T08:45:16.150Z",
+        "updatedAt": "2026-10-08T08:45:16.150Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-08T05:27:18.218Z",
+    "updatedAt": "2026-10-08T08:45:16.150Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac863c0fdd6adf73346625e",
+    "title": "1. just dail follow ups\n2. old data follow ups",
+    "note": "1. just dail follow ups\n2. old data follow ups",
+    "description": "1. just dail follow ups\n2. old data follow ups",
+    "type": "todo",
+    "createdBy": "6ab6449b62b25645faae28ed",
+    "assignedTo": "6ab6449b62b25645faae28ed",
+    "assignedBy": "6ab6449b62b25645faae28ed",
+    "department": "Manager",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-09T03:30:00.000Z",
+    "initialScheduledAt": "2026-10-09T03:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "just dail follow ups",
+        "completed": true,
+        "completedAt": "2026-10-09T03:48:01.957Z",
+        "_id": "6ac863f2fdd6adf7334662b4",
+        "createdAt": "2026-10-09T03:48:02.526Z",
+        "updatedAt": "2026-10-09T03:48:02.526Z"
+      },
+      {
+        "title": "old data follow ups",
+        "completed": true,
+        "completedAt": "2026-10-09T03:48:01.957Z",
+        "_id": "6ac863f2fdd6adf7334662b5",
+        "createdAt": "2026-10-09T03:48:02.526Z",
+        "updatedAt": "2026-10-09T03:48:02.526Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-09T03:47:12.104Z",
+    "updatedAt": "2026-10-09T03:48:02.526Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac8640bfdd6adf7334662e1",
+    "title": "1. AIML class at 10 a.m (Online)\n2. AIML class at 11:30 a.m (Offline)\n3. working on calendar module in CRM",
+    "note": "1. AIML class at 10 a.m (Online)\n2. AIML class at 11:30 a.m (Offline)\n3. working on calendar module in CRM",
+    "description": "1. AIML class at 10 a.m (Online)\n2. AIML class at 11:30 a.m (Offline)\n3. working on calendar module in CRM",
+    "type": "todo",
+    "createdBy": "6ab386d83312a90866e3c6d5",
+    "assignedTo": "6ab386d83312a90866e3c6d5",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "department": "Development",
+    "priority": "high",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-09T13:00:00.000Z",
+    "initialScheduledAt": "2026-10-09T13:00:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "AIML class at 10 a.m (Online)",
+        "completed": true,
+        "completedAt": "2026-10-14T09:22:42.782Z",
+        "_id": "6acf49e4b894e304e83b01a8",
+        "createdAt": "2026-10-14T09:22:44.335Z",
+        "updatedAt": "2026-10-14T09:22:44.335Z"
+      },
+      {
+        "title": "AIML class at 11:30 a.m (Offline)",
+        "completed": true,
+        "completedAt": "2026-10-14T09:22:42.782Z",
+        "_id": "6acf49e4b894e304e83b01a9",
+        "createdAt": "2026-10-14T09:22:44.335Z",
+        "updatedAt": "2026-10-14T09:22:44.335Z"
+      },
+      {
+        "title": "working on calendar module in CRM",
+        "completed": true,
+        "completedAt": "2026-10-14T09:22:42.782Z",
+        "_id": "6acf49e4b894e304e83b01aa",
+        "createdAt": "2026-10-14T09:22:44.335Z",
+        "updatedAt": "2026-10-14T09:22:44.335Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-09T03:48:27.158Z",
+    "updatedAt": "2026-10-14T09:22:44.335Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac865eafdd6adf733466585",
+    "title": "1.Video editing",
+    "note": "1.Video editing",
+    "description": "1.Video editing",
+    "type": "todo",
+    "createdBy": "6ab63ad762b25645faae244e",
+    "assignedTo": "6ab63ad762b25645faae244e",
+    "assignedBy": "6ab63ad762b25645faae244e",
+    "department": "Marketing",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-09T03:30:00.000Z",
+    "initialScheduledAt": "2026-10-09T03:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-09T03:56:26.022Z",
+    "updatedAt": "2026-10-09T03:56:26.022Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac86697fdd6adf73346660c",
+    "title": "1. check comments and DM on assigned social media pages; forward enquiries to sales. \n2. take a videos\n3. make a script",
+    "note": "1. check comments and DM on assigned social media pages; forward enquiries to sales. \n2. take a videos\n3. make a script",
+    "description": "1. check comments and DM on assigned social media pages; forward enquiries to sales. \n2. take a videos\n3. make a script",
+    "type": "todo",
+    "createdBy": "6abe233b2605716ce38691a2",
+    "assignedTo": "6abe233b2605716ce38691a2",
+    "assignedBy": "6ab63ad762b25645faae244e",
+    "department": "Marketing",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-09T03:30:00.000Z",
+    "initialScheduledAt": "2026-10-09T03:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "check comments and DM on assigned social media pages; forward enquiries to sales.",
+        "completed": true,
+        "completedAt": "2026-10-12T04:02:05.288Z",
+        "_id": "6acc5bbe311f7488e3cd0bd7",
+        "createdAt": "2026-10-12T04:02:06.231Z",
+        "updatedAt": "2026-10-12T04:02:06.231Z"
+      },
+      {
+        "title": "take a videos",
+        "completed": true,
+        "completedAt": "2026-10-12T04:02:05.288Z",
+        "_id": "6acc5bbe311f7488e3cd0bd8",
+        "createdAt": "2026-10-12T04:02:06.231Z",
+        "updatedAt": "2026-10-12T04:02:06.231Z"
+      },
+      {
+        "title": "make a script",
+        "completed": false,
+        "completedAt": null,
+        "_id": "6acc5bbe311f7488e3cd0bd9",
+        "createdAt": "2026-10-12T04:02:06.231Z",
+        "updatedAt": "2026-10-12T04:02:06.231Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-09T03:59:19.297Z",
+    "updatedAt": "2026-10-12T04:02:06.231Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac86764fdd6adf733466698",
+    "title": "1. script generating\n2. review linkdIn page reach, engagement and followes growth.",
+    "note": "1. script generating\n2. review linkdIn page reach, engagement and followes growth.",
+    "description": "1. script generating\n2. review linkdIn page reach, engagement and followes growth.",
+    "type": "todo",
+    "createdBy": "6abe21442605716ce3869045",
+    "assignedTo": "6abe21442605716ce3869045",
+    "assignedBy": "6ab63ad762b25645faae244e",
+    "department": "Marketing",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-09T12:30:00.000Z",
+    "initialScheduledAt": "2026-10-09T12:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "script generating",
+        "completed": true,
+        "completedAt": "2026-10-10T04:04:08.719Z",
+        "_id": "6ac9b93999556955ed718e4e",
+        "createdAt": "2026-10-10T04:04:09.551Z",
+        "updatedAt": "2026-10-10T04:04:09.551Z"
+      },
+      {
+        "title": "review linkdIn page reach, engagement and followes growth.",
+        "completed": true,
+        "completedAt": "2026-10-10T04:04:08.719Z",
+        "_id": "6ac9b93999556955ed718e4f",
+        "createdAt": "2026-10-10T04:04:09.551Z",
+        "updatedAt": "2026-10-10T04:04:09.551Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-09T04:02:44.661Z",
+    "updatedAt": "2026-10-10T04:04:09.551Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac8697cfdd6adf733466857",
+    "title": "1. 3 DA Classes\n2. 3 Video recordings",
+    "note": "1. 3 DA Classes\n2. 3 Video recordings",
+    "description": "1. 3 DA Classes\n2. 3 Video recordings",
+    "type": "todo",
+    "createdBy": "6aba63a7ffdd149e03195cb7",
+    "assignedTo": "6aba63a7ffdd149e03195cb7",
+    "assignedBy": "6ab38a233312a90866e3c76c",
+    "department": "Trainer",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-09T12:30:00.000Z",
+    "initialScheduledAt": "2026-10-09T12:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "3 DA Classes",
+        "completed": true,
+        "completedAt": "2026-10-14T08:19:23.663Z",
+        "_id": "6acf3b0db894e304e83afd8f",
+        "createdAt": "2026-10-14T08:19:25.051Z",
+        "updatedAt": "2026-10-14T08:19:25.051Z"
+      },
+      {
+        "title": "3 Video recordings",
+        "completed": true,
+        "completedAt": "2026-10-14T08:19:23.663Z",
+        "_id": "6acf3b0db894e304e83afd90",
+        "createdAt": "2026-10-14T08:19:25.051Z",
+        "updatedAt": "2026-10-14T08:19:25.051Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-09T04:11:40.893Z",
+    "updatedAt": "2026-10-14T08:19:25.051Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac86e8ffdd6adf733466c6f",
+    "title": "1. In free time Make ppts",
+    "note": "1. In free time Make ppts",
+    "description": "1. In free time Make ppts",
+    "type": "todo",
+    "createdBy": "6ab7af419b0606da1d050728",
+    "assignedTo": "6ab7af419b0606da1d050728",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "department": "Trainer",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-09T14:30:00.000Z",
+    "initialScheduledAt": "2026-10-09T14:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "In free time Make ppts",
+        "completed": true,
+        "completedAt": "2026-10-12T10:37:13.551Z",
+        "_id": "6accb85a311f7488e3cd5393",
+        "createdAt": "2026-10-12T10:37:14.512Z",
+        "updatedAt": "2026-10-12T10:37:14.512Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-09T04:33:19.479Z",
+    "updatedAt": "2026-10-12T10:37:14.512Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac86fecfdd6adf7334673f0",
+    "title": "1. Working on CRM & LMS",
+    "note": "1. Working on CRM & LMS",
+    "description": "1. Working on CRM & LMS",
+    "type": "todo",
+    "createdBy": "6ab25b5dc6d2062c7cd12eea",
+    "assignedTo": "6ab25b5dc6d2062c7cd12eea",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "department": "Development",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-09T03:30:00.000Z",
+    "initialScheduledAt": "2026-10-09T03:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "Working on CRM & LMS",
+        "completed": true,
+        "completedAt": "2026-10-09T12:52:55.468Z",
+        "_id": "6ac8e3a8966038dcf99f5220",
+        "createdAt": "2026-10-09T12:52:56.680Z",
+        "updatedAt": "2026-10-09T12:52:56.680Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-09T04:39:08.304Z",
+    "updatedAt": "2026-10-09T12:52:56.680Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac9b5c999556955ed718d46",
+    "title": "1. CRT class\n2. AIML class for online student\n3. Working on calendar module in CRM",
+    "note": "1. CRT class\n2. AIML class for online student\n3. Working on calendar module in CRM",
+    "description": "1. CRT class\n2. AIML class for online student\n3. Working on calendar module in CRM",
+    "type": "todo",
+    "createdBy": "6ab386d83312a90866e3c6d5",
+    "assignedTo": "6ab386d83312a90866e3c6d5",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "department": "Development",
+    "priority": "high",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-10T12:30:00.000Z",
+    "initialScheduledAt": "2026-10-10T12:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "CRT class",
+        "completed": true,
+        "completedAt": "2026-10-14T07:45:56.778Z",
+        "_id": "6acf3335b894e304e83af951",
+        "createdAt": "2026-10-14T07:45:57.695Z",
+        "updatedAt": "2026-10-14T07:45:57.695Z"
+      },
+      {
+        "title": "AIML class for online student",
+        "completed": true,
+        "completedAt": "2026-10-14T07:45:56.778Z",
+        "_id": "6acf3335b894e304e83af952",
+        "createdAt": "2026-10-14T07:45:57.695Z",
+        "updatedAt": "2026-10-14T07:45:57.695Z"
+      },
+      {
+        "title": "Working on calendar module in CRM",
+        "completed": true,
+        "completedAt": "2026-10-14T07:45:56.778Z",
+        "_id": "6acf3335b894e304e83af953",
+        "createdAt": "2026-10-14T07:45:57.695Z",
+        "updatedAt": "2026-10-14T07:45:57.695Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-10T03:49:29.737Z",
+    "updatedAt": "2026-10-14T07:45:57.695Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac9b90e99556955ed718de2",
+    "title": "1. video shoot",
+    "note": "1. video shoot",
+    "description": "1. video shoot",
+    "type": "todo",
+    "createdBy": "6abe21442605716ce3869045",
+    "assignedTo": "6abe21442605716ce3869045",
+    "assignedBy": "6ab63ad762b25645faae244e",
+    "department": "Marketing",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-10T11:30:00.000Z",
+    "initialScheduledAt": "2026-10-10T11:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "video shoot",
+        "completed": true,
+        "completedAt": "2026-10-10T12:11:16.451Z",
+        "_id": "6aca2b657d83314fb0ab4810",
+        "createdAt": "2026-10-10T12:11:17.047Z",
+        "updatedAt": "2026-10-10T12:11:17.047Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-10T04:03:26.579Z",
+    "updatedAt": "2026-10-10T12:11:17.047Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac9b9d699556955ed718e8e",
+    "title": "1. Check comments and DMs on assigned social media \n2. Take a video",
+    "note": "1. Check comments and DMs on assigned social media \n2. Take a video",
+    "description": "1. Check comments and DMs on assigned social media \n2. Take a video",
+    "type": "todo",
+    "createdBy": "6abe233b2605716ce38691a2",
+    "assignedTo": "6abe233b2605716ce38691a2",
+    "assignedBy": "6ab63ad762b25645faae244e",
+    "department": "Marketing",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-10T03:30:00.000Z",
+    "initialScheduledAt": "2026-10-10T03:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "Check comments and DMs on assigned social media",
+        "completed": true,
+        "completedAt": "2026-10-12T04:02:10.020Z",
+        "_id": "6acc5bc3311f7488e3cd0c26",
+        "createdAt": "2026-10-12T04:02:11.289Z",
+        "updatedAt": "2026-10-12T04:02:11.289Z"
+      },
+      {
+        "title": "Take a video",
+        "completed": true,
+        "completedAt": "2026-10-12T04:02:10.020Z",
+        "_id": "6acc5bc3311f7488e3cd0c27",
+        "createdAt": "2026-10-12T04:02:11.289Z",
+        "updatedAt": "2026-10-12T04:02:11.289Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-10T04:06:46.990Z",
+    "updatedAt": "2026-10-12T04:02:11.289Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac9ba7f99556955ed718f2f",
+    "title": "1. meta \n2. just dail",
+    "note": "1. meta \n2. just dail",
+    "description": "1. meta \n2. just dail",
+    "type": "todo",
+    "createdBy": "6ab6449b62b25645faae28ed",
+    "assignedTo": "6ab6449b62b25645faae28ed",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "department": "Manager",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-10T03:30:00.000Z",
+    "initialScheduledAt": "2026-10-10T03:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-10T04:09:35.725Z",
+    "updatedAt": "2026-10-10T04:09:35.725Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac9bad599556955ed718fc3",
+    "title": "1. meta calls\n2. new joinings followup",
+    "note": "1. meta calls\n2. new joinings followup",
+    "description": "1. meta calls\n2. new joinings followup",
+    "type": "todo",
+    "createdBy": "6ab38a233312a90866e3c76c",
+    "assignedTo": "6ab38a233312a90866e3c76c",
+    "assignedBy": "6ab38a233312a90866e3c76c",
+    "department": "Manager",
+    "departmentId": "auto_manager",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-11T18:30:00.000Z",
+    "initialScheduledAt": "2026-10-11T18:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-10T04:11:01.293Z",
+    "updatedAt": "2026-10-10T04:11:01.293Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac9bbf099556955ed719104",
+    "title": "1. 8 to 10 ML videos",
+    "note": "1. 8 to 10 ML videos",
+    "description": "1. 8 to 10 ML videos",
+    "type": "todo",
+    "createdBy": "6aba63a7ffdd149e03195cb7",
+    "assignedTo": "6aba63a7ffdd149e03195cb7",
+    "assignedBy": "6ab38a233312a90866e3c76c",
+    "department": "Trainer",
+    "priority": "high",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-10T12:30:00.000Z",
+    "initialScheduledAt": "2026-10-10T12:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "8 to 10 ML videos",
+        "completed": false,
+        "completedAt": null,
+        "_id": "6acf2349b894e304e83af00c",
+        "createdAt": "2026-10-14T06:38:01.378Z",
+        "updatedAt": "2026-10-14T06:38:01.378Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-10T04:15:44.034Z",
+    "updatedAt": "2026-10-14T06:38:01.378Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac9c01b99556955ed7193fb",
+    "title": "1. LMS Portal Issue on Evaluation for Coding.\n2. SEO Update.",
+    "note": "1. LMS Portal Issue on Evaluation for Coding.\n2. SEO Update.",
+    "description": "1. LMS Portal Issue on Evaluation for Coding.\n2. SEO Update.",
+    "type": "todo",
+    "createdBy": "6ab25b5dc6d2062c7cd12eea",
+    "assignedTo": "6ab25b5dc6d2062c7cd12eea",
+    "assignedBy": "6ab25b5dc6d2062c7cd12eea",
+    "department": "Development",
+    "priority": "high",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-10T13:00:00.000Z",
+    "initialScheduledAt": "2026-10-10T13:00:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "LMS Portal Issue on Evaluation for Coding.",
+        "completed": true,
+        "completedAt": "2026-10-12T05:34:31.380Z",
+        "_id": "6acc7168311f7488e3cd2242",
+        "createdAt": "2026-10-12T05:34:32.081Z",
+        "updatedAt": "2026-10-12T05:34:32.081Z"
+      },
+      {
+        "title": "SEO Update.",
+        "completed": false,
+        "completedAt": null,
+        "_id": "6acc7168311f7488e3cd2243",
+        "createdAt": "2026-10-12T05:34:32.081Z",
+        "updatedAt": "2026-10-12T05:34:32.081Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-10T04:33:31.457Z",
+    "updatedAt": "2026-10-12T05:34:32.081Z",
+    "__v": 0
+  },
+  {
+    "_id": "6acc59e1311f7488e3cd0a69",
+    "title": "1. Check linkdIn comments and messages, reply to re;evant enquiries.\n2. Review LinkdIn page reach, engagment and follower growth\n3. Course related poster generating",
+    "note": "1. Check linkdIn comments and messages, reply to re;evant enquiries.\n2. Review LinkdIn page reach, engagment and follower growth\n3. Course related poster generating",
+    "description": "1. Check linkdIn comments and messages, reply to re;evant enquiries.\n2. Review LinkdIn page reach, engagment and follower growth\n3. Course related poster generating",
+    "type": "todo",
+    "createdBy": "6abe21442605716ce3869045",
+    "assignedTo": "6abe21442605716ce3869045",
+    "assignedBy": "6ab63ad762b25645faae244e",
+    "department": "Marketing",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-12T12:30:00.000Z",
+    "initialScheduledAt": "2026-10-12T12:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "Check linkdIn comments and messages, reply to re;evant enquiries.",
+        "completed": true,
+        "completedAt": "2026-10-12T12:10:49.051Z",
+        "_id": "6accce49311f7488e3cd66f6",
+        "createdAt": "2026-10-12T12:10:49.487Z",
+        "updatedAt": "2026-10-12T12:10:49.487Z"
+      },
+      {
+        "title": "Review LinkdIn page reach, engagment and follower growth",
+        "completed": true,
+        "completedAt": "2026-10-12T12:10:49.051Z",
+        "_id": "6accce49311f7488e3cd66f7",
+        "createdAt": "2026-10-12T12:10:49.487Z",
+        "updatedAt": "2026-10-12T12:10:49.487Z"
+      },
+      {
+        "title": "Course related poster generating",
+        "completed": false,
+        "completedAt": null,
+        "_id": "6accce49311f7488e3cd66f8",
+        "createdAt": "2026-10-12T12:10:49.487Z",
+        "updatedAt": "2026-10-12T12:10:49.487Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-12T03:54:09.134Z",
+    "updatedAt": "2026-10-12T12:10:49.487Z",
+    "__v": 0
+  },
+  {
+    "_id": "6acc5ab9311f7488e3cd0b15",
+    "title": "1. AIML class for online student at 10 a.m\n2. AIML class for offline student at 11:30 a.m\n3. Work on CRM modifications",
+    "note": "1. AIML class for online student at 10 a.m\n2. AIML class for offline student at 11:30 a.m\n3. Work on CRM modifications",
+    "description": "1. AIML class for online student at 10 a.m\n2. AIML class for offline student at 11:30 a.m\n3. Work on CRM modifications",
+    "type": "todo",
+    "createdBy": "6ab386d83312a90866e3c6d5",
+    "assignedTo": "6ab386d83312a90866e3c6d5",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "department": "Development",
+    "priority": "high",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-12T01:00:00.000Z",
+    "initialScheduledAt": "2026-10-12T01:00:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "AIML class for online student at 10 a.m",
+        "completed": true,
+        "completedAt": "2026-10-14T07:46:04.490Z",
+        "_id": "6acf333db894e304e83af9c1",
+        "createdAt": "2026-10-14T07:46:05.584Z",
+        "updatedAt": "2026-10-14T07:46:05.584Z"
+      },
+      {
+        "title": "AIML class for offline student at 11:30 a.m",
+        "completed": true,
+        "completedAt": "2026-10-14T07:46:04.490Z",
+        "_id": "6acf333db894e304e83af9c2",
+        "createdAt": "2026-10-14T07:46:05.584Z",
+        "updatedAt": "2026-10-14T07:46:05.584Z"
+      },
+      {
+        "title": "Work on CRM modifications",
+        "completed": true,
+        "completedAt": "2026-10-14T07:46:04.490Z",
+        "_id": "6acf333db894e304e83af9c3",
+        "createdAt": "2026-10-14T07:46:05.584Z",
+        "updatedAt": "2026-10-14T07:46:05.584Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-12T03:57:45.918Z",
+    "updatedAt": "2026-10-14T07:46:05.584Z",
+    "__v": 0
+  },
+  {
+    "_id": "6acc5b8d311f7488e3cd0b79",
+    "title": "1. Check comment and DMs on assigned social media pages; forward enquiries to sales.\n2. Review recent reels views reach, shares, saves and follower growth",
+    "note": "1. Check comment and DMs on assigned social media pages; forward enquiries to sales.\n2. Review recent reels views reach, shares, saves and follower growth",
+    "description": "1. Check comment and DMs on assigned social media pages; forward enquiries to sales.\n2. Review recent reels views reach, shares, saves and follower growth",
+    "type": "todo",
+    "createdBy": "6abe233b2605716ce38691a2",
+    "assignedTo": "6abe233b2605716ce38691a2",
+    "assignedBy": "6ab63ad762b25645faae244e",
+    "department": "Marketing",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-12T03:30:00.000Z",
+    "initialScheduledAt": "2026-10-12T03:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-12T04:01:17.194Z",
+    "updatedAt": "2026-10-12T04:01:17.194Z",
+    "__v": 0
+  },
+  {
+    "_id": "6acc5ed5311f7488e3cd0ecc",
+    "title": "1. 10:00 - 1:00 : DA Classes\n2. ML_Videos: 3-5 videos",
+    "note": "1. 10:00 - 1:00 : DA Classes\n2. ML_Videos: 3-5 videos",
+    "description": "1. 10:00 - 1:00 : DA Classes\n2. ML_Videos: 3-5 videos",
+    "type": "todo",
+    "createdBy": "6aba63a7ffdd149e03195cb7",
+    "assignedTo": "6aba63a7ffdd149e03195cb7",
+    "assignedBy": "6ab38a233312a90866e3c76c",
+    "department": "Trainer",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-12T12:30:00.000Z",
+    "initialScheduledAt": "2026-10-12T12:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "10:00 - 1:00 : DA Classes",
+        "completed": true,
+        "completedAt": "2026-10-12T07:20:43.465Z",
+        "_id": "6acc8a4c311f7488e3cd34c0",
+        "createdAt": "2026-10-12T07:20:44.187Z",
+        "updatedAt": "2026-10-12T07:20:44.187Z"
+      },
+      {
+        "title": "ML_Videos: 3-5 videos",
+        "completed": false,
+        "completedAt": null,
+        "_id": "6acc8a4c311f7488e3cd34c1",
+        "createdAt": "2026-10-12T07:20:44.187Z",
+        "updatedAt": "2026-10-12T07:20:44.187Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-12T04:15:17.608Z",
+    "updatedAt": "2026-10-12T07:20:44.187Z",
+    "__v": 0
+  },
+  {
+    "_id": "6acc5fe4311f7488e3cd0f8f",
+    "title": "1. meta \n2. just dail",
+    "note": "1. meta \n2. just dail",
+    "description": "1. meta \n2. just dail",
+    "type": "todo",
+    "createdBy": "6ab6449b62b25645faae28ed",
+    "assignedTo": "6ab6449b62b25645faae28ed",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "department": "Manager",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-10T03:30:00.000Z",
+    "initialScheduledAt": "2026-10-10T03:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "meta",
+        "completed": true,
+        "completedAt": "2026-10-14T06:38:05.797Z",
+        "_id": "6acf234eb894e304e83af0dd",
+        "createdAt": "2026-10-14T06:38:06.094Z",
+        "updatedAt": "2026-10-14T06:38:06.094Z"
+      },
+      {
+        "title": "just dail",
+        "completed": true,
+        "completedAt": "2026-10-14T06:38:05.797Z",
+        "_id": "6acf234eb894e304e83af0de",
+        "createdAt": "2026-10-14T06:38:06.094Z",
+        "updatedAt": "2026-10-14T06:38:06.094Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-12T04:19:48.433Z",
+    "updatedAt": "2026-10-14T06:38:06.094Z",
+    "__v": 0
+  },
+  {
+    "_id": "6acc6034311f7488e3cd103e",
+    "title": "1.Working on CRM , LMS , SEO",
+    "note": "1.Working on CRM , LMS , SEO",
+    "description": "1.Working on CRM , LMS , SEO",
+    "type": "todo",
+    "createdBy": "6ab25b5dc6d2062c7cd12eea",
+    "assignedTo": "6ab25b5dc6d2062c7cd12eea",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "department": "Development",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-12T03:30:00.000Z",
+    "initialScheduledAt": "2026-10-12T03:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "Working on CRM , LMS , SEO",
+        "completed": true,
+        "completedAt": "2026-10-15T04:27:57.099Z",
+        "_id": "6ad0564e3d81e4b45c903007",
+        "createdAt": "2026-10-15T04:27:58.538Z",
+        "updatedAt": "2026-10-15T04:27:58.538Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-12T04:21:08.741Z",
+    "updatedAt": "2026-10-15T04:27:58.538Z",
+    "__v": 0
+  },
+  {
+    "_id": "6accce37311f7488e3cd663c",
+    "title": "1.Video editing",
+    "note": "1.Video editing",
+    "description": "1.Video editing",
+    "type": "todo",
+    "createdBy": "6abe21442605716ce3869045",
+    "assignedTo": "6abe21442605716ce3869045",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "department": "Marketing",
+    "departmentId": "6abb925b777e36dabd65ec81",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-12T13:30:00.000Z",
+    "initialScheduledAt": "2026-10-12T13:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "Video editing",
+        "completed": true,
+        "completedAt": "2026-10-12T12:10:43.988Z",
+        "_id": "6accce44311f7488e3cd6661",
+        "createdAt": "2026-10-12T12:10:44.700Z",
+        "updatedAt": "2026-10-12T12:10:44.700Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-12T12:10:31.990Z",
+    "updatedAt": "2026-10-12T12:10:44.700Z",
+    "__v": 0
+  },
+  {
+    "_id": "6acda684e0772b1046f168c4",
+    "title": "1. digital marketing\n2. just dail",
+    "note": "1. digital marketing\n2. just dail",
+    "description": "1. digital marketing\n2. just dail",
+    "type": "todo",
+    "createdBy": "6ab6449b62b25645faae28ed",
+    "assignedTo": "6ab6449b62b25645faae28ed",
+    "assignedBy": "6ab6449b62b25645faae28ed",
+    "department": "Manager",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-13T03:30:00.000Z",
+    "initialScheduledAt": "2026-10-13T03:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "digital marketing",
+        "completed": true,
+        "completedAt": "2026-10-15T03:21:23.366Z",
+        "_id": "6ad046b43d81e4b45c90278a",
+        "createdAt": "2026-10-15T03:21:24.932Z",
+        "updatedAt": "2026-10-15T03:21:24.932Z"
+      },
+      {
+        "title": "just dail",
+        "completed": true,
+        "completedAt": "2026-10-15T03:21:23.366Z",
+        "_id": "6ad046b43d81e4b45c90278b",
+        "createdAt": "2026-10-15T03:21:24.932Z",
+        "updatedAt": "2026-10-15T03:21:24.932Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-13T03:33:24.206Z",
+    "updatedAt": "2026-10-15T03:21:24.932Z",
+    "__v": 0
+  },
+  {
+    "_id": "6acdaa98e0772b1046f16abd",
+    "title": "1. Checking LinkedIn comments and messages; reply to relevant enquiries\n2. Review LinkedIn page reach, engagement and follower growth\n3. generating a poster for dussehra series",
+    "note": "1. Checking LinkedIn comments and messages; reply to relevant enquiries\n2. Review LinkedIn page reach, engagement and follower growth\n3. generating a poster for dussehra series",
+    "description": "1. Checking LinkedIn comments and messages; reply to relevant enquiries\n2. Review LinkedIn page reach, engagement and follower growth\n3. generating a poster for dussehra series",
+    "type": "todo",
+    "createdBy": "6abe21442605716ce3869045",
+    "assignedTo": "6abe21442605716ce3869045",
+    "assignedBy": "6ab63ad762b25645faae244e",
+    "department": "Marketing",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-13T13:30:00.000Z",
+    "initialScheduledAt": "2026-10-13T13:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "Checking LinkedIn comments and messages; reply to relevant enquiries",
+        "completed": true,
+        "completedAt": "2026-10-13T12:46:35.140Z",
+        "_id": "6ace282b297b5add1fe49d03",
+        "createdAt": "2026-10-13T12:46:35.029Z",
+        "updatedAt": "2026-10-13T12:46:35.029Z"
+      },
+      {
+        "title": "Review LinkedIn page reach, engagement and follower growth",
+        "completed": true,
+        "completedAt": "2026-10-13T12:46:35.140Z",
+        "_id": "6ace282b297b5add1fe49d04",
+        "createdAt": "2026-10-13T12:46:35.029Z",
+        "updatedAt": "2026-10-13T12:46:35.029Z"
+      },
+      {
+        "title": "generating a poster for dussehra series",
+        "completed": true,
+        "completedAt": "2026-10-13T12:46:35.140Z",
+        "_id": "6ace282b297b5add1fe49d05",
+        "createdAt": "2026-10-13T12:46:35.029Z",
+        "updatedAt": "2026-10-13T12:46:35.029Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-13T03:50:48.477Z",
+    "updatedAt": "2026-10-13T12:46:35.029Z",
+    "__v": 0
+  },
+  {
+    "_id": "6acdaad7e0772b1046f16b17",
+    "title": "1. AIML class for online student 10 a.m\n2. AIML class for offline students 11:30 a.m\n3. CRM modifications",
+    "note": "1. AIML class for online student 10 a.m\n2. AIML class for offline students 11:30 a.m\n3. CRM modifications",
+    "description": "1. AIML class for online student 10 a.m\n2. AIML class for offline students 11:30 a.m\n3. CRM modifications",
+    "type": "todo",
+    "createdBy": "6ab386d83312a90866e3c6d5",
+    "assignedTo": "6ab386d83312a90866e3c6d5",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "department": "Development",
+    "priority": "high",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-13T13:00:00.000Z",
+    "initialScheduledAt": "2026-10-13T13:00:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "AIML class for online student 10 a.m",
+        "completed": true,
+        "completedAt": "2026-10-14T07:46:06.695Z",
+        "_id": "6acf333fb894e304e83afa48",
+        "createdAt": "2026-10-14T07:46:07.877Z",
+        "updatedAt": "2026-10-14T07:46:07.877Z"
+      },
+      {
+        "title": "AIML class for offline students 11:30 a.m",
+        "completed": true,
+        "completedAt": "2026-10-14T07:46:06.695Z",
+        "_id": "6acf333fb894e304e83afa49",
+        "createdAt": "2026-10-14T07:46:07.877Z",
+        "updatedAt": "2026-10-14T07:46:07.877Z"
+      },
+      {
+        "title": "CRM modifications",
+        "completed": true,
+        "completedAt": "2026-10-14T07:46:06.695Z",
+        "_id": "6acf333fb894e304e83afa4a",
+        "createdAt": "2026-10-14T07:46:07.877Z",
+        "updatedAt": "2026-10-14T07:46:07.877Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-13T03:51:51.408Z",
+    "updatedAt": "2026-10-14T07:46:07.877Z",
+    "__v": 0
+  },
+  {
+    "_id": "6acdacc6e0772b1046f16bf9",
+    "title": "1. Check comments and DMs on assigned social media page; forward enquiries to sales.\n2. Prepare a poster for 3rd day of Navaratri",
+    "note": "1. Check comments and DMs on assigned social media page; forward enquiries to sales.\n2. Prepare a poster for 3rd day of Navaratri",
+    "description": "1. Check comments and DMs on assigned social media page; forward enquiries to sales.\n2. Prepare a poster for 3rd day of Navaratri",
+    "type": "todo",
+    "createdBy": "6abe233b2605716ce38691a2",
+    "assignedTo": "6abe233b2605716ce38691a2",
+    "assignedBy": "6ab63ad762b25645faae244e",
+    "department": "Marketing",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-13T03:30:00.000Z",
+    "initialScheduledAt": "2026-10-13T03:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-13T04:00:06.199Z",
+    "updatedAt": "2026-10-13T04:00:06.199Z",
+    "__v": 0
+  },
+  {
+    "_id": "6acdb1abe0772b1046f16f1f",
+    "title": "1. 10:00 to 01:00 :- DA Classes\n2. 4 or 5 ML Videos",
+    "note": "1. 10:00 to 01:00 :- DA Classes\n2. 4 or 5 ML Videos",
+    "description": "1. 10:00 to 01:00 :- DA Classes\n2. 4 or 5 ML Videos",
+    "type": "todo",
+    "createdBy": "6aba63a7ffdd149e03195cb7",
+    "assignedTo": "6aba63a7ffdd149e03195cb7",
+    "assignedBy": "6ab38a233312a90866e3c76c",
+    "department": "Trainer",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-13T12:30:00.000Z",
+    "initialScheduledAt": "2026-10-13T12:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "10:00 to 01:00 :- DA Classes",
+        "completed": true,
+        "completedAt": "2026-10-14T08:19:30.037Z",
+        "_id": "6acf3b13b894e304e83afda6",
+        "createdAt": "2026-10-14T08:19:31.033Z",
+        "updatedAt": "2026-10-14T08:19:31.033Z"
+      },
+      {
+        "title": "4 or 5 ML Videos",
+        "completed": false,
+        "completedAt": null,
+        "_id": "6acf3b13b894e304e83afda7",
+        "createdAt": "2026-10-14T08:19:31.033Z",
+        "updatedAt": "2026-10-14T08:19:31.033Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-13T04:20:59.137Z",
+    "updatedAt": "2026-10-14T08:19:31.033Z",
+    "__v": 0
+  },
+  {
+    "_id": "6acdb5e2e0772b1046f171f9",
+    "title": "1. gst payment closure\n2. meta calls followup\n3. payments\n4. kiran .c.s & shyam followup\n5. demo completed persons followup",
+    "note": "1. gst payment closure\n2. meta calls followup\n3. payments\n4. kiran .c.s & shyam followup\n5. demo completed persons followup",
+    "description": "1. gst payment closure\n2. meta calls followup\n3. payments\n4. kiran .c.s & shyam followup\n5. demo completed persons followup",
+    "type": "todo",
+    "createdBy": "6ab38a233312a90866e3c76c",
+    "assignedTo": "6ab38a233312a90866e3c76c",
+    "assignedBy": "6ab38a233312a90866e3c76c",
+    "department": "Manager",
+    "departmentId": "auto_manager",
+    "priority": "high",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-13T13:30:00.000Z",
+    "initialScheduledAt": "2026-10-13T13:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-13T04:38:58.960Z",
+    "updatedAt": "2026-10-13T04:38:58.960Z",
+    "__v": 0
+  },
+  {
+    "_id": "6acf04aab894e304e83ae3de",
+    "title": "1. Video editing\n2. \n3.",
+    "note": "1. Video editing\n2. \n3.",
+    "description": "1. Video editing\n2. \n3.",
+    "type": "todo",
+    "createdBy": "6ab63ad762b25645faae244e",
+    "assignedTo": "6ab63ad762b25645faae244e",
+    "assignedBy": "6ab63ad762b25645faae244e",
+    "department": "Marketing",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-14T03:30:00.000Z",
+    "initialScheduledAt": "2026-10-14T03:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-14T04:27:22.483Z",
+    "updatedAt": "2026-10-14T04:27:22.483Z",
+    "__v": 0
+  },
+  {
+    "_id": "6acf04d1b894e304e83ae411",
+    "title": "1. 10:00-1:00:DA Classes\n2. 2:00-6:00 : ML Videos",
+    "note": "1. 10:00-1:00:DA Classes\n2. 2:00-6:00 : ML Videos",
+    "description": "1. 10:00-1:00:DA Classes\n2. 2:00-6:00 : ML Videos",
+    "type": "todo",
+    "createdBy": "6aba63a7ffdd149e03195cb7",
+    "assignedTo": "6aba63a7ffdd149e03195cb7",
+    "assignedBy": "6ab38a233312a90866e3c76c",
+    "department": "Trainer",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-14T12:30:00.000Z",
+    "initialScheduledAt": "2026-10-14T12:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "10:00-1:00:DA Classes",
+        "completed": true,
+        "completedAt": "2026-10-14T08:19:32.963Z",
+        "_id": "6acf3b15b894e304e83afdba",
+        "createdAt": "2026-10-14T08:19:33.941Z",
+        "updatedAt": "2026-10-14T08:19:33.941Z"
+      },
+      {
+        "title": "2:00-6:00 : ML Videos",
+        "completed": false,
+        "completedAt": null,
+        "_id": "6acf3b15b894e304e83afdbb",
+        "createdAt": "2026-10-14T08:19:33.941Z",
+        "updatedAt": "2026-10-14T08:19:33.941Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-14T04:28:01.374Z",
+    "updatedAt": "2026-10-14T08:19:33.941Z",
+    "__v": 0
+  },
+  {
+    "_id": "6acf04d9b894e304e83ae425",
+    "title": "1. Check LinkedIn comments and messages; reply to relevant enquiries.\n2. Review LinkedIn page reach, engagement and follower growth.\n3. generating posters",
+    "note": "1. Check LinkedIn comments and messages; reply to relevant enquiries.\n2. Review LinkedIn page reach, engagement and follower growth.\n3. generating posters",
+    "description": "1. Check LinkedIn comments and messages; reply to relevant enquiries.\n2. Review LinkedIn page reach, engagement and follower growth.\n3. generating posters",
+    "type": "todo",
+    "createdBy": "6abe21442605716ce3869045",
+    "assignedTo": "6abe21442605716ce3869045",
+    "assignedBy": "6ab63ad762b25645faae244e",
+    "department": "Marketing",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-14T13:30:00.000Z",
+    "initialScheduledAt": "2026-10-14T13:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "Check LinkedIn comments and messages; reply to relevant enquiries.",
+        "completed": true,
+        "completedAt": "2026-10-15T03:51:28.858Z",
+        "_id": "6ad04dc13d81e4b45c902a2c",
+        "createdAt": "2026-10-15T03:51:29.973Z",
+        "updatedAt": "2026-10-15T03:51:29.973Z"
+      },
+      {
+        "title": "Review LinkedIn page reach, engagement and follower growth.",
+        "completed": true,
+        "completedAt": "2026-10-15T03:51:28.858Z",
+        "_id": "6ad04dc13d81e4b45c902a2d",
+        "createdAt": "2026-10-15T03:51:29.973Z",
+        "updatedAt": "2026-10-15T03:51:29.973Z"
+      },
+      {
+        "title": "generating posters",
+        "completed": true,
+        "completedAt": "2026-10-15T03:51:28.858Z",
+        "_id": "6ad04dc13d81e4b45c902a2e",
+        "createdAt": "2026-10-15T03:51:29.973Z",
+        "updatedAt": "2026-10-15T03:51:29.973Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-14T04:28:09.354Z",
+    "updatedAt": "2026-10-15T03:51:29.973Z",
+    "__v": 0
+  },
+  {
+    "_id": "6acf057bb894e304e83ae496",
+    "title": "1. Check comments and DMs on assigned social media pages.\n2. Respond to queries and social media interactions.\n3. Post or repost approved content and update the posting calendar.",
+    "note": "1. Check comments and DMs on assigned social media pages.\n2. Respond to queries and social media interactions.\n3. Post or repost approved content and update the posting calendar.",
+    "description": "1. Check comments and DMs on assigned social media pages.\n2. Respond to queries and social media interactions.\n3. Post or repost approved content and update the posting calendar.",
+    "type": "todo",
+    "createdBy": "6abe233b2605716ce38691a2",
+    "assignedTo": "6abe233b2605716ce38691a2",
+    "assignedBy": "6ab63ad762b25645faae244e",
+    "department": "Marketing",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-14T03:30:00.000Z",
+    "initialScheduledAt": "2026-10-14T03:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-14T04:30:51.669Z",
+    "updatedAt": "2026-10-14T04:30:51.669Z",
+    "__v": 0
+  },
+  {
+    "_id": "6acf0a54b894e304e83ae6b0",
+    "title": "1. meta followup",
+    "note": "1. meta followup",
+    "description": "1. meta followup",
+    "type": "todo",
+    "createdBy": "6ab38a233312a90866e3c76c",
+    "assignedTo": "6ab38a233312a90866e3c76c",
+    "assignedBy": "6ab38a233312a90866e3c76c",
+    "department": "Manager",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-14T03:30:00.000Z",
+    "initialScheduledAt": "2026-10-14T03:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-14T04:51:32.255Z",
+    "updatedAt": "2026-10-14T04:51:32.255Z",
+    "__v": 0
+  },
+  {
+    "_id": "6acf321fb894e304e83af849",
+    "title": "1. CRM call recordings module\n2. Auction website modifications",
+    "note": "1. CRM call recordings module\n2. Auction website modifications",
+    "description": "1. CRM call recordings module\n2. Auction website modifications",
+    "type": "todo",
+    "createdBy": "6ab386d83312a90866e3c6d5",
+    "assignedTo": "6ab386d83312a90866e3c6d5",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "department": "Development",
+    "priority": "high",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-14T13:00:00.000Z",
+    "initialScheduledAt": "2026-10-14T13:00:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "CRM call recordings module",
+        "completed": true,
+        "completedAt": "2026-10-15T04:27:25.343Z",
+        "_id": "6ad0562f3d81e4b45c902f96",
+        "createdAt": "2026-10-15T04:27:27.498Z",
+        "updatedAt": "2026-10-15T04:27:27.498Z"
+      },
+      {
+        "title": "Auction website modifications",
+        "completed": true,
+        "completedAt": "2026-10-15T04:27:25.343Z",
+        "_id": "6ad0562f3d81e4b45c902f97",
+        "createdAt": "2026-10-15T04:27:27.498Z",
+        "updatedAt": "2026-10-15T04:27:27.498Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-14T07:41:19.640Z",
+    "updatedAt": "2026-10-15T04:27:27.498Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ad046813d81e4b45c9026cd",
+    "title": "1. digital marketing \n2. sap\n3. cyber security\n4. python\n5. just dail",
+    "note": "1. digital marketing \n2. sap\n3. cyber security\n4. python\n5. just dail",
+    "description": "1. digital marketing \n2. sap\n3. cyber security\n4. python\n5. just dail",
+    "type": "todo",
+    "createdBy": "6ab6449b62b25645faae28ed",
+    "assignedTo": "6ab6449b62b25645faae28ed",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "department": "Manager",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-15T12:00:00.000Z",
+    "initialScheduledAt": "2026-10-15T12:00:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "digital marketing",
+        "completed": true,
+        "completedAt": "2026-10-15T12:09:44.135Z",
+        "_id": "6ad0c2893d81e4b45c907c39",
+        "createdAt": "2026-10-15T12:09:45.996Z",
+        "updatedAt": "2026-10-15T12:09:45.996Z"
+      },
+      {
+        "title": "sap",
+        "completed": true,
+        "completedAt": "2026-10-15T12:09:44.135Z",
+        "_id": "6ad0c2893d81e4b45c907c3a",
+        "createdAt": "2026-10-15T12:09:45.996Z",
+        "updatedAt": "2026-10-15T12:09:45.996Z"
+      },
+      {
+        "title": "cyber security",
+        "completed": true,
+        "completedAt": "2026-10-15T12:09:44.135Z",
+        "_id": "6ad0c2893d81e4b45c907c3b",
+        "createdAt": "2026-10-15T12:09:45.996Z",
+        "updatedAt": "2026-10-15T12:09:45.996Z"
+      },
+      {
+        "title": "python",
+        "completed": true,
+        "completedAt": "2026-10-15T12:09:44.135Z",
+        "_id": "6ad0c2893d81e4b45c907c3c",
+        "createdAt": "2026-10-15T12:09:45.996Z",
+        "updatedAt": "2026-10-15T12:09:45.996Z"
+      },
+      {
+        "title": "just dail",
+        "completed": true,
+        "completedAt": "2026-10-15T12:09:44.135Z",
+        "_id": "6ad0c2893d81e4b45c907c3d",
+        "createdAt": "2026-10-15T12:09:45.996Z",
+        "updatedAt": "2026-10-15T12:09:45.996Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-15T03:20:33.321Z",
+    "updatedAt": "2026-10-15T12:09:45.996Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ad04d513d81e4b45c90293a",
+    "title": "1. Check comments and DMs on assigned social media pages.\n2. Check incoming with sales team calls and identify genuine or fake enquiries.\n3. Respond to queries and social media interactions.",
+    "note": "1. Check comments and DMs on assigned social media pages.\n2. Check incoming with sales team calls and identify genuine or fake enquiries.\n3. Respond to queries and social media interactions.",
+    "description": "1. Check comments and DMs on assigned social media pages.\n2. Check incoming with sales team calls and identify genuine or fake enquiries.\n3. Respond to queries and social media interactions.",
+    "type": "todo",
+    "createdBy": "6abe233b2605716ce38691a2",
+    "assignedTo": "6abe233b2605716ce38691a2",
+    "assignedBy": "6ab63ad762b25645faae244e",
+    "department": "Marketing",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-15T03:30:00.000Z",
+    "initialScheduledAt": "2026-10-15T03:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-15T03:49:37.696Z",
+    "updatedAt": "2026-10-15T03:49:37.696Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ad04da73d81e4b45c90296d",
+    "title": "1. Check LinkedIn comments and messages; reply to relevant enquiries.\n2. Review LinkedIn page reach, engagement and follower growth.\n3. poster designing.",
+    "note": "1. Check LinkedIn comments and messages; reply to relevant enquiries.\n2. Review LinkedIn page reach, engagement and follower growth.\n3. poster designing.",
+    "description": "1. Check LinkedIn comments and messages; reply to relevant enquiries.\n2. Review LinkedIn page reach, engagement and follower growth.\n3. poster designing.",
+    "type": "todo",
+    "createdBy": "6abe21442605716ce3869045",
+    "assignedTo": "6abe21442605716ce3869045",
+    "assignedBy": "6ab63ad762b25645faae244e",
+    "department": "Marketing",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-15T11:30:00.000Z",
+    "initialScheduledAt": "2026-10-15T11:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "Check LinkedIn comments and messages; reply to relevant enquiries.",
+        "completed": true,
+        "completedAt": "2026-10-15T07:35:34.535Z",
+        "_id": "6ad082473d81e4b45c905087",
+        "createdAt": "2026-10-15T07:35:35.456Z",
+        "updatedAt": "2026-10-15T07:35:35.456Z"
+      },
+      {
+        "title": "Review LinkedIn page reach, engagement and follower growth.",
+        "completed": true,
+        "completedAt": "2026-10-15T07:35:34.535Z",
+        "_id": "6ad082473d81e4b45c905088",
+        "createdAt": "2026-10-15T07:35:35.456Z",
+        "updatedAt": "2026-10-15T07:35:35.456Z"
+      },
+      {
+        "title": "poster designing.",
+        "completed": true,
+        "completedAt": "2026-10-15T07:35:34.535Z",
+        "_id": "6ad082473d81e4b45c905089",
+        "createdAt": "2026-10-15T07:35:35.456Z",
+        "updatedAt": "2026-10-15T07:35:35.456Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-15T03:51:03.014Z",
+    "updatedAt": "2026-10-15T07:35:35.456Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ad055d93d81e4b45c902e7a",
+    "title": "1. editing",
+    "note": "1. editing",
+    "description": "1. editing",
+    "type": "todo",
+    "createdBy": "6ab63ad762b25645faae244e",
+    "assignedTo": "6ab63ad762b25645faae244e",
+    "assignedBy": "6ab63ad762b25645faae244e",
+    "department": "Marketing",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-15T03:30:00.000Z",
+    "initialScheduledAt": "2026-10-15T03:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-15T04:26:01.713Z",
+    "updatedAt": "2026-10-15T04:26:01.713Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ad055e93d81e4b45c902e8e",
+    "title": "1. AIML class for online student\n2. Meta data dump in CRM and calls integration",
+    "note": "1. AIML class for online student\n2. Meta data dump in CRM and calls integration",
+    "description": "1. AIML class for online student\n2. Meta data dump in CRM and calls integration",
+    "type": "todo",
+    "createdBy": "6ab386d83312a90866e3c6d5",
+    "assignedTo": "6ab386d83312a90866e3c6d5",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "department": "Development",
+    "priority": "high",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-15T13:00:00.000Z",
+    "initialScheduledAt": "2026-10-15T13:00:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "AIML class for online student",
+        "completed": true,
+        "completedAt": "2026-10-16T04:05:49.862Z",
+        "_id": "6ad1a29f50aeb3ae85077d54",
+        "createdAt": "2026-10-16T04:05:51.378Z",
+        "updatedAt": "2026-10-16T04:05:51.378Z"
+      },
+      {
+        "title": "Meta data dump in CRM and calls integration",
+        "completed": true,
+        "completedAt": "2026-10-16T04:05:49.862Z",
+        "_id": "6ad1a29f50aeb3ae85077d55",
+        "createdAt": "2026-10-16T04:05:51.378Z",
+        "updatedAt": "2026-10-16T04:05:51.378Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-15T04:26:17.320Z",
+    "updatedAt": "2026-10-16T04:05:51.378Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ad055f13d81e4b45c902ea0",
+    "title": "1. Working on CRM",
+    "note": "1. Working on CRM",
+    "description": "1. Working on CRM",
+    "type": "todo",
+    "createdBy": "6ab25b5dc6d2062c7cd12eea",
+    "assignedTo": "6ab25b5dc6d2062c7cd12eea",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "department": "Development",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-16T15:30:00.000Z",
+    "initialScheduledAt": "2026-10-15T03:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "daily",
+      "endDate": "2026-10-31T18:29:59.000Z"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-15T04:26:25.530Z",
+    "updatedAt": "2026-10-16T04:34:00.804Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ad057483d81e4b45c903111",
+    "title": "1.10:00 - 1:00 :- DA classes\n2. 2:00-6:00:- ML videos",
+    "note": "1.10:00 - 1:00 :- DA classes\n2. 2:00-6:00:- ML videos",
+    "description": "1.10:00 - 1:00 :- DA classes\n2. 2:00-6:00:- ML videos",
+    "type": "todo",
+    "createdBy": "6aba63a7ffdd149e03195cb7",
+    "assignedTo": "6aba63a7ffdd149e03195cb7",
+    "assignedBy": "6ab38a233312a90866e3c76c",
+    "department": "Trainer",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-15T12:30:00.000Z",
+    "initialScheduledAt": "2026-10-15T12:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-15T04:32:08.857Z",
+    "updatedAt": "2026-10-15T04:32:08.857Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ad19bae50aeb3ae85077a2f",
+    "title": "1.digital marketing  \n2. sap\n3. cyber\n4. python\n5. just dail",
+    "note": "1.digital marketing  \n2. sap\n3. cyber\n4. python\n5. just dail",
+    "description": "1.digital marketing  \n2. sap\n3. cyber\n4. python\n5. just dail",
+    "type": "todo",
+    "createdBy": "6ab6449b62b25645faae28ed",
+    "assignedTo": "6ab6449b62b25645faae28ed",
+    "assignedBy": "6ab6449b62b25645faae28ed",
+    "department": "Manager",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-16T03:30:00.000Z",
+    "initialScheduledAt": "2026-10-16T03:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "digital marketing",
+        "completed": true,
+        "completedAt": "2026-10-16T12:29:25.247Z",
+        "_id": "6ad218a61864f3f3d86a08a0",
+        "createdAt": "2026-10-16T12:29:26.046Z",
+        "updatedAt": "2026-10-16T12:29:26.046Z"
+      },
+      {
+        "title": "sap",
+        "completed": true,
+        "completedAt": "2026-10-16T12:29:25.247Z",
+        "_id": "6ad218a61864f3f3d86a08a1",
+        "createdAt": "2026-10-16T12:29:26.046Z",
+        "updatedAt": "2026-10-16T12:29:26.046Z"
+      },
+      {
+        "title": "cyber",
+        "completed": true,
+        "completedAt": "2026-10-16T12:29:25.247Z",
+        "_id": "6ad218a61864f3f3d86a08a2",
+        "createdAt": "2026-10-16T12:29:26.046Z",
+        "updatedAt": "2026-10-16T12:29:26.046Z"
+      },
+      {
+        "title": "python",
+        "completed": true,
+        "completedAt": "2026-10-16T12:29:25.247Z",
+        "_id": "6ad218a61864f3f3d86a08a3",
+        "createdAt": "2026-10-16T12:29:26.046Z",
+        "updatedAt": "2026-10-16T12:29:26.046Z"
+      },
+      {
+        "title": "just dail",
+        "completed": true,
+        "completedAt": "2026-10-16T12:29:25.247Z",
+        "_id": "6ad218a61864f3f3d86a08a4",
+        "createdAt": "2026-10-16T12:29:26.046Z",
+        "updatedAt": "2026-10-16T12:29:26.046Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-16T03:36:14.034Z",
+    "updatedAt": "2026-10-16T12:29:26.046Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ad1a1e550aeb3ae85077bfb",
+    "title": "1. poster desinging\n2. Check LinkedIn comments and messages; reply to relevant enquiries.\n3. Review LinkedIn page reach, engagement and follower growth.",
+    "note": "1. poster desinging\n2. Check LinkedIn comments and messages; reply to relevant enquiries.\n3. Review LinkedIn page reach, engagement and follower growth.",
+    "description": "1. poster desinging\n2. Check LinkedIn comments and messages; reply to relevant enquiries.\n3. Review LinkedIn page reach, engagement and follower growth.",
+    "type": "todo",
+    "createdBy": "6abe21442605716ce3869045",
+    "assignedTo": "6abe21442605716ce3869045",
+    "assignedBy": "6ab63ad762b25645faae244e",
+    "department": "Marketing",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-16T13:30:00.000Z",
+    "initialScheduledAt": "2026-10-16T13:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-16T04:02:45.923Z",
+    "updatedAt": "2026-10-16T04:02:45.923Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ad1a29550aeb3ae85077d04",
+    "title": "1. Run Google ads\n2. AIML class for online student at 10 a.m\n3. work on calendar module in CRM",
+    "note": "1. Run Google ads\n2. AIML class for online student at 10 a.m\n3. work on calendar module in CRM",
+    "description": "1. Run Google ads\n2. AIML class for online student at 10 a.m\n3. work on calendar module in CRM",
+    "type": "todo",
+    "createdBy": "6ab386d83312a90866e3c6d5",
+    "assignedTo": "6ab386d83312a90866e3c6d5",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "department": "Development",
+    "priority": "high",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-16T13:00:00.000Z",
+    "initialScheduledAt": "2026-10-16T13:00:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "Run Google ads",
+        "completed": false,
+        "completedAt": null,
+        "_id": "6ad1f05e1864f3f3d869db31",
+        "createdAt": "2026-10-16T09:37:34.192Z",
+        "updatedAt": "2026-10-16T09:37:34.192Z"
+      },
+      {
+        "title": "AIML class for online student at 10 a.m",
+        "completed": true,
+        "completedAt": "2026-10-16T09:37:32.937Z",
+        "_id": "6ad1f05e1864f3f3d869db32",
+        "createdAt": "2026-10-16T09:37:34.192Z",
+        "updatedAt": "2026-10-16T09:37:34.192Z"
+      },
+      {
+        "title": "work on calendar module in CRM",
+        "completed": false,
+        "completedAt": null,
+        "_id": "6ad1f05e1864f3f3d869db33",
+        "createdAt": "2026-10-16T09:37:34.192Z",
+        "updatedAt": "2026-10-16T09:37:34.192Z"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-16T04:05:41.622Z",
+    "updatedAt": "2026-10-16T09:37:34.192Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ad1a3b950aeb3ae85077e11",
+    "title": "1. Check comments and DMs on assigned social media pages\n2. Check incoming with sales team calls and identify genuine or fake enquiries.\n3. Respond to queries and social media interactions.\n4. Make a poster.",
+    "note": "1. Check comments and DMs on assigned social media pages\n2. Check incoming with sales team calls and identify genuine or fake enquiries.\n3. Respond to queries and social media interactions.\n4. Make a poster.",
+    "description": "1. Check comments and DMs on assigned social media pages\n2. Check incoming with sales team calls and identify genuine or fake enquiries.\n3. Respond to queries and social media interactions.\n4. Make a poster.",
+    "type": "todo",
+    "createdBy": "6abe233b2605716ce38691a2",
+    "assignedTo": "6abe233b2605716ce38691a2",
+    "assignedBy": "6ab63ad762b25645faae244e",
+    "department": "Marketing",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-16T03:30:00.000Z",
+    "initialScheduledAt": "2026-10-16T03:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-16T04:10:33.520Z",
+    "updatedAt": "2026-10-16T04:10:33.520Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ad1ad6e50aeb3ae8507885d",
+    "title": "1. HI",
+    "note": "1. HI",
+    "description": "1. HI",
+    "type": "todo",
+    "createdBy": "6abe21442605716ce3869045",
+    "assignedTo": "6abe21442605716ce3869045",
+    "assignedBy": "6ab6449b62b25645faae28ed",
+    "department": "Marketing",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-16T03:30:00.000Z",
+    "initialScheduledAt": "2026-10-16T03:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-16T04:51:58.358Z",
+    "updatedAt": "2026-10-16T04:51:58.358Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ad1b25a50aeb3ae85078e26",
+    "title": "1. Testing",
+    "note": "1. Testing",
+    "description": "1. Testing",
+    "type": "todo",
+    "createdBy": "6abe21442605716ce3869045",
+    "assignedTo": "6abe21442605716ce3869045",
+    "assignedBy": "6abe21442605716ce3869045",
+    "department": "Marketing",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-16T03:30:00.000Z",
+    "initialScheduledAt": "2026-10-16T03:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-16T05:12:58.136Z",
+    "updatedAt": "2026-10-16T05:12:58.136Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ad1b98d50aeb3ae8507960a",
+    "title": "1. 10:00-01:00:-DA Classes\n2. 3 ML Videos",
+    "note": "1. 10:00-01:00:-DA Classes\n2. 3 ML Videos",
+    "description": "1. 10:00-01:00:-DA Classes\n2. 3 ML Videos",
+    "type": "todo",
+    "createdBy": "6aba63a7ffdd149e03195cb7",
+    "assignedTo": "6aba63a7ffdd149e03195cb7",
+    "assignedBy": "6ab38a233312a90866e3c76c",
+    "department": "Trainer",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-16T12:30:00.000Z",
+    "initialScheduledAt": "2026-10-16T12:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-16T05:43:41.048Z",
+    "updatedAt": "2026-10-16T05:43:41.048Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ad1bca850aeb3ae850799e2",
+    "title": "1. Text",
+    "note": "1. Text",
+    "description": "1. Text",
+    "type": "todo",
+    "createdBy": "6abe21442605716ce3869045",
+    "assignedTo": "6abe21442605716ce3869045",
+    "assignedBy": "6abe21442605716ce3869045",
+    "department": "Marketing",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-16T03:30:00.000Z",
+    "initialScheduledAt": "2026-10-16T03:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-16T05:56:56.096Z",
+    "updatedAt": "2026-10-16T05:56:56.096Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ad1be5f50aeb3ae85079c63",
+    "title": "1. Modules",
+    "note": "1. Modules",
+    "description": "1. Modules",
+    "type": "todo",
+    "createdBy": "6aba5c2fffdd149e031957ba",
+    "assignedTo": "6aba5c2fffdd149e031957ba",
+    "assignedBy": "6aba5c2fffdd149e031957ba",
+    "department": "Trainer",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-16T03:30:00.000Z",
+    "initialScheduledAt": "2026-10-16T03:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-16T06:04:15.822Z",
+    "updatedAt": "2026-10-16T06:04:15.822Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ad1d9761864f3f3d869cd9d",
+    "title": "1. Video editing",
+    "note": "1. Video editing",
+    "description": "1. Video editing",
+    "type": "todo",
+    "createdBy": "6ab63ad762b25645faae244e",
+    "assignedTo": "6ab63ad762b25645faae244e",
+    "assignedBy": "6ab63ad762b25645faae244e",
+    "department": "Marketing",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-16T03:30:00.000Z",
+    "initialScheduledAt": "2026-10-16T03:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-16T07:59:50.377Z",
+    "updatedAt": "2026-10-16T07:59:50.377Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ad247a1f850c1205273cfaf",
+    "title": "1. NEXR",
+    "note": "1. NEXR",
+    "description": "1. NEXR",
+    "type": "todo",
+    "createdBy": "6ab25b5dc6d2062c7cd12eea",
+    "assignedTo": "6ab25b5dc6d2062c7cd12eea",
+    "assignedBy": "6ab25b5dc6d2062c7cd12eea",
+    "department": "Development",
+    "priority": "medium",
+    "status": "upcoming",
+    "scheduledAt": "2026-10-16T03:30:00.000Z",
+    "initialScheduledAt": "2026-10-16T03:30:00.000Z",
+    "completedCount": 0,
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [],
+    "comments": [],
+    "attachments": [],
+    "activityHistory": [],
+    "createdAt": "2026-10-16T15:49:53.312Z",
+    "updatedAt": "2026-10-16T15:49:53.312Z",
+    "__v": 0
+  }
+]

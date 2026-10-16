@@ -194,40 +194,41 @@ This master specification defines the unified engineering roadmap for:
 ---
 
 ### Phase 6: Legacy Task/TODO Safe Retirement & Redirection
-- [ ] **6.1 Preserve Call Follow-ups**:
-  - [ ] Verify `followups.js` is isolated and accessible via `/api/followups`.
-- [ ] **6.2 Update Navigation & Fallback Redirects**:
-  - [ ] In `routes.jsx`: Replace `!canViewDashboard ? "/tasks"` with `"/daily-activity"`.
-  - [ ] In `Login.jsx`: Replace `/tasks` redirect with `/daily-activity` or `/dashboard`.
-  - [ ] In `Forbidden.jsx`: Update return button to `/daily-activity`.
-  - [ ] In `Sidebar.jsx`: Replace `Tasks` nav item with `Daily Activity` (Calendar icon).
-  - [ ] In `Navbar.jsx`: Remove `Tasks` and `TODO List` menu links.
-- [ ] **6.3 Clean Code Deletion**:
-  - [ ] Delete `frontend/src/modules/tasks/`.
-  - [ ] Delete `frontend/src/components/dashboard/Task/` and `Todo/`.
-  - [ ] In `backend/src/app/routes.js`: Unmount `/tasks` and `/todos`.
-  - [ ] Delete `backend/src/modules/tasks/tasks.js` and `todos.js`.
-  - [ ] Remove `Task.js` and `Todo.js` from `backend/src/database/models/`.
-- [ ] **6.4 Database Backup & Migration**:
-  - [ ] Export JSON backup of MongoDB `tasks` (11 docs) and `todos` (70 docs).
-  - [ ] Drop `tasks` and `todos` collections after backup confirmation.
+- [x] **6.1 Preserve Call Follow-ups**:
+  - [x] Verify `followups.js` is isolated and accessible via `/api/followups`.
+- [x] **6.2 Update Navigation & Fallback Redirects**:
+  - [x] In `routes.jsx`: Replace `!canViewDashboard ? "/tasks"` with `"/daily-activity"`.
+  - [x] In `Login.jsx`: Replace `/tasks` redirect with `/daily-activity` or `/dashboard`.
+  - [x] In `Forbidden.jsx`: Update return button to `/daily-activity`.
+  - [x] In `Sidebar.jsx`: Replace `Tasks` nav item with `Daily Activity` (Calendar icon).
+  - [x] In `Navbar.jsx`: Remove `Tasks` and `TODO List` menu links.
+  - [x] In `MandatoryAttendanceModal.jsx`: Permanently remove Step 2/2 Todo form and restore pure single-step Attendance clock-in.
+- [x] **6.3 Clean Code Deletion (Completed Frontend, Backend & Unmount)**:
+  - [x] Delete `frontend/src/modules/tasks/`.
+  - [x] Delete `frontend/src/components/dashboard/Task/` and `Todo/`.
+  - [x] In `backend/src/app/routes.js`: Unmount `/tasks` and `/todos`.
+  - [x] Delete `backend/src/modules/tasks/tasks.js` and `todos.js`.
+  - [x] Remove `Task.js` and `Todo.js` from `backend/src/database/models/`.
+- [x] **6.4 Database Backup & Migration (Completed)**:
+  - [x] Export JSON backup of MongoDB `tasks` (11 docs) and `todos` (71 docs).
+  - [x] Safely drop `tasks` and `todos` MongoDB collections after backup verification.
 
 ---
 
 ### Phase 7: Quality Assurance, Security & Regression Testing
-- [ ] **7.1 Security & RBAC Checks**:
-  - [ ] Verify Telecaller sees only their own calls, calendar, and history.
-  - [ ] Verify non-admin cannot access `/api/daily-activities/admin/overview`.
-  - [ ] Verify client cannot tamper with `employeeId` or `status` in payload.
-- [ ] **7.2 Telecalling Validation Checks**:
-  - [ ] Submit invalid call counts (`attempted: 10, connected: 15`) -> Confirm rejected with HTTP 422.
-  - [ ] Select outcome `Follow-up Required` without date -> Confirm rejected.
-- [ ] **7.3 Zero Regression Checks**:
-  - [ ] Test `/digital-calendar`: Confirm Marketing calendar and cards function 100% normally.
-  - [ ] Test Leads & Follow-ups: Confirm lead calling and follow-up reminders are fully functional.
-- [ ] **7.4 Production Build**:
-  - [ ] Run `npx vite build --emptyOutDir` in `frontend/` to confirm 0 compilation/lint errors.
-  - [ ] Verify backend boots with zero missing module imports.
+- [x] **7.1 Security & RBAC Checks**:
+  - [x] Verify Telecaller sees only their own calls, calendar, and history.
+  - [x] Verify non-admin cannot access `/api/daily-activities/admin/overview`.
+  - [x] Verify client cannot tamper with `employeeId` or `status` in payload.
+- [x] **7.2 Telecalling Validation Checks**:
+  - [x] Submit invalid call counts (`attempted: 10, connected: 15`) -> Confirm rejected with HTTP 422.
+  - [x] Select outcome `Follow-up Required` without date -> Confirm rejected.
+- [x] **7.3 Zero Regression Checks**:
+  - [x] Test `/digital-calendar`: Confirm Marketing calendar and cards function 100% normally.
+  - [x] Test Leads & Follow-ups: Confirm lead calling and follow-up reminders are fully functional.
+- [x] **7.4 Production Build**:
+  - [x] Run `npx vite build --emptyOutDir` in `frontend/` to confirm 0 compilation/lint errors.
+  - [x] Verify backend boots with zero missing module imports.
 
 ---
 

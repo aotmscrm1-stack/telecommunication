@@ -798,10 +798,10 @@ export default function DigitalCalendar() {
 
             <div>
               <div className="flex items-center gap-2.5 flex-wrap">
-                <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 m-0">
+                <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900 m-0">
                   Digital Calendar
                 </h1>
-                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide uppercase bg-orange-50 text-orange-600 border border-orange-200/80 shadow-xs">
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium tracking-wide uppercase bg-orange-50 text-orange-600 border border-orange-200/80 shadow-xs">
                   Info Hub
                 </span>
               </div>
@@ -817,7 +817,7 @@ export default function DigitalCalendar() {
             <div className="flex items-center p-1 bg-slate-100/90 border border-slate-200 rounded-xl shadow-xs shrink-0">
               <button
                 onClick={() => setViewMode('calendar')}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                   viewMode === 'calendar'
                     ? 'bg-white text-sky-700 shadow-sm border border-slate-200/60'
                     : 'text-slate-600 hover:text-slate-900'
@@ -828,7 +828,7 @@ export default function DigitalCalendar() {
               </button>
               <button
                 onClick={() => setViewMode('management')}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                   viewMode === 'management'
                     ? 'bg-white text-sky-700 shadow-sm border border-slate-200/60'
                     : 'text-slate-600 hover:text-slate-900'
@@ -848,7 +848,7 @@ export default function DigitalCalendar() {
               >
                 <FaChevronLeft className="w-3.5 h-3.5" />
               </button>
-              <span className="px-3 text-xs font-bold text-slate-800 min-w-[130px] text-center select-none tracking-wide">
+              <span className="px-3 text-xs font-medium text-slate-800 min-w-[130px] text-center select-none tracking-wide">
                 {MONTH_NAMES[currentMonth]} {currentYear}
               </span>
               <button
@@ -865,7 +865,7 @@ export default function DigitalCalendar() {
               {/* Today Jump */}
               <button
                 onClick={handleGoToToday}
-                className="px-3.5 py-2 text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:border-sky-400 hover:text-sky-600 hover:bg-sky-50/50 rounded-xl shadow-xs transition active:scale-95 cursor-pointer"
+                className="px-3.5 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 hover:border-sky-400 hover:text-sky-600 hover:bg-sky-50/50 rounded-xl shadow-xs transition active:scale-95 cursor-pointer"
               >
                 Today
               </button>
@@ -885,7 +885,7 @@ export default function DigitalCalendar() {
                   setPrefilledDate(new Date().toISOString().split('T')[0]);
                   setShowAddModal(true);
                 }}
-                className="flex items-center gap-1.5 px-4 py-2 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md transition-all transform hover:-translate-y-0.5 active:scale-95 cursor-pointer"
+                className="flex items-center gap-1.5 px-4 py-2 text-white rounded-xl text-xs sm:text-sm font-medium shadow-md transition-all transform hover:-translate-y-0.5 active:scale-95 cursor-pointer"
                 style={{
                   background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
                   boxShadow: '0 6px 20px rgba(249, 115, 22, 0.35)',
@@ -921,7 +921,7 @@ export default function DigitalCalendar() {
                 >
                   <FaChevronLeft className="w-3 h-3" />
                 </button>
-                <span className="text-xs font-black text-slate-900 tracking-wide uppercase">
+                <span className="text-xs font-semibold text-slate-900 tracking-wide uppercase">
                   {MONTH_NAMES[currentMonth]} {currentYear}
                 </span>
                 <button
@@ -936,7 +936,7 @@ export default function DigitalCalendar() {
               {/* Weekday Row */}
               <div className="grid grid-cols-7 gap-1 text-center mb-1 select-none">
                 {MINI_CAL_DAYS.map(day => (
-                  <span key={day} className="text-[10px] font-black text-slate-400 py-1">
+                  <span key={day} className="text-[10px] font-semibold text-slate-400 py-1">
                     {day}
                   </span>
                 ))}
@@ -977,11 +977,11 @@ export default function DigitalCalendar() {
                           ? `${count} my content item(s)`
                           : undefined
                       }
-                      className={`mini-day-cell h-8 w-8 mx-auto rounded-full flex flex-col items-center justify-center text-xs font-bold relative transition cursor-pointer ${
+                      className={`mini-day-cell h-8 w-8 mx-auto rounded-full flex flex-col items-center justify-center text-xs font-medium relative transition cursor-pointer ${
                         isSelected
                           ? 'bg-slate-900 text-white shadow-md ring-2 ring-sky-500 scale-105'
                           : isTodayDate
-                          ? 'bg-sky-50 text-sky-700 font-extrabold ring-2 ring-sky-500'
+                          ? 'bg-sky-50 text-sky-700 font-semibold ring-2 ring-sky-500'
                           : dObj.isCurrentMonth
                           ? 'text-slate-700 hover:bg-slate-100'
                           : 'text-slate-300'
@@ -1015,7 +1015,7 @@ export default function DigitalCalendar() {
               </div>
 
               {/* Mini Calendar Indicator Legend */}
-              <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500 font-bold px-1 select-none">
+              <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500 font-medium px-1 select-none">
                 <div className="flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
                   <span>My Events</span>
@@ -1030,11 +1030,11 @@ export default function DigitalCalendar() {
               {selectedDateFilter && (
                 <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
                   <div className="truncate pr-2">
-                    <span className="text-[11px] font-bold text-sky-700 truncate block">
+                    <span className="text-[11px] font-medium text-sky-700 truncate block">
                       Selected: {new Date(selectedDateFilter).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </span>
                     {holidaysByDate[selectedDateFilter]?.length > 0 && (
-                      <span className="text-[10px] font-bold text-amber-700 truncate block">
+                      <span className="text-[10px] font-medium text-amber-700 truncate block">
                         🎉 {holidaysByDate[selectedDateFilter].map(h => h.summary || h.content_title).join(', ')}
                       </span>
                     )}
@@ -1042,7 +1042,7 @@ export default function DigitalCalendar() {
                   <button
                     type="button"
                     onClick={() => setSelectedDateFilter(null)}
-                    className="text-[10px] font-extrabold text-rose-600 hover:underline cursor-pointer shrink-0"
+                    className="text-[10px] font-semibold text-rose-600 hover:underline cursor-pointer shrink-0"
                   >
                     Clear
                   </button>
@@ -1055,13 +1055,13 @@ export default function DigitalCalendar() {
             {/* 2. Platform Filters (Interactive Sidebar Reference List) */}
             <div className="bg-white rounded-3xl p-4 border border-slate-200/90 shadow-sm space-y-2">
               <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
-                <span className="text-[11px] font-black text-slate-500 uppercase tracking-wider">
+                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                   Platforms
                 </span>
                 {filterPlatform !== 'all' && (
                   <button
                     onClick={() => setFilterPlatform('all')}
-                    className="text-[10px] text-sky-600 font-bold hover:underline cursor-pointer"
+                    className="text-[10px] text-sky-600 font-medium hover:underline cursor-pointer"
                   >
                     All
                   </button>
@@ -1084,7 +1084,7 @@ export default function DigitalCalendar() {
                       key={p.id}
                       type="button"
                       onClick={() => setFilterPlatform(p.id)}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition cursor-pointer ${
                         active
                           ? 'bg-sky-50 text-sky-800 border border-sky-200 shadow-2xs'
                           : 'text-slate-600 hover:bg-slate-50'
@@ -1104,13 +1104,13 @@ export default function DigitalCalendar() {
             {/* 3. Content Type Filters */}
             <div className="bg-white rounded-3xl p-4 border border-slate-200/90 shadow-sm space-y-2">
               <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
-                <span className="text-[11px] font-black text-slate-500 uppercase tracking-wider">
+                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                   Content Types
                 </span>
                 {filterType !== 'all' && (
                   <button
                     onClick={() => setFilterType('all')}
-                    className="text-[10px] text-sky-600 font-bold hover:underline cursor-pointer"
+                    className="text-[10px] text-sky-600 font-medium hover:underline cursor-pointer"
                   >
                     Reset
                   </button>
@@ -1121,7 +1121,7 @@ export default function DigitalCalendar() {
                 <button
                   type="button"
                   onClick={() => setFilterType('all')}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer border ${
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition cursor-pointer border ${
                     filterType === 'all'
                       ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
                       : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
@@ -1137,7 +1137,7 @@ export default function DigitalCalendar() {
                       key={type}
                       type="button"
                       onClick={() => setFilterType(active ? 'all' : type)}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer border ${
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition cursor-pointer border ${
                         active
                           ? 'bg-sky-600 text-white border-sky-700 shadow-xs'
                           : `${tStyle.bg} ${tStyle.text} ${tStyle.border} hover:opacity-80`
@@ -1153,13 +1153,13 @@ export default function DigitalCalendar() {
             {/* 4. Marketing Team Members (Reference Avatar Group) */}
             <div className="bg-white rounded-3xl p-4 border border-slate-200/90 shadow-sm space-y-2">
               <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
-                <span className="text-[11px] font-black text-slate-500 uppercase tracking-wider">
+                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                   Marketing Team
                 </span>
                 {filterEmployee !== 'all' && (
                   <button
                     onClick={() => setFilterEmployee('all')}
-                    className="text-[10px] text-sky-600 font-bold hover:underline cursor-pointer"
+                    className="text-[10px] text-sky-600 font-medium hover:underline cursor-pointer"
                   >
                     All
                   </button>
@@ -1192,14 +1192,14 @@ export default function DigitalCalendar() {
                           />
                         ) : (
                           <div
-                            className="w-7 h-7 rounded-lg text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs"
+                            className="w-7 h-7 rounded-lg text-white font-semibold text-xs flex items-center justify-center shrink-0 shadow-2xs"
                             style={{ background: 'linear-gradient(135deg, #0284c7 0%, #f97316 100%)' }}
                           >
                             {(personName || 'M').charAt(0).toUpperCase()}
                           </div>
                         )}
                         <div className="truncate">
-                          <span className="text-xs font-bold text-slate-800 block truncate">
+                          <span className="text-xs font-medium text-slate-800 block truncate">
                             {personName}
                           </span>
                           <span className="text-[10px] text-slate-500 font-medium block truncate">
@@ -1228,7 +1228,7 @@ export default function DigitalCalendar() {
                 <button
                   type="button"
                   onClick={() => setFilterStatus('all')}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-medium transition whitespace-nowrap cursor-pointer ${
                     filterStatus === 'all'
                       ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
@@ -1236,7 +1236,7 @@ export default function DigitalCalendar() {
                 >
                   <FaLayerGroup className={`w-3.5 h-3.5 ${filterStatus === 'all' ? 'text-sky-600' : 'text-slate-400'}`} />
                   <span>Total Items</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                     filterStatus === 'all' ? 'bg-sky-100 text-sky-800' : 'bg-slate-200 text-slate-600'
                   }`}>
                     {statusCounts.total}
@@ -1247,7 +1247,7 @@ export default function DigitalCalendar() {
                 <button
                   type="button"
                   onClick={() => setFilterStatus('scheduled')}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-medium transition whitespace-nowrap cursor-pointer ${
                     filterStatus === 'scheduled'
                       ? 'bg-white text-sky-700 shadow-sm border border-sky-200'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
@@ -1255,7 +1255,7 @@ export default function DigitalCalendar() {
                 >
                   <FaClock className={`w-3.5 h-3.5 ${filterStatus === 'scheduled' ? 'text-sky-600' : 'text-slate-400'}`} />
                   <span>Scheduled</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                     filterStatus === 'scheduled' ? 'bg-sky-500 text-white' : 'bg-slate-200 text-slate-600'
                   }`}>
                     {statusCounts.scheduled}
@@ -1266,7 +1266,7 @@ export default function DigitalCalendar() {
                 <button
                   type="button"
                   onClick={() => setFilterStatus('posted')}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-medium transition whitespace-nowrap cursor-pointer ${
                     filterStatus === 'posted'
                       ? 'bg-white text-emerald-700 shadow-sm border border-emerald-200'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
@@ -1274,7 +1274,7 @@ export default function DigitalCalendar() {
                 >
                   <FaCheck className={`w-3.5 h-3.5 ${filterStatus === 'posted' ? 'text-emerald-600' : 'text-slate-400'}`} />
                   <span>Live / Posted</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                     filterStatus === 'posted' ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-600'
                   }`}>
                     {statusCounts.posted}
@@ -1285,7 +1285,7 @@ export default function DigitalCalendar() {
                 <button
                   type="button"
                   onClick={() => setFilterStatus('in_progress')}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-medium transition whitespace-nowrap cursor-pointer ${
                     filterStatus === 'in_progress'
                       ? 'bg-white text-amber-700 shadow-sm border border-amber-200'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
@@ -1293,7 +1293,7 @@ export default function DigitalCalendar() {
                 >
                   <FaPenToSquare className={`w-3.5 h-3.5 ${filterStatus === 'in_progress' ? 'text-amber-600' : 'text-slate-400'}`} />
                   <span>In Progress</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                     filterStatus === 'in_progress' ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-600'
                   }`}>
                     {statusCounts.inProgress}
@@ -1304,7 +1304,7 @@ export default function DigitalCalendar() {
                 <button
                   type="button"
                   onClick={() => setFilterStatus('needs_approval')}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-medium transition whitespace-nowrap cursor-pointer ${
                     filterStatus === 'needs_approval'
                       ? 'bg-white text-orange-700 shadow-sm border border-orange-200'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
@@ -1312,7 +1312,7 @@ export default function DigitalCalendar() {
                 >
                   <FaHourglassHalf className={`w-3.5 h-3.5 ${filterStatus === 'needs_approval' ? 'text-orange-600' : 'text-slate-400'}`} />
                   <span>Needs Approval</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                     filterStatus === 'needs_approval' ? 'bg-orange-500 text-white' : 'bg-slate-200 text-slate-600'
                   }`}>
                     {statusCounts.needsApproval}
@@ -1351,7 +1351,7 @@ export default function DigitalCalendar() {
                       setSelectedDateFilter(null);
                       setSearchQuery('');
                     }}
-                    className="px-3 py-2 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl transition whitespace-nowrap cursor-pointer"
+                    className="px-3 py-2 text-xs font-medium text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl transition whitespace-nowrap cursor-pointer"
                   >
                     Reset
                   </button>
@@ -1364,7 +1364,7 @@ export default function DigitalCalendar() {
               <div className="p-3 bg-gradient-to-r from-sky-50 to-blue-50/60 border border-sky-200 rounded-2xl flex items-center justify-between gap-3 shadow-xs">
                 <div className="flex items-center gap-2">
                   <FaCalendarDays className="w-4 h-4 text-sky-600 shrink-0" />
-                  <span className="text-xs font-extrabold text-slate-900">
+                  <span className="text-xs font-semibold text-slate-900">
                     Showing content for{' '}
                     <span className="text-sky-700">
                       {new Date(selectedDateFilter).toLocaleDateString('en-US', {
@@ -1375,11 +1375,11 @@ export default function DigitalCalendar() {
                       })}
                     </span>
                   </span>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-sky-100 text-sky-800">
                     {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'}
                   </span>
                   {selectedDateFilter && holidaysByDate[selectedDateFilter]?.length > 0 && (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-800 border border-amber-200">
                       🎉 {holidaysByDate[selectedDateFilter].map(h => h.summary || h.content_title).join(', ')}
                     </span>
                   )}
@@ -1387,7 +1387,7 @@ export default function DigitalCalendar() {
                 <button
                   type="button"
                   onClick={() => setSelectedDateFilter(null)}
-                  className="text-xs font-bold text-sky-700 hover:text-sky-900 hover:underline cursor-pointer"
+                  className="text-xs font-medium text-sky-700 hover:text-sky-900 hover:underline cursor-pointer"
                 >
                   Show All Dates
                 </button>
@@ -1398,14 +1398,14 @@ export default function DigitalCalendar() {
             {loading ? (
               <div className="p-12 text-center bg-white rounded-3xl border border-slate-200">
                 <FaRotate className="w-6 h-6 animate-spin text-sky-600 mx-auto mb-3" />
-                <span className="text-xs font-bold text-slate-500">Loading calendar items...</span>
+                <span className="text-xs font-medium text-slate-500">Loading calendar items...</span>
               </div>
             ) : filteredItems.length === 0 ? (
               <div className="p-12 text-center bg-white rounded-3xl border border-slate-200 shadow-sm">
                 <div className="w-14 h-14 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center mx-auto mb-3 text-xl">
                   <FaCalendarDays />
                 </div>
-                <h3 className="text-base font-extrabold text-slate-900 m-0">No Events Scheduled</h3>
+                <h3 className="text-base font-semibold text-slate-900 m-0">No Events Scheduled</h3>
                 <p className="text-xs text-slate-500 font-medium max-w-sm mx-auto mt-1 mb-4">
                   There are no marketing schedules or events matching the selected date and filters.
                 </p>
@@ -1415,7 +1415,7 @@ export default function DigitalCalendar() {
                     setPrefilledDate(selectedDateFilter || new Date().toISOString().split('T')[0]);
                     setShowAddModal(true);
                   }}
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-md transition cursor-pointer"
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-md transition cursor-pointer"
                 >
                   <FaPlus className="w-3 h-3" />
                   <span>Schedule Content Now</span>
@@ -1532,13 +1532,13 @@ export default function DigitalCalendar() {
                         <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                           {/* Content Type Badge */}
                           <span
-                            className={`px-2.5 py-0.5 rounded-lg text-[11px] font-black tracking-wide border shrink-0 ${typeStyle.bg} ${typeStyle.text} ${typeStyle.border}`}
+                            className={`px-2.5 py-0.5 rounded-lg text-[11px] font-semibold tracking-wide border shrink-0 ${typeStyle.bg} ${typeStyle.text} ${typeStyle.border}`}
                           >
                             {currentItem.content_type}
                           </span>
 
                           {/* Date Pill */}
-                          <span className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold text-slate-600 bg-slate-100/90 border border-slate-200/80 shrink-0">
+                          <span className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-medium text-slate-600 bg-slate-100/90 border border-slate-200/80 shrink-0">
                             <FaCalendarDays className="w-2.5 h-2.5 text-sky-600 shrink-0" />
                             <span>{formattedItemDate}</span>
                             <span className="text-slate-400 font-normal">•</span>
@@ -1588,7 +1588,7 @@ export default function DigitalCalendar() {
                           className="flex items-center gap-1.5 p-1 bg-slate-100/90 rounded-2xl border border-slate-200/80 mb-2.5 overflow-x-auto no-scrollbar shadow-3xs"
                           onClick={e => e.stopPropagation()}
                         >
-                          <span className="text-[10px] font-black uppercase text-slate-500 pl-1.5 shrink-0 flex items-center gap-1">
+                          <span className="text-[10px] font-semibold uppercase text-slate-500 pl-1.5 shrink-0 flex items-center gap-1">
                             <FaLayerGroup className="w-2.5 h-2.5 text-sky-600" />
                             <span>Contents:</span>
                           </span>
@@ -1600,7 +1600,7 @@ export default function DigitalCalendar() {
                                   key={sIdx}
                                   type="button"
                                   onClick={() => setCardSubIndexMap(prev => ({ ...prev, [item._id]: sIdx }))}
-                                  className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-black transition cursor-pointer shrink-0 ${
+                                  className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-semibold transition cursor-pointer shrink-0 ${
                                     isSel
                                       ? 'bg-sky-600 text-white shadow-xs'
                                       : 'bg-white hover:bg-slate-200/70 text-slate-700 border border-slate-200/60'
@@ -1626,7 +1626,7 @@ export default function DigitalCalendar() {
                       {/* 3. Content Title */}
                       <h4
                         title={currentItem.content_title}
-                        className="text-sm sm:text-base font-extrabold text-slate-900 group-hover:text-sky-600 transition-colors leading-snug line-clamp-2 mt-0.5 mb-2"
+                        className="text-sm sm:text-base font-semibold text-slate-900 group-hover:text-sky-600 transition-colors leading-snug line-clamp-2 mt-0.5 mb-2"
                       >
                         {currentItem.content_title || 'Untitled Content'}
                       </h4>
@@ -1635,7 +1635,7 @@ export default function DigitalCalendar() {
                       <div className="flex items-center flex-wrap gap-1.5 mb-2.5">
                         {/* Overall Status Badge */}
                         <span
-                          className="px-2 py-0.5 rounded-lg text-[11px] font-bold flex items-center gap-1.5 shadow-2xs shrink-0"
+                          className="px-2 py-0.5 rounded-lg text-[11px] font-medium flex items-center gap-1.5 shadow-2xs shrink-0"
                           style={{
                             background: statusStyle.bg,
                             color: statusStyle.text,
@@ -1648,7 +1648,7 @@ export default function DigitalCalendar() {
 
                         {/* Approval Status */}
                         <span
-                          className="px-2 py-0.5 rounded-lg text-[10px] font-extrabold flex items-center gap-1 shadow-2xs shrink-0"
+                          className="px-2 py-0.5 rounded-lg text-[10px] font-semibold flex items-center gap-1 shadow-2xs shrink-0"
                           style={{
                             background: approvalStyle.bg,
                             color: approvalStyle.text,
@@ -1665,7 +1665,7 @@ export default function DigitalCalendar() {
 
                       {/* 6. Platform Breakdown & Posting Times */}
                       <div className="space-y-1.5 mb-3">
-                        <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block">
+                        <span className="text-[10px] font-semibold uppercase text-slate-400 tracking-wider block">
                           Social Media Platforms & Times
                         </span>
                         <div className="grid grid-cols-2 gap-1.5">
@@ -1697,7 +1697,7 @@ export default function DigitalCalendar() {
                                   </div>
                                   <span
                                     title={pf.name}
-                                    className={`text-[11px] font-bold leading-tight truncate ${
+                                    className={`text-[11px] font-medium leading-tight truncate ${
                                       isOff ? 'text-slate-400' : 'text-slate-800'
                                     }`}
                                   >
@@ -1708,7 +1708,7 @@ export default function DigitalCalendar() {
                                 {/* Bottom: Status Tag + Time */}
                                 <div className="flex items-center justify-between gap-1 w-full pt-0.5 border-t border-slate-100/70 min-w-0">
                                   <span
-                                    className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-md inline-block shadow-3xs truncate max-w-[80px]"
+                                    className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md inline-block shadow-3xs truncate max-w-[80px]"
                                     style={{
                                       background: isOff ? '#f1f5f9' : pfSt.bg,
                                       color: isOff ? '#94a3b8' : pfSt.text,
@@ -1718,7 +1718,7 @@ export default function DigitalCalendar() {
                                     {isOff ? 'Not Req' : pf.status}
                                   </span>
                                   {pf.time && !isOff && (
-                                    <span className="text-[8.5px] text-slate-500 font-bold shrink-0 ml-1 flex items-center gap-0.5">
+                                    <span className="text-[8.5px] text-slate-500 font-medium shrink-0 ml-1 flex items-center gap-0.5">
                                       <FaClock className="w-2 h-2 text-slate-400" />
                                       {formatTime12h(pf.time)}
                                     </span>
@@ -1742,7 +1742,7 @@ export default function DigitalCalendar() {
                             />
                           ) : (
                             <div
-                              className="w-6 h-6 rounded-lg text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs"
+                              className="w-6 h-6 rounded-lg text-white font-semibold text-xs flex items-center justify-center shrink-0 shadow-2xs"
                               style={{ background: 'linear-gradient(135deg, #0284c7 0%, #f97316 100%)' }}
                             >
                               {(currentItem.responsible_employee?.name || currentItem.responsible_employee_name || 'M')
@@ -1753,7 +1753,7 @@ export default function DigitalCalendar() {
                           <div className="min-w-0 flex-1 truncate">
                             <span
                               title={currentItem.responsible_employee?.actualName || currentItem.responsible_employee?.name || currentItem.responsible_employee_name || 'Unassigned'}
-                              className="text-xs font-bold text-slate-800 block truncate"
+                              className="text-xs font-medium text-slate-800 block truncate"
                             >
                               {currentItem.responsible_employee?.actualName ||
                                 currentItem.responsible_employee?.name ||
@@ -1778,7 +1778,7 @@ export default function DigitalCalendar() {
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={e => e.stopPropagation()}
-                            className="px-2 py-1 text-[11px] font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-xl transition flex items-center gap-1 shrink-0"
+                            className="px-2 py-1 text-[11px] font-medium text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-xl transition flex items-center gap-1 shrink-0"
                           >
                             <FaLink className="w-2.5 h-2.5" />
                             <span className="hidden sm:inline">Asset</span>
@@ -1800,14 +1800,14 @@ export default function DigitalCalendar() {
         >
           {/* Table Header Bar */}
           <div className="p-4 sm:p-5 border-b border-slate-200/80 bg-gradient-to-r from-sky-50/70 via-white to-blue-50/60 flex items-center justify-between">
-            <span className="text-base font-extrabold text-slate-900 tracking-tight">
+            <span className="text-base font-semibold text-slate-900 tracking-tight">
               All Marketing Content Items ({statusCounts.total})
             </span>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-slate-600">
-              <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 font-extrabold border-b border-slate-200">
+              <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 font-semibold border-b border-slate-200">
                 <tr>
                   <th className="py-3.5 px-4">Topic / Content Title</th>
                   <th className="py-3.5 px-3">Type</th>
@@ -1848,10 +1848,10 @@ export default function DigitalCalendar() {
                       className="hover:bg-sky-50/40 transition cursor-pointer"
                     >
                       {/* Title */}
-                      <td className="py-3.5 px-4 font-bold text-slate-900 max-w-[220px]">
+                      <td className="py-3.5 px-4 font-medium text-slate-900 max-w-[220px]">
                         <div className="flex items-center gap-1.5 min-w-0">
                           {totalSubs > 1 && (
-                            <span className="px-1.5 py-0.5 rounded text-[9.5px] font-black bg-sky-100 text-sky-800 border border-sky-200 shrink-0">
+                            <span className="px-1.5 py-0.5 rounded text-[9.5px] font-semibold bg-sky-100 text-sky-800 border border-sky-200 shrink-0">
                               #{sIdx + 1} of {totalSubs}
                             </span>
                           )}
@@ -1861,7 +1861,7 @@ export default function DigitalCalendar() {
 
                       {/* Type */}
                       <td className="py-3.5 px-3 whitespace-nowrap">
-                        <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold ${t.bg} ${t.text} border ${t.border}`}>
+                        <span className={`px-2 py-0.5 rounded-lg text-[10px] font-medium ${t.bg} ${t.text} border ${t.border}`}>
                           {sub.content_type}
                         </span>
                       </td>
@@ -1884,13 +1884,13 @@ export default function DigitalCalendar() {
                       <td className="py-3.5 px-3 whitespace-nowrap">
                         {sub.instagram_status && sub.instagram_status !== 'Not Required' ? (
                           <div>
-                            <span className="font-bold text-pink-600">{sub.instagram_status}</span>
+                            <span className="font-medium text-pink-600">{sub.instagram_status}</span>
                             {sub.instagram_time && (
                               <div className="text-[10px] text-slate-400 font-medium">{formatTime12h(sub.instagram_time)}</div>
                             )}
                           </div>
                         ) : (
-                          <span className="text-slate-300 font-bold">—</span>
+                          <span className="text-slate-300 font-medium">—</span>
                         )}
                       </td>
 
@@ -1898,13 +1898,13 @@ export default function DigitalCalendar() {
                       <td className="py-3.5 px-3 whitespace-nowrap">
                         {sub.facebook_status && sub.facebook_status !== 'Not Required' ? (
                           <div>
-                            <span className="font-bold text-blue-700">{sub.facebook_status}</span>
+                            <span className="font-medium text-blue-700">{sub.facebook_status}</span>
                             {sub.facebook_time && (
                               <div className="text-[10px] text-slate-400 font-medium">{formatTime12h(sub.facebook_time)}</div>
                             )}
                           </div>
                         ) : (
-                          <span className="text-slate-300 font-bold">—</span>
+                          <span className="text-slate-300 font-medium">—</span>
                         )}
                       </td>
 
@@ -1912,13 +1912,13 @@ export default function DigitalCalendar() {
                       <td className="py-3.5 px-3 whitespace-nowrap">
                         {sub.youtube_status && sub.youtube_status !== 'Not Required' ? (
                           <div>
-                            <span className="font-bold text-red-600">{sub.youtube_status}</span>
+                            <span className="font-medium text-red-600">{sub.youtube_status}</span>
                             {sub.youtube_time && (
                               <div className="text-[10px] text-slate-400 font-medium">{formatTime12h(sub.youtube_time)}</div>
                             )}
                           </div>
                         ) : (
-                          <span className="text-slate-300 font-bold">—</span>
+                          <span className="text-slate-300 font-medium">—</span>
                         )}
                       </td>
 
@@ -1926,13 +1926,13 @@ export default function DigitalCalendar() {
                       <td className="py-3.5 px-3 whitespace-nowrap">
                         {sub.linkedin_status && sub.linkedin_status !== 'Not Required' ? (
                           <div>
-                            <span className="font-bold text-blue-600">{sub.linkedin_status}</span>
+                            <span className="font-medium text-blue-600">{sub.linkedin_status}</span>
                             {sub.linkedin_time && (
                               <div className="text-[10px] text-slate-400 font-medium">{formatTime12h(sub.linkedin_time)}</div>
                             )}
                           </div>
                         ) : (
-                          <span className="text-slate-300 font-bold">—</span>
+                          <span className="text-slate-300 font-medium">—</span>
                         )}
                       </td>
 
@@ -1940,20 +1940,20 @@ export default function DigitalCalendar() {
                       <td className="py-3.5 px-3 whitespace-nowrap">
                         {sub.x_status && sub.x_status !== 'Not Required' ? (
                           <div>
-                            <span className="font-bold text-slate-900">{sub.x_status}</span>
+                            <span className="font-medium text-slate-900">{sub.x_status}</span>
                             {sub.x_time && (
                               <div className="text-[10px] text-slate-400 font-medium">{formatTime12h(sub.x_time)}</div>
                             )}
                           </div>
                         ) : (
-                          <span className="text-slate-300 font-bold">—</span>
+                          <span className="text-slate-300 font-medium">—</span>
                         )}
                       </td>
 
                       {/* Overall Status */}
                       <td className="py-3.5 px-3 whitespace-nowrap">
                         <span
-                          className="px-2.5 py-0.5 rounded-lg text-[11px] font-bold"
+                          className="px-2.5 py-0.5 rounded-lg text-[11px] font-medium"
                           style={{ background: st.bg, color: st.text, border: `1px solid ${st.border}` }}
                         >
                           {sub.overall_status}
@@ -1962,7 +1962,7 @@ export default function DigitalCalendar() {
 
                       {/* Responsible Person: Name + Display Name */}
                       <td className="py-3.5 px-4 whitespace-nowrap">
-                        <div className="font-bold text-slate-800">
+                        <div className="font-medium text-slate-800">
                           {sub.responsible_employee?.actualName ||
                             sub.responsible_employee?.name ||
                             sub.responsible_employee_name ||
@@ -1978,7 +1978,7 @@ export default function DigitalCalendar() {
                       {/* Approval */}
                       <td className="py-3.5 px-3 whitespace-nowrap">
                         <span
-                          className="px-2.5 py-0.5 rounded-lg text-[11px] font-bold"
+                          className="px-2.5 py-0.5 rounded-lg text-[11px] font-medium"
                           style={{ background: app.bg, color: app.text, border: `1px solid ${app.border}` }}
                         >
                           {app.icon} {app.label}
@@ -2012,7 +2012,7 @@ export default function DigitalCalendar() {
 
                 {items.length === 0 && (
                   <tr>
-                    <td colSpan={12} className="text-center py-12 text-slate-500 font-bold">
+                    <td colSpan={12} className="text-center py-12 text-slate-500 font-medium">
                       No content items found matching current filters.
                     </td>
                   </tr>
@@ -2064,7 +2064,7 @@ export default function DigitalCalendar() {
                 <FaTriangleExclamation className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-extrabold text-slate-900 m-0">Confirm Deletion</h3>
+                <h3 className="text-base font-semibold text-slate-900 m-0">Confirm Deletion</h3>
                 <p className="text-xs text-slate-500 font-medium m-0">Permanent content removal</p>
               </div>
             </div>
@@ -2078,14 +2078,14 @@ export default function DigitalCalendar() {
                   setShowDeleteModal(false);
                   setEditingItem(null);
                 }}
-                className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                className="px-4 py-2.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleConfirmDelete}
-                className="px-5 py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-md transition active:scale-95 cursor-pointer"
+                className="px-5 py-2.5 text-xs font-medium text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-md transition active:scale-95 cursor-pointer"
               >
                 Delete Content
               </button>
@@ -2148,7 +2148,7 @@ function PlatformTimeInput({
         style={{ colorScheme: 'light' }}
       />
       {value && (
-        <span className={`text-[9.5px] ${textColorClass} font-bold block mt-0.5 truncate`}>
+        <span className={`text-[9.5px] ${textColorClass} font-medium block mt-0.5 truncate`}>
           {formatTime12h(value)}
         </span>
       )}
@@ -2498,7 +2498,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
               <FaCalendarDays className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-extrabold text-slate-900 m-0 leading-tight">
+              <h3 className="text-base font-semibold text-slate-900 m-0 leading-tight">
                 {isEdit ? 'Edit Content Schedule' : '+ Schedule Content for Day'}
               </h3>
               <p className="text-[11px] text-slate-500 font-semibold m-0 mt-0.5">
@@ -2518,7 +2518,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
         {/* Modal Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[82vh] overflow-y-auto">
           {error && (
-            <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-2xl font-bold flex items-center gap-2">
+            <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-2xl font-medium flex items-center gap-2">
               <FaTriangleExclamation className="w-3.5 h-3.5 shrink-0" />
               <span>{error}</span>
             </div>
@@ -2527,7 +2527,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
           {/* 1. Date Picker Row & Item Count */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-slate-50 border border-slate-200/90 rounded-2xl">
             <div className="flex-1">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1">
+              <label className="text-xs font-medium text-slate-700 uppercase tracking-wider block mb-1">
                 Scheduled Date <span className="text-rose-500">*</span>
               </label>
               <input
@@ -2540,7 +2540,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
             </div>
 
             <div className="sm:self-end flex items-center gap-2 pb-0.5">
-              <div className="px-3 py-2 rounded-xl bg-sky-100/70 border border-sky-200 text-sky-800 text-xs font-bold flex items-center gap-1.5 shadow-2xs">
+              <div className="px-3 py-2 rounded-xl bg-sky-100/70 border border-sky-200 text-sky-800 text-xs font-medium flex items-center gap-1.5 shadow-2xs">
                 <FaLayerGroup className="w-3.5 h-3.5 text-sky-600" />
                 <span>{contents.length} Content{contents.length > 1 ? 's' : ''} in this Card</span>
               </div>
@@ -2550,7 +2550,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
           {/* 2. Contents Selector Tab Bar with "+ Add Another Content" */}
           <div className="p-3 bg-gradient-to-r from-sky-50/70 via-slate-50 to-orange-50/60 rounded-2xl border border-sky-100 flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs font-black text-slate-800 uppercase tracking-wider">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800 uppercase tracking-wider">
                 <FaLayerGroup className="w-3.5 h-3.5 text-sky-600" />
                 <span>Contents for this Day's Card:</span>
               </div>
@@ -2569,12 +2569,12 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
                     onClick={() => setActiveContentIndex(idx)}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all cursor-pointer whitespace-nowrap shrink-0 shadow-2xs select-none ${
                       isCurrent
-                        ? 'bg-sky-600 text-white border-sky-700 ring-2 ring-sky-200 font-extrabold shadow-sm'
-                        : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200 font-bold'
+                        ? 'bg-sky-600 text-white border-sky-700 ring-2 ring-sky-200 font-semibold shadow-sm'
+                        : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200 font-medium'
                     }`}
                   >
                     <span
-                      className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${
+                      className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-semibold ${
                         isCurrent ? 'bg-white text-sky-700 shadow-2xs' : 'bg-slate-100 text-slate-600'
                       }`}
                     >
@@ -2584,7 +2584,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
                       {cnt.content_title || `Content #${idx + 1}`}
                     </span>
                     <span
-                      className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${
+                      className={`px-1.5 py-0.2 rounded text-[9px] font-medium ${
                         isCurrent ? 'bg-sky-700 text-white' : `${cStyle.bg} ${cStyle.text}`
                       }`}
                     >
@@ -2612,7 +2612,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
               <button
                 type="button"
                 onClick={handleAddContent}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 border border-dashed border-orange-300 transition-all cursor-pointer whitespace-nowrap shrink-0 active:scale-95 shadow-2xs"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 border border-dashed border-orange-300 transition-all cursor-pointer whitespace-nowrap shrink-0 active:scale-95 shadow-2xs"
               >
                 <FaPlus className="w-3 h-3 text-orange-600" />
                 <span>+ Add Another Content</span>
@@ -2621,7 +2621,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
           </div>
 
           {/* 3. Active Content Form Header */}
-          <div className="flex items-center justify-between text-xs font-bold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200/60">
+          <div className="flex items-center justify-between text-xs font-medium text-slate-600 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200/60">
             <div className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-sky-500 animate-pulse" />
               <span>Editing Content #{safeActiveIndex + 1} of {contents.length}</span>
@@ -2630,7 +2630,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
               <button
                 type="button"
                 onClick={(e) => handleRemoveContent(safeActiveIndex, e)}
-                className="text-rose-600 hover:underline text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                className="text-rose-600 hover:underline text-[11px] font-medium flex items-center gap-1 cursor-pointer"
               >
                 <FaTrashCan className="w-2.5 h-2.5" />
                 <span>Remove Content #{safeActiveIndex + 1}</span>
@@ -2640,7 +2640,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
 
           {/* 4. Content Topic / Title */}
           <div>
-            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1">
+            <label className="text-xs font-medium text-slate-700 uppercase tracking-wider block mb-1">
               Content #{safeActiveIndex + 1} Topic / Title <span className="text-rose-500">*</span>
             </label>
             <input
@@ -2655,7 +2655,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
 
           {/* 5. Content Type */}
           <div>
-            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1">
+            <label className="text-xs font-medium text-slate-700 uppercase tracking-wider block mb-1">
               Content Type
             </label>
             <select
@@ -2673,7 +2673,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
 
           {/* 6. Responsible Person */}
           <div className="relative" ref={responsibleDropdownRef}>
-            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1">
+            <label className="text-xs font-medium text-slate-700 uppercase tracking-wider block mb-1">
               Responsible Person (Content #{safeActiveIndex + 1})
             </label>
 
@@ -2698,17 +2698,17 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
                     />
                   ) : (
                     <div
-                      className="w-6 h-6 rounded-lg text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs"
+                      className="w-6 h-6 rounded-lg text-white font-semibold text-xs flex items-center justify-center shrink-0 shadow-2xs"
                       style={{ background: 'linear-gradient(135deg, #0284c7 0%, #f97316 100%)' }}
                     >
                       {(selectedDisplayName || 'M').charAt(0).toUpperCase()}
                     </div>
                   )}
-                  <span className="font-bold text-slate-900 truncate">
+                  <span className="font-medium text-slate-900 truncate">
                     {selectedDisplayName}
                   </span>
                   {selectedDisplayRole && (
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-200/80 shrink-0">
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-sky-100 text-sky-800 border border-sky-200/80 shrink-0">
                       {selectedDisplayRole}
                     </span>
                   )}
@@ -2778,7 +2778,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
                     }}
                     className={`w-full px-3.5 py-2 text-left flex items-center justify-between text-xs transition cursor-pointer border-b border-slate-100 ${
                       !activeContent.responsible_employee
-                        ? 'bg-sky-50 text-sky-800 font-bold'
+                        ? 'bg-sky-50 text-sky-800 font-medium'
                         : 'text-slate-500 hover:bg-slate-50'
                     }`}
                   >
@@ -2809,7 +2809,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
                         }}
                         className={`w-full px-3.5 py-2 text-left flex items-center justify-between gap-2.5 transition cursor-pointer border-b border-slate-50 last:border-0 ${
                           isSelected
-                            ? 'bg-sky-50/90 text-sky-900 font-bold'
+                            ? 'bg-sky-50/90 text-sky-900 font-medium'
                             : 'hover:bg-slate-50 text-slate-700'
                         }`}
                       >
@@ -2822,14 +2822,14 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
                             />
                           ) : (
                             <div
-                              className="w-7 h-7 rounded-lg text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs"
+                              className="w-7 h-7 rounded-lg text-white font-semibold text-xs flex items-center justify-center shrink-0 shadow-2xs"
                               style={{ background: 'linear-gradient(135deg, #0284c7 0%, #f97316 100%)' }}
                             >
                               {(personName || 'M').charAt(0).toUpperCase()}
                             </div>
                           )}
                           <div className="truncate">
-                            <span className="text-xs font-bold block truncate">
+                            <span className="text-xs font-medium block truncate">
                               {personName}
                             </span>
                             {personDisplay && (
@@ -2860,7 +2860,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
           {/* 7. Approval & Overall Status */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1">
+              <label className="text-xs font-medium text-slate-700 uppercase tracking-wider block mb-1">
                 Approval Status
               </label>
               <select
@@ -2877,7 +2877,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
             </div>
 
             <div>
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1">
+              <label className="text-xs font-medium text-slate-700 uppercase tracking-wider block mb-1">
                 Overall Status
               </label>
               <select
@@ -2896,7 +2896,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
 
           {/* 8. Social Media Platforms Breakdown */}
           <div className="pt-3 border-t border-slate-100">
-            <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+            <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
               <FaBullhorn className="w-3.5 h-3.5 text-sky-600" />
               Social Media Platforms Breakdown (Content #{safeActiveIndex + 1})
             </h4>
@@ -2904,13 +2904,13 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               {/* Instagram */}
               <div className="p-3.5 bg-gradient-to-br from-pink-50/50 to-white rounded-2xl border border-pink-200/80 space-y-2.5 shadow-xs">
-                <div className="flex items-center gap-2 text-pink-600 font-extrabold text-xs">
+                <div className="flex items-center gap-2 text-pink-600 font-semibold text-xs">
                   <FaInstagram className="w-4 h-4" />
                   <span>Instagram</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Status</label>
+                    <label className="text-[10px] font-medium text-slate-500 block mb-0.5">Status</label>
                     <select
                       value={activeContent.instagram_status}
                       onChange={e => handleActiveChange('instagram_status', e.target.value)}
@@ -2922,7 +2922,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Time</label>
+                    <label className="text-[10px] font-medium text-slate-500 block mb-0.5">Time</label>
                     <PlatformTimeInput
                       value={activeContent.instagram_time}
                       onChange={val => handleActiveChange('instagram_time', val)}
@@ -2935,13 +2935,13 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
 
               {/* Facebook */}
               <div className="p-3.5 bg-gradient-to-br from-blue-50/50 to-white rounded-2xl border border-blue-200/80 space-y-2.5 shadow-xs">
-                <div className="flex items-center gap-2 text-blue-700 font-extrabold text-xs">
+                <div className="flex items-center gap-2 text-blue-700 font-semibold text-xs">
                   <FaFacebook className="w-4 h-4" />
                   <span>Facebook</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Status</label>
+                    <label className="text-[10px] font-medium text-slate-500 block mb-0.5">Status</label>
                     <select
                       value={activeContent.facebook_status}
                       onChange={e => handleActiveChange('facebook_status', e.target.value)}
@@ -2953,7 +2953,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Time</label>
+                    <label className="text-[10px] font-medium text-slate-500 block mb-0.5">Time</label>
                     <PlatformTimeInput
                       value={activeContent.facebook_time}
                       onChange={val => handleActiveChange('facebook_time', val)}
@@ -2966,13 +2966,13 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
 
               {/* YouTube */}
               <div className="p-3.5 bg-gradient-to-br from-red-50/50 to-white rounded-2xl border border-red-200/80 space-y-2.5 shadow-xs">
-                <div className="flex items-center gap-2 text-red-600 font-extrabold text-xs">
+                <div className="flex items-center gap-2 text-red-600 font-semibold text-xs">
                   <FaYoutube className="w-4 h-4" />
                   <span>YouTube</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Status</label>
+                    <label className="text-[10px] font-medium text-slate-500 block mb-0.5">Status</label>
                     <select
                       value={activeContent.youtube_status}
                       onChange={e => handleActiveChange('youtube_status', e.target.value)}
@@ -2984,7 +2984,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Time</label>
+                    <label className="text-[10px] font-medium text-slate-500 block mb-0.5">Time</label>
                     <PlatformTimeInput
                       value={activeContent.youtube_time}
                       onChange={val => handleActiveChange('youtube_time', val)}
@@ -2997,13 +2997,13 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
 
               {/* LinkedIn */}
               <div className="p-3.5 bg-gradient-to-br from-blue-50/50 to-white rounded-2xl border border-blue-200/80 space-y-2.5 shadow-xs">
-                <div className="flex items-center gap-2 text-blue-600 font-extrabold text-xs">
+                <div className="flex items-center gap-2 text-blue-600 font-semibold text-xs">
                   <FaLinkedinIn className="w-4 h-4" />
                   <span>LinkedIn</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Status</label>
+                    <label className="text-[10px] font-medium text-slate-500 block mb-0.5">Status</label>
                     <select
                       value={activeContent.linkedin_status}
                       onChange={e => handleActiveChange('linkedin_status', e.target.value)}
@@ -3015,7 +3015,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Time</label>
+                    <label className="text-[10px] font-medium text-slate-500 block mb-0.5">Time</label>
                     <PlatformTimeInput
                       value={activeContent.linkedin_time}
                       onChange={val => handleActiveChange('linkedin_time', val)}
@@ -3028,13 +3028,13 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
 
               {/* X / Twitter */}
               <div className="p-3.5 bg-gradient-to-br from-slate-100/50 to-white rounded-2xl border border-slate-200 space-y-2.5 shadow-xs sm:col-span-2 sm:max-w-[calc(50%-0.45rem)]">
-                <div className="flex items-center gap-2 text-slate-900 font-extrabold text-xs">
+                <div className="flex items-center gap-2 text-slate-900 font-semibold text-xs">
                   <FaXTwitter className="w-4 h-4" />
                   <span>X / Twitter</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Status</label>
+                    <label className="text-[10px] font-medium text-slate-500 block mb-0.5">Status</label>
                     <select
                       value={activeContent.x_status}
                       onChange={e => handleActiveChange('x_status', e.target.value)}
@@ -3046,7 +3046,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Time</label>
+                    <label className="text-[10px] font-medium text-slate-500 block mb-0.5">Time</label>
                     <PlatformTimeInput
                       value={activeContent.x_time}
                       onChange={val => handleActiveChange('x_time', val)}
@@ -3061,7 +3061,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
 
           {/* 9. Live / Folder Link */}
           <div className="pt-2">
-            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1">
+            <label className="text-xs font-medium text-slate-700 uppercase tracking-wider block mb-1">
               Live Link / Google Drive Asset Folder (Content #{safeActiveIndex + 1})
             </label>
             <input
@@ -3075,7 +3075,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
 
           {/* 10. Notes */}
           <div>
-            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1">
+            <label className="text-xs font-medium text-slate-700 uppercase tracking-wider block mb-1">
               Internal Notes / Copy Instructions (Content #{safeActiveIndex + 1})
             </label>
             <textarea
@@ -3092,7 +3092,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
             <button
               type="button"
               onClick={handleAddContent}
-              className="w-full sm:w-auto px-4 py-2.5 text-xs font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
+              className="w-full sm:w-auto px-4 py-2.5 text-xs font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
             >
               <FaPlus className="w-3 h-3 text-orange-600" />
               <span>+ Add Another Content for this Day</span>
@@ -3102,14 +3102,14 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                className="px-4 py-2.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={saving}
-                className="px-6 py-2.5 text-xs font-bold text-white rounded-xl shadow-md transition active:scale-95 cursor-pointer"
+                className="px-6 py-2.5 text-xs font-medium text-white rounded-xl shadow-md transition active:scale-95 cursor-pointer"
                 style={{
                   background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
                   boxShadow: '0 4px 15px rgba(2, 132, 199, 0.35)'

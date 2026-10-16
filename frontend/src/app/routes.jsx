@@ -1,7 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { canViewDashboard, isLimitedStaff, canAccessEmailBlast, canViewCallRecordings, isCEO, isHR, canAccessDigitalCalendar, canAccessMarketingLeads } from '../utils/permissions';
+import { canViewDashboard, isLimitedStaff, canAccessEmailBlast, canViewCallRecordings, isCEO, isHR, canAccessDigitalCalendar, canAccessMarketingLeads, canAccessDailyActivity } from '../utils/permissions';
 import { ProtectedRoute } from './guards';
 
 // Layouts
@@ -23,9 +23,8 @@ import ForgotPassword from '../pages/auth/forgot-password/ForgotPassword';
 import ResetPassword from '../pages/auth/reset-password/ResetPassword';
 import VerifyAccount from '../pages/auth/verify-account/VerifyAccount';
 
-// Dashboard & Tasks Modules
+// Dashboard & Daily Activity Modules
 import Dashboard from '../modules/dashboard';
-import Tasks from '../modules/tasks';
 import DailyActivityPage from '../modules/daily-activities/DailyActivityPage';
 
 // Marketing Modules
@@ -78,33 +77,42 @@ import Forbidden from '../pages/errors/403/Forbidden';
 import NotFound from '../pages/errors/404/NotFound';
 import ServerError from '../pages/errors/500/ServerError';
 
+// Default route helper based on role and department
+const getDefaultHomeRoute = (user) => {
+  if (!user) return '/login';
+  if (canViewDashboard(user)) return '/dashboard';
+  if (canAccessDailyActivity(user)) return '/daily-activity';
+  if (canAccessDigitalCalendar(user)) return '/digital-calendar';
+  return '/daily-activity';
+};
+
 // Guard Wrappers
 const PublicRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (!user) return children;
-  return <Navigate to={canViewDashboard(user) ? "/dashboard" : "/tasks"} replace />;
+  return <Navigate to={getDefaultHomeRoute(user)} replace />;
 };
 
 const DashboardRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
-  return canViewDashboard(user) ? children : <Navigate to="/tasks" replace />;
+  return canViewDashboard(user) ? children : <Navigate to={getDefaultHomeRoute(user)} replace />;
 };
 
 const AdminRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return null;
   const isAdmin = user?.role === 'admin' || user?.role === 'manager' || isCEO(user) || isHR(user);
-  return isAdmin ? children : <Navigate to={canViewDashboard(user) ? "/dashboard" : "/tasks"} replace />;
+  return isAdmin ? children : <Navigate to={getDefaultHomeRoute(user)} replace />;
 };
 
 const AdminOnlyRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return null;
   const isStrictAdmin = user?.role === 'admin' || isCEO(user) || isHR(user);
-  return isStrictAdmin ? children : <Navigate to={canViewDashboard(user) ? "/dashboard" : "/tasks"} replace />;
+  return isStrictAdmin ? children : <Navigate to={getDefaultHomeRoute(user)} replace />;
 };
 
 const StaffRestrictedRoute = ({ children }) => {
@@ -112,7 +120,7 @@ const StaffRestrictedRoute = ({ children }) => {
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
   if (!canViewDashboard(user) || isLimitedStaff(user)) {
-    return <Navigate to="/tasks" replace />;
+    return <Navigate to={getDefaultHomeRoute(user)} replace />;
   }
   return children;
 };
@@ -125,35 +133,42 @@ const MetaLeadsRoute = ({ children }) => {
   if (isAdmin || metaLeadAssignment?.hasAccess) {
     return children;
   }
-  return <Navigate to={canViewDashboard(user) ? "/dashboard" : "/tasks"} replace />;
+  return <Navigate to={getDefaultHomeRoute(user)} replace />;
 };
 
 const BlastRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
-  return canAccessEmailBlast(user) ? children : <Navigate to="/tasks" replace />;
+  return canAccessEmailBlast(user) ? children : <Navigate to={getDefaultHomeRoute(user)} replace />;
 };
 
 const CallRecordingsRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
-  return canViewCallRecordings(user) ? children : <Navigate to={canViewDashboard(user) ? "/dashboard" : "/tasks"} replace />;
+  return canViewCallRecordings(user) ? children : <Navigate to={getDefaultHomeRoute(user)} replace />;
 };
 
 const DigitalCalendarRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
-  return canAccessDigitalCalendar(user) ? children : <Navigate to={canViewDashboard(user) ? "/dashboard" : "/tasks"} replace />;
+  return canAccessDigitalCalendar(user) ? children : <Navigate to={getDefaultHomeRoute(user)} replace />;
+};
+
+const DailyActivityRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  return canAccessDailyActivity(user) ? children : <Navigate to={getDefaultHomeRoute(user)} replace />;
 };
 
 const RootRedirect = () => {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
-  return <Navigate to={canViewDashboard(user) ? "/dashboard" : "/tasks"} replace />;
+  return <Navigate to={getDefaultHomeRoute(user)} replace />;
 };
 
 export function AppRoutes() {
@@ -205,22 +220,24 @@ export function AppRoutes() {
         <Route path="add-lead" element={<StaffRestrictedRoute><AddLead /></StaffRestrictedRoute>} />
 
         {/* Daily Activity & Telecaller Module */}
-        <Route path="daily-activity" element={<DailyActivityPage />} />
-        <Route path="daily-activities" element={<DailyActivityPage />} />
-        <Route path=":userId/daily-activity" element={<DailyActivityPage />} />
-        <Route path=":userId/daily-activities" element={<DailyActivityPage />} />
+        <Route path="daily-activity" element={<DailyActivityRoute><DailyActivityPage /></DailyActivityRoute>} />
+        <Route path="daily-activities" element={<DailyActivityRoute><DailyActivityPage /></DailyActivityRoute>} />
+        <Route path=":userId/daily-activity" element={<DailyActivityRoute><DailyActivityPage /></DailyActivityRoute>} />
+        <Route path=":userId/daily-activities" element={<DailyActivityRoute><DailyActivityPage /></DailyActivityRoute>} />
 
-        {/* Tasks & Todo */}
-        <Route path="tasks" element={<Tasks />} />
-        <Route path="todo" element={<Tasks />} />
-        <Route path="todos" element={<Tasks />} />
-        <Route path="follow-ups" element={<Tasks />} />
-        <Route path="followups" element={<Tasks />} />
-        <Route path=":userId/tasks" element={<Tasks />} />
-        <Route path=":userId/todo" element={<Tasks />} />
-        <Route path=":userId/todos" element={<Tasks />} />
-        <Route path=":userId/follow-ups" element={<Tasks />} />
-        <Route path=":userId/followups" element={<Tasks />} />
+        {/* Legacy Tasks & Todo Safely Re-routed */}
+        <Route path="tasks" element={<Navigate to="/daily-activity" replace />} />
+        <Route path="task" element={<Navigate to="/daily-activity" replace />} />
+        <Route path="todo" element={<Navigate to="/daily-activity" replace />} />
+        <Route path="todos" element={<Navigate to="/daily-activity" replace />} />
+        <Route path="follow-ups" element={<Navigate to="/daily-activity" replace />} />
+        <Route path="followups" element={<Navigate to="/daily-activity" replace />} />
+        <Route path=":userId/tasks" element={<Navigate to="/daily-activity" replace />} />
+        <Route path=":userId/task" element={<Navigate to="/daily-activity" replace />} />
+        <Route path=":userId/todo" element={<Navigate to="/daily-activity" replace />} />
+        <Route path=":userId/todos" element={<Navigate to="/daily-activity" replace />} />
+        <Route path=":userId/follow-ups" element={<Navigate to="/daily-activity" replace />} />
+        <Route path=":userId/followups" element={<Navigate to="/daily-activity" replace />} />
 
         {/* Finance Module Routes */}
         <Route path="offer-letter" element={<AdminRoute><OfferLetter /></AdminRoute>} />

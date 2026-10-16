@@ -12,7 +12,7 @@ export function Forbidden() {
         You do not have permission to view this resource. Contact your Administrator or HR if you require access.
       </p>
       <button
-        onClick={() => navigate('/tasks')}
+        onClick={() => navigate('/daily-activity')}
         className="px-6 py-3 rounded-xl font-bold bg-orange-500 hover:bg-orange-600 text-slate-950 transition-all"
       >
         Return to My Workspace

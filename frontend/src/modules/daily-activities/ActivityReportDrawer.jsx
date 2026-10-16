@@ -202,28 +202,28 @@ export default function ActivityReportDrawer({
                   </h4>
                   <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                     <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-center">
-                      <div className="text-[10px] text-slate-500 font-semibold uppercase">Attempted</div>
-                      <div className="text-base font-extrabold text-slate-900">{metrics.callsAttempted || 0}</div>
+                      <div className="text-[10px] text-slate-500 font-medium uppercase">Attempted</div>
+                      <div className="text-base font-semibold text-slate-800">{metrics.callsAttempted || 0}</div>
                     </div>
                     <div className="bg-emerald-50 p-2.5 rounded-xl border border-emerald-200 text-center">
-                      <div className="text-[10px] text-emerald-700 font-semibold uppercase">Connected</div>
-                      <div className="text-base font-extrabold text-emerald-900">{metrics.connectedCalls || 0}</div>
+                      <div className="text-[10px] text-emerald-700 font-medium uppercase">Connected</div>
+                      <div className="text-base font-semibold text-emerald-900">{metrics.connectedCalls || 0}</div>
                     </div>
                     <div className="bg-rose-50 p-2.5 rounded-xl border border-rose-200 text-center">
-                      <div className="text-[10px] text-rose-700 font-semibold uppercase">Unanswered</div>
-                      <div className="text-base font-extrabold text-rose-900">{metrics.unansweredCalls || 0}</div>
+                      <div className="text-[10px] text-rose-700 font-medium uppercase">Unanswered</div>
+                      <div className="text-base font-semibold text-rose-900">{metrics.unansweredCalls || 0}</div>
                     </div>
                     <div className="bg-sky-50 p-2.5 rounded-xl border border-sky-200 text-center">
-                      <div className="text-[10px] text-sky-700 font-semibold uppercase">Interested</div>
-                      <div className="text-base font-extrabold text-sky-900">{metrics.interestedLeads || 0}</div>
+                      <div className="text-[10px] text-sky-700 font-medium uppercase">Interested</div>
+                      <div className="text-base font-semibold text-sky-900">{metrics.interestedLeads || 0}</div>
                     </div>
                     <div className="bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-center">
-                      <div className="text-[10px] text-amber-700 font-semibold uppercase">Follow-ups</div>
-                      <div className="text-base font-extrabold text-amber-900">{metrics.followUpsScheduled || 0}</div>
+                      <div className="text-[10px] text-amber-700 font-medium uppercase">Follow-ups</div>
+                      <div className="text-base font-semibold text-amber-900">{metrics.followUpsScheduled || 0}</div>
                     </div>
                     <div className="bg-purple-50 p-2.5 rounded-xl border border-purple-200 text-center">
-                      <div className="text-[10px] text-purple-700 font-semibold uppercase">Converted</div>
-                      <div className="text-base font-extrabold text-purple-900">{metrics.conversions || 0}</div>
+                      <div className="text-[10px] text-purple-700 font-medium uppercase">Converted</div>
+                      <div className="text-base font-semibold text-purple-900">{metrics.conversions || 0}</div>
                     </div>
                   </div>
                 </div>

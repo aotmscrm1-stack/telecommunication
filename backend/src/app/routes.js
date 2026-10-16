@@ -16,9 +16,7 @@ router.use('/permission-templates', apiLimiter, require('../modules/roles/permis
 // ── Dashboard ────────────────────────────────────────────────────────────────
 router.use('/reports', apiLimiter, require('../modules/dashboard/reports'));
 
-// ── Tasks & Followups ────────────────────────────────────────────────────────
-router.use('/tasks', apiLimiter, require('../modules/tasks/tasks'));
-router.use('/todos', apiLimiter, require('../modules/tasks/todos'));
+// ── Followups & Daily Activity (Preserved & Protected) ──────────────────────
 router.use('/followups', apiLimiter, require('../modules/tasks/followups'));
 
 // ── Marketing Modules ────────────────────────────────────────────────────────

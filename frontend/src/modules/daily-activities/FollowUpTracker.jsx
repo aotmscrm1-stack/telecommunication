@@ -23,22 +23,27 @@ export default function FollowUpTracker({
   const displayedItems = activeTab === 'dueToday' ? dueTodayItems : upcomingItems;
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5 flex flex-col justify-between h-full">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-4 sm:p-5 flex flex-col justify-between h-full">
       <div>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 mb-3.5 pb-2.5 border-b border-slate-100">
           <div className="flex items-center gap-2">
-            <PhoneForwarded className="w-4 h-4 text-emerald-600" />
-            <h3 className="font-bold text-slate-800 text-sm">Follow-up Call Tracker</h3>
+            <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
+              <PhoneForwarded className="w-3.5 h-3.5" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-slate-800 text-sm">Follow-up Call Tracker</h3>
+              <p className="text-[11px] text-slate-400">Scheduled client and candidate callbacks</p>
+            </div>
           </div>
 
           {/* Tabs */}
-          <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl text-xs font-semibold">
+          <div className="flex items-center gap-1 bg-slate-100/80 p-1 rounded-xl text-xs font-medium w-full sm:w-auto">
             <button
               type="button"
               onClick={() => setActiveTab('dueToday')}
-              className={`px-2.5 py-1 rounded-lg transition ${
+              className={`flex-1 sm:flex-none px-3 py-1 rounded-lg transition cursor-pointer ${
                 activeTab === 'dueToday'
-                  ? 'bg-white text-slate-900 shadow-xs'
+                  ? 'bg-white text-slate-900 shadow-xs font-semibold'
                   : 'text-slate-500 hover:text-slate-800'
               }`}
             >
@@ -47,9 +52,9 @@ export default function FollowUpTracker({
             <button
               type="button"
               onClick={() => setActiveTab('upcoming')}
-              className={`px-2.5 py-1 rounded-lg transition ${
+              className={`flex-1 sm:flex-none px-3 py-1 rounded-lg transition cursor-pointer ${
                 activeTab === 'upcoming'
-                  ? 'bg-white text-slate-900 shadow-xs'
+                  ? 'bg-white text-slate-900 shadow-xs font-semibold'
                   : 'text-slate-500 hover:text-slate-800'
               }`}
             >
@@ -77,11 +82,11 @@ export default function FollowUpTracker({
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-800 text-xs truncate">
+                    <span className="font-semibold text-slate-800 text-xs truncate">
                       {item.leadName || 'Contact Lead'}
                     </span>
                     {item.dueTime && (
-                      <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-md flex items-center gap-1">
+                      <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-md flex items-center gap-1">
                         <Clock className="w-2.5 h-2.5" />
                         <span>{item.dueTime}</span>
                       </span>
@@ -89,7 +94,7 @@ export default function FollowUpTracker({
                   </div>
                   <div className="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
                     {item.phone && (
-                      <span className="flex items-center gap-1 font-medium">
+                      <span className="flex items-center gap-1 font-normal">
                         <Phone className="w-2.5 h-2.5 text-slate-400" />
                         <span>{item.phone}</span>
                       </span>
@@ -114,7 +119,7 @@ export default function FollowUpTracker({
                     <button
                       type="button"
                       onClick={() => onLogFollowUp(item)}
-                      className="px-2.5 py-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition flex items-center gap-1"
+                      className="px-2.5 py-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition flex items-center gap-1 cursor-pointer"
                       title="Add to daily activity outcomes"
                     >
                       <Plus className="w-3 h-3" />

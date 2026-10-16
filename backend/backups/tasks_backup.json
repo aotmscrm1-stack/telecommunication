@@ -1,0 +1,476 @@
+[
+  {
+    "_id": "6ac5d40b97354caa3ed58a67",
+    "assignedTo": "6abe233b2605716ce38691a2",
+    "assignedBy": "6ab63ad762b25645faae244e",
+    "scheduledAt": "2026-10-12T05:00:00.000Z",
+    "initialScheduledAt": "2026-10-07T05:00:00.000Z",
+    "completedCount": 0,
+    "status": "upcoming",
+    "type": "task",
+    "note": "1. Check comments and DMs on assigned social media pages; forward enquiries to sales.\n2. Review recent reels’ views, reach, shares, saves and follower growth.\n3. Prepare reel topics for this week and next week.\n4. Write 4 reel scripts ready for shooting.\n5. Design 1 course promotion poster.\n6. Prepare a course campaign draft with creative, caption and target audience.\n7. Post or repost approved content and update the posting calendar.\n8. Send a brief update on completed and pending tasks before leaving",
+    "title": "1. Check comments and DMs on assigned social media pages; forward enquiries to sales.\n2. Review recent reels’ views, reach, shares, saves and follower growth.\n3. Prepare reel topics for this week and next week.\n4. Write 4 reel scripts ready for shooting.\n5. Design 1 course promotion poster.\n6. Prepare a course campaign draft with creative, caption and target audience.\n7. Post or repost approved content and update the posting calendar.\n8. Send a brief update on completed and pending tasks before leaving",
+    "description": "1. Check comments and DMs on assigned social media pages; forward enquiries to sales.\n2. Review recent reels’ views, reach, shares, saves and follower growth.\n3. Prepare reel topics for this week and next week.\n4. Write 4 reel scripts ready for shooting.\n5. Design 1 course promotion poster.\n6. Prepare a course campaign draft with creative, caption and target audience.\n7. Post or repost approved content and update the posting calendar.\n8. Send a brief update on completed and pending tasks before leaving",
+    "department": "Marketing",
+    "departmentId": "6abb925b777e36dabd65ec81",
+    "priority": "medium",
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "Check comments and DMs on assigned social media pages; forward enquiries to sales.",
+        "completed": true,
+        "completedAt": "2026-10-12T04:06:16.045Z",
+        "_id": "6acc5cb9311f7488e3cd0cbf"
+      },
+      {
+        "title": "Review recent reels’ views, reach, shares, saves and follower growth.",
+        "completed": true,
+        "completedAt": "2026-10-12T04:06:16.045Z",
+        "_id": "6acc5cb9311f7488e3cd0cc0"
+      },
+      {
+        "title": "Prepare reel topics for this week and next week.",
+        "completed": true,
+        "completedAt": "2026-10-12T04:06:16.045Z",
+        "_id": "6acc5cb9311f7488e3cd0cc1"
+      },
+      {
+        "title": "Write 4 reel scripts ready for shooting.",
+        "completed": true,
+        "completedAt": "2026-10-12T04:06:16.045Z",
+        "_id": "6acc5cb9311f7488e3cd0cc2"
+      },
+      {
+        "title": "Design 1 course promotion poster.",
+        "completed": true,
+        "completedAt": "2026-10-12T04:06:16.045Z",
+        "_id": "6acc5cb9311f7488e3cd0cc3"
+      },
+      {
+        "title": "Prepare a course campaign draft with creative, caption and target audience.",
+        "completed": true,
+        "completedAt": "2026-10-12T04:06:16.045Z",
+        "_id": "6acc5cb9311f7488e3cd0cc4"
+      },
+      {
+        "title": "Post or repost approved content and update the posting calendar.",
+        "completed": true,
+        "completedAt": "2026-10-12T04:06:16.045Z",
+        "_id": "6acc5cb9311f7488e3cd0cc5"
+      },
+      {
+        "title": "Send a brief update on completed and pending tasks before leaving",
+        "completed": true,
+        "completedAt": "2026-10-12T04:06:16.045Z",
+        "_id": "6acc5cb9311f7488e3cd0cc6"
+      }
+    ],
+    "createdAt": "2026-10-07T05:09:31.239Z",
+    "updatedAt": "2026-10-12T04:06:31.409Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac5d454c18850bc43d9efb5",
+    "assignedTo": "6abe21442605716ce3869045",
+    "assignedBy": "6ab63ad762b25645faae244e",
+    "scheduledAt": "2026-10-08T05:00:00.000Z",
+    "initialScheduledAt": "2026-10-07T05:00:00.000Z",
+    "completedCount": 0,
+    "status": "upcoming",
+    "type": "task",
+    "note": "1. Check LinkedIn comments and messages; reply to relevant enquiries.\n2. Review LinkedIn page reach, engagement and follower growth.\n3. Publish 1 approved LinkedIn post and engage with relevant HR professionals, recruiters and companies.\n4. Contact 5 companies or recruiters about job openings; record contact details and responses.\n5. Research trending content and suggest 5 reel ideas suitable for AOTMS.\n6. Review reel scripts and prepare 2 approved reel for shooting.\n7. Check the additional Instagram pages, increase growth and repost approved reels.\n8. Update the posting calendar and send a brief completion report before leaving.",
+    "title": "1. Check LinkedIn comments and messages; reply to relevant enquiries.\n2. Review LinkedIn page reach, engagement and follower growth.\n3. Publish 1 approved LinkedIn post and engage with relevant HR professionals, recruiters and companies.\n4. Contact 5 companies or recruiters about job openings; record contact details and responses.\n5. Research trending content and suggest 5 reel ideas suitable for AOTMS.\n6. Review reel scripts and prepare 2 approved reel for shooting.\n7. Check the additional Instagram pages, increase growth and repost approved reels.\n8. Update the posting calendar and send a brief completion report before leaving.",
+    "description": "1. Check LinkedIn comments and messages; reply to relevant enquiries.\n2. Review LinkedIn page reach, engagement and follower growth.\n3. Publish 1 approved LinkedIn post and engage with relevant HR professionals, recruiters and companies.\n4. Contact 5 companies or recruiters about job openings; record contact details and responses.\n5. Research trending content and suggest 5 reel ideas suitable for AOTMS.\n6. Review reel scripts and prepare 2 approved reel for shooting.\n7. Check the additional Instagram pages, increase growth and repost approved reels.\n8. Update the posting calendar and send a brief completion report before leaving.",
+    "department": "Marketing",
+    "departmentId": "6abb925b777e36dabd65ec81",
+    "priority": "medium",
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "Check LinkedIn comments and messages; reply to relevant enquiries.",
+        "completed": true,
+        "completedAt": "2026-10-08T04:01:41.898Z",
+        "_id": "6ac715a661fd03d19eda83b5"
+      },
+      {
+        "title": "Review LinkedIn page reach, engagement and follower growth.",
+        "completed": true,
+        "completedAt": "2026-10-08T04:01:41.898Z",
+        "_id": "6ac715a661fd03d19eda83b6"
+      },
+      {
+        "title": "Publish 1 approved LinkedIn post and engage with relevant HR professionals, recruiters and companies.",
+        "completed": false,
+        "completedAt": null,
+        "_id": "6ac715a661fd03d19eda83b7"
+      },
+      {
+        "title": "Contact 5 companies or recruiters about job openings; record contact details and responses.",
+        "completed": false,
+        "completedAt": null,
+        "_id": "6ac715a661fd03d19eda83b8"
+      },
+      {
+        "title": "Research trending content and suggest 5 reel ideas suitable for AOTMS.",
+        "completed": false,
+        "completedAt": null,
+        "_id": "6ac715a661fd03d19eda83b9"
+      },
+      {
+        "title": "Review reel scripts and prepare 2 approved reel for shooting.",
+        "completed": false,
+        "completedAt": null,
+        "_id": "6ac715a661fd03d19eda83ba"
+      },
+      {
+        "title": "Check the additional Instagram pages, increase growth and repost approved reels.",
+        "completed": false,
+        "completedAt": null,
+        "_id": "6ac715a661fd03d19eda83bb"
+      },
+      {
+        "title": "Update the posting calendar and send a brief completion report before leaving.",
+        "completed": false,
+        "completedAt": null,
+        "_id": "6ac715a661fd03d19eda83bc"
+      }
+    ],
+    "createdAt": "2026-10-07T05:10:44.918Z",
+    "updatedAt": "2026-10-09T04:34:28.776Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac5da48c18850bc43d9f4b8",
+    "assignedTo": "6abe21442605716ce3869045",
+    "assignedBy": "6ab63ad762b25645faae244e",
+    "scheduledAt": "2026-10-07T11:30:00.000Z",
+    "initialScheduledAt": "2026-10-08T11:30:00.000Z",
+    "completedCount": 0,
+    "status": "upcoming",
+    "type": "task",
+    "note": "1. Videos Shoot\n2. Calender \n3. Meta Ads\n4.",
+    "title": "1. Videos Shoot\n2. Calender \n3. Meta Ads\n4.",
+    "description": "1. Videos Shoot\n2. Calender \n3. Meta Ads\n4.",
+    "department": "Marketing",
+    "departmentId": "6abb925b777e36dabd65ec81",
+    "priority": "high",
+    "recurrence": {
+      "frequency": "daily",
+      "endDate": "2026-10-31T18:29:59.000Z"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "Videos Shoot",
+        "completed": false,
+        "completedAt": null,
+        "_id": "6ac5eea94532ce66a539b796"
+      },
+      {
+        "title": "Calender",
+        "completed": false,
+        "completedAt": null,
+        "_id": "6ac5eea94532ce66a539b797"
+      },
+      {
+        "title": "Meta Ads",
+        "completed": false,
+        "completedAt": null,
+        "_id": "6ac5eea94532ce66a539b798"
+      },
+      {
+        "title": "4.",
+        "completed": false,
+        "completedAt": null,
+        "_id": "6ac5eea94532ce66a539b799"
+      }
+    ],
+    "createdAt": "2026-10-07T05:36:08.532Z",
+    "updatedAt": "2026-10-07T07:35:09.696Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac5e036c18850bc43d9fd78",
+    "assignedTo": "6ab63ad762b25645faae244e",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "scheduledAt": "2026-10-07T06:30:00.000Z",
+    "initialScheduledAt": "2026-10-07T06:30:00.000Z",
+    "completedCount": 0,
+    "status": "upcoming",
+    "type": "task",
+    "note": "1. Video editing (todays reel)\n2. calendar prepare",
+    "title": "1. Video editing (todays reel)\n2. calendar prepare",
+    "description": "1. Video editing (todays reel)\n2. calendar prepare",
+    "department": "Marketing",
+    "departmentId": "6abb925b777e36dabd65ec81",
+    "priority": "medium",
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "Video editing (todays reel)",
+        "completed": true,
+        "completedAt": "2026-10-08T07:21:15.164Z",
+        "_id": "6ac7446b61fd03d19edaa1c2"
+      },
+      {
+        "title": "calendar prepare",
+        "completed": false,
+        "completedAt": null,
+        "_id": "6ac7446b61fd03d19edaa1c3"
+      }
+    ],
+    "createdAt": "2026-10-07T06:01:26.061Z",
+    "updatedAt": "2026-10-08T07:21:15.462Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac60c50d1d4fb71f8f64e57",
+    "assignedTo": "6ab25b5dc6d2062c7cd12eea",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "scheduledAt": "2026-10-15T12:30:00.000Z",
+    "initialScheduledAt": "2026-10-07T12:30:00.000Z",
+    "completedCount": 0,
+    "status": "upcoming",
+    "type": "task",
+    "note": "1. LMS Changes ( Remove Internship concept  & Data Sync Coding Related Exam )",
+    "title": "1. LMS Changes ( Remove Internship concept  & Data Sync Coding Related Exam )",
+    "description": "1. LMS Changes ( Remove Internship concept  & Data Sync Coding Related Exam )",
+    "department": "Development",
+    "departmentId": "auto_development",
+    "priority": "high",
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "LMS Changes ( Remove Internship concept  & Data Sync Coding Related Exam )",
+        "completed": true,
+        "completedAt": "2026-10-09T12:52:53.860Z",
+        "_id": "6ac8e3a6966038dcf99f51ff"
+      }
+    ],
+    "createdAt": "2026-10-07T09:09:36.942Z",
+    "updatedAt": "2026-10-15T04:27:21.376Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac71dff61fd03d19eda8c04",
+    "assignedTo": "6ab7af419b0606da1d050728",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "scheduledAt": "2026-10-09T14:00:00.000Z",
+    "initialScheduledAt": "2026-10-08T14:00:00.000Z",
+    "completedCount": 0,
+    "status": "upcoming",
+    "type": "task",
+    "note": "1. 11:00 to 12.15 Cs class \n2. 01.00 to 02:30 Cs class\n3. 03:00 to 04:30 Cs class \n4. 05:00 to 06:30 Cs class \n5. 06:30 to 08:00 Cs class",
+    "title": "1. 11:00 to 12.15 Cs class \n2. 01.00 to 02:30 Cs class\n3. 03:00 to 04:30 Cs class \n4. 05:00 to 06:30 Cs class \n5. 06:30 to 08:00 Cs class",
+    "description": "1. 11:00 to 12.15 Cs class \n2. 01.00 to 02:30 Cs class\n3. 03:00 to 04:30 Cs class \n4. 05:00 to 06:30 Cs class \n5. 06:30 to 08:00 Cs class",
+    "department": "Trainer",
+    "departmentId": "6abb925b777e36dabd65ec80",
+    "priority": "high",
+    "recurrence": {
+      "frequency": "daily",
+      "endDate": "2026-11-10T18:29:59.000Z"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "11:00 to 12.15 Cs class",
+        "completed": true,
+        "completedAt": "2026-10-09T04:38:39.198Z",
+        "_id": "6ac86fd0fdd6adf7334673c3"
+      },
+      {
+        "title": "01.00 to 02:30 Cs class",
+        "completed": true,
+        "completedAt": "2026-10-09T04:38:39.198Z",
+        "_id": "6ac86fd0fdd6adf7334673c4"
+      },
+      {
+        "title": "03:00 to 04:30 Cs class",
+        "completed": true,
+        "completedAt": "2026-10-09T04:38:39.198Z",
+        "_id": "6ac86fd0fdd6adf7334673c5"
+      },
+      {
+        "title": "05:00 to 06:30 Cs class",
+        "completed": true,
+        "completedAt": "2026-10-09T04:38:39.198Z",
+        "_id": "6ac86fd0fdd6adf7334673c6"
+      },
+      {
+        "title": "06:30 to 08:00 Cs class",
+        "completed": true,
+        "completedAt": "2026-10-09T04:38:39.198Z",
+        "_id": "6ac86fd0fdd6adf7334673c7"
+      }
+    ],
+    "createdAt": "2026-10-08T04:37:19.761Z",
+    "updatedAt": "2026-10-09T04:38:40.864Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac71e4961fd03d19eda8c5d",
+    "assignedTo": "6ab7af419b0606da1d050728",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "scheduledAt": "2026-10-09T14:00:00.000Z",
+    "initialScheduledAt": "2026-10-08T14:00:00.000Z",
+    "completedCount": 0,
+    "status": "upcoming",
+    "type": "task",
+    "note": "1. Make ppts in Free time",
+    "title": "1. Make ppts in Free time",
+    "description": "1. Make ppts in Free time",
+    "department": "Trainer",
+    "departmentId": "6abb925b777e36dabd65ec80",
+    "priority": "medium",
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "Make ppts in Free time",
+        "completed": true,
+        "completedAt": "2026-10-08T14:14:37.025Z",
+        "_id": "6ac7a54e21047bee84e13369"
+      }
+    ],
+    "createdAt": "2026-10-08T04:38:33.653Z",
+    "updatedAt": "2026-10-09T04:33:48.544Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac72eda61fd03d19eda967d",
+    "assignedTo": "6ab63ad762b25645faae244e",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "scheduledAt": "2026-10-15T18:30:00.000Z",
+    "initialScheduledAt": "2026-10-07T18:30:00.000Z",
+    "completedCount": 0,
+    "status": "upcoming",
+    "type": "task",
+    "note": "1. Certificate make (SRK)\n2. script review and assign reel to colleagues",
+    "title": "1. Certificate make (SRK)\n2. script review and assign reel to colleagues",
+    "description": "1. Certificate make (SRK)\n2. script review and assign reel to colleagues",
+    "department": "Marketing",
+    "departmentId": "6abb925b777e36dabd65ec81",
+    "priority": "medium",
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [],
+    "createdAt": "2026-10-08T05:49:14.452Z",
+    "updatedAt": "2026-10-16T12:28:44.331Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac78ae0a131ccfd2cff616d",
+    "assignedTo": "6ab7af419b0606da1d050728",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "scheduledAt": "2026-10-09T12:30:00.000Z",
+    "initialScheduledAt": "2026-10-08T12:30:00.000Z",
+    "completedCount": 0,
+    "status": "upcoming",
+    "type": "task",
+    "note": "1. Taken a Demo at 4:15",
+    "title": "1. Taken a Demo at 4:15",
+    "description": "1. Taken a Demo at 4:15",
+    "department": "Trainer",
+    "departmentId": "6abb925b777e36dabd65ec80",
+    "priority": "medium",
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "Taken a Demo at 4:15",
+        "completed": true,
+        "completedAt": "2026-10-08T12:21:59.351Z",
+        "_id": "6ac78ae8a131ccfd2cff6183"
+      }
+    ],
+    "createdAt": "2026-10-08T12:21:52.279Z",
+    "updatedAt": "2026-10-09T04:37:42.944Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac8643cfdd6adf73346637d",
+    "assignedTo": "6ab6449b62b25645faae28ed",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "scheduledAt": "2026-10-09T12:15:00.000Z",
+    "initialScheduledAt": "2026-10-09T12:15:00.000Z",
+    "completedCount": 0,
+    "status": "upcoming",
+    "type": "task",
+    "note": "1. just dail follow ups \n2. old data follow ups",
+    "title": "1. just dail follow ups \n2. old data follow ups",
+    "description": "1. just dail follow ups \n2. old data follow ups",
+    "department": "Manager",
+    "departmentId": "auto_manager",
+    "priority": "medium",
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "just dail follow ups",
+        "completed": true,
+        "completedAt": "2026-10-09T12:21:22.140Z",
+        "_id": "6ac8dc42fdd6adf73346ab91"
+      },
+      {
+        "title": "old data follow ups",
+        "completed": true,
+        "completedAt": "2026-10-09T12:21:22.140Z",
+        "_id": "6ac8dc42fdd6adf73346ab92"
+      }
+    ],
+    "createdAt": "2026-10-09T03:49:16.848Z",
+    "updatedAt": "2026-10-09T12:21:22.413Z",
+    "__v": 0
+  },
+  {
+    "_id": "6acc6051311f7488e3cd1072",
+    "assignedTo": "6ab6449b62b25645faae28ed",
+    "assignedBy": "6ab9f622dab3a1da6ab7f9ca",
+    "scheduledAt": "2026-10-12T12:15:00.000Z",
+    "initialScheduledAt": "2026-10-12T12:15:00.000Z",
+    "completedCount": 0,
+    "status": "upcoming",
+    "type": "task",
+    "note": "1.digital marketing",
+    "title": "1.digital marketing",
+    "description": "1.digital marketing",
+    "department": "Manager",
+    "departmentId": "auto_manager",
+    "priority": "high",
+    "recurrence": {
+      "frequency": "none"
+    },
+    "reminderMinutesBefore": 30,
+    "checklist": [
+      {
+        "title": "digital marketing",
+        "completed": true,
+        "completedAt": "2026-10-15T03:20:58.214Z",
+        "_id": "6ad0469b3d81e4b45c902734"
+      }
+    ],
+    "createdAt": "2026-10-12T04:21:37.190Z",
+    "updatedAt": "2026-10-15T03:20:59.822Z",
+    "__v": 0
+  }
+]

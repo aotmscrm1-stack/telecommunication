@@ -6,9 +6,9 @@ export const ROUTE_PERMISSIONS = {
   '/login': [],
   '/signup': [],
 
-  // Dashboard & Task Routes
+  // Dashboard & Activity Routes
   '/dashboard': [ROLES.ADMIN, ROLES.MANAGER, ROLES.EMPLOYEE],
-  '/tasks': [ROLES.ADMIN, ROLES.MANAGER, ROLES.EMPLOYEE],
+  '/daily-activity': [ROLES.ADMIN, ROLES.MANAGER, ROLES.EMPLOYEE],
 
   // Marketing & Info Routes
   '/digital-calendar': [ROLES.ADMIN, ROLES.MANAGER, ROLES.EMPLOYEE],

@@ -225,9 +225,9 @@ export default function DepartmentActivityForm({
           {/* Remarks & Next Steps */}
           <div className="border-t border-slate-100 pt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1 flex items-center gap-1.5">
+              <label className="text-xs font-medium text-slate-700 block mb-1 flex items-center gap-1.5">
                 <MessageSquare className="w-3.5 h-3.5 text-slate-500" />
-                <span>Remarks, Achievements & Blockers</span>
+                <span>Remarks, Achievements & Daily Notes</span>
               </label>
               <textarea
                 rows={3}
@@ -235,12 +235,12 @@ export default function DepartmentActivityForm({
                 value={formData.remarks || ''}
                 onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
                 placeholder="Log daily highlights, customer challenges, or special remarks..."
-                className="w-full text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-sky-500 focus:bg-white font-medium"
+                className="w-full text-xs sm:text-sm bg-white border border-slate-200 rounded-xl p-3 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100 transition shadow-2xs leading-relaxed"
               />
             </div>
 
             <div>
-              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1 flex items-center gap-1.5">
+              <label className="text-xs font-medium text-slate-700 block mb-1 flex items-center gap-1.5">
                 <ArrowRightCircle className="w-3.5 h-3.5 text-sky-600" />
                 <span>Next Working Day Priorities & Plan</span>
               </label>
@@ -250,7 +250,7 @@ export default function DepartmentActivityForm({
                 value={formData.nextSteps || ''}
                 onChange={(e) => setFormData({ ...formData, nextSteps: e.target.value })}
                 placeholder="Key goals, scheduled follow-ups, or targets planned for tomorrow..."
-                className="w-full text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-sky-500 focus:bg-white font-medium"
+                className="w-full text-xs sm:text-sm bg-white border border-slate-200 rounded-xl p-3 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100 transition shadow-2xs leading-relaxed"
               />
             </div>
           </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
-import { canViewDashboard } from '../../../utils/permissions';
+import { canViewDashboard, canAccessDailyActivity, canAccessDigitalCalendar } from '../../../utils/permissions';
 import TechText from '../components/TechText';
 import MagicRings from '../components/MagicRings';
 import lampImg from '../../../assets/lamp.png';
@@ -802,8 +802,12 @@ export default function Login() {
       const loggedUser = await login(trimmedEmail, trimmedPassword);
       if (canViewDashboard(loggedUser)) {
         navigate('/dashboard');
+      } else if (canAccessDailyActivity(loggedUser)) {
+        navigate('/daily-activity');
+      } else if (canAccessDigitalCalendar(loggedUser)) {
+        navigate('/digital-calendar');
       } else {
-        navigate('/tasks');
+        navigate('/daily-activity');
       }
     } catch (err) {
       setError(err.response?.data?.error || err.message || 'Login failed.');

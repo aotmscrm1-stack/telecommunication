@@ -1,3 +1,506 @@
+File Structure
+Is there a recommended way to structure React projects?
+React doesn’t have opinions on how you put files into folders. That said there are a few common approaches popular in the ecosystem you may want to consider.
+
+Grouping by features or routes
+One common way to structure projects is to locate CSS, JS, and tests together inside folders grouped by feature or route.
+
+common/
+  Avatar.js
+  Avatar.css
+  APIUtils.js
+  APIUtils.test.js
+feed/
+  index.js
+  Feed.js
+  Feed.css
+  FeedStory.js
+  FeedStory.test.js
+  FeedAPI.js
+profile/
+  index.js
+  Profile.js
+  ProfileHeader.js
+  ProfileHeader.css
+  ProfileAPI.js
+The definition of a “feature” is not universal, and it is up to you to choose the granularity. If you can’t come up with a list of top-level folders, you can ask the users of your product what major parts it consists of, and use their mental model as a blueprint.
+
+Grouping by file type
+Another popular way to structure projects is to group similar files together, for example:
+
+api/
+  APIUtils.js
+  APIUtils.test.js
+  ProfileAPI.js
+  UserAPI.js
+components/
+  Avatar.js
+  Avatar.css
+  Feed.js
+  Feed.css
+  FeedStory.js
+  FeedStory.test.js
+  Profile.js
+  ProfileHeader.js
+  ProfileHeader.css
+Some people also prefer to go further, and separate components into different folders depending on their role in the application. For example, Atomic Design is a design methodology built on this principle. Remember that it’s often more productive to treat such methodologies as helpful examples rather than strict rules to follow.
+
+Avoid too much nesting
+There are many pain points associated with deep directory nesting in JavaScript projects. It becomes harder to write relative imports between them, or to update those imports when the files are moved. Unless you have a very compelling reason to use a deep folder structure, consider limiting yourself to a maximum of three or four nested folders within a single project. Of course, this is only a recommendation, and it may not be relevant to your project.
+
+Don’t overthink it
+If you’re just starting a project, don’t spend more than five minutes on choosing a file structure. Pick any of the above approaches (or come up with your own) and start writing code! You’ll likely want to rethink it anyway after you’ve written some real code.
+
+If you feel completely stuck, start by keeping all files in a single folder. Eventually it will grow large enough that you will want to separate some files from the rest. By that time you’ll have enough knowledge to tell which files you edit together most often. In general, it is a good idea to keep files that often change together close to each other. This principle is called “colocation”.
+
+As projects grow larger, they often use a mix of both of the above approaches in practice. So choosing the “right” one in the beginning isn’t very important.
+
+React JS Advance-Level Folder Structure
+How to run the project
+
+npm i
+and
+
+npm start
+Before using This project install latest versions of following packages
+
+Axios
+Bootstrap - React Strap - MUI - AntD - Tailwind
+React Icons
+React Router Dom Latest React Router v6
+Other Required packages
+In the project I have just set Up most used folder structure:
+
+React JS Advanced Folder Structure
+.
+├── public
+|     └── index.html
+├── src
+    ├── assets
+    |     ├── audios
+    |     ├── icons
+    |     ├── images
+    |     └── videos
+    ├── components
+    |     ├── Button
+    |     |     ├── index.jsx
+    |     |     └── button.module.css
+    |	  ├── inputs
+    |     |     ├── index.jsx
+    |     |     └── inputs.module.css
+    |	  ├── Modal
+    |     |     ├── index.jsx
+    |     |     └── modal.module.css
+    |	  └── Tooltip
+    |           ├── index.jsx
+    |           └── tooltip.module.css
+    |     └── index.js
+    ├──  db
+    |     ├── productsData.js
+    |     └── userData.js
+    ├── layout
+    |     ├── Header
+    |     |     ├── index.jsx
+    |     |     └── header.module.css
+    |     ├── Navbar.jsx
+    |     |     ├── index.jsx
+    |     |     └── navbar.module.css
+    |     ├── Breadcrumbs.jsx
+    |     |     ├── index.jsx
+    |     |     └── breadcrumbs.module.css
+    |     └── Footer.jsx
+    |           ├── index.jsx
+    |           └── footer.module.css
+    |     └── index.js
+    ├── pages
+    |     ├── Home
+    |     |     ├── index.jsx
+    |     |     └── home.module.css
+    |     ├── Login
+    |     |     ├── index.jsx
+    |     |     └── login.module.css
+    |     ├── Signup
+    |     |     ├── index.jsx
+    |     |     └── signup.module.css
+    |     └── About
+    |           ├── index.jsx
+    |           └── about.module.css
+    |     └── index.js
+    ├── Routers
+    |     └── Routers.js
+    ├── store
+    |     ├── action.js  
+    |     ├── reducers.js  
+    |     └── store.js
+    ├── services
+    |     ├── api.js          // API request functions
+    |     └── dataUtils.js    // Data manipulation functions
+    ├── utils
+    |     ├── constants
+    |     |     ├── Strapi.js
+    |     |     └── Firebase.js
+    |     ├── helpers
+    |     |     ├── arrays.js
+    |     |     └── helpers.js
+    |     └── hooks  
+    |           └── useIsMobile.js  
+    ├── .env
+    ├── app.js
+    ├── index.css
+    ├── index.js
+|
+├── .gitignore
+├── package-lock.json
+├── package.json
+└── README.md
+Folders include
+Public
+Assests
+Components
+db
+layout
+Pages
+Routes
+services
+store
+utils
+Constants
+helpers
+hooks
+.env.example / .env.development
+.eslintrc.cjs
+.prettierrc.cjs
+.jsonconfig.json
+.gitignore
+package.json
+.vite.config.js
+Public
+Public mainly contain root file index.html which help to run react project.
+
+Assests
+In Assets folder you can put following things.
+
+Images
+Video
+Icons
+CSS
+Components
+Component will have all the components which are reuseable anywhere in website. Like - Button - Cards - DropDownBtn - inputs - Modal - Popups - Toast - Tooltip - Text/Heading/Title - Skeleton - Spiner/Loader
+
+Constants
+Constants folder have Tokens, logins, and those details which we don't want to share with public. Like Env files are used to store sensitive credentials such as API keys. An environment variable supports storing the API link at one location so that we do not need to change the Link in each file manually.
+
+const API_BASE_URL = 'https://api.example.com';
+const MAX_ITEMS_PER_PAGE = 10;
+db
+Here we provide JSON Formate of data in frontend in React APP.
+
+products data
+users data
+Helpers
+Helpers used to store utility functions and modules that provide various helper functionalities. These functions are usually small, reusable, and not directly tied to the main business logic of your application.
+
+Array to Object
+Object to Array
+Date Formatting
+Number Formatting
+Validation
+Api Request
+Helper Functions Details
+
+Layout
+This is just a special folder for placing any layout based components.
+
+Header
+Footer
+Breadcrumbs
+Navbar
+Sidebar
+Pages
+Pages will have all the pages which we will use in website.
+
+Routes
+Router will have all the Routes in website. Where we are going and where we want to go.
+
+Services
+In Services we put configuration file, like when you are using google firebase then your firebase config file will be in services folder.
+
+The "services" folder is often used to contain code related to making *API requests and managing data from external sources. This folder helps separate the concerns of your application by isolating data fetching and manipulation logic from the components that render the UI.
+
+// services/apiService.js
+import axios from 'axios';
+
+export function fetchUserData(userId) {
+  return axios.get(`/api/users/${userId}`);
+}
+Store
+"store" folder in a React application typically refers to a directory where you manage your application's state using state management libraries like
+
+Redux
+Redux Toolkit
+Zustand
+Context Api
+Mobx
+|-- store/
+|   |-- actions.js        // Redux action creators
+|   |-- reducers.js       // Redux reducers
+|   |-- store.js          // Redux store configuration
+Utils
+Utils folder is a common convention in many software projects, including React applications, for storing utility functions and helper modules that provide general-purpose functionality across different parts of the application.
+
+constants
+helpers
+hooks
+Example:
+
+// utils/stringUtils.js
+export function capitalizeFirstLetter(str) {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+// utils/dateUtils.js
+export function formatDate(date) {
+  const options = { year: 'numeric', month: 'long', day: 'numeric' };
+  return new Date(date).toLocaleDateString(undefined, options);
+}
+.env.development
+Env files are used to store sensitive credentials such as API keys.
+
+REACT_APP_API_URL=http://localhost:3001
+REACT_APP_DEBUG_MODE=true
+.env.example
+Env files are used to store sensitive credentials such as API keys.
+
+REACT_APP_API_KEY=
+REACT_APP_API_URL=
+.eslintrc.cjs
+ESLint, which is a popular tool for linting and enforcing coding style and best practices in JavaScript code. The .eslintrc.cjs file is written in CommonJS module format and is used to configure ESLint for your project.
+
+.gitignore
+.gitignore file contain all those files,folders name which user want to skip to push online. If you don't want to push any specific file/folder then you should put their name in .gitignore
+
+.prettierrc.cjs
+.prettierrc.cjs file is a configuration file used for Prettier, which is a widely used code formatting tool. Prettier helps ensure consistent and automatic code formatting across your codebase. The .prettierrc.cjs file is written in CommonJS module format and is used to configure Prettier's behavior for your project.
+
+File Format & Naming
+Configuration Setup
+Export Configuration
+module.exports = {
+  printWidth: 80,
+  tabWidth: 2,
+  singleQuote: true,
+  trailingComma: 'es5',
+};
+jscongig.json
+File Purpose
+Configuration Setup:
+JSON Format
+{
+  "compilerOptions": {
+    "baseUrl": "./",
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  }
+}
+package.json
+package.json file is core to the Nodejs ecosystem and is a fundamental part of understanding and working with Node. js , npm , and even modern JavaScript . This file is used as a manifest, storing information about applications, modules, packages, and more.
+
+vite.config.js
+File Purpose: The vite.config.js file allows you to customize various aspects of your Vite project, including configuration options for the development server, build process, and plugin settings.
+
+Configuration Setup: Inside the vite.config.js file, you export an object containing the configuration options for your Vite project. This object can include settings related to the development server, build process, plugins, and more.
+
+JavaScript Format: The vite.config.js file is written in JavaScript, and it's named vite.config.js. It should be placed in the root directory of your Vite project.
+
+// vite.config.js
+export default {
+  server: {
+    port: 3000
+  },
+  build: {
+    minify: true
+  },
+  plugins: [/* your plugins here */]
+};
+@import
+
+export default defineConfig({
+  resolve: {
+    alias: {
+      '@': '/src',
+      '@page': '/src/page'
+    }
+  },
+  plugins: [react()],
+})
+2nd Method
+
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import { resolve } from 'path';
+
+const alias = {
+  // eslint-disable-next-line no-undef
+  '@': resolve(__dirname, './src'),
+};
+
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias,
+  },
+})
+
+
+# Frontend Architecture & File Structure
+
+This document details the standardized folder layout, import aliases, and modular architecture implemented across `frontend/src/` adhering to the React enterprise guidelines defined in `FileStructure.md`.
+
+---
+
+## 1. Directory Tree Overview
+
+```
+frontend/
+├── jsconfig.json               # Path alias mapping (@/* -> src/*)
+├── vite.config.js              # Vite bundler configuration & @ alias
+├── package.json
+├── tailwind.config.js
+└── src/
+    ├── app/                    # Application root composition
+    │   ├── App.jsx             # Main App layout & route provider wrapper
+    │   ├── config.js           # App-level environment & runtime configs
+    │   ├── guards.jsx          # Auth & Role routing guards
+    │   ├── providers.jsx       # Global context providers tree
+    │   └── routes.jsx          # Route definitions
+    │
+    ├── assets/                 # Static images, media, branding & styles
+    │   ├── styles/             # Global CSS stylesheets (variables.css, utilities.css, globals.css)
+    │   ├── CRM.png
+    │   ├── aotms-global-logo.png
+    │   └── ...
+    │
+    ├── components/             # Reusable UI & shared widgets
+    │   ├── ui/                 # Atomic UI primitives (Button, Card, Modal, Slider)
+    │   │   └── index.js        # Barrel export for @/components/ui
+    │   ├── common/             # Common shared elements (e.g. StatusBadge)
+    │   ├── dashboard/          # Dashboard sub-components
+    │   ├── Attendance/         # Attendance modal components
+    │   ├── LeadDetails/        # Lead details view components
+    │   ├── Finance/            # Invoice / PDF / A4 templates
+    │   ├── tracking/           # Live tracking map component
+    │   └── index.js            # Unified barrel export for @/components
+    │
+    ├── layouts/                # Role-based & view layouts
+    │   ├── AdminLayout/        # Administrator layout wrapper
+    │   ├── EmployeeLayout/     # Employee layout wrapper
+    │   ├── ManagerLayout/      # Manager layout wrapper
+    │   ├── AuthLayout/         # Authentication views layout
+    │   ├── PublicLayout/       # Marketing & public layout
+    │   ├── components/         # Shared layout parts (Sidebar, Header, Topbar, Breadcrumbs)
+    │   └── index.js            # Barrel export for @/layouts
+    │
+    ├── modules/                # Feature-driven business modules
+    │   ├── communication/      # Call recordings, Email CRM, Blast
+    │   ├── dashboard/          # Role-based dashboard views
+    │   ├── developer/          # Access tokens, API integrations, Maps showcase
+    │   │   └── maps/           # Map showcase & controls dashboard (moved from src/Maps)
+    │   ├── finance/            # Fee receipts, Invoices, Offer letters, Payslips, Quotations
+    │   ├── management/         # Attendance records, Departments, Live Employee Tracking
+    │   ├── marketing/          # Campaigns, Digital calendar, Leads, Reports, Leaderboard
+    │   └── tasks/              # Tasks management
+    │
+    ├── pages/                  # Page-level route views
+    │   ├── auth/               # Login, Sign up, Reset password, Verification
+    │   ├── landing/            # Landing page hero, pricing, features, footer
+    │   ├── errors/             # 403, 404, 500 pages
+    │   ├── Billing.jsx
+    │   ├── CustomActions.jsx
+    │   ├── Fields.jsx
+    │   ├── MyPreferences.jsx
+    │   ├── PermissionTemplates.jsx
+    │   ├── Profile.jsx
+    │   ├── WorkspacePreferences.jsx
+    │   └── index.js            # Barrel export for @/pages
+    │
+    ├── services/               # External APIs, sockets, and data clients
+    │   ├── api/                # Axios client, endpoints, interceptors, error handling
+    │   ├── auth/               # Authentication service functions
+    │   ├── notifications/      # Real-time and push notifications
+    │   ├── storage/            # Local/session storage utilities
+    │   ├── api.js              # Central API gateway
+    │   ├── geoTracker.js       # Geolocation tracking engine
+    │   ├── trackingSocketClient.js # Live tracking web socket
+    │   └── index.js            # Barrel export for @/services
+    │
+    ├── permissions/            # RBAC definitions & Route guards
+    │   ├── roles.js            # Core roles: ADMIN, MANAGER, EMPLOYEE
+    │   ├── permissions.js      # Granular permission flags
+    │   ├── routePermissions.js # Route permission mapping
+    │   ├── permissionGuard.jsx # Declarative permission guard component
+    │   └── index.js            # Barrel export for @/permissions
+    │
+    ├── hooks/                  # Custom React hooks
+    │   ├── useBreakpoint.js
+    │   ├── useDebounce.js
+    │   ├── usePagination.js
+    │   ├── usePermissions.js
+    │   ├── useTheme.js
+    │   └── index.js            # Barrel export for @/hooks
+    │
+    ├── context/                # React Contexts
+    │   ├── AuthContext.jsx
+    │   ├── SidebarContext.jsx
+    │   └── index.js            # Barrel export for @/context
+    │
+    ├── constants/              # System constants and enum maps
+    │   ├── routes.js
+    │   ├── status.js
+    │   ├── trackingConfig.js   # Geolocation & office coordinates config (moved from src/config)
+    │   └── index.js            # Barrel export for @/constants
+    │
+    ├── utils/                  # Helper utilities and data transforms
+    │   ├── cn.js               # Tailwind class merger utility (clsx + twMerge, moved from src/lib)
+    │   ├── dateFormat.js
+    │   ├── emailTemplateUtils.js
+    │   ├── excelTemplate.js
+    │   ├── numberToWords.js
+    │   ├── permissions.js
+    │   └── index.js            # Barrel export for @/utils
+    │
+    └── types/                  # Data structures & mock schema definitions
+        ├── api.js
+        ├── auth.js
+        ├── common.js
+        └── user.js
+```
+
+---
+
+## 2. Standardized Import Conventions
+
+With the addition of `jsconfig.json` and barrel exports, imports can be written concisely and clearly:
+
+```javascript
+// Components & UI
+import { Button, Card, ConfirmModal } from '@/components/ui';
+import { StatusBadge, LiveMap } from '@/components';
+
+// Layouts
+import { AdminLayout, Breadcrumbs, Topbar } from '@/layouts';
+
+// Hooks & Context
+import { useAuth, useSidebar } from '@/context';
+import { useDebounce, usePagination } from '@/hooks';
+
+// Services & Utils
+import { api, getEmployees } from '@/services';
+import { formatDate, numberToWords } from '@/utils';
+import { ROLES, PermissionGuard } from '@/permissions';
+```
+
+
 # Implementation Plan: Meta Leads Module & Dynamic Google Sheets n8n Integration
 
 ---
@@ -939,3 +1442,411 @@ These endpoints and response formats are a proposed contract, not a claim that t
 - [ ] Backend rejects unauthorized assignment updates and campaign reads.
 - [ ] Desktop, tablet, and mobile layouts are usable.
 - [ ] No mock data or fake success states are used in production.
+
+
+# Google Sheets All Tabs → CRM Render Backend (n8n)
+
+## Included sheet tabs
+- Digital Marketing_Leads
+- SAP_Leads
+- Python_Leads
+- CyberSecurity_Leads
+
+Each tab reads columns A:ZZ. Confirm these exact tab names exist; edit/remove/add reader nodes if your spreadsheet has other tabs.
+
+## Import
+1. In n8n, choose Workflows → Import from File.
+2. Import `google_sheets_all_tabs_render_crm.json`.
+3. Open each `Read - ...` node and select your working Google Sheets OAuth credential. The credential ID in an exported workflow may not exist in another n8n instance.
+4. Run the workflow and inspect each Read node and `Combine All Tabs`.
+
+## Important backend configuration
+The HTTP Request URL starts with your supplied Render API base:
+`https://telecommunication-l3oz.onrender.com/api`
+
+The exact lead-create route was not provided, so the URL intentionally ends in:
+`/REPLACE_WITH_REAL_LEAD_ENDPOINT`
+
+Also replace `Bearer REPLACE_WITH_CRM_TOKEN` and map the body to the exact fields expected by your backend. The CRM node is disabled until configured, to prevent accidental failed imports.
+
+## Notes
+- `A:ZZ` reads columns A through ZZ, not every tab automatically; each tab has its own reader node.
+- This starter workflow does not deduplicate leads. Add backend-side idempotency/deduplication before importing production data.
+- The five tab names are based on the names supplied in the conversation; add nodes for any other tabs.
+
+
+n8n workflow :
+{
+  "name": "Google Sheets All Leads to CRM - Render Backend",
+  "nodes": [
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "sheetId": "1NK3yVkkKxAOjgTCL46nEaC1lzpOxnn1vCeTAY9nX2Jg",
+        "range": "'Digital Marketing_Leads'!A:ZZ",
+        "options": {}
+      },
+      "id": "c3b18d95-cc93-46f2-a8fb-f0795feb6270",
+      "name": "Read - Digital Marketing_Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [
+        496,
+        176
+      ],
+      "alwaysOutputData": false,
+      "executeOnce": false,
+      "notesInFlow": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Z78t7YLL8GqHco4o",
+          "name": "Google Sheets account 6"
+        }
+      },
+      "notes": "Reads all columns A:ZZ from the 'Digital Marketing_Leads' tab. After import, select the Google Sheets credential that has access to this spreadsheet."
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "sheetId": "1NK3yVkkKxAOjgTCL46nEaC1lzpOxnn1vCeTAY9nX2Jg",
+        "range": "'SAP_Leads'!A:ZZ",
+        "options": {}
+      },
+      "id": "feccae78-fda0-41f7-9149-a0f876e2c5c6",
+      "name": "Read - SAP_Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [
+        496,
+        336
+      ],
+      "alwaysOutputData": false,
+      "executeOnce": false,
+      "notesInFlow": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Z78t7YLL8GqHco4o",
+          "name": "Google Sheets account 6"
+        }
+      },
+      "notes": "Reads all columns A:ZZ from the 'SAP_Leads' tab. After import, select the Google Sheets credential that has access to this spreadsheet."
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "sheetId": "1NK3yVkkKxAOjgTCL46nEaC1lzpOxnn1vCeTAY9nX2Jg",
+        "range": "'Python_Leads'!A:ZZ",
+        "options": {}
+      },
+      "id": "bed451e4-c0ec-4e74-9c82-d94e19961d91",
+      "name": "Read - Python_Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [
+        496,
+        512
+      ],
+      "alwaysOutputData": false,
+      "executeOnce": false,
+      "notesInFlow": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Z78t7YLL8GqHco4o",
+          "name": "Google Sheets account 6"
+        }
+      },
+      "notes": "Reads all columns A:ZZ from the 'Python_Leads' tab. After import, select the Google Sheets credential that has access to this spreadsheet."
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "sheetId": "1NK3yVkkKxAOjgTCL46nEaC1lzpOxnn1vCeTAY9nX2Jg",
+        "range": "'CyberSecurity_Leads'!A:ZZ",
+        "options": {}
+      },
+      "id": "5c281f54-6337-4d67-bada-c9081624078d",
+      "name": "Read - CyberSecurity_Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [
+        496,
+        704
+      ],
+      "alwaysOutputData": false,
+      "executeOnce": false,
+      "notesInFlow": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Z78t7YLL8GqHco4o",
+          "name": "Google Sheets account 6"
+        }
+      },
+      "notes": "Reads all columns A:ZZ from the 'CyberSecurity_Leads' tab. After import, select the Google Sheets credential that has access to this spreadsheet."
+    },
+    {
+      "parameters": {
+        "numberInputs": 5
+      },
+      "id": "78b5c18c-9a0c-450e-92eb-21273ef53882",
+      "name": "Combine All Tabs",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1024,
+        352
+      ],
+      "notesInFlow": true,
+      "notes": "Combines rows from the five configured sheet tabs. If your n8n version uses a different Merge node UI, set Mode to Append and connect each Read node to a separate input."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://telecommunication-l3oz.onrender.com/api/REPLACE_WITH_REAL_LEAD_ENDPOINT",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer REPLACE_WITH_CRM_TOKEN"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { name: $json.name || $json.Name || $json['Full Name'] || '', email: $json.email || $json.Email || '', phone: $json.phone || $json.Phone || $json.mobile || '', source: 'google_sheets', company: $json.company || $json.Company || '' } }}",
+        "options": {}
+      },
+      "id": "676b1d29-9d7e-45e0-bd4e-5a230216587a",
+      "name": "Create Lead in CRM1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1472,
+        400
+      ],
+      "notesInFlow": true,
+      "disabled": true,
+      "notes": "Disabled intentionally until the real lead-create endpoint, authentication, and request schema are confirmed. Replace the endpoint suffix and token, then map fields to your backend's expected schema."
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "Meta_Leads",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        -96,
+        416
+      ],
+      "id": "37674129-7e79-400e-8c48-3557dc2b920a",
+      "name": "Webhook",
+      "webhookId": "d64b82cd-b8b1-4934-bb84-b90268fd084f"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Combine All Tabs": {
+      "main": [
+        [
+          {
+            "node": "Create Lead in CRM1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read - Digital Marketing_Leads": {
+      "main": [
+        [
+          {
+            "node": "Combine All Tabs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read - SAP_Leads": {
+      "main": [
+        [
+          {
+            "node": "Combine All Tabs",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Read - Python_Leads": {
+      "main": [
+        [
+          {
+            "node": "Combine All Tabs",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Read - CyberSecurity_Leads": {
+      "main": [
+        [
+          {
+            "node": "Combine All Tabs",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Read - Digital Marketing_Leads",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read - SAP_Leads",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read - Python_Leads",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read - CyberSecurity_Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "c837c550-54ea-4c4a-9bf7-f0a1968c42fa",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ac53766b75ba98327cb8367953362c144cd1e7b33149a3b252d1556380af54e8"
+  },
+  "nodeGroups": [],
+  "id": "Cf3Wiu05i5DH1X7q",
+  "tags": []
+}
+
+---
+
+# AOTMS CRM — Daily Activity & Telecaller Workspace Implementation
+
+## Executive Summary
+This document summarizes the complete implementation of the **Daily Activity & Telecaller Workspace** and the safe retirement of the legacy Tasks & TODO module as defined in `todo.md`.
+
+---
+
+## 1. Daily Activity & Telecaller Workspace Architecture
+
+### 1.1 Overview
+The Daily Activity system replaces the legacy task tracker with a role-based, department-validated workspace that tracks employee productivity, shift attendance, calling metrics, and daily achievements.
+
+### 1.2 Frontend Routes & Navigation
+- **Workspace Route**: `/daily-activity` (aliases: `/daily-activities`, `/:userId/daily-activity`)
+- **Protected Layout**: Sidebar includes `Daily Activity` with an emerald calendar icon (`#10b981`).
+- **Legacy Fallbacks**: All previous routes (`/tasks`, `/task`, `/todos`, `/todo`, `/follow-ups`, `/followups`) seamlessly redirect to `/daily-activity` without broken links.
+
+### 1.3 Key Components
+1. **Interactive Monthly Calendar** (`frontend/src/modules/daily-activities/ActivityCalendar.jsx`):
+   - Monthly navigation and date status indicator dots (Submitted, Draft, Needs Correction, Missing).
+   - Jump to Today functionality.
+2. **Department-Specific Activity Forms** (`DepartmentActivityForm.jsx`):
+   - **Telecalling**: Metrics (Attempted, Connected, Unanswered, Interested, Follow-ups, Conversions), lead call outcome tracking with dynamic follow-up scheduling, blockers, remarks.
+   - **Developer**: Module name, Task ID, Features Implemented, PR Link, Blockers, Status.
+   - **Management**: Key Activities, Decisions, Risk/Escalations, Follow-up Owner.
+   - **Trainer**: Batch/Course, Session Topic, Attendance Count, Topics Covered.
+3. **Activity History Table** (`ActivityHistoryTable.jsx`):
+   - Paginated historical logs of personal daily activity submissions.
+4. **Follow-Up Tracker** (`FollowUpTracker.jsx`):
+   - Live view of today's and upcoming lead call follow-ups with instant lead profile links.
+5. **Admin Review & Overview** (`AdminActivityOverview.jsx`):
+   - Multi-filter overview for Admins/Managers to inspect, approve, or request corrections with mandatory notes.
+
+---
+
+## 2. Backend API Contract (`/api/daily-activities`)
+
+| Method | Endpoint | Authorization | Description |
+|---|---|---|---|
+| `POST` | `/api/daily-activities` | Authenticated Employee | Save or update draft for requested date |
+| `GET` | `/api/daily-activities?date=YYYY-MM-DD` | Owner / Authorized Admin | Fetch daily report for specific date |
+| `GET` | `/api/daily-activities/calendar?month=YYYY-MM` | Owner / Authorized Admin | Get status marker dots for full calendar month |
+| `POST` | `/api/daily-activities/:id/submit` | Report Owner | Formally submit report for management review |
+| `GET` | `/api/daily-activities/history` | Authenticated Employee | Paginated personal activity submission history |
+| `GET` | `/api/daily-activities/follow-ups` | Authenticated Telecaller | Call follow-ups due today and upcoming |
+| `GET` | `/api/daily-activities/admin/overview` | Admin / Authorized Manager | Multi-filter organization overview |
+| `GET` | `/api/daily-activities/:id` | Owner / Admin | Detailed single report inspection |
+| `PATCH` | `/api/daily-activities/:id/review` | Admin / Authorized Manager | Approve or request correction with remarks |
+
+---
+
+## 3. Legacy Tasks/TODO Module Retirement & Database Cleanup
+
+### 3.1 Unmounted & Removed Modules
+- **Frontend Components**: Removed `frontend/src/modules/tasks/`, `components/dashboard/Task/`, and `components/dashboard/Todo/`.
+- **Backend Endpoints**: Unmounted `/api/tasks` and `/api/todos` (returns 404).
+- **Backend Files Removed**:
+  - `backend/src/modules/tasks/tasks.js`
+  - `backend/src/modules/tasks/todos.js`
+  - `backend/src/database/models/Task.js`
+  - `backend/src/database/models/Todo.js`
+- **Attendance Modal Cleaned**: Permanently excised "Step 2/2: Todo Required" modal and multi-assignee Todo form from `MandatoryAttendanceModal.jsx`. Single-step Attendance clock-in restored.
+
+### 3.2 Database Migration & Permanent Backups
+- **JSON Backups Preserved**:
+  - `backend/backups/tasks_backup.json` (11 documents preserved)
+  - `backend/backups/todos_backup.json` (71 documents preserved)
+- **Collections Cleaned**:
+  - `tasks` collection dropped from MongoDB Atlas.
+  - `todos` collection dropped from MongoDB Atlas.
+
+### 3.3 Protected & Preserved Modules
+- **`/api/followups`**: Fully active, isolated, and powered directly by the `FollowUp` schema for CRM lead calling and follow-up scheduling.
+- **Background Jobs**: `taskReminderChecker.js` and `taskOverdueChecker.js` continue uninterrupted.
+- **Digital Marketing**: `/digital-calendar` and its underlying schemas/routes remain 100% untouched.
+
+---
+
+## 4. Verification & Validation Metrics
+- **Frontend Production Build**: `vite build` completed with **Exit code 0** (0 errors).
+- **Backend Regression Suite**: `scripts/comprehensive_validation.js` completed with **20/20 PASSED** (0 failures).
+
+---
+
+## 5. Department-Specific Workspaces & UI/UX Refinements
+
+### 5.1 Digital Marketing Department & Digital Calendar
+- **Digital Department Workspace Routing**: Because the Digital Marketing team already has the interactive, dedicated **Digital Calendar** (`/digital-calendar`), **Daily Activity** is permanently hidden and excluded from their navigation (Sidebar and Navbar).
+- Direct visits and post-login redirections for Digital Marketing staff automatically land on `/digital-calendar`.
+- **Digital Calendar Typography Overhaul**: Permanently removed harsh bold weights (`font-black`, `font-extrabold`, and `font-bold`) across the entire `DigitalCalendar.jsx` module, transitioning to clean, refined `font-medium` and `font-semibold` tokens.
+
+### 5.2 Developer Department
+- **Removed Calling Features**: Completely hid the **Follow-up Call Tracker** widget from the Developer view so that their activity history table spans full width cleanly.
+- **Form Typography & Information Hints**: Removed bold styling from inputs and added clear, informative placeholder guidance for project deliverables, task IDs, git pull requests, blockers, and next-day plans.
+
+### 5.3 Telecalling Department
+- **Calling Performance Metrics Redesign**: Replaced heavy bold number inputs with balanced, responsive counters with informative tooltips and placeholders (*"Total calls"*, *"Answered"*, *"No reply"*, *"Positive"*, *"Callbacks"*, *"Confirmed"*).
+
+
+

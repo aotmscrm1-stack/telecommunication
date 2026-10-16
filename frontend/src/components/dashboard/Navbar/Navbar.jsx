@@ -14,7 +14,7 @@ import {
   FaUser, FaLock, FaUserCheck, FaBook, FaCalendarDays, FaTableList,
   FaChartLine
 } from 'react-icons/fa6';
-import { isCEO, isHR, isManager, isLimitedStaff, canViewDashboard, canViewCallRecordings, isDigitalMarketing, canAccessDigitalCalendar, normalizeDesignation, canViewCallFollowups, canAccessMarketingLeads } from '../../../utils/permissions';
+import { isCEO, isHR, isManager, isLimitedStaff, canViewDashboard, canViewCallRecordings, isDigitalMarketing, canAccessDigitalCalendar, normalizeDesignation, canViewCallFollowups, canAccessMarketingLeads, canAccessDailyActivity } from '../../../utils/permissions';
 
 function WhatsAppBlastIcon({ className, style }) {
   return (
@@ -488,8 +488,8 @@ export default function Navbar() {
 
   const notifTarget = (n) => {
     const taskTypes = ['task_created', 'task_assigned', 'task_edited', 'task_overdue', 'task_reminder'];
-    if (taskTypes.includes(n.type)) return `/tasks?tab=${encodeURIComponent(n.data?.taskType === 'todo' ? 'Todo' : 'Call Followups')}`;
-    if (n.type === 'callback_due') return n.leadId ? `/leads/${n.leadId}` : '/tasks?tab=Call Followups';
+    if (taskTypes.includes(n.type)) return n.leadId ? `/leads/${n.leadId}` : '/daily-activity';
+    if (n.type === 'callback_due') return n.leadId ? `/leads/${n.leadId}` : '/daily-activity';
     if (n.leadId) return `/leads/${n.leadId}`;
     return null;
   };
@@ -507,16 +507,14 @@ export default function Navbar() {
   const hasDashboard = canViewDashboard(user);
 
   const topDropdownGroups = !hasDashboard ? [
-    {
+    ...(canAccessDailyActivity(user) ? [{
       title: 'Daily Activity',
       icon: FaCalendarCheck,
       items: [
         { label: 'Daily Activity', path: '/daily-activity', icon: FaCalendarCheck },
-        { label: 'Tasks', path: user?._id ? `/${user._id}/tasks` : '/tasks', icon: FaListCheck },
-        { label: 'TODO List', path: '/tasks?tab=Todo', icon: FaListCheck },
-        ...(canViewCallFollowups(user) ? [{ label: 'Call Follow-ups', path: '/tasks?tab=Call+Followups', icon: FaClock }] : []),
+        ...(canViewCallFollowups(user) ? [{ label: 'Call Follow-ups', path: '/daily-activity#followups', icon: FaClock }] : []),
       ]
-    },
+    }] : []),
     ...(canSeeMetaLeads ? [{
       title: 'Marketing',
       icon: FaBullhorn,
@@ -555,8 +553,7 @@ export default function Navbar() {
   ] : [
     { title: 'Info', icon: FaCircleInfo, items: [
       { label: 'Dashboard', path: '/dashboard', icon: FaHouse },
-      { label: 'Daily Activity', path: '/daily-activity', icon: FaCalendarCheck },
-      { label: 'Task', path: user?._id ? `/${user._id}/tasks` : '/tasks', icon: FaListCheck },
+      ...(canAccessDailyActivity(user) ? [{ label: 'Daily Activity', path: '/daily-activity', icon: FaCalendarCheck }] : []),
       { label: 'Digital Calendar', path: '/digital-calendar', icon: FaCalendarDays },
     ]},
     {
@@ -718,7 +715,18 @@ export default function Navbar() {
 
               {/* Logo */}
               <div className="flex items-center shrink-0">
-                <Link to={hasDashboard ? "/dashboard" : "/tasks"} className="flex items-center gap-2 group">
+                <Link
+                  to={
+                    hasDashboard
+                      ? "/dashboard"
+                      : canAccessDailyActivity(user)
+                      ? "/daily-activity"
+                      : canAccessDigitalCalendar(user)
+                      ? "/digital-calendar"
+                      : "/daily-activity"
+                  }
+                  className="flex items-center gap-2 group"
+                >
                   <img
                     src={logoImg}
                     alt="AOTMS Logo"
@@ -990,7 +998,7 @@ export default function Navbar() {
                   <motion.button
                     whileHover={{ scale: 1.08 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => navigate('/tasks?tab=Call+Followups')}
+                    onClick={() => navigate('/daily-activity')}
                     title="View Call Followups"
                     className="w-9 h-9 rounded-full flex items-center justify-center transition-all hidden sm:flex nav-glow-icon-btn"
                     style={{ background: C.bgSoft, border: `1px solid ${C.border}` }}
