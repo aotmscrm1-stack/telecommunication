@@ -14,7 +14,7 @@ import {
   FaUser, FaLock, FaUserCheck, FaBook, FaCalendarDays, FaTableList,
   FaChartLine
 } from 'react-icons/fa6';
-import { isCEO, isHR, isManager, isLimitedStaff, canViewDashboard, canViewCallRecordings, isDigitalMarketing, canAccessDigitalCalendar, normalizeDesignation, canViewCallFollowups } from '../../../utils/permissions';
+import { isCEO, isHR, isManager, isLimitedStaff, canViewDashboard, canViewCallRecordings, isDigitalMarketing, canAccessDigitalCalendar, normalizeDesignation, canViewCallFollowups, canAccessMarketingLeads } from '../../../utils/permissions';
 
 function WhatsAppBlastIcon({ className, style }) {
   return (
@@ -513,6 +513,15 @@ export default function Navbar() {
         ...(canViewCallFollowups(user) ? [{ label: 'Call Follow-ups', path: '/tasks?tab=Call+Followups', icon: FaClock }] : []),
       ]
     },
+    ...(canAccessMarketingLeads(user) ? [{
+      title: 'Marketing',
+      icon: FaBullhorn,
+      items: [
+        { label: 'Meta Leads', path: '/meta-leads', icon: FaTableList },
+        { label: 'All Leads', path: '/leads', icon: FaUsers },
+        { label: 'Campaigns', path: '/campaigns', icon: FaBullhorn },
+      ]
+    }] : []),
     ...(canAccessDigitalCalendar(user) ? [{
       title: 'Digital Calendar',
       icon: FaCalendarDays,

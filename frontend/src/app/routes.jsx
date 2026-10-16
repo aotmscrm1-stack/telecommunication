@@ -1,7 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { canViewDashboard, isLimitedStaff, canAccessEmailBlast, canViewCallRecordings, isCEO, isHR, canAccessDigitalCalendar } from '../utils/permissions';
+import { canViewDashboard, isLimitedStaff, canAccessEmailBlast, canViewCallRecordings, isCEO, isHR, canAccessDigitalCalendar, canAccessMarketingLeads } from '../utils/permissions';
 import { ProtectedRoute } from './guards';
 
 // Layouts
@@ -110,6 +110,9 @@ const StaffRestrictedRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
+  if (canAccessMarketingLeads(user)) {
+    return children;
+  }
   if (!canViewDashboard(user) || isLimitedStaff(user)) {
     return <Navigate to="/tasks" replace />;
   }

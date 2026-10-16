@@ -85,6 +85,17 @@ export const canAccessDigitalCalendar = (user) => {
 };
 
 /**
+ * Marketing & Meta Leads Access Guard:
+ * Marketing Executives / Digital Marketing, Telecallers, CEO, HR, Admin, and Managers have access to their assigned campaigns/leads.
+ * Developers and Trainers are strictly excluded.
+ */
+export const canAccessMarketingLeads = (user) => {
+  if (!user) return false;
+  if (isDeveloper(user) || isTrainer(user)) return false;
+  return true;
+};
+
+/**
  * Email Blast & Broadcast Access Guard:
  * Strictly restricted to CTO, HR, and Managing Director (or CEO/Executive).
  * Developers, Trainers, and Digital Marketing are strictly excluded.
