@@ -39,11 +39,107 @@ function cleanRepeatedHallucinations(text) {
 }
 
 /**
- * Transcribe an audio file using OpenAI Audio API (gpt-4o-mini-transcribe / whisper-1).
+ * Transliterate / convert native script (Telugu, Hindi, etc.) into casual English Chatting Language
+ * (Romanized script / Telugish like WhatsApp chatting, e.g. "Hi em chestunnavu , ala unnavu").
+ */
+async function transliterateToEnglishChat(text, openai) {
+  if (!text || typeof text !== 'string') return text;
+
+  // Check if text contains Indic / non-Latin characters (Telugu \u0C00-\u0C7F, Devanagari \u0900-\u097F, etc.)
+  const hasIndic = /[\u0C00-\u0C7F\u0900-\u097F\u0B80-\u0BFF\u0D00-\u0D7F\u0C80-\u0CFF]/.test(text);
+  if (!hasIndic) {
+    return text;
+  }
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are an expert audio transcription transliterator for Indian languages (Telugu, Hindi, Tamil, etc.). ' +
+            'Convert native script dialogue into phonetic English chatting language / Romanized script (such as WhatsApp/SMS chatting format, e.g. "Hi em chestunnavu, ala unnavu?"). ' +
+            'Rules:\n' +
+            '1. Transliterate phonetically using English alphabet characters (e.g., "Pedave palikina maatallone teeyani maate amma...").\n' +
+            '2. Do NOT translate into English dictionary words unless they were spoken in English.\n' +
+            '3. Output strictly in English chatting alphabet (Romanized script) with NO Telugu/Indic script.\n' +
+            '4. Keep caller and customer dialogue turns natural.'
+        },
+        {
+          role: 'user',
+          content: text
+        }
+      ],
+      temperature: 0.2
+    });
+
+    const converted = response.choices?.[0]?.message?.content?.trim();
+    return converted || text;
+  } catch (err) {
+    console.warn('[STT] Transliteration to English chat language failed, falling back to original:', err.message);
+    return text;
+  }
+}
+
+/**
+ * Download audio file from remote Render server to local temporary file if not present on disk
+ */
+async function ensureLocalAudioFile(filePath) {
+  if (fs.existsSync(filePath)) return filePath;
+
+  const filename = path.basename(filePath);
+  const possiblePaths = [
+    path.join(__dirname, '..', 'uploads', 'recordings', filename),
+    path.join(__dirname, '..', 'uploads', filename),
+    path.join('/var/data/recordings', filename),
+    path.join('/tmp', 'recordings', filename),
+  ];
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) return p;
+  }
+
+  // Not on disk: download from remote Render deployment to local temp file
+  const remoteUrl = `https://telecommunication-l3oz.onrender.com/api/recordings/stream/${filename}`;
+  console.log(`[STT] Audio file not found locally on disk. Downloading from ${remoteUrl}...`);
+
+  const tempDir = path.join(__dirname, '..', '..', '..', 'temp_recordings');
+  if (!fs.existsSync(tempDir)) {
+    fs.mkdirSync(tempDir, { recursive: true });
+  }
+  const downloadedPath = path.join(tempDir, filename);
+
+  const https = require('https');
+  await new Promise((resolve, reject) => {
+    const fileStream = fs.createWriteStream(downloadedPath);
+    https.get(remoteUrl, (res) => {
+      if (res.statusCode !== 200) {
+        return reject(new Error(`Failed to download audio from remote server: HTTP ${res.statusCode}`));
+      }
+      res.pipe(fileStream);
+      fileStream.on('finish', () => {
+        fileStream.close();
+        resolve();
+      });
+    }).on('error', (err) => {
+      fs.unlink(downloadedPath, () => {});
+      reject(err);
+    });
+  });
+
+  if (fs.existsSync(downloadedPath)) {
+    return downloadedPath;
+  }
+
+  throw new Error(`Audio file not found at path: ${filePath}`);
+}
+
+/**
+ * Transcribe an audio file using OpenAI Audio API (gpt-4o-mini-transcribe / whisper-1)
+ * and convert to English Chatting Language (e.g. "Hi em chestunnavu , ala unnavu").
  * 
- * @param {string} filePath - Absolute path to the audio file on disk
+ * @param {string} filePath - Absolute path to the audio file on disk or stored filename
  * @param {string} [overrideApiKey] - Optional custom OpenAI API key (falls back to process.env.OPENAI_API_KEY)
- * @returns {Promise<string>} Transcribed text result
+ * @returns {Promise<string>} Transcribed text in English chatting format
  */
 async function transcribeAudioFile(filePath, overrideApiKey = '') {
   const apiKey = overrideApiKey || process.env.OPENAI_API_KEY;
@@ -52,27 +148,7 @@ async function transcribeAudioFile(filePath, overrideApiKey = '') {
     throw new Error('OPENAI_API_KEY is not configured on the server. Please set it in process.env or provide a custom key.');
   }
 
-  let targetPath = filePath;
-
-  if (!fs.existsSync(targetPath)) {
-    const filename = path.basename(filePath);
-    const possiblePaths = [
-      path.join(__dirname, '..', 'uploads', 'recordings', filename),
-      path.join(__dirname, '..', 'uploads', filename),
-      path.join('/var/data/recordings', filename),
-      path.join('/tmp', 'recordings', filename),
-    ];
-    for (const p of possiblePaths) {
-      if (fs.existsSync(p)) {
-        targetPath = p;
-        break;
-      }
-    }
-  }
-
-  if (!fs.existsSync(targetPath)) {
-    throw new Error(`Audio file not found at path: ${filePath}`);
-  }
+  const targetPath = await ensureLocalAudioFile(filePath);
 
   const openai = new OpenAI({ apiKey });
 
@@ -83,12 +159,11 @@ async function transcribeAudioFile(filePath, overrideApiKey = '') {
   const safeExt = allowedExtensions.includes(originalExt) ? originalExt : '.m4a';
   const virtualFilename = `recording_${Date.now()}${safeExt}`;
 
-  // Use toFile helper to pass valid audio stream & extension to OpenAI Audio API
   let response;
-  const promptText = 'Customer support call recording in Telugu and English (Telugish). Transcribe actual conversation accurately without repeating words.';
+  // Prompt instructions for English chatting script / Telugish
+  const promptText = 'Customer support call recording in Telugu, English chatting language (Telugish). Example: "Hi em chestunnavu, ela unnavu?". Transcribe accurately in Romanized English chatting script.';
 
   try {
-    // 1. Try OpenAI's recommended new model "gpt-4o-mini-transcribe" or "gpt-transcribe"
     const audioFile = await toFile(fs.createReadStream(targetPath), virtualFilename);
     response = await openai.audio.transcriptions.create({
       file: audioFile,
@@ -98,7 +173,6 @@ async function transcribeAudioFile(filePath, overrideApiKey = '') {
       response_format: 'json',
     });
   } catch (modelErr) {
-    // 2. Fallback to whisper-1 if gpt-4o-mini-transcribe is not enabled on the API key tier
     console.warn('[STT] gpt-4o-mini-transcribe fallback to whisper-1:', modelErr?.message || modelErr);
     const retryAudioFile = await toFile(fs.createReadStream(targetPath), virtualFilename);
     response = await openai.audio.transcriptions.create({
@@ -115,11 +189,17 @@ async function transcribeAudioFile(filePath, overrideApiKey = '') {
   }
 
   const rawText = response.text.trim();
-  const cleanedText = cleanRepeatedHallucinations(rawText);
+  const cleanedText = cleanRepeatedHallucinations(rawText) || rawText;
 
-  return cleanedText || rawText;
+  // Convert any native Telugu/Hindi script into casual English Chatting Language
+  // Like: "Hi Em Chestunnavu , Ala Unnavu"
+  const englishChatTranscript = await transliterateToEnglishChat(cleanedText, openai);
+
+  return englishChatTranscript;
 }
 
 module.exports = {
   transcribeAudioFile,
+  transliterateToEnglishChat,
 };
+

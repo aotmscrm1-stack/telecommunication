@@ -1,36 +1,36 @@
 export const colors = {
-  // Backgrounds
-  background: '#0B0F19',
-  surface: '#111827',
-  surfaceLight: '#1F2937',
-  card: '#161F30',
-  cardBorder: '#23324D',
+  // Backgrounds - Clean crisp white theme matching Frontend Landing (#ffffff / #f8fafc)
+  background: '#FFFFFF',
+  surface: '#F8FAFC',
+  surfaceLight: '#F1F5F9',
+  card: '#FFFFFF',
+  cardBorder: '#E2E8F0',
 
   // Primary brand palette
-  primary: '#0EA5E9',       // Sky blue
-  primaryHover: '#0284C7',
-  primaryGlow: 'rgba(14, 165, 233, 0.25)',
+  primary: '#0284C7',       // Vivid Sky/Ocean Blue
+  primaryHover: '#0369A1',
+  primaryGlow: 'rgba(2, 132, 199, 0.15)',
   
   secondary: '#6366F1',     // Indigo
   accent: '#10B981',        // Emerald
 
-  // Text
-  text: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  textMuted: '#6B7280',
-  textInverse: '#0B0F19',
+  // Text - High contrast dark slate/navy typography for white backgrounds
+  text: '#0F172A',          // Slate 900 (Bold high contrast)
+  textSecondary: '#475569', // Slate 600
+  textMuted: '#64748B',     // Slate 500
+  textInverse: '#FFFFFF',
 
   // Status & Badges
-  fresh: '#38BDF8',
-  contacted: '#F59E0B',
-  interested: '#A855F7',
-  won: '#10B981',
-  lost: '#EF4444',
-  urgent: '#F43F5E',
+  fresh: '#0284C7',
+  contacted: '#D97706',
+  interested: '#7C3AED',
+  won: '#059669',
+  lost: '#DC2626',
+  urgent: '#E11D48',
 
   // UI Accents
-  border: '#1F2937',
-  borderHighlight: '#374151',
+  border: '#E2E8F0',
+  borderHighlight: '#CBD5E1',
   success: '#10B981',
   warning: '#F59E0B',
   danger: '#EF4444',

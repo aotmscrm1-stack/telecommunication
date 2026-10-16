@@ -7,8 +7,8 @@ export default function BottomNav({ currentScreen, onNavigate }) {
   const tabs = [
     { id: 'dashboard', label: 'Home', icon: 'grid', activeIcon: 'grid' },
     { id: 'all_leads', label: 'Leads', icon: 'people-outline', activeIcon: 'people' },
+    { id: 'campaigns', label: 'Campaigns', icon: 'megaphone-outline', activeIcon: 'megaphone' },
     { id: 'attendance', label: 'Attendance', icon: 'time-outline', activeIcon: 'time' },
-    { id: 'whatsapp_hub', label: 'WhatsApp', icon: 'logo-whatsapp', activeIcon: 'logo-whatsapp' },
     { id: 'recordings', label: 'Recordings', icon: 'mic-outline', activeIcon: 'mic' },
   ];
 
@@ -51,12 +51,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    backgroundColor: colors.surface,
+    backgroundColor: colors.card,
     borderTopWidth: 1,
-    borderTopColor: colors.cardBorder,
+    borderTopColor: colors.border,
     paddingTop: 8,
     paddingBottom: Platform.OS === 'ios' ? 24 : 10,
-    elevation: 10,
+    elevation: 8,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
   },
   tabItem: {
     alignItems: 'center',

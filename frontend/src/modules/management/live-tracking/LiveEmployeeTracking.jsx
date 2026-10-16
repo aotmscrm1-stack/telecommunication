@@ -4,7 +4,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { trackingAPI } from '../../../services/api';
 import trackingSocket, { ConnectionState } from '../../../services/trackingSocketClient';
 import LiveMap from '../../../components/tracking/LiveMap';
-import { isValidCoordinates } from '../../../config/trackingConfig';
+import { isValidCoordinates } from '@/constants';
 
 function sortEmployeesByCode(aCode = '', bCode = '', aName = '', bName = '') {
   const strA = String(aCode || '').trim();

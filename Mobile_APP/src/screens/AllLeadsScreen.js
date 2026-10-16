@@ -39,18 +39,15 @@ export default function AllLeadsScreen({ onNavigate }) {
     try {
       const params = {
         page: pageNum,
-        limit: 15,
+        limit: 20,
+        filter: 'all',
       };
       if (searchQuery.trim()) params.search = searchQuery.trim();
       if (statusFilter !== 'All') params.status = statusFilter;
 
       const res = await leadsApi.getLeads(params);
       if (res) {
-        if (pageNum === 1) {
-          setLeads(res.leads || []);
-        } else {
-          setLeads((prev) => [...prev, ...(res.leads || [])]);
-        }
+        setLeads(res.leads || []);
         setTotalPages(res.pages || 1);
         setTotalCount(res.total || 0);
         setPage(pageNum);
@@ -193,6 +190,48 @@ export default function AllLeadsScreen({ onNavigate }) {
               <Text style={styles.emptyTitle}>No leads found</Text>
               <Text style={styles.emptySub}>Try adjusting your search query or filter</Text>
             </View>
+          }
+          ListFooterComponent={
+            totalPages > 1 ? (
+              <View style={styles.paginationBar}>
+                <TouchableOpacity
+                  style={[styles.pageBtn, page <= 1 && styles.pageBtnDisabled]}
+                  onPress={() => {
+                    if (page > 1) {
+                      setLoading(true);
+                      fetchLeads(page - 1);
+                    }
+                  }}
+                  disabled={page <= 1}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="chevron-back" size={16} color={page <= 1 ? colors.textMuted : '#FFFFFF'} />
+                  <Text style={[styles.pageBtnText, page <= 1 && styles.pageBtnTextDisabled]}>Previous</Text>
+                </TouchableOpacity>
+
+                <View style={styles.pageIndicatorBox}>
+                  <Text style={styles.pageIndicatorText}>
+                    Page <Text style={{ fontWeight: '700', color: colors.primary }}>{page}</Text> of {totalPages}
+                  </Text>
+                  <Text style={styles.pageTotalSubText}>({totalCount} leads)</Text>
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.pageBtn, page >= totalPages && styles.pageBtnDisabled]}
+                  onPress={() => {
+                    if (page < totalPages) {
+                      setLoading(true);
+                      fetchLeads(page + 1);
+                    }
+                  }}
+                  disabled={page >= totalPages}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.pageBtnText, page >= totalPages && styles.pageBtnTextDisabled]}>Next</Text>
+                  <Ionicons name="chevron-forward" size={16} color={page >= totalPages ? colors.textMuted : '#FFFFFF'} />
+                </TouchableOpacity>
+              </View>
+            ) : null
           }
         />
       )}
@@ -404,5 +443,50 @@ const styles = StyleSheet.create({
   statusOptionTextActive: {
     color: colors.primary,
     fontWeight: '700',
+  },
+  paginationBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 18,
+    paddingHorizontal: 6,
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  pageBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  pageBtnDisabled: {
+    backgroundColor: colors.surfaceLight,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  pageBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  pageBtnTextDisabled: {
+    color: colors.textMuted,
+  },
+  pageIndicatorBox: {
+    alignItems: 'center',
+  },
+  pageIndicatorText: {
+    fontSize: 13,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  pageTotalSubText: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: 2,
   },
 });

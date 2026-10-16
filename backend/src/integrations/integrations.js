@@ -16,6 +16,7 @@ const CALL_SERVICES = { knowlarity, callerdesk, maqsam };
 
 const CATALOG = [
   { type: 'whatsapp_cloud', name: 'Whatsapp Cloud API', category: 'webhook', description: 'Integrate WhatsApp Cloud API in your AOTMS account' },
+  { type: 'google_sheets', name: 'Google Sheets', category: 'sheets', description: 'Live Multi-Tab Google Sheets Sync for Meta Leads & Campaigns' },
   { type: 'justdial', name: 'JustDial', category: 'generic_webhook', description: 'Auto-import leads from JustDial' },
 ];
 

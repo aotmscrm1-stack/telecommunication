@@ -79,11 +79,6 @@ export default function LeadCard({ lead, onPress, onStatusChange }) {
             <Ionicons name="call" size={14} color="#FFFFFF" />
             <Text style={styles.actionBtnText}>Call</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.actionBtn, styles.waBtn]} onPress={handleWhatsApp} activeOpacity={0.7}>
-            <Ionicons name="logo-whatsapp" size={15} color="#FFFFFF" />
-            <Text style={styles.actionBtnText}>Chat</Text>
-          </TouchableOpacity>
         </View>
       </View>
     </TouchableOpacity>
@@ -98,6 +93,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1,
     borderColor: colors.cardBorder,
+    elevation: 2,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
   },
   headerRow: {
     flexDirection: 'row',

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { canViewDashboard, isLimitedStaff, canAccessEmailBlast, canViewCallRecordings, isCEO, isHR, canAccessDigitalCalendar } from '../utils/permissions';
+import { canViewDashboard, isLimitedStaff, canAccessEmailBlast, canViewCallRecordings, isCEO, isHR, canAccessDigitalCalendar, canAccessMarketingLeads } from '../utils/permissions';
 import { ProtectedRoute } from './guards';
 
 // Layouts
@@ -37,6 +37,7 @@ import { WhatsApp } from '../modules/marketing/whatsapp';
 import { Leaderboard, LeadProfile } from '../modules/marketing/leaderboard';
 import { Reports } from '../modules/marketing/reports';
 import { DigitalCalendar } from '../modules/marketing/digital-calendar';
+import { MetaLeads } from '../modules/marketing/meta-leads';
 
 // Finance Modules
 import { OfferLetter } from '../modules/finance/offer-letters';
@@ -70,7 +71,7 @@ import PermissionTemplates from '../pages/PermissionTemplates';
 import Fields from '../pages/Fields';
 import CustomActions from '../pages/CustomActions';
 import Billing from '../pages/Billing';
-import MapsDashboard from '../Maps';
+import MapsDashboard from '../modules/developer/maps';
 
 // Error Pages
 import Forbidden from '../pages/errors/403/Forbidden';
@@ -114,6 +115,17 @@ const StaffRestrictedRoute = ({ children }) => {
     return <Navigate to="/tasks" replace />;
   }
   return children;
+};
+
+const MetaLeadsRoute = ({ children }) => {
+  const { user, loading, metaLeadAssignment } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  const isAdmin = isCEO(user) || isHR(user) || user?.role === 'admin';
+  if (isAdmin || metaLeadAssignment?.hasAccess) {
+    return children;
+  }
+  return <Navigate to={canViewDashboard(user) ? "/dashboard" : "/tasks"} replace />;
 };
 
 const BlastRoute = ({ children }) => {
@@ -179,6 +191,8 @@ export function AppRoutes() {
         <Route path="leads/:id/edit" element={<StaffRestrictedRoute><AddLead /></StaffRestrictedRoute>} />
         <Route path="campaigns" element={<StaffRestrictedRoute><Campaigns /></StaffRestrictedRoute>} />
         <Route path="campaigns/:id" element={<StaffRestrictedRoute><CampaignDetail /></StaffRestrictedRoute>} />
+        <Route path="meta-leads" element={<MetaLeadsRoute><MetaLeads /></MetaLeadsRoute>} />
+        <Route path="marketing/meta-leads" element={<MetaLeadsRoute><MetaLeads /></MetaLeadsRoute>} />
         <Route path="leaderboard" element={<StaffRestrictedRoute><Leaderboard /></StaffRestrictedRoute>} />
         <Route path="reports" element={<StaffRestrictedRoute><Reports /></StaffRestrictedRoute>} />
         <Route path="contacts" element={<StaffRestrictedRoute><Contacts /></StaffRestrictedRoute>} />

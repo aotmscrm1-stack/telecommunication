@@ -9,10 +9,25 @@ const LOGO_COLORS = {
   indiamart: '#E31E25', knowlarity: '#6C3483', magicbricks: '#E74C3C',
   maqsam: '#C0392B',
   sulekha: '#FF6B35', tradeindia: '#0066CC', webhook: 'var(--theme-primary-alt)',
+  google_sheets: '#0F9D58',
 };
 
-// Official brand logos, fetched live from each company's real domain.
-// Falls back to colored initials if the logo can't be loaded.
+// Official brand logos (high-res vector/SVG and CDN images)
+const REAL_BRAND_LOGOS = {
+  google_sheets: 'https://upload.wikimedia.org/wikipedia/commons/3/30/Google_Sheets_logo_%282014-2020%29.svg',
+  whatsapp: 'https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg',
+  whatsapp_cloud: 'https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg',
+  facebook: 'https://upload.wikimedia.org/wikipedia/commons/b/b8/2021_Facebook_icon.svg',
+  justdial: 'https://akam.cdn.jdmagicbox.com/images/icontent/jdlogos/jdlogosvg.svg',
+  indiamart: 'https://utils.imimg.com/imhome_gifs/indiamart-logo1.png',
+  magicbricks: 'https://img.mbstatic.com/mbimages/rent/static/images/mb-logo.svg',
+  '99acres': 'https://static.99acres.com/universalapp/img/favicon.ico',
+  housing: 'https://c.housingcdn.com/demand/s/common/assets/favicon.62886f4a.ico',
+  callerdesk: 'https://callerdesk.io/wp-content/uploads/2021/08/callerdesk-logo.png',
+  knowlarity: 'https://www.knowlarity.com/images/knowlarity-logo.svg',
+  maqsam: 'https://maqsam.com/wp-content/uploads/2021/04/maqsam-logo.svg',
+};
+
 const LOGO_DOMAINS = {
   justdial: 'justdial.com',
   whatsapp: 'whatsapp.com',
@@ -26,25 +41,31 @@ const LOGO_DOMAINS = {
   maqsam: 'maqsam.com',
   sulekha: 'sulekha.com',
   tradeindia: 'tradeindia.com',
+  google_sheets: 'sheets.google.com',
 };
 
 const IntegrationLogo = ({ type, name, size = 36 }) => {
   const color = LOGO_COLORS[type] || 'var(--theme-primary-alt)';
-  const initials = name.slice(0, 2).toUpperCase();
+  const initials = (name || type || 'IN').slice(0, 2).toUpperCase();
+  const directLogo = REAL_BRAND_LOGOS[type];
   const domain = LOGO_DOMAINS[type];
-  const sources = domain ? [
-    `https://logo.clearbit.com/${domain}?size=128`,
-    `https://www.google.com/s2/favicons?domain=${domain}&sz=128`,
-  ] : [];
+  const sources = [
+    ...(directLogo ? [directLogo] : []),
+    ...(domain ? [
+      `https://www.google.com/s2/favicons?domain=${domain}&sz=128`,
+      `https://logo.clearbit.com/${domain}?size=128`
+    ] : [])
+  ];
   const [srcIdx, setSrcIdx] = useState(0);
 
-  if (domain && srcIdx < sources.length) {
+  if (sources.length > 0 && srcIdx < sources.length) {
     return (
       <div style={{
         width: size, height: size, borderRadius: 8, background: '#fff',
         border: '1px solid var(--theme-border-tint)', display: 'flex',
         alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-        padding: size * 0.16, boxSizing: 'border-box'
+        padding: size * 0.14, boxSizing: 'border-box', overflow: 'hidden',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
       }}>
         <img
           src={sources[srcIdx]}

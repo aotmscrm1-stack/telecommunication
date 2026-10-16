@@ -141,8 +141,28 @@ router.post('/', protect, upload.single('audio'), async (req, res) => {
     }
 
     const dateObj = recordedAt ? new Date(recordedAt) : new Date();
-    const callDateStr = dateObj.toISOString().slice(0, 10);
-    const callTimeStr = dateObj.toTimeString().slice(0, 8);
+    // ─── Deduplication Check ─────────────────────────────────────────────
+    // Prevent duplicate uploads on repeat folder scans (matching user + originalName + size)
+    const existingRec = await CallRecording.findOne({
+      user: req.user.id,
+      originalName: req.file.originalname,
+      size: req.file.size,
+    }).populate('lead', 'name phone').lean();
+
+    if (existingRec) {
+      // Remove the newly uploaded duplicate file from disk to save storage
+      try {
+        if (req.file.path && fs.existsSync(req.file.path)) {
+          fs.unlinkSync(req.file.path);
+        }
+      } catch (_) {}
+
+      return res.status(200).json({
+        success: true,
+        alreadySynced: true,
+        recording: formatRecording(existingRec),
+      });
+    }
 
     const doc = await CallRecording.create({
       user: req.user.id,
@@ -247,6 +267,69 @@ router.post('/:id/link-lead', protect, async (req, res) => {
   }
 });
 
+// ─── PUT /api/recordings/:id ──────────────────────────────────────────────
+// Update recording metadata (notes, title, lead association)
+router.put('/:id', protect, async (req, res) => {
+  try {
+    const rec = await CallRecording.findById(req.params.id);
+    if (!rec) return res.status(404).json({ error: 'Recording not found' });
+
+    // Authorization: Must be owner or HR/Admin
+    const isOwner = String(rec.user) === String(req.user._id || req.user.id);
+    if (!isOwner && !isHRorAdmin(req.user)) {
+      return res.status(403).json({ error: 'Not authorized to update this recording' });
+    }
+
+    const { leadId, originalName, phone } = req.body;
+    if (leadId !== undefined) rec.lead = leadId || null;
+    if (originalName) rec.originalName = originalName.trim();
+    if (phone !== undefined) rec.phone = phone ? normalizePhone10(phone) : null;
+
+    await rec.save();
+    const updated = await CallRecording.findById(rec._id)
+      .populate('user', 'name email')
+      .populate('lead', 'name phone')
+      .lean();
+
+    return res.json({ success: true, recording: formatRecording(updated) });
+  } catch (err) {
+    console.error('Update recording error:', err);
+    return res.status(500).json({ error: 'Failed to update recording metadata' });
+  }
+});
+
+// ─── DELETE /api/recordings/:id ───────────────────────────────────────────
+// Delete recording and clean up stored file from disk
+router.delete('/:id', protect, async (req, res) => {
+  try {
+    const rec = await CallRecording.findById(req.params.id);
+    if (!rec) return res.status(404).json({ error: 'Recording not found' });
+
+    // Authorization: Must be owner or HR/Admin
+    const isOwner = String(rec.user) === String(req.user._id || req.user.id);
+    if (!isOwner && !isHRorAdmin(req.user)) {
+      return res.status(403).json({ error: 'Not authorized to delete this recording' });
+    }
+
+    // Clean up stored file from disk
+    try {
+      const filePath = findAudioFilePath(rec.storedName);
+      if (filePath && fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    } catch (fileErr) {
+      console.warn('[Delete Recording] Storage cleanup notice:', fileErr.message);
+    }
+
+    await CallRecording.findByIdAndDelete(req.params.id);
+
+    return res.json({ success: true, message: 'Recording deleted successfully', id: req.params.id });
+  } catch (err) {
+    console.error('Delete recording error:', err);
+    return res.status(500).json({ error: 'Failed to delete recording' });
+  }
+});
+
 // ─── POST /api/recordings/rematch ─────────────────────────────────────────
 router.post('/rematch', protect, async (req, res) => {
   try {
@@ -294,13 +377,12 @@ router.post('/rematch', protect, async (req, res) => {
 // ─── GET /api/recordings/my ───────────────────────────────────────────────
 router.get('/my', protect, async (req, res) => {
   try {
-    if (!isHRorAdmin(req.user)) {
-      return res.status(403).json({ error: 'Access denied: Call recordings are visible only to HR and Admin accounts' });
-    }
-
-    const recordings = await CallRecording.find({ user: req.user.id })
+    // Authenticated users can view their own call recordings
+    const currentUserId = req.user._id || req.user.id;
+    const recordings = await CallRecording.find({ user: currentUserId })
       .sort({ recordedAt: -1 })
       .limit(200)
+      .populate('user', 'name email designation department')
       .populate('lead', 'name phone')
       .lean();
 
@@ -314,11 +396,15 @@ router.get('/my', protect, async (req, res) => {
 // ─── GET /api/recordings ─────────────────────────────────────────────────
 router.get('/', protect, async (req, res) => {
   try {
-    if (!isHRorAdmin(req.user)) {
-      return res.status(403).json({ error: 'Access denied: Call recordings are visible only to HR and Admin accounts' });
-    }
-
+    const isElevated = isHRorAdmin(req.user);
     const filter = {};
+
+    if (!isElevated) {
+      // Non-HR/Admin users are restricted to their own recordings
+      filter.user = req.user._id || req.user.id;
+    } else if (req.query.userId) {
+      filter.user = req.query.userId;
+    }
     if (req.query.phone) {
       const phoneDigits = normalizePhone10(req.query.phone);
       if (phoneDigits) filter.phone = phoneDigits;
@@ -330,7 +416,7 @@ router.get('/', protect, async (req, res) => {
     const recordings = await CallRecording.find(filter)
       .sort({ recordedAt: -1 })
       .limit(500)
-      .populate('user', 'name email')
+      .populate('user', 'name email designation department role')
       .populate('lead', 'name phone')
       .lean();
 
@@ -433,8 +519,32 @@ function streamAudioFile(req, res) {
     const filePath = findAudioFilePath(filename);
 
     if (!filePath) {
-      console.warn(`[AudioStream] File not found for: ${filename}`);
-      return res.status(404).json({ error: 'Audio recording file not found on server' });
+      // If file not found locally (e.g. running local dev against remote Render cloud storage),
+      // seamlessly proxy from remote Render server so playback works locally without error!
+      const remoteBase = 'https://telecommunication-l3oz.onrender.com';
+      const remoteStreamUrl = `${remoteBase}/api/recordings/stream/${filename}`;
+      console.log(`[AudioStream] Local file not found for ${filename}. Proxying from ${remoteStreamUrl}`);
+
+      const https = require('https');
+      const reqHeaders = {};
+      if (req.headers.range) {
+        reqHeaders.range = req.headers.range;
+      }
+
+      const proxyReq = https.get(remoteStreamUrl, { headers: reqHeaders }, (proxyRes) => {
+        if (proxyRes.statusCode === 404) {
+          return res.status(404).json({ error: 'Audio recording file not found on local or remote server' });
+        }
+        res.writeHead(proxyRes.statusCode, proxyRes.headers);
+        proxyRes.pipe(res);
+      });
+
+      proxyReq.on('error', (proxyErr) => {
+        console.error('[AudioStream Proxy Error]', proxyErr.message);
+        res.status(502).json({ error: 'Failed to stream audio from remote storage' });
+      });
+
+      return;
     }
 
     const stat = fs.statSync(filePath);
@@ -494,7 +604,12 @@ function formatRecording(r) {
     size: r.size,
     mimeType: getAudioMimeType(filename) || r.mimeType || 'audio/mp4',
     phone: r.phone || null,
+    userId: r.user ? (r.user._id || r.user) : undefined,
     userName: r.user && r.user.name ? r.user.name : undefined,
+    userEmail: r.user && r.user.email ? r.user.email : undefined,
+    userDesignation: r.user && r.user.designation ? r.user.designation : undefined,
+    userDepartment: r.user && r.user.department ? r.user.department : undefined,
+    userRole: r.user && r.user.role ? r.user.role : undefined,
     leadId: r.lead ? r.lead._id : null,
     leadName: r.lead && r.lead.name ? r.lead.name : null,
     leadPhone: r.lead && r.lead.phone ? r.lead.phone : null,

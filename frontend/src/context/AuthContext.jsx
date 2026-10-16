@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
-import { authAPI } from '../services/api';
+import { authAPI, metaLeadsAPI } from '../services/api';
 import geoTracker from '../services/geoTracker';
 
 const AuthContext = createContext(null);
@@ -14,7 +14,27 @@ export const AuthProvider = ({ children }) => {
       return null;
     }
   });
+  const [metaLeadAssignment, setMetaLeadAssignment] = useState({ hasAccess: false, loading: true });
   const [loading, setLoading] = useState(true);
+
+  const refreshMetaLeadAssignment = useCallback(async () => {
+    try {
+      const res = await metaLeadsAPI.getMyAssignmentStatus();
+      if (res?.data?.success) {
+        setMetaLeadAssignment({
+          hasAccess: Boolean(res.data.hasAccess),
+          isAdmin: Boolean(res.data.isAdmin),
+          assignedCount: res.data.assignedCount,
+          assignedCampaigns: res.data.assignedCampaigns || [],
+          loading: false
+        });
+        return res.data;
+      }
+    } catch (err) {
+      setMetaLeadAssignment({ hasAccess: false, loading: false });
+    }
+    return null;
+  }, []);
 
   useEffect(() => {
     const savedToken = localStorage.getItem('aotms_token');
@@ -25,6 +45,7 @@ export const AuthProvider = ({ children }) => {
           if (u) {
             setUser(u);
             localStorage.setItem('aotms_user', JSON.stringify(u));
+            refreshMetaLeadAssignment();
           }
         })
         .catch(() => {
@@ -32,13 +53,15 @@ export const AuthProvider = ({ children }) => {
           localStorage.removeItem('aotms_user');
           setToken(null);
           setUser(null);
+          setMetaLeadAssignment({ hasAccess: false, loading: false });
           geoTracker.stopTracking().catch(() => {});
         })
         .finally(() => setLoading(false));
     } else {
       setLoading(false);
+      setMetaLeadAssignment({ hasAccess: false, loading: false });
     }
-  }, []);
+  }, [refreshMetaLeadAssignment]);
 
   const login = useCallback(async (email, password) => {
     const res = await authAPI.login({ email, password });
@@ -70,8 +93,17 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const contextValue = useMemo(
-    () => ({ user, token, login, logout, loading, updateUser }),
-    [user, token, loading, login, logout, updateUser]
+    () => ({
+      user,
+      token,
+      login,
+      logout,
+      loading,
+      updateUser,
+      metaLeadAssignment,
+      refreshMetaLeadAssignment
+    }),
+    [user, token, loading, login, logout, updateUser, metaLeadAssignment, refreshMetaLeadAssignment]
   );
 
   return (

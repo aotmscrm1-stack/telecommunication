@@ -34,6 +34,11 @@ const styles = StyleSheet.create({
     borderColor: colors.cardBorder,
     flex: 1,
     minWidth: 140,
+    elevation: 2,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
   },
   topRow: {
     flexDirection: 'row',

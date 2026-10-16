@@ -7,7 +7,7 @@ import {
   OFFICE_COORDS_LNG_LAT,
   isValidCoordinates,
   calculateDistanceMeters,
-} from '../../config/trackingConfig';
+} from '@/constants';
 
 // Initialize MapLibre web worker (self-hosted with fallback)
 if (typeof window !== 'undefined' && !maplibregl.getWorkerUrl()) {

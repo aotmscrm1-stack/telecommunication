@@ -67,7 +67,9 @@ router.get('/', protect, async (req, res) => {
     const { status, source, search, campaign, page = 1, limit = 20, filter, dateFilter } = req.query;
     const query = {};
 
-    if (req.user.role === 'employee' || req.user.role === 'caller') {
+    const seeAll = req.query.filter === 'all' || req.query.view === 'all' || req.query.all === 'true';
+
+    if (!seeAll && (req.user.role === 'employee' || req.user.role === 'caller')) {
       query.assignedTo = req.user._id;
     } else {
       if (filter === 'mine' || filter === 'assigned') {

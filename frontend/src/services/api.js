@@ -211,6 +211,20 @@ export const whatsappCampaignsAPI = {
   exportAudience: (id) => api.get(`/whatsapp-campaigns/${id}/export`, { responseType: 'blob' }),
 };
 
+export const metaLeadsAPI = {
+  getAll: (params) => api.get('/meta-leads', { params }),
+  getCampaigns: () => api.get('/meta-leads/campaigns'),
+  getAssignments: () => api.get('/meta-leads/assignments'),
+  saveAssignments: (data) => api.post('/meta-leads/assignments', data),
+  ingest: (data) => api.post('/meta-leads', data),
+  convert: (id) => api.post(`/meta-leads/${id}/convert`),
+  delete: (id) => api.delete(`/meta-leads/${id}`),
+  deleteCampaign: (campaign) => api.delete(`/meta-leads/campaign/${encodeURIComponent(campaign)}`),
+  triggerSync: () => api.post('/meta-leads/sync'),
+  clearAll: () => api.delete('/meta-leads/clear-all'),
+  getMyAssignmentStatus: () => api.get('/meta-leads/my-assignment-status'),
+};
+
 export const contactsAPI = {
   getAll: () => api.get('/contacts'),
   create: (data) => api.post('/contacts', data),
@@ -355,6 +369,8 @@ export const recordingsAPI = {
   getMy: () => api.get('/recordings/my'),
   getAll: (userId) => api.get('/recordings', { params: userId ? { userId } : {} }),
   upload: (formData) => api.post('/recordings', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  update: (id, data) => api.put(`/recordings/${id}`, data),
+  delete: (id) => api.delete(`/recordings/${id}`),
   transcribe: (id, force) => api.post(`/recordings/${id}/transcribe`, { force: !!force }),
   linkLead: (id, leadId) => api.post(`/recordings/${id}/link-lead`, { leadId }),
   rematchLeads: () => api.post('/recordings/rematch'),
