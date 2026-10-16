@@ -363,12 +363,15 @@ function ChangePasswordModal({ onClose }) {
 }
 
 export default function Navbar() {
-  const { user, logout } = useAuth();
+  const { user, logout, metaLeadAssignment } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const bp = useBreakpoint();
   const isMobile = bp === 'mobile';
   const initials = user?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
+
+  // Dynamic access check: Admin/Executive always has access; employee only if assigned by Admin
+  const canSeeMetaLeads = isCEO(user) || isHR(user) || user?.role === 'admin' || Boolean(metaLeadAssignment?.hasAccess);
 
   const [now, setNow] = useState(new Date());
   const [showNotifications, setShowNotifications] = useState(false);
@@ -513,7 +516,7 @@ export default function Navbar() {
         ...(canViewCallFollowups(user) ? [{ label: 'Call Follow-ups', path: '/tasks?tab=Call+Followups', icon: FaClock }] : []),
       ]
     },
-    ...(canAccessMarketingLeads(user) ? [{
+    ...(canSeeMetaLeads ? [{
       title: 'Marketing',
       icon: FaBullhorn,
       items: [

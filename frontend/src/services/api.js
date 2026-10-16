@@ -222,6 +222,7 @@ export const metaLeadsAPI = {
   deleteCampaign: (campaign) => api.delete(`/meta-leads/campaign/${encodeURIComponent(campaign)}`),
   triggerSync: () => api.post('/meta-leads/sync'),
   clearAll: () => api.delete('/meta-leads/clear-all'),
+  getMyAssignmentStatus: () => api.get('/meta-leads/my-assignment-status'),
 };
 
 export const contactsAPI = {

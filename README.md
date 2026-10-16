@@ -130,9 +130,55 @@ Access control is enforced at both the **API Middleware Level** (`auth.js`) and 
 | **CEO / MD / CTO** | ✅ Full | ✅ All | ✅ All | ✅ All | ✅ Full | ✅ Full | ✅ All | ✅ Allowed |
 | **HR (Human Resources)**| ✅ Full | ✅ All | ✅ All | ✅ All | ✅ Full | ✅ Full | ✅ All | ❌ Hidden |
 | **Manager** | ❌ (Tasks) | ✅ All | ✅ All | ✅ All | ✅ Assigned | ✅ Full | ✅ Team | ✅ Allowed |
-| **Marketing Executive**| ❌ (Tasks) | ✅ Assigned | ✅ Assigned | ✅ Assigned | ✅ Assigned | ❌ | ✅ Self | ❌ Hidden |
-| **Telecaller / Sales** | ❌ (Tasks) | ✅ Assigned | ✅ Assigned | ✅ Assigned | ✅ Assigned | ❌ | ✅ Self | ❌ Hidden |
+| **Marketing Executive**| ❌ (Tasks) | 🔒 If Assigned | ❌ Hidden | ❌ Hidden | ✅ Assigned | ❌ | ✅ Self | ❌ Hidden |
+| **Telecaller / Sales** | ❌ (Tasks) | 🔒 If Assigned | ❌ Hidden | ❌ Hidden | ✅ Assigned | ❌ | ✅ Self | ❌ Hidden |
 | **Developer / Trainer**| ❌ (Tasks) | ❌ Blocked | ❌ Blocked | ❌ Blocked | ✅ Assigned | ❌ | ✅ Self | ❌ Hidden |
+
+---
+
+### 4.2 Dynamic Google Sheet / Meta Leads Assignment Architecture: What is What?
+
+The visibility of the Google Sheet / Meta Leads module in the employee portal is strictly governed by **real MongoDB campaign assignments** configured in the Admin Panel (`MetaCampaignAssignment`), rather than static designations.
+
+#### What is What? (Core Components & MongoDB Models)
+
+| Component | Architecture Role | File / Collection | What it Does |
+| :--- | :--- | :--- | :--- |
+| **`MetaCampaignAssignment`** | Single Source of Truth | MongoDB Collection `meta_campaign_assignments` | Stores `{ campaign: String, assignedUsers: [ObjectId], assignedBy: ObjectId }`. Links specific employees directly to specific Google Sheet tabs/campaigns. |
+| **`MetaLead`** | Data Record | MongoDB Collection `meta_leads` | Stores synchronized Google Sheet rows with `campaign`, `rawData` (Google Sheet row cells), and conversion status (`Fresh`, `Converted`). |
+| **Assignment API** | Admin Controller | `backend/src/modules/marketing/meta-leads/metaLeads.js` | Endpoint `POST /api/meta-leads/assignments` saves or modifies employee assignments from the Admin Member Assignment Modal. |
+| **Dynamic Access Check** | Real-Time Verification API | `GET /api/meta-leads/my-assignment-status` | Evaluates if the authenticated employee has `assignedUsers: req.user._id` across any active campaign. Returns `{ hasAccess: Boolean, assignedCount: Number, assignedCampaigns: [] }`. |
+| **Campaign-Level API Guard** | Backend Enforcement | `metaLeads.js` (`GET /`, `POST /:id/convert`, `GET /campaigns`) | Blocks unassigned employees with `403 Forbidden` if they try to query or convert leads outside of their assigned campaigns. |
+| **Dynamic Navbar Visibility** | Client UI Integration | `Navbar.jsx` & `AuthContext.jsx` | Omits the "Marketing" module / "Meta Leads" link completely from the navigation bar if `hasAccess === false`. |
+| **Route Protection Guard** | Client URL Blocker | `MetaLeadsRoute` in `routes.jsx` | If an unassigned employee attempts to type `/meta-leads` or `/marketing/meta-leads` directly in their browser address bar, the guard redirects them immediately to `/tasks`. |
+
+#### Assignment Lifecycle & Security Flow
+
+```
+[ Admin in Member Assignment Modal ]
+                   │
+                   ▼
+       POST /api/meta-leads/assignments
+  { campaign: "CyberSecurity_Leads", userIds: ["67..."] }
+                   │
+                   ▼
+     [ MongoDB: MetaCampaignAssignment ]
+                   │
+       ┌───────────┴────────────────────────────┐
+       ▼                                        ▼
+[ Backend API Layer ]                 [ Frontend Client Layer ]
+- GET /my-assignment-status:          - AuthContext loads assignment state
+  Returns hasAccess = true/false      - If false: "Marketing" is HIDDEN from Navbar
+- GET /api/meta-leads:                - If direct URL typed: Redirect to /tasks
+  Enforces query.campaign in assigned - If true: Shows ONLY assigned campaign tabs
+- Returns 403 on unassigned sheets
+```
+
+#### Assignment Rules & Security Guarantees:
+1. **Module Visibility**: Appears in employee portal **only** when an Admin assigns the employee to at least 1 campaign.
+2. **Instant Revocation**: If the Admin deselects/removes an employee from all campaigns, the module vanishes on next refresh or route check, and direct access is blocked.
+3. **No Cross-Campaign Leakage**: Employees only see tabs and lead records for campaigns where their `_id` exists in `assignedUsers`. General/Unassigned sheets are completely inaccessible.
+4. **General Leads & Campaigns Hidden**: For marketing employees, the generic `/leads` (All Leads) and `/campaigns` routes remain hidden from top navigation to prevent confusion with Meta Leads.
 
 ---
 

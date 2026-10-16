@@ -149,6 +149,43 @@ router.post('/', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GET /api/meta-leads/my-assignment-status (Check current user assignment & access)
+// ─────────────────────────────────────────────────────────────────────────────
+router.get('/my-assignment-status', protect, async (req, res) => {
+  try {
+    const isAdmin = isExecutiveOrAdminUser(req.user);
+    if (isAdmin) {
+      return res.json({
+        success: true,
+        hasAccess: true,
+        isAdmin: true,
+        assignedCount: 'all',
+        assignedCampaigns: []
+      });
+    }
+
+    // Check assignments for this specific employee
+    const userAssignments = await MetaCampaignAssignment.find({
+      assignedUsers: req.user._id
+    }).select('campaign').lean();
+
+    const assignedCampaigns = userAssignments.map(a => a.campaign);
+    const hasAccess = assignedCampaigns.length > 0;
+
+    return res.json({
+      success: true,
+      hasAccess,
+      isAdmin: false,
+      assignedCount: assignedCampaigns.length,
+      assignedCampaigns
+    });
+  } catch (err) {
+    console.error('Error checking user assignment status:', err);
+    res.status(500).json({ success: false, message: 'Failed to verify assignment status', error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GET /api/meta-leads/assignments (List all campaign employee assignments)
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/assignments', protect, async (req, res) => {
@@ -442,6 +479,20 @@ router.post('/:id/convert', protect, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Meta lead not found' });
     }
 
+    // Campaign-level authorization check
+    if (!isExecutiveOrAdminUser(req.user)) {
+      const isAssigned = await MetaCampaignAssignment.exists({
+        campaign: metaLead.campaign,
+        assignedUsers: req.user._id
+      });
+      if (!isAssigned) {
+        return res.status(403).json({
+          success: false,
+          message: `Access denied. You are not assigned to campaign "${metaLead.campaign}".`
+        });
+      }
+    }
+
     const { phone, email, name } = extractCoreIdentifiers(metaLead.rawData);
     if (!phone) {
       return res.status(400).json({ success: false, message: 'Lead has no valid phone number to convert' });
@@ -517,10 +568,13 @@ router.post('/sync', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DELETE /api/meta-leads/clear-all (Purge all fake / existing meta leads)
+// DELETE /api/meta-leads/clear-all (Purge all fake / existing meta leads - Admin Only)
 // ─────────────────────────────────────────────────────────────────────────────
-router.delete('/clear-all', async (req, res) => {
+router.delete('/clear-all', protect, async (req, res) => {
   try {
+    if (!isExecutiveOrAdminUser(req.user)) {
+      return res.status(403).json({ success: false, message: 'Forbidden. Admin access required.' });
+    }
     const result = await MetaLead.deleteMany({});
     res.json({
       success: true,
@@ -533,10 +587,13 @@ router.delete('/clear-all', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DELETE /api/meta-leads/:id
+// DELETE /api/meta-leads/:id (Delete lead - Admin Only)
 // ─────────────────────────────────────────────────────────────────────────────
 router.delete('/:id', protect, async (req, res) => {
   try {
+    if (!isExecutiveOrAdminUser(req.user)) {
+      return res.status(403).json({ success: false, message: 'Forbidden. Admin access required.' });
+    }
     const deleted = await MetaLead.findByIdAndDelete(req.params.id);
     if (!deleted) {
       return res.status(404).json({ success: false, message: 'Lead not found' });
@@ -548,10 +605,13 @@ router.delete('/:id', protect, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DELETE /api/meta-leads/campaign/:campaign
+// DELETE /api/meta-leads/campaign/:campaign (Delete campaign leads - Admin Only)
 // ─────────────────────────────────────────────────────────────────────────────
 router.delete('/campaign/:campaign', protect, async (req, res) => {
   try {
+    if (!isExecutiveOrAdminUser(req.user)) {
+      return res.status(403).json({ success: false, message: 'Forbidden. Admin access required.' });
+    }
     const { campaign } = req.params;
     const result = await MetaLead.deleteMany({ campaign });
     res.json({
