@@ -154,3 +154,162 @@ Provide:
 **Acceptance Criteria:** The CRM displays current backend data without unnecessary manual refreshes, does not expose one user's locally stored data to another user, preserves authentication and existing functionality, and passes the relevant regression tests.
 
 Start by auditing the existing implementation, then apply targeted fixes and verify them. Do not report a fix as complete unless it has been implemented and tested.
+
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# Meta Leads + n8n Duplicate Sync — Permanent Fix
+
+## Project Stack
+- Frontend: React + Vite
+- Backend: Node.js + Express
+- Database: MongoDB + Mongoose
+- Automation: n8n
+- Data Source: Google Sheets containing Meta Leads
+- Backend API: `https://telecommunication-l3oz.onrender.com/api`
+
+## Problem
+Clicking Sync Data / Sync Now repeatedly imports the same leads into MongoDB, creating duplicate records.
+
+The investigation identified these issues:
+1. The `Digital Marketing_Leads` Google Sheet has incorrect or missing header names.
+2. The backend does not consistently recognize `phone_number`.
+3. The unique Meta Lead ID is not used reliably for deduplication.
+4. When phone/email identifiers are not found, the backend falls back to `MetaLead.create()`.
+5. Every n8n execution reads the complete historical Google Sheets data.
+6. The frontend enables the Sync button before the n8n workflow has completed.
+7. Concurrent sync executions can import the same leads simultaneously.
+
+The investigation reported approximately 230 MetaLead documents, 128 unique leads, and 102 duplicate documents. Recheck these figures before cleanup because the database may have changed.
+
+## Objective
+Fix duplicate lead creation without breaking existing CRM functionality, preserve valid lead data, and make repeated sync operations safe.
+
+## 1. Fix Google Sheets Headers and n8n Mapping
+Inspect the existing n8n workflow and Google Sheets tabs:
+- `Digital Marketing_Leads`
+- `SAP_Leads`
+- `Python_Leads`
+- `CyberSecurity_Leads`
+
+Requirements:
+- Ensure the Digital Marketing sheet has a proper header row.
+- Verify the n8n Google Sheets node uses the correct header configuration.
+- Map fields consistently, including `id`, `created_time`, `full_name`, `phone_number`, and `email`, when available.
+- Preserve the original Meta Lead ID.
+- Handle empty rows without creating empty MongoDB documents.
+- Do not change or overwrite valid spreadsheet data without checking its current structure and obtaining approval if needed.
+
+## 2. Implement Reliable Backend Deduplication
+Inspect:
+`backend/src/modules/marketing/meta-leads/metaLeads.js`
+
+Requirements:
+- Prefer the original Meta Lead ID as the primary deduplication identifier.
+- Support actual field variations such as `id`, `lead_id`, `phone_number`, `phone`, `mobile`, and `email`.
+- Normalize phone numbers consistently before comparing them.
+- Normalize email addresses by trimming whitespace and applying consistent case handling.
+- Use the correct campaign and source context when identifying a lead.
+- Reuse or update an existing matching document instead of creating another document.
+- Never perform an unconditional insert when a usable identifier already exists.
+- If no reliable identifier exists, log the row for review rather than silently creating duplicate records.
+- Preserve existing lead status, assignment, notes, and other CRM-managed fields during sync. Update only fields owned by the Meta sync process.
+
+## 3. Prevent Concurrent Syncs
+Inspect the backend endpoint:
+`POST /api/meta-leads/sync`
+
+Requirements:
+- Prevent a second sync from starting while the first sync is still running.
+- Return a clear response indicating that a sync is already in progress.
+- Do not treat webhook acceptance as successful workflow completion.
+- Track the execution state accurately, including success and failure.
+- Ensure the lock is safe for the deployed architecture. An in-memory lock alone may not be sufficient if multiple backend instances are running.
+- Update the frontend so the Sync button remains disabled until the actual execution finishes or reaches a clearly handled timeout state.
+- Do not use a fixed 2.5-second timeout as proof that the workflow has completed.
+
+## 4. Use Incremental Sync Where Appropriate
+Inspect the n8n workflow and determine whether incremental sync can be implemented safely.
+
+Requirements:
+- Avoid reprocessing the entire historical sheet on every sync when possible.
+- Use a reliable checkpoint or source identifier.
+- Do not rely solely on row numbers because spreadsheet rows can be inserted, deleted, or reordered.
+- Continue to run backend deduplication even when incremental sync is enabled.
+- Ensure retrying a failed workflow does not create duplicates.
+
+## 5. Add Database-Level Protection
+Inspect:
+`backend/src/database/models/MetaLead.js`
+
+Requirements:
+- Evaluate a unique index based on a stable Meta Lead identifier and appropriate source context.
+- Check existing duplicates and missing identifiers before creating the index.
+- Do not blindly create a unique index if existing records will cause index creation to fail.
+- Do not use phone number as a globally unique identifier because different leads may legitimately share a phone number.
+- Make concurrent duplicate inserts safe at the database level wherever possible.
+- Handle duplicate-key errors gracefully.
+
+## 6. Safely Handle Existing Duplicates
+Before cleanup:
+- Run a read-only duplicate analysis.
+- Identify duplicate groups using Meta Lead ID first, then normalized phone/email and campaign context where appropriate.
+- Generate a dry-run report showing candidate duplicates, retained records, and records proposed for removal.
+- Preserve the earliest valid record where appropriate.
+- Merge useful information from duplicates, including notes, status, assignments, and other relevant metadata.
+- Check references from other CRM collections before deleting any document.
+- Do not automatically delete records based only on matching phone numbers.
+- Do not delete any existing records until the dry-run report is reviewed and explicit approval is given.
+- Preserve a backup before any approved cleanup.
+
+## 7. Frontend Updates
+Inspect:
+`frontend/src/modules/marketing/meta-leads/MetaLeads.jsx`
+
+Requirements:
+- Prevent repeated clicks while sync is active.
+- Display accurate states: Pending, Running, Completed, and Failed.
+- Poll a real execution-status endpoint if available, or implement a reliable completion-status mechanism.
+- Refresh campaign and lead data only after a meaningful sync status change.
+- Display the number of imported, updated, skipped, and failed records when those counts are available.
+- Avoid duplicate API calls caused by repeated clicks or component lifecycle behavior.
+
+## 8. Testing Requirements
+Test the following cases:
+1. First sync imports valid new leads.
+2. Running the same sync again creates zero additional duplicates.
+3. A lead with the same Meta Lead ID is updated or skipped.
+4. Different leads with the same phone number are not incorrectly merged.
+5. Missing identifiers do not cause uncontrolled inserts.
+6. Empty spreadsheet rows are skipped.
+7. Concurrent Sync clicks do not start overlapping executions.
+8. n8n retries do not create duplicates.
+9. All four campaign tabs are processed correctly.
+10. Existing CRM-managed fields are preserved.
+11. MongoDB unique index behavior is verified.
+12. Frontend production build succeeds.
+13. A dry-run duplicate report is generated without deleting records.
+
+## Safety Rules
+- Inspect existing code and workflow before changing them.
+- Do not delete MongoDB collections.
+- Do not bulk-delete duplicate records without explicit approval.
+- Do not overwrite valid Meta or CRM data.
+- Do not expose secrets, webhook credentials, or access tokens.
+- Do not modify unrelated CRM modules.
+- Do not claim tests passed unless they were actually executed.
+- If a Google Sheet or n8n workflow requires manual changes, provide exact node names and steps.
+
+## Final Report
+After implementation, provide:
+1. Root cause addressed.
+2. Files and n8n nodes changed.
+3. Deduplication strategy and unique index details.
+4. Sync-lock and execution-status behavior.
+5. Test results with actual pass/fail outcomes.
+6. Duplicate analysis and dry-run cleanup report.
+7. Deployment and manual configuration steps.
+8. Any remaining risks.
+
+Implement the permanent sync fix, but leave all existing duplicate MongoDB records untouched until I approve the cleanup report.
