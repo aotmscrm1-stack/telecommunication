@@ -44,6 +44,49 @@ async function uploadToCloudinary(fileInput, folder = 'whatsapp_media', fileName
 }
 
 /**
+ * Upload an audio file to Cloudinary with automatic/raw resource typing.
+ * Returns { secure_url, public_id, resource_type } or null on failure.
+ */
+async function uploadAudioToCloudinary(filePathOrBuffer, folder = 'call_recordings', fileName = null) {
+  if (!filePathOrBuffer) return null;
+
+  try {
+    const options = {
+      folder: folder,
+      resource_type: 'auto',
+    };
+
+    if (fileName) {
+      options.use_filename = true;
+      options.unique_filename = true;
+      options.filename_override = fileName;
+    }
+
+    try {
+      const result = await cloudinary.uploader.upload(filePathOrBuffer, options);
+      return {
+        secure_url: result.secure_url || result.url,
+        public_id: result.public_id,
+        resource_type: result.resource_type || 'video',
+      };
+    } catch (autoErr) {
+      // Fallback to 'raw' resource type if 'auto' / 'video' codec validation fails
+      console.warn('[Cloudinary Upload] auto resource_type notice, retrying with raw:', autoErr.message);
+      options.resource_type = 'raw';
+      const rawResult = await cloudinary.uploader.upload(filePathOrBuffer, options);
+      return {
+        secure_url: rawResult.secure_url || rawResult.url,
+        public_id: rawResult.public_id,
+        resource_type: 'raw',
+      };
+    }
+  } catch (err) {
+    console.error('[Cloudinary Audio Upload Error]:', err.message);
+    return null;
+  }
+}
+
+/**
  * Delete an asset from Cloudinary using its public_id.
  * Audio files uploaded to Cloudinary are typically categorized as 'video' resource_type.
  * If resourceType is not provided or fails, it will attempt deletion with resource_type 'video',
@@ -99,6 +142,7 @@ async function deleteFromCloudinary(publicId, resourceType = 'video') {
 module.exports = {
   cloudinary,
   uploadToCloudinary,
+  uploadAudioToCloudinary,
   deleteFromCloudinary,
 };
 

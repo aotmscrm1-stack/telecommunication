@@ -10,7 +10,7 @@ const CallRecording = require('../../../database/models/CallRecording');
 const Lead = require('../../../database/models/Lead');
 const { normalizePhone10 } = require('../../../core/utils/phone');
 const { protect } = require('../../../core/middleware/auth');
-const { deleteFromCloudinary } = require('../../../core/utils/cloudinary');
+const { deleteFromCloudinary, uploadAudioToCloudinary } = require('../../../core/utils/cloudinary');
 
 let transcribeAudioFile = null;
 try {
@@ -174,6 +174,20 @@ router.post('/', protect, upload.single('audio'), async (req, res) => {
       });
     }
 
+    // ─── Upload to Cloudinary for permanent persistent cloud storage ──────
+    let cloudinaryData = null;
+    try {
+      const localFilePath = req.file.path;
+      if (localFilePath && fs.existsSync(localFilePath)) {
+        cloudinaryData = await uploadAudioToCloudinary(localFilePath, 'call_recordings', req.file.filename);
+        if (cloudinaryData) {
+          console.log(`[Cloudinary Audio Success] Recording ${req.file.filename} uploaded:`, cloudinaryData.secure_url);
+        }
+      }
+    } catch (cldErr) {
+      console.warn('[Cloudinary Audio Warning] Cloudinary upload notice:', cldErr.message);
+    }
+
     const doc = await CallRecording.create({
       user: req.user.id,
       lead: resolvedLead || null,
@@ -181,7 +195,10 @@ router.post('/', protect, upload.single('audio'), async (req, res) => {
       originalName: req.file.originalname,
       storedName: req.file.filename,
       filePath: `recordings/${req.file.filename}`,
-      url: `/uploads/recordings/${req.file.filename}`,
+      url: cloudinaryData?.secure_url || `/uploads/recordings/${req.file.filename}`,
+      cloudinaryUrl: cloudinaryData?.secure_url || null,
+      cloudinaryPublicId: cloudinaryData?.public_id || null,
+      cloudinaryResourceType: cloudinaryData?.resource_type || 'raw',
       size: req.file.size,
       mimeType: req.file.mimetype || 'audio/mpeg',
       recordedAt: dateObj,
@@ -588,14 +605,30 @@ function getAudioMimeType(filename) {
   }
 }
 
-function streamAudioFile(req, res) {
+async function streamAudioFile(req, res) {
   try {
     const filename = req.params.filename;
     const filePath = findAudioFilePath(filename);
 
     if (!filePath) {
-      // If file not found locally (e.g. running local dev against remote Render cloud storage),
-      // proxy from remote Render server only if we are NOT already on the remote server!
+      // 1. Check if recording exists in MongoDB with a valid Cloudinary URL
+      const rec = await CallRecording.findOne({
+        $or: [
+          { storedName: filename },
+          { originalName: filename },
+          { url: { $regex: filename } },
+          { cloudinaryUrl: { $regex: filename } },
+        ]
+      }).select('cloudinaryUrl url').lean();
+
+      if (rec && (rec.cloudinaryUrl || (rec.url && rec.url.includes('res.cloudinary.com')))) {
+        const cldUrl = rec.cloudinaryUrl || rec.url;
+        console.log(`[AudioStream] Streaming via Cloudinary CDN redirect for ${filename}: ${cldUrl}`);
+        return res.redirect(302, cldUrl);
+      }
+
+      // 2. If file not found locally or in Cloudinary, proxy from remote Render server
+      // only if we are NOT already on the remote server!
       const remoteHost = 'telecommunication-l3oz.onrender.com';
       const currentHost = (req.get('host') || '').toLowerCase();
       const isRunningOnRemote = currentHost.includes(remoteHost) || !!process.env.RENDER;
@@ -698,15 +731,22 @@ router.get('/file/:filename', streamAudioFile);
 
 function formatRecording(r) {
   const filename = r.storedName || (r.url ? path.basename(r.url) : '');
-  const streamPath = filename ? `/api/recordings/stream/${filename}` : (r.url || '');
   const localFile = filename ? findAudioFilePath(filename) : null;
-  const fileAvailable = !!localFile;
+  const isCloudinary = !!(r.cloudinaryUrl || (r.url && r.url.includes('res.cloudinary.com')));
+  const fileAvailable = !!localFile || isCloudinary;
+
+  // Use direct Cloudinary CDN URL when available, otherwise backend streaming path
+  const cldUrl = r.cloudinaryUrl || (r.url && r.url.includes('res.cloudinary.com') ? r.url : null);
+  const streamPath = filename ? `/api/recordings/stream/${filename}` : (r.url || '');
+  const finalAudioUrl = cldUrl || absoluteUrl(streamPath);
 
   return {
     _id: r._id,
     recordedAt: r.recordedAt,
-    url: absoluteUrl(streamPath),
+    url: finalAudioUrl,
     originalUrl: absoluteUrl(r.url),
+    cloudinaryUrl: r.cloudinaryUrl || (r.url && r.url.includes('res.cloudinary.com') ? r.url : null),
+    cloudinaryPublicId: r.cloudinaryPublicId || null,
     size: r.size,
     mimeType: getAudioMimeType(filename) || r.mimeType || 'audio/mp4',
     phone: r.phone || null,

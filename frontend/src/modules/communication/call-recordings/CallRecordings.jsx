@@ -12,7 +12,7 @@ import { isHR, isCEO, isManager, canViewCallRecordings } from '../../../utils/pe
 import TranscriptConversationModal from '../../../components/TranscriptConversationModal';
 
 // ── ADVANCED CUSTOM AUDIO PLAYER (Play/Pause, Seek, Current Time, Duration, Volume, Error handling)
-const MemoizedAudioPlayer = memo(function MemoizedAudioPlayer({ audioUrl, mimeType, fileExists }) {
+const MemoizedAudioPlayer = memo(function MemoizedAudioPlayer({ audioUrl, mimeType, fileExists, onRetry }) {
   const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -21,6 +21,7 @@ const MemoizedAudioPlayer = memo(function MemoizedAudioPlayer({ audioUrl, mimeTy
   const [isMuted, setIsMuted] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [currentUrlIndex, setCurrentUrlIndex] = useState(0);
 
   useEffect(() => {
     // Reset player states if audioUrl changes
@@ -28,6 +29,7 @@ const MemoizedAudioPlayer = memo(function MemoizedAudioPlayer({ audioUrl, mimeTy
     setCurrentTime(0);
     setDuration(0);
     setLoadError(false);
+    setCurrentUrlIndex(0);
   }, [audioUrl]);
 
   const togglePlay = () => {
@@ -99,9 +101,7 @@ const MemoizedAudioPlayer = memo(function MemoizedAudioPlayer({ audioUrl, mimeTy
     return `${m}:${String(s).padStart(2, '0')}`;
   };
 
-  const [currentUrlIndex, setCurrentUrlIndex] = useState(0);
-
-  // Generate candidate URLs (primary backend stream + remote Render fallback)
+  // Generate candidate URLs (primary stream/Cloudinary + remote Render fallback)
   const candidateUrls = [audioUrl];
   if (audioUrl) {
     const filename = audioUrl.split('/').pop().split('?')[0];
@@ -137,6 +137,9 @@ const MemoizedAudioPlayer = memo(function MemoizedAudioPlayer({ audioUrl, mimeTy
           onClick={() => {
             setLoadError(false);
             setCurrentUrlIndex(0);
+            if (onRetry) {
+              onRetry();
+            }
             if (audioRef.current) {
               audioRef.current.load();
             }
@@ -1091,7 +1094,7 @@ export default function CallRecordings() {
 
                 {/* 5. FIFTH LINE: Audio Container */}
                 <div style={{ background: C.bgSoft, borderRadius: '8px', padding: '6px 8px', border: `1px solid ${C.border}`, overflow: 'hidden', boxSizing: 'border-box', width: '100%', maxWidth: '100%' }}>
-                  <MemoizedAudioPlayer audioUrl={audioUrl} mimeType={rec.mimeType} fileExists={rec.fileExists} />
+                  <MemoizedAudioPlayer audioUrl={audioUrl} mimeType={rec.mimeType} fileExists={rec.fileExists} onRetry={fetchRecordings} />
                 </div>
 
                 {/* 6. SIXTH LINE: AI Whisper Transcription */}
@@ -1200,7 +1203,7 @@ export default function CallRecordings() {
                       </td>
 
                       <td style={{ padding: '14px 16px', minWidth: '300px' }}>
-                        <MemoizedAudioPlayer audioUrl={audioUrl} mimeType={rec.mimeType} fileExists={rec.fileExists} />
+                        <MemoizedAudioPlayer audioUrl={audioUrl} mimeType={rec.mimeType} fileExists={rec.fileExists} onRetry={fetchRecordings} />
                       </td>
 
                       <td style={{ padding: '14px 16px', textAlign: 'right' }}>
