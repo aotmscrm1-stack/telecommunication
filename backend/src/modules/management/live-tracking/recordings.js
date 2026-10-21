@@ -498,8 +498,12 @@ function findAudioFilePath(filename) {
     path.join(process.cwd(), 'src', 'uploads', cleanName),
     path.join(process.cwd(), 'uploads', 'recordings', cleanName),
     path.join(process.cwd(), 'uploads', cleanName),
+    path.join(__dirname, '..', '..', '..', 'temp_recordings', cleanName),
+    path.join(process.cwd(), 'src', 'temp_recordings', cleanName),
+    path.join(process.cwd(), 'temp_recordings', cleanName),
     path.join('/var/data/recordings', cleanName),
     path.join('/tmp/recordings', cleanName),
+    path.join('/tmp', cleanName),
   ];
 
   for (const p of possiblePaths) {
