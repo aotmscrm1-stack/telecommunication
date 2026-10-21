@@ -233,6 +233,7 @@ export const metaLeadsAPI = {
   delete: (id) => api.delete(`/meta-leads/${id}`),
   deleteCampaign: (campaign) => api.delete(`/meta-leads/campaign/${encodeURIComponent(campaign)}`),
   triggerSync: () => api.post('/meta-leads/sync'),
+  getSyncStatus: () => api.get('/meta-leads/sync-status'),
   clearAll: () => api.delete('/meta-leads/clear-all'),
   getMyAssignmentStatus: () => api.get('/meta-leads/my-assignment-status'),
 };

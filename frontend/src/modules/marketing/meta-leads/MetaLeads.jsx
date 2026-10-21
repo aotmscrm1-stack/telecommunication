@@ -293,29 +293,56 @@ export default function MetaLeads() {
     }
   }, [dynamicHeaders]);
 
-  // Trigger n8n Webhook Sync
+  // Trigger n8n Webhook Sync with Live Status Polling & Concurrency Lock
   const handleSync = async () => {
+    if (syncing) return;
     setSyncing(true);
     setStatusMessage('Triggering n8n Google Sheets workflow...');
     try {
       const res = await metaLeadsAPI.triggerSync();
       setStatusMessage(res.data?.message || 'n8n workflow triggered! Ingesting Google Sheets...');
       
-      // Wait for n8n execution to pull sheets and post leads, then refetch
-      setTimeout(async () => {
-        await fetchCampaigns();
-        await fetchLeads();
-        setStatusMessage('Sync completed! Live leads updated from Google Sheets.');
-        setTimeout(() => setStatusMessage(''), 5000);
-      }, 2500);
+      // Poll execution status until completed or timed out
+      let attempts = 0;
+      const maxAttempts = 35; // 35 * 1.5s = ~52 seconds
+      const pollInterval = setInterval(async () => {
+        attempts++;
+        try {
+          const statusRes = await metaLeadsAPI.getSyncStatus();
+          const state = statusRes.data;
+          if (state && state.message) {
+            setStatusMessage(state.message);
+          }
+          if (!state.isSyncing || attempts >= maxAttempts) {
+            clearInterval(pollInterval);
+            await fetchCampaigns();
+            await fetchLeads();
+            setSyncing(false);
+            const summary = state.totalProcessed
+              ? `Sync completed! Processed: ${state.totalProcessed} (${state.insertedCount} new, ${state.updatedCount} updated, ${state.skippedCount} skipped).`
+              : 'Sync completed! Live leads updated from Google Sheets.';
+            setStatusMessage(summary);
+            setTimeout(() => setStatusMessage(''), 6000);
+          }
+        } catch (_) {
+          if (attempts >= maxAttempts) {
+            clearInterval(pollInterval);
+            await fetchCampaigns();
+            await fetchLeads();
+            setSyncing(false);
+            setStatusMessage('Sync finished. Refreshed leads.');
+            setTimeout(() => setStatusMessage(''), 5000);
+          }
+        }
+      }, 1500);
     } catch (err) {
       console.error('Sync error:', err);
-      setStatusMessage('Trigger sent to n8n webhook. Refreshing leads...');
+      const errMsg = err.response?.data?.message || err.message || 'Sync failed';
+      setStatusMessage(`Sync notice: ${errMsg}`);
+      setSyncing(false);
       await fetchCampaigns();
       await fetchLeads();
-      setTimeout(() => setStatusMessage(''), 4000);
-    } finally {
-      setSyncing(false);
+      setTimeout(() => setStatusMessage(''), 5000);
     }
   };
 

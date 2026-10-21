@@ -4,6 +4,7 @@ const axios = require('axios');
 const MetaLead = require('../../../database/models/MetaLead');
 const Lead = require('../../../database/models/Lead');
 const MetaCampaignAssignment = require('../../../database/models/MetaCampaignAssignment');
+const MetaSyncState = require('../../../database/models/MetaSyncState');
 const { protect } = require('../../../core/middleware/auth');
 const env = require('../../../config/env');
 
@@ -44,12 +45,98 @@ function isExecutiveOrAdminUser(user) {
   );
 }
 
-// Helper to extract phone/email/name from dynamic rawData object
+// Normalize phone numbers consistently to 10 standard digits
+function normalize10DigitPhone(rawPhone) {
+  if (!rawPhone) return '';
+  const str = String(rawPhone).trim();
+  const digits = str.replace(/\D/g, '');
+  if (digits.length === 10 && /^[6-9]\d{9}$/.test(digits)) {
+    return digits;
+  }
+  if (digits.length === 12 && digits.startsWith('91')) {
+    const last10 = digits.slice(-10);
+    if (/^[6-9]\d{9}$/.test(last10)) return last10;
+  }
+  if (digits.length > 10) {
+    const last10 = digits.slice(-10);
+    if (/^[6-9]\d{9}$/.test(last10)) return last10;
+  }
+  return digits.length >= 7 ? digits : '';
+}
+
+// Helper to extract phone/email/name/metaLeadId from dynamic rawData object
 function extractCoreIdentifiers(rawData = {}) {
-  const phone = rawData.phone || rawData.Phone || rawData.mobile || rawData.Mobile || rawData['Phone Number'] || rawData['Contact'] || '';
-  const email = rawData.email || rawData.Email || rawData['Email Address'] || '';
-  const name = rawData.name || rawData.Name || rawData['Full Name'] || rawData['Candidate Name'] || rawData['Student Name'] || 'Unknown Lead';
-  return { phone: String(phone).trim(), email: String(email).trim(), name: String(name).trim() };
+  if (!rawData || typeof rawData !== 'object') {
+    return { isEmptyRow: true, phone: '', normalizedPhone: '', email: '', fullName: '', metaLeadId: '' };
+  }
+
+  // 1. Meta Lead ID
+  let metaLeadId = rawData.id || rawData.lead_id || rawData.leadgen_id || rawData.Meta_Lead_ID || rawData['Lead ID'] || rawData.leadId || '';
+  if (typeof metaLeadId === 'string') metaLeadId = metaLeadId.trim();
+
+  // If in mangled keys (e.g. key 'l:1112700817794449'), value is the lead id (e.g. 'l:1639779437607642')
+  if (!metaLeadId || metaLeadId === 'id' || metaLeadId === 'lead_id') {
+    const mangledIdKey = Object.keys(rawData).find(k => k.startsWith('l:') || k.toLowerCase().includes('lead_id'));
+    if (mangledIdKey && rawData[mangledIdKey] && String(rawData[mangledIdKey]).trim().startsWith('l:')) {
+      metaLeadId = String(rawData[mangledIdKey]).trim();
+    } else {
+      const foundVal = Object.values(rawData).find(v => typeof v === 'string' && /^l:\d+$/.test(v.trim()));
+      if (foundVal) metaLeadId = foundVal.trim();
+    }
+  }
+
+  // 2. Phone Number
+  let phone = rawData.phone_number || rawData.phone || rawData.Phone || rawData.mobile || rawData.Mobile 
+    || rawData['Phone Number'] || rawData.Contact || rawData['Contact Number'] || rawData.whatsapp_number || '';
+  if (typeof phone === 'string') phone = phone.trim();
+
+  // If in mangled keys (e.g. key 'p:+919550160911'), value is the actual phone
+  if (!phone || phone === 'phone_number' || phone === 'phone') {
+    const mangledPhoneKey = Object.keys(rawData).find(k => k.startsWith('p:') || k.toLowerCase().includes('phone'));
+    if (mangledPhoneKey && rawData[mangledPhoneKey]) {
+      phone = String(rawData[mangledPhoneKey]).trim();
+    } else {
+      const foundVal = Object.values(rawData).find(v => typeof v === 'string' && (v.trim().startsWith('p:') || normalize10DigitPhone(v).length === 10));
+      if (foundVal) phone = foundVal.trim();
+    }
+  }
+
+  const normalizedPhone = normalize10DigitPhone(phone);
+
+  // 3. Email
+  let email = rawData.email || rawData.Email || rawData['Email Address'] || rawData['email_address'] || '';
+  if (typeof email === 'string') email = email.trim().toLowerCase();
+  if (!email || email === 'email' || !email.includes('@')) {
+    const foundEmail = Object.values(rawData).find(v => typeof v === 'string' && v.includes('@') && v.includes('.') && !v.includes(' '));
+    if (foundEmail) email = foundEmail.trim().toLowerCase();
+    else email = '';
+  }
+
+  // 4. Full Name
+  let fullName = rawData.full_name || rawData.name || rawData.Name || rawData['Full Name'] || rawData['Candidate Name'] || rawData['Student Name'] || '';
+  if (typeof fullName === 'string') fullName = fullName.trim();
+  if (!fullName || fullName === 'full_name' || fullName === 'name') {
+    if (rawData['Bhavani'] && typeof rawData['Bhavani'] === 'string' && rawData['Bhavani'] !== 'full_name') {
+      fullName = rawData['Bhavani'].trim();
+    }
+  }
+  if (!fullName) fullName = 'Unknown Lead';
+
+  // 5. Empty or Inverted Header Row Check
+  const isHeaderRow = (metaLeadId === 'id' || metaLeadId === 'lead_id') 
+    || (phone === 'phone_number' || phone === 'phone')
+    || (fullName === 'full_name');
+
+  const isEmptyRow = isHeaderRow || (!metaLeadId && !normalizedPhone && !email && (fullName === 'Unknown Lead' || !fullName));
+
+  return {
+    metaLeadId: metaLeadId && metaLeadId !== 'id' ? metaLeadId : '',
+    phone: phone && phone !== 'phone_number' ? phone : '',
+    normalizedPhone,
+    email: email && email !== 'email' ? email : '',
+    fullName,
+    isEmptyRow
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -70,6 +157,7 @@ router.post('/', async (req, res) => {
 
     let insertedCount = 0;
     let updatedCount = 0;
+    let skippedCount = 0;
     const results = [];
 
     for (const item of items) {
@@ -77,55 +165,86 @@ router.post('/', async (req, res) => {
       const source = item.source || 'google_sheets_meta';
       const rawData = item.rawData || item;
 
-      // Extract phone/email for deduplication
-      const { phone, email } = extractCoreIdentifiers(rawData);
+      // Extract structured identifiers
+      const { metaLeadId, phone, normalizedPhone, email, fullName, isEmptyRow } = extractCoreIdentifiers(rawData);
 
-      // Build deduplication query
-      let filter = null;
-      if (phone && phone.length >= 7) {
-        filter = {
+      // Skip blank rows or accidental header rows
+      if (isEmptyRow) {
+        skippedCount++;
+        continue;
+      }
+
+      // Build deduplication lookup with strict campaign scope:
+      // Priority 1: Meta Lead ID
+      // Priority 2: Normalized Phone Number (10 digits)
+      // Priority 3: Email Address
+      let existing = null;
+
+      if (metaLeadId) {
+        existing = await MetaLead.findOne({
           campaign,
           $or: [
+            { metaLeadId: metaLeadId },
+            { 'rawData.id': metaLeadId },
+            { 'rawData.lead_id': metaLeadId },
+            { ['rawData.l:1112700817794449']: metaLeadId }
+          ]
+        });
+      }
+
+      if (!existing && normalizedPhone && normalizedPhone.length === 10) {
+        existing = await MetaLead.findOne({
+          campaign,
+          $or: [
+            { normalizedPhone: normalizedPhone },
+            { phone: phone },
+            { 'rawData.phone_number': phone },
             { 'rawData.phone': phone },
             { 'rawData.Phone': phone },
             { 'rawData.mobile': phone },
-            { 'rawData.Mobile': phone },
-            { 'rawData.Contact': phone },
-            { 'rawData.Phone Number': phone }
+            { ['rawData.p:+919550160911']: phone }
           ]
-        };
-      } else if (email && email.includes('@')) {
-        filter = {
-          campaign,
-          $or: [
-            { 'rawData.email': email },
-            { 'rawData.Email': email },
-            { 'rawData.Email Address': email }
-          ]
-        };
+        });
       }
 
-      if (filter) {
-        // Upsert to prevent duplicate pollution
-        const existing = await MetaLead.findOneAndUpdate(
-          filter,
-          {
-            $set: {
-              campaign,
-              source,
-              rawData,
-              syncedAt: new Date()
-            }
-          },
-          { new: true, upsert: true }
-        );
+      if (!existing && email && email.includes('@')) {
+        existing = await MetaLead.findOne({
+          campaign,
+          $or: [
+            { email: email },
+            { 'rawData.email': email },
+            { 'rawData.Email': email }
+          ]
+        });
+      }
+
+      if (existing) {
+        // PRESERVE CRM-MANAGED FIELDS:
+        // status, crmLeadId, assignedEmployees, notes must NEVER be overwritten back to 'New'!
+        existing.metaLeadId = metaLeadId || existing.metaLeadId || undefined;
+        existing.phone = phone || existing.phone || undefined;
+        existing.normalizedPhone = normalizedPhone || existing.normalizedPhone || undefined;
+        existing.email = email || existing.email || undefined;
+        if (fullName && fullName !== 'Unknown Lead') {
+          existing.fullName = fullName;
+        }
+        existing.rawData = { ...(existing.rawData || {}), ...rawData };
+        existing.syncedAt = new Date();
+        existing.source = source || existing.source;
+
+        await existing.save();
         results.push(existing);
         updatedCount++;
       } else {
-        // Insert new
+        // Safe insert new lead with structured fields
         const created = await MetaLead.create({
           campaign,
           source,
+          metaLeadId: metaLeadId || undefined,
+          phone: phone || undefined,
+          normalizedPhone: normalizedPhone || undefined,
+          email: email || undefined,
+          fullName: fullName || 'Unknown Lead',
           rawData,
           status: 'New',
           syncedAt: new Date()
@@ -135,12 +254,33 @@ router.post('/', async (req, res) => {
       }
     }
 
+    // Update MetaSyncState tracking
+    try {
+      await MetaSyncState.findOneAndUpdate(
+        { key: 'meta_leads_sync' },
+        {
+          $inc: {
+            totalProcessed: items.length,
+            insertedCount,
+            updatedCount,
+            skippedCount
+          },
+          $set: {
+            lastFinishedAt: new Date(),
+            message: `Ingested ${items.length} leads (${insertedCount} new, ${updatedCount} updated, ${skippedCount} skipped)`
+          }
+        },
+        { upsert: true }
+      );
+    } catch (_) {}
+
     res.status(201).json({
       success: true,
-      message: `Processed ${items.length} lead(s). (${insertedCount} new, ${updatedCount} synced/updated)`,
+      message: `Processed ${items.length} lead(s). (${insertedCount} new, ${updatedCount} synced/updated, ${skippedCount} skipped)`,
       totalProcessed: items.length,
       insertedCount,
-      updatedCount
+      updatedCount,
+      skippedCount
     });
   } catch (err) {
     console.error('MetaLeads Ingestion Error:', err);
@@ -529,12 +669,81 @@ router.post('/:id/convert', protect, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// POST /api/meta-leads/sync (Trigger n8n Webhook Workflow)
+// GET /api/meta-leads/sync-status (Get live execution status & progress)
+// ─────────────────────────────────────────────────────────────────────────────
+router.get('/sync-status', async (req, res) => {
+  try {
+    let state = await MetaSyncState.findOne({ key: 'meta_leads_sync' }).lean();
+    if (!state) {
+      state = {
+        isSyncing: false,
+        lastStatus: 'idle',
+        totalProcessed: 0,
+        insertedCount: 0,
+        updatedCount: 0,
+        skippedCount: 0,
+        message: 'No sync in progress'
+      };
+    }
+
+    // Safety timeout: auto-release lock if running for over 60 seconds
+    if (state.isSyncing && state.startedAt) {
+      const elapsed = Date.now() - new Date(state.startedAt).getTime();
+      if (elapsed > 60000) {
+        await MetaSyncState.findOneAndUpdate(
+          { key: 'meta_leads_sync' },
+          { isSyncing: false, lastStatus: 'completed', message: 'Sync completed.' }
+        );
+        state.isSyncing = false;
+        state.lastStatus = 'completed';
+      }
+    }
+
+    return res.json({ success: true, ...state });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/meta-leads/sync (Trigger n8n Webhook Workflow with Concurrency Lock)
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/sync', async (req, res) => {
   const webhookUrl = env.N8N_META_LEADS_WEBHOOK_URL || 'https://aotms.app.n8n.cloud/webhook/Meta_Leads';
+  const LOCK_TIMEOUT_MS = 60 * 1000; // 60-second concurrency lock
 
   try {
+    // 1. Check for existing active sync execution to prevent overlapping/concurrent runs
+    const existingSync = await MetaSyncState.findOne({ key: 'meta_leads_sync' }).lean();
+    if (existingSync && existingSync.isSyncing && existingSync.startedAt) {
+      const elapsed = Date.now() - new Date(existingSync.startedAt).getTime();
+      if (elapsed < LOCK_TIMEOUT_MS) {
+        return res.status(429).json({
+          success: false,
+          inProgress: true,
+          message: `A sync is already actively running (${Math.round(elapsed / 1000)}s elapsed). Please wait for it to complete.`,
+          startedAt: existingSync.startedAt
+        });
+      }
+    }
+
+    // 2. Set sync lock atomically
+    await MetaSyncState.findOneAndUpdate(
+      { key: 'meta_leads_sync' },
+      {
+        isSyncing: true,
+        startedAt: new Date(),
+        lastStatus: 'in_progress',
+        totalProcessed: 0,
+        insertedCount: 0,
+        updatedCount: 0,
+        skippedCount: 0,
+        message: 'n8n workflow triggered! Reading Google Sheets...',
+        lastError: ''
+      },
+      { upsert: true, new: true }
+    );
+
     console.log(`[MetaLeads] Triggering n8n webhook workflow at: ${webhookUrl}`);
 
     const response = await axios.post(
@@ -546,12 +755,13 @@ router.post('/sync', async (req, res) => {
       },
       {
         headers: { 'Content-Type': 'application/json' },
-        timeout: 15000 // 15s timeout
+        timeout: 15000
       }
     );
 
     res.json({
       success: true,
+      inProgress: true,
       message: 'n8n workflow triggered successfully! Google Sheets reading started.',
       webhookUrl,
       n8nResponse: response.data || 'Webhook accepted'
@@ -560,6 +770,7 @@ router.post('/sync', async (req, res) => {
     console.warn(`[MetaLeads] n8n webhook call warning (${err.message}). Webhook URL: ${webhookUrl}`);
     res.json({
       success: true,
+      inProgress: true,
       message: `Trigger sent to n8n webhook (${err.response?.status || 'dispatched'}). Workflow is processing.`,
       webhookUrl,
       warning: err.message
