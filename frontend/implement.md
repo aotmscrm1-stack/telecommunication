@@ -311,3 +311,144 @@ Provide:
 7. Any remaining issues or manual steps.
 
 Implement the fix in the existing project, preserve unrelated functionality, and verify end-to-end playback before declaring completion.
+
+
+
+
+
+
+
+------------------------------------------------------------------------
+# Feature: HR Counsellor / Telecaller Role with Telecalling Dashboard & Strict Navbar
+
+## 1. Executive Summary & Objective
+
+Implement a specialized **HR Counsellor / Telecaller** role (including User ID `6ab6449b62b25645faae28ed`) under the **HR** Department in the AOTMS CRM.
+Telecaller Counsellors represent staff members situated within HR/Admissions whose primary day-to-day workflow is **Telecalling, Lead Follow-ups & Student/Client Engagement**:
+- Handling assigned admissions/counselling Meta leads.
+- Submitting daily calling performance activities (calls attempted, connected, follow-ups scheduled, conversion outcomes).
+- Punching attendance and viewing attendance records.
+- Conducting Email CRM communications with assigned contacts.
+
+**Strict Navigation Constraint:**
+Telecallers / Counsellors see **ONLY 4 Navbar / Sidebar items**:
+1. **Daily Activity** (`/daily-activity`)
+2. **Overall Marketing** (`/meta-leads` — showing **ONLY assigned Meta Leads**)
+3. **Attendance** (`/:userId/attendance-records` or `/attendance-records`)
+4. **Email CRM** (`/:userId/email` or `/email`)
+
+---
+
+## 2. Role & Identity Architecture
+
+### MongoDB User Model (`backend/src/database/models/User.js`)
+Target User `6ab6449b62b25645faae28ed`:
+- `department`: `'HR'`
+- `role`: `'employee'`
+- `designation`: `'Counsellor'`
+- `displayName`: `'Telecaller Councellor'`
+- `approvalStatus`: `'accepted'`
+
+### Role Classification Helpers (`frontend/src/utils/permissions.js` & Backend Middleware)
+```javascript
+export const isCounsellor = (user) => {
+  if (!user) return false;
+  const desig = String(user.designation || '').trim().toLowerCase();
+  const dName = String(user.displayName || '').trim().toLowerCase();
+  const dept = String(user.department || '').trim().toUpperCase();
+  return (
+    (dept === 'HR' || dept.includes('HR') || dept === 'TELECALLING') &&
+    (desig.includes('councellor') || desig.includes('counselor') || dName.includes('councellor') || dName.includes('counselor'))
+  );
+};
+
+export const isTelecaller = (user) => {
+  if (!user) return false;
+  if (user?.role === 'admin' || user?.role === 'superadmin' || isCEO(user)) return false;
+  const desig = String(user.designation || '').trim().toLowerCase();
+  const dName = String(user.displayName || '').trim().toLowerCase();
+  const dept = String(user.department || '').trim().toLowerCase();
+  const role = String(user.role || '').trim().toLowerCase();
+  return (
+    role === 'caller' ||
+    desig.includes('telecall') || desig.includes('caller') || desig.includes('councellor') || desig.includes('counselor') ||
+    dName.includes('telecall') || dName.includes('caller') || dName.includes('councellor') || dName.includes('counselor') ||
+    dept.includes('telecall') || dept.includes('caller') ||
+    isCounsellor(user)
+  );
+};
+```
+
+---
+
+## 3. Strict Navbar & Navigation Configuration
+
+### Navbar Layout (`frontend/src/components/dashboard/Navbar/Navbar.jsx`)
+For Telecaller / Counsellor users (`isTelecaller(user)`):
+The Navbar displays **EXCLUSIVELY 4 core headers**:
+1. **Daily Activity**: Link to `/daily-activity` with `FaCalendarCheck` icon.
+2. **Overall Marketing**: Bullhorn dropdown menu containing the complete Marketing suite:
+   - **Leads**: Add Leads (`/leads/new`), All Leads (`/leads`), Campaigns (`/campaigns`)
+   - **WhatsApp**: Contact (`/contacts`), WhatsApp Blast (`/whatsapp-blast`), WhatsApp (`/whatsapp`)
+   - **Meta Leads**: Link to `/meta-leads` with `Google Sheets` badge (assigned campaigns/leads only)
+   - **Performance**: Leaderboard (`/leaderboard`), Report (`/reports`)
+3. **Attendance**: Link to `/:userId/attendance-records` with `FaCalendarCheck` icon.
+4. **Email CRM**: Link to `/:userId/email` with `FaEnvelopeOpenText` icon.
+
+*(Executive/Manager menus like Dashboard, Finance, Management, and Developer tools are completely hidden).*
+
+### Sidebar Layout (`frontend/src/components/Layout/Sidebar.jsx`)
+For Telecallers, sidebar items match identically:
+- `Daily Activity` (`/daily-activity`)
+- **Overall Marketing** (expandable groups):
+  - Leads (Add Leads, All Leads, Campaigns)
+  - WhatsApp (Contact, WhatsApp Blast, WhatsApp)
+  - Meta Leads (`/meta-leads`)
+  - Performance (Leaderboard, Report)
+- **My Workspace**:
+  - `Attendance` (`/:userId/attendance-records`)
+  - `Email CRM` (`/:userId/email`)
+
+### Default Route & Guards (`frontend/src/app/routes.jsx`)
+- Default landing route: `getDefaultHomeRoute(user)` routes Telecallers directly to `/daily-activity`.
+- `MetaLeadsRoute`: Permits Telecallers and Counsellors to view `/meta-leads`.
+- `StaffRestrictedRoute`: Permits Telecallers and Counsellors to access Marketing modules (`/leads`, `/campaigns`, `/whatsapp`, `/leaderboard`, `/reports`).
+- Admin/Finance/Management routes: Strictly blocked with redirect to `/daily-activity`.
+
+---
+
+## 4. Meta Leads Data Scoping & Assigned Leads Only
+
+### Backend Protection (`backend/src/modules/marketing/meta-leads/metaLeads.js`)
+- `isExecutiveOrAdminUser(user)` classifies telecallers, callers, counsellors as restricted staff.
+- `GET /api/meta-leads/campaigns`: Returns only campaigns where `MetaCampaignAssignment.assignedUsers` contains the current user's ID.
+- `GET /api/meta-leads`: Scopes query to `query.campaign = { $in: allowedCampaigns }`. If no campaigns are assigned, returns 0 leads with `isRestricted: true`.
+- If an unauthorized campaign is requested, returns `403 Forbidden`.
+
+### Frontend Experience (`frontend/src/modules/marketing/meta-leads/MetaLeads.jsx`)
+- "All Campaigns" tab is hidden for restricted staff.
+- Shows "Your Assigned Campaigns:" pills.
+- Admin controls (Assign Members, Clear All) are hidden.
+- If zero campaigns are assigned, displays clear empty state directing user to contact CRM Admin.
+
+---
+
+## 5. Daily Activity Workspace (`/daily-activity`)
+
+- Counsellors/Telecallers submit daily reports with calling performance fields enabled:
+  - Calls Attempted, Calls Connected, Unanswered Calls, Interested Leads, Follow-ups Scheduled, Conversions.
+- Daily submissions are sanitized and saved with calling metrics preserved in MongoDB.
+
+---
+
+## 6. Access Control & Security Matrix
+
+| Feature / Route | Admin / CEO | HR Manager | Telecaller / Counsellor | Developer / Trainer |
+| :--- | :---: | :---: | :---: | :---: |
+| **Navbar Items** | Full Menu (Info, Mkt, Fin, Mgmt, Dev) | Full Menu | **Daily Activity, Overall Marketing, Attendance, Email CRM ONLY** | Info, Email CRM, Attendance |
+| **Landing Route** | `/dashboard` | `/dashboard` | **`/daily-activity`** | `/daily-activity` |
+| **Meta Leads** | All Campaigns & Leads | All Campaigns | **Assigned Campaigns & Leads ONLY** | Strictly Blocked |
+| **Daily Activity** | Overview & Approve | Overview & Approve | **Submit Calling Metrics** | Submit Dev/Trainer Report |
+| **Email CRM** | Full Access | Full Access | **Personal Lead Email** | Personal Lead Email |
+| **Attendance** | All Staff Records | All Staff Records | **Personal Records & Punch In** | Personal Records & Punch In |
+| **Delete Records** | Yes | No | **No (Strictly Disabled)** | No |

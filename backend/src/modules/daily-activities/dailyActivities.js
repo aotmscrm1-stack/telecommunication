@@ -19,21 +19,35 @@ function canReviewReports(user) {
 }
 
 // Department Classification Helper
-function isTelecallingDept(departmentName) {
-  if (!departmentName) return false;
-  const d = String(departmentName).toLowerCase().trim();
-  return d.includes('telecall') || d.includes('caller');
+function isTelecallingDept(departmentName, user = null) {
+  const d = String(departmentName || '').toLowerCase().trim();
+  if (d.includes('telecall') || d.includes('caller') || d.includes('councellor') || d.includes('counselor')) {
+    return true;
+  }
+  if (user) {
+    const desig = String(user.designation || '').toLowerCase().trim();
+    const dName = String(user.displayName || '').toLowerCase().trim();
+    const role = String(user.role || '').toLowerCase().trim();
+    if (role === 'caller' || desig.includes('telecall') || desig.includes('caller') || desig.includes('councellor') || desig.includes('counselor') || dName.includes('telecall') || dName.includes('caller') || dName.includes('councellor') || dName.includes('counselor')) {
+      return true;
+    }
+  }
+  return false;
 }
 
 // Strictly sanitize activity objects to never expose Calling Performance Metrics for non-calling departments
-function sanitizeActivityForDepartment(activity) {
+function sanitizeActivityForDepartment(activity, user = null) {
   if (!activity) return null;
   const doc = activity.toObject ? activity.toObject() : { ...activity };
-  const isTelecalling = isTelecallingDept(doc.department);
+  const isTelecalling = isTelecallingDept(doc.department, user);
 
   if (!isTelecalling) {
-    doc.metrics = null;
-    doc.outcomes = [];
+    const hasCallingData = (doc.metrics && (doc.metrics.callsAttempted > 0 || doc.metrics.connectedCalls > 0)) ||
+      (Array.isArray(doc.outcomes) && doc.outcomes.length > 0);
+    if (!hasCallingData) {
+      doc.metrics = null;
+      doc.outcomes = [];
+    }
   }
   return doc;
 }
@@ -69,8 +83,8 @@ router.get('/calendar', protect, async (req, res) => {
     const days = items.map(it => ({
       date: it.activityDate,
       status: it.status,
-      // Calling figures only for Telecalling
-      callsAttempted: isTelecallingDept(it.department) ? (it.metrics?.callsAttempted || 0) : 0,
+      // Calling figures only for Telecalling & Counsellors
+      callsAttempted: isTelecallingDept(it.department, req.user) ? (it.metrics?.callsAttempted || 0) : 0,
     }));
 
     res.json({
@@ -134,7 +148,7 @@ router.post('/', protect, async (req, res) => {
       ? body.department.trim()
       : (req.user.department || body.department || 'Development').trim();
 
-    const isTelecalling = isTelecallingDept(department);
+    const isTelecalling = isTelecallingDept(department, req.user);
 
     // Strip/sanitize calling metrics if department is non-calling
     const sanitizedMetrics = isTelecalling
@@ -277,7 +291,7 @@ router.post('/:id/submit', protect, async (req, res) => {
     }
 
     const body = req.body || {};
-    const isTelecalling = isTelecallingDept(activity.department);
+    const isTelecalling = isTelecallingDept(activity.department, req.user);
 
     if (isTelecalling) {
       if (body.metrics) activity.metrics = body.metrics;

@@ -27,7 +27,7 @@ import {
   FaInbox, FaPaperPlane, FaFilterCircleXmark, FaStar, FaListUl, FaTableList,
   FaEnvelope, FaUser, FaCopy, FaBookmark, FaEllipsis, FaTrash,
 } from 'react-icons/fa6';
-import { canDelete } from '../../utils/permissions';
+import { canDelete, isCounsellor } from '../../utils/permissions';
 
 /* ─────────────────────────────────────────────────────────
    HELPERS
@@ -2097,17 +2097,19 @@ export default function Dashboard() {
         </div>
 
         {/* ── TEAM MEMBERS (IMAGE STYLE - SINGLE COLUMN, 4 CARDS + PLUS) ───── */}
-        <div className="mb-6">
-          <TeamMembersCard
-            employees={filteredActivityEmployees}
-            isAdmin={isAdmin}
-            canDeleteUser={canDelete(user)}
-            onSelectEmployee={setDetailModalEmployee}
-            onMapEmployee={setMapModalEmployee}
-            onUpdateApproval={handleApprovalStatusChange}
-            onDeleteEmployee={handleDeleteEmployee}
-          />
-        </div>
+        {!isCounsellor(user) && isAdmin && (
+          <div className="mb-6">
+            <TeamMembersCard
+              employees={filteredActivityEmployees}
+              isAdmin={isAdmin}
+              canDeleteUser={canDelete(user)}
+              onSelectEmployee={setDetailModalEmployee}
+              onMapEmployee={setMapModalEmployee}
+              onUpdateApproval={handleApprovalStatusChange}
+              onDeleteEmployee={handleDeleteEmployee}
+            />
+          </div>
+        )}
 
         {/* ── LIVE LEAD PANEL & ACTIVITIES ───── */}
         <div className="mb-6">
@@ -2115,6 +2117,7 @@ export default function Dashboard() {
         </div>
 
         {/* ── BOTTOM ROW: TEAM ACTIVITY + DEMOS ───── */}
+        {!isCounsellor(user) ? (
         <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-5">
           <motion.div whileHover={{ y: -3 }} className="rounded-3xl transition-all duration-300"
             style={{
@@ -2276,6 +2279,93 @@ export default function Dashboard() {
           </div>
         </motion.div>
       </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <motion.div whileHover={{ y: -3 }} className="rounded-3xl flex flex-col justify-between gap-4 transition-all duration-300"
+              style={{
+                background: '#ffffff',
+                border: `1px solid ${T.line}`,
+                boxShadow: T.glassShadow,
+                padding: 22,
+              }}>
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl grid place-items-center"
+                         style={{ background: 'rgba(249, 115, 22, 0.12)', color: '#ea580c' }}>
+                      <FaCalendarCheck className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-[14px] font-bold text-slate-900">Student & Client Demos</div>
+                      <div className="text-[11.5px] text-slate-500">Upcoming appointments & counselling</div>
+                    </div>
+                  </div>
+                  <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                    onClick={() => navigate('/daily-activity')}
+                    className="px-3 py-1.5 rounded-xl text-[12px] font-bold cursor-pointer transition flex items-center gap-1.5"
+                    style={{ background: 'rgba(249, 115, 22, 0.12)', color: '#ea580c' }}>
+                    <span>Log Activity</span>
+                    <FaArrowUpRightFromSquare className="w-3 h-3" />
+                  </motion.button>
+                </div>
+                <div className="flex items-baseline gap-2 mt-2">
+                  <span className="text-[32px] font-black tracking-tight text-slate-900">{actualDemosCombined}</span>
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full"
+                        style={{ background: 'rgba(249, 115, 22, 0.12)', color: '#ea580c' }}>This Month</span>
+                </div>
+                <p className="text-[12.5px] text-slate-600 mt-2 mb-0">
+                  Track student demo sessions, follow-ups scheduled, and log outcomes in your daily activity workspace.
+                </p>
+              </div>
+            </motion.div>
+
+            <motion.div whileHover={{ y: -3 }} className="rounded-3xl flex flex-col justify-between gap-4 transition-all duration-300"
+              style={{
+                background: '#ffffff',
+                border: `1px solid ${T.line}`,
+                boxShadow: T.glassShadow,
+                padding: 22,
+              }}>
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl grid place-items-center"
+                         style={{ background: 'rgba(2, 132, 199, 0.12)', color: '#0284c7' }}>
+                      <FaHeadset className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-[14px] font-bold text-slate-900">Telecalling Quick Actions</div>
+                      <div className="text-[11.5px] text-slate-500">Fast dialer, Meta Leads & Email CRM</div>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-[12.5px] text-slate-600 mt-1 mb-0">
+                  Access your assigned Meta Leads with click-to-call, log call statuses, and send personalized follow-up emails to prospects.
+                </p>
+              </div>
+              <div className="flex items-center gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => navigate('/meta-leads')}
+                  className="flex-1 py-2.5 rounded-xl text-[12px] font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                  style={{ background: 'linear-gradient(135deg, #0284c7, #0369a1)', color: '#ffffff' }}
+                >
+                  <FaBullhorn className="w-3.5 h-3.5" />
+                  <span>Assigned Meta Leads</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate(user?._id ? `/${user._id}/email` : '/email')}
+                  className="flex-1 py-2.5 rounded-xl text-[12px] font-bold transition flex items-center justify-center gap-2 cursor-pointer"
+                  style={{ background: '#f8fafc', border: `1px solid ${T.line}`, color: '#0f172a' }}
+                >
+                  <FaEnvelope className="w-3.5 h-3.5" style={{ color: '#ea4335' }} />
+                  <span>Email CRM</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
 
       {/* MODALS */}
       <AnimatePresence>

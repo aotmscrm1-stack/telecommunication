@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import useBreakpoint from '../../hooks/useBreakpoint';
 import { useSidebar } from '../../context/SidebarContext';
-import { canAccessEmailBlast, canViewCallRecordings, canAccessDigitalCalendar, canAccessDailyActivity, isManager, isExecutive } from '../../utils/permissions';
+import { canAccessEmailBlast, canViewCallRecordings, canAccessDigitalCalendar, canAccessDailyActivity, isManager, isExecutive, isCounsellor, isTelecaller } from '../../utils/permissions';
 
 const ACTIVE_BG = '#edf8f8';
 const ACTIVE_COLOR = '#1d3557';
@@ -71,6 +71,8 @@ export default function Sidebar() {
   const [hoverOpen, setHoverOpen] = useState(false);
   const isOpen = isMobile ? mobileOpen : hoverOpen;
   const [addLeadsOpen, setAddLeadsOpen] = useState(false);
+  const [whatsappOpen, setWhatsappOpen] = useState(false);
+  const [performanceOpen, setPerformanceOpen] = useState(false);
 
   const isAdmin = user?.role === 'admin' || user?.role === 'manager' || isManager(user) || isExecutive(user);
 
@@ -86,10 +88,14 @@ export default function Sidebar() {
 
   const addLeadPaths = ['/leads/new', '/bulk-import'];
   const isAddLeadsActive = addLeadPaths.some(p => location.pathname.startsWith(p));
+  const isWhatsAppActive = ['/contacts', '/whatsapp-blast', '/whatsapp'].some(p => location.pathname.startsWith(p));
+  const isPerformanceActive = ['/leaderboard', '/reports'].some(p => location.pathname.startsWith(p));
 
   useEffect(() => {
     if (isAddLeadsActive) setAddLeadsOpen(true);
-  }, [location.pathname]);
+    if (isWhatsAppActive) setWhatsappOpen(true);
+    if (isPerformanceActive) setPerformanceOpen(true);
+  }, [location.pathname, isAddLeadsActive, isWhatsAppActive, isPerformanceActive]);
 
   const NavItem = ({ to, icon, label, iconColor, badge }) => {
     const active = isActive(to);
@@ -229,72 +235,113 @@ export default function Sidebar() {
         transition: 'width 0.22s cubic-bezier(0.4,0,0.2,1), box-shadow 0.22s',
       }}>
         <div style={{ flex: 1, paddingTop: 6 }}>
-          <NavItem to="/dashboard"     icon={Icons.dashboard}   label="Dashboard" />
-          <NavItem to="/leads"         icon={Icons.leads}       label="All Leads" />
-          {canAccessDailyActivity(user) && (
-            <NavItem to="/daily-activity" icon={Icons.calendar}   label="Daily Activity" iconColor="#10b981" />
-          )}
-          {canViewCallRecordings(user) && (
-            <NavItem to="/recordings"  icon={Icons.recordings}  label="Call Recordings" iconColor="#0284c7" />
-          )}
-          {canAccessDigitalCalendar(user) && (
-            <NavItem to="/digital-calendar" icon={Icons.calendar} label="Digital Calendar" iconColor="#f97316" />
-          )}
-
-          {isAdmin && (
+          {isTelecaller(user) ? (
             <>
-              <SectionLabel text="Marketing & Campaigns" />
+              <NavItem to="/daily-activity" icon={Icons.calendar} label="Daily Activity" iconColor="#10b981" />
 
-              {/* 1. Leads */}
+              <SectionLabel text="Overall Marketing" />
               <ExpandGroup
-                icon={Icons.addLead} label="Add Leads"
+                icon={Icons.addLead} label="Leads"
                 isActiveGroup={isAddLeadsActive} open={addLeadsOpen} setOpen={setAddLeadsOpen}
               >
-                <SubItem to="/leads/new"   icon={Icons.singleLead} label="Add Single Lead" />
-                <SubItem to="/bulk-import" icon={Icons.upload}     label="Add From Excel" />
-                <SubItem to="/integrations" icon={Icons.integration} label="Add From Integration" />
+                <SubItem to="/leads/new"   icon={Icons.singleLead} label="Add Leads" />
+                <SubItem to="/leads"       icon={Icons.leads}      label="All Leads" />
+                <SubItem to="/campaigns"   icon={Icons.campaigns}  label="Campaigns" />
               </ExpandGroup>
-              <NavItem to="/campaigns"        icon={Icons.campaigns}   label="Campaigns" />
 
-              {/* 2. WhatsApp */}
-              <NavItem to="/contacts" icon={Icons.contactBook} label="Contact" iconColor="#3b82f6" />
-              <NavItem to="/whatsapp-blast"   icon={Icons.whatsappBlast} label="WhatsApp Blast" iconColor="#25D366" />
-              <NavItem to="/whatsapp"         icon={Icons.whatsapp}    label="WhatsApp" iconColor="#25D366" />
+              <ExpandGroup
+                icon={Icons.whatsapp} label="WhatsApp"
+                isActiveGroup={isWhatsAppActive} open={whatsappOpen} setOpen={setWhatsappOpen}
+              >
+                <SubItem to="/contacts"       icon={Icons.contactBook}   label="Contact" />
+                <SubItem to="/whatsapp-blast" icon={Icons.whatsappBlast} label="WhatsApp Blast" />
+                <SubItem to="/whatsapp"       icon={Icons.whatsapp}      label="WhatsApp" />
+              </ExpandGroup>
 
-              {/* 3. Meta Leads */}
-              <NavItem to="/meta-leads"       icon={Icons.metaLeads}   label="Meta Leads" iconColor="#0284c7" />
+              <NavItem to="/meta-leads" icon={Icons.metaLeads} label="Meta Leads" iconColor="#0284c7" />
 
-              {/* 4. Performance */}
-              <NavItem to="/leaderboard"      icon={Icons.leaderboard} label="Leaderboard" />
-              <NavItem to="/reports"          icon={Icons.reports}     label="Reports" />
-              <NavItem to="/message-templates" icon={Icons.templates}  label="Message Templates" />
+              <ExpandGroup
+                icon={Icons.leaderboard} label="Performance"
+                isActiveGroup={isPerformanceActive} open={performanceOpen} setOpen={setPerformanceOpen}
+              >
+                <SubItem to="/leaderboard" icon={Icons.leaderboard} label="Leaderboard" />
+                <SubItem to="/reports"     icon={Icons.reports}     label="Report" />
+              </ExpandGroup>
 
-              <SectionLabel text="Finance & Documents" />
-              <NavItem to="/offer-letter"     icon={Icons.offerLetter} label="Offer letter" iconColor="#3b82f6" />
-              <NavItem to="/payslips"         icon={Icons.payslip}     label="Payslip"      iconColor="#6366f1" />
-              <NavItem to="/quotation"        icon={Icons.quotation}   label="Quotation"    iconColor="#f59e0b" />
-              <NavItem to="/invoice"          icon={Icons.invoice}     label="Invoice"      iconColor="#059669" />
-              <NavItem to="/fee-receipt"      icon={Icons.receipt}     label="Fee Receipt"  iconColor="#8b5cf6" />
+              <SectionLabel text="My Workspace" />
+              <NavItem to={user?._id ? `/${user._id}/attendance-records` : "/attendance-records"} icon={Icons.attendanceRecords} label="Attendance" iconColor="#10b981" />
+              <NavItem to={user?._id ? `/${user._id}/email` : "/email"} icon={Icons.email} label="Email CRM" iconColor="#ea4335" />
+            </>
+          ) : (
+            <>
+              <NavItem to="/dashboard"     icon={Icons.dashboard}   label="Dashboard" />
+              <NavItem to="/leads"         icon={Icons.leads}       label="All Leads" />
+              {canAccessDailyActivity(user) && (
+                <NavItem to="/daily-activity" icon={Icons.calendar}   label="Daily Activity" iconColor="#10b981" />
+              )}
+              {canViewCallRecordings(user) && (
+                <NavItem to="/recordings"  icon={Icons.recordings}  label="Call Recordings" iconColor="#0284c7" />
+              )}
+              {canAccessDigitalCalendar(user) && (
+                <NavItem to="/digital-calendar" icon={Icons.calendar} label="Digital Calendar" iconColor="#f97316" />
+              )}
 
-              <SectionLabel text="Management" />
-              {user?.role === 'admin' && (
+              {isAdmin && (
                 <>
-                  <NavItem to={user?._id ? `/${user._id}/attendance-records` : "/attendance-records"} icon={Icons.attendanceRecords} label="Attendance Records" iconColor="#10b981" />
-                  <NavItem to="/admin/employee-tracking" icon={Icons.liveTracking} label="Live Employee Tracking" iconColor="#0284c7" />
+                  <SectionLabel text="Marketing & Campaigns" />
+
+                  {/* 1. Leads */}
+                  <ExpandGroup
+                    icon={Icons.addLead} label="Add Leads"
+                    isActiveGroup={isAddLeadsActive} open={addLeadsOpen} setOpen={setAddLeadsOpen}
+                  >
+                    <SubItem to="/leads/new"   icon={Icons.singleLead} label="Add Single Lead" />
+                    <SubItem to="/bulk-import" icon={Icons.upload}     label="Add From Excel" />
+                    <SubItem to="/integrations" icon={Icons.integration} label="Add From Integration" />
+                  </ExpandGroup>
+                  <NavItem to="/campaigns"        icon={Icons.campaigns}   label="Campaigns" />
+
+                  {/* 2. WhatsApp */}
+                  <NavItem to="/contacts" icon={Icons.contactBook} label="Contact" iconColor="#3b82f6" />
+                  <NavItem to="/whatsapp-blast"   icon={Icons.whatsappBlast} label="WhatsApp Blast" iconColor="#25D366" />
+                  <NavItem to="/whatsapp"         icon={Icons.whatsapp}    label="WhatsApp" iconColor="#25D366" />
+
+                  {/* 3. Meta Leads */}
+                  <NavItem to="/meta-leads"       icon={Icons.metaLeads}   label="Meta Leads" iconColor="#0284c7" />
+
+                  {/* 4. Performance */}
+                  <NavItem to="/leaderboard"      icon={Icons.leaderboard} label="Leaderboard" />
+                  <NavItem to="/reports"          icon={Icons.reports}     label="Reports" />
+                  <NavItem to="/message-templates" icon={Icons.templates}  label="Message Templates" />
+
+                  <SectionLabel text="Finance & Documents" />
+                  <NavItem to="/offer-letter"     icon={Icons.offerLetter} label="Offer letter" iconColor="#3b82f6" />
+                  <NavItem to="/payslips"         icon={Icons.payslip}     label="Payslip"      iconColor="#6366f1" />
+                  <NavItem to="/quotation"        icon={Icons.quotation}   label="Quotation"    iconColor="#f59e0b" />
+                  <NavItem to="/invoice"          icon={Icons.invoice}     label="Invoice"      iconColor="#059669" />
+                  <NavItem to="/fee-receipt"      icon={Icons.receipt}     label="Fee Receipt"  iconColor="#8b5cf6" />
+
+                  <SectionLabel text="Management" />
+                  {user?.role === 'admin' && (
+                    <>
+                      <NavItem to={user?._id ? `/${user._id}/attendance-records` : "/attendance-records"} icon={Icons.attendanceRecords} label="Attendance Records" iconColor="#10b981" />
+                      <NavItem to="/admin/employee-tracking" icon={Icons.liveTracking} label="Live Employee Tracking" iconColor="#0284c7" />
+                    </>
+                  )}
+                  <NavItem to="/maps"            icon={Icons.maps}       label="Interactive Maps" iconColor="#6366f1" />
+                  <NavItem to={user?._id ? `/${user._id}/email` : "/email"} icon={Icons.email} label="Email CRM" iconColor="#ea4335" />
+                  {canAccessEmailBlast(user) && (
+                    <NavItem to="/email-blast"   icon={Icons.blast}      label="Email Blast" iconColor="#2563eb" badge="n8n" />
+                  )}
+                  <NavItem to="/team-operations" icon={Icons.teamOps}    label="Team Operations" />
+                  <NavItem to="/stale-leads"     icon={Icons.staleLeads} label="Idle Leads" />
+                  <NavItem to="/users"           icon={Icons.users}      label="Users" />
+
+                  <SectionLabel text="Developer" />
+                  <NavItem to="/access-tokens"  icon={Icons.accessTokens} label="Access Tokens" />
+                  <NavItem to="/integrations"   icon={Icons.integrations} label="Integrations" />
                 </>
               )}
-              <NavItem to="/maps"            icon={Icons.maps}       label="Interactive Maps" iconColor="#6366f1" />
-              <NavItem to={user?._id ? `/${user._id}/email` : "/email"} icon={Icons.email} label="Email CRM" iconColor="#ea4335" />
-              {canAccessEmailBlast(user) && (
-                <NavItem to="/email-blast"   icon={Icons.blast}      label="Email Blast" iconColor="#2563eb" badge="n8n" />
-              )}
-              <NavItem to="/team-operations" icon={Icons.teamOps}    label="Team Operations" />
-              <NavItem to="/stale-leads"     icon={Icons.staleLeads} label="Idle Leads" />
-              <NavItem to="/users"           icon={Icons.users}      label="Users" />
-
-              <SectionLabel text="Developer" />
-              <NavItem to="/access-tokens"  icon={Icons.accessTokens} label="Access Tokens" />
-              <NavItem to="/integrations"   icon={Icons.integrations} label="Integrations" />
             </>
           )}
         </div>

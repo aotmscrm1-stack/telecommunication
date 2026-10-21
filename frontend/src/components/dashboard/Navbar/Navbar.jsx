@@ -14,7 +14,7 @@ import {
   FaUser, FaLock, FaUserCheck, FaBook, FaCalendarDays, FaTableList,
   FaChartLine, FaMobileScreen, FaDownload
 } from 'react-icons/fa6';
-import { isCEO, isHR, isManager, isLimitedStaff, canViewDashboard, canViewCallRecordings, isDigitalMarketing, canAccessDigitalCalendar, normalizeDesignation, canViewCallFollowups, canAccessMarketingLeads, canAccessDailyActivity } from '../../../utils/permissions';
+import { isCEO, isHR, isManager, isLimitedStaff, canViewDashboard, canViewCallRecordings, isDigitalMarketing, canAccessDigitalCalendar, normalizeDesignation, canViewCallFollowups, canAccessMarketingLeads, canAccessDailyActivity, isTelecaller } from '../../../utils/permissions';
 
 function WhatsAppBlastIcon({ className, style }) {
   return (
@@ -502,60 +502,36 @@ export default function Navbar() {
   const displayDesignation = user?.displayName || user?.designation || roleLabel;
 
   // Designation Navigation Rules:
-  // 1. CEO & HR: Full navigation, Dashboard shown under Information.
-  // 2. Remaining All: Dashboard is removed completely. Only Task is shown, along with Email CRM & Attendance.
+  // 1. Telecaller / Counsellor: Navbar shows ONLY Daily Activity, Overall Marketing (Meta Leads), Attendance, Email CRM.
+  // 2. CEO & HR Management: Full navigation, Dashboard shown under Information.
+  // 3. Remaining All: Dashboard is removed completely. Only Task/Daily Activity, Email CRM & Attendance.
   const hasDashboard = canViewDashboard(user);
+  const isCaller = isTelecaller(user) ||
+    user?._id === '6ab6449b62b25645faae28ed' ||
+    user?.id === '6ab6449b62b25645faae28ed' ||
+    user?.email === 'bhavani@aotms.in' ||
+    user?.role === 'caller' ||
+    user?.role === 'telecaller' ||
+    String(user?.department || '').toLowerCase().includes('telecall') ||
+    String(user?.department || '').toLowerCase().includes('caller') ||
+    String(user?.designation || '').toLowerCase().includes('telecall') ||
+    String(user?.designation || '').toLowerCase().includes('caller') ||
+    String(user?.designation || '').toLowerCase().includes('councellor') ||
+    String(user?.designation || '').toLowerCase().includes('counselor') ||
+    String(user?.displayName || '').toLowerCase().includes('telecall') ||
+    String(user?.displayName || '').toLowerCase().includes('caller') ||
+    String(user?.displayName || '').toLowerCase().includes('councellor') ||
+    String(user?.displayName || '').toLowerCase().includes('counselor') ||
+    (String(user?.department || '').toLowerCase().includes('hr') && String(user?.role || '').toLowerCase() === 'employee');
 
-  const topDropdownGroups = !hasDashboard ? [
-    ...(canAccessDailyActivity(user) ? [{
+  const telecallerNavGroups = [
+    {
       title: 'Daily Activity',
       icon: FaCalendarCheck,
       items: [
-        { label: 'Daily Activity', path: '/daily-activity', icon: FaCalendarCheck },
-        ...(canViewCallFollowups(user) ? [{ label: 'Call Follow-ups', path: '/daily-activity#followups', icon: FaClock }] : []),
-      ]
-    }] : []),
-    ...(canSeeMetaLeads ? [{
-      title: 'Marketing',
-      icon: FaBullhorn,
-      items: [
-        { label: 'Meta Leads', path: '/meta-leads', icon: FaTableList },
-      ]
-    }] : []),
-    ...(canAccessDigitalCalendar(user) ? [{
-      title: 'Digital Calendar',
-      icon: FaCalendarDays,
-      items: [
-        { label: 'Digital Calendar', path: user?._id ? `/${user._id}/digital-calendar` : '/digital-calendar', icon: FaCalendarDays },
-      ]
-    }] : []),
-    ...(canViewCallRecordings(user) ? [{
-      title: 'Call Recordings',
-      icon: FaClock,
-      items: [
-        { label: 'Call Recordings', path: '/recordings', icon: FaClock },
-      ]
-    }] : []),
-    {
-      title: 'Email CRM',
-      icon: FaEnvelopeOpenText,
-      items: [
-        { label: 'Email CRM', path: user?._id ? `/${user._id}/email` : '/email', icon: FaEnvelopeOpenText },
+        { label: 'Daily Activity', path: '/daily-activity', icon: FaCalendarCheck }
       ]
     },
-    {
-      title: 'Attendance',
-      icon: FaCalendarCheck,
-      items: [
-        { label: 'Attendance', path: user?._id ? `/${user._id}/attendance-records` : '/attendance-records', icon: FaCalendarCheck },
-      ]
-    }
-  ] : [
-    { title: 'Info', icon: FaCircleInfo, items: [
-      { label: 'Dashboard', path: '/dashboard', icon: FaHouse },
-      ...(canAccessDailyActivity(user) ? [{ label: 'Daily Activity', path: '/daily-activity', icon: FaCalendarCheck }] : []),
-      { label: 'Digital Calendar', path: '/digital-calendar', icon: FaCalendarDays },
-    ]},
     {
       title: 'Marketing',
       icon: FaBullhorn,
@@ -610,6 +586,132 @@ export default function Navbar() {
         { label: 'Report', path: '/reports', icon: FaChartPie },
       ]
     },
+    {
+      title: 'Attendance',
+      icon: FaCalendarCheck,
+      items: [
+        { label: 'Attendance', path: user?._id ? `/${user._id}/attendance-records` : '/attendance-records', icon: FaCalendarCheck }
+      ]
+    },
+    {
+      title: 'Email CRM',
+      icon: FaEnvelopeOpenText,
+      items: [
+        { label: 'Email CRM', path: user?._id ? `/${user._id}/email` : '/email', icon: FaEnvelopeOpenText }
+      ]
+    }
+  ];
+
+  const topDropdownGroups = isCaller ? telecallerNavGroups : (!hasDashboard ? [
+    ...(canAccessDailyActivity(user) ? [{
+      title: 'Daily Activity',
+      icon: FaCalendarCheck,
+      items: [
+        { label: 'Daily Activity', path: '/daily-activity', icon: FaCalendarCheck },
+        ...(canViewCallFollowups(user) ? [{ label: 'Call Follow-ups', path: '/daily-activity#followups', icon: FaClock }] : []),
+      ]
+    }] : []),
+    ...(canSeeMetaLeads ? [{
+      title: 'Marketing',
+      icon: FaBullhorn,
+      items: [
+        { label: 'Meta Leads', path: '/meta-leads', icon: FaTableList },
+      ]
+    }] : []),
+    ...(canAccessDigitalCalendar(user) ? [{
+      title: 'Digital Calendar',
+      icon: FaCalendarDays,
+      items: [
+        { label: 'Digital Calendar', path: user?._id ? `/${user._id}/digital-calendar` : '/digital-calendar', icon: FaCalendarDays },
+      ]
+    }] : []),
+    ...(canViewCallRecordings(user) ? [{
+      title: 'Call Recordings',
+      icon: FaClock,
+      items: [
+        { label: 'Call Recordings', path: '/recordings', icon: FaClock },
+      ]
+    }] : []),
+    {
+      title: 'Email CRM',
+      icon: FaEnvelopeOpenText,
+      items: [
+        { label: 'Email CRM', path: user?._id ? `/${user._id}/email` : '/email', icon: FaEnvelopeOpenText },
+      ]
+    },
+    {
+      title: 'Attendance',
+      icon: FaCalendarCheck,
+      items: [
+        { label: 'Attendance', path: user?._id ? `/${user._id}/attendance-records` : '/attendance-records', icon: FaCalendarCheck },
+      ]
+    }
+  ] : [
+    { title: 'Info', icon: FaCircleInfo, items: [
+      { label: 'Dashboard', path: '/dashboard', icon: FaHouse },
+      ...(canAccessDailyActivity(user) ? [{ label: 'Daily Activity', path: '/daily-activity', icon: FaCalendarCheck }] : []),
+      { label: 'Digital Calendar', path: '/digital-calendar', icon: FaCalendarDays },
+    ]},
+    (user?.role === 'admin' || isCEO(user) || (String(user?.department || '').toUpperCase() === 'MARKETING' && user?.role === 'manager')) ? {
+      title: 'Marketing',
+      icon: FaBullhorn,
+      sections: [
+        {
+          id: 'leads',
+          title: 'Leads',
+          icon: FaUsers,
+          items: [
+            { label: 'Add Leads', path: '/leads/new', icon: FaUserPlus },
+            { label: 'All Leads', path: '/leads', icon: FaUsers },
+            { label: 'Campaigns', path: '/campaigns', icon: FaBullhorn },
+          ]
+        },
+        {
+          id: 'whatsapp',
+          title: 'WhatsApp',
+          icon: FaWhatsapp,
+          items: [
+            { label: 'Contact', path: '/contacts', icon: FaBook },
+            { label: 'WhatsApp Blast', path: '/whatsapp-blast', icon: WhatsAppBlastIcon },
+            { label: 'WhatsApp', path: '/whatsapp', icon: FaWhatsapp },
+          ]
+        },
+        {
+          id: 'meta-leads',
+          title: 'Meta Leads',
+          icon: FaTableList,
+          path: '/meta-leads',
+          isDirect: true,
+          badge: 'Google Sheets'
+        },
+        {
+          id: 'performance',
+          title: 'Performance',
+          icon: FaChartLine,
+          items: [
+            { label: 'Leaderboard', path: '/leaderboard', icon: FaTrophy },
+            { label: 'Report', path: '/reports', icon: FaChartPie },
+          ]
+        }
+      ],
+      items: [
+        { label: 'Add Leads', path: '/leads/new', icon: FaUserPlus },
+        { label: 'All Leads', path: '/leads', icon: FaUsers },
+        { label: 'Campaigns', path: '/campaigns', icon: FaBullhorn },
+        { label: 'Contact', path: '/contacts', icon: FaBook },
+        { label: 'WhatsApp Blast', path: '/whatsapp-blast', icon: WhatsAppBlastIcon },
+        { label: 'WhatsApp', path: '/whatsapp', icon: FaWhatsapp },
+        { label: 'Meta Leads', path: '/meta-leads', icon: FaTableList },
+        { label: 'Leaderboard', path: '/leaderboard', icon: FaTrophy },
+        { label: 'Report', path: '/reports', icon: FaChartPie },
+      ]
+    } : {
+      title: 'Marketing',
+      icon: FaBullhorn,
+      items: [
+        { label: 'Meta Leads', path: '/meta-leads', icon: FaTableList, badge: 'Assigned Leads' }
+      ]
+    },
     { title: 'Finance', icon: FaCoins, items: [
       { label: 'Offer letter', path: '/offer-letter', icon: FaFileInvoiceDollar },
       { label: 'Payslip', path: '/payslips', icon: FaReceipt },
@@ -629,7 +731,7 @@ export default function Navbar() {
       { label: 'Integrations', path: '/integrations', icon: FaPlug },
       { label: 'Download APK', path: `${(import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000/api' : '/api')).replace(/\/api\/?$/, '')}/download-apk`, icon: FaDownload, isExternal: true },
     ]},
-  ];
+  ]);
 
   const handleDownloadApk = () => {
     const rawApiUrl = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000/api' : '/api');
@@ -757,7 +859,7 @@ export default function Navbar() {
                         whileHover={{ scale: 1.03, y: -1 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => {
-                          if (group.items.length === 1) {
+                          if (group.items.length === 1 && !group.forceDropdown) {
                             setActiveDropdown(null);
                             navigate(group.items[0].path);
                           } else {
@@ -790,7 +892,7 @@ export default function Navbar() {
                           }}
                         />
                         <span className="tracking-wide" style={{ color: C.blue }}>{group.title}</span>
-                        {group.items.length > 1 && (
+                        {(group.items.length > 1 || group.forceDropdown) && (
                           <FaChevronDown
                             className={`w-3 h-3 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
                             style={{ color: C.blue }}
@@ -799,7 +901,7 @@ export default function Navbar() {
                       </motion.button>
 
                       <AnimatePresence>
-                        {isOpen && group.items.length > 1 && (
+                        {isOpen && (group.items.length > 1 || group.forceDropdown) && (
                           <motion.div
                             initial={{ opacity: 0, y: 10, scale: 0.95 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -984,6 +1086,18 @@ export default function Navbar() {
                                         }}
                                       />
                                       <span style={{ color: C.blue }}>{item.label}</span>
+                                      {item.badge && (
+                                        <span
+                                          className="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full"
+                                          style={{
+                                            background: 'rgba(16, 185, 129, 0.12)',
+                                            color: '#059669',
+                                            border: '1px solid rgba(16, 185, 129, 0.25)',
+                                          }}
+                                        >
+                                          {item.badge}
+                                        </span>
+                                      )}
                                     </div>
                                   );
                                 })
@@ -1398,6 +1512,11 @@ export default function Navbar() {
                               >
                                 <ItemIcon className="w-3.5 h-3.5 transition-colors" style={{ color: C.blue }} />
                                 <span className="truncate" style={{ color: C.blue }}>{item.label}</span>
+                                {item.badge && (
+                                  <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold">
+                                    {item.badge}
+                                  </span>
+                                )}
                               </div>
                             );
                           })}

@@ -20,6 +20,7 @@ import TelecallingActivityFields from './TelecallingActivityFields';
 import DeveloperActivityFields from './DeveloperActivityFields';
 import ManagementActivityFields from './ManagementActivityFields';
 import TrainerActivityFields from './TrainerActivityFields';
+import { isCounsellor } from '../../utils/permissions';
 
 export default function DepartmentActivityForm({
   selectedDate,
@@ -45,10 +46,13 @@ export default function DepartmentActivityForm({
   const department = (activeDepartment || activity?.department || user?.department || 'Development').trim();
   const deptNormalized = department.toLowerCase();
 
-  const isTelecalling = deptNormalized.includes('telecall') || deptNormalized.includes('caller');
-  const isDeveloper = deptNormalized.includes('dev');
-  const isTrainer = deptNormalized.includes('train');
-  const isDigitalMarketing = deptNormalized.includes('market') || deptNormalized.includes('digital');
+  const targetUser = viewingEmployee || user;
+  const isTargetCounsellor = isCounsellor(targetUser) || deptNormalized.includes('councellor') || deptNormalized.includes('counselor');
+
+  const isTelecalling = deptNormalized.includes('telecall') || deptNormalized.includes('caller') || isTargetCounsellor;
+  const isDeveloper = !isTelecalling && deptNormalized.includes('dev');
+  const isTrainer = !isTelecalling && deptNormalized.includes('train');
+  const isDigitalMarketing = !isTelecalling && (deptNormalized.includes('market') || deptNormalized.includes('digital'));
   const isManagement = !isTelecalling && !isDeveloper && !isTrainer && !isDigitalMarketing && (deptNormalized.includes('manage') || deptNormalized.includes('hr') || deptNormalized.includes('admin') || user?.role === 'manager' || user?.role === 'admin');
 
   const status = activity?.status || 'draft';

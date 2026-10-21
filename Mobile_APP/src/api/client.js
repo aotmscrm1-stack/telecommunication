@@ -1,7 +1,15 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
-export const API_BASE_URL = 'https://telecommunication-l3oz.onrender.com/api';
+const getBaseUrl = () => {
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    return 'http://localhost:5000/api';
+  }
+  return 'https://telecommunication-l3oz.onrender.com/api';
+};
+
+export const API_BASE_URL = getBaseUrl();
 
 const client = axios.create({
   baseURL: API_BASE_URL,

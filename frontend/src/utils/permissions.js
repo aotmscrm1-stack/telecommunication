@@ -32,13 +32,6 @@ export const isExecutive = (user) => {
 
 export const isCEO = (user) => isExecutive(user);
 
-export const isHR = (user) => {
-  if (!user) return false;
-  const d = normalizeDesignation(user);
-  const dept = String(user?.department || '').trim().toUpperCase();
-  return d === 'HR' || d.includes('HR') || dept === 'HR';
-};
-
 export const isManager = (user) => {
   if (!user) return false;
   const d = normalizeDesignation(user);
@@ -58,6 +51,58 @@ export const isTrainer = (user) => {
   const d = normalizeDesignation(user);
   const dept = String(user?.department || '').trim().toUpperCase();
   return d.includes('TRAINER') || dept === 'TRAINER' || dept === 'TRAINERS';
+};
+
+export const isCounsellor = (user) => {
+  if (!user) return false;
+  const id = String(user?._id || user?.id || '');
+  const email = String(user?.email || '').trim().toLowerCase();
+  if (id === '6ab6449b62b25645faae28ed' || email === 'bhavani@aotms.in') return true;
+
+  const desig = String(user?.designation || '').trim().toLowerCase();
+  const dName = String(user?.displayName || '').trim().toLowerCase();
+  const dept = String(user?.department || '').trim().toLowerCase();
+  const role = String(user?.role || '').trim().toLowerCase();
+  return (
+    (dept.includes('hr') || dept.includes('telecall') || dept.includes('caller')) &&
+    (desig.includes('councellor') || desig.includes('counselor') || dName.includes('councellor') || dName.includes('counselor') || (dept.includes('hr') && role === 'employee'))
+  );
+};
+
+export const isTelecaller = (user) => {
+  if (!user) return false;
+  if (user?.role === 'admin' || user?.role === 'superadmin' || isCEO(user)) return false;
+
+  const id = String(user?._id || user?.id || '');
+  const email = String(user?.email || '').trim().toLowerCase();
+  if (id === '6ab6449b62b25645faae28ed' || email === 'bhavani@aotms.in') return true;
+
+  const desig = String(user?.designation || '').trim().toLowerCase();
+  const dName = String(user?.displayName || '').trim().toLowerCase();
+  const dept = String(user?.department || '').trim().toLowerCase();
+  const role = String(user?.role || '').trim().toLowerCase();
+  return (
+    role === 'caller' ||
+    role === 'telecaller' ||
+    role === 'councellor' ||
+    role === 'counselor' ||
+    desig.includes('telecall') || desig.includes('caller') || desig.includes('councellor') || desig.includes('counselor') ||
+    dName.includes('telecall') || dName.includes('caller') || dName.includes('councellor') || dName.includes('counselor') ||
+    dept.includes('telecall') || dept.includes('caller') ||
+    (dept.includes('hr') && role === 'employee') ||
+    isCounsellor(user)
+  );
+};
+
+export const isHR = (user) => {
+  if (!user) return false;
+  if (isTelecaller(user)) return false;
+  const d = normalizeDesignation(user);
+  const dept = String(user?.department || '').trim().toUpperCase();
+  const role = String(user?.role || '').trim().toLowerCase();
+  const isHRStaff = d === 'HR' || d.includes('HR') || dept === 'HR';
+  const isManagement = role === 'manager' || role === 'admin' || isExecutive(user) || d.includes('MANAGER') || d.includes('HEAD') || d.includes('SPECIALIST');
+  return isHRStaff && isManagement;
 };
 
 export const isDigitalMarketing = (user) => {
@@ -86,54 +131,57 @@ export const canAccessDigitalCalendar = (user) => {
 
 /**
  * Marketing & Meta Leads Access Guard:
- * Marketing Executives / Digital Marketing, Telecallers, CEO, HR, Admin, and Managers have access to their assigned campaigns/leads.
+ * Marketing Executives / Digital Marketing, Telecallers, Counsellors, CEO, HR, Admin, and Managers have access to their assigned campaigns/leads.
  * Developers and Trainers are strictly excluded.
  */
 export const canAccessMarketingLeads = (user) => {
   if (!user) return false;
+  if (isCounsellor(user)) return true;
   if (isDeveloper(user) || isTrainer(user)) return false;
   return true;
 };
 
 /**
  * Email Blast & Broadcast Access Guard:
- * Strictly restricted to CTO, HR, and Managing Director (or CEO/Executive).
- * Developers, Trainers, and Digital Marketing are strictly excluded.
+ * Strictly restricted to CTO, HR Managers, and Managing Director (or CEO/Executive).
+ * Counsellors, Developers, Trainers, and Digital Marketing are strictly excluded.
  */
 export const canAccessEmailBlast = (user) => {
   if (!user) return false;
-  if (isDeveloper(user) || isTrainer(user) || isDigitalMarketing(user)) return false;
+  if (isCounsellor(user) || isDeveloper(user) || isTrainer(user) || isDigitalMarketing(user)) return false;
   return isManagingDirector(user) || isCTO(user) || isHR(user) || isExecutive(user);
 };
 
 /**
  * Delete Action Guard:
- * - HR designation: Delete options are NOT showing (strictly false).
+ * - HR & Counsellor designation: Delete options are NOT showing (strictly false).
  * - CEO / Admin / Manager: Delete options are showing.
  */
 export const canDelete = (user) => {
   if (!user) return false;
-  if (isHR(user)) return false;
+  if (isHR(user) || isCounsellor(user)) return false;
   return isCEO(user) || user?.role === 'admin' || user?.role === 'manager';
 };
 
 /**
  * Dashboard Access Guard:
- * - Only CEO and HR are allowed to view Dashboard.
- * - Remaining all (Developer, Trainer, Digital Marketing, etc.) have Dashboard removed and only view Task.
+ * - Only CEO and HR Management are allowed to view Dashboard.
+ * - Telecallers and remaining staff do not show Dashboard and use Daily Activity & Assigned Leads.
  */
 export const canViewDashboard = (user) => {
   if (!user) return false;
+  if (isTelecaller(user)) return false;
   return isCEO(user) || isHR(user);
 };
 
 /**
  * Call Recordings Access Guard:
- * Strictly visible to HR and Admin (CEO, Managing Director, CTO, Admin role).
- * Remaining employees (Developer, Trainer, Digital Marketing, Caller, etc.) are strictly excluded.
+ * Strictly visible to HR Management and Admin (CEO, Managing Director, CTO, Admin role).
+ * Counsellors and other employees are strictly excluded.
  */
 export const canViewCallRecordings = (user) => {
   if (!user) return false;
+  if (isCounsellor(user)) return false;
   return isHR(user) || isCEO(user) || user?.role === 'admin';
 };
 

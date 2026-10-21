@@ -39,7 +39,10 @@ const DEPARTMENT_DESIGNATIONS = {
     'Sr. HR Specialist',
     'Jr. HR Executive',
     'HR Recruiter',
-    'HR Associate'
+    'HR Associate',
+    'Counsellor',
+    'HR Counsellor',
+    'Student Counsellor'
   ],
   Developer: [
     'Sr. Developer',

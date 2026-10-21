@@ -16,6 +16,7 @@ import WhatsappBlastScreen from '../screens/WhatsappBlastScreen';
 import WhatsappDirectScreen from '../screens/WhatsappDirectScreen';
 import AttendanceScreen from '../screens/AttendanceScreen';
 import CallRecordingsScreen from '../screens/CallRecordingsScreen';
+import MetaCallsScreen from '../screens/MetaCallsScreen';
 
 // Components
 import BottomNav from '../components/BottomNav';
@@ -51,6 +52,9 @@ export default function AppNavigator() {
     switch (authScreen) {
       case 'add_lead':
         return <AddLeadScreen onNavigate={setAuthScreen} />;
+      case 'meta_calls':
+      case 'calling':
+        return <MetaCallsScreen onNavigate={setAuthScreen} />;
       case 'all_leads':
       case 'leads':
         return <AllLeadsScreen onNavigate={setAuthScreen} />;

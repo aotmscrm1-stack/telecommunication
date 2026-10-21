@@ -38,7 +38,7 @@ function validateDailyActivityPayload(payload, isSubmitting = false) {
   const deptNormalized = String(department || '').toLowerCase().trim();
 
   // 2. Department-specific validation
-  if (deptNormalized.includes('telecall') || deptNormalized.includes('caller')) {
+  if (deptNormalized.includes('telecall') || deptNormalized.includes('caller') || deptNormalized.includes('councellor') || deptNormalized.includes('counselor') || (metrics && (metrics.callsAttempted > 0 || (Array.isArray(outcomes) && outcomes.length > 0)))) {
     if (metrics) {
       const {
         callsAttempted = 0,

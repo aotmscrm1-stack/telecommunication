@@ -1,7 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { canViewDashboard, isLimitedStaff, canAccessEmailBlast, canViewCallRecordings, isCEO, isHR, canAccessDigitalCalendar, canAccessMarketingLeads, canAccessDailyActivity } from '../utils/permissions';
+import { canViewDashboard, isLimitedStaff, canAccessEmailBlast, canViewCallRecordings, isCEO, isHR, isCounsellor, isTelecaller, canAccessDigitalCalendar, canAccessMarketingLeads, canAccessDailyActivity } from '../utils/permissions';
 import { ProtectedRoute } from './guards';
 
 // Layouts
@@ -80,6 +80,7 @@ import ServerError from '../pages/errors/500/ServerError';
 // Default route helper based on role and department
 const getDefaultHomeRoute = (user) => {
   if (!user) return '/login';
+  if (isTelecaller(user)) return '/daily-activity';
   if (canViewDashboard(user)) return '/dashboard';
   if (canAccessDailyActivity(user)) return '/daily-activity';
   if (canAccessDigitalCalendar(user)) return '/digital-calendar';
@@ -119,7 +120,7 @@ const StaffRestrictedRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
-  if (!canViewDashboard(user) || isLimitedStaff(user)) {
+  if (isLimitedStaff(user)) {
     return <Navigate to={getDefaultHomeRoute(user)} replace />;
   }
   return children;
@@ -129,8 +130,8 @@ const MetaLeadsRoute = ({ children }) => {
   const { user, loading, metaLeadAssignment } = useAuth();
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
-  const isAdmin = isCEO(user) || isHR(user) || user?.role === 'admin';
-  if (isAdmin || metaLeadAssignment?.hasAccess) {
+  const isAllowed = isCEO(user) || isHR(user) || isCounsellor(user) || isTelecaller(user) || user?.role === 'admin' || metaLeadAssignment?.hasAccess;
+  if (isAllowed) {
     return children;
   }
   return <Navigate to={getDefaultHomeRoute(user)} replace />;

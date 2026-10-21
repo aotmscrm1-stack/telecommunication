@@ -15,7 +15,8 @@ const ROLE_DESIGNATIONS = {
   employee: [
     'Team Member', 'Customer Support', 'Sales Representative', 'Field Executive',
     'Associate', 'Intern', 'Frontend Developer', 'Backend Developer',
-    'Full Stack Developer', 'UI/UX Designer', 'Marketing Executive'
+    'Full Stack Developer', 'UI/UX Designer', 'Marketing Executive',
+    'Counsellor', 'HR Counsellor', 'Student Counsellor'
   ],
   manager: [
     'Team Lead', 'Operations Manager', 'Sales Manager', 'HR Manager',
@@ -26,7 +27,8 @@ const ROLE_DESIGNATIONS = {
     'Director', 'General Manager'
   ],
   caller: [
-    'Telecaller', 'Voice Support Agent', 'Outbound Caller', 'Inbound Specialist'
+    'Telecaller', 'Voice Support Agent', 'Outbound Caller', 'Inbound Specialist',
+    'Counsellor', 'HR Counsellor'
   ]
 };
 

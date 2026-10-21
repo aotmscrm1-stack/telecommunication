@@ -5,11 +5,11 @@ import { colors } from '../theme/colors';
 
 export default function BottomNav({ currentScreen, onNavigate }) {
   const tabs = [
-    { id: 'dashboard', label: 'Home', icon: 'grid', activeIcon: 'grid' },
+    { id: 'dashboard', label: 'Home', icon: 'grid-outline', activeIcon: 'grid' },
+    { id: 'meta_calls', label: 'Meta Calls', icon: 'call-outline', activeIcon: 'call' },
     { id: 'all_leads', label: 'Leads', icon: 'people-outline', activeIcon: 'people' },
-    { id: 'campaigns', label: 'Campaigns', icon: 'megaphone-outline', activeIcon: 'megaphone' },
-    { id: 'attendance', label: 'Attendance', icon: 'time-outline', activeIcon: 'time' },
     { id: 'recordings', label: 'Recordings', icon: 'mic-outline', activeIcon: 'mic' },
+    { id: 'attendance', label: 'Attendance', icon: 'time-outline', activeIcon: 'time' },
   ];
 
   return (

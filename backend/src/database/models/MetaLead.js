@@ -50,6 +50,42 @@ const metaLeadSchema = new mongoose.Schema({
     default: 'New',
     index: true
   },
+  department: {
+    type: String,
+    trim: true,
+    index: true
+  },
+  lastCallAt: {
+    type: Date,
+    default: null
+  },
+  callCount: {
+    type: Number,
+    default: 0
+  },
+  followUpDate: {
+    type: Date,
+    default: null
+  },
+  callNotes: [{
+    note: { type: String, trim: true },
+    outcome: { type: String, trim: true },
+    date: { type: Date, default: Date.now },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    userName: { type: String }
+  }],
+  assignedTo: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null,
+    index: true
+  },
+  addedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null,
+    index: true
+  },
   crmLeadId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Lead',

@@ -13,11 +13,15 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
+import { useAuth } from '../context/AuthContext';
 import { leadsApi } from '../api/leadsApi';
 import Header from '../components/Header';
 import LeadCard from '../components/LeadCard';
 
 export default function AllLeadsScreen({ onNavigate }) {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -40,7 +44,7 @@ export default function AllLeadsScreen({ onNavigate }) {
       const params = {
         page: pageNum,
         limit: 20,
-        filter: 'all',
+        filter: isAdmin ? 'all' : 'mine',
       };
       if (searchQuery.trim()) params.search = searchQuery.trim();
       if (statusFilter !== 'All') params.status = statusFilter;

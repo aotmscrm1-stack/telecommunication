@@ -5,6 +5,8 @@ const MetaLead = require('../../../database/models/MetaLead');
 const Lead = require('../../../database/models/Lead');
 const MetaCampaignAssignment = require('../../../database/models/MetaCampaignAssignment');
 const MetaSyncState = require('../../../database/models/MetaSyncState');
+const User = require('../../../database/models/User');
+const Department = require('../../../database/models/Department');
 const { protect } = require('../../../core/middleware/auth');
 const env = require('../../../config/env');
 
@@ -12,37 +14,53 @@ const env = require('../../../config/env');
 function isExecutiveOrAdminUser(user) {
   if (!user) return false;
   const role = String(user.role || '').trim().toLowerCase();
-  if (role === 'admin' || role === 'superadmin' || role === 'manager') return true;
-
   const d = String(user.designation || '').trim().toUpperCase();
   const dept = String(user.department || '').trim().toUpperCase();
+  const dn = String(user.displayName || '').trim().toUpperCase();
 
-  // If user is a junior or staff marketing/sales executive or telecaller, they are restricted staff, NOT admin
-  const isMarketingOrSalesStaff = 
-    d.includes('MARKETING') || 
-    d.includes('SALES') || 
-    d.includes('CALLER') || 
-    d.includes('TELE') || 
-    d.includes('JR') || 
-    d.includes('JUNIOR');
+  // Explicit system administrators
+  if (role === 'admin' || role === 'superadmin') return true;
 
-  if (isMarketingOrSalesStaff && role !== 'admin' && role !== 'superadmin' && role !== 'manager') {
-    return false;
-  }
-
-  return (
+  // C-suite / Executive Directors
+  if (
     d === 'MD' ||
     d.includes('MANAGING DIRECTOR') ||
     d === 'CEO' ||
     d === 'CTO' ||
-    d === 'HR' ||
-    d.includes('DIRECTOR') ||
-    d.includes('VICE PRESIDENT') ||
-    d.includes('HEAD') ||
-    dept === 'HR' ||
-    dept === 'ADMIN' ||
-    dept === 'MANAGEMENT'
-  );
+    dn.includes('MANAGING DIRECTOR')
+  ) {
+    return true;
+  }
+
+  // Any counsellor, telecaller, caller, staff employee, or marketing rep is restricted
+  const isRestrictedStaff = 
+    role === 'employee' ||
+    role === 'caller' ||
+    d.includes('COUNSELLOR') || 
+    d.includes('COUNSELOR') || 
+    dn.includes('COUNSELLOR') || 
+    dn.includes('COUNSELOR') || 
+    d.includes('CALLER') || 
+    d.includes('TELE') || 
+    dn.includes('CALLER') || 
+    dn.includes('TELE') || 
+    dept.includes('TELE') ||
+    dept.includes('CALL') ||
+    d.includes('MARKETING') || 
+    d.includes('SALES') ||
+    d.includes('JR') || 
+    d.includes('JUNIOR');
+
+  if (isRestrictedStaff) {
+    return false;
+  }
+
+  // General managers not assigned to counselling / telecalling
+  if (role === 'manager' && dept !== 'HR' && !d.includes('HR')) {
+    return true;
+  }
+
+  return false;
 }
 
 // Normalize phone numbers consistently to 10 standard digits
@@ -498,12 +516,133 @@ router.get('/campaigns', protect, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GET /api/meta-leads/departments (Returns department-wise meta lead breakdown)
+// ─────────────────────────────────────────────────────────────────────────────
+router.get('/departments', protect, async (req, res) => {
+  try {
+    const isAdmin = isExecutiveOrAdminUser(req.user);
+    if (!isAdmin) {
+      const userAssignments = await MetaCampaignAssignment.find({
+        assignedUsers: req.user._id
+      }).select('campaign').lean();
+      const userCampaigns = userAssignments.map(a => a.campaign);
+      
+      const deptName = req.user.department || 'Telecalling';
+      const userScope = {
+        $or: [
+          ...(userCampaigns.length > 0 ? [{ campaign: { $in: userCampaigns } }] : []),
+          { assignedTo: req.user._id },
+          { addedBy: req.user._id }
+        ]
+      };
+
+      const [totalLeads, freshLeads, contactedLeads, convertedLeads] = await Promise.all([
+        MetaLead.countDocuments(userScope.$or.length > 0 ? userScope : { _id: null }),
+        MetaLead.countDocuments({ status: 'New', ...(userScope.$or.length > 0 ? userScope : { _id: null }) }),
+        MetaLead.countDocuments({ status: 'Contacted', ...(userScope.$or.length > 0 ? userScope : { _id: null }) }),
+        MetaLead.countDocuments({ status: 'Converted', ...(userScope.$or.length > 0 ? userScope : { _id: null }) })
+      ]);
+
+      return res.json({
+        success: true,
+        isAdmin: false,
+        isRestricted: true,
+        departments: [
+          {
+            name: deptName,
+            campaigns: userCampaigns,
+            userCount: 1,
+            users: [{ id: req.user._id, name: req.user.name, displayName: req.user.displayName || req.user.name, designation: req.user.designation }],
+            totalLeads,
+            freshLeads,
+            contactedLeads,
+            convertedLeads
+          }
+        ]
+      });
+    }
+
+    const depts = await Department.find({}).lean();
+    const deptList = depts.length ? depts.map(d => d.name) : ['HR', 'Telecalling', 'Marketing', 'Trainer', 'Developer'];
+    if (!deptList.includes('Telecalling')) deptList.push('Telecalling');
+
+    const results = [];
+    for (const d of deptList) {
+      const isTelecalling = /telecall/i.test(d);
+      const users = await User.find({
+        $or: [
+          { department: new RegExp('^' + d + '$', 'i') },
+          { designation: new RegExp(d, 'i') },
+          { displayName: new RegExp(d, 'i') },
+          ...(isTelecalling ? [
+            { designation: /counsellor|telecaller/i },
+            { displayName: /counsellor|telecaller/i }
+          ] : [])
+        ]
+      }).select('_id name department designation displayName').lean();
+
+      const uIds = users.map(u => u._id);
+      const asg = await MetaCampaignAssignment.find({ assignedUsers: { $in: uIds } }).select('campaign').lean();
+      const camps = asg.map(a => a.campaign);
+
+      const [totalLeads, freshLeads, contactedLeads, convertedLeads] = await Promise.all([
+        MetaLead.countDocuments({
+          $or: [
+            { campaign: { $in: camps } },
+            { department: new RegExp('^' + d + '$', 'i') }
+          ]
+        }),
+        MetaLead.countDocuments({
+          $and: [
+            { $or: [{ campaign: { $in: camps } }, { department: new RegExp('^' + d + '$', 'i') }] },
+            { status: 'New' }
+          ]
+        }),
+        MetaLead.countDocuments({
+          $and: [
+            { $or: [{ campaign: { $in: camps } }, { department: new RegExp('^' + d + '$', 'i') }] },
+            { status: 'Contacted' }
+          ]
+        }),
+        MetaLead.countDocuments({
+          $and: [
+            { $or: [{ campaign: { $in: camps } }, { department: new RegExp('^' + d + '$', 'i') }] },
+            { status: 'Converted' }
+          ]
+        })
+      ]);
+
+      results.push({
+        name: d,
+        campaigns: camps,
+        userCount: users.length,
+        users: users.map(u => ({ id: u._id, name: u.name, displayName: u.displayName || u.name, designation: u.designation })),
+        totalLeads,
+        freshLeads,
+        contactedLeads,
+        convertedLeads
+      });
+    }
+
+    res.json({
+      success: true,
+      isAdmin: true,
+      isRestricted: false,
+      departments: results
+    });
+  } catch (err) {
+    console.error('Error fetching meta departments:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch meta departments', error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GET /api/meta-leads (List leads with dynamic query & campaign filter)
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/', protect, async (req, res) => {
   try {
     const isAdmin = isExecutiveOrAdminUser(req.user);
-    const { campaign, search, status, page = 1, limit = 25 } = req.query;
+    const { campaign, department, search, status, page = 1, limit = 25 } = req.query;
     const query = {};
 
     let allowedCampaigns = null;
@@ -514,7 +653,16 @@ router.get('/', protect, async (req, res) => {
 
       allowedCampaigns = userAssignments.map(a => a.campaign);
 
-      if (allowedCampaigns.length === 0) {
+      // Check if user has directly assigned or added leads
+      const userLeadScope = {
+        $or: [
+          ...(allowedCampaigns.length > 0 ? [{ campaign: { $in: allowedCampaigns } }] : []),
+          { assignedTo: req.user._id },
+          { addedBy: req.user._id }
+        ]
+      };
+
+      if (userLeadScope.$or.length === 0) {
         return res.json({
           success: true,
           leads: [],
@@ -523,13 +671,13 @@ router.get('/', protect, async (req, res) => {
           pages: 1,
           availableHeaders: [],
           isRestricted: true,
-          message: 'No campaigns assigned to your profile.'
+          message: 'No campaigns or leads assigned to your profile.'
         });
       }
 
-      // Security enforcement: if tele-caller specifies a campaign they are NOT assigned to, block access
+      // Security enforcement: if telecaller specifies a campaign, verify it's assigned
       if (campaign && campaign !== 'all' && campaign !== 'All') {
-        if (!allowedCampaigns.includes(campaign)) {
+        if (allowedCampaigns.length > 0 && !allowedCampaigns.includes(campaign)) {
           return res.status(403).json({
             success: false,
             message: `Access denied. You are not assigned to campaign "${campaign}".`
@@ -537,12 +685,41 @@ router.get('/', protect, async (req, res) => {
         }
         query.campaign = campaign;
       } else {
-        // Enforce restriction to only their assigned campaigns
-        query.campaign = { $in: allowedCampaigns };
+        query.$and = query.$and || [];
+        query.$and.push(userLeadScope);
       }
     } else {
       if (campaign && campaign !== 'all' && campaign !== 'All') {
         query.campaign = campaign;
+      }
+
+      // Department-wise filter (Admin global view only)
+      if (department && department !== 'all' && department !== 'All') {
+        const isTelecalling = /telecall/i.test(department);
+        const deptUsers = await User.find({
+          $or: [
+            { department: new RegExp('^' + department + '$', 'i') },
+            { designation: new RegExp(department, 'i') },
+            { displayName: new RegExp(department, 'i') },
+            ...(isTelecalling ? [
+              { designation: /counsellor|telecaller/i },
+              { displayName: /counsellor|telecaller/i }
+            ] : [])
+          ]
+        }).select('_id').lean();
+        const deptUserIds = deptUsers.map(u => u._id);
+
+        const deptAssignments = await MetaCampaignAssignment.find({
+          assignedUsers: { $in: deptUserIds }
+        }).select('campaign').lean();
+        const deptCampaigns = deptAssignments.map(a => a.campaign);
+
+        if (!query.campaign) {
+          query.$or = [
+            { campaign: { $in: deptCampaigns } },
+            { department: new RegExp('^' + department + '$', 'i') }
+          ];
+        }
       }
     }
 
@@ -606,6 +783,88 @@ router.get('/', protect, async (req, res) => {
   } catch (err) {
     console.error('Error fetching meta leads:', err);
     res.status(500).json({ success: false, message: 'Failed to fetch meta leads', error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PATCH /api/meta-leads/:id (Update lead status, followUpDate, notes, department)
+// ─────────────────────────────────────────────────────────────────────────────
+router.patch('/:id', protect, async (req, res) => {
+  try {
+    const { status, note, callOutcome, followUpDate, department, incrementCall } = req.body;
+    const metaLead = await MetaLead.findById(req.params.id);
+    if (!metaLead) {
+      return res.status(404).json({ success: false, message: 'Meta lead not found' });
+    }
+
+    if (status) metaLead.status = status;
+    if (department) metaLead.department = department;
+    if (followUpDate) metaLead.followUpDate = new Date(followUpDate);
+    if (incrementCall) {
+      metaLead.callCount = (metaLead.callCount || 0) + 1;
+      metaLead.lastCallAt = new Date();
+    }
+
+    if (note || callOutcome) {
+      if (!Array.isArray(metaLead.callNotes)) metaLead.callNotes = [];
+      metaLead.callNotes.push({
+        note: note || '',
+        outcome: callOutcome || status || 'Call Made',
+        date: new Date(),
+        user: req.user._id,
+        userName: req.user.displayName || req.user.name || 'Agent'
+      });
+    }
+
+    await metaLead.save();
+
+    res.json({
+      success: true,
+      message: 'Lead updated successfully',
+      lead: metaLead
+    });
+  } catch (err) {
+    console.error('Error updating meta lead:', err);
+    res.status(500).json({ success: false, message: 'Failed to update lead', error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/meta-leads/:id/call-log (Record telecalling session outcome)
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/:id/call-log', protect, async (req, res) => {
+  try {
+    const { status = 'Contacted', note, followUpDate, duration } = req.body;
+    const metaLead = await MetaLead.findById(req.params.id);
+    if (!metaLead) {
+      return res.status(404).json({ success: false, message: 'Meta lead not found' });
+    }
+
+    metaLead.status = status;
+    metaLead.callCount = (metaLead.callCount || 0) + 1;
+    metaLead.lastCallAt = new Date();
+    if (followUpDate) metaLead.followUpDate = new Date(followUpDate);
+
+    if (!Array.isArray(metaLead.callNotes)) metaLead.callNotes = [];
+    metaLead.callNotes.push({
+      note: note || `Call outcome: ${status}`,
+      outcome: status,
+      duration: duration || null,
+      date: new Date(),
+      user: req.user._id,
+      userName: req.user.displayName || req.user.name || 'Telecaller'
+    });
+
+    await metaLead.save();
+
+    res.json({
+      success: true,
+      message: 'Call session logged successfully',
+      lead: metaLead
+    });
+  } catch (err) {
+    console.error('Error logging meta call session:', err);
+    res.status(500).json({ success: false, message: 'Failed to log call session', error: err.message });
   }
 });
 

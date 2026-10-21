@@ -75,6 +75,13 @@ export default function DashboardScreen({ onNavigate }) {
 
   const quickActions = [
     {
+      id: 'meta_calls',
+      title: 'Meta Calls',
+      subtitle: 'Department dialer',
+      icon: 'call',
+      color: '#10B981',
+    },
+    {
       id: 'add_lead',
       title: 'Add Lead',
       subtitle: 'New prospect',
@@ -202,6 +209,32 @@ export default function DashboardScreen({ onNavigate }) {
             </View>
           </View>
         )}
+
+        {/* Meta Calling Session Highlight Banner */}
+        <TouchableOpacity
+          style={styles.callingBanner}
+          onPress={() => onNavigate('meta_calls')}
+          activeOpacity={0.85}
+        >
+          <View style={styles.callingBannerLeft}>
+            <View style={styles.callingBadge}>
+              <Ionicons name="call" size={20} color="#FFFFFF" />
+            </View>
+            <View style={styles.callingBannerInfo}>
+              <View style={styles.callingBannerTitleRow}>
+                <Text style={styles.callingBannerTitle}>Meta Calling Session</Text>
+                <View style={styles.liveTag}>
+                  <View style={styles.liveDot} />
+                  <Text style={styles.liveTagText}>ACTIVE</Text>
+                </View>
+              </View>
+              <Text style={styles.callingBannerSubtitle}>
+                Department-wise leads, one-touch dialer & call logs
+              </Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#10B981" />
+        </TouchableOpacity>
 
         {/* Quick Actions Grid */}
         <View style={styles.sectionContainer}>
@@ -402,5 +435,73 @@ const styles = StyleSheet.create({
   emptyText: {
     color: colors.textMuted,
     fontSize: 13,
+  },
+  callingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1.5,
+    borderColor: '#A7F3D0',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 16,
+    elevation: 2,
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  callingBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  callingBadge: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#10B981',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  callingBannerInfo: {
+    flex: 1,
+  },
+  callingBannerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  callingBannerTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#065F46',
+  },
+  liveTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#D1FAE5',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
+  },
+  liveTagText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#065F46',
+  },
+  callingBannerSubtitle: {
+    fontSize: 11,
+    color: '#047857',
+    marginTop: 2,
   },
 });
