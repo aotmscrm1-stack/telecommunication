@@ -277,7 +277,7 @@ export default function AdminActivityOverview() {
               <tbody className="divide-y divide-slate-100">
                 {activities.map((row) => {
                   const emp = row.employee || {};
-                  const isTel = row.department?.toLowerCase().includes('telecall');
+                  const isTel = (row.department?.toLowerCase().includes('telecall') || row.department?.toLowerCase().includes('caller')) && !!row.metrics;
 
                   return (
                     <tr key={row._id} className="hover:bg-slate-50/70 transition">

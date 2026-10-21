@@ -110,6 +110,10 @@ function validateDailyActivityPayload(payload, isSubmitting = false) {
     }
   } else if (deptNormalized.includes('dev')) {
     const data = departmentData || {};
+    // Automatically default status to 'In Progress' if not specified
+    if (!data.status || String(data.status).trim().length === 0) {
+      data.status = 'In Progress';
+    }
     if (isSubmitting) {
       if (!data.projectName || data.projectName.trim().length === 0) {
         errors.push('Project / Module name is required.');

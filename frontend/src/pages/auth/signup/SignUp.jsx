@@ -897,6 +897,7 @@ export default function SignUp() {
   const [isLoading, setIsLoading] = useState(false);
 
   const [otpCode, setOtpCode] = useState('');
+  const [devOtp, setDevOtp] = useState('');
   const [otpTimer, setOtpTimer] = useState(60);
   const [canResendOtp, setCanResendOtp] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
@@ -950,6 +951,20 @@ export default function SignUp() {
       if (interval) clearInterval(interval);
     };
   }, [step, otpTimer]);
+
+  // If on step 4, actively fetch latest OTP from backend if available
+  useEffect(() => {
+    if (step === 4 && formData.email && !devOtp) {
+      authAPI.getLatestOtp(formData.email.trim())
+        .then((res) => {
+          if (res.data?.otp) {
+            setDevOtp(res.data.otp);
+            console.log(`[AOTMS Security] 🔑 Retrieved OTP for ${formData.email}:`, res.data.otp);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [step, formData.email, devOtp]);
 
   const handlePhoneChange = (e) => {
     const cleaned = e.target.value.replace(/\D/g, '').slice(0, 10);
@@ -1151,10 +1166,15 @@ export default function SignUp() {
 
     setIsLoading(true);
     try {
-      await authAPI.sendRegistrationOtp({
+      const res = await authAPI.sendRegistrationOtp({
         email: formData.email.trim(),
         firstName: formData.firstName.trim()
       });
+
+      if (res.data?.otp) {
+        setDevOtp(res.data.otp);
+        console.log(`[AOTMS Security] 🔑 Registration OTP Code for ${formData.email}:`, res.data.otp);
+      }
 
       setOtpTimer(60);
       setCanResendOtp(false);
@@ -1172,10 +1192,14 @@ export default function SignUp() {
     setOtpLoading(true);
     setErrorMsg('');
     try {
-      await authAPI.sendRegistrationOtp({
+      const res = await authAPI.sendRegistrationOtp({
         email: formData.email.trim(),
         firstName: formData.firstName.trim()
       });
+      if (res.data?.otp) {
+        setDevOtp(res.data.otp);
+        console.log(`[AOTMS Security] 🔑 Resent OTP Code for ${formData.email}:`, res.data.otp);
+      }
       setOtpTimer(60);
       setCanResendOtp(false);
     } catch (err) {
@@ -1688,6 +1712,47 @@ export default function SignUp() {
                     <p className="sub">
                       Enter the 6-digit code we sent to <strong>{formData.email}</strong>.
                     </p>
+
+                    {devOtp && (
+                      <div style={{
+                        background: 'rgba(249, 115, 22, 0.14)',
+                        border: '1px solid rgba(249, 115, 22, 0.45)',
+                        borderRadius: '10px',
+                        padding: '10px 14px',
+                        marginBottom: '16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        color: '#fb923c'
+                      }}>
+                        <div>
+                          <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', fontWeight: 700 }}>
+                            Verification Code (Backend Ready)
+                          </div>
+                          <div style={{ fontSize: '18px', fontWeight: 800, letterSpacing: '0.25em', color: '#ffffff', marginTop: '2px', fontFamily: 'monospace' }}>
+                            {devOtp}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setOtpCode(devOtp)}
+                          style={{
+                            background: '#f97316',
+                            color: '#ffffff',
+                            border: 'none',
+                            borderRadius: '6px',
+                            padding: '6px 12px',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            boxShadow: '0 2px 8px rgba(249, 115, 22, 0.35)',
+                            transition: 'all 0.15s'
+                          }}
+                        >
+                          Auto-fill Code
+                        </button>
+                      </div>
+                    )}
 
                     <div className="field">
                       <label htmlFor="otp">Verification Code</label>

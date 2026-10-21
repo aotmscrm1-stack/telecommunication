@@ -18,6 +18,26 @@ function canReviewReports(user) {
   return role === 'admin' || role === 'manager' || isExecutive;
 }
 
+// Department Classification Helper
+function isTelecallingDept(departmentName) {
+  if (!departmentName) return false;
+  const d = String(departmentName).toLowerCase().trim();
+  return d.includes('telecall') || d.includes('caller');
+}
+
+// Strictly sanitize activity objects to never expose Calling Performance Metrics for non-calling departments
+function sanitizeActivityForDepartment(activity) {
+  if (!activity) return null;
+  const doc = activity.toObject ? activity.toObject() : { ...activity };
+  const isTelecalling = isTelecallingDept(doc.department);
+
+  if (!isTelecalling) {
+    doc.metrics = null;
+    doc.outcomes = [];
+  }
+  return doc;
+}
+
 // ── 1. GET /calendar: Return date status dots for a month ──────────────────────
 router.get('/calendar', protect, async (req, res) => {
   try {
@@ -32,17 +52,25 @@ router.get('/calendar', protect, async (req, res) => {
     }
 
     const monthRegex = new RegExp(`^${month}`);
-    const items = await DailyActivity.find({
+    const query = {
       employeeId: targetEmployeeId,
       activityDate: monthRegex,
-    })
-      .select('activityDate status metrics.callsAttempted')
+    };
+
+    // Department filter for Admin workspace simulation/filtering
+    if (req.query.department && req.query.department !== 'all') {
+      query.department = new RegExp(`^${req.query.department.trim()}$`, 'i');
+    }
+
+    const items = await DailyActivity.find(query)
+      .select('activityDate status department metrics.callsAttempted')
       .lean();
 
     const days = items.map(it => ({
       date: it.activityDate,
       status: it.status,
-      callsAttempted: it.metrics?.callsAttempted || 0,
+      // Calling figures only for Telecalling
+      callsAttempted: isTelecallingDept(it.department) ? (it.metrics?.callsAttempted || 0) : 0,
     }));
 
     res.json({
@@ -68,18 +96,26 @@ router.get('/', protect, async (req, res) => {
       }
     }
 
-    const activity = await DailyActivity.findOne({
+    const query = {
       employeeId: targetEmployeeId,
       activityDate: date,
-    })
+    };
+
+    if (req.query.department && req.query.department !== 'all') {
+      query.department = new RegExp(`^${req.query.department.trim()}$`, 'i');
+    }
+
+    const activityRaw = await DailyActivity.findOne(query)
       .populate('employee', 'name email role department designation avatar')
       .populate('reviewedBy', 'name email designation')
       .lean();
 
+    const activity = sanitizeActivityForDepartment(activityRaw);
+
     res.json({
       success: true,
       activity: activity || null,
-      userDepartment: req.user.department || 'Telecalling',
+      userDepartment: req.user.department || 'Development',
     });
   } catch (err) {
     console.error('[DailyActivity] GET / error:', err);
@@ -92,12 +128,35 @@ router.post('/', protect, async (req, res) => {
   try {
     const body = req.body || {};
     const activityDate = body.activityDate || new Date().toISOString().slice(0, 10);
-    const department = req.user.department || body.department || 'Telecalling';
+
+    // If Admin/Manager explicitly specifies department, accept it; otherwise use user's department
+    const department = (canReviewReports(req.user) && body.department)
+      ? body.department.trim()
+      : (req.user.department || body.department || 'Development').trim();
+
+    const isTelecalling = isTelecallingDept(department);
+
+    // Strip/sanitize calling metrics if department is non-calling
+    const sanitizedMetrics = isTelecalling
+      ? (body.metrics || { callsAttempted: 0, connectedCalls: 0, unansweredCalls: 0, interestedLeads: 0, followUpsScheduled: 0, conversions: 0 })
+      : { callsAttempted: 0, connectedCalls: 0, unansweredCalls: 0, interestedLeads: 0, followUpsScheduled: 0, conversions: 0 };
+
+    const sanitizedOutcomes = isTelecalling
+      ? (Array.isArray(body.outcomes) ? body.outcomes : [])
+      : [];
+
+    const deptData = { ...(body.departmentData || {}) };
+    if (department.toLowerCase().includes('dev') && !deptData.status) {
+      deptData.status = 'In Progress';
+    }
 
     const payloadToValidate = {
       ...body,
       activityDate,
       department,
+      departmentData: deptData,
+      metrics: sanitizedMetrics,
+      outcomes: sanitizedOutcomes,
     };
 
     const validation = validateDailyActivityPayload(payloadToValidate, false);
@@ -109,7 +168,7 @@ router.post('/', protect, async (req, res) => {
       });
     }
 
-    // Check for existing report for this date
+    // Check for existing report for this date & department
     let existing = await DailyActivity.findOne({
       employeeId: req.user._id,
       activityDate,
@@ -130,11 +189,10 @@ router.post('/', protect, async (req, res) => {
     }
 
     if (existing) {
-      // Update existing draft or needs_correction record
       existing.department = department;
-      if (body.metrics) existing.metrics = body.metrics;
-      if (Array.isArray(body.outcomes)) existing.outcomes = body.outcomes;
-      if (body.departmentData) existing.departmentData = body.departmentData;
+      existing.metrics = sanitizedMetrics;
+      existing.outcomes = sanitizedOutcomes;
+      if (body.departmentData) existing.departmentData = deptData;
       if (body.remarks !== undefined) existing.remarks = body.remarks;
       if (body.nextSteps !== undefined) existing.nextSteps = body.nextSteps;
 
@@ -151,7 +209,7 @@ router.post('/', protect, async (req, res) => {
       return res.json({
         success: true,
         message: 'Daily activity draft saved successfully.',
-        activity: existing,
+        activity: sanitizeActivityForDepartment(existing),
       });
     }
 
@@ -161,9 +219,9 @@ router.post('/', protect, async (req, res) => {
       department,
       activityDate,
       status: 'draft',
-      metrics: body.metrics || {},
-      outcomes: Array.isArray(body.outcomes) ? body.outcomes : [],
-      departmentData: body.departmentData || {},
+      metrics: sanitizedMetrics,
+      outcomes: sanitizedOutcomes,
+      departmentData: deptData,
       remarks: body.remarks || '',
       nextSteps: body.nextSteps || '',
       revisions: [
@@ -181,7 +239,7 @@ router.post('/', protect, async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Daily activity draft created successfully.',
-      activity: newActivity,
+      activity: sanitizeActivityForDepartment(newActivity),
     });
   } catch (err) {
     if (err.code === 11000) {
@@ -218,11 +276,22 @@ router.post('/:id/submit', protect, async (req, res) => {
       return res.status(400).json({ success: false, message: 'This report is already submitted.' });
     }
 
-    // Optional payload updates upon submission
     const body = req.body || {};
-    if (body.metrics) activity.metrics = body.metrics;
-    if (Array.isArray(body.outcomes)) activity.outcomes = body.outcomes;
-    if (body.departmentData) activity.departmentData = body.departmentData;
+    const isTelecalling = isTelecallingDept(activity.department);
+
+    if (isTelecalling) {
+      if (body.metrics) activity.metrics = body.metrics;
+      if (Array.isArray(body.outcomes)) activity.outcomes = body.outcomes;
+    } else {
+      activity.metrics = { callsAttempted: 0, connectedCalls: 0, unansweredCalls: 0, interestedLeads: 0, followUpsScheduled: 0, conversions: 0 };
+      activity.outcomes = [];
+    }
+
+    const deptData = { ...(body.departmentData || activity.departmentData || {}) };
+    if (activity.department.toLowerCase().includes('dev') && !deptData.status) {
+      deptData.status = 'In Progress';
+    }
+    activity.departmentData = deptData;
     if (body.remarks !== undefined) activity.remarks = body.remarks;
     if (body.nextSteps !== undefined) activity.nextSteps = body.nextSteps;
 
@@ -249,7 +318,7 @@ router.post('/:id/submit', protect, async (req, res) => {
     res.json({
       success: true,
       message: 'Daily activity submitted successfully.',
-      activity,
+      activity: sanitizeActivityForDepartment(activity),
     });
   } catch (err) {
     console.error('[DailyActivity] POST /:id/submit error:', err);
@@ -264,7 +333,18 @@ router.get('/history', protect, async (req, res) => {
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 10));
     const skip = (page - 1) * limit;
 
-    const query = { employeeId: req.user._id };
+    let targetEmployeeId = req.user._id;
+    if (req.query.employeeId && canReviewReports(req.user)) {
+      if (mongoose.Types.ObjectId.isValid(req.query.employeeId)) {
+        targetEmployeeId = new mongoose.Types.ObjectId(req.query.employeeId);
+      }
+    }
+
+    const query = { employeeId: targetEmployeeId };
+
+    if (req.query.department && req.query.department !== 'all') {
+      query.department = new RegExp(`^${req.query.department.trim()}$`, 'i');
+    }
 
     if (req.query.status && req.query.status !== 'all') {
       query.status = req.query.status;
@@ -279,9 +359,11 @@ router.get('/history', protect, async (req, res) => {
       DailyActivity.countDocuments(query),
     ]);
 
+    const sanitizedItems = items.map(it => sanitizeActivityForDepartment(it));
+
     res.json({
       success: true,
-      activities: items,
+      activities: sanitizedItems,
       total,
       page,
       totalPages: Math.ceil(total / limit) || 1,
@@ -295,9 +377,32 @@ router.get('/history', protect, async (req, res) => {
 // ── 6. GET /follow-ups: Fetch telecaller's call follow-ups due today & upcoming ──
 router.get('/follow-ups', protect, async (req, res) => {
   try {
+    const userDept = String(req.user.department || '').toLowerCase();
+    const userRole = String(req.user.role || '').toLowerCase();
+    const userDesig = String(req.user.designation || '').toLowerCase();
+    const isTelecalling = userDept.includes('telecall') || userDept.includes('caller') || userRole === 'caller' || userDesig.includes('caller');
+    const isAdmin = canReviewReports(req.user);
+
+    // If query requests a non-calling department, strictly hide/return empty follow-ups
+    if (req.query.department && !isTelecallingDept(req.query.department)) {
+      return res.json({
+        success: true,
+        followUps: [],
+        directLeads: [],
+      });
+    }
+
+    // Non-calling staff (e.g. Developer, Trainer, HR) should never receive telecalling follow-up lists
+    if (!isTelecalling && !isAdmin) {
+      return res.json({
+        success: true,
+        followUps: [],
+        directLeads: [],
+      });
+    }
+
     const todayStr = new Date().toISOString().slice(0, 10);
     const startOfToday = new Date(`${todayStr}T00:00:00.000Z`);
-    const endOfToday = new Date(`${todayStr}T23:59:59.999Z`);
 
     // 1. Fetch from FollowUp collection
     const followUps = await FollowUp.find({
@@ -313,7 +418,7 @@ router.get('/follow-ups', protect, async (req, res) => {
       .limit(20)
       .lean();
 
-    // 2. Also check leads directly assigned to this telecaller with a nextFollowUpDate
+    // 2. Leads directly assigned to this telecaller
     const directLeads = await Lead.find({
       $or: [
         { assignedTo: req.user._id },
@@ -365,7 +470,7 @@ router.get('/admin/overview', protect, authorize('admin', 'manager'), async (req
 
     const query = {};
 
-    if (req.query.department && req.query.department !== 'all') {
+    if (req.query.department && req.query.department !== 'all' && req.query.department !== 'All') {
       query.department = new RegExp(`^${req.query.department.trim()}$`, 'i');
     }
 
@@ -400,7 +505,6 @@ router.get('/admin/overview', protect, authorize('admin', 'manager'), async (req
 
       const matchedIds = matchingUsers.map(u => u._id);
       if (query.employeeId) {
-        // If employeeId is already set, verify intersection
         if (!matchedIds.some(id => id.toString() === query.employeeId.toString())) {
           return res.json({ success: true, activities: [], total: 0, page, totalPages: 1, summary: {} });
         }
@@ -438,9 +542,11 @@ router.get('/admin/overview', protect, authorize('admin', 'manager'), async (req
       }
     });
 
+    const sanitizedActivities = items.map(item => sanitizeActivityForDepartment(item));
+
     res.json({
       success: true,
-      activities: items,
+      activities: sanitizedActivities,
       total,
       page,
       totalPages: Math.ceil(total / limit) || 1,
@@ -460,23 +566,25 @@ router.get('/:id', protect, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid report ID.' });
     }
 
-    const activity = await DailyActivity.findById(id)
+    const activityRaw = await DailyActivity.findById(id)
       .populate('employee', 'name email role department designation avatar')
       .populate('reviewedBy', 'name email designation')
       .populate('revisions.editedBy', 'name email')
       .lean();
 
-    if (!activity) {
+    if (!activityRaw) {
       return res.status(404).json({ success: false, message: 'Report not found.' });
     }
 
     // RBAC: Check ownership or Admin permission
-    const ownerId = (activity.employeeId && activity.employeeId._id)
-      ? activity.employeeId._id.toString()
-      : activity.employeeId ? activity.employeeId.toString() : '';
+    const ownerId = (activityRaw.employeeId && activityRaw.employeeId._id)
+      ? activityRaw.employeeId._id.toString()
+      : activityRaw.employeeId ? activityRaw.employeeId.toString() : '';
     if (ownerId !== req.user._id.toString() && !canReviewReports(req.user)) {
       return res.status(403).json({ success: false, message: 'You are not authorized to view this report.' });
     }
+
+    const activity = sanitizeActivityForDepartment(activityRaw);
 
     res.json({
       success: true,
@@ -538,7 +646,7 @@ router.patch('/:id/review', protect, authorize('admin', 'manager'), async (req, 
     res.json({
       success: true,
       message: status === 'reviewed' ? 'Report approved and marked as reviewed.' : 'Correction requested from employee.',
-      activity,
+      activity: sanitizeActivityForDepartment(activity),
     });
   } catch (err) {
     console.error('[DailyActivity] PATCH /:id/review error:', err);

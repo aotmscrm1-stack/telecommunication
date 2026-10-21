@@ -31,8 +31,8 @@ export default function ManagementActivityFields({
             disabled={disabled}
             value={departmentData.teamName || ''}
             onChange={(e) => handleChange('teamName', e.target.value)}
-            placeholder="e.g. Sales & Telecalling Operations"
-            className="w-full text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-sky-500 focus:bg-white font-medium"
+            placeholder="Team or department"
+            className="w-full text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 placeholder:text-slate-300 placeholder:font-light focus:outline-none focus:border-sky-500 focus:bg-white font-medium"
           />
         </div>
 
@@ -46,8 +46,8 @@ export default function ManagementActivityFields({
             disabled={disabled}
             value={departmentData.targetsProgress || ''}
             onChange={(e) => handleChange('targetsProgress', e.target.value)}
-            placeholder="e.g. 85% of monthly calling quota completed"
-            className="w-full text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-sky-500 focus:bg-white font-medium"
+            placeholder="Progress metric"
+            className="w-full text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 placeholder:text-slate-300 placeholder:font-light focus:outline-none focus:border-sky-500 focus:bg-white font-medium"
           />
         </div>
       </div>
@@ -63,8 +63,8 @@ export default function ManagementActivityFields({
           disabled={disabled}
           value={departmentData.keyActivities || ''}
           onChange={(e) => handleChange('keyActivities', e.target.value)}
-          placeholder="Summarize executive meetings, team syncs, stakeholder discussions, and employee 1-on-1s..."
-          className="w-full text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-sky-500 focus:bg-white font-medium"
+          placeholder="Meetings and team syncs conducted"
+          className="w-full text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 placeholder:text-slate-300 placeholder:font-light focus:outline-none focus:border-sky-500 focus:bg-white font-medium leading-relaxed"
         />
       </div>
 
@@ -79,8 +79,8 @@ export default function ManagementActivityFields({
           disabled={disabled}
           value={departmentData.decisionsMade || ''}
           onChange={(e) => handleChange('decisionsMade', e.target.value)}
-          placeholder="List key hiring decisions, budget approvals, discount concessions, or policy decisions..."
-          className="w-full text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-sky-500 focus:bg-white font-medium"
+          placeholder="Key decisions and approvals"
+          className="w-full text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 placeholder:text-slate-300 placeholder:font-light focus:outline-none focus:border-sky-500 focus:bg-white font-medium leading-relaxed"
         />
       </div>
 
@@ -95,8 +95,8 @@ export default function ManagementActivityFields({
           disabled={disabled}
           value={departmentData.risksEscalations || ''}
           onChange={(e) => handleChange('risksEscalations', e.target.value)}
-          placeholder="Report any compliance hurdles, resource shortages, or critical escalations..."
-          className="w-full text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-sky-500 focus:bg-white font-medium"
+          placeholder="Risks or bottlenecks (optional)"
+          className="w-full text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 placeholder:text-slate-300 placeholder:font-light focus:outline-none focus:border-sky-500 focus:bg-white font-medium leading-relaxed"
         />
       </div>
     </div>

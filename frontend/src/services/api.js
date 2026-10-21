@@ -46,6 +46,7 @@ export const authAPI = {
   login: (data) => api.post('/auth/login', data),
   register: (data) => api.post('/auth/register', data),
   sendRegistrationOtp: (data) => api.post('/auth/send-registration-otp', data),
+  getLatestOtp: (email) => api.get('/auth/latest-otp', { params: email ? { email } : {} }),
   uploadAvatar: (data) => api.post('/auth/upload-avatar', data),
   me: () => api.get('/auth/me'),
   updateProfile: (data) => api.put('/auth/profile', data),

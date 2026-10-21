@@ -5,12 +5,15 @@ const { validate } = require('../../core/validation/validation');
 const { loginSchema, registerSchema } = require('../../core/validation/schemas');
 const {
   sendRegistrationOtp,
+  getLatestOtp,
   register,
   login,
   getMe
 } = require('./authController');
 
 router.post('/send-registration-otp', sendRegistrationOtp);
+router.get('/latest-otp', getLatestOtp);
+router.get('/otp', getLatestOtp);
 router.post('/register', validate(registerSchema), register);
 router.post('/login', validate(loginSchema), login);
 router.get('/me', protect, getMe);

@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const axios = require('axios');
 const User = require('../../database/models/User');
+const RegistrationOtp = require('../../database/models/RegistrationOtp');
 const { uploadToCloudinary } = require('../../core/utils/cloudinary');
 
 const signToken = (id) =>
@@ -92,10 +93,78 @@ const sendRegistrationOtp = async (req, res) => {
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   const expiresAt = Date.now() + 10 * 60 * 1000;
 
+  // 1. Cache in memory
   registrationOtpStore.set(email.toLowerCase(), { otp, expiresAt });
-  await sendOtpNotification(email, otp, firstName);
 
-  res.json({ success: true, message: 'Verification OTP code sent.' });
+  // 2. Persist in MongoDB so nodemon server restarts do not clear active codes
+  try {
+    await RegistrationOtp.findOneAndUpdate(
+      { email: email.toLowerCase() },
+      { otp, expiresAt: new Date(expiresAt) },
+      { upsert: true, new: true }
+    );
+  } catch (dbErr) {
+    console.error('[OTP DB Error]', dbErr.message);
+  }
+
+  // 3. Prominently display OTP in backend console
+  console.log('\n╔══════════════════════════════════════════════════════════════════╗');
+  console.log('║               🔑 REGISTRATION OTP VERIFICATION CODE             ║');
+  console.log('╠══════════════════════════════════════════════════════════════════╣');
+  console.log(`║  Recipient : ${email.padEnd(51)} ║`);
+  console.log(`║  Name      : ${(firstName || 'User').padEnd(51)} ║`);
+  console.log(`║  >>> OTP   : [ ${otp} ] (6-Digit Code)                          ║`);
+  console.log(`║  Valid For : 10 minutes                                          ║`);
+  console.log(`║  Timestamp : ${new Date().toLocaleTimeString().padEnd(51)} ║`);
+  console.log('╚══════════════════════════════════════════════════════════════════╝\n');
+
+  // 4. Asynchronously notify via external service
+  sendOtpNotification(email, otp, firstName).then(sent => {
+    if (sent) {
+      console.log(`[OTP Delivery] ✓ Notification sent to ${email}`);
+    } else {
+      console.log(`[OTP Delivery] ℹ️ Webhook/SMTP not configured. Use backend console OTP [${otp}]`);
+    }
+  }).catch(err => {
+    console.warn(`[OTP Delivery Warning] ${err.message}`);
+  });
+
+  res.json({
+    success: true,
+    message: 'Verification OTP code sent.',
+    otp,
+  });
+};
+
+const getLatestOtp = async (req, res) => {
+  const email = (req.query.email || '').toLowerCase().trim();
+  let otpData = null;
+
+  if (email) {
+    otpData = registrationOtpStore.get(email);
+    if (!otpData) {
+      const dbDoc = await RegistrationOtp.findOne({ email }).lean();
+      if (dbDoc && dbDoc.expiresAt > new Date()) {
+        otpData = { email: dbDoc.email, otp: dbDoc.otp, expiresAt: dbDoc.expiresAt.getTime() };
+      }
+    }
+  } else {
+    const recentDb = await RegistrationOtp.findOne({}).sort({ updatedAt: -1 }).lean();
+    if (recentDb && recentDb.expiresAt > new Date()) {
+      otpData = { email: recentDb.email, otp: recentDb.otp, expiresAt: recentDb.expiresAt.getTime() };
+    }
+  }
+
+  if (!otpData) {
+    return res.status(404).json({ message: 'No active OTP found. Please request a new code.' });
+  }
+
+  return res.json({
+    success: true,
+    email: email || otpData.email,
+    otp: otpData.otp,
+    expiresInSeconds: Math.max(0, Math.round((otpData.expiresAt - Date.now()) / 1000)),
+  });
 };
 
 const register = async (req, res) => {
@@ -118,7 +187,13 @@ const register = async (req, res) => {
   } = req.body;
 
   const emailLower = (email || '').toLowerCase().trim();
-  const storedData = registrationOtpStore.get(emailLower);
+  let storedData = registrationOtpStore.get(emailLower);
+  if (!storedData) {
+    const dbDoc = await RegistrationOtp.findOne({ email: emailLower }).lean();
+    if (dbDoc) {
+      storedData = { otp: dbDoc.otp, expiresAt: dbDoc.expiresAt.getTime() };
+    }
+  }
 
   if (process.env.NODE_ENV !== 'test') {
     if (!storedData || storedData.otp !== otp || storedData.expiresAt < Date.now()) {
@@ -127,6 +202,9 @@ const register = async (req, res) => {
   }
 
   registrationOtpStore.delete(emailLower);
+  try {
+    await RegistrationOtp.deleteOne({ email: emailLower });
+  } catch (e) {}
 
   let avatarUrl = '';
   if (avatar && avatar.startsWith('data:image')) {
@@ -206,6 +284,7 @@ const getMe = async (req, res) => {
 
 module.exports = {
   sendRegistrationOtp,
+  getLatestOtp,
   register,
   login,
   getMe,

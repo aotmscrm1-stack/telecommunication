@@ -11,6 +11,12 @@ import {
   FileText,
   History,
   Send,
+  Code2,
+  GitPullRequest,
+  CheckSquare,
+  GraduationCap,
+  Briefcase,
+  ExternalLink,
 } from 'lucide-react';
 import { dailyActivityAPI } from '../../services/api';
 
@@ -103,10 +109,17 @@ export default function ActivityReportDrawer({
   if (!reportId) return null;
 
   const emp = activity?.employee || {};
-  const metrics = activity?.metrics || {};
+  const metrics = activity?.metrics;
   const outcomes = activity?.outcomes || [];
   const revisions = activity?.revisions || [];
   const status = activity?.status;
+
+  const deptNormalized = String(activity?.department || '').trim().toLowerCase();
+  const isTelecalling = deptNormalized.includes('telecall') || deptNormalized.includes('caller');
+  const isDeveloper = deptNormalized.includes('dev');
+  const isTrainer = deptNormalized.includes('train');
+  const isManagement = deptNormalized.includes('manage') || deptNormalized.includes('hr');
+  const devData = activity?.departmentData || {};
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-xs transition-opacity animate-fade-in">
@@ -193,8 +206,8 @@ export default function ActivityReportDrawer({
                 </div>
               )}
 
-              {/* Calling Metrics (if Telecalling) */}
-              {metrics && metrics.callsAttempted !== undefined && (
+              {/* Calling Metrics — STRICTLY Telecalling Only */}
+              {isTelecalling && metrics && (
                 <div>
                   <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
                     <Phone className="w-3.5 h-3.5 text-sky-600" />
@@ -229,8 +242,148 @@ export default function ActivityReportDrawer({
                 </div>
               )}
 
-              {/* Department Specific Data (if Developer / Trainer / Management) */}
-              {activity?.departmentData && Object.keys(activity.departmentData).length > 0 && (
+              {/* Developer Specific Report Details */}
+              {isDeveloper && (
+                <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200 text-xs space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                    <h4 className="font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5 text-xs">
+                      <Code2 className="w-4 h-4 text-sky-600" />
+                      <span>Developer Deliverables & Technical Progress</span>
+                    </h4>
+                    {devData.status && (
+                      <span className={`px-2.5 py-0.5 text-[11px] font-bold rounded-lg border ${
+                        devData.status === 'Completed'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : devData.status === 'Blocked'
+                          ? 'bg-rose-50 text-rose-700 border-rose-200'
+                          : devData.status === 'Testing' || devData.status === 'Code Review'
+                          ? 'bg-purple-50 text-purple-700 border-purple-200'
+                          : 'bg-sky-50 text-sky-700 border-sky-200'
+                      }`}>
+                        {devData.status}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div>
+                      <span className="text-[11px] font-semibold text-slate-400 block uppercase tracking-wider">Project / Module</span>
+                      <span className="font-bold text-slate-800 text-sm">{devData.projectName || '—'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[11px] font-semibold text-slate-400 block uppercase tracking-wider">Task / Ticket ID</span>
+                      <span className="font-bold text-slate-700">{devData.ticketId || '—'}</span>
+                    </div>
+                  </div>
+
+                  {devData.prLink && (
+                    <div className="pt-1">
+                      <span className="text-[11px] font-semibold text-slate-400 block uppercase tracking-wider mb-1 flex items-center gap-1">
+                        <GitPullRequest className="w-3.5 h-3.5 text-slate-500" />
+                        <span>Git Branch / Pull Request</span>
+                      </span>
+                      <a
+                        href={devData.prLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sky-600 hover:text-sky-800 underline break-all font-semibold flex items-center gap-1"
+                      >
+                        <span>{devData.prLink}</span>
+                        <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                      </a>
+                    </div>
+                  )}
+
+                  {devData.workCompleted && (
+                    <div className="pt-1">
+                      <span className="text-[11px] font-semibold text-slate-400 block uppercase tracking-wider mb-1 flex items-center gap-1">
+                        <CheckSquare className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Work Completed & Features</span>
+                      </span>
+                      <div className="p-3 bg-white rounded-xl border border-slate-200 text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">
+                        {devData.workCompleted}
+                      </div>
+                    </div>
+                  )}
+
+                  {devData.blockers && (
+                    <div className="pt-1">
+                      <span className="text-[11px] font-semibold text-rose-600 block uppercase tracking-wider mb-1 flex items-center gap-1">
+                        <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
+                        <span>Blockers / Impediments</span>
+                      </span>
+                      <div className="p-3 bg-rose-50/50 rounded-xl border border-rose-200 text-rose-900 leading-relaxed whitespace-pre-wrap font-medium">
+                        {devData.blockers}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Trainer Specific Report Details */}
+              {isTrainer && activity?.departmentData && (
+                <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200 text-xs space-y-3">
+                  <h4 className="font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5 text-xs pb-2 border-b border-slate-200">
+                    <GraduationCap className="w-4 h-4 text-emerald-600" />
+                    <span>Trainer Session Report</span>
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <span className="text-[11px] text-slate-400 font-semibold block uppercase">Course / Batch</span>
+                      <span className="font-bold text-slate-800">{activity.departmentData.courseBatch || '—'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[11px] text-slate-400 font-semibold block uppercase">Session Topic</span>
+                      <span className="font-bold text-slate-800">{activity.departmentData.sessionTopic || '—'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[11px] text-slate-400 font-semibold block uppercase">Attendance Count</span>
+                      <span className="font-bold text-emerald-700">{activity.departmentData.attendanceCount ?? '—'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[11px] text-slate-400 font-semibold block uppercase">Session Mode</span>
+                      <span className="font-bold text-slate-800">{activity.departmentData.sessionMode || '—'}</span>
+                    </div>
+                  </div>
+                  {activity.departmentData.topicsCovered && (
+                    <div>
+                      <span className="text-[11px] text-slate-400 font-semibold block uppercase mb-1">Topics & Lab Covered</span>
+                      <div className="p-3 bg-white rounded-xl border border-slate-200 text-slate-800 font-medium">
+                        {activity.departmentData.topicsCovered}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Management / HR Specific Report Details */}
+              {isManagement && activity?.departmentData && (
+                <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200 text-xs space-y-3">
+                  <h4 className="font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5 text-xs pb-2 border-b border-slate-200">
+                    <Briefcase className="w-4 h-4 text-sky-600" />
+                    <span>Management Deliverables & Highlights</span>
+                  </h4>
+                  {activity.departmentData.keyActivities && (
+                    <div>
+                      <span className="text-[11px] text-slate-400 font-semibold block uppercase mb-1">Key Activities & Meetings</span>
+                      <div className="p-3 bg-white rounded-xl border border-slate-200 text-slate-800 font-medium">
+                        {activity.departmentData.keyActivities}
+                      </div>
+                    </div>
+                  )}
+                  {activity.departmentData.decisions && (
+                    <div>
+                      <span className="text-[11px] text-slate-400 font-semibold block uppercase mb-1">Decisions & Roadblocks</span>
+                      <div className="p-3 bg-white rounded-xl border border-slate-200 text-slate-800 font-medium">
+                        {activity.departmentData.decisions}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Fallback Department Log Payload for any unhandled department */}
+              {!isDeveloper && !isTrainer && !isManagement && !isTelecalling && activity?.departmentData && Object.keys(activity.departmentData).length > 0 && (
                 <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs">
                   <h4 className="font-bold text-slate-700 uppercase tracking-wider mb-2">
                     Department Log Payload
@@ -246,8 +399,8 @@ export default function ActivityReportDrawer({
                 </div>
               )}
 
-              {/* Lead Call Outcomes */}
-              {outcomes.length > 0 && (
+              {/* Lead Call Outcomes — STRICTLY Telecalling Only */}
+              {isTelecalling && outcomes.length > 0 && (
                 <div>
                   <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2.5">
                     Lead Call Outcomes ({outcomes.length})

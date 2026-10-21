@@ -9,7 +9,13 @@ export default function ActivityHistoryTable({
   onPageChange,
   onSelectDate,
   loading = false,
+  activeDepartment = '',
 }) {
+  const deptNormalized = String(activeDepartment || '').trim().toLowerCase();
+  const isTelecalling = deptNormalized.includes('telecall') || deptNormalized.includes('caller');
+  const isDeveloper = deptNormalized.includes('dev');
+  const isTrainer = deptNormalized.includes('train');
+
   const getStatusBadge = (status) => {
     if (status === 'reviewed') {
       return (
@@ -45,7 +51,15 @@ export default function ActivityHistoryTable({
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <History className="w-4 h-4 text-sky-600" />
-            <h3 className="font-bold text-slate-800 text-sm">My Activity History</h3>
+            <h3 className="font-bold text-slate-800 text-sm">
+              {isDeveloper
+                ? 'Developer Activity History'
+                : isTelecalling
+                ? 'Telecalling Activity History'
+                : isTrainer
+                ? 'Trainer Activity History'
+                : 'My Activity History'}
+            </h3>
           </div>
           <span className="text-xs font-semibold text-slate-500">{total} Total Logged</span>
         </div>
@@ -64,8 +78,27 @@ export default function ActivityHistoryTable({
               <thead>
                 <tr className="border-b border-slate-100 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
                   <th className="pb-2">Date</th>
-                  <th className="pb-2">Calls (Att / Conn)</th>
-                  <th className="pb-2">Outcomes</th>
+                  {isTelecalling ? (
+                    <>
+                      <th className="pb-2">Calls (Att / Conn)</th>
+                      <th className="pb-2">Outcomes</th>
+                    </>
+                  ) : isDeveloper ? (
+                    <>
+                      <th className="pb-2">Project / Module</th>
+                      <th className="pb-2">Work Summary / Status</th>
+                    </>
+                  ) : isTrainer ? (
+                    <>
+                      <th className="pb-2">Course / Batch</th>
+                      <th className="pb-2">Topic & Attendance</th>
+                    </>
+                  ) : (
+                    <>
+                      <th className="pb-2">Department</th>
+                      <th className="pb-2">Summary / Remarks</th>
+                    </>
+                  )}
                   <th className="pb-2">Status</th>
                   <th className="pb-2 text-right">Action</th>
                 </tr>
@@ -76,27 +109,61 @@ export default function ActivityHistoryTable({
                     <td className="py-2.5 font-bold text-slate-800 whitespace-nowrap">
                       {row.activityDate}
                     </td>
-                    <td className="py-2.5 text-slate-600 whitespace-nowrap">
-                      {row.metrics?.callsAttempted ?? '—'} /{' '}
-                      <span className="font-semibold text-emerald-700">
-                        {row.metrics?.connectedCalls ?? '—'}
-                      </span>
-                    </td>
-                    <td className="py-2.5 text-slate-600 whitespace-nowrap">
-                      {row.metrics?.interestedLeads ? (
-                        <span className="font-semibold text-sky-700">
-                          {row.metrics.interestedLeads} Int.
-                        </span>
-                      ) : (
-                        '—'
-                      )}
-                    </td>
+
+                    {isTelecalling ? (
+                      <>
+                        <td className="py-2.5 text-slate-600 whitespace-nowrap">
+                          {row.metrics?.callsAttempted ?? '—'} /{' '}
+                          <span className="font-semibold text-emerald-700">
+                            {row.metrics?.connectedCalls ?? '—'}
+                          </span>
+                        </td>
+                        <td className="py-2.5 text-slate-600 whitespace-nowrap">
+                          {row.metrics?.interestedLeads ? (
+                            <span className="font-semibold text-sky-700">
+                              {row.metrics.interestedLeads} Int.
+                            </span>
+                          ) : (
+                            '—'
+                          )}
+                        </td>
+                      </>
+                    ) : isDeveloper ? (
+                      <>
+                        <td className="py-2.5 text-slate-800 font-semibold whitespace-nowrap max-w-[150px] truncate">
+                          {row.departmentData?.projectName || '—'}
+                        </td>
+                        <td className="py-2.5 text-slate-600 max-w-[200px] truncate">
+                          {row.departmentData?.workCompleted || row.remarks || '—'}
+                        </td>
+                      </>
+                    ) : isTrainer ? (
+                      <>
+                        <td className="py-2.5 text-slate-800 font-semibold whitespace-nowrap">
+                          {row.departmentData?.courseBatch || '—'}
+                        </td>
+                        <td className="py-2.5 text-slate-600 max-w-[200px] truncate">
+                          {row.departmentData?.sessionTopic || '—'}
+                          {row.departmentData?.attendanceCount !== undefined && ` (${row.departmentData.attendanceCount} att)`}
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="py-2.5 text-slate-800 font-semibold whitespace-nowrap">
+                          {row.department || '—'}
+                        </td>
+                        <td className="py-2.5 text-slate-600 max-w-[200px] truncate">
+                          {row.remarks || 'Report logged'}
+                        </td>
+                      </>
+                    )}
+
                     <td className="py-2.5 whitespace-nowrap">{getStatusBadge(row.status)}</td>
                     <td className="py-2.5 text-right whitespace-nowrap">
                       <button
                         type="button"
                         onClick={() => onSelectDate(row.activityDate)}
-                        className="px-2 py-1 text-[11px] font-bold text-sky-600 hover:text-sky-800 hover:bg-sky-50 rounded-lg transition inline-flex items-center gap-1"
+                        className="px-2 py-1 text-[11px] font-bold text-sky-600 hover:text-sky-800 hover:bg-sky-50 rounded-lg transition inline-flex items-center gap-1 cursor-pointer"
                         title="Load date report"
                       >
                         <Eye className="w-3 h-3" />

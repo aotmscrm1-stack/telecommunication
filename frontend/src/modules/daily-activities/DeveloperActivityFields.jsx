@@ -8,6 +8,16 @@ export default function DeveloperActivityFields({
   onChangeData,
   disabled = false,
 }) {
+  // Ensure departmentData.status is always initialized to 'In Progress' in the state
+  React.useEffect(() => {
+    if (!departmentData.status) {
+      onChangeData({
+        ...departmentData,
+        status: 'In Progress',
+      });
+    }
+  }, [departmentData.status]);
+
   const handleChange = (field, val) => {
     onChangeData({
       ...departmentData,
@@ -33,8 +43,8 @@ export default function DeveloperActivityFields({
             disabled={disabled}
             value={departmentData.projectName || ''}
             onChange={(e) => handleChange('projectName', e.target.value)}
-            placeholder="e.g., AOTMS CRM / Telecaller Module or Live Employee Tracking"
-            className="w-full text-xs sm:text-sm bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100 transition shadow-2xs"
+            placeholder="Project or module name"
+            className="w-full text-xs sm:text-sm bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-800 placeholder:text-slate-300 placeholder:font-light focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-200 transition"
           />
         </div>
 
@@ -47,7 +57,7 @@ export default function DeveloperActivityFields({
             disabled={disabled}
             value={departmentData.status || 'In Progress'}
             onChange={(e) => handleChange('status', e.target.value)}
-            className="w-full text-xs sm:text-sm bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-800 focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100 transition shadow-2xs cursor-pointer"
+            className="w-full text-xs sm:text-sm bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-800 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-200 transition cursor-pointer"
           >
             {DEV_STATUS_OPTIONS.map((st) => (
               <option key={st} value={st}>
@@ -69,8 +79,8 @@ export default function DeveloperActivityFields({
             disabled={disabled}
             value={departmentData.ticketId || ''}
             onChange={(e) => handleChange('ticketId', e.target.value)}
-            placeholder="e.g., JIRA-4021, Issue #15, or PR-88"
-            className="w-full text-xs sm:text-sm bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100 transition shadow-2xs"
+            placeholder="Task or ticket ID"
+            className="w-full text-xs sm:text-sm bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-800 placeholder:text-slate-300 placeholder:font-light focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-200 transition"
           />
         </div>
 
@@ -85,8 +95,8 @@ export default function DeveloperActivityFields({
             disabled={disabled}
             value={departmentData.prLink || ''}
             onChange={(e) => handleChange('prLink', e.target.value)}
-            placeholder="https://github.com/aotmscrm1-stack/telecommunication/pull/12"
-            className="w-full text-xs sm:text-sm bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100 transition shadow-2xs"
+            placeholder="Branch or PR link"
+            className="w-full text-xs sm:text-sm bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-800 placeholder:text-slate-300 placeholder:font-light focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-200 transition"
           />
         </div>
       </div>
@@ -102,8 +112,8 @@ export default function DeveloperActivityFields({
           disabled={disabled}
           value={departmentData.workCompleted || ''}
           onChange={(e) => handleChange('workCompleted', e.target.value)}
-          placeholder="Summary of today's work:&#10;• Implemented new API endpoints and integrated UI components&#10;• Resolved bug in live tracking socket disconnect handler&#10;• Verified unit and integration test passes"
-          className="w-full text-xs sm:text-sm bg-white border border-slate-200 rounded-xl p-3 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100 transition shadow-2xs leading-relaxed"
+          placeholder="Implemented features and progress"
+          className="w-full text-xs sm:text-sm bg-white border border-slate-200 rounded-xl p-3 text-slate-800 placeholder:text-slate-300 placeholder:font-light focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-200 transition leading-relaxed"
         />
       </div>
 
@@ -111,15 +121,15 @@ export default function DeveloperActivityFields({
       <div>
         <label className="text-xs font-medium text-slate-700 block mb-1 flex items-center gap-1">
           <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-          <span>Blockers, API Dependencies & Technical Challenges</span>
+          <span>Blockers, API Dependencies & Challenges</span>
         </label>
         <textarea
           rows={2}
           disabled={disabled}
           value={departmentData.blockers || ''}
           onChange={(e) => handleChange('blockers', e.target.value)}
-          placeholder="Mention any technical blockers (e.g., waiting for third-party API keys, database credentials, or UI design assets). Leave blank if none."
-          className="w-full text-xs sm:text-sm bg-white border border-slate-200 rounded-xl p-3 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100 transition shadow-2xs leading-relaxed"
+          placeholder="Blockers or dependencies (optional)"
+          className="w-full text-xs sm:text-sm bg-white border border-slate-200 rounded-xl p-3 text-slate-800 placeholder:text-slate-300 placeholder:font-light focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-200 transition leading-relaxed"
         />
       </div>
     </div>
