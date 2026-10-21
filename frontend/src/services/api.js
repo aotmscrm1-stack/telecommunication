@@ -385,7 +385,7 @@ export const recordingsAPI = {
   update: (id, data) => api.put(`/recordings/${id}`, data),
   delete: (id) => api.delete(`/recordings/${id}`),
   transcribe: (id, force) => api.post(`/recordings/${id}/transcribe`, { force: !!force }),
-  linkLead: (id, leadId) => api.post(`/recordings/${id}/link-lead`, { leadId }),
+  linkLead: (id, payload) => api.post(`/recordings/${id}/link-lead`, typeof payload === 'object' && payload !== null ? payload : { leadId: payload }),
   rematchLeads: () => api.post('/recordings/rematch'),
 };
 

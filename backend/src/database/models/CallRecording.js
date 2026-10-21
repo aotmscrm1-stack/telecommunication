@@ -21,6 +21,33 @@ const callRecordingSchema = new mongoose.Schema(
       index: true,
     },
 
+    // Link category: 'lead' (Normal Lead), 'meta_lead' (Meta Lead), 'campaign' (Campaign), or null
+    linkType: {
+      type: String,
+      enum: ['lead', 'meta_lead', 'campaign', null],
+      default: null,
+      index: true,
+    },
+
+    // Reference to a MetaLead (when category is Meta Leads)
+    metaLead: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'MetaLead',
+      default: null,
+      index: true,
+    },
+    metaLeadName: { type: String, default: null },
+    metaLeadPhone: { type: String, default: null },
+
+    // Reference to a Campaign (when category is Campaigns)
+    campaignRef: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Campaign',
+      default: null,
+      index: true,
+    },
+    campaignName: { type: String, default: null },
+
     // Phone number extracted from the recording filename (digits only, last
     // 10 kept) — lets a recording be matched to a lead's call history even
     // when no leadId was sent or the lead didn't exist yet at upload time.

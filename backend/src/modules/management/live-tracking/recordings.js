@@ -9,6 +9,8 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const CallRecording = require('../../../database/models/CallRecording');
 const Lead = require('../../../database/models/Lead');
+const MetaLead = require('../../../database/models/MetaLead');
+const Campaign = require('../../../database/models/Campaign');
 const { normalizePhone10 } = require('../../../core/utils/phone');
 const { protect } = require('../../../core/middleware/auth');
 const { deleteFromCloudinary, uploadAudioToCloudinary } = require('../../../core/utils/cloudinary');
@@ -302,20 +304,103 @@ function isHRorAdmin(user) {
 }
 
 // ─── POST /api/recordings/:id/link-lead ───────────────────────────────────
+// Links a recording session to either:
+// 1. Normal Lead (leadId)
+// 2. Meta Lead (metaLeadId)
+// 3. Campaign (campaignId / campaignName)
+// Or unlinks the recording session
 router.post('/:id/link-lead', protect, async (req, res) => {
   try {
     if (!isHRorAdmin(req.user)) {
       return res.status(403).json({ error: 'Not authorized: Call recordings are restricted to HR and Admin' });
     }
 
-    const { leadId } = req.body;
-    const update = { lead: leadId || null };
+    const { linkType, leadId, metaLeadId, campaignId, campaignName } = req.body;
+    let update = {};
 
-    if (!leadId) {
+    if (linkType === 'meta_lead' || metaLeadId) {
+      // 1. Link to Meta Lead
+      let metaLeadDoc = null;
+      if (metaLeadId && mongoose.Types.ObjectId.isValid(metaLeadId)) {
+        metaLeadDoc = await MetaLead.findById(metaLeadId).lean();
+      }
+      const resolvedName = metaLeadDoc 
+        ? (metaLeadDoc.fullName || metaLeadDoc.rawData?.full_name || metaLeadDoc.rawData?.name || 'Meta Lead')
+        : (req.body.metaLeadName || 'Meta Lead');
+      const resolvedPhone = metaLeadDoc
+        ? (metaLeadDoc.phone || metaLeadDoc.normalizedPhone || metaLeadDoc.rawData?.phone_number || metaLeadDoc.rawData?.phone || null)
+        : (req.body.metaLeadPhone || null);
+
+      update = {
+        linkType: 'meta_lead',
+        metaLead: metaLeadId || null,
+        metaLeadName: resolvedName,
+        metaLeadPhone: resolvedPhone,
+        lead: null,
+        campaignRef: null,
+        campaignName: metaLeadDoc ? metaLeadDoc.campaign : (campaignName || null),
+      };
+    } else if (linkType === 'campaign' || campaignId || (campaignName && !leadId)) {
+      // 2. Link to Campaign
+      let campDoc = null;
+      if (campaignId && mongoose.Types.ObjectId.isValid(campaignId)) {
+        campDoc = await Campaign.findById(campaignId).lean();
+      }
+      const resolvedCampName = campDoc ? campDoc.name : (campaignName || 'Campaign');
+
+      update = {
+        linkType: 'campaign',
+        campaignRef: campaignId || null,
+        campaignName: resolvedCampName,
+        lead: null,
+        metaLead: null,
+        metaLeadName: null,
+        metaLeadPhone: null,
+      };
+    } else if (linkType === 'lead' || leadId) {
+      // 3. Link to Normal Lead
+      let leadDoc = null;
+      if (leadId && mongoose.Types.ObjectId.isValid(leadId)) {
+        leadDoc = await Lead.findById(leadId).lean();
+      }
+      update = {
+        linkType: 'lead',
+        lead: leadId || null,
+        metaLead: null,
+        metaLeadName: null,
+        metaLeadPhone: null,
+        campaignRef: null,
+        campaignName: null,
+      };
+    } else {
+      // 4. Unlink or Auto-match by Phone
       const rec = await CallRecording.findById(req.params.id).lean();
-      if (rec && rec.phone) {
-        const matched = await findLeadByPhone(rec.phone, req.user.workspace);
-        if (matched) update.lead = matched._id;
+      let matchedLead = null;
+      if (rec && rec.phone && req.body.autoMatch) {
+        matchedLead = await findLeadByPhone(rec.phone, req.user.workspace);
+      }
+
+      if (matchedLead) {
+        update = {
+          linkType: 'lead',
+          lead: matchedLead._id,
+          metaLead: null,
+          metaLeadName: null,
+          metaLeadPhone: null,
+          campaignRef: null,
+          campaignName: null,
+        };
+      } else {
+        // Complete unlink
+        update = {
+          linkType: null,
+          lead: null,
+          metaLead: null,
+          metaLeadName: null,
+          metaLeadPhone: null,
+          campaignRef: null,
+          campaignName: null,
+        };
       }
     }
 
@@ -323,13 +408,17 @@ router.post('/:id/link-lead', protect, async (req, res) => {
       req.params.id,
       update,
       { new: true }
-    ).populate('lead', 'name phone').lean();
+    )
+      .populate('lead', 'name phone')
+      .populate('metaLead', 'fullName phone email campaign rawData')
+      .populate('campaignRef', 'name description status')
+      .lean();
 
     if (!updated) return res.status(404).json({ error: 'Recording not found' });
-    return res.json({ success: true, recording: updated });
+    return res.json({ success: true, recording: formatRecording(updated) });
   } catch (err) {
     console.error('link-lead error:', err);
-    return res.status(500).json({ error: 'Failed to link lead' });
+    return res.status(500).json({ error: 'Failed to link session: ' + err.message });
   }
 });
 
@@ -355,6 +444,8 @@ router.put('/:id', protect, async (req, res) => {
     const updated = await CallRecording.findById(rec._id)
       .populate('user', 'name email')
       .populate('lead', 'name phone')
+      .populate('metaLead', 'fullName phone normalizedPhone email campaign rawData')
+      .populate('campaignRef', 'name description status')
       .lean();
 
     return res.json({ success: true, recording: formatRecording(updated) });
@@ -506,6 +597,8 @@ router.get('/my', protect, async (req, res) => {
       .limit(200)
       .populate('user', 'name email designation department')
       .populate('lead', 'name phone')
+      .populate('metaLead', 'fullName phone normalizedPhone email campaign rawData')
+      .populate('campaignRef', 'name description status')
       .lean();
 
     return res.json({ recordings: recordings.map(formatRecording) });
@@ -540,6 +633,8 @@ router.get('/', protect, async (req, res) => {
       .limit(500)
       .populate('user', 'name email designation department role')
       .populate('lead', 'name phone')
+      .populate('metaLead', 'fullName phone normalizedPhone email campaign rawData')
+      .populate('campaignRef', 'name description status')
       .lean();
 
     return res.json({ recordings: recordings.map(formatRecording) });
@@ -785,6 +880,19 @@ function formatRecording(r) {
   const streamPath = filename ? `/api/recordings/stream/${filename}` : (r.url || '');
   const finalAudioUrl = cldUrl || absoluteUrl(streamPath);
 
+  const linkType = r.linkType || (r.lead ? 'lead' : (r.metaLead ? 'meta_lead' : (r.campaignRef || r.campaignName ? 'campaign' : null)));
+  const metaLeadName = r.metaLeadName || (r.metaLead ? (r.metaLead.fullName || r.metaLead.rawData?.full_name || r.metaLead.rawData?.name || 'Meta Lead') : null);
+  const metaLeadPhone = r.metaLeadPhone || (r.metaLead ? (r.metaLead.phone || r.metaLead.normalizedPhone || r.metaLead.rawData?.phone_number || r.metaLead.rawData?.phone || null) : null);
+  const campaignName = r.campaignName || (r.campaignRef ? r.campaignRef.name : (r.metaLead ? r.metaLead.campaign : null));
+
+  // Resolved display name for backward compatibility
+  const resolvedLeadName = r.lead && r.lead.name
+    ? r.lead.name
+    : (metaLeadName || campaignName || null);
+  const resolvedLeadPhone = r.lead && r.lead.phone
+    ? r.lead.phone
+    : (metaLeadPhone || null);
+
   return {
     _id: r._id,
     recordedAt: r.recordedAt,
@@ -805,9 +913,16 @@ function formatRecording(r) {
     userDesignation: r.user && r.user.designation ? r.user.designation : undefined,
     userDepartment: r.user && r.user.department ? r.user.department : undefined,
     userRole: r.user && r.user.role ? r.user.role : undefined,
-    leadId: r.lead ? r.lead._id : null,
-    leadName: r.lead && r.lead.name ? r.lead.name : null,
-    leadPhone: r.lead && r.lead.phone ? r.lead.phone : null,
+    linkType: linkType,
+    leadId: r.lead ? (r.lead._id || r.lead) : null,
+    leadName: resolvedLeadName,
+    leadPhone: resolvedLeadPhone,
+    metaLeadId: r.metaLead ? (r.metaLead._id || r.metaLead) : null,
+    metaLeadName: metaLeadName,
+    metaLeadPhone: metaLeadPhone,
+    metaLeadCampaign: r.metaLead ? r.metaLead.campaign : null,
+    campaignId: r.campaignRef ? (r.campaignRef._id || r.campaignRef) : null,
+    campaignName: campaignName,
     originalName: r.originalName || filename,
     transcript: r.transcript || '',
     transcriptStatus: r.transcriptStatus || 'none',

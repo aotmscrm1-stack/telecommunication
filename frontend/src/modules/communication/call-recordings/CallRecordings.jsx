@@ -3,9 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   AudioLines, Table, LayoutGrid, PhoneCall, FileAudio, 
   Clock, Edit3, MoreVertical, Download, ExternalLink, RefreshCw, User, UserPlus, Sparkles, FileText,
-  Maximize2, MessageSquare, Copy, Check, Volume2, Volume1, VolumeX, Trash2, Briefcase
+  Maximize2, MessageSquare, Copy, Check, Volume2, Volume1, VolumeX, Trash2, Briefcase,
+  Megaphone, Search, X, Link2, Unlink, Layers, Filter, CheckCircle2
 } from 'lucide-react';
-import { recordingsAPI, leadsAPI } from '../../../services/api';
+import { recordingsAPI, leadsAPI, metaLeadsAPI, campaignsAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import { formatISTDateTime } from '../../../utils/dateFormat';
 import { isHR, isCEO, isManager, canViewCallRecordings } from '../../../utils/permissions';
@@ -353,6 +354,10 @@ const C = {
   orange: '#f97316',
   orangeDark: '#ea580c',
   orangeLight: '#ffedd5',
+  purple: '#7c3aed',
+  purpleDark: '#6d28d9',
+  purpleLight: '#f3e8ff',
+  purpleSoft: 'rgba(124, 58, 237, 0.08)',
   dark: '#0f172a',
   bgSoft: '#f8fafc',
   border: '#e2e8f0',
@@ -361,6 +366,97 @@ const C = {
   greenLight: '#f0fdf4',
   greenBorder: '#bbf7d0',
 };
+
+// ── RESOLVE LINK METADATA HELPER ───────────────────────────────────────────
+function getLinkInfo(rec) {
+  if (!rec) {
+    return {
+      isLinked: false,
+      type: null,
+      name: 'Unlinked Session',
+      badgeLabel: '⚠️ Unlinked',
+      subDetail: '',
+      badgeColor: '#f97316',
+      badgeBg: '#fff7ed',
+      badgeBorder: '#fed7aa',
+      avatarBg: '#fff7ed',
+      avatarColor: '#ea580c',
+      avatarIcon: '?',
+    };
+  }
+
+  // 1. Meta Lead
+  if (rec.linkType === 'meta_lead' || rec.metaLeadId) {
+    const name = rec.metaLeadName || rec.leadName || 'Meta Lead';
+    const camp = rec.campaignName || rec.metaLeadCampaign;
+    const phone = rec.metaLeadPhone || rec.leadPhone;
+    return {
+      isLinked: true,
+      type: 'meta_lead',
+      name: name,
+      badgeLabel: 'Meta Lead',
+      subDetail: camp ? `Campaign: ${camp}` : (phone ? `📞 ${phone}` : ''),
+      badgeColor: '#7c3aed',
+      badgeBg: '#f3e8ff',
+      badgeBorder: '#ddd6fe',
+      avatarBg: '#ede9fe',
+      avatarColor: '#6d28d9',
+      avatarIcon: 'M',
+    };
+  }
+
+  // 2. Campaign
+  if (rec.linkType === 'campaign' || rec.campaignId || (rec.campaignName && !rec.leadId)) {
+    const name = rec.campaignName || rec.leadName || 'Campaign';
+    return {
+      isLinked: true,
+      type: 'campaign',
+      name: name,
+      badgeLabel: 'Campaign',
+      subDetail: 'Marketing Campaign',
+      badgeColor: '#ea580c',
+      badgeBg: '#ffedd5',
+      badgeBorder: '#fed7aa',
+      avatarBg: '#ffedd5',
+      avatarColor: '#c2410c',
+      avatarIcon: 'C',
+    };
+  }
+
+  // 3. Normal Lead
+  if (rec.linkType === 'lead' || rec.leadId || rec.lead) {
+    const name = rec.leadName || rec.lead?.name || 'Lead';
+    const phone = rec.leadPhone || rec.lead?.phone;
+    return {
+      isLinked: true,
+      type: 'lead',
+      name: name,
+      badgeLabel: 'Normal Lead',
+      subDetail: phone ? `📞 ${phone}` : '',
+      badgeColor: '#0284c7',
+      badgeBg: '#e0f2fe',
+      badgeBorder: '#bae6fd',
+      avatarBg: '#e0f2fe',
+      avatarColor: '#0369a1',
+      avatarIcon: name ? name.charAt(0).toUpperCase() : 'L',
+    };
+  }
+
+  // 4. Unlinked
+  return {
+    isLinked: false,
+    type: null,
+    name: 'Unlinked Session',
+    badgeLabel: '⚠️ Unlinked',
+    subDetail: '',
+    badgeColor: '#f97316',
+    badgeBg: '#fff7ed',
+    badgeBorder: '#fed7aa',
+    avatarBg: '#fff7ed',
+    avatarColor: '#ea580c',
+    avatarIcon: '?',
+  };
+}
 
 // ── THREE DOTS MENU DROPDOWN ────────────────────────────────────────────────
 function ThreeDotsMenu({ audioUrl, originalName, onDelete }) {
@@ -475,54 +571,195 @@ function ThreeDotsMenu({ audioUrl, originalName, onDelete }) {
 
 
 
-// ── MODAL: MANUALLY LINK LEAD / CONTACT ─────────────────────────────────────
-function ManualLinkLeadModal({ recording, onClose, onLinked }) {
+// ── MODAL: LINK RECORDING SESSION (3 FILTERING OPTIONS) ──────────────────────
+function LinkSessionModal({ recording, onClose, onLinked }) {
+  const initialCategory = recording.linkType === 'campaign' || (recording.campaignRef && !recording.lead)
+    ? 'campaign'
+    : (recording.linkType === 'lead' || (recording.lead && !recording.metaLead)
+        ? 'lead'
+        : 'meta_lead');
+
+  const [activeCategory, setActiveCategory] = useState(initialCategory);
   const [search, setSearch] = useState('');
-  const [leads, setLeads] = useState([]);
+  const [metaCampaignFilter, setMetaCampaignFilter] = useState('all');
+
+  const [metaLeads, setMetaLeads] = useState([]);
+  const [campaigns, setCampaigns] = useState([]);
+  const [normalLeads, setNormalLeads] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [linkingId, setLinkingId] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    async function loadLeads() {
+    let isMounted = true;
+    async function loadData() {
       setLoading(true);
+      setError(null);
       try {
-        const res = await leadsAPI.getAll({ limit: 100 });
-        const list = res.data?.leads || res.data || [];
-        setLeads(Array.isArray(list) ? list : []);
+        const [metaRes, campRes, leadsRes] = await Promise.allSettled([
+          metaLeadsAPI.getAll({ limit: 150 }),
+          campaignsAPI.getAll(),
+          leadsAPI.getAll({ limit: 150 })
+        ]);
+
+        if (!isMounted) return;
+
+        if (metaRes.status === 'fulfilled') {
+          const list = metaRes.value.data?.leads || metaRes.value.data || [];
+          setMetaLeads(Array.isArray(list) ? list : []);
+        } else {
+          console.warn('Could not load meta leads:', metaRes.reason);
+        }
+
+        if (campRes.status === 'fulfilled') {
+          const list = campRes.value.data?.campaigns || campRes.value.data || [];
+          setCampaigns(Array.isArray(list) ? list : []);
+        } else {
+          console.warn('Could not load campaigns:', campRes.reason);
+        }
+
+        if (leadsRes.status === 'fulfilled') {
+          const list = leadsRes.value.data?.leads || leadsRes.value.data || [];
+          setNormalLeads(Array.isArray(list) ? list : []);
+        } else {
+          console.warn('Could not load normal leads:', leadsRes.reason);
+        }
       } catch (err) {
-        console.error('Failed to load leads for linking:', err);
-        setError('Failed to fetch leads list.');
+        console.error('Failed to load session linking data:', err);
+        if (isMounted) setError('Failed to load records for linking.');
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     }
-    loadLeads();
+    loadData();
+    return () => { isMounted = false; };
   }, []);
 
-  const handleLink = async (leadId) => {
-    setLinkingId(leadId || 'unlink');
+  const distinctMetaCampaigns = Array.from(
+    new Set(metaLeads.map(m => m.campaign).filter(Boolean))
+  );
+
+  const handleLink = async (cat, record) => {
+    if (!record) {
+      // Unlink
+      setLinkingId('unlink');
+      setError(null);
+      try {
+        await recordingsAPI.linkLead(recording._id, { linkType: null });
+        onLinked();
+        onClose();
+      } catch (err) {
+        setError(err.response?.data?.error || 'Failed to unlink session.');
+      } finally {
+        setLinkingId(null);
+      }
+      return;
+    }
+
+    const recId = record._id || record.id;
+    setLinkingId(recId);
     setError(null);
+
     try {
-      await recordingsAPI.linkLead(recording._id, leadId || null);
+      if (cat === 'meta_lead') {
+        const name = record.fullName || record.rawData?.full_name || record.rawData?.name || 'Meta Lead';
+        const phone = record.phone || record.normalizedPhone || record.rawData?.phone_number || null;
+        await recordingsAPI.linkLead(recording._id, {
+          linkType: 'meta_lead',
+          metaLeadId: recId,
+          metaLeadName: name,
+          metaLeadPhone: phone,
+          campaignName: record.campaign || null,
+        });
+      } else if (cat === 'campaign') {
+        await recordingsAPI.linkLead(recording._id, {
+          linkType: 'campaign',
+          campaignId: recId,
+          campaignName: record.name || 'Campaign',
+        });
+      } else if (cat === 'lead') {
+        await recordingsAPI.linkLead(recording._id, {
+          linkType: 'lead',
+          leadId: recId,
+        });
+      }
       onLinked();
       onClose();
     } catch (err) {
-      console.error('Link lead failed:', err);
-      setError(err.response?.data?.error || 'Failed to update lead link.');
+      console.error('Failed to link session:', err);
+      setError(err.response?.data?.error || 'Failed to link session.');
     } finally {
       setLinkingId(null);
     }
   };
 
-  const filteredLeads = leads.filter(l => {
-    const q = search.toLowerCase();
-    return (
-      (l.name || '').toLowerCase().includes(q) ||
-      (l.phone || '').includes(q) ||
-      (l.email || '').toLowerCase().includes(q)
-    );
+  const q = search.trim().toLowerCase();
+
+  const filteredMeta = metaLeads.filter(m => {
+    if (metaCampaignFilter !== 'all' && m.campaign !== metaCampaignFilter) return false;
+    if (!q) return true;
+    const name = (m.fullName || m.rawData?.full_name || m.rawData?.name || '').toLowerCase();
+    const phone = (m.phone || m.normalizedPhone || m.rawData?.phone_number || '').toLowerCase();
+    const email = (m.email || m.rawData?.email || '').toLowerCase();
+    const camp = (m.campaign || '').toLowerCase();
+    return name.includes(q) || phone.includes(q) || email.includes(q) || camp.includes(q);
   });
+
+  const filteredCampaigns = campaigns.filter(c => {
+    if (!q) return true;
+    const name = (c.name || '').toLowerCase();
+    const desc = (c.description || '').toLowerCase();
+    const status = (c.status || '').toLowerCase();
+    return name.includes(q) || desc.includes(q) || status.includes(q);
+  });
+
+  const filteredNormal = normalLeads.filter(l => {
+    if (!q) return true;
+    const name = (l.name || '').toLowerCase();
+    const phone = (l.phone || '').toLowerCase();
+    const email = (l.email || '').toLowerCase();
+    const status = (l.status || '').toLowerCase();
+    return name.includes(q) || phone.includes(q) || email.includes(q) || status.includes(q);
+  });
+
+  const currentLink = getLinkInfo(recording);
+
+  const categories = [
+    {
+      id: 'meta_lead',
+      label: 'Meta Leads',
+      count: filteredMeta.length,
+      icon: Sparkles,
+      color: '#7c3aed',
+      bgColor: '#f5f3ff',
+      borderColor: '#ddd6fe',
+      activeBg: '#7c3aed',
+      activeText: '#ffffff',
+    },
+    {
+      id: 'campaign',
+      label: 'Campaigns',
+      count: filteredCampaigns.length,
+      icon: Megaphone,
+      color: '#ea580c',
+      bgColor: '#fff7ed',
+      borderColor: '#fed7aa',
+      activeBg: '#ea580c',
+      activeText: '#ffffff',
+    },
+    {
+      id: 'lead',
+      label: 'Normal Leads',
+      count: filteredNormal.length,
+      icon: User,
+      color: '#0284c7',
+      bgColor: '#f0f9ff',
+      borderColor: '#bae6fd',
+      activeBg: '#0284c7',
+      activeText: '#ffffff',
+    },
+  ];
 
   return (
     <div style={{
@@ -536,8 +773,8 @@ function ManualLinkLeadModal({ recording, onClose, onLinked }) {
         transition={{ duration: 0.2 }}
         style={{
           background: '#ffffff', borderRadius: '16px', border: `1.5px solid ${C.blue}`,
-          boxShadow: '0 25px 50px -12px rgba(2, 132, 199, 0.25)', width: '100%', maxWidth: '500px',
-          maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden'
+          boxShadow: '0 25px 50px -12px rgba(2, 132, 199, 0.25)', width: '100%', maxWidth: '640px',
+          maxHeight: '88vh', display: 'flex', flexDirection: 'column', overflow: 'hidden'
         }}
       >
         {/* Modal Header */}
@@ -546,111 +783,365 @@ function ManualLinkLeadModal({ recording, onClose, onLinked }) {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between'
         }}>
           <div>
-            <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: C.dark, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <UserPlus style={{ width: '16px', height: '16px', color: C.blue }} /> Manually Link Lead / Contact
+            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: C.dark, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Link2 style={{ width: '18px', height: '18px', color: C.blue }} /> Link Recording Session
             </h3>
-            <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: C.textSoft }}>
-              Recording: <strong>{recording.originalName}</strong> {recording.phone ? `(${recording.phone})` : ''}
+            <p style={{ margin: '3px 0 0 0', fontSize: '12px', color: C.textSoft }}>
+              Recording: <strong>{recording.originalName || 'Audio Recording'}</strong> {recording.phone ? `• 📞 ${recording.phone}` : ''}
             </p>
           </div>
           <button
             onClick={onClose}
-            style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: C.textSoft }}
+            style={{
+              background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer',
+              color: C.textSoft, padding: '4px', borderRadius: '6px'
+            }}
           >
             ✕
           </button>
         </div>
 
         {/* Modal Body */}
-        <div style={{ padding: '16px 20px', overflowY: 'auto', flex: 1 }}>
+        <div style={{ padding: '16px 20px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '14px' }}>
           {error && (
-            <div style={{ background: '#fef2f2', color: '#dc2626', padding: '10px 14px', borderRadius: '8px', fontSize: '13px', marginBottom: '12px' }}>
+            <div style={{ background: '#fef2f2', color: '#dc2626', padding: '10px 14px', borderRadius: '8px', fontSize: '13px' }}>
               ⚠️ {error}
             </div>
           )}
 
-          <input
-            type="text"
-            placeholder="🔍 Search lead by name, phone, or email..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={{
-              width: '100%', padding: '10px 14px', borderRadius: '8px', border: `1px solid ${C.border}`,
-              fontSize: '13px', outline: 'none', marginBottom: '14px', boxSizing: 'border-box'
-            }}
-          />
-
-          {recording.leadId && (
+          {/* Current Link Status Banner */}
+          {currentLink.isLinked && (
             <div style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '10px 14px', borderRadius: '8px', background: C.orangeLight, border: `1px solid ${C.orange}`,
-              marginBottom: '14px'
+              padding: '10px 14px', borderRadius: '10px', background: currentLink.badgeBg,
+              border: `1px solid ${currentLink.badgeBorder}`, gap: '12px'
             }}>
-              <span style={{ fontSize: '12px', color: C.orangeDark, fontWeight: 600 }}>
-                Currently Linked: <strong>{recording.leadName || 'Lead'}</strong>
-              </span>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{
+                    fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em',
+                    background: '#ffffff', color: currentLink.badgeColor, padding: '2px 6px', borderRadius: '4px',
+                    border: `1px solid ${currentLink.badgeBorder}`
+                  }}>
+                    {currentLink.badgeLabel}
+                  </span>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: C.dark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {currentLink.name}
+                  </span>
+                </div>
+                {currentLink.subDetail && (
+                  <div style={{ fontSize: '11px', color: currentLink.badgeColor, marginTop: '2px', fontWeight: 500 }}>
+                    {currentLink.subDetail}
+                  </div>
+                )}
+              </div>
               <button
-                onClick={() => handleLink(null)}
+                onClick={() => handleLink(null, null)}
                 disabled={linkingId === 'unlink'}
                 style={{
-                  background: '#ef4444', color: '#fff', border: 'none', padding: '4px 10px',
-                  borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer'
+                  background: '#ef4444', color: '#ffffff', border: 'none', padding: '6px 12px',
+                  borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0
                 }}
               >
-                Unlink Lead
+                <Unlink style={{ width: '12px', height: '12px' }} />
+                <span>{linkingId === 'unlink' ? 'Unlinking...' : 'Unlink Session'}</span>
               </button>
             </div>
           )}
 
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: '30px 0', color: C.textSoft, fontSize: '14px' }}>
-              ⏳ Loading contacts & leads list...
-            </div>
-          ) : filteredLeads.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '30px 0', color: C.textSoft, fontSize: '13px' }}>
-              No leads match "{search}"
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {filteredLeads.map(lead => {
-                const isCurrent = recording.leadId === lead._id;
-                const isLinkingThis = linkingId === lead._id;
+          {/* Filtering Category Segmented Buttons (Three Options) */}
+          <div>
+            <label style={{ fontSize: '11px', fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px', display: 'block' }}>
+              Select Link Category:
+            </label>
+            <div style={{
+              display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px',
+              background: '#f1f5f9', padding: '4px', borderRadius: '10px'
+            }}>
+              {categories.map((cat) => {
+                const IconComponent = cat.icon;
+                const isActive = activeCategory === cat.id;
                 return (
-                  <div
-                    key={lead._id}
+                  <button
+                    key={cat.id}
+                    onClick={() => {
+                      setActiveCategory(cat.id);
+                      setSearch('');
+                    }}
                     style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '10px 14px', borderRadius: '8px', border: `1px solid ${isCurrent ? C.blue : C.border}`,
-                      background: isCurrent ? C.blueLight : '#ffffff', transition: 'all 0.15s'
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                      padding: '9px 12px', borderRadius: '8px', border: 'none',
+                      background: isActive ? cat.activeBg : 'transparent',
+                      color: isActive ? cat.activeText : '#475569',
+                      fontWeight: 700, fontSize: '12px', cursor: 'pointer',
+                      boxShadow: isActive ? '0 2px 8px rgba(0,0,0,0.12)' : 'none',
+                      transition: 'all 0.18s'
                     }}
                   >
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: '13px', color: C.dark }}>
-                        {lead.name}
-                      </div>
-                      <div style={{ fontSize: '11px', color: C.textSoft, marginTop: '2px' }}>
-                        📞 {lead.phone || 'No phone'} {lead.status ? `• Status: ${lead.status}` : ''}
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => handleLink(lead._id)}
-                      disabled={isCurrent || isLinkingThis}
-                      style={{
-                        background: isCurrent ? C.green : C.blue,
-                        color: '#ffffff', border: 'none', padding: '6px 12px',
-                        borderRadius: '6px', fontSize: '12px', fontWeight: 600,
-                        cursor: (isCurrent || isLinkingThis) ? 'default' : 'pointer',
-                        opacity: isLinkingThis ? 0.7 : 1
-                      }}
-                    >
-                      {isCurrent ? '✓ Linked' : isLinkingThis ? 'Linking...' : '+ Select & Link'}
-                    </button>
-                  </div>
+                    <IconComponent style={{ width: '14px', height: '14px' }} />
+                    <span>{cat.label}</span>
+                    <span style={{
+                      fontSize: '10px', padding: '1px 5px', borderRadius: '10px',
+                      background: isActive ? 'rgba(255,255,255,0.25)' : '#e2e8f0',
+                      color: isActive ? '#ffffff' : '#64748b'
+                    }}>
+                      {cat.count}
+                    </span>
+                  </button>
                 );
               })}
             </div>
-          )}
+          </div>
+
+          {/* Search & Sub-filter controls */}
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <div style={{ position: 'relative', flex: 1 }}>
+              <input
+                type="text"
+                placeholder={
+                  activeCategory === 'meta_lead'
+                    ? '🔍 Search Meta leads by name, phone, email, or campaign...'
+                    : activeCategory === 'campaign'
+                    ? '🔍 Search campaigns by name, description, or status...'
+                    : '🔍 Search normal leads by name, phone, or email...'
+                }
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                style={{
+                  width: '100%', padding: '9px 12px', borderRadius: '8px', border: `1px solid ${C.border}`,
+                  fontSize: '13px', outline: 'none', boxSizing: 'border-box'
+                }}
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  style={{
+                    position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
+                    background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: '12px'
+                  }}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Campaign dropdown for Meta Leads category */}
+            {activeCategory === 'meta_lead' && distinctMetaCampaigns.length > 0 && (
+              <select
+                value={metaCampaignFilter}
+                onChange={e => setMetaCampaignFilter(e.target.value)}
+                style={{
+                  padding: '9px 10px', borderRadius: '8px', border: `1px solid ${C.border}`,
+                  fontSize: '12px', fontWeight: 600, background: '#ffffff', color: C.dark, outline: 'none'
+                }}
+              >
+                <option value="all">All Campaigns ({metaLeads.length})</option>
+                {distinctMetaCampaigns.map(camp => (
+                  <option key={camp} value={camp}>{camp}</option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          {/* Record List */}
+          <div style={{ flex: 1, minHeight: '260px' }}>
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '40px 0', color: C.textSoft, fontSize: '13px' }}>
+                ⏳ Loading {activeCategory === 'meta_lead' ? 'Meta leads' : activeCategory === 'campaign' ? 'campaigns' : 'leads'}...
+              </div>
+            ) : activeCategory === 'meta_lead' ? (
+              /* ── 1. META LEADS LIST ── */
+              filteredMeta.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: C.textSoft, fontSize: '13px' }}>
+                  No Meta leads found matching "{search}"
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {filteredMeta.map(lead => {
+                    const leadId = lead._id || lead.id;
+                    const isCurrent = (recording.linkType === 'meta_lead' && recording.metaLeadId === leadId)
+                      || recording.metaLeadId === leadId;
+                    const isLinkingThis = linkingId === leadId;
+                    const leadName = lead.fullName || lead.rawData?.full_name || lead.rawData?.name || 'Meta Lead';
+                    const leadPhone = lead.phone || lead.normalizedPhone || lead.rawData?.phone_number || lead.rawData?.phone;
+
+                    return (
+                      <div
+                        key={leadId}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          padding: '10px 14px', borderRadius: '8px',
+                          border: `1px solid ${isCurrent ? '#7c3aed' : C.border}`,
+                          background: isCurrent ? '#f5f3ff' : '#ffffff',
+                          transition: 'all 0.15s', gap: '10px'
+                        }}
+                      >
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontWeight: 700, fontSize: '13px', color: C.dark }}>
+                              {leadName}
+                            </span>
+                            {lead.campaign && (
+                              <span style={{
+                                fontSize: '10px', fontWeight: 600, background: '#ede9fe', color: '#6d28d9',
+                                padding: '1px 6px', borderRadius: '4px'
+                              }}>
+                                {lead.campaign}
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '11px', color: C.textSoft, marginTop: '2px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                            <span>📞 {leadPhone || 'No phone'}</span>
+                            {lead.email && <span>✉️ {lead.email}</span>}
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => handleLink('meta_lead', lead)}
+                          disabled={isCurrent || isLinkingThis}
+                          style={{
+                            background: isCurrent ? C.green : '#7c3aed',
+                            color: '#ffffff', border: 'none', padding: '6px 12px',
+                            borderRadius: '6px', fontSize: '11px', fontWeight: 700,
+                            cursor: (isCurrent || isLinkingThis) ? 'default' : 'pointer',
+                            opacity: isLinkingThis ? 0.7 : 1, flexShrink: 0
+                          }}
+                        >
+                          {isCurrent ? '✓ Linked' : isLinkingThis ? 'Linking...' : '+ Select & Link'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            ) : activeCategory === 'campaign' ? (
+              /* ── 2. CAMPAIGNS LIST ── */
+              filteredCampaigns.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: C.textSoft, fontSize: '13px' }}>
+                  No campaigns found matching "{search}"
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {filteredCampaigns.map(camp => {
+                    const campId = camp._id || camp.id;
+                    const isCurrent = (recording.linkType === 'campaign' && (recording.campaignId === campId || recording.campaignName === camp.name))
+                      || recording.campaignId === campId;
+                    const isLinkingThis = linkingId === campId;
+
+                    return (
+                      <div
+                        key={campId}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          padding: '10px 14px', borderRadius: '8px',
+                          border: `1px solid ${isCurrent ? '#ea580c' : C.border}`,
+                          background: isCurrent ? '#fff7ed' : '#ffffff',
+                          transition: 'all 0.15s', gap: '10px'
+                        }}
+                      >
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontWeight: 700, fontSize: '13px', color: C.dark }}>
+                              {camp.name}
+                            </span>
+                            {camp.status && (
+                              <span style={{
+                                fontSize: '10px', fontWeight: 600, background: '#ffedd5', color: '#c2410c',
+                                padding: '1px 6px', borderRadius: '4px'
+                              }}>
+                                {camp.status}
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '11px', color: C.textSoft, marginTop: '2px' }}>
+                            {camp.description || 'Marketing Campaign Session'} {camp.totalLeads ? `• ${camp.totalLeads} total leads` : ''}
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => handleLink('campaign', camp)}
+                          disabled={isCurrent || isLinkingThis}
+                          style={{
+                            background: isCurrent ? C.green : '#ea580c',
+                            color: '#ffffff', border: 'none', padding: '6px 12px',
+                            borderRadius: '6px', fontSize: '11px', fontWeight: 700,
+                            cursor: (isCurrent || isLinkingThis) ? 'default' : 'pointer',
+                            opacity: isLinkingThis ? 0.7 : 1, flexShrink: 0
+                          }}
+                        >
+                          {isCurrent ? '✓ Linked' : isLinkingThis ? 'Linking...' : '+ Select & Link'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            ) : (
+              /* ── 3. NORMAL LEADS LIST ── */
+              filteredNormal.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: C.textSoft, fontSize: '13px' }}>
+                  No normal leads found matching "{search}"
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {filteredNormal.map(lead => {
+                    const leadId = lead._id || lead.id;
+                    const isCurrent = (recording.linkType === 'lead' && recording.leadId === leadId)
+                      || (recording.leadId === leadId && !recording.metaLeadId && !recording.campaignId);
+                    const isLinkingThis = linkingId === leadId;
+
+                    return (
+                      <div
+                        key={leadId}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          padding: '10px 14px', borderRadius: '8px',
+                          border: `1px solid ${isCurrent ? C.blue : C.border}`,
+                          background: isCurrent ? C.blueLight : '#ffffff',
+                          transition: 'all 0.15s', gap: '10px'
+                        }}
+                      >
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontWeight: 700, fontSize: '13px', color: C.dark }}>
+                              {lead.name}
+                            </span>
+                            {lead.status && (
+                              <span style={{
+                                fontSize: '10px', fontWeight: 600, background: '#e0f2fe', color: '#0369a1',
+                                padding: '1px 6px', borderRadius: '4px'
+                              }}>
+                                {lead.status}
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '11px', color: C.textSoft, marginTop: '2px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                            <span>📞 {lead.phone || 'No phone'}</span>
+                            {lead.email && <span>✉️ {lead.email}</span>}
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => handleLink('lead', lead)}
+                          disabled={isCurrent || isLinkingThis}
+                          style={{
+                            background: isCurrent ? C.green : C.blue,
+                            color: '#ffffff', border: 'none', padding: '6px 12px',
+                            borderRadius: '6px', fontSize: '11px', fontWeight: 700,
+                            cursor: (isCurrent || isLinkingThis) ? 'default' : 'pointer',
+                            opacity: isLinkingThis ? 0.7 : 1, flexShrink: 0
+                          }}
+                        >
+                          {isCurrent ? '✓ Linked' : isLinkingThis ? 'Linking...' : '+ Select & Link'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            )}
+          </div>
         </div>
       </motion.div>
     </div>
@@ -780,20 +1271,22 @@ export default function CallRecordings() {
   };
 
   const filteredRecordings = recordings.filter(rec => {
-    const leadName = rec.leadName || rec.lead?.name || '';
-    const phone = rec.phone || rec.leadPhone || rec.lead?.phone || '';
+    const linkInfo = getLinkInfo(rec);
+    const leadName = linkInfo.name || rec.leadName || rec.lead?.name || '';
+    const phone = rec.phone || rec.leadPhone || rec.lead?.phone || rec.metaLeadPhone || '';
     const filename = rec.originalName || '';
+    const campName = rec.campaignName || rec.metaLeadCampaign || '';
 
     const matchesSearch =
       leadName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       phone.includes(searchTerm) ||
-      filename.toLowerCase().includes(searchTerm.toLowerCase());
+      filename.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      campName.toLowerCase().includes(searchTerm.toLowerCase());
 
     if (!matchesSearch) return false;
 
-    const hasLead = !!(rec.leadId || rec.lead);
-    if (filterType === 'matched') return hasLead;
-    if (filterType === 'unmatched') return !hasLead;
+    if (filterType === 'matched') return linkInfo.isLinked;
+    if (filterType === 'unmatched') return !linkInfo.isLinked;
 
     return true;
   });
@@ -831,7 +1324,7 @@ export default function CallRecordings() {
             <AudioLines style={{ width: '28px', height: '28px' }} /> Call Recordings Hub
           </h1>
           <p style={{ margin: '6px 0 0 0', opacity: 0.9, fontSize: '14px', maxWidth: '600px' }}>
-            Listen, search, and manually assign synced call recordings to CRM leads & contacts.
+            Listen, search, and manually assign synced call recordings to CRM leads, campaigns & contacts.
           </p>
         </div>
 
@@ -888,16 +1381,16 @@ export default function CallRecordings() {
         </div>
 
         <div style={{ background: '#fff', padding: '16px 18px', borderRadius: '12px', border: `1px solid ${C.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-          <div style={{ color: C.textSoft, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Matched Leads</div>
+          <div style={{ color: C.textSoft, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Linked Sessions</div>
           <div style={{ fontSize: '24px', fontWeight: 800, color: C.green, marginTop: '2px' }}>
-            {recordings.filter(r => !!(r.leadId || r.lead)).length}
+            {recordings.filter(r => getLinkInfo(r).isLinked).length}
           </div>
         </div>
 
         <div style={{ background: '#fff', padding: '16px 18px', borderRadius: '12px', border: `1px solid ${C.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
           <div style={{ color: C.textSoft, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Unlinked Calls</div>
           <div style={{ fontSize: '24px', fontWeight: 800, color: C.orange, marginTop: '2px' }}>
-            {recordings.filter(r => !(r.leadId || r.lead)).length}
+            {recordings.filter(r => !getLinkInfo(r).isLinked).length}
           </div>
         </div>
       </div>
@@ -1009,9 +1502,7 @@ export default function CallRecordings() {
         }}>
           {filteredRecordings.map((rec, index) => {
             const audioUrl = getAudioUrl(rec.cloudinaryUrl || rec.url);
-            const hasLead = !!(rec.leadId || rec.lead);
-            const leadName = rec.leadName || rec.lead?.name;
-            const firstLetter = hasLead && leadName ? leadName.charAt(0).toUpperCase() : '?';
+            const linkInfo = getLinkInfo(rec);
 
             return (
               <motion.div
@@ -1027,57 +1518,77 @@ export default function CallRecordings() {
                   overflow: 'hidden', boxSizing: 'border-box'
                 }}
               >
-                {/* 1. TOP LINE: Lead (Circle Avatar + Name) | Link Lead (Edit Icon) | Three Dots Menu */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                {/* 1. TOP LINE: Linked Session (Avatar + Name + Badge) | Link Session Button | Three Dots Menu */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                   
-                  {/* Lead Circle Avatar + Name */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {/* Avatar + Name + Subtitle */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
                     <div style={{
                       width: '32px', height: '32px', borderRadius: '50%',
-                      background: hasLead ? C.blueLight : C.orangeLight,
-                      color: hasLead ? C.blue : C.orangeDark,
+                      background: linkInfo.avatarBg,
+                      color: linkInfo.avatarColor,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontWeight: 700, fontSize: '13px', border: `1px solid ${hasLead ? C.blue : C.orange}`,
+                      fontWeight: 700, fontSize: '12px', border: `1px solid ${linkInfo.badgeBorder}`,
                       flexShrink: 0
                     }}>
-                      {firstLetter}
+                      {linkInfo.avatarIcon}
                     </div>
 
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: '13px', color: C.dark, lineHeight: 1.2 }}>
-                        {hasLead ? leadName : 'Unlinked Contact'}
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{
+                        fontWeight: 700, fontSize: '13px', color: C.dark, lineHeight: 1.2,
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                      }} title={linkInfo.name}>
+                        {linkInfo.name}
                       </div>
-                      <div style={{ fontSize: '10px', color: hasLead ? C.green : C.orange, fontWeight: 600, marginTop: '2px' }}>
-                        {hasLead ? '✓ Matched Lead' : '⚠️ Unlinked Call'}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px', flexWrap: 'wrap' }}>
+                        <span style={{
+                          fontSize: '10px',
+                          color: linkInfo.badgeColor,
+                          background: linkInfo.badgeBg,
+                          border: `1px solid ${linkInfo.badgeBorder}`,
+                          padding: '1px 5px',
+                          borderRadius: '4px',
+                          fontWeight: 700,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px'
+                        }}>
+                          {linkInfo.badgeLabel}
+                        </span>
+                        {linkInfo.subDetail && (
+                          <span style={{ fontSize: '10px', color: C.textSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={linkInfo.subDetail}>
+                            {linkInfo.subDetail}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
 
-                  {/* Right Actions: Edit Link Lead & Three Dots Menu */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {/* Link Lead Action Button */}
+                  {/* Right Actions: Link Session Action Button & Three Dots Menu */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                     {canManageCRUD && (
                       <motion.button
                         whileHover={{ scale: 1.04 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => setActiveLinkRecording(rec)}
-                        title={hasLead ? "Change Linked Lead" : "Link this recording to a CRM Lead"}
+                        title={linkInfo.isLinked ? "Edit linked lead or campaign" : "Link this recording session to Meta Leads, Campaigns, or Normal Leads"}
                         style={{
-                          background: hasLead ? '#f8fafc' : C.orangeLight,
-                          border: `1px solid ${hasLead ? C.border : C.orange}`,
+                          background: linkInfo.isLinked ? '#f8fafc' : C.orangeLight,
+                          border: `1px solid ${linkInfo.isLinked ? C.border : C.orange}`,
                           borderRadius: '8px',
-                          padding: '5px 10px',
+                          padding: '5px 9px',
                           fontSize: '11px',
                           fontWeight: 700,
-                          display: 'flex', alignItems: 'center', gap: '5px',
+                          display: 'flex', alignItems: 'center', gap: '4px',
                           cursor: 'pointer',
-                          color: hasLead ? C.blue : C.orangeDark,
-                          boxShadow: hasLead ? 'none' : '0 2px 6px rgba(249, 115, 22, 0.2)',
+                          color: linkInfo.isLinked ? C.blue : C.orangeDark,
+                          boxShadow: linkInfo.isLinked ? 'none' : '0 2px 6px rgba(249, 115, 22, 0.2)',
                           transition: 'all 0.15s'
                         }}
                       >
-                        <UserPlus style={{ width: '10px', height: '10px' }} />
-                        <span>{hasLead ? "Edit Link" : "Link"}</span>
+                        <Link2 style={{ width: '11px', height: '11px' }} />
+                        <span>{linkInfo.isLinked ? "Edit Link" : "Link Session"}</span>
                       </motion.button>
                     )}
 
@@ -1191,7 +1702,7 @@ export default function CallRecordings() {
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
               <thead>
                 <tr style={{ background: C.bgSoft, borderBottom: `1px solid ${C.border}`, color: C.textSoft, fontSize: '11px', textTransform: 'uppercase' }}>
-                  <th style={{ padding: '14px 16px' }}>Lead / Contact</th>
+                  <th style={{ padding: '14px 16px' }}>Linked Session / Entity</th>
                   <th style={{ padding: '14px 16px' }}>Caller Profile</th>
                   <th style={{ padding: '14px 16px' }}>Phone Number</th>
                   <th style={{ padding: '14px 16px' }}>Date & Time</th>
@@ -1202,17 +1713,43 @@ export default function CallRecordings() {
               <tbody>
                 {filteredRecordings.map((rec) => {
                   const audioUrl = getAudioUrl(rec.cloudinaryUrl || rec.url);
-                  const hasLead = !!(rec.leadId || rec.lead);
-                  const leadName = rec.leadName || rec.lead?.name;
+                  const linkInfo = getLinkInfo(rec);
 
                   return (
                     <tr key={rec._id || rec.id} style={{ borderBottom: `1px solid ${C.border}` }}>
                       <td style={{ padding: '14px 16px' }}>
-                        <div style={{ fontWeight: 700, color: C.dark }}>
-                          {hasLead ? leadName : 'Unlinked Contact'}
-                        </div>
-                        <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
-                          {rec.originalName}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{
+                            width: '28px', height: '28px', borderRadius: '50%',
+                            background: linkInfo.avatarBg,
+                            color: linkInfo.avatarColor,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontWeight: 700, fontSize: '11px', border: `1px solid ${linkInfo.badgeBorder}`,
+                            flexShrink: 0
+                          }}>
+                            {linkInfo.avatarIcon}
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 700, color: C.dark }}>
+                              {linkInfo.name}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                              <span style={{
+                                fontSize: '10px',
+                                color: linkInfo.badgeColor,
+                                background: linkInfo.badgeBg,
+                                border: `1px solid ${linkInfo.badgeBorder}`,
+                                padding: '1px 5px',
+                                borderRadius: '4px',
+                                fontWeight: 700
+                              }}>
+                                {linkInfo.badgeLabel}
+                              </span>
+                              <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                                {linkInfo.subDetail || rec.originalName}
+                              </span>
+                            </div>
+                          </div>
                         </div>
                       </td>
 
@@ -1248,14 +1785,15 @@ export default function CallRecordings() {
                             <button
                               onClick={() => setActiveLinkRecording(rec)}
                               style={{
-                                background: hasLead ? C.blueLight : C.orangeLight,
-                                color: hasLead ? C.blue : C.orangeDark,
-                                border: `1px solid ${hasLead ? C.blue : C.orange}`,
+                                background: linkInfo.isLinked ? C.blueLight : C.orangeLight,
+                                color: linkInfo.isLinked ? C.blue : C.orangeDark,
+                                border: `1px solid ${linkInfo.isLinked ? C.blue : C.orange}`,
                                 padding: '5px 10px', borderRadius: '6px', fontWeight: 700, fontSize: '11px',
                                 cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px'
                               }}
                             >
-                              {hasLead ? ' Edit Link' : ' Link Lead'}
+                              <Link2 style={{ width: '12px', height: '12px' }} />
+                              {linkInfo.isLinked ? ' Edit Link' : ' Link Session'}
                             </button>
                           )}
                           <ThreeDotsMenu
@@ -1277,7 +1815,7 @@ export default function CallRecordings() {
       {/* ── MODALS ── */}
       <AnimatePresence>
         {activeLinkRecording && (
-          <ManualLinkLeadModal
+          <LinkSessionModal
             recording={activeLinkRecording}
             onClose={() => setActiveLinkRecording(null)}
             onLinked={fetchRecordings}
