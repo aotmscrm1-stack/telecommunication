@@ -68,7 +68,14 @@ router.use('/departments', apiLimiter, require('../modules/management/department
 router.use('/attendance/zk', apiLimiter, require('../modules/management/attendance/zkRoutes'));
 router.use('/attendance', apiLimiter, require('../modules/management/attendance/attendance'));
 router.use('/tracking', apiLimiter, require('../modules/management/live-tracking/tracking'));
-router.use('/recordings', apiLimiter, require('../modules/management/live-tracking/recordings'));
+router.use('/recordings', (req, res, next) => {
+  // Audio streaming and file downloads issue frequent Range requests per audio element.
+  // Bypass rate limiting on streaming routes so users do not experience audio stuttering or 429 errors.
+  if (req.path.startsWith('/stream/') || req.path.startsWith('/file/')) {
+    return next();
+  }
+  return apiLimiter(req, res, next);
+}, require('../modules/management/live-tracking/recordings'));
 
 // ── Communication & Notifications ────────────────────────────────────────────
 router.use('/email', apiLimiter, require('../modules/communication/email/email'));

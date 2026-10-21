@@ -18,10 +18,11 @@ try {
 
 // ─── Storage setup ────────────────────────────────────────────────────────
 function getUploadDirectory() {
+  const defaultDir = path.join(__dirname, '..', '..', '..', 'uploads', 'recordings');
   const preferred = process.env.RECORDINGS_DIR || (
     process.env.NODE_ENV === 'production'
       ? '/var/data/recordings'
-      : path.join(__dirname, '..', 'uploads', 'recordings')
+      : defaultDir
   );
 
   try {
@@ -31,7 +32,7 @@ function getUploadDirectory() {
     fs.accessSync(preferred, fs.constants.W_OK);
     return preferred;
   } catch (_) {
-    const fallback = path.join(__dirname, '..', 'uploads', 'recordings');
+    const fallback = defaultDir;
     try {
       if (!fs.existsSync(fallback)) {
         fs.mkdirSync(fallback, { recursive: true });
@@ -491,8 +492,12 @@ function findAudioFilePath(filename) {
   const cleanName = path.basename(filename);
   const possiblePaths = [
     path.join(UPLOAD_DIR, cleanName),
-    path.join(__dirname, '..', 'uploads', 'recordings', cleanName),
-    path.join(__dirname, '..', 'uploads', cleanName),
+    path.join(__dirname, '..', '..', '..', 'uploads', 'recordings', cleanName),
+    path.join(__dirname, '..', '..', '..', 'uploads', cleanName),
+    path.join(process.cwd(), 'src', 'uploads', 'recordings', cleanName),
+    path.join(process.cwd(), 'src', 'uploads', cleanName),
+    path.join(process.cwd(), 'uploads', 'recordings', cleanName),
+    path.join(process.cwd(), 'uploads', cleanName),
     path.join('/var/data/recordings', cleanName),
     path.join('/tmp/recordings', cleanName),
   ];
@@ -517,6 +522,7 @@ function getAudioMimeType(filename) {
     case '.3gp':
     case '.3gpp': return 'audio/3gpp';
     case '.amr': return 'audio/amr';
+    case '.flac': return 'audio/flac';
     default: return 'audio/mp4';
   }
 }
@@ -528,9 +534,16 @@ function streamAudioFile(req, res) {
 
     if (!filePath) {
       // If file not found locally (e.g. running local dev against remote Render cloud storage),
-      // seamlessly proxy from remote Render server so playback works locally without error!
-      const remoteBase = 'https://telecommunication-l3oz.onrender.com';
-      const remoteStreamUrl = `${remoteBase}/api/recordings/stream/${filename}`;
+      // proxy from remote Render server only if we are NOT already on the remote server!
+      const remoteHost = 'telecommunication-l3oz.onrender.com';
+      const currentHost = (req.get('host') || '').toLowerCase();
+      const isRunningOnRemote = currentHost.includes(remoteHost) || !!process.env.RENDER;
+
+      if (isRunningOnRemote) {
+        return res.status(404).json({ error: 'Audio recording file not found on server' });
+      }
+
+      const remoteStreamUrl = `https://${remoteHost}/api/recordings/stream/${filename}`;
       console.log(`[AudioStream] Local file not found for ${filename}. Proxying from ${remoteStreamUrl}`);
 
       const https = require('https');
@@ -539,17 +552,38 @@ function streamAudioFile(req, res) {
         reqHeaders.range = req.headers.range;
       }
 
-      const proxyReq = https.get(remoteStreamUrl, { headers: reqHeaders }, (proxyRes) => {
+      const proxyReq = https.get(remoteStreamUrl, { headers: reqHeaders, timeout: 15000 }, (proxyRes) => {
         if (proxyRes.statusCode === 404) {
           return res.status(404).json({ error: 'Audio recording file not found on local or remote server' });
         }
-        res.writeHead(proxyRes.statusCode, proxyRes.headers);
+        
+        // Pass essential headers
+        const forwardHeaders = {};
+        const safeHeaders = ['content-type', 'content-length', 'content-range', 'accept-ranges', 'cache-control', 'etag', 'last-modified'];
+        safeHeaders.forEach(h => {
+          if (proxyRes.headers[h]) forwardHeaders[h] = proxyRes.headers[h];
+        });
+        if (!forwardHeaders['content-type']) {
+          forwardHeaders['content-type'] = getAudioMimeType(filename);
+        }
+        forwardHeaders['access-control-allow-origin'] = '*';
+        
+        res.writeHead(proxyRes.statusCode, forwardHeaders);
         proxyRes.pipe(res);
+      });
+
+      proxyReq.on('timeout', () => {
+        proxyReq.destroy();
+        if (!res.headersSent) {
+          res.status(504).json({ error: 'Remote audio stream request timed out' });
+        }
       });
 
       proxyReq.on('error', (proxyErr) => {
         console.error('[AudioStream Proxy Error]', proxyErr.message);
-        res.status(502).json({ error: 'Failed to stream audio from remote storage' });
+        if (!res.headersSent) {
+          res.status(502).json({ error: 'Failed to stream audio from remote storage' });
+        }
       });
 
       return;

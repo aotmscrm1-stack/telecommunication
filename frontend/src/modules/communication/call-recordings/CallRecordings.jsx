@@ -35,10 +35,19 @@ const MemoizedAudioPlayer = memo(function MemoizedAudioPlayer({ audioUrl, mimeTy
     if (isPlaying) {
       audioRef.current.pause();
     } else {
-      audioRef.current.play().catch(err => {
-        console.warn('Audio play error:', err);
-        setLoadError(true);
-      });
+      const playPromise = audioRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(err => {
+          // AbortError occurs when pause() is called before play() finishes, or rapid clicks.
+          // This is normal browser behavior, NOT a corrupt or failed audio source.
+          if (err.name === 'AbortError') {
+            console.debug('Audio play request interrupted/aborted safely.');
+            return;
+          }
+          console.warn('Audio play error:', err);
+          setLoadError(true);
+        });
+      }
     }
   };
 
@@ -153,7 +162,7 @@ const MemoizedAudioPlayer = memo(function MemoizedAudioPlayer({ audioUrl, mimeTy
       <audio
         ref={audioRef}
         src={effectiveAudioUrl}
-        preload="metadata"
+        preload="none"
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
         onTimeUpdate={onTimeUpdate}
