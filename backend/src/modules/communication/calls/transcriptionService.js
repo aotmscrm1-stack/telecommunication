@@ -89,13 +89,19 @@ async function ensureLocalAudioFile(filePath) {
 
   const filename = path.basename(filePath);
   const possiblePaths = [
+    filePath,
+    path.join(__dirname, '..', '..', 'management', 'uploads', 'recordings', filename),
+    path.join(__dirname, '..', '..', 'management', 'uploads', filename),
     path.join(__dirname, '..', 'uploads', 'recordings', filename),
     path.join(__dirname, '..', 'uploads', filename),
     path.join('/var/data/recordings', filename),
     path.join('/tmp', 'recordings', filename),
+    path.join('/tmp/recordings', filename),
   ];
   for (const p of possiblePaths) {
-    if (fs.existsSync(p)) return p;
+    try {
+      if (fs.existsSync(p)) return p;
+    } catch (_) {}
   }
 
   // Not on disk: download from remote Render deployment to local temp file
@@ -134,6 +140,37 @@ async function ensureLocalAudioFile(filePath) {
 }
 
 /**
+ * Maps audio extensions to OpenAI Whisper supported extension & MIME type
+ * OpenAI supported formats: ['flac', 'm4a', 'mp3', 'mp4', 'mpeg', 'mpga', 'oga', 'ogg', 'wav', 'webm']
+ */
+function getOpenAISafeFileDescriptor(targetPath) {
+  const originalExt = path.extname(targetPath).toLowerCase();
+  
+  // Format mapping table
+  const mapping = {
+    '.aac': { ext: '.m4a', mime: 'audio/mp4' },
+    '.m4a': { ext: '.m4a', mime: 'audio/mp4' },
+    '.mp4': { ext: '.mp4', mime: 'audio/mp4' },
+    '.mp3': { ext: '.mp3', mime: 'audio/mpeg' },
+    '.mpeg': { ext: '.mpeg', mime: 'audio/mpeg' },
+    '.mpga': { ext: '.mpga', mime: 'audio/mpeg' },
+    '.wav': { ext: '.wav', mime: 'audio/wav' },
+    '.ogg': { ext: '.ogg', mime: 'audio/ogg' },
+    '.oga': { ext: '.oga', mime: 'audio/ogg' },
+    '.webm': { ext: '.webm', mime: 'audio/webm' },
+    '.flac': { ext: '.flac', mime: 'audio/flac' },
+    '.3gp': { ext: '.mp4', mime: 'audio/mp4' },
+    '.3gpp': { ext: '.mp4', mime: 'audio/mp4' },
+    '.amr': { ext: '.mp3', mime: 'audio/mpeg' },
+    '.awb': { ext: '.mp3', mime: 'audio/mpeg' },
+  };
+
+  const safe = mapping[originalExt] || { ext: '.m4a', mime: 'audio/mp4' };
+  const virtualFilename = `audio_${Date.now()}${safe.ext}`;
+  return { virtualFilename, mimeType: safe.mime };
+}
+
+/**
  * Transcribe an audio file using OpenAI Audio API (gpt-4o-mini-transcribe / whisper-1)
  * and convert to English Chatting Language (e.g. "Hi em chestunnavu , ala unnavu").
  * 
@@ -152,19 +189,14 @@ async function transcribeAudioFile(filePath, overrideApiKey = '') {
 
   const openai = new OpenAI({ apiKey });
 
-  // OpenAI Whisper supported extensions:
-  // ['flac', 'm4a', 'mp3', 'mp4', 'mpeg', 'mpga', 'oga', 'ogg', 'wav', 'webm']
-  const originalExt = path.extname(targetPath).toLowerCase();
-  const allowedExtensions = ['.flac', '.m4a', '.mp3', '.mp4', '.mpeg', '.mpga', '.oga', '.ogg', '.wav', '.webm'];
-  const safeExt = allowedExtensions.includes(originalExt) ? originalExt : '.m4a';
-  const virtualFilename = `recording_${Date.now()}${safeExt}`;
+  const { virtualFilename, mimeType } = getOpenAISafeFileDescriptor(targetPath);
 
   let response;
   // Prompt instructions for English chatting script / Telugish
   const promptText = 'Customer support call recording in Telugu, English chatting language (Telugish). Example: "Hi em chestunnavu, ela unnavu?". Transcribe accurately in Romanized English chatting script.';
 
   try {
-    const audioFile = await toFile(fs.createReadStream(targetPath), virtualFilename);
+    const audioFile = await toFile(fs.createReadStream(targetPath), virtualFilename, { type: mimeType });
     response = await openai.audio.transcriptions.create({
       file: audioFile,
       model: 'gpt-4o-mini-transcribe',
@@ -174,7 +206,7 @@ async function transcribeAudioFile(filePath, overrideApiKey = '') {
     });
   } catch (modelErr) {
     console.warn('[STT] gpt-4o-mini-transcribe fallback to whisper-1:', modelErr?.message || modelErr);
-    const retryAudioFile = await toFile(fs.createReadStream(targetPath), virtualFilename);
+    const retryAudioFile = await toFile(fs.createReadStream(targetPath), virtualFilename, { type: mimeType });
     response = await openai.audio.transcriptions.create({
       file: retryAudioFile,
       model: 'whisper-1',
