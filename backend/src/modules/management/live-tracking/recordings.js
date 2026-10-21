@@ -638,6 +638,9 @@ router.get('/file/:filename', streamAudioFile);
 function formatRecording(r) {
   const filename = r.storedName || (r.url ? path.basename(r.url) : '');
   const streamPath = filename ? `/api/recordings/stream/${filename}` : (r.url || '');
+  const localFile = filename ? findAudioFilePath(filename) : null;
+  const fileAvailable = !!localFile;
+
   return {
     _id: r._id,
     recordedAt: r.recordedAt,
@@ -659,6 +662,7 @@ function formatRecording(r) {
     transcript: r.transcript || '',
     transcriptStatus: r.transcriptStatus || 'none',
     transcriptError: r.transcriptError || '',
+    fileExists: fileAvailable,
     lastCallIqReport: r.lastCallIqReport && r.lastCallIqReport.runAt
       ? {
           agentName: r.lastCallIqReport.agentName || '',

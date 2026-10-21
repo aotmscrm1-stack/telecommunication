@@ -12,7 +12,7 @@ import { isHR, isCEO, isManager, canViewCallRecordings } from '../../../utils/pe
 import TranscriptConversationModal from '../../../components/TranscriptConversationModal';
 
 // ── ADVANCED CUSTOM AUDIO PLAYER (Play/Pause, Seek, Current Time, Duration, Volume, Error handling)
-const MemoizedAudioPlayer = memo(function MemoizedAudioPlayer({ audioUrl, mimeType }) {
+const MemoizedAudioPlayer = memo(function MemoizedAudioPlayer({ audioUrl, mimeType, fileExists }) {
   const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -129,10 +129,10 @@ const MemoizedAudioPlayer = memo(function MemoizedAudioPlayer({ audioUrl, mimeTy
     return <span style={{ color: '#dc2626', fontSize: '11px', fontWeight: 600 }}>No audio file available</span>;
   }
 
-  if (loadError) {
+  if (fileExists === false || loadError) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px', color: '#dc2626', fontSize: '12px' }}>
-        <span>⚠️ Playback error</span>
+        <span>⚠️ File not found on server</span>
         <button
           onClick={() => {
             setLoadError(false);
@@ -145,14 +145,6 @@ const MemoizedAudioPlayer = memo(function MemoizedAudioPlayer({ audioUrl, mimeTy
         >
           Retry
         </button>
-        <a
-          href={effectiveAudioUrl}
-          target="_blank"
-          rel="noreferrer"
-          style={{ color: '#0284c7', fontSize: '11px', textDecoration: 'underline' }}
-        >
-          Open Link
-        </a>
       </div>
     );
   }
@@ -1086,7 +1078,7 @@ export default function CallRecordings() {
 
                 {/* 5. FIFTH LINE: Audio Container */}
                 <div style={{ background: C.bgSoft, borderRadius: '8px', padding: '6px 8px', border: `1px solid ${C.border}`, overflow: 'hidden', boxSizing: 'border-box', width: '100%', maxWidth: '100%' }}>
-                  <MemoizedAudioPlayer audioUrl={audioUrl} mimeType={rec.mimeType} />
+                  <MemoizedAudioPlayer audioUrl={audioUrl} mimeType={rec.mimeType} fileExists={rec.fileExists} />
                 </div>
 
                 {/* 6. SIXTH LINE: AI Whisper Transcription */}
@@ -1195,7 +1187,7 @@ export default function CallRecordings() {
                       </td>
 
                       <td style={{ padding: '14px 16px', minWidth: '300px' }}>
-                        <MemoizedAudioPlayer audioUrl={audioUrl} mimeType={rec.mimeType} />
+                        <MemoizedAudioPlayer audioUrl={audioUrl} mimeType={rec.mimeType} fileExists={rec.fileExists} />
                       </td>
 
                       <td style={{ padding: '14px 16px', textAlign: 'right' }}>
