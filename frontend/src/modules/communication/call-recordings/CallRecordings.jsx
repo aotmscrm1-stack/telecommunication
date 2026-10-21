@@ -12,7 +12,7 @@ import { isHR, isCEO, isManager, canViewCallRecordings } from '../../../utils/pe
 import TranscriptConversationModal from '../../../components/TranscriptConversationModal';
 
 // ── ADVANCED CUSTOM AUDIO PLAYER (Play/Pause, Seek, Current Time, Duration, Volume, Error handling)
-const MemoizedAudioPlayer = memo(function MemoizedAudioPlayer({ audioUrl, mimeType, fileExists, onRetry }) {
+const MemoizedAudioPlayer = memo(function MemoizedAudioPlayer({ audioUrl, mimeType, fileExists, fileAvailable, onRetry }) {
   const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -23,32 +23,58 @@ const MemoizedAudioPlayer = memo(function MemoizedAudioPlayer({ audioUrl, mimeTy
   const [isLoading, setIsLoading] = useState(false);
   const [currentUrlIndex, setCurrentUrlIndex] = useState(0);
 
+  // Generate candidate URLs (direct Cloudinary/stream URL + remote Render fallback)
+  const candidateUrls = [audioUrl];
+  if (audioUrl) {
+    const filename = audioUrl.split('/').pop().split('?')[0];
+    const remoteStreamUrl = `https://telecommunication-l3oz.onrender.com/api/recordings/stream/${filename}`;
+    if (!audioUrl.includes('telecommunication-l3oz.onrender.com') && !audioUrl.includes('res.cloudinary.com')) {
+      candidateUrls.push(remoteStreamUrl);
+    }
+  }
+
+  const effectiveAudioUrl = candidateUrls[currentUrlIndex] || audioUrl;
+
   useEffect(() => {
-    // Reset player states if audioUrl changes
+    // Reset player states if audio source changes
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
     setLoadError(false);
+    setIsLoading(false);
     setCurrentUrlIndex(0);
+    if (audioRef.current) {
+      audioRef.current.load();
+    }
   }, [audioUrl]);
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.load();
+    }
+  }, [currentUrlIndex]);
 
   const togglePlay = () => {
     if (!audioRef.current) return;
     if (isPlaying) {
       audioRef.current.pause();
     } else {
+      setIsLoading(true);
       const playPromise = audioRef.current.play();
       if (playPromise !== undefined) {
-        playPromise.catch(err => {
-          // AbortError occurs when pause() is called before play() finishes, or rapid clicks.
-          // This is normal browser behavior, NOT a corrupt or failed audio source.
-          if (err.name === 'AbortError') {
-            console.debug('Audio play request interrupted/aborted safely.');
-            return;
-          }
-          console.warn('Audio play error:', err);
-          setLoadError(true);
-        });
+        playPromise
+          .then(() => {
+            setIsLoading(false);
+          })
+          .catch(err => {
+            setIsLoading(false);
+            if (err.name === 'AbortError') {
+              console.debug('Audio play request interrupted/aborted safely.');
+              return;
+            }
+            console.warn('Audio play error:', err);
+            handleAudioError(err);
+          });
       }
     }
   };
@@ -101,18 +127,6 @@ const MemoizedAudioPlayer = memo(function MemoizedAudioPlayer({ audioUrl, mimeTy
     return `${m}:${String(s).padStart(2, '0')}`;
   };
 
-  // Generate candidate URLs (primary stream/Cloudinary + remote Render fallback)
-  const candidateUrls = [audioUrl];
-  if (audioUrl) {
-    const filename = audioUrl.split('/').pop().split('?')[0];
-    const remoteStreamUrl = `https://telecommunication-l3oz.onrender.com/api/recordings/stream/${filename}`;
-    if (!audioUrl.includes('telecommunication-l3oz.onrender.com')) {
-      candidateUrls.push(remoteStreamUrl);
-    }
-  }
-
-  const effectiveAudioUrl = candidateUrls[currentUrlIndex] || audioUrl;
-
   const handleAudioError = (e) => {
     // If first candidate failed, try fallback remote URL before giving error
     if (currentUrlIndex < candidateUrls.length - 1) {
@@ -125,23 +139,42 @@ const MemoizedAudioPlayer = memo(function MemoizedAudioPlayer({ audioUrl, mimeTy
     setIsLoading(false);
   };
 
-  if (!audioUrl) {
-    return <span style={{ color: '#dc2626', fontSize: '11px', fontWeight: 600 }}>No audio file available</span>;
+  // 1. If audio file is missing on storage or marked unavailable, gracefully show transcript preserved badge
+  if (!audioUrl || fileExists === false || fileAvailable === false) {
+    return (
+      <div style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '6px',
+        color: '#64748b',
+        fontSize: '11px',
+        background: '#f1f5f9',
+        padding: '5px 10px',
+        borderRadius: '6px',
+        border: '1px solid #e2e8f0',
+        fontWeight: 500,
+        boxSizing: 'border-box',
+        width: '100%',
+        justifyContent: 'center'
+      }}>
+        <FileAudio style={{ width: '13px', height: '13px', color: '#94a3b8', flexShrink: 0 }} />
+        <span>Audio unavailable — transcript preserved</span>
+      </div>
+    );
   }
 
-  if (fileExists === false || loadError) {
+  // 2. Playback error state for available files (shows retry button that can actually help)
+  if (loadError) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px', color: '#dc2626', fontSize: '12px' }}>
-        <span>⚠️ File not found on server</span>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: '8px', color: '#dc2626', fontSize: '11px', padding: '4px 0' }}>
+        <span>⚠️ Playback error</span>
         <button
           onClick={() => {
             setLoadError(false);
             setCurrentUrlIndex(0);
-            if (onRetry) {
-              onRetry();
-            }
             if (audioRef.current) {
               audioRef.current.load();
+              audioRef.current.play().catch(() => {});
             }
           }}
           style={{ background: '#fef2f2', border: '1px solid #fecaca', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', color: '#dc2626', fontWeight: 600 }}
@@ -156,16 +189,19 @@ const MemoizedAudioPlayer = memo(function MemoizedAudioPlayer({ audioUrl, mimeTy
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden', padding: '2px 0' }}>
       <audio
         ref={audioRef}
-        src={effectiveAudioUrl}
-        preload="none"
+        preload="metadata"
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
         onTimeUpdate={onTimeUpdate}
         onLoadedMetadata={onLoadedMetadata}
         onWaiting={() => setIsLoading(true)}
         onCanPlay={() => setIsLoading(false)}
+        onPlaying={() => setIsLoading(false)}
         onError={handleAudioError}
-      />
+      >
+        <source src={effectiveAudioUrl} type={mimeType || 'audio/mp4'} />
+        Your browser does not support the audio element.
+      </audio>
 
       <div style={{
         display: 'flex',
@@ -972,7 +1008,7 @@ export default function CallRecordings() {
           display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '16px'
         }}>
           {filteredRecordings.map((rec, index) => {
-            const audioUrl = getAudioUrl(rec.url);
+            const audioUrl = getAudioUrl(rec.cloudinaryUrl || rec.url);
             const hasLead = !!(rec.leadId || rec.lead);
             const leadName = rec.leadName || rec.lead?.name;
             const firstLetter = hasLead && leadName ? leadName.charAt(0).toUpperCase() : '?';
@@ -1094,7 +1130,7 @@ export default function CallRecordings() {
 
                 {/* 5. FIFTH LINE: Audio Container */}
                 <div style={{ background: C.bgSoft, borderRadius: '8px', padding: '6px 8px', border: `1px solid ${C.border}`, overflow: 'hidden', boxSizing: 'border-box', width: '100%', maxWidth: '100%' }}>
-                  <MemoizedAudioPlayer audioUrl={audioUrl} mimeType={rec.mimeType} fileExists={rec.fileExists} onRetry={fetchRecordings} />
+                  <MemoizedAudioPlayer audioUrl={audioUrl} mimeType={rec.mimeType} fileExists={rec.fileExists} fileAvailable={rec.fileAvailable} onRetry={fetchRecordings} />
                 </div>
 
                 {/* 6. SIXTH LINE: AI Whisper Transcription */}
@@ -1165,7 +1201,7 @@ export default function CallRecordings() {
               </thead>
               <tbody>
                 {filteredRecordings.map((rec) => {
-                  const audioUrl = getAudioUrl(rec.url);
+                  const audioUrl = getAudioUrl(rec.cloudinaryUrl || rec.url);
                   const hasLead = !!(rec.leadId || rec.lead);
                   const leadName = rec.leadName || rec.lead?.name;
 
@@ -1203,7 +1239,7 @@ export default function CallRecordings() {
                       </td>
 
                       <td style={{ padding: '14px 16px', minWidth: '300px' }}>
-                        <MemoizedAudioPlayer audioUrl={audioUrl} mimeType={rec.mimeType} fileExists={rec.fileExists} onRetry={fetchRecordings} />
+                        <MemoizedAudioPlayer audioUrl={audioUrl} mimeType={rec.mimeType} fileExists={rec.fileExists} fileAvailable={rec.fileAvailable} onRetry={fetchRecordings} />
                       </td>
 
                       <td style={{ padding: '14px 16px', textAlign: 'right' }}>

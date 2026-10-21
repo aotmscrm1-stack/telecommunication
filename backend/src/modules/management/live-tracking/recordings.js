@@ -6,6 +6,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 
 const router = express.Router();
+const mongoose = require('mongoose');
 const CallRecording = require('../../../database/models/CallRecording');
 const Lead = require('../../../database/models/Lead');
 const { normalizePhone10 } = require('../../../core/utils/phone');
@@ -160,6 +161,33 @@ router.post('/', protect, upload.single('audio'), async (req, res) => {
     }).populate('lead', 'name phone').lean();
 
     if (existingRec) {
+      // If the legacy record exists without Cloudinary URL, backfill/recover it now
+      let recoveredRec = existingRec;
+      if (!existingRec.cloudinaryUrl && req.file.path && fs.existsSync(req.file.path)) {
+        try {
+          const recoveredCld = await uploadAudioToCloudinary(req.file.path, 'call_recordings', req.file.filename);
+          if (recoveredCld && recoveredCld.secure_url) {
+            const updatedDoc = await CallRecording.findByIdAndUpdate(
+              existingRec._id,
+              {
+                cloudinaryUrl: recoveredCld.secure_url,
+                cloudinaryPublicId: recoveredCld.public_id,
+                cloudinaryResourceType: recoveredCld.resource_type || 'video',
+                url: recoveredCld.secure_url,
+                fileAvailable: true,
+              },
+              { new: true }
+            ).populate('lead', 'name phone').lean();
+            if (updatedDoc) {
+              recoveredRec = updatedDoc;
+              console.log(`[Cloudinary Audio Recovery] Successfully backfilled ${req.file.originalname} (${existingRec._id}) to Cloudinary: ${recoveredCld.secure_url}`);
+            }
+          }
+        } catch (recoverErr) {
+          console.warn('[Cloudinary Audio Recovery Notice]', recoverErr.message);
+        }
+      }
+
       // Remove the newly uploaded duplicate file from disk to save storage
       try {
         if (req.file.path && fs.existsSync(req.file.path)) {
@@ -170,22 +198,32 @@ router.post('/', protect, upload.single('audio'), async (req, res) => {
       return res.status(200).json({
         success: true,
         alreadySynced: true,
-        recording: formatRecording(existingRec),
+        recording: formatRecording(recoveredRec),
       });
     }
 
     // ─── Upload to Cloudinary for permanent persistent cloud storage ──────
     let cloudinaryData = null;
+    const localFilePath = req.file.path;
     try {
-      const localFilePath = req.file.path;
       if (localFilePath && fs.existsSync(localFilePath)) {
         cloudinaryData = await uploadAudioToCloudinary(localFilePath, 'call_recordings', req.file.filename);
-        if (cloudinaryData) {
+        if (cloudinaryData && cloudinaryData.secure_url) {
           console.log(`[Cloudinary Audio Success] Recording ${req.file.filename} uploaded:`, cloudinaryData.secure_url);
         }
       }
     } catch (cldErr) {
-      console.warn('[Cloudinary Audio Warning] Cloudinary upload notice:', cldErr.message);
+      console.error('[Cloudinary Audio Upload Error]:', cldErr.message);
+    }
+
+    // Enforce persistent cloud storage: do not report success if Cloudinary upload failed
+    if (!cloudinaryData || !cloudinaryData.secure_url) {
+      try {
+        if (localFilePath && fs.existsSync(localFilePath)) fs.unlinkSync(localFilePath);
+      } catch (_) {}
+      return res.status(502).json({
+        error: 'Failed to upload audio recording to persistent cloud storage (Cloudinary). Please try again.',
+      });
     }
 
     const doc = await CallRecording.create({
@@ -195,12 +233,13 @@ router.post('/', protect, upload.single('audio'), async (req, res) => {
       originalName: req.file.originalname,
       storedName: req.file.filename,
       filePath: `recordings/${req.file.filename}`,
-      url: cloudinaryData?.secure_url || `/uploads/recordings/${req.file.filename}`,
-      cloudinaryUrl: cloudinaryData?.secure_url || null,
-      cloudinaryPublicId: cloudinaryData?.public_id || null,
-      cloudinaryResourceType: cloudinaryData?.resource_type || 'raw',
+      url: cloudinaryData.secure_url,
+      cloudinaryUrl: cloudinaryData.secure_url,
+      cloudinaryPublicId: cloudinaryData.public_id,
+      cloudinaryResourceType: cloudinaryData.resource_type || 'video',
+      fileAvailable: true,
       size: req.file.size,
-      mimeType: req.file.mimetype || 'audio/mpeg',
+      mimeType: req.file.mimetype || getAudioMimeType(req.file.originalname) || 'audio/mp4',
       recordedAt: dateObj,
       callDate: callDateStr,
       callTime: callTimeStr,
@@ -212,12 +251,12 @@ router.post('/', protect, upload.single('audio'), async (req, res) => {
 
     // ── Background Auto-Transcription via OpenAI Whisper / GPT-4o ───────────
     try {
-      const absolutePath = path.join(UPLOAD_DIR, req.file.filename);
+      const absolutePath = localFilePath || path.join(UPLOAD_DIR, req.file.filename);
       let sttFn = transcribeAudioFile;
       if (!sttFn) {
         try { sttFn = require('../../../modules/communication/calls/transcriptionService').transcribeAudioFile; } catch (_) {}
       }
-      if (sttFn) {
+      if (sttFn && fs.existsSync(absolutePath)) {
         sttFn(absolutePath)
           .then(async (transcriptText) => {
             await CallRecording.findByIdAndUpdate(doc._id, {
@@ -239,7 +278,7 @@ router.post('/', protect, upload.single('audio'), async (req, res) => {
       console.error('[Auto-STT Setup Error]', bgErr);
     }
 
-    return res.status(201).json({ success: true, recording: populated });
+    return res.status(201).json({ success: true, recording: formatRecording(populated) });
   } catch (err) {
     console.error('Recording upload error:', err);
     return res.status(500).json({ error: 'Failed to save recording', details: err.message });
@@ -647,8 +686,14 @@ async function streamAudioFile(req, res) {
       }
 
       const proxyReq = https.get(remoteStreamUrl, { headers: reqHeaders, timeout: 15000 }, (proxyRes) => {
+        if (proxyRes.statusCode === 301 || proxyRes.statusCode === 302) {
+          const redirectLocation = proxyRes.headers.location;
+          if (redirectLocation) {
+            return res.redirect(302, redirectLocation);
+          }
+        }
         if (proxyRes.statusCode === 404) {
-          return res.status(404).json({ error: 'Audio recording file not found on local or remote server' });
+          return res.status(404).json({ error: 'Audio recording file not found on server' });
         }
         
         // Pass essential headers
@@ -676,7 +721,7 @@ async function streamAudioFile(req, res) {
       proxyReq.on('error', (proxyErr) => {
         console.error('[AudioStream Proxy Error]', proxyErr.message);
         if (!res.headersSent) {
-          res.status(502).json({ error: 'Failed to stream audio from remote storage' });
+          res.status(404).json({ error: 'Audio recording file not found on server' });
         }
       });
 
@@ -733,7 +778,7 @@ function formatRecording(r) {
   const filename = r.storedName || (r.url ? path.basename(r.url) : '');
   const localFile = filename ? findAudioFilePath(filename) : null;
   const isCloudinary = !!(r.cloudinaryUrl || (r.url && r.url.includes('res.cloudinary.com')));
-  const fileAvailable = !!localFile || isCloudinary;
+  const fileAvailable = r.fileAvailable !== false && (!!localFile || isCloudinary);
 
   // Use direct Cloudinary CDN URL when available, otherwise backend streaming path
   const cldUrl = r.cloudinaryUrl || (r.url && r.url.includes('res.cloudinary.com') ? r.url : null);
@@ -744,9 +789,13 @@ function formatRecording(r) {
     _id: r._id,
     recordedAt: r.recordedAt,
     url: finalAudioUrl,
+    streamUrl: cldUrl || absoluteUrl(streamPath),
     originalUrl: absoluteUrl(r.url),
-    cloudinaryUrl: r.cloudinaryUrl || (r.url && r.url.includes('res.cloudinary.com') ? r.url : null),
+    cloudinaryUrl: cldUrl,
     cloudinaryPublicId: r.cloudinaryPublicId || null,
+    cloudinaryResourceType: r.cloudinaryResourceType || 'video',
+    fileAvailable: fileAvailable,
+    fileExists: fileAvailable,
     size: r.size,
     mimeType: getAudioMimeType(filename) || r.mimeType || 'audio/mp4',
     phone: r.phone || null,
@@ -763,7 +812,6 @@ function formatRecording(r) {
     transcript: r.transcript || '',
     transcriptStatus: r.transcriptStatus || 'none',
     transcriptError: r.transcriptError || '',
-    fileExists: fileAvailable,
     lastCallIqReport: r.lastCallIqReport && r.lastCallIqReport.runAt
       ? {
           agentName: r.lastCallIqReport.agentName || '',
@@ -781,5 +829,61 @@ function absoluteUrl(relativePath) {
   if (!base) return relativePath;
   return `${base.replace(/\/+$/, '')}${relativePath}`;
 }
+
+// ─── Startup Migration Routine for Legacy Recordings ───────────────────────
+async function syncLegacyRecordings() {
+  try {
+    const legacyRecs = await CallRecording.find({
+      $or: [
+        { cloudinaryUrl: null },
+        { cloudinaryUrl: '' },
+        { fileAvailable: { $ne: false } },
+      ]
+    });
+
+    for (const rec of legacyRecs) {
+      if (!rec.cloudinaryUrl) {
+        const localFile = findAudioFilePath(rec.storedName || rec.originalName);
+        if (localFile && fs.existsSync(localFile)) {
+          try {
+            const cld = await uploadAudioToCloudinary(localFile, 'call_recordings', rec.storedName);
+            if (cld && cld.secure_url) {
+              await CallRecording.findByIdAndUpdate(rec._id, {
+                cloudinaryUrl: cld.secure_url,
+                cloudinaryPublicId: cld.public_id,
+                cloudinaryResourceType: cld.resource_type || 'video',
+                url: cld.secure_url,
+                fileAvailable: true,
+              });
+              console.log(`[Legacy Audio Sync] Recovered & uploaded ${rec.storedName} to Cloudinary.`);
+            }
+          } catch (cldErr) {
+            console.warn(`[Legacy Audio Sync] Failed to backfill ${rec.storedName}:`, cldErr.message);
+          }
+        } else {
+          // File not present locally or in Cloudinary
+          if (rec.fileAvailable !== false) {
+            await CallRecording.findByIdAndUpdate(rec._id, { fileAvailable: false });
+            console.log(`[Legacy Audio Sync] Marked ${rec.originalName} (${rec._id}) as fileAvailable: false (audio missing, transcript preserved).`);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[Legacy Audio Sync Notice]', err.message);
+  }
+}
+
+// Run legacy sync once MongoDB connection is established
+function triggerLegacySync() {
+  if (mongoose.connection && mongoose.connection.readyState === 1) {
+    syncLegacyRecordings().catch(() => {});
+  } else if (mongoose.connection) {
+    mongoose.connection.once('connected', () => {
+      syncLegacyRecordings().catch(() => {});
+    });
+  }
+}
+setTimeout(triggerLegacySync, 2000);
 
 module.exports = router;

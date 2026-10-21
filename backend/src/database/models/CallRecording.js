@@ -55,6 +55,9 @@ const callRecordingSchema = new mongoose.Schema(
     cloudinaryResourceType: { type: String, default: 'video' }, // Cloudinary stores audio files under 'video' resource_type
     cloudinaryUrl: { type: String, default: null },
 
+    // Physical audio file availability flag (false if audio binary is lost, transcript preserved)
+    fileAvailable: { type: Boolean, default: true },
+
     // File size in bytes
     size: { type: Number, default: 0 },
 

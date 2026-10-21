@@ -436,7 +436,7 @@ router.get('/random', protect, async (req, res) => {
     const baseUrl = process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`;
     const formattedRecordings = recordings.map(rec => ({
       ...rec,
-      streamUrl: rec.storedName ? `${baseUrl}/api/recordings/stream/${rec.storedName}` : (rec.url ? (rec.url.startsWith('http') ? rec.url : `${baseUrl}${rec.url}`) : '')
+      streamUrl: rec.cloudinaryUrl || (rec.storedName ? `${baseUrl}/api/recordings/stream/${rec.storedName}` : (rec.url ? (rec.url.startsWith('http') ? rec.url : `${baseUrl}${rec.url}`) : ''))
     }));
 
     return res.json({
@@ -479,7 +479,7 @@ router.get('/:id', protect, async (req, res) => {
     const baseUrl = process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`;
     const formattedRecordings = recordings.map(rec => ({
       ...rec,
-      streamUrl: rec.storedName ? `${baseUrl}/api/recordings/stream/${rec.storedName}` : (rec.url ? (rec.url.startsWith('http') ? rec.url : `${baseUrl}${rec.url}`) : '')
+      streamUrl: rec.cloudinaryUrl || (rec.storedName ? `${baseUrl}/api/recordings/stream/${rec.storedName}` : (rec.url ? (rec.url.startsWith('http') ? rec.url : `${baseUrl}${rec.url}`) : ''))
     }));
 
     res.json({ lead, recordings: formattedRecordings });
