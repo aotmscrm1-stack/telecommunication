@@ -23,6 +23,52 @@ import Header from '../components/Header';
 export default function MetaCallsScreen({ onNavigate }) {
   const { user } = useAuth();
 
+  // Robust check: determine if user is truly an executive/system admin
+  const isTrueAdmin = useMemo(() => {
+    if (!user) return false;
+    const role = String(user.role || '').toLowerCase().trim();
+    const desig = String(user.designation || '').toUpperCase().trim();
+    const dName = String(user.displayName || user.name || '').toUpperCase().trim();
+    const dept = String(user.department || '').toUpperCase().trim();
+
+    // Explicit non-admin roles / designations: employee, caller, telecaller, counsellor
+    const isRestrictedStaff =
+      role === 'employee' ||
+      role === 'caller' ||
+      role === 'telecaller' ||
+      role === 'councellor' ||
+      role === 'counselor' ||
+      desig.includes('COUNSELLOR') ||
+      desig.includes('COUNSELOR') ||
+      desig.includes('CALLER') ||
+      desig.includes('TELE') ||
+      dName.includes('COUNSELLOR') ||
+      dName.includes('COUNSELOR') ||
+      dName.includes('CALLER') ||
+      dName.includes('TELE') ||
+      dept.includes('TELE');
+
+    if (isRestrictedStaff) {
+      return false;
+    }
+
+    if (role === 'admin' || role === 'superadmin') return true;
+
+    if (
+      desig === 'MD' ||
+      desig === 'CEO' ||
+      desig === 'CTO' ||
+      desig.includes('MANAGING DIRECTOR') ||
+      desig.includes('CHIEF EXECUTIVE') ||
+      dName.includes('MANAGING DIRECTOR') ||
+      dName.includes('CHIEF EXECUTIVE')
+    ) {
+      return true;
+    }
+
+    return false;
+  }, [user]);
+
   // Leads & Pagination State
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -63,9 +109,15 @@ export default function MetaCallsScreen({ onNavigate }) {
   // Syncing State (n8n Webhook)
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Auto-detect user's department on mount
+  // Sync admin state with profile
   useEffect(() => {
-    if (user?.department) {
+    setIsAdmin(isTrueAdmin);
+    setIsRestricted(!isTrueAdmin);
+  }, [isTrueAdmin]);
+
+  // Auto-detect user's department on mount (ONLY for verified admins)
+  useEffect(() => {
+    if (isTrueAdmin && user?.department) {
       const uDept = String(user.department).trim();
       const uDesig = String(user.designation || '').trim();
       if (/telecall|counsellor/i.test(uDesig) || /telecall/i.test(uDept)) {
@@ -76,33 +128,78 @@ export default function MetaCallsScreen({ onNavigate }) {
         setSelectedDept('Marketing');
       }
     }
-  }, [user]);
+  }, [user, isTrueAdmin]);
 
   // Fetch Departments & Campaigns metadata
   const fetchMetadata = useCallback(async () => {
     try {
-      const [deptRes, campRes] = await Promise.allSettled([
+      const [deptRes, campRes, assignRes] = await Promise.allSettled([
         metaLeadsApi.getDepartments(),
         metaLeadsApi.getCampaigns(),
+        metaLeadsApi.getMyAssignmentStatus(),
       ]);
 
       if (deptRes.status === 'fulfilled' && deptRes.value?.departments) {
         setDepartments(deptRes.value.departments);
       }
 
+      let assignedFromEndpoint = [];
+      if (assignRes.status === 'fulfilled' && assignRes.value?.assignedCampaigns) {
+        assignedFromEndpoint = assignRes.value.assignedCampaigns;
+      }
+
       if (campRes.status === 'fulfilled' && campRes.value) {
         const val = campRes.value;
-        const restricted = val.isRestricted !== undefined ? !!val.isRestricted : !val.isAdmin;
-        const admin = !!val.isAdmin;
-        setIsRestricted(restricted);
-        setIsAdmin(admin);
-        setCampaigns(val.campaigns || []);
-        setAllowedCampaigns(val.allowedCampaigns || []);
+        const allCampList = val.campaigns || [];
+        const returnedAllowed = val.allowedCampaigns || [];
+
+        if (isTrueAdmin) {
+          setIsAdmin(true);
+          setIsRestricted(false);
+          setCampaigns(allCampList);
+          setAllowedCampaigns([]);
+        } else {
+          setIsAdmin(false);
+          setIsRestricted(true);
+
+          const currentUserId = String(user?._id || user?.id || '');
+          const currentUserEmail = String(user?.email || '').toLowerCase().trim();
+
+          const myAssignedNamesSet = new Set([
+            ...assignedFromEndpoint,
+            ...returnedAllowed,
+          ]);
+
+          allCampList.forEach((c) => {
+            if (Array.isArray(c.assignedUsers)) {
+              const isAssigned = c.assignedUsers.some((u) => {
+                const uId = typeof u === 'object' && u !== null ? String(u._id || u.id || '') : String(u || '');
+                const uEmail = typeof u === 'object' && u !== null ? String(u.email || '').toLowerCase().trim() : '';
+                return (currentUserId && uId === currentUserId) || (currentUserEmail && uEmail === currentUserEmail);
+              });
+              if (isAssigned && c.campaign) {
+                myAssignedNamesSet.add(c.campaign);
+              }
+            }
+          });
+
+          const assignedList = Array.from(myAssignedNamesSet);
+          // Strictly filter campaigns list to ONLY those assigned to this user
+          const filteredCamps = allCampList.filter((c) => assignedList.includes(c.campaign));
+
+          setAllowedCampaigns(assignedList);
+          setCampaigns(filteredCamps);
+
+          // If current selectedCampaign is not in assignedList and not 'All', reset to 'All'
+          if (selectedCampaign !== 'All' && !assignedList.includes(selectedCampaign)) {
+            setSelectedCampaign('All');
+          }
+        }
       }
     } catch (err) {
       console.warn('[MetaCalls] Metadata error:', err);
     }
-  }, []);
+  }, [isTrueAdmin, user, selectedCampaign]);
 
   useEffect(() => {
     fetchMetadata();
@@ -120,31 +217,53 @@ export default function MetaCallsScreen({ onNavigate }) {
       try {
         const params = {
           page: pageNum,
-          limit: 25,
+          limit: 50,
         };
         if (searchQuery.trim()) params.search = searchQuery.trim();
         // Only pass department if user is verified admin
-        if (isAdmin && dept && dept !== 'All') params.department = dept;
+        if (isTrueAdmin && dept && dept !== 'All') params.department = dept;
         if (camp && camp !== 'All') params.campaign = camp;
         if (status && status !== 'All') params.status = status;
 
         const res = await metaLeadsApi.getLeads(params);
         if (res && res.success) {
-          setLeads(res.leads || []);
+          let list = res.leads || [];
+
+          // Defensively scope leads on client-side for non-admin employees:
+          if (!isTrueAdmin) {
+            const userAllowedCampaigns = allowedCampaigns.length > 0
+              ? allowedCampaigns
+              : campaigns.map((c) => c.campaign).filter(Boolean);
+
+            const currentUserId = String(user?._id || user?.id || '');
+
+            list = list.filter((item) => {
+              const inAssignedCamp = item.campaign && userAllowedCampaigns.includes(item.campaign);
+              const assignedId = String(item.assignedTo?._id || item.assignedTo || '');
+              const addedById = String(item.addedBy?._id || item.addedBy || '');
+              const isMine = currentUserId && (assignedId === currentUserId || addedById === currentUserId);
+
+              if (camp && camp !== 'All') {
+                return item.campaign === camp && (inAssignedCamp || isMine);
+              }
+              return inAssignedCamp || isMine;
+            });
+          }
+
+          setLeads(list);
           setTotalPages(res.pages || 1);
-          setTotalCount(res.total || 0);
+          setTotalCount(!isTrueAdmin ? list.length : (res.total || 0));
           setPage(pageNum);
 
-          if (res.isAdmin !== undefined) setIsAdmin(!!res.isAdmin);
-          if (res.isRestricted !== undefined) setIsRestricted(!!res.isRestricted);
+          if (isTrueAdmin && res.isAdmin !== undefined) setIsAdmin(!!res.isAdmin);
+          if (!isTrueAdmin) setIsAdmin(false);
 
-          // Calculate calling session metrics
-          const list = res.leads || [];
+          // Calculate calling session metrics strictly on the visible scoped leads
           const fresh = list.filter((l) => (l.status || 'New') === 'New').length;
           const contacted = list.filter((l) => l.status === 'Contacted').length;
           const converted = list.filter((l) => l.status === 'Converted').length;
           setStats({
-            total: res.total || list.length,
+            total: !isTrueAdmin ? list.length : (res.total || list.length),
             fresh,
             contacted,
             converted,
@@ -157,7 +276,7 @@ export default function MetaCallsScreen({ onNavigate }) {
         setRefreshing(false);
       }
     },
-    [search, selectedDept, selectedCampaign, selectedStatus, isAdmin]
+    [search, selectedDept, selectedCampaign, selectedStatus, isTrueAdmin, allowedCampaigns, campaigns, user]
   );
 
   useEffect(() => {
@@ -323,20 +442,34 @@ export default function MetaCallsScreen({ onNavigate }) {
     return list;
   }, [isAdmin, departments]);
 
-  // Campaign Filter Options (Scoped to user's assigned campaigns)
+  // Campaign Filter Options (Strictly scoped to user's assigned campaigns)
   const campaignOptions = useMemo(() => {
-    const opts = ['All'];
-    campaigns.forEach((c) => {
-      const name = c.campaign || c._id;
-      if (name && !opts.includes(name)) {
-        opts.push(name);
-      }
-    });
-    allowedCampaigns.forEach((ac) => {
-      if (ac && !opts.includes(ac)) opts.push(ac);
-    });
-    return opts;
-  }, [campaigns, allowedCampaigns]);
+    if (isTrueAdmin) {
+      const opts = ['All'];
+      campaigns.forEach((c) => {
+        const name = c.campaign || c._id;
+        if (name && !opts.includes(name)) {
+          opts.push(name);
+        }
+      });
+      return opts;
+    }
+
+    // For non-admin employee / telecaller / counsellor: ONLY assigned campaigns
+    const myCamps = allowedCampaigns.length > 0
+      ? allowedCampaigns
+      : campaigns.map((c) => c.campaign).filter(Boolean);
+
+    if (myCamps.length === 0) {
+      return [];
+    }
+
+    if (myCamps.length > 1) {
+      return ['All', ...myCamps];
+    }
+
+    return myCamps;
+  }, [isTrueAdmin, campaigns, allowedCampaigns]);
 
   // Status Badge Colors
   const getStatusBadgeStyle = (status) => {
@@ -546,7 +679,7 @@ export default function MetaCallsScreen({ onNavigate }) {
       </View>
 
       {/* SCOPE BANNER OR DEPARTMENT-WISE FILTER SELECTOR */}
-      {!isAdmin ? (
+      {!isTrueAdmin ? (
         <View style={styles.assignedEmployeeBanner}>
           <View style={styles.assignedBadgeIcon}>
             <Ionicons name="shield-checkmark" size={18} color="#0284C7" />
@@ -556,9 +689,12 @@ export default function MetaCallsScreen({ onNavigate }) {
               {user?.displayName || user?.name || 'Employee'}'s Calling Pool
             </Text>
             <Text style={styles.assignedBadgeSubtitle} numberOfLines={1}>
-              {campaigns.length > 0
-                ? `Assigned: ${campaigns.map((c) => (c.campaign || '').replace(/_/g, ' ')).join(', ')}`
-                : 'Showing leads assigned to or added by your profile'}
+              {allowedCampaigns.length > 0 || campaigns.length > 0
+                ? `Assigned: ${(allowedCampaigns.length > 0 ? allowedCampaigns : campaigns.map((c) => c.campaign))
+                    .filter(Boolean)
+                    .map((c) => c.replace(/_/g, ' '))
+                    .join(', ')}`
+                : 'No campaigns assigned to your profile yet'}
             </Text>
           </View>
         </View>
@@ -619,26 +755,28 @@ export default function MetaCallsScreen({ onNavigate }) {
       </View>
 
       {/* Campaign Filter Chips */}
-      <View style={styles.filterChipSection}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterChipsScroll}>
-          {campaignOptions.map((c) => {
-            const isSelected = selectedCampaign === c;
-            const label = c === 'All' ? (!isAdmin ? 'All Assigned' : 'All Campaigns') : c.replace(/_/g, ' ');
-            return (
-              <TouchableOpacity
-                key={c}
-                style={[styles.filterChip, isSelected && styles.filterChipActive]}
-                onPress={() => setSelectedCampaign(c)}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.filterChipText, isSelected && styles.filterChipTextActive]}>
-                  {label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
+      {campaignOptions.length > 0 ? (
+        <View style={styles.filterChipSection}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterChipsScroll}>
+            {campaignOptions.map((c) => {
+              const isSelected = selectedCampaign === c;
+              const label = c === 'All' ? (!isTrueAdmin ? 'All Assigned' : 'All Campaigns') : c.replace(/_/g, ' ');
+              return (
+                <TouchableOpacity
+                  key={c}
+                  style={[styles.filterChip, isSelected && styles.filterChipActive]}
+                  onPress={() => setSelectedCampaign(c)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.filterChipText, isSelected && styles.filterChipTextActive]}>
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      ) : null}
 
       {/* Status Filter Tabs (New, Contacted, Converted, etc.) */}
       <View style={styles.statusTabsRow}>
@@ -677,10 +815,10 @@ export default function MetaCallsScreen({ onNavigate }) {
             <View style={styles.emptyContainer}>
               <Ionicons name="call-outline" size={48} color={colors.textMuted} />
               <Text style={styles.emptyTitle}>
-                {!isAdmin ? 'No Leads In Your Calling Pool' : 'No Meta Calls Found'}
+                {!isTrueAdmin ? 'No Leads In Your Calling Pool' : 'No Meta Calls Found'}
               </Text>
               <Text style={styles.emptySubtitle}>
-                {!isAdmin
+                {!isTrueAdmin
                   ? 'Only leads assigned to or added by your profile are visible here. No active leads were found matching your current filter.'
                   : `No leads found for department "${selectedDept}" matching your active filters.`}
               </Text>
@@ -690,7 +828,7 @@ export default function MetaCallsScreen({ onNavigate }) {
                   setSelectedCampaign('All');
                   setSelectedStatus('All');
                   setSearch('');
-                  if (isAdmin) setSelectedDept('All');
+                  if (isTrueAdmin) setSelectedDept('All');
                 }}
               >
                 <Text style={styles.emptyResetText}>Reset All Filters</Text>
