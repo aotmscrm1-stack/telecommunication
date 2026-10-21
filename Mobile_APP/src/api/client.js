@@ -5,7 +5,7 @@ export const API_BASE_URL = 'https://telecommunication-l3oz.onrender.com/api';
 
 const client = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 25000,
+  timeout: 60000,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',

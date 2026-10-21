@@ -18,12 +18,14 @@
     },
     "android": {
       "package": "com.aotms.crm",
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/Logo.png"
       },
       "permissions": [
         "INTERNET",
+        "ACCESS_NETWORK_STATE",
         "CALL_PHONE",
         "READ_EXTERNAL_STORAGE",
         "RECORD_AUDIO",

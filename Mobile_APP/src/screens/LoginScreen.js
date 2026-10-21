@@ -35,9 +35,12 @@ export default function LoginScreen({ onNavigate }) {
       await login(email.trim().toLowerCase(), password);
       // Auth state update will automatically redirect via AppNavigator
     } catch (err) {
-      const msg = err.response?.data?.message || err.message || 'Login failed. Please check your credentials.';
+      let msg = err.response?.data?.message || err.message || 'Login failed. Please check your credentials.';
+      if (err.message?.toLowerCase().includes('network error') || !err.response) {
+        msg = 'Network Error: Cloud server may be waking up. Please wait 10 seconds and try again, or check your internet connection.';
+      }
       setErrorMsg(msg);
-      Alert.alert('Authentication Error', msg);
+      Alert.alert('Login Notice', msg);
     } finally {
       setLoading(false);
     }
