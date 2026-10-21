@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { emitCrmSync, CRM_EVENTS } from './crmSyncBus';
 
 let baseURL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000/api' : '/api');
 if (baseURL.startsWith('http') && !baseURL.endsWith('/api') && !baseURL.endsWith('/api/')) {
@@ -29,8 +30,10 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401 && !err.config?.url?.includes('/auth/login')) {
-      localStorage.removeItem('aotms_token');
-      localStorage.removeItem('aotms_user');
+      ['aotms_token', 'aotms_user', 'aotms_bulk_uploads', 'wa_active_lead_id', 'token', 'user'].forEach(k => {
+        try { localStorage.removeItem(k); } catch (_) {}
+      });
+      emitCrmSync(CRM_EVENTS.SESSION_RESET);
       if (window.location.pathname !== '/login' && window.location.pathname !== '/sign-up' && window.location.pathname !== '/signup') {
         window.location.href = '/login';
       }
@@ -58,17 +61,51 @@ export const leadsAPI = {
   getRealtimeKpis: () => api.get('/leads/realtime-kpis'),
   getRandom: () => api.get('/leads/random'),
   getOne: (id) => api.get(`/leads/${id}`),
-  create: (data) => api.post('/leads', data),
-  update: (id, data) => api.put(`/leads/${id}`, data),
-  delete: (id) => api.delete(`/leads/${id}`),
-  logCall: (id, data) => api.post(`/leads/${id}/call`, data),
-  addNote: (id, data) => api.post(`/leads/${id}/note`, data),
-  updateStatus: (id, data) => api.put(`/leads/${id}/status`, data),
+  create: async (data) => {
+    const res = await api.post('/leads', data);
+    emitCrmSync(CRM_EVENTS.LEADS_CHANGED, { action: 'create', data: res.data });
+    emitCrmSync(CRM_EVENTS.KPIS_CHANGED);
+    return res;
+  },
+  update: async (id, data) => {
+    const res = await api.put(`/leads/${id}`, data);
+    emitCrmSync(CRM_EVENTS.LEADS_CHANGED, { action: 'update', id, data: res.data });
+    emitCrmSync(CRM_EVENTS.KPIS_CHANGED);
+    return res;
+  },
+  delete: async (id) => {
+    const res = await api.delete(`/leads/${id}`);
+    emitCrmSync(CRM_EVENTS.LEADS_CHANGED, { action: 'delete', id });
+    emitCrmSync(CRM_EVENTS.KPIS_CHANGED);
+    return res;
+  },
+  logCall: async (id, data) => {
+    const res = await api.post(`/leads/${id}/call`, data);
+    emitCrmSync(CRM_EVENTS.LEADS_CHANGED, { action: 'logCall', id });
+    emitCrmSync(CRM_EVENTS.KPIS_CHANGED);
+    return res;
+  },
+  addNote: async (id, data) => {
+    const res = await api.post(`/leads/${id}/note`, data);
+    emitCrmSync(CRM_EVENTS.LEADS_CHANGED, { action: 'note', id });
+    return res;
+  },
+  updateStatus: async (id, data) => {
+    const res = await api.put(`/leads/${id}/status`, data);
+    emitCrmSync(CRM_EVENTS.LEADS_CHANGED, { action: 'updateStatus', id, status: data?.status });
+    emitCrmSync(CRM_EVENTS.KPIS_CHANGED);
+    return res;
+  },
   exportCSV: (params) => api.get('/leads/export', { params, responseType: 'blob' }),
   // Send push notification to caller's mobile app
   initiateCall: (leadId, callerId) => api.post(`/leads/${leadId}/initiate-call`, { callerId }),
   // Transfer leads from one caller to another
-  transferLeads: (data) => api.post('/leads/transfer', data),
+  transferLeads: async (data) => {
+    const res = await api.post('/leads/transfer', data);
+    emitCrmSync(CRM_EVENTS.LEADS_CHANGED, { action: 'transfer' });
+    emitCrmSync(CRM_EVENTS.KPIS_CHANGED);
+    return res;
+  },
   // Get leads by caller
   getByCallerAll: (callerId) => api.get(`/leads/by-caller/${callerId}`),
 };
@@ -397,10 +434,28 @@ export const trackingAPI = {
 };
 
 export const attendanceAPI = {
-  start: (data) => api.post('/attendance/start', data),
-  stop: (data) => api.post('/attendance/stop', data),
-  startBreak: (data) => api.post('/attendance/break/start', data),
-  resumeBreak: (data) => api.post('/attendance/break/resume', data),
+  start: async (data) => {
+    const res = await api.post('/attendance/start', data);
+    emitCrmSync(CRM_EVENTS.ATTENDANCE_CHANGED, { action: 'start' });
+    emitCrmSync(CRM_EVENTS.KPIS_CHANGED);
+    return res;
+  },
+  stop: async (data) => {
+    const res = await api.post('/attendance/stop', data);
+    emitCrmSync(CRM_EVENTS.ATTENDANCE_CHANGED, { action: 'stop' });
+    emitCrmSync(CRM_EVENTS.KPIS_CHANGED);
+    return res;
+  },
+  startBreak: async (data) => {
+    const res = await api.post('/attendance/break/start', data);
+    emitCrmSync(CRM_EVENTS.ATTENDANCE_CHANGED, { action: 'startBreak' });
+    return res;
+  },
+  resumeBreak: async (data) => {
+    const res = await api.post('/attendance/break/resume', data);
+    emitCrmSync(CRM_EVENTS.ATTENDANCE_CHANGED, { action: 'resumeBreak' });
+    return res;
+  },
   getCurrentStatus: () => api.get('/attendance/current'),
   getSummary: (params) => api.get('/attendance/summary', { params }),
   getRecords: (params) => api.get('/attendance/records', { params }),
@@ -413,24 +468,53 @@ export const digitalCalendarAPI = {
   getStats: (params) => api.get('/marketing/digital-calendar/stats', { params }),
   getEmployees: () => api.get('/marketing/digital-calendar/employees'),
   getOne: (id) => api.get(`/marketing/digital-calendar/${id}`),
-  create: (data) => api.post('/marketing/digital-calendar', data),
-  update: (id, data) => api.put(`/marketing/digital-calendar/${id}`, data),
-  delete: (id) => api.delete(`/marketing/digital-calendar/${id}`),
+  create: async (data) => {
+    const res = await api.post('/marketing/digital-calendar', data);
+    emitCrmSync(CRM_EVENTS.DIGITAL_CALENDAR_CHANGED, { action: 'create' });
+    return res;
+  },
+  update: async (id, data) => {
+    const res = await api.put(`/marketing/digital-calendar/${id}`, data);
+    emitCrmSync(CRM_EVENTS.DIGITAL_CALENDAR_CHANGED, { action: 'update', id });
+    return res;
+  },
+  delete: async (id) => {
+    const res = await api.delete(`/marketing/digital-calendar/${id}`);
+    emitCrmSync(CRM_EVENTS.DIGITAL_CALENDAR_CHANGED, { action: 'delete', id });
+    return res;
+  },
   getGoogleConfig: () => api.get('/marketing/digital-calendar/google/config'),
   getGoogleEvents: (params) => api.get('/marketing/digital-calendar/google/events', { params }),
-  importGoogleEvent: (data) => api.post('/marketing/digital-calendar/google/import-event', data),
+  importGoogleEvent: async (data) => {
+    const res = await api.post('/marketing/digital-calendar/google/import-event', data);
+    emitCrmSync(CRM_EVENTS.DIGITAL_CALENDAR_CHANGED, { action: 'import' });
+    return res;
+  },
 };
 
 export const dailyActivityAPI = {
   getCalendar: (params) => api.get('/daily-activities/calendar', { params }),
   getByDate: (params) => api.get('/daily-activities', { params }),
-  saveDraft: (data) => api.post('/daily-activities', data),
-  submitActivity: (id, data) => api.post(`/daily-activities/${id}/submit`, data),
+  saveDraft: async (data) => {
+    const res = await api.post('/daily-activities', data);
+    emitCrmSync(CRM_EVENTS.DAILY_ACTIVITY_CHANGED, { action: 'saveDraft' });
+    return res;
+  },
+  submitActivity: async (id, data) => {
+    const res = await api.post(`/daily-activities/${id}/submit`, data);
+    emitCrmSync(CRM_EVENTS.DAILY_ACTIVITY_CHANGED, { action: 'submit', id });
+    emitCrmSync(CRM_EVENTS.KPIS_CHANGED);
+    return res;
+  },
   getHistory: (params) => api.get('/daily-activities/history', { params }),
   getFollowUps: () => api.get('/daily-activities/follow-ups'),
   getAdminOverview: (params) => api.get('/daily-activities/admin/overview', { params }),
   getOne: (id) => api.get(`/daily-activities/${id}`),
-  reviewActivity: (id, data) => api.patch(`/daily-activities/${id}/review`, data),
+  reviewActivity: async (id, data) => {
+    const res = await api.patch(`/daily-activities/${id}/review`, data);
+    emitCrmSync(CRM_EVENTS.DAILY_ACTIVITY_CHANGED, { action: 'review', id });
+    return res;
+  },
 };
 
 export default api;

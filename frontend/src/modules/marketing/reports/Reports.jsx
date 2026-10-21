@@ -491,6 +491,7 @@ function LeadViewCharts({ summary }) {
 // MAIN REPORTS COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 export default function Reports() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('All');
   const [summary, setSummary] = useState(null);
   const [statusChartData, setStatusChartData] = useState([]);
@@ -501,7 +502,19 @@ export default function Reports() {
   const [tasksLoading, setTasksLoading] = useState(false);
   const [callsList, setCallsList] = useState([]);
   const [callsLoading, setCallsLoading] = useState(false);
-  const [uploadsList, setUploadsList] = useState(() => JSON.parse(localStorage.getItem('aotms_bulk_uploads') || '[]'));
+
+  // User-scoped storage key prevents cross-user upload leakage
+  const uploadsStorageKey = user?._id ? `aotms_${user._id}_bulk_uploads` : 'aotms_bulk_uploads';
+  const [uploadsList, setUploadsList] = useState([]);
+
+  useEffect(() => {
+    try {
+      const data = JSON.parse(localStorage.getItem(uploadsStorageKey) || '[]');
+      setUploadsList(Array.isArray(data) ? data : []);
+    } catch (_) {
+      setUploadsList([]);
+    }
+  }, [uploadsStorageKey]);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -860,9 +873,9 @@ export default function Reports() {
                       tasksCreated: `${res.data.count} / ${res.data.total}`,
                       status: 'Completed'
                     };
-                    const existing = JSON.parse(localStorage.getItem('aotms_bulk_uploads') || '[]');
+                    const existing = JSON.parse(localStorage.getItem(uploadsStorageKey) || '[]');
                     const updated = [newUpload, ...existing];
-                    localStorage.setItem('aotms_bulk_uploads', JSON.stringify(updated));
+                    localStorage.setItem(uploadsStorageKey, JSON.stringify(updated));
                     setUploadsList(updated);
                     alert(`✅ Bulk upload complete: ${res.data.count} of ${res.data.total} tasks created.`);
                   } catch (err) {
@@ -872,9 +885,9 @@ export default function Reports() {
                       tasksCreated: '0',
                       status: 'Failed'
                     };
-                    const existing = JSON.parse(localStorage.getItem('aotms_bulk_uploads') || '[]');
+                    const existing = JSON.parse(localStorage.getItem(uploadsStorageKey) || '[]');
                     const updated = [newUpload, ...existing];
-                    localStorage.setItem('aotms_bulk_uploads', JSON.stringify(updated));
+                    localStorage.setItem(uploadsStorageKey, JSON.stringify(updated));
                     setUploadsList(updated);
                     alert('Failed: ' + (err.response?.data?.message || err.message));
                   }

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useAuth } from '../../../context/AuthContext';
 
 // Axios instance with auth token
 const api = axios.create({ baseURL: import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/$/, '') + '/api' : '/api' });
@@ -720,6 +721,9 @@ function RichTemplateMessageCard({ message, templates = [], leadName = '' }) {
 
 // ── Inbox Tab ──────────────────────────────────────────────────────────────────
 function InboxTab({ onSendTemplate }) {
+  const { user } = useAuth();
+  const activeThreadStorageKey = user?._id ? `wa_${user._id}_active_lead_id` : 'wa_active_lead_id';
+
   const TABS = [
     { key: 'all', label: 'All' },
     { key: 'pending', label: 'Pending' },
@@ -809,7 +813,7 @@ function InboxTab({ onSendTemplate }) {
       }
 
       // Restore active conversation thread from localStorage or auto-select top lead
-      const savedLeadId = localStorage.getItem('wa_active_lead_id');
+      const savedLeadId = localStorage.getItem(activeThreadStorageKey);
       const activeMatch = savedLeadId && fetchedLeads.find(l => String(l._id) === String(savedLeadId));
       const targetId = activeMatch ? activeMatch._id : (fetchedLeads[0] ? fetchedLeads[0]._id : null);
 
@@ -895,7 +899,7 @@ function InboxTab({ onSendTemplate }) {
     if (!leadId) return;
     setSelectedId(leadId);
     try {
-      localStorage.setItem('wa_active_lead_id', String(leadId));
+      localStorage.setItem(activeThreadStorageKey, String(leadId));
     } catch {}
     setLoadingThread(true);
     try {

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { leadsAPI, usersAPI, blocklistAPI, leadStagesAPI } from '../../../services/api';
+import { onCrmSync, CRM_EVENTS } from '../../../services/crmSyncBus';
 import StatusBadge from '../../../components/common/StatusBadge';
 import { format } from 'date-fns';
 import { useAuth } from '../../../context/AuthContext';
@@ -335,6 +336,15 @@ export default function AllLeads() {
   }, [page, limit, search, status, source, filter]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
+
+  // Synchronize immediately when any other view creates, updates, or deletes a lead
+  useEffect(() => {
+    const unsubscribe = onCrmSync(CRM_EVENTS.LEADS_CHANGED, () => {
+      fetchLeads();
+      if (showCharts) fetchStats();
+    });
+    return unsubscribe;
+  }, [fetchLeads, showCharts, fetchStats]);
 
   useEffect(() => { setPage(1); }, [search, status, source, filter, limit]);
 

@@ -5,8 +5,11 @@ export const authService = {
   async login(credentials) {
     const response = await client.post(API_ENDPOINTS.AUTH.LOGIN, credentials);
     if (response.data.token) {
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+      localStorage.setItem('aotms_token', response.data.token);
+      localStorage.setItem('aotms_user', JSON.stringify(response.data.user));
+      // Cleanup legacy keys if present
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
     }
     return response.data;
   },
@@ -17,8 +20,9 @@ export const authService = {
   },
 
   async logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    ['aotms_token', 'aotms_user', 'aotms_bulk_uploads', 'wa_active_lead_id', 'token', 'user'].forEach(k => {
+      try { localStorage.removeItem(k); } catch (_) {}
+    });
     return true;
   },
 

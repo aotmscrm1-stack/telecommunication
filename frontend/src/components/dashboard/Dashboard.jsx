@@ -6,6 +6,7 @@ import {
   Tooltip, ResponsiveContainer, XAxis, YAxis, CartesianGrid,
 } from 'recharts';
 import { leadsAPI, followupsAPI, reportsAPI, usersAPI, attendanceAPI, trackingAPI } from '../../services/api';
+import { onCrmSync, CRM_EVENTS } from '../../services/crmSyncBus';
 import { useAuth } from '../../context/AuthContext';
 import geoTracker from '../../services/geoTracker';
 import LiveMap from '../tracking/LiveMap';
@@ -1666,7 +1667,24 @@ export default function Dashboard() {
         .then(res => { if (res.data) setRealtimeKpis(res.data); })
         .catch(() => {});
     }, 8000);
-    return () => clearInterval(interval);
+
+    // Instant Sync: Update immediately whenever any component creates, updates, or deletes leads/attendance/daily activity
+    const unsubscribe = onCrmSync(
+      [CRM_EVENTS.KPIS_CHANGED, CRM_EVENTS.LEADS_CHANGED, CRM_EVENTS.ATTENDANCE_CHANGED, CRM_EVENTS.DAILY_ACTIVITY_CHANGED],
+      () => {
+        leadsAPI.getRealtimeKpis()
+          .then(res => { if (res.data) setRealtimeKpis(res.data); })
+          .catch(() => {});
+        leadsAPI.getStats()
+          .then(res => { if (res.data) setStats(res.data); })
+          .catch(() => {});
+      }
+    );
+
+    return () => {
+      clearInterval(interval);
+      unsubscribe();
+    };
   }, [user?.role]);
 
   const filteredActivityEmployees = useMemo(() => {

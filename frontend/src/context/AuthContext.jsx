@@ -1,19 +1,31 @@
 import { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { authAPI, metaLeadsAPI } from '../services/api';
 import geoTracker from '../services/geoTracker';
+import { emitCrmSync, CRM_EVENTS } from '../services/crmSyncBus';
 
 const AuthContext = createContext(null);
 
+// Specific keys to clean when switching users or logging out to avoid cross-user data leakage
+const USER_CACHE_KEYS = [
+  'aotms_token',
+  'aotms_user',
+  'aotms_bulk_uploads',
+  'wa_active_lead_id',
+  'token',
+  'user'
+];
+
+export const clearUserStorage = () => {
+  USER_CACHE_KEYS.forEach(k => {
+    try {
+      localStorage.removeItem(k);
+    } catch (_) {}
+  });
+};
+
 export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(() => localStorage.getItem('aotms_token'));
-  const [user, setUser] = useState(() => {
-    const stored = localStorage.getItem('aotms_user');
-    try {
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [user, setUser] = useState(null); // Never show stale profile while verifying
   const [metaLeadAssignment, setMetaLeadAssignment] = useState({ hasAccess: false, loading: true });
   const [loading, setLoading] = useState(true);
 
@@ -49,21 +61,26 @@ export const AuthProvider = ({ children }) => {
           }
         })
         .catch(() => {
-          localStorage.removeItem('aotms_token');
-          localStorage.removeItem('aotms_user');
+          clearUserStorage();
           setToken(null);
           setUser(null);
           setMetaLeadAssignment({ hasAccess: false, loading: false });
           geoTracker.stopTracking().catch(() => {});
+          emitCrmSync(CRM_EVENTS.SESSION_RESET);
         })
         .finally(() => setLoading(false));
     } else {
+      clearUserStorage();
       setLoading(false);
       setMetaLeadAssignment({ hasAccess: false, loading: false });
     }
   }, [refreshMetaLeadAssignment]);
 
   const login = useCallback(async (email, password) => {
+    // If switching accounts, clear previous user's cached keys first
+    clearUserStorage();
+    emitCrmSync(CRM_EVENTS.SESSION_RESET);
+
     const res = await authAPI.login({ email, password });
     const newToken = res?.data?.token || res?.token;
     const newUser = res?.data?.user || res?.user;
@@ -81,10 +98,11 @@ export const AuthProvider = ({ children }) => {
 
   const logout = useCallback(() => {
     geoTracker.stopTracking().catch(() => {});
-    localStorage.removeItem('aotms_token');
-    localStorage.removeItem('aotms_user');
+    clearUserStorage();
     setToken(null);
     setUser(null);
+    setMetaLeadAssignment({ hasAccess: false, loading: false });
+    emitCrmSync(CRM_EVENTS.SESSION_RESET);
   }, []);
 
   const updateUser = useCallback((updatedUser) => {
