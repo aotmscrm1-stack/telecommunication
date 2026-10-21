@@ -20,10 +20,25 @@ export const recordingsApi = {
     const formData = new FormData();
 
     if (typeof file === 'object' && file.uri) {
+      const fileName = file.name || `recording_${Date.now()}.m4a`;
+      const ext = fileName.split('.').pop()?.toLowerCase();
+      let determinedType = file.mimeType || file.type;
+      if (!determinedType || determinedType === 'audio/m4a') {
+        if (ext === 'aac') determinedType = 'audio/aac';
+        else if (ext === 'mp3') determinedType = 'audio/mpeg';
+        else if (ext === 'wav') determinedType = 'audio/wav';
+        else if (ext === 'ogg') determinedType = 'audio/ogg';
+        else if (ext === 'opus') determinedType = 'audio/opus';
+        else if (ext === 'amr') determinedType = 'audio/amr';
+        else if (ext === '3gp' || ext === '3gpp') determinedType = 'audio/3gpp';
+        else if (ext === 'flac') determinedType = 'audio/flac';
+        else determinedType = 'audio/mp4';
+      }
+
       formData.append('audio', {
         uri: file.uri,
-        name: file.name || `recording_${Date.now()}.m4a`,
-        type: file.mimeType || file.type || 'audio/m4a',
+        name: fileName,
+        type: determinedType,
       });
     } else {
       formData.append('audio', file);

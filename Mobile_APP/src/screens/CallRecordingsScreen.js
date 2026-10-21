@@ -22,7 +22,27 @@ import { colors } from '../theme/colors';
 import { recordingsApi } from '../api/recordingsApi';
 import Header from '../components/Header';
 
-const SUPPORTED_AUDIO_EXTENSIONS = /\.(m4a|amr|mp3|wav|3gp|3gpp|aac|ogg|opus|wma|flac|mp4)$/i;
+const SUPPORTED_AUDIO_EXTENSIONS = /\.(m4a|amr|mp3|wav|3gp|3gpp|aac|ogg|opus|wma|flac|mp4|awb|m4p|weba)$/i;
+
+function getAudioMimeType(filename) {
+  if (!filename) return 'audio/mpeg';
+  const ext = filename.split('.').pop()?.toLowerCase();
+  switch (ext) {
+    case 'aac': return 'audio/aac';
+    case 'mp3': return 'audio/mpeg';
+    case 'm4a': return 'audio/mp4';
+    case 'wav': return 'audio/wav';
+    case 'ogg': return 'audio/ogg';
+    case 'opus': return 'audio/opus';
+    case 'amr': return 'audio/amr';
+    case 'awb': return 'audio/amr-wb';
+    case '3gp':
+    case '3gpp': return 'audio/3gpp';
+    case 'flac': return 'audio/flac';
+    default: return 'audio/mpeg';
+  }
+}
+
 const SAVED_DIRECTORY_URI_KEY = '@aotms_call_recordings_dir_uri';
 const SAVED_DIRECTORY_NAME_KEY = '@aotms_call_recordings_dir_name';
 
@@ -135,7 +155,7 @@ export default function CallRecordingsScreen({ onNavigate }) {
             discoveredList.push({
               uri,
               name,
-              type: 'audio/m4a',
+              type: getAudioMimeType(name),
             });
           }
         }
@@ -162,7 +182,7 @@ export default function CallRecordingsScreen({ onNavigate }) {
           discoveredList.push({
             uri: childUri,
             name: name || 'recording.m4a',
-            type: 'audio/m4a',
+            type: getAudioMimeType(name),
           });
         } else if (!name.includes('.')) {
           // Likely a subfolder (e.g., Audio/Audio Trim, Audio/Nani), scan recursively
@@ -290,7 +310,9 @@ export default function CallRecordingsScreen({ onNavigate }) {
         // If it's an Android content:// URI, copy to local cache directory to ensure
         // standard multipart/form-data upload via Axios/Fetch works seamlessly
         if (file.uri && file.uri.startsWith('content://')) {
-          const cleanName = (file.name || `audio_${Date.now()}.m4a`).replace(/[^a-zA-Z0-9._-]/g, '_');
+          const ext = file.name?.includes('.') ? file.name.split('.').pop() : 'm4a';
+          const baseName = file.name ? file.name.substring(0, file.name.lastIndexOf('.')) || file.name : `audio_${Date.now()}`;
+          const cleanName = `${baseName.replace(/[^a-zA-Z0-9._-]/g, '_')}.${ext}`;
           const cacheDir = FileSystem.Paths?.cache?.uri || FileSystem.cacheDirectory || `${FileSystem.documentDirectory}temp/`;
           const destinationUri = `${cacheDir.replace(/\/+$/, '')}/${Date.now()}_${cleanName}`;
 
@@ -302,7 +324,7 @@ export default function CallRecordingsScreen({ onNavigate }) {
               uploadableFile = {
                 uri: destinationUri,
                 name: file.name,
-                type: file.type || 'audio/m4a',
+                type: file.type || getAudioMimeType(file.name),
               };
             }
           } catch (copyErr) {
