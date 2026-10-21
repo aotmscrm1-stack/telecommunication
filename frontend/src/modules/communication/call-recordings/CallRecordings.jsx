@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   AudioLines, Table, LayoutGrid, PhoneCall, FileAudio, 
   Clock, Edit3, MoreVertical, Download, ExternalLink, RefreshCw, User, UserPlus, Sparkles, FileText,
-  Maximize2, MessageSquare, Copy, Check, Volume2, Trash2, Briefcase
+  Maximize2, MessageSquare, Copy, Check, Volume2, Volume1, VolumeX, Trash2, Briefcase
 } from 'lucide-react';
 import { recordingsAPI, leadsAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
@@ -149,7 +149,7 @@ const MemoizedAudioPlayer = memo(function MemoizedAudioPlayer({ audioUrl, mimeTy
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%', padding: '4px 0' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden', padding: '2px 0' }}>
       <audio
         ref={audioRef}
         src={effectiveAudioUrl}
@@ -163,14 +163,22 @@ const MemoizedAudioPlayer = memo(function MemoizedAudioPlayer({ audioUrl, mimeTy
         onError={handleAudioError}
       />
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+        width: '100%',
+        maxWidth: '100%',
+        boxSizing: 'border-box',
+        minWidth: 0
+      }}>
         {/* Play/Pause Button */}
         <button
           onClick={togglePlay}
           title={isPlaying ? 'Pause' : 'Play'}
           style={{
-            width: '32px',
-            height: '32px',
+            width: '28px',
+            height: '28px',
             borderRadius: '50%',
             background: '#0284c7',
             color: '#ffffff',
@@ -180,25 +188,33 @@ const MemoizedAudioPlayer = memo(function MemoizedAudioPlayer({ audioUrl, mimeTy
             justifyContent: 'center',
             cursor: 'pointer',
             flexShrink: 0,
-            boxShadow: '0 2px 6px rgba(2, 132, 199, 0.35)',
+            boxShadow: '0 2px 5px rgba(2, 132, 199, 0.35)',
             transition: 'transform 0.1s',
+            padding: 0,
           }}
           onMouseDown={e => e.currentTarget.style.transform = 'scale(0.92)'}
           onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
         >
           {isPlaying ? (
-            <span style={{ fontSize: '12px', fontWeight: 900 }}>❚❚</span>
+            <span style={{ fontSize: '11px', fontWeight: 900 }}>❚❚</span>
           ) : (
-            <span style={{ fontSize: '12px', marginLeft: '2px' }}>▶</span>
+            <span style={{ fontSize: '11px', marginLeft: '1.5px' }}>▶</span>
           )}
         </button>
 
         {/* Current Time */}
-        <span style={{ fontSize: '11px', fontWeight: 600, color: '#475569', minWidth: '32px', fontVariant: ['tabular-nums'] }}>
+        <span style={{
+          fontSize: '11px',
+          fontWeight: 600,
+          color: '#475569',
+          fontVariantNumeric: 'tabular-nums',
+          flexShrink: 0,
+          whiteSpace: 'nowrap'
+        }}>
           {formatSec(currentTime)}
         </span>
 
-        {/* Seek Scrubber Progress Bar */}
+        {/* Seek Scrubber Progress Bar - Dynamically fills remaining width without overflow */}
         <input
           type="range"
           min={0}
@@ -208,20 +224,37 @@ const MemoizedAudioPlayer = memo(function MemoizedAudioPlayer({ audioUrl, mimeTy
           onChange={handleSeek}
           style={{
             flex: 1,
-            height: '6px',
+            minWidth: 0, // Allows input to shrink dynamically inside the card
+            width: '100%',
+            height: '5px',
             borderRadius: '3px',
             cursor: 'pointer',
             accentColor: '#0284c7',
+            margin: 0,
+            padding: 0,
           }}
         />
 
         {/* Total Duration */}
-        <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', minWidth: '32px', fontVariant: ['tabular-nums'] }}>
+        <span style={{
+          fontSize: '11px',
+          fontWeight: 600,
+          color: '#64748b',
+          fontVariantNumeric: 'tabular-nums',
+          flexShrink: 0,
+          whiteSpace: 'nowrap'
+        }}>
           {formatSec(duration)}
         </span>
 
-        {/* Volume & Mute */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+        {/* Volume & Mute Controls - Dynamically fitted in card */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '3px',
+          flexShrink: 0,
+          boxSizing: 'border-box'
+        }}>
           <button
             onClick={toggleMute}
             title={isMuted ? 'Unmute' : 'Mute'}
@@ -232,10 +265,18 @@ const MemoizedAudioPlayer = memo(function MemoizedAudioPlayer({ audioUrl, mimeTy
               padding: '2px',
               display: 'flex',
               alignItems: 'center',
-              color: '#64748b',
+              color: isMuted ? '#ef4444' : '#64748b',
+              transition: 'color 0.15s',
+              flexShrink: 0,
             }}
           >
-            <Volume2 style={{ width: '15px', height: '15px', opacity: isMuted ? 0.4 : 1 }} />
+            {isMuted || volume === 0 ? (
+              <VolumeX style={{ width: '15px', height: '15px' }} />
+            ) : volume < 0.5 ? (
+              <Volume1 style={{ width: '15px', height: '15px' }} />
+            ) : (
+              <Volume2 style={{ width: '15px', height: '15px' }} />
+            )}
           </button>
           <input
             type="range"
@@ -244,12 +285,17 @@ const MemoizedAudioPlayer = memo(function MemoizedAudioPlayer({ audioUrl, mimeTy
             step="0.05"
             value={isMuted ? 0 : volume}
             onChange={handleVolumeChange}
-            title="Volume"
+            title={`Volume: ${Math.round((isMuted ? 0 : volume) * 100)}%`}
             style={{
-              width: '45px',
+              width: '36px',
+              minWidth: '28px',
+              maxWidth: '42px',
               height: '4px',
               accentColor: '#0284c7',
               cursor: 'pointer',
+              flexShrink: 0,
+              margin: 0,
+              padding: 0,
             }}
           />
         </div>
@@ -924,7 +970,8 @@ export default function CallRecordings() {
                 style={{
                   background: '#ffffff', borderRadius: '12px', border: `1px solid ${C.border}`,
                   padding: '14px 16px', boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
-                  display: 'flex', flexDirection: 'column', gap: '10px'
+                  display: 'flex', flexDirection: 'column', gap: '10px',
+                  overflow: 'hidden', boxSizing: 'border-box'
                 }}
               >
                 {/* 1. TOP LINE: Lead (Circle Avatar + Name) | Link Lead (Edit Icon) | Three Dots Menu */}
@@ -1029,7 +1076,7 @@ export default function CallRecordings() {
                 </div>
 
                 {/* 5. FIFTH LINE: Audio Container */}
-                <div style={{ background: C.bgSoft, borderRadius: '8px', padding: '6px', border: `1px solid ${C.border}` }}>
+                <div style={{ background: C.bgSoft, borderRadius: '8px', padding: '6px 8px', border: `1px solid ${C.border}`, overflow: 'hidden', boxSizing: 'border-box', width: '100%', maxWidth: '100%' }}>
                   <MemoizedAudioPlayer audioUrl={audioUrl} mimeType={rec.mimeType} />
                 </div>
 
