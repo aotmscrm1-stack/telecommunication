@@ -631,6 +631,7 @@ export default function CallRecordings() {
   const [rematchMsg, setRematchMsg] = useState(null);
   const [activeLinkRecording, setActiveLinkRecording] = useState(null);
   const [transcribingId, setTranscribingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
   const [activeConversationRecording, setActiveConversationRecording] = useState(null);
 
   const isAllowed = canViewCallRecordings(user);
@@ -713,17 +714,29 @@ export default function CallRecordings() {
   const handleDeleteRecording = async (rec) => {
     const recId = rec._id || rec.id;
     if (!recId) return;
+    if (deletingId) return; // Prevent double-clicks while deletion is in flight
+
+    const fileName = rec.originalName || 'this recording';
     const confirmDelete = window.confirm(
-      `Are you sure you want to delete "${rec.originalName || 'this recording'}"?\nThis removes the audio from CRM storage permanently.`
+      `Delete this audio conversation permanently?\nThe linked audio recording in Cloudinary/server storage and the conversation/transcript record in MongoDB will be deleted. This action cannot be undone.\n\nFile: ${fileName}`
     );
     if (!confirmDelete) return;
 
+    setDeletingId(recId);
     try {
-      await recordingsAPI.delete(recId);
-      setRecordings(prev => prev.filter(r => (r._id || r.id) !== recId));
+      const res = await recordingsAPI.delete(recId);
+      if (res.data?.success) {
+        // Remove item from UI state only after the backend confirms complete deletion
+        setRecordings(prev => prev.filter(r => (r._id || r.id) !== recId));
+      } else {
+        throw new Error(res.data?.error || 'Failed to delete audio conversation');
+      }
     } catch (err) {
-      console.error('Delete recording error:', err);
-      alert(err.response?.data?.error || err.message || 'Failed to delete recording.');
+      console.error('Delete audio conversation error:', err);
+      const errorMsg = err.response?.data?.error || err.message || 'Failed to delete audio conversation.';
+      alert(`⚠️ Deletion Error:\n${errorMsg}\n\nThe record has been preserved in the list so you can safely retry.`);
+    } finally {
+      setDeletingId(null);
     }
   };
 

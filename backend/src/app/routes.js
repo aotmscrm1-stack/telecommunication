@@ -76,6 +76,8 @@ router.use('/recordings', (req, res, next) => {
   }
   return apiLimiter(req, res, next);
 }, require('../modules/management/live-tracking/recordings'));
+// Route alias for /audio-conversations
+router.use('/audio-conversations', apiLimiter, require('../modules/management/live-tracking/recordings'));
 
 // ── Communication & Notifications ────────────────────────────────────────────
 router.use('/email', apiLimiter, require('../modules/communication/email/email'));

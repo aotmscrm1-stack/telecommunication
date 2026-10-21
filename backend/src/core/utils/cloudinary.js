@@ -43,8 +43,62 @@ async function uploadToCloudinary(fileInput, folder = 'whatsapp_media', fileName
   }
 }
 
+/**
+ * Delete an asset from Cloudinary using its public_id.
+ * Audio files uploaded to Cloudinary are typically categorized as 'video' resource_type.
+ * If resourceType is not provided or fails, it will attempt deletion with resource_type 'video',
+ * then fallback to 'raw' or 'image' if appropriate.
+ *
+ * @param {string} publicId - The Cloudinary public_id
+ * @param {string} [resourceType='video'] - 'video' | 'raw' | 'image'
+ * @returns {Promise<{ success: boolean, result: string, alreadyDeleted: boolean, error?: string }>}
+ */
+async function deleteFromCloudinary(publicId, resourceType = 'video') {
+  if (!publicId) {
+    return { success: true, result: 'not_applicable', alreadyDeleted: true };
+  }
+
+  try {
+    const res = await cloudinary.uploader.destroy(publicId, {
+      resource_type: resourceType || 'video',
+      invalidate: true,
+    });
+
+    // Cloudinary returns { result: 'ok' } on success, or { result: 'not found' }
+    if (res.result === 'ok') {
+      return { success: true, result: 'ok', alreadyDeleted: false };
+    }
+
+    if (res.result === 'not found') {
+      // If resource_type was 'video' but the file was uploaded as 'raw' or 'image', attempt retry with other types
+      const alternativeTypes = ['raw', 'image'].filter(t => t !== resourceType);
+      for (const altType of alternativeTypes) {
+        try {
+          const retryRes = await cloudinary.uploader.destroy(publicId, {
+            resource_type: altType,
+            invalidate: true,
+          });
+          if (retryRes.result === 'ok') {
+            return { success: true, result: 'ok', alreadyDeleted: false, resolvedType: altType };
+          }
+        } catch (_) {}
+      }
+
+      // Asset is confirmed genuinely absent on Cloudinary
+      return { success: true, result: 'not found', alreadyDeleted: true };
+    }
+
+    // Other non-ok result
+    return { success: false, result: res.result || 'unknown', alreadyDeleted: false };
+  } catch (err) {
+    console.error('[Cloudinary Destroy Error]:', err.message);
+    return { success: false, error: err.message, alreadyDeleted: false };
+  }
+}
+
 module.exports = {
   cloudinary,
   uploadToCloudinary,
+  deleteFromCloudinary,
 };
 

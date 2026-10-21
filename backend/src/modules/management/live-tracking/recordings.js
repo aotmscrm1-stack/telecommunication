@@ -10,6 +10,7 @@ const CallRecording = require('../../../database/models/CallRecording');
 const Lead = require('../../../database/models/Lead');
 const { normalizePhone10 } = require('../../../core/utils/phone');
 const { protect } = require('../../../core/middleware/auth');
+const { deleteFromCloudinary } = require('../../../core/utils/cloudinary');
 
 let transcribeAudioFile = null;
 try {
@@ -307,37 +308,93 @@ router.put('/:id', protect, async (req, res) => {
   }
 });
 
-// ─── DELETE /api/recordings/:id ───────────────────────────────────────────
-// Delete recording and clean up stored file from disk
-router.delete('/:id', protect, async (req, res) => {
-  try {
-    const rec = await CallRecording.findById(req.params.id);
-    if (!rec) return res.status(404).json({ error: 'Recording not found' });
+// ─── DELETE /api/recordings/:id (also aliased for /api/audio-conversations/:id) ──
+// Securely deletes the audio asset from Cloudinary (if linked) and local disk,
+// then deletes the MongoDB conversation/recording document.
+async function handleDeleteRecording(req, res) {
+  const { id } = req.params;
 
-    // Authorization: Must be owner or HR/Admin
-    const isOwner = String(rec.user) === String(req.user._id || req.user.id);
-    if (!isOwner && !isHRorAdmin(req.user)) {
-      return res.status(403).json({ error: 'Not authorized to delete this recording' });
+  // 1. Validate MongoDB ObjectId format
+  const mongoose = require('mongoose');
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ error: 'Invalid audio conversation ID format' });
+  }
+
+  try {
+    // 2. Fetch the conversation/recording document
+    const rec = await CallRecording.findById(id);
+    if (!rec) {
+      return res.status(404).json({ error: 'Audio conversation record not found' });
     }
 
-    // Clean up stored file from disk
+    // 3. Confirm authorization: requester must be owner or HR/Admin/Manager
+    const currentUserId = String(req.user._id || req.user.id);
+    const isOwner = String(rec.user) === currentUserId;
+    if (!isOwner && !isHRorAdmin(req.user)) {
+      return res.status(403).json({ error: 'Not authorized: You do not have permission to delete this audio conversation' });
+    }
+
+    // 4. Determine Cloudinary public_id
+    // Check direct schema field or extract if url is on res.cloudinary.com
+    let cloudinaryId = rec.cloudinaryPublicId;
+    if (!cloudinaryId && rec.url && rec.url.includes('res.cloudinary.com')) {
+      try {
+        const parts = rec.url.split('/upload/');
+        if (parts.length > 1) {
+          const pathAfterUpload = parts[1].replace(/^v\d+\//, ''); // strip version v12345/
+          cloudinaryId = pathAfterUpload.substring(0, pathAfterUpload.lastIndexOf('.')) || pathAfterUpload;
+        }
+      } catch (_) {}
+    }
+
+    // 5. Delete Cloudinary asset if present
+    let cloudinaryResult = null;
+    if (cloudinaryId) {
+      const resourceType = rec.cloudinaryResourceType || 'video';
+      const cldRes = await deleteFromCloudinary(cloudinaryId, resourceType);
+
+      if (!cldRes.success) {
+        // Provider or network failure: PRESERVE MongoDB record so deletion can be retried safely!
+        console.error(`[Delete Audio Error] Cloudinary deletion failed for ID ${id} (public_id: ${cloudinaryId}):`, cldRes.error || cldRes.result);
+        return res.status(502).json({
+          error: 'Cloudinary asset deletion failed. The record was preserved in CRM so you can safely retry.',
+          details: cldRes.error || cldRes.result,
+        });
+      }
+
+      cloudinaryResult = cldRes.alreadyDeleted ? 'already_absent' : 'deleted';
+    }
+
+    // 6. Clean up stored local disk file if present
     try {
       const filePath = findAudioFilePath(rec.storedName);
       if (filePath && fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
       }
     } catch (fileErr) {
-      console.warn('[Delete Recording] Storage cleanup notice:', fileErr.message);
+      console.warn('[Delete Audio] Local storage cleanup notice:', fileErr.message);
     }
 
-    await CallRecording.findByIdAndDelete(req.params.id);
+    // 7. Delete the MongoDB document
+    await CallRecording.findByIdAndDelete(id);
 
-    return res.json({ success: true, message: 'Recording deleted successfully', id: req.params.id });
+    return res.json({
+      success: true,
+      message: 'Audio conversation deleted successfully',
+      id,
+      deletedAsset: {
+        cloudinaryPublicId: cloudinaryId || null,
+        cloudinaryStatus: cloudinaryResult || 'not_applicable',
+        localFileCleaned: true,
+      },
+    });
   } catch (err) {
-    console.error('Delete recording error:', err);
-    return res.status(500).json({ error: 'Failed to delete recording' });
+    console.error('Delete audio conversation error:', err);
+    return res.status(500).json({ error: 'Failed to delete audio conversation', details: err.message });
   }
-});
+}
+
+router.delete('/:id', protect, handleDeleteRecording);
 
 // ─── POST /api/recordings/rematch ─────────────────────────────────────────
 router.post('/rematch', protect, async (req, res) => {

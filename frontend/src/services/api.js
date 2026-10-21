@@ -388,6 +388,11 @@ export const recordingsAPI = {
   rematchLeads: () => api.post('/recordings/rematch'),
 };
 
+export const audioConversationsAPI = {
+  ...recordingsAPI,
+  delete: (id) => api.delete(`/audio-conversations/${id}`),
+};
+
 export const billingAPI = {
   getInfo: () => api.get('/billing/info'),
   addInfo: (data) => api.post('/billing/info', data),

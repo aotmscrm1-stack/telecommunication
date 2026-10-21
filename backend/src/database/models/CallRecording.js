@@ -50,6 +50,11 @@ const callRecordingSchema = new mongoose.Schema(
     // Publicly servable URL, e.g. "/uploads/recordings/167900_call.m4a"
     url: { type: String, required: true },
 
+    // Cloudinary storage reference (when stored in Cloudinary)
+    cloudinaryPublicId: { type: String, default: null, index: true },
+    cloudinaryResourceType: { type: String, default: 'video' }, // Cloudinary stores audio files under 'video' resource_type
+    cloudinaryUrl: { type: String, default: null },
+
     // File size in bytes
     size: { type: Number, default: 0 },
 
