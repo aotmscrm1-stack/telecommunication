@@ -131,16 +131,24 @@ router.post('/', protect, upload.single('audio'), async (req, res) => {
       ? bodyDigits
       : extractPhoneFromFilename(req.file.originalname);
 
+    let validPhone = null;
+    if (extractedPhone && /^\d{10}$/.test(extractedPhone)) {
+      validPhone = extractedPhone;
+    }
+
     // Resolve lead: prefer explicit leadId, then auto-match by phone
     let resolvedLead = null;
     if (leadId) {
       resolvedLead = leadId;
-    } else if (extractedPhone) {
-      const matched = await findLeadByPhone(extractedPhone, req.user.workspace);
+    } else if (validPhone) {
+      const matched = await findLeadByPhone(validPhone, req.user.workspace);
       if (matched) resolvedLead = matched._id;
     }
 
     const dateObj = recordedAt ? new Date(recordedAt) : new Date();
+    const callDateStr = dateObj.toISOString().slice(0, 10);
+    const callTimeStr = dateObj.toTimeString().slice(0, 8);
+
     // ─── Deduplication Check ─────────────────────────────────────────────
     // Prevent duplicate uploads on repeat folder scans (matching user + originalName + size)
     const existingRec = await CallRecording.findOne({
@@ -167,7 +175,7 @@ router.post('/', protect, upload.single('audio'), async (req, res) => {
     const doc = await CallRecording.create({
       user: req.user.id,
       lead: resolvedLead || null,
-      phone: extractedPhone || null,
+      phone: validPhone,
       originalName: req.file.originalname,
       storedName: req.file.filename,
       filePath: `recordings/${req.file.filename}`,
@@ -215,7 +223,7 @@ router.post('/', protect, upload.single('audio'), async (req, res) => {
     return res.status(201).json({ success: true, recording: populated });
   } catch (err) {
     console.error('Recording upload error:', err);
-    return res.status(500).json({ error: 'Failed to save recording' });
+    return res.status(500).json({ error: 'Failed to save recording', details: err.message });
   }
 });
 

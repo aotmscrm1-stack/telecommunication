@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { StorageAccessFramework } from 'expo-file-system/legacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../theme/colors';
@@ -320,7 +320,7 @@ export default function CallRecordingsScreen({ onNavigate }) {
           syncedCount++;
         }
       } catch (uploadErr) {
-        console.error('[Sync Error on file]:', file.name, uploadErr.message);
+        console.error('[Sync Error on file]:', file.name, uploadErr.message, uploadErr.response?.data || '');
         failedCount++;
       } finally {
         // Clean up temporary cache copy if created
