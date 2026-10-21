@@ -12,7 +12,7 @@ import {
   FaBan, FaUserGear, FaKey, FaPlug, FaCircleInfo, FaCoins, FaSitemap,
   FaCode, FaBell, FaChevronDown, FaBars, FaXmark, FaRightFromBracket,
   FaUser, FaLock, FaUserCheck, FaBook, FaCalendarDays, FaTableList,
-  FaChartLine
+  FaChartLine, FaMobileScreen, FaDownload
 } from 'react-icons/fa6';
 import { isCEO, isHR, isManager, isLimitedStaff, canViewDashboard, canViewCallRecordings, isDigitalMarketing, canAccessDigitalCalendar, normalizeDesignation, canViewCallFollowups, canAccessMarketingLeads, canAccessDailyActivity } from '../../../utils/permissions';
 
@@ -627,10 +627,18 @@ export default function Navbar() {
     { title: 'Developer', icon: FaCode, items: [
       { label: 'Access Tokens', path: '/access-tokens', icon: FaKey },
       { label: 'Integrations', path: '/integrations', icon: FaPlug },
+      { label: 'Download APK', path: `${(import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000/api' : '/api')).replace(/\/api\/?$/, '')}/download-apk`, icon: FaDownload, isExternal: true },
     ]},
   ];
 
+  const handleDownloadApk = () => {
+    const rawApiUrl = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000/api' : '/api');
+    const rootUrl = rawApiUrl.replace(/\/api\/?$/, '');
+    window.open(`${rootUrl}/download-apk`, '_blank');
+  };
+
   const profileMenuItems = [
+    { label: 'Download Mobile App', icon: <FaMobileScreen className="w-3.5 h-3.5" />, onClick: () => { setShowProfile(false); handleDownloadApk(); } },
     { label: 'Profile', icon: <FaUser className="w-3.5 h-3.5" />, onClick: () => { setShowProfile(false); navigate('/profile'); } },
     { label: 'Change Password', icon: <FaLock className="w-3.5 h-3.5" />, onClick: () => { setShowProfile(false); setShowChangePassword(true); } },
     ...(!isLimited ? [
@@ -943,7 +951,11 @@ export default function Navbar() {
                                       key={item.path}
                                       onClick={() => {
                                         setActiveDropdown(null);
-                                        navigate(item.path);
+                                        if (item.isExternal || item.path.startsWith('http')) {
+                                          window.open(item.path, '_blank');
+                                        } else {
+                                          navigate(item.path);
+                                        }
                                       }}
                                       className={`flex items-center gap-3 px-4 py-2.5 text-xs font-medium cursor-pointer transition-all nav-dropdown-item-glow mx-1 rounded-xl ${
                                         active ? 'border-l-4' : ''
@@ -1006,6 +1018,22 @@ export default function Navbar() {
                     <FaClock className="w-4 h-4 transition-colors" style={{ color: C.blue }} />
                   </motion.button>
                 )}
+
+                {/* Download Mobile APK */}
+                <motion.button
+                  whileHover={{ scale: 1.08 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleDownloadApk}
+                  title="Download Mobile APK (Android)"
+                  className="w-9 h-9 rounded-full flex items-center justify-center transition-all nav-glow-icon-btn group relative"
+                  style={{ background: C.bgSoft, border: `1px solid ${C.border}` }}
+                >
+                  <FaMobileScreen className="w-4 h-4 transition-colors group-hover:scale-110" style={{ color: C.blue }} />
+                  <span
+                    className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full"
+                    style={{ background: C.orange, boxShadow: `0 0 6px ${C.orangeGlow}` }}
+                  />
+                </motion.button>
 
                 {/* Notifications */}
                 <div ref={bellRef} className="relative">
@@ -1349,7 +1377,11 @@ export default function Navbar() {
                                 key={item.path}
                                 onClick={() => {
                                   setMobileMenuOpen(false);
-                                  navigate(item.path);
+                                  if (item.isExternal || item.path.startsWith('http')) {
+                                    window.open(item.path, '_blank');
+                                  } else {
+                                    navigate(item.path);
+                                  }
                                 }}
                                 className={`flex items-center gap-2 p-2 rounded-xl text-xs font-medium cursor-pointer transition-all nav-dropdown-item-glow ${group.items.length === 1 ? 'col-span-2' : ''}`}
                                 style={{
