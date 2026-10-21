@@ -70,6 +70,22 @@ export const metaLeadsApi = {
     const res = await client.get('/meta-leads/sync-status');
     return res.data;
   },
+
+  /**
+   * Get current employee's assigned Meta campaign access
+   */
+  getMyAssignmentStatus: async () => {
+    const res = await client.get('/meta-leads/my-assignment-status');
+    return res.data;
+  },
+
+  /**
+   * Get all campaign employee assignments (admin view)
+   */
+  getAssignments: async () => {
+    const res = await client.get('/meta-leads/assignments');
+    return res.data;
+  },
 };
 
 export default metaLeadsApi;
