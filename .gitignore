@@ -29,3 +29,7 @@ Thumbs.db
 # Vite / Temp
 .vite/
 */.vite/
+
+# Mobile Builds & Packages
+*.apk
+*.aab
