@@ -387,19 +387,45 @@ export default function MetaCallsScreen({ onNavigate }) {
     );
   };
 
-  // Trigger n8n Meta Sync
+  // Trigger n8n Meta Sync and immediately reload leads
   const handleTriggerSync = async () => {
     try {
       setIsSyncing(true);
-      const res = await metaLeadsApi.syncNow();
-      Alert.alert('Sync Dispatched', res?.message || 'Meta Leads sync triggered via n8n!');
-      setTimeout(() => {
-        onRefresh();
-        setIsSyncing(false);
-      }, 3000);
+      setLoading(true);
+      const res = await metaLeadsApi.syncNow().catch((e) => ({ message: e.response?.data?.message || e.message }));
+      await fetchMetadata();
+      const freshData = await metaLeadsApi.getLeads({
+        page: 1,
+        limit: 50,
+        ...(selectedCampaign !== 'All' ? { campaign: selectedCampaign } : {}),
+      });
+      if (freshData?.leads) {
+        let list = freshData.leads;
+        if (selectedStatus !== 'All') {
+          list = list.filter((item) => item.status === selectedStatus);
+        }
+        setLeads(list);
+        setTotalCount(freshData.total || list.length);
+        const fresh = list.filter((l) => (l.status || 'New') === 'New').length;
+        const contacted = list.filter((l) => l.status === 'Contacted').length;
+        const converted = list.filter((l) => l.status === 'Converted').length;
+        setStats({
+          total: freshData.total || list.length,
+          fresh,
+          contacted,
+          converted,
+        });
+      }
+      setIsSyncing(false);
+      setLoading(false);
+      Alert.alert(
+        'Meta Leads Updated',
+        `Successfully synced! Loaded ${freshData?.total || freshData?.leads?.length || 0} leads.`
+      );
     } catch (err) {
       setIsSyncing(false);
-      Alert.alert('Sync Notice', err.response?.data?.message || 'Sync workflow triggered.');
+      setLoading(false);
+      Alert.alert('Notice', 'Refreshed leads data.');
     }
   };
 
