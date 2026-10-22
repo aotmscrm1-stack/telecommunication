@@ -115,21 +115,6 @@ export default function MetaCallsScreen({ onNavigate }) {
     setIsRestricted(!isTrueAdmin);
   }, [isTrueAdmin]);
 
-  // Auto-detect user's department on mount (ONLY for verified admins)
-  useEffect(() => {
-    if (isTrueAdmin && user?.department) {
-      const uDept = String(user.department).trim();
-      const uDesig = String(user.designation || '').trim();
-      if (/telecall|counsellor/i.test(uDesig) || /telecall/i.test(uDept)) {
-        setSelectedDept('Telecalling');
-      } else if (uDept.toLowerCase() === 'hr') {
-        setSelectedDept('HR');
-      } else if (uDept.toLowerCase() === 'marketing') {
-        setSelectedDept('Marketing');
-      }
-    }
-  }, [user, isTrueAdmin]);
-
   // Fetch Departments & Campaigns metadata
   const fetchMetadata = useCallback(async () => {
     try {
@@ -184,14 +169,16 @@ export default function MetaCallsScreen({ onNavigate }) {
           });
 
           const assignedList = Array.from(myAssignedNamesSet);
-          // Strictly filter campaigns list to ONLY those assigned to this user
-          const filteredCamps = allCampList.filter((c) => assignedList.includes(c.campaign));
+          // Filter campaigns list to those assigned to this user, or show all if admin
+          const filteredCamps = assignedList.length > 0
+            ? allCampList.filter((c) => assignedList.includes(c.campaign))
+            : allCampList;
 
           setAllowedCampaigns(assignedList);
           setCampaigns(filteredCamps);
 
           // If current selectedCampaign is not in assignedList and not 'All', reset to 'All'
-          if (selectedCampaign !== 'All' && !assignedList.includes(selectedCampaign)) {
+          if (selectedCampaign !== 'All' && assignedList.length > 0 && !assignedList.includes(selectedCampaign)) {
             setSelectedCampaign('All');
           }
         }
@@ -220,7 +207,7 @@ export default function MetaCallsScreen({ onNavigate }) {
           limit: 50,
         };
         if (searchQuery.trim()) params.search = searchQuery.trim();
-        // Only pass department if user is verified admin
+        // Only pass department if verified admin chose a specific department
         if (isTrueAdmin && dept && dept !== 'All') params.department = dept;
         if (camp && camp !== 'All') params.campaign = camp;
         if (status && status !== 'All') params.status = status;
@@ -229,30 +216,18 @@ export default function MetaCallsScreen({ onNavigate }) {
         if (res && res.success) {
           let list = res.leads || [];
 
-          // Defensively scope leads on client-side for non-admin employees:
-          if (!isTrueAdmin) {
-            const userAllowedCampaigns = allowedCampaigns.length > 0
-              ? allowedCampaigns
-              : campaigns.map((c) => c.campaign).filter(Boolean);
-
-            const currentUserId = String(user?._id || user?.id || '');
-
-            list = list.filter((item) => {
-              const inAssignedCamp = item.campaign && userAllowedCampaigns.includes(item.campaign);
-              const assignedId = String(item.assignedTo?._id || item.assignedTo || '');
-              const addedById = String(item.addedBy?._id || item.addedBy || '');
-              const isMine = currentUserId && (assignedId === currentUserId || addedById === currentUserId);
-
-              if (camp && camp !== 'All') {
-                return item.campaign === camp && (inAssignedCamp || isMine);
-              }
-              return inAssignedCamp || isMine;
-            });
+          // Server-side /api/meta-leads is authoritative for security & assignments.
+          // Apply client-side chip filters seamlessly if user selected a specific campaign or status:
+          if (camp && camp !== 'All') {
+            list = list.filter((item) => item.campaign === camp);
+          }
+          if (status && status !== 'All') {
+            list = list.filter((item) => item.status === status);
           }
 
           setLeads(list);
           setTotalPages(res.pages || 1);
-          setTotalCount(!isTrueAdmin ? list.length : (res.total || 0));
+          setTotalCount(!isTrueAdmin ? list.length : (res.total || list.length));
           setPage(pageNum);
 
           if (isTrueAdmin && res.isAdmin !== undefined) setIsAdmin(!!res.isAdmin);
@@ -276,7 +251,7 @@ export default function MetaCallsScreen({ onNavigate }) {
         setRefreshing(false);
       }
     },
-    [search, selectedDept, selectedCampaign, selectedStatus, isTrueAdmin, allowedCampaigns, campaigns, user]
+    [search, selectedDept, selectedCampaign, selectedStatus, isTrueAdmin]
   );
 
   useEffect(() => {
@@ -284,10 +259,10 @@ export default function MetaCallsScreen({ onNavigate }) {
     fetchLeads(1, search, selectedDept, selectedCampaign, selectedStatus);
   }, [selectedDept, selectedCampaign, selectedStatus]);
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    fetchMetadata();
-    fetchLeads(1, search, selectedDept, selectedCampaign, selectedStatus);
+    await fetchMetadata();
+    await fetchLeads(1, search, selectedDept, selectedCampaign, selectedStatus);
   };
 
   const handleSearchSubmit = () => {

@@ -6,7 +6,7 @@ import { colors } from '../theme/colors';
 export default function BottomNav({ currentScreen, onNavigate }) {
   const tabs = [
     { id: 'dashboard', label: 'Home', icon: 'grid-outline', activeIcon: 'grid' },
-    { id: 'meta_calls', label: 'Meta Calls', icon: 'call-outline', activeIcon: 'call' },
+    { id: 'meta_calls', label: 'Meta Leads', icon: 'call-outline', activeIcon: 'call' },
     { id: 'all_leads', label: 'Leads', icon: 'people-outline', activeIcon: 'people' },
     { id: 'recordings', label: 'Recordings', icon: 'mic-outline', activeIcon: 'mic' },
     { id: 'attendance', label: 'Attendance', icon: 'time-outline', activeIcon: 'time' },

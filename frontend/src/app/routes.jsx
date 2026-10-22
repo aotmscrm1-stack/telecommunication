@@ -129,8 +129,7 @@ const StaffRestrictedRoute = ({ children }) => {
 const MetaLeadsRoute = ({ children }) => {
   const { user, loading, metaLeadAssignment } = useAuth();
   if (loading) return null;
-  if (!user) return <Navigate to="/login" replace />;
-  const isAllowed = isCEO(user) || isHR(user) || isCounsellor(user) || isTelecaller(user) || user?.role === 'admin' || metaLeadAssignment?.hasAccess;
+  const isAllowed = isCEO(user) || isHR(user) || isCounsellor(user) || isTelecaller(user) || canAccessMarketingLeads(user) || user?.role === 'admin' || user?.role === 'manager' || metaLeadAssignment?.hasAccess;
   if (isAllowed) {
     return children;
   }

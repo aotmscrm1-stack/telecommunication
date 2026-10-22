@@ -715,10 +715,14 @@ router.get('/', protect, async (req, res) => {
         const deptCampaigns = deptAssignments.map(a => a.campaign);
 
         if (!query.campaign) {
-          query.$or = [
-            { campaign: { $in: deptCampaigns } },
-            { department: new RegExp('^' + department + '$', 'i') }
-          ];
+          const deptOr = [];
+          if (deptCampaigns.length > 0) {
+            deptOr.push({ campaign: { $in: deptCampaigns } });
+          }
+          deptOr.push({ department: new RegExp('^' + department + '$', 'i') });
+          deptOr.push({ campaign: new RegExp(department, 'i') });
+          query.$and = query.$and || [];
+          query.$and.push({ $or: deptOr });
         }
       }
     }
@@ -730,7 +734,11 @@ router.get('/', protect, async (req, res) => {
     if (search && String(search).trim()) {
       const s = String(search).trim();
       const regex = new RegExp(s, 'i');
-      query.$or = [
+      const searchOr = [
+        { fullName: regex },
+        { phone: regex },
+        { normalizedPhone: regex },
+        { email: regex },
         { campaign: regex },
         { status: regex },
         { 'rawData.name': regex },
@@ -743,6 +751,8 @@ router.get('/', protect, async (req, res) => {
         { 'rawData.city': regex },
         { 'rawData.City': regex }
       ];
+      query.$and = query.$and || [];
+      query.$and.push({ $or: searchOr });
     }
 
     const pageNum = Math.max(1, parseInt(page, 10));

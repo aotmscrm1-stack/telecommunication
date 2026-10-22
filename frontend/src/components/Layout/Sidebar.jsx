@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import useBreakpoint from '../../hooks/useBreakpoint';
 import { useSidebar } from '../../context/SidebarContext';
-import { canAccessEmailBlast, canViewCallRecordings, canAccessDigitalCalendar, canAccessDailyActivity, isManager, isExecutive, isCounsellor, isTelecaller } from '../../utils/permissions';
+import { canAccessEmailBlast, canViewCallRecordings, canAccessDigitalCalendar, canAccessDailyActivity, isManager, isExecutive, isCounsellor, isTelecaller, canAccessMarketingLeads } from '../../utils/permissions';
 
 const ACTIVE_BG = '#edf8f8';
 const ACTIVE_COLOR = '#1d3557';
@@ -61,7 +61,7 @@ const Icons = {
 };
 
 export default function Sidebar() {
-  const { user, logout } = useAuth();
+  const { user, logout, metaLeadAssignment } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const bp = useBreakpoint();
@@ -75,6 +75,7 @@ export default function Sidebar() {
   const [performanceOpen, setPerformanceOpen] = useState(false);
 
   const isAdmin = user?.role === 'admin' || user?.role === 'manager' || isManager(user) || isExecutive(user);
+  const canSeeMetaLeads = isAdmin || canAccessMarketingLeads(user) || isCounsellor(user) || Boolean(metaLeadAssignment?.hasAccess);
 
   const goTo = (path) => {
     navigate(path);
@@ -284,6 +285,9 @@ export default function Sidebar() {
               )}
               {canAccessDigitalCalendar(user) && (
                 <NavItem to="/digital-calendar" icon={Icons.calendar} label="Digital Calendar" iconColor="#f97316" />
+              )}
+              {canSeeMetaLeads && !isAdmin && (
+                <NavItem to="/meta-leads" icon={Icons.metaLeads} label="Meta Leads" iconColor="#0284c7" />
               )}
 
               {isAdmin && (

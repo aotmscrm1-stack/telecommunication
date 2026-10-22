@@ -371,7 +371,7 @@ export default function Navbar() {
   const initials = user?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
 
   // Dynamic access check: Admin/Executive always has access; employee only if assigned by Admin
-  const canSeeMetaLeads = isCEO(user) || isHR(user) || user?.role === 'admin' || Boolean(metaLeadAssignment?.hasAccess);
+  const canSeeMetaLeads = isCEO(user) || isHR(user) || user?.role === 'admin' || user?.role === 'manager' || canAccessMarketingLeads(user) || Boolean(metaLeadAssignment?.hasAccess);
 
   const [now, setNow] = useState(new Date());
   const [showNotifications, setShowNotifications] = useState(false);

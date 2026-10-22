@@ -124,6 +124,36 @@ export default function AllLeadsScreen({ onNavigate }) {
         }
       />
 
+      {/* Quick Navigation Banner to Meta Leads */}
+      <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 }}>
+        <TouchableOpacity
+          onPress={() => onNavigate && onNavigate('meta_calls')}
+          activeOpacity={0.8}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            backgroundColor: 'rgba(2, 132, 199, 0.08)',
+            borderWidth: 1,
+            borderColor: 'rgba(2, 132, 199, 0.25)',
+            borderRadius: 10,
+            paddingVertical: 9,
+            paddingHorizontal: 12,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Ionicons name="megaphone" size={17} color="#0284c7" />
+            <Text style={{ fontSize: 13, fontWeight: '600', color: '#0284c7' }}>
+              Looking for Meta / Facebook Leads?
+            </Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: '#0284c7' }}>View Meta Leads</Text>
+            <Ionicons name="arrow-forward" size={14} color="#0284c7" />
+          </View>
+        </TouchableOpacity>
+      </View>
+
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <View style={styles.searchWrapper}>
