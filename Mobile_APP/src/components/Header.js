@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
@@ -6,13 +6,31 @@ import { useAuth } from '../context/AuthContext';
 
 export default function Header({ title, subtitle, showBack = false, onBack, rightAction }) {
   const { user, logout } = useAuth();
+  const [imageError, setImageError] = useState(false);
+
+  // Resolve backend avatar to fully qualified URI
+  const rawAvatar = user?.avatar || user?.profileImage || user?.photoURL || '';
+  const getAvatarUri = () => {
+    if (!rawAvatar || typeof rawAvatar !== 'string') return null;
+    const trimmed = rawAvatar.trim();
+    if (!trimmed) return null;
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+    const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+    return `https://telecommunication-l3oz.onrender.com${cleanPath}`;
+  };
+
+  const avatarUri = getAvatarUri();
+  const displayName = user?.name || user?.displayName || 'User';
+  const initial = displayName.charAt(0).toUpperCase();
 
   return (
     <View style={styles.container}>
       <View style={styles.leftRow}>
         {showBack ? (
           <TouchableOpacity style={styles.iconButton} onPress={onBack} activeOpacity={0.7}>
-            <Ionicons name="arrow-back" size={22} color={colors.text} />
+            <Ionicons name="arrow-back" size={20} color={colors.text} />
           </TouchableOpacity>
         ) : (
           <View style={styles.logoBadge}>
@@ -40,17 +58,24 @@ export default function Header({ title, subtitle, showBack = false, onBack, righ
         {rightAction || (
           <View style={styles.userSection}>
             <View style={styles.userAvatar}>
-              <Text style={styles.userInitials}>
-                {(user?.name || 'User').charAt(0).toUpperCase()}
-              </Text>
+              {avatarUri && !imageError ? (
+                <Image
+                  source={{ uri: avatarUri }}
+                  style={styles.avatarImg}
+                  onError={() => setImageError(true)}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Text style={styles.userInitials}>{initial}</Text>
+              )}
             </View>
             <TouchableOpacity
               style={styles.logoutBtn}
               onPress={logout}
-              title="Logout"
+              accessibilityLabel="Logout"
               activeOpacity={0.7}
             >
-              <Ionicons name="log-out-outline" size={20} color={colors.textSecondary} />
+              <Ionicons name="log-out-outline" size={19} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
         )}
@@ -65,11 +90,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 10 : 14,
-    paddingBottom: 14,
-    backgroundColor: colors.card,
+    paddingTop: Platform.OS === 'ios' ? 12 : 12,
+    paddingBottom: 12,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: '#E2E8F0',
+    elevation: 2,
+    shadowColor: '#12305A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
   },
   leftRow: {
     flexDirection: 'row',
@@ -77,40 +107,42 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   logoBadge: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: 'rgba(14, 165, 233, 0.1)',
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: '#E8F0FE',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 10,
     borderWidth: 1,
-    borderColor: 'rgba(14, 165, 233, 0.25)',
+    borderColor: '#CBD5E1',
   },
   logoImage: {
-    width: 28,
-    height: 28,
+    width: 24,
+    height: 24,
   },
   iconButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: colors.surfaceLight,
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: '#F4F7FB',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   titleContainer: {
     flex: 1,
   },
   titleText: {
-    color: colors.text,
-    fontSize: 18,
+    color: '#12305A',
+    fontSize: 17,
     fontWeight: '700',
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   },
   subtitleText: {
-    color: colors.textSecondary,
+    color: '#64748B',
     fontSize: 12,
     marginTop: 1,
   },
@@ -127,21 +159,31 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: colors.primary,
+    backgroundColor: '#174EA6',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+  },
+  avatarImg: {
+    width: '100%',
+    height: '100%',
   },
   userInitials: {
     color: '#FFFFFF',
     fontWeight: '700',
-    fontSize: 14,
+    fontSize: 13,
   },
   logoutBtn: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: colors.surfaceLight,
+    backgroundColor: '#F4F7FB',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
 });
+

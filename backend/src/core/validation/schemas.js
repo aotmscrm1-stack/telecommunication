@@ -7,12 +7,22 @@ const loginSchema = z.object({
 });
 
 const registerSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
+  name: z.string().min(1).optional(),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
   email: z.string().email('Invalid email address format'),
   password: z.string().min(6, 'Password must be at least 6 characters long'),
   role: z.enum(['admin', 'manager', 'employee', 'caller']).optional(),
   phone: z.string().optional(),
-});
+  employeeId: z.string().optional(),
+  department: z.string().optional(),
+  designation: z.string().optional(),
+  displayName: z.string().optional(),
+  bloodGroup: z.string().optional(),
+  address: z.string().optional(),
+  avatar: z.string().optional(),
+  otp: z.string().min(4, 'OTP verification code is required'),
+}).passthrough();
 
 // Lead Schemas
 const createLeadSchema = z.object({

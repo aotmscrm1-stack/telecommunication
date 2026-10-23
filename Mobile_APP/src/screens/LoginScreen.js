@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,12 +10,26 @@ import {
   Platform,
   ScrollView,
   Alert,
+  Dimensions,
+  StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../theme/colors';
+import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
+import * as SplashScreen from 'expo-splash-screen';
+import {
+  useFonts,
+  Outfit_400Regular,
+  Outfit_800ExtraBold,
+  Outfit_900Black,
+} from '@expo-google-fonts/outfit';
 import { useAuth } from '../context/AuthContext';
 
-export default function LoginScreen({ onNavigate }) {
+const { width, height } = Dimensions.get('window');
+
+// Ensure splash screen hides promptly
+SplashScreen.hideAsync().catch(() => {});
+
+export default function LoginScreen() {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,251 +37,278 @@ export default function LoginScreen({ onNavigate }) {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
+  // Load the Outfit Google Fonts gracefully
+  const [fontsLoaded] = useFonts({
+    Outfit_400Regular,
+    Outfit_800ExtraBold,
+    Outfit_900Black,
+  });
+
   const handleLogin = async () => {
     setErrorMsg('');
     if (!email.trim() || !password.trim()) {
       setErrorMsg('Please enter both email and password');
       return;
     }
-
     try {
       setLoading(true);
       await login(email.trim().toLowerCase(), password);
-      // Auth state update will automatically redirect via AppNavigator
     } catch (err) {
-      let msg = err.response?.data?.message || err.message || 'Login failed. Please check your credentials.';
+      let msg = err.response?.data?.message || err.message || 'Login failed. Please verify your credentials.';
       if (err.message?.toLowerCase().includes('network error') || !err.response) {
-        msg = 'Network Error: Cloud server may be waking up. Please wait 10 seconds and try again, or check your internet connection.';
+        msg = 'Connection Notice: Cloud server is initializing. Please wait a few seconds and try again.';
       }
       setErrorMsg(msg);
-      Alert.alert('Login Notice', msg);
+      Alert.alert('Sign In Notice', msg);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        {/* Back Button */}
-        <TouchableOpacity style={styles.backBtn} onPress={() => onNavigate('landing')} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={20} color={colors.text} />
-          <Text style={styles.backBtnText}>Back</Text>
-        </TouchableOpacity>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#12305A" />
+      
+      {/* ── BACKGROUND: CORPORATE BLUE TO NAVY SVG CURVE ── */}
+      <View style={StyleSheet.absoluteFill}>
+        <Svg width={width} height={height * 0.65}>
+          <Defs>
+            <LinearGradient id="corpGrad" x1="0" y1="0" x2="1" y2="1">
+              <Stop offset="0" stopColor="#174EA6" />
+              <Stop offset="1" stopColor="#12305A" />
+            </LinearGradient>
+          </Defs>
+          
+          <Path
+            d={`
+              M 0 0 
+              L ${width} 0 
+              L ${width} ${height * 0.20} 
+              C ${width * 0.85} ${height * 0.42}, ${width * 0.40} ${height * 0.18}, 0 ${height * 0.38} 
+              Z
+            `}
+            fill="rgba(0,0,0,0.06)"
+            transform="translate(0, 8)" 
+          />
 
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Welcome Back</Text>
-          <Text style={styles.subtitle}>Sign in with your CRM credentials to access live leads and tools.</Text>
-        </View>
+          <Path
+            d={`
+              M 0 0 
+              L ${width} 0 
+              L ${width} ${height * 0.20} 
+              C ${width * 0.85} ${height * 0.42}, ${width * 0.40} ${height * 0.18}, 0 ${height * 0.38} 
+              Z
+            `}
+            fill="url(#corpGrad)"
+          />
+        </Svg>
+      </View>
 
-        {/* Error Banner */}
-        {errorMsg ? (
-          <View style={styles.errorBanner}>
-            <Ionicons name="alert-circle" size={18} color={colors.danger} />
-            <Text style={styles.errorText}>{errorMsg}</Text>
+
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* ── HEADER TEXT ── */}
+          <View style={styles.headerArea}>
+            <Text style={styles.headerTitle}>WELCOME BACK</Text>
           </View>
-        ) : null}
 
-        {/* Inputs */}
-        <View style={styles.form}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>EMAIL ADDRESS</Text>
-            <View style={styles.inputWrapper}>
-              <Ionicons name="mail-outline" size={18} color={colors.textMuted} style={styles.inputIcon} />
+          {/* ── FORM CONTENT ── */}
+          <View style={styles.contentContainer}>
+            
+            {errorMsg ? (
+              <View style={styles.errorBanner}>
+                <Ionicons name="alert-circle" size={18} color="#EF4444" />
+                <Text style={styles.errorText}>{errorMsg}</Text>
+              </View>
+            ) : null}
+
+            {/* Email Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>EMAIL</Text>
               <TextInput
                 style={styles.input}
-                placeholder="name@company.com"
-                placeholderTextColor={colors.textMuted}
+                placeholder="someone@email.com"
+                placeholderTextColor="#888888"
                 keyboardType="email-address"
                 autoCapitalize="none"
                 value={email}
                 onChangeText={setEmail}
               />
             </View>
-          </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>PASSWORD</Text>
-            <View style={styles.inputWrapper}>
-              <Ionicons name="lock-closed-outline" size={18} color={colors.textMuted} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Enter password"
-                placeholderTextColor={colors.textMuted}
-                secureTextEntry={!showPassword}
-                value={password}
-                onChangeText={setPassword}
-              />
-              <TouchableOpacity
-                onPress={() => setShowPassword(!showPassword)}
-                style={styles.eyeBtn}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={20}
-                  color={colors.textSecondary}
+            {/* Password Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>PASSWORD</Text>
+              <View style={styles.passwordWrapper}>
+                <TextInput
+                  style={styles.passwordInput}
+                  placeholder="••••••••"
+                  placeholderTextColor="#888888"
+                  secureTextEntry={!showPassword}
+                  value={password}
+                  onChangeText={setPassword}
                 />
-              </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={styles.eyeBtn}
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color="#666666"
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
 
-          <TouchableOpacity
-            style={[styles.loginBtn, loading && styles.loginBtnDisabled]}
-            onPress={handleLogin}
-            disabled={loading}
-            activeOpacity={0.8}
-          >
-            {loading ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
-            ) : (
-              <>
+            {/* Main Sign In Button */}
+            <TouchableOpacity
+              style={[styles.loginBtn, loading && { opacity: 0.7 }]}
+              onPress={handleLogin}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              {loading ? (
+                <ActivityIndicator color="#FFF" size="small" />
+              ) : (
                 <Text style={styles.loginBtnText}>Sign In</Text>
-                <Ionicons name="log-in-outline" size={20} color="#FFFFFF" />
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
+              )}
+            </TouchableOpacity>
 
-        {/* Switch to Signup */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Don't have an account yet? </Text>
-          <TouchableOpacity onPress={() => onNavigate('signup')} activeOpacity={0.7}>
-            <Text style={styles.linkText}>Register here</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#F9F9F9',
   },
   scrollContent: {
-    paddingHorizontal: 22,
-    paddingTop: 45,
-    paddingBottom: 30,
+    flexGrow: 1,
   },
-  backBtn: {
-    flexDirection: 'row',
+
+  /* ── HEADER ── */
+  headerArea: {
+    height: height * 0.25,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 24,
-    alignSelf: 'flex-start',
-    backgroundColor: colors.surface,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
   },
-  backBtnText: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  header: {
-    marginBottom: 28,
-  },
-  title: {
-    color: colors.text,
+  headerTitle: {
+    color: '#FFFFFF',
     fontSize: 28,
-    fontWeight: '800',
-    letterSpacing: -0.5,
+    fontWeight: '900',
+    letterSpacing: 2.5,
+    fontFamily: 'Outfit_900Black',
   },
-  subtitle: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    marginTop: 8,
-    lineHeight: 20,
+
+  /* ── CONTENT FORM ── */
+  contentContainer: {
+    flex: 1,
+    paddingHorizontal: 36,
+    justifyContent: 'center',
+    paddingBottom: height * 0.06,
   },
+  
+  /* Error */
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.4)',
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
     marginBottom: 20,
   },
   errorText: {
-    color: colors.danger,
+    color: '#DC2626',
     fontSize: 13,
-    flex: 1,
-  },
-  form: {
-    gap: 18,
-  },
-  inputGroup: {
-    gap: 8,
-  },
-  label: {
-    color: colors.textMuted,
-    fontSize: 12,
     fontWeight: '700',
-    letterSpacing: 1,
+    flex: 1,
+    fontFamily: 'Outfit_800ExtraBold',
   },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    paddingHorizontal: 14,
+
+  /* Inputs */
+  inputGroup: {
+    marginBottom: 22,
   },
-  inputIcon: {
-    marginRight: 10,
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#444444',
+    letterSpacing: 1.5,
+    marginBottom: 8,
+    marginLeft: 15,
+    fontFamily: 'Outfit_900Black',
   },
   input: {
+    borderWidth: 1.5,
+    borderColor: '#B0B0B0',
+    borderRadius: 25,
+    height: 52,
+    paddingHorizontal: 20,
+    fontSize: 16,
+    color: '#000000',
+    fontWeight: '600',
+    backgroundColor: 'transparent',
+    fontFamily: 'Outfit_400Regular',
+  },
+  passwordWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#B0B0B0',
+    borderRadius: 25,
+    height: 52,
+    paddingLeft: 20,
+    paddingRight: 10,
+    backgroundColor: 'transparent',
+  },
+  passwordInput: {
     flex: 1,
-    color: colors.text,
-    paddingVertical: 14,
-    fontSize: 15,
+    fontSize: 16,
+    color: '#000000',
+    fontWeight: '600',
+    fontFamily: 'Outfit_400Regular',
   },
   eyeBtn: {
-    padding: 6,
+    padding: 10,
   },
+
+  /* Login Button */
   loginBtn: {
-    backgroundColor: colors.primary,
-    flexDirection: 'row',
+    backgroundColor: '#174EA6',
+    height: 52,
+    borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 15,
-    borderRadius: 12,
-    gap: 8,
-    marginTop: 8,
+    alignSelf: 'center',
+    width: '70%',
+    shadowColor: '#174EA6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+    marginTop: 26,
+    marginBottom: 40,
   },
-  loginBtnDisabled: {
-    opacity: 0.7,
-  },
+
   loginBtnText: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 36,
-  },
-  footerText: {
-    color: colors.textSecondary,
-    fontSize: 14,
-  },
-  linkText: {
-    color: colors.primary,
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '800',
+    fontFamily: 'Outfit_800ExtraBold',
   },
 });

@@ -1174,11 +1174,6 @@ export default function SignUp() {
         firstName: formData.firstName.trim()
       });
 
-      if (res.data?.otp) {
-        setDevOtp(res.data.otp);
-        console.log(`[AOTMS Security] 🔑 Registration OTP Code for ${formData.email}:`, res.data.otp);
-      }
-
       setOtpTimer(60);
       setCanResendOtp(false);
       setOtpCode('');
@@ -1195,14 +1190,10 @@ export default function SignUp() {
     setOtpLoading(true);
     setErrorMsg('');
     try {
-      const res = await authAPI.sendRegistrationOtp({
+      await authAPI.sendRegistrationOtp({
         email: formData.email.trim(),
         firstName: formData.firstName.trim()
       });
-      if (res.data?.otp) {
-        setDevOtp(res.data.otp);
-        console.log(`[AOTMS Security] 🔑 Resent OTP Code for ${formData.email}:`, res.data.otp);
-      }
       setOtpTimer(60);
       setCanResendOtp(false);
     } catch (err) {
@@ -1224,7 +1215,9 @@ export default function SignUp() {
     setErrorMsg('');
 
     try {
+      const fullName = `${formData.firstName.trim()} ${formData.lastName.trim()}`.trim();
       const payload = {
+        name: fullName || formData.firstName.trim() || 'User',
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
         email: formData.email.trim(),
@@ -1715,48 +1708,6 @@ export default function SignUp() {
                     <p className="sub">
                       Enter the 6-digit code we sent to <strong>{formData.email}</strong>.
                     </p>
-
-                    {devOtp && (
-                      <div style={{
-                        background: 'rgba(249, 115, 22, 0.14)',
-                        border: '1px solid rgba(249, 115, 22, 0.45)',
-                        borderRadius: '10px',
-                        padding: '10px 14px',
-                        marginBottom: '16px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        color: '#fb923c'
-                      }}>
-                        <div>
-                          <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', fontWeight: 700 }}>
-                            Verification Code (Backend Ready)
-                          </div>
-                          <div style={{ fontSize: '18px', fontWeight: 800, letterSpacing: '0.25em', color: '#ffffff', marginTop: '2px', fontFamily: 'monospace' }}>
-                            {devOtp}
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setOtpCode(devOtp)}
-                          style={{
-                            background: '#f97316',
-                            color: '#ffffff',
-                            border: 'none',
-                            borderRadius: '6px',
-                            padding: '6px 12px',
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            boxShadow: '0 2px 8px rgba(249, 115, 22, 0.35)',
-                            transition: 'all 0.15s'
-                          }}
-                        >
-                          Auto-fill Code
-                        </button>
-                      </div>
-                    )}
-
                     <div className="field">
                       <label htmlFor="otp">Verification Code</label>
                       <input

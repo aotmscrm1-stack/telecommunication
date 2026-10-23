@@ -452,8 +452,7 @@ export default function CallRecordingsScreen({ onNavigate }) {
       <Header
         title="Call Recordings"
         subtitle={`${recordings.length} Recorded calls synced in CRM`}
-        showBack
-        onBack={() => onNavigate('dashboard')}
+        showBack={false}
       />
 
       {/* Folder Sync Header Bar */}
@@ -557,7 +556,6 @@ export default function CallRecordingsScreen({ onNavigate }) {
           renderItem={({ item }) => {
             const phone = item.phone || item.lead?.phone || '';
             const leadName = item.lead?.name || item.contactName || item.phone || item.originalName || 'Call Log';
-            const duration = formatDuration(item.duration || item.callDuration);
 
             return (
               <View style={styles.card}>
@@ -569,16 +567,6 @@ export default function CallRecordingsScreen({ onNavigate }) {
                   <View style={styles.infoCol}>
                     <Text style={styles.leadName} numberOfLines={1}>{leadName}</Text>
                     <Text style={styles.phoneText}>{phone || 'No matched contact'}</Text>
-                    <Text style={styles.dateText}>
-                      {item.recordedAt || item.createdAt
-                        ? new Date(item.recordedAt || item.createdAt).toLocaleString()
-                        : 'Recent Recording'}
-                    </Text>
-                  </View>
-
-                  <View style={styles.durationBadge}>
-                    <Ionicons name="time-outline" size={13} color={colors.accent} />
-                    <Text style={styles.durationText}>{duration}</Text>
                   </View>
                 </View>
 
@@ -791,6 +779,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
+    paddingBottom: 95, // Clearance for bottom navigation bar
     gap: 12,
   },
   centerContainer: {

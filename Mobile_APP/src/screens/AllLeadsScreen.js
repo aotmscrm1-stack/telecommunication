@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
-    paddingBottom: 40,
+    paddingBottom: 95, // Clearance for bottom navigation
   },
   centerContainer: {
     flex: 1,

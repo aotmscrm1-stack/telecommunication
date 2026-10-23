@@ -2,7 +2,7 @@
   "expo": {
     "name": "AOTMS CRM",
     "slug": "aotms-crm",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/Logo.png",
     "userInterfaceStyle": "light",
@@ -18,6 +18,7 @@
     },
     "android": {
       "package": "com.aotms.crm",
+      "versionCode": 3,
       "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
@@ -35,6 +36,10 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-font",
+      "expo-splash-screen"
+    ]
   }
 }

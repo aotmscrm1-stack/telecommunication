@@ -1,63 +1,78 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, ActivityIndicator, Keyboard, Platform } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../theme/colors';
 
 // Screens
-import LandingScreen from '../screens/LandingScreen';
 import LoginScreen from '../screens/LoginScreen';
-import SignupScreen from '../screens/SignupScreen';
-import DashboardScreen from '../screens/DashboardScreen';
-import AddLeadScreen from '../screens/AddLeadScreen';
+import DailyActivityScreen from '../screens/DailyActivityScreen';
 import AllLeadsScreen from '../screens/AllLeadsScreen';
+import AddLeadScreen from '../screens/AddLeadScreen';
+import CallRecordingsScreen from '../screens/CallRecordingsScreen';
+import AttendanceScreen from '../screens/AttendanceScreen';
+import MetaCallsScreen from '../screens/MetaCallsScreen';
 import CampaignsScreen from '../screens/CampaignsScreen';
 import ContactsScreen from '../screens/ContactsScreen';
 import WhatsappBlastScreen from '../screens/WhatsappBlastScreen';
 import WhatsappDirectScreen from '../screens/WhatsappDirectScreen';
-import AttendanceScreen from '../screens/AttendanceScreen';
-import CallRecordingsScreen from '../screens/CallRecordingsScreen';
-import MetaCallsScreen from '../screens/MetaCallsScreen';
 
 // Components
 import BottomNav from '../components/BottomNav';
 
 export default function AppNavigator() {
   const { isAuthenticated, isLoading } = useAuth();
-  const [currentScreen, setCurrentScreen] = useState('landing');
-  const [authScreen, setAuthScreen] = useState('dashboard');
+  // Default directly to Meta Leads or Daily Activity (Dashboard removed as per specification)
+  const [authScreen, setAuthScreen] = useState('meta_calls');
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setKeyboardVisible(true)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardVisible(false)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color="#174EA6" />
       </View>
     );
   }
 
-  // ── UNATHENTICATED FLOW ───────────────────────────────────────────
+  // ── UNAUTHENTICATED FLOW (DIRECT LOGIN ONLY) ──────────────────────
   if (!isAuthenticated) {
-    switch (currentScreen) {
-      case 'login':
-        return <LoginScreen onNavigate={setCurrentScreen} />;
-      case 'signup':
-        return <SignupScreen onNavigate={setCurrentScreen} />;
-      case 'landing':
-      default:
-        return <LandingScreen onNavigate={setCurrentScreen} />;
-    }
+    return <LoginScreen />;
   }
 
-  // ── AUTHENTICATED CRM FLOW ─────────────────────────────────────────
+  // ── AUTHENTICATED CRM FLOW (5 MAIN MODULES + AUXILIARY) ────────────
   const renderAuthScreen = () => {
     switch (authScreen) {
-      case 'add_lead':
-        return <AddLeadScreen onNavigate={setAuthScreen} />;
-      case 'meta_calls':
-      case 'calling':
-        return <MetaCallsScreen onNavigate={setAuthScreen} />;
+      case 'daily_activity':
+      case 'activity':
+        return <DailyActivityScreen onNavigate={setAuthScreen} />;
       case 'all_leads':
       case 'leads':
         return <AllLeadsScreen onNavigate={setAuthScreen} />;
+      case 'add_lead':
+        return <AddLeadScreen onNavigate={setAuthScreen} />;
+      case 'recordings':
+      case 'records':
+        return <CallRecordingsScreen onNavigate={setAuthScreen} />;
+      case 'attendance':
+        return <AttendanceScreen onNavigate={setAuthScreen} />;
+      case 'meta_calls':
+      case 'calling':
+      case 'meta_leads':
+        return <MetaCallsScreen onNavigate={setAuthScreen} />;
       case 'campaigns':
         return <CampaignsScreen onNavigate={setAuthScreen} />;
       case 'contacts':
@@ -67,41 +82,43 @@ export default function AppNavigator() {
       case 'whatsapp_direct':
       case 'whatsapp_hub':
         return <WhatsappDirectScreen onNavigate={setAuthScreen} />;
-      case 'attendance':
-        return <AttendanceScreen onNavigate={setAuthScreen} />;
-      case 'recordings':
-        return <CallRecordingsScreen onNavigate={setAuthScreen} />;
-      case 'dashboard':
       default:
-        return <DashboardScreen onNavigate={setAuthScreen} />;
+        return <MetaCallsScreen onNavigate={setAuthScreen} />;
     }
   };
+
+  const isFullScreenForm = authScreen === 'add_lead';
+  const shouldShowBottomNav = !isFullScreenForm && !keyboardVisible;
 
   return (
     <View style={styles.container}>
       <View style={styles.screenArea}>
         {renderAuthScreen()}
       </View>
-      <BottomNav
-        currentScreen={authScreen}
-        onNavigate={setAuthScreen}
-      />
+      {shouldShowBottomNav ? (
+        <BottomNav
+          currentScreen={authScreen}
+          onNavigate={setAuthScreen}
+        />
+      ) : null}
     </View>
   );
 }
 
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#F4F7FB',
   },
   screenArea: {
     flex: 1,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#F4F7FB',
     alignItems: 'center',
     justifyContent: 'center',
   },
 });
+

@@ -13,6 +13,7 @@ import {
   Linking,
   ScrollView,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
@@ -106,8 +107,13 @@ export default function MetaCallsScreen({ onNavigate }) {
   const [followUpDate, setFollowUpDate] = useState('');
   const [savingOutcome, setSavingOutcome] = useState(false);
 
+  // Lead Details Modal State
+  const [detailsModalVisible, setDetailsModalVisible] = useState(false);
+  const [detailsLead, setDetailsLead] = useState(null);
+
   // Syncing State (n8n Webhook)
   const [isSyncing, setIsSyncing] = useState(false);
+
 
   // Sync admin state with profile
   useEffect(() => {
@@ -169,16 +175,18 @@ export default function MetaCallsScreen({ onNavigate }) {
           });
 
           const assignedList = Array.from(myAssignedNamesSet);
-          // Filter campaigns list to those assigned to this user, or show all if admin
+          // Strictly restrict campaigns list to those assigned to this user (never fall back to allCampList for staff)
           const filteredCamps = assignedList.length > 0
             ? allCampList.filter((c) => assignedList.includes(c.campaign))
-            : allCampList;
+            : [];
 
           setAllowedCampaigns(assignedList);
           setCampaigns(filteredCamps);
 
-          // If current selectedCampaign is not in assignedList and not 'All', reset to 'All'
+          // If current selectedCampaign is not in assignedList and not 'All', reset to first assigned or 'All'
           if (selectedCampaign !== 'All' && assignedList.length > 0 && !assignedList.includes(selectedCampaign)) {
+            setSelectedCampaign(assignedList[0] || 'All');
+          } else if (assignedList.length === 0) {
             setSelectedCampaign('All');
           }
         }
@@ -187,6 +195,7 @@ export default function MetaCallsScreen({ onNavigate }) {
       console.warn('[MetaCalls] Metadata error:', err);
     }
   }, [isTrueAdmin, user, selectedCampaign]);
+
 
   useEffect(() => {
     fetchMetadata();
@@ -574,16 +583,16 @@ export default function MetaCallsScreen({ onNavigate }) {
           </View>
         ) : null}
 
-        {/* One-Touch Action Buttons Bar */}
+        {/* Action Buttons Row */}
         <View style={styles.actionRow}>
-          {/* Primary Big Call Button */}
+          {/* Primary Call Button */}
           <TouchableOpacity
             style={styles.callButton}
             onPress={() => handleInitiateCall(item)}
             activeOpacity={0.8}
           >
-            <Ionicons name="call" size={16} color="#FFFFFF" />
-            <Text style={styles.callButtonText}>CALL NOW</Text>
+            <Ionicons name="call" size={14} color="#FFFFFF" />
+            <Text style={styles.callButtonText}>Call</Text>
           </TouchableOpacity>
 
           {/* WhatsApp Button */}
@@ -592,10 +601,10 @@ export default function MetaCallsScreen({ onNavigate }) {
             onPress={() => handleWhatsApp(item)}
             activeOpacity={0.8}
           >
-            <Ionicons name="logo-whatsapp" size={18} color="#FFFFFF" />
+            <Ionicons name="logo-whatsapp" size={17} color="#FFFFFF" />
           </TouchableOpacity>
 
-          {/* Log / Notes Button */}
+          {/* Log Outcome Button */}
           <TouchableOpacity
             style={styles.logButton}
             onPress={() => {
@@ -607,19 +616,22 @@ export default function MetaCallsScreen({ onNavigate }) {
             }}
             activeOpacity={0.8}
           >
-            <Ionicons name="create-outline" size={18} color={colors.primary} />
+            <Ionicons name="create-outline" size={15} color="#FFFFFF" />
+            <Text style={styles.logButtonText}>Log</Text>
           </TouchableOpacity>
 
-          {/* Convert to CRM Lead Button */}
-          {item.status !== 'Converted' ? (
-            <TouchableOpacity
-              style={styles.convertButton}
-              onPress={() => handleConvertLead(item)}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="git-merge-outline" size={16} color="#059669" />
-            </TouchableOpacity>
-          ) : null}
+          {/* View Details Button */}
+          <TouchableOpacity
+            style={styles.detailsButton}
+            onPress={() => {
+              setDetailsLead(item);
+              setDetailsModalVisible(true);
+            }}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="information-circle-outline" size={15} color="#12305A" />
+            <Text style={styles.detailsButtonText}>Details</Text>
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -629,10 +641,22 @@ export default function MetaCallsScreen({ onNavigate }) {
     <View style={styles.container}>
       {/* Top App Header */}
       <Header
-        title="Meta Calls Session"
-        subtitle={!isAdmin ? `Assigned Leads • ${user?.displayName || user?.name || 'Agent'}` : `Admin Session • ${selectedDept} Pool`}
+        title="Meta Leads"
+        subtitle={`${stats.total || totalCount} Assigned Leads`}
         rightAction={
           <View style={styles.headerRightActions}>
+            <TouchableOpacity
+              style={styles.iconActionBtn}
+              onPress={onRefresh}
+              disabled={refreshing}
+              activeOpacity={0.7}
+            >
+              {refreshing ? (
+                <ActivityIndicator size="small" color="#174EA6" />
+              ) : (
+                <Ionicons name="refresh-outline" size={20} color="#174EA6" />
+              )}
+            </TouchableOpacity>
             <TouchableOpacity
               style={styles.iconActionBtn}
               onPress={handleTriggerSync}
@@ -640,21 +664,15 @@ export default function MetaCallsScreen({ onNavigate }) {
               activeOpacity={0.7}
             >
               {isSyncing ? (
-                <ActivityIndicator size="small" color={colors.primary} />
+                <ActivityIndicator size="small" color="#174EA6" />
               ) : (
-                <Ionicons name="cloud-download-outline" size={20} color={colors.primary} />
+                <Ionicons name="cloud-download-outline" size={20} color="#174EA6" />
               )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.iconActionBtn}
-              onPress={() => onNavigate && onNavigate('recordings')}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="mic-outline" size={20} color="#6366F1" />
             </TouchableOpacity>
           </View>
         }
       />
+
 
       {/* Realtime Calling Stats KPI Strip */}
       <View style={styles.statsStrip}>
@@ -846,7 +864,10 @@ export default function MetaCallsScreen({ onNavigate }) {
         animationType="slide"
         onRequestClose={() => setCallModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}
+        >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <View>
@@ -860,87 +881,175 @@ export default function MetaCallsScreen({ onNavigate }) {
               </TouchableOpacity>
             </View>
 
-            {/* Outcome Selection Buttons */}
-            <Text style={styles.modalSectionLabel}>CALL DISPOSITION</Text>
-            <View style={styles.outcomeGrid}>
-              {['Contacted', 'Follow-up', 'Converted', 'Discarded'].map((opt) => {
-                const isSel = callOutcomeStatus === opt;
-                return (
-                  <TouchableOpacity
-                    key={opt}
-                    style={[styles.outcomeOption, isSel && styles.outcomeOptionActive]}
-                    onPress={() => setCallOutcomeStatus(opt)}
-                  >
-                    <Ionicons
-                      name={
-                        opt === 'Converted'
-                          ? 'trophy'
-                          : opt === 'Contacted'
-                          ? 'checkmark-circle'
-                          : opt === 'Follow-up'
-                          ? 'alarm'
-                          : 'close-circle'
-                      }
-                      size={16}
-                      color={isSel ? '#FFFFFF' : colors.textSecondary}
-                    />
-                    <Text style={[styles.outcomeOptionText, isSel && styles.outcomeOptionTextActive]}>
-                      {opt}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              {/* Outcome Selection Buttons */}
+              <Text style={styles.modalSectionLabel}>CALL DISPOSITION</Text>
+              <View style={styles.outcomeGrid}>
+                {['Contacted', 'Follow-up', 'Converted', 'Discarded'].map((opt) => {
+                  const isSel = callOutcomeStatus === opt;
+                  return (
+                    <TouchableOpacity
+                      key={opt}
+                      style={[styles.outcomeOption, isSel && styles.outcomeOptionActive]}
+                      onPress={() => setCallOutcomeStatus(opt)}
+                    >
+                      <Ionicons
+                        name={
+                          opt === 'Converted'
+                            ? 'trophy'
+                            : opt === 'Contacted'
+                            ? 'checkmark-circle'
+                            : opt === 'Follow-up'
+                            ? 'alarm'
+                            : 'close-circle'
+                        }
+                        size={16}
+                        color={isSel ? '#FFFFFF' : colors.textSecondary}
+                      />
+                      <Text style={[styles.outcomeOptionText, isSel && styles.outcomeOptionTextActive]}>
+                        {opt}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Next Follow Up Date (if follow up) */}
+              {callOutcomeStatus === 'Follow-up' ? (
+                <View style={styles.followUpInputContainer}>
+                  <Text style={styles.modalSectionLabel}>FOLLOW-UP DATE (YYYY-MM-DD)</Text>
+                  <TextInput
+                    style={styles.textInputBox}
+                    placeholder="e.g. 2026-10-25"
+                    placeholderTextColor={colors.textMuted}
+                    value={followUpDate}
+                    onChangeText={setFollowUpDate}
+                  />
+                </View>
+              ) : null}
+
+              {/* Call Notes Input */}
+              <Text style={styles.modalSectionLabel}>CALL NOTES / CANDIDATE REMARKS</Text>
+              <TextInput
+                style={[styles.textInputBox, styles.notesArea]}
+                placeholder="Enter discussion summary, questions asked, fee quotes, student expectations..."
+                placeholderTextColor={colors.textMuted}
+                multiline
+                numberOfLines={4}
+                value={callNote}
+                onChangeText={setCallNote}
+              />
+
+              {/* Modal Action Buttons */}
+              <View style={styles.modalActionButtons}>
+                <TouchableOpacity
+                  style={styles.modalCancelBtn}
+                  onPress={() => setCallModalVisible(false)}
+                  disabled={savingOutcome}
+                >
+                  <Text style={styles.modalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.modalSaveBtn}
+                  onPress={handleSaveCallOutcome}
+                  disabled={savingOutcome}
+                >
+                  {savingOutcome ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Ionicons name="save-outline" size={16} color="#FFFFFF" />
+                      <Text style={styles.modalSaveText}>Save Outcome</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* LEAD DETAILS MODAL */}
+      <Modal
+        visible={detailsModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setDetailsModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.detailsModalContent}>
+            <View style={styles.modalHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modalTitle}>Candidate Details</Text>
+                <Text style={styles.modalLeadName}>{detailsLead?.fullName || 'Candidate'}</Text>
+              </View>
+              <TouchableOpacity onPress={() => setDetailsModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
             </View>
 
-            {/* Next Follow Up Date (if follow up) */}
-            {callOutcomeStatus === 'Follow-up' ? (
-              <View style={styles.followUpInputContainer}>
-                <Text style={styles.modalSectionLabel}>FOLLOW-UP DATE (YYYY-MM-DD)</Text>
-                <TextInput
-                  style={styles.textInputBox}
-                  placeholder="e.g. 2026-10-25"
-                  placeholderTextColor={colors.textMuted}
-                  value={followUpDate}
-                  onChangeText={setFollowUpDate}
-                />
+            <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
+              <View style={styles.detailsRow}>
+                <Text style={styles.detailsLabel}>Phone:</Text>
+                <Text style={styles.detailsVal}>{detailsLead?.phone || detailsLead?.normalizedPhone || 'N/A'}</Text>
               </View>
-            ) : null}
+              {detailsLead?.email ? (
+                <View style={styles.detailsRow}>
+                  <Text style={styles.detailsLabel}>Email:</Text>
+                  <Text style={styles.detailsVal}>{detailsLead.email}</Text>
+                </View>
+              ) : null}
+              <View style={styles.detailsRow}>
+                <Text style={styles.detailsLabel}>Campaign:</Text>
+                <Text style={styles.detailsVal}>{detailsLead?.campaign || 'General'}</Text>
+              </View>
+              <View style={styles.detailsRow}>
+                <Text style={styles.detailsLabel}>Status:</Text>
+                <Text style={styles.detailsVal}>{detailsLead?.status || 'New'}</Text>
+              </View>
+              {detailsLead?.rawData?.['City'] || detailsLead?.rawData?.['city'] ? (
+                <View style={styles.detailsRow}>
+                  <Text style={styles.detailsLabel}>City/Location:</Text>
+                  <Text style={styles.detailsVal}>{detailsLead.rawData['City'] || detailsLead.rawData['city']}</Text>
+                </View>
+              ) : null}
+              {detailsLead?.rawData?.['Course'] || detailsLead?.rawData?.['Course Interest'] ? (
+                <View style={styles.detailsRow}>
+                  <Text style={styles.detailsLabel}>Course Interest:</Text>
+                  <Text style={styles.detailsVal}>{detailsLead.rawData['Course'] || detailsLead.rawData['Course Interest']}</Text>
+                </View>
+              ) : null}
+              {detailsLead?.followUpDate ? (
+                <View style={styles.detailsRow}>
+                  <Text style={styles.detailsLabel}>Follow-up Date:</Text>
+                  <Text style={styles.detailsVal}>{new Date(detailsLead.followUpDate).toLocaleDateString()}</Text>
+                </View>
+              ) : null}
+              <View style={styles.detailsRow}>
+                <Text style={styles.detailsLabel}>Calls Attempted:</Text>
+                <Text style={styles.detailsVal}>{detailsLead?.callCount || 0}</Text>
+              </View>
+            </ScrollView>
 
-            {/* Call Notes Input */}
-            <Text style={styles.modalSectionLabel}>CALL NOTES / CANDIDATE REMARKS</Text>
-            <TextInput
-              style={[styles.textInputBox, styles.notesArea]}
-              placeholder="Enter discussion summary, questions asked, fee quotes, student expectations..."
-              placeholderTextColor={colors.textMuted}
-              multiline
-              numberOfLines={4}
-              value={callNote}
-              onChangeText={setCallNote}
-            />
-
-            {/* Modal Action Buttons */}
-            <View style={styles.modalActionButtons}>
+            <View style={styles.detailsActionRow}>
+              {detailsLead?.status !== 'Converted' ? (
+                <TouchableOpacity
+                  style={styles.detailsConvertBtn}
+                  onPress={() => {
+                    setDetailsModalVisible(false);
+                    handleConvertLead(detailsLead);
+                  }}
+                >
+                  <Ionicons name="git-merge-outline" size={16} color="#FFFFFF" />
+                  <Text style={styles.detailsConvertBtnText}>Convert to Lead</Text>
+                </TouchableOpacity>
+              ) : null}
               <TouchableOpacity
-                style={styles.modalCancelBtn}
-                onPress={() => setCallModalVisible(false)}
-                disabled={savingOutcome}
+                style={styles.detailsCloseBtn}
+                onPress={() => setDetailsModalVisible(false)}
               >
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.modalSaveBtn}
-                onPress={handleSaveCallOutcome}
-                disabled={savingOutcome}
-              >
-                {savingOutcome ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <>
-                    <Ionicons name="save-outline" size={16} color="#FFFFFF" />
-                    <Text style={styles.modalSaveText}>Save Outcome</Text>
-                  </>
-                )}
+                <Text style={styles.detailsCloseBtnText}>Close</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -949,6 +1058,7 @@ export default function MetaCallsScreen({ onNavigate }) {
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
@@ -1157,22 +1267,23 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     paddingHorizontal: 14,
-    paddingBottom: 20,
+    paddingBottom: 95, // Clean clearance above the bottom navigation bar
     paddingTop: 4,
   },
   card: {
-    backgroundColor: colors.card,
-    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: '#E2E8F0',
     elevation: 2,
-    shadowColor: '#0F172A',
+    shadowColor: '#12305A',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
   },
+
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1302,16 +1413,16 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
   },
   callButton: {
-    flex: 1,
+    flex: 1.2,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#10B981',
+    backgroundColor: '#174EA6',
     borderRadius: 10,
     paddingVertical: 9,
     gap: 6,
     elevation: 2,
-    shadowColor: '#10B981',
+    shadowColor: '#174EA6',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 3,
@@ -1331,14 +1442,36 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   logButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: 'rgba(2, 132, 199, 0.1)',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 10,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#F28C28',
+    gap: 4,
+  },
+  logButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  detailsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#F4F7FB',
     borderWidth: 1,
-    borderColor: 'rgba(2, 132, 199, 0.2)',
+    borderColor: '#E2E8F0',
+    gap: 4,
+  },
+  detailsButtonText: {
+    color: '#12305A',
+    fontSize: 12,
+    fontWeight: '600',
   },
   convertButton: {
     width: 38,
@@ -1349,6 +1482,68 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#86EFAC',
+  },
+  detailsModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    maxHeight: '80%',
+  },
+  detailsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  detailsLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748B',
+    width: '40%',
+  },
+  detailsVal: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1F2937',
+    width: '60%',
+    textAlign: 'right',
+  },
+  detailsActionRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  detailsConvertBtn: {
+    flex: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#174EA6',
+    borderRadius: 10,
+    paddingVertical: 12,
+    gap: 6,
+  },
+  detailsConvertBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  detailsCloseBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F4F7FB',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingVertical: 12,
+  },
+  detailsCloseBtnText: {
+    color: '#64748B',
+    fontSize: 13,
+    fontWeight: '600',
   },
   emptyContainer: {
     alignItems: 'center',

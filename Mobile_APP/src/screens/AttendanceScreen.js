@@ -216,8 +216,7 @@ export default function AttendanceScreen({ onNavigate }) {
       <Header
         title="Attendance & Time"
         subtitle="Live shift punch clock"
-        showBack
-        onBack={() => onNavigate('dashboard')}
+        showBack={false}
       />
 
       <ScrollView
@@ -388,7 +387,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 40,
+    paddingBottom: 95, // Clearance for bottom navigation
   },
   clockCard: {
     backgroundColor: colors.card,

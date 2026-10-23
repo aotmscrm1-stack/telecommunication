@@ -76,12 +76,13 @@ export default function AddLeadScreen({ onNavigate }) {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 44 : 0}
     >
       <Header
         title="Add New Lead"
         subtitle="Create CRM prospect"
         showBack
-        onBack={() => onNavigate('dashboard')}
+        onBack={() => onNavigate('all_leads')}
       />
 
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
@@ -251,8 +252,9 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 40,
+    paddingBottom: 100, // Clearance for buttons and keyboard scrolling
   },
+
   formCard: {
     backgroundColor: colors.card,
     borderRadius: 16,

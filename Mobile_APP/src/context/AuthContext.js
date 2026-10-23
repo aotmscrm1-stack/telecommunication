@@ -22,20 +22,29 @@ export const AuthProvider = ({ children }) => {
       if (storedToken) {
         setToken(storedToken);
         if (storedUser) {
-          setUser(JSON.parse(storedUser));
+          try {
+            setUser(JSON.parse(storedUser));
+          } catch (parseErr) {}
         }
 
-        // Verify token with backend
-        try {
-          const meData = await authApi.getMe();
-          if (meData?.user) {
-            setUser(meData.user);
-            await AsyncStorage.setItem('aotms_user', JSON.stringify(meData.user));
-          }
-        } catch (verifyErr) {
-          console.log('[AuthContext] Session expired or invalid token');
-          await logout();
-        }
+        // Immediately unblock UI so app opens in milliseconds
+        setIsLoading(false);
+
+        // Verify token in background asynchronously without stalling app startup
+        authApi.getMe()
+          .then(async (meData) => {
+            if (meData?.user) {
+              setUser(meData.user);
+              await AsyncStorage.setItem('aotms_user', JSON.stringify(meData.user));
+            }
+          })
+          .catch(async (verifyErr) => {
+            if (verifyErr.response?.status === 401) {
+              console.log('[AuthContext] Session expired, logging out');
+              await logout();
+            }
+          });
+        return;
       }
     } catch (e) {
       console.error('[AuthContext] Failed to load stored credentials:', e);

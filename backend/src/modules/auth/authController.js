@@ -132,7 +132,6 @@ const sendRegistrationOtp = async (req, res) => {
   res.json({
     success: true,
     message: 'Verification OTP code sent.',
-    otp,
   });
 };
 
@@ -187,17 +186,26 @@ const register = async (req, res) => {
   } = req.body;
 
   const emailLower = (email || '').toLowerCase().trim();
+  const inputOtp = String(otp || '').trim();
+
   let storedData = registrationOtpStore.get(emailLower);
   if (!storedData) {
     const dbDoc = await RegistrationOtp.findOne({ email: emailLower }).lean();
     if (dbDoc) {
-      storedData = { otp: dbDoc.otp, expiresAt: dbDoc.expiresAt.getTime() };
+      const expTime = dbDoc.expiresAt instanceof Date ? dbDoc.expiresAt.getTime() : new Date(dbDoc.expiresAt).getTime();
+      storedData = { otp: String(dbDoc.otp).trim(), expiresAt: expTime };
     }
   }
 
   if (process.env.NODE_ENV !== 'test') {
-    if (!storedData || storedData.otp !== otp || storedData.expiresAt < Date.now()) {
-      return res.status(400).json({ message: 'Invalid or expired OTP verification code.' });
+    if (!storedData) {
+      return res.status(400).json({ message: 'No active OTP verification code found for this email. Please request a new code.' });
+    }
+    if (storedData.expiresAt < Date.now()) {
+      return res.status(400).json({ message: 'OTP verification code has expired. Please request a new code.' });
+    }
+    if (String(storedData.otp).trim() !== inputOtp) {
+      return res.status(400).json({ message: 'Invalid OTP verification code. Please check the code and try again.' });
     }
   }
 
