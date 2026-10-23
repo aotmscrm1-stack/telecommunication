@@ -19,7 +19,7 @@ import {
   FaCircleCheck, FaEye, FaMapLocationDot, FaUserTie, FaChartPie,
   FaClock, FaXmark, FaCheck, FaPhoneVolume, FaCalendarDays, FaFileLines,
   FaChevronRight, FaChevronLeft, FaBullhorn, FaArrowTrendUp, FaTowerCell, FaArrowUpRightFromSquare,
-  FaArrowUp, FaArrowDown, FaPlus, FaCalendar, FaCreditCard, FaWifi,
+  FaArrowUp, FaArrowDown, FaPlus, FaUserPlus, FaCalendar, FaCreditCard, FaWifi,
   FaLock, FaUserCheck, FaCoins, FaGaugeHigh, FaUserGroup, FaFileInvoiceDollar,
   FaReceipt, FaGlobe, FaMugHot, FaPlay, FaStop, FaBolt, FaRocket,
   FaHeadset, FaBriefcase, FaHandshake, FaMicrophone, FaVideo,
@@ -183,6 +183,7 @@ function TeamMembersCard({
   onMapEmployee,
   onUpdateApproval,
   onDeleteEmployee,
+  onAddEmployee,
 }) {
   const [startIndex, setStartIndex] = useState(0);
   const [menuOpenId, setMenuOpenId] = useState(null);
@@ -418,6 +419,24 @@ function TeamMembersCard({
               Accepted ({acceptedCount})
             </button>
           </div>
+
+          {/* Add Employee Button for Admins */}
+          {isAdmin && onAddEmployee && (
+            <motion.button
+              whileHover={{ scale: 1.04, y: -1 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={onAddEmployee}
+              className="px-3.5 py-1.5 rounded-xl text-[12px] font-bold text-white flex items-center gap-1.5 cursor-pointer shadow-sm transition-all"
+              style={{
+                background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                border: '1px solid rgba(255, 255, 255, 0.25)',
+              }}
+              title="Add New Employee"
+            >
+              <FaUserPlus className="w-3.5 h-3.5 text-orange-300" />
+              <span>Add Employee</span>
+            </motion.button>
+          )}
 
           {/* Carousel Arrows */}
           {activeTotal > 4 && (
@@ -1596,6 +1615,21 @@ export default function Dashboard() {
   const [activitySearch, setActivitySearch] = useState('');
   const [detailModalEmployee, setDetailModalEmployee] = useState(null);
   const [mapModalEmployee, setMapModalEmployee] = useState(null);
+  const [showAddEmpModal, setShowAddEmpModal] = useState(false);
+  const [addEmpSubmitting, setAddEmpSubmitting] = useState(false);
+  const [addEmpError, setAddEmpError] = useState('');
+  const [addEmpSuccess, setAddEmpSuccess] = useState('');
+  const [addEmpForm, setAddEmpForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    role: 'employee',
+    department: 'Sales',
+    designation: 'Sales Executive',
+    employeeId: '',
+    password: '',
+    bloodGroup: 'O+',
+  });
 
   const isSuperAdmin = user?.role === 'admin';
   const isAdmin = user?.role === 'admin' || user?.role === 'manager';
@@ -1796,6 +1830,67 @@ export default function Dashboard() {
         employees: updated,
       };
     });
+  };
+
+  // Provision new employee from Admin Dashboard modal
+  const handleCreateEmployee = async (e) => {
+    e.preventDefault();
+    setAddEmpError('');
+    setAddEmpSuccess('');
+
+    if (!addEmpForm.name.trim()) {
+      setAddEmpError('Employee Name is required');
+      return;
+    }
+    if (!addEmpForm.email.trim()) {
+      setAddEmpError('Employee Email is required');
+      return;
+    }
+
+    setAddEmpSubmitting(true);
+    try {
+      const res = await usersAPI.create({
+        name: addEmpForm.name.trim(),
+        email: addEmpForm.email.toLowerCase().trim(),
+        phone: addEmpForm.phone ? addEmpForm.phone.trim() : '',
+        role: addEmpForm.role || 'employee',
+        department: addEmpForm.department || 'Sales',
+        designation: addEmpForm.designation || 'Sales Executive',
+        employeeId: addEmpForm.employeeId ? addEmpForm.employeeId.trim() : undefined,
+        password: addEmpForm.password && addEmpForm.password.trim().length >= 6 ? addEmpForm.password.trim() : 'Password@123',
+        bloodGroup: addEmpForm.bloodGroup || 'O+',
+      });
+
+      if (res.data?.user || res.data?.ok) {
+        const newUser = res.data.user || res.data;
+        setAddEmpSuccess(`Employee ${newUser.name || addEmpForm.name} created and activated successfully!`);
+        
+        // Reset form
+        setAddEmpForm({
+          name: '',
+          email: '',
+          phone: '',
+          role: 'employee',
+          department: 'Sales',
+          designation: 'Sales Executive',
+          employeeId: '',
+          password: '',
+          bloodGroup: 'O+',
+        });
+
+        // Refresh dashboard data
+        fetchData();
+
+        setTimeout(() => {
+          setShowAddEmpModal(false);
+          setAddEmpSuccess('');
+        }, 1500);
+      }
+    } catch (err) {
+      setAddEmpError(err.response?.data?.message || err.message || 'Failed to create employee');
+    } finally {
+      setAddEmpSubmitting(false);
+    }
   };
 
   // ── 5 REAL-TIME REPLICATED DATA CARDS ──
@@ -2107,6 +2202,11 @@ export default function Dashboard() {
               onMapEmployee={setMapModalEmployee}
               onUpdateApproval={handleApprovalStatusChange}
               onDeleteEmployee={handleDeleteEmployee}
+              onAddEmployee={() => {
+                setAddEmpError('');
+                setAddEmpSuccess('');
+                setShowAddEmpModal(true);
+              }}
             />
           </div>
         )}
@@ -2414,6 +2514,226 @@ export default function Dashboard() {
               setMapModalEmployee(emp);
             }}
           />
+        )}
+      </AnimatePresence>
+
+      {/* ── ADMIN: PROVISION NEW EMPLOYEE MODAL ── */}
+      <AnimatePresence>
+        {showAddEmpModal && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md"
+            style={{ background: 'rgba(15, 23, 42, 0.65)' }}
+            onClick={() => setShowAddEmpModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-xl bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200"
+            >
+              {/* Header */}
+              <div
+                className="px-6 py-5 flex items-center justify-between text-white"
+                style={{ background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 50%, #f97316 100%)' }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-sm grid place-items-center text-white font-bold">
+                    <FaUserPlus className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-[17px] font-bold text-white m-0">Provision New Employee</h3>
+                    <p className="text-[11.5px] text-white/80 m-0">Instantly creates active account for Web & Mobile App</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAddEmpModal(false)}
+                  className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 grid place-items-center text-white cursor-pointer transition"
+                >
+                  <FaXmark className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Form Body */}
+              <form onSubmit={handleCreateEmployee} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+                {addEmpError && (
+                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold">
+                    {addEmpError}
+                  </div>
+                )}
+                {addEmpSuccess && (
+                  <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">
+                    {addEmpSuccess}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Full Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Rahul Sharma"
+                      value={addEmpForm.name}
+                      onChange={(e) => setAddEmpForm({ ...addEmpForm, name: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-900 text-xs focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Corporate Email *
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="e.g. rahul.s@aotms.com"
+                      value={addEmpForm.email}
+                      onChange={(e) => setAddEmpForm({ ...addEmpForm, email: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-900 text-xs focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Phone Number
+                    </label>
+                    <input
+                      type="tel"
+                      placeholder="e.g. +91 98765 43210"
+                      value={addEmpForm.phone}
+                      onChange={(e) => setAddEmpForm({ ...addEmpForm, phone: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-900 text-xs focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Employee ID
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Auto (e.g. EMP-104)"
+                      value={addEmpForm.employeeId}
+                      onChange={(e) => setAddEmpForm({ ...addEmpForm, employeeId: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-900 text-xs focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Role
+                    </label>
+                    <select
+                      value={addEmpForm.role}
+                      onChange={(e) => setAddEmpForm({ ...addEmpForm, role: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-900 text-xs bg-white focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="employee">Employee</option>
+                      <option value="caller">Caller</option>
+                      {isSuperAdmin && <option value="manager">Manager</option>}
+                      {isSuperAdmin && <option value="admin">Administrator</option>}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Department
+                    </label>
+                    <select
+                      value={addEmpForm.department}
+                      onChange={(e) => setAddEmpForm({ ...addEmpForm, department: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-900 text-xs bg-white focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="Sales">Sales</option>
+                      <option value="Telecom">Telecom</option>
+                      <option value="Support">Support</option>
+                      <option value="Operations">Operations</option>
+                      <option value="Engineering">Engineering</option>
+                      <option value="Marketing">Marketing</option>
+                      <option value="Management">Management</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Designation
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Sr. Telecaller"
+                      value={addEmpForm.designation}
+                      onChange={(e) => setAddEmpForm({ ...addEmpForm, designation: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-900 text-xs focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Initial Password
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Default: Password@123"
+                      value={addEmpForm.password}
+                      onChange={(e) => setAddEmpForm({ ...addEmpForm, password: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-900 text-xs focus:outline-none focus:border-blue-500 font-mono"
+                    />
+                    <p className="text-[10.5px] text-slate-500 mt-1">Leave empty to use default password: <code>Password@123</code></p>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Blood Group
+                    </label>
+                    <select
+                      value={addEmpForm.bloodGroup}
+                      onChange={(e) => setAddEmpForm({ ...addEmpForm, bloodGroup: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-900 text-xs bg-white focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="O+">O+</option>
+                      <option value="O-">O-</option>
+                      <option value="A+">A+</option>
+                      <option value="A-">A-</option>
+                      <option value="B+">B+</option>
+                      <option value="B-">B-</option>
+                      <option value="AB+">AB+</option>
+                      <option value="AB-">AB-</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Footer Buttons */}
+                <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddEmpModal(false)}
+                    className="px-4 py-2 rounded-xl text-slate-600 hover:text-slate-900 text-xs font-semibold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={addEmpSubmitting}
+                    className="px-5 py-2.5 rounded-xl text-white text-xs font-bold flex items-center gap-2 cursor-pointer shadow-md disabled:opacity-50 transition"
+                    style={{ background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)' }}
+                  >
+                    <FaCheck className="w-3.5 h-3.5" />
+                    <span>{addEmpSubmitting ? 'Creating Employee...' : 'Create & Activate Account'}</span>
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 

@@ -182,8 +182,9 @@ export function AppRoutes() {
       {/* Auth Pages */}
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-        <Route path="/signup" element={<SignUp />} />
-        <Route path="/sign-up" element={<SignUp />} />
+        {/* Public sign-up is disabled: all employee accounts are provisioned by an Admin */}
+        <Route path="/signup" element={<Navigate to="/login" replace />} />
+        <Route path="/sign-up" element={<Navigate to="/login" replace />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/verify-account" element={<VerifyAccount />} />

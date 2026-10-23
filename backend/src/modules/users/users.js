@@ -100,20 +100,91 @@ router.put('/:id/approval-status', protect, authorize('manager', 'admin'), async
   }
 });
 
-// POST /api/users
+// POST /api/users - Admin / Manager Employee Provisioning
 router.post('/', protect, authorize('manager', 'admin'), async (req, res) => {
   try {
-    const { name, email, password, role, phone } = req.body;
-    const existing = await User.findOne({ email });
-    if (existing) return res.status(400).json({ message: 'Email already in use' });
-    if (req.user.role === 'manager' && role !== 'employee' && role !== 'caller')
-      return res.status(403).json({ message: 'Managers can only create employees' });
-    if (role === 'admin')
-      return res.status(403).json({ message: 'Cannot create admin users' });
-    const user = await User.create({ name, email, password, role: role || 'employee', phone: phone || '' });
-    res.status(201).json({ user: user.toJSON() });
+    const {
+      name,
+      firstName,
+      lastName,
+      email,
+      password,
+      role = 'employee',
+      phone,
+      employeeId,
+      department,
+      designation,
+      displayName,
+      bloodGroup,
+      address,
+      avatar,
+      officeLocation,
+      joiningDate
+    } = req.body;
+
+    const emailClean = (email || '').toLowerCase().trim();
+    if (!emailClean) {
+      return res.status(400).json({ ok: false, message: 'Valid email address is required' });
+    }
+
+    const existingEmail = await User.findOne({ email: emailClean });
+    if (existingEmail) {
+      return res.status(400).json({ ok: false, message: 'An employee with this email already exists' });
+    }
+
+    if (phone && phone.trim()) {
+      const existingPhone = await User.findOne({ phone: phone.trim() });
+      if (existingPhone) {
+        return res.status(400).json({ ok: false, message: 'An employee with this phone number already exists' });
+      }
+    }
+
+    // Role Escalation Protections
+    const targetRole = ['admin', 'manager', 'employee', 'caller'].includes(role) ? role : 'employee';
+    if (req.user.role === 'manager') {
+      if (targetRole !== 'employee' && targetRole !== 'caller') {
+        return res.status(403).json({ ok: false, message: 'Managers can only provision Employee or Caller accounts' });
+      }
+    }
+
+    const fullName = (name || `${firstName || ''} ${lastName || ''}`).trim();
+    if (!fullName) {
+      return res.status(400).json({ ok: false, message: 'Employee name is required' });
+    }
+
+    const initialPassword = password && password.trim().length >= 6 ? password.trim() : 'Password@123';
+
+    // Account created by Admin / Manager is automatically verified and accepted
+    const user = await User.create({
+      name: fullName,
+      firstName: firstName || fullName.split(' ')[0] || '',
+      lastName: lastName || fullName.split(' ').slice(1).join(' ') || '',
+      email: emailClean,
+      password: initialPassword,
+      role: targetRole,
+      phone: phone ? phone.trim() : '',
+      employeeId: employeeId ? employeeId.trim() : `EMP-${Date.now().toString().slice(-4)}`,
+      department: department ? department.trim() : 'Operations',
+      designation: designation ? designation.trim() : 'Staff Member',
+      displayName: displayName || designation || 'Staff Member',
+      bloodGroup: bloodGroup ? bloodGroup.trim() : 'O+',
+      address: address ? address.trim() : '',
+      avatar: avatar || '',
+      officeLocation: officeLocation ? officeLocation.trim() : '',
+      joiningDate: joiningDate ? new Date(joiningDate) : new Date(),
+      approvalStatus: 'accepted',
+      approvedBy: req.user._id,
+      approvedAt: new Date(),
+      isActive: true
+    });
+
+    res.status(201).json({
+      ok: true,
+      message: `Employee account for ${user.name} created and activated successfully`,
+      user: user.toJSON()
+    });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ ok: false, message: err.message });
   }
 });
 

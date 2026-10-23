@@ -1103,23 +1103,10 @@ export default function Login() {
                 </div>
 
                 <div style={{ marginTop: '22px', textAlign: 'center', fontSize: '13px', color: '#94a3b8' }}>
-                  Don't have an account?{' '}
-                  <button
-                    type="button"
-                    onClick={() => navigate('/signup')}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--orange)',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      textDecoration: 'underline',
-                      fontSize: '13px',
-                      padding: 0
-                    }}
-                  >
-                    Create Account
-                  </button>
+                  Need employee account access?{' '}
+                  <span style={{ color: '#64748b', fontWeight: 600 }}>
+                    Contact your CRM Administrator
+                  </span>
                 </div>
               </>
             )}

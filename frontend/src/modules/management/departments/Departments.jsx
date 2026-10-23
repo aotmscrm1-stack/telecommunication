@@ -716,7 +716,21 @@ export default function Departments() {
                   </div>
 
                   <button
-                    onClick={() => navigate('/signup')}
+                    onClick={() => {
+                      setEmpForm(prev => ({
+                        ...prev,
+                        department: selectedDept ? selectedDept.name : '',
+                        name: '',
+                        email: '',
+                        password: '',
+                        confirmPassword: '',
+                        phone: '',
+                        avatar: '',
+                        role: 'employee',
+                        designation: ''
+                      }));
+                      setShowAddEmpModal(true);
+                    }}
                     className="px-5 py-3 rounded-2xl text-xs text-white bg-slate-900 hover:bg-slate-800 transition-all flex items-center gap-2 shadow-lg hover:scale-[1.02]"
                   >
                     <FaUserPlus className="w-4 h-4" style={{ color: selColor }} /> <span>+ Add Employee</span>

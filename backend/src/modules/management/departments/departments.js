@@ -209,12 +209,16 @@ router.post('/employee', protect, authorize('admin', 'manager'), async (req, res
     const newUser = await User.create({
       name: name.trim(),
       email: email.toLowerCase().trim(),
-      password: password || 'password123',
+      password: password || 'Password@123',
       role: role || 'employee',
       designation: designation || 'Team Member',
       department: department.trim(),
       phone: phone || '',
-      avatar: avatar || ''
+      avatar: avatar || '',
+      approvalStatus: 'accepted',
+      approvedBy: req.user._id,
+      approvedAt: new Date(),
+      isActive: true
     });
 
     res.status(201).json({
