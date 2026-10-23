@@ -2,7 +2,7 @@
   "expo": {
     "name": "AOTMS CRM",
     "slug": "aotms-crm",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/Logo.png",
     "userInterfaceStyle": "light",
@@ -17,9 +17,10 @@
       }
     },
     "android": {
-      "package": "com.aotms.crm",
-      "versionCode": 3,
+      "package": "com.telecom.crm",
+      "versionCode": 4,
       "usesCleartextTraffic": true,
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/Logo.png"
@@ -27,6 +28,7 @@
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE",
+        "POST_NOTIFICATIONS",
         "CALL_PHONE",
         "READ_EXTERNAL_STORAGE",
         "RECORD_AUDIO",
@@ -39,7 +41,21 @@
     },
     "plugins": [
       "expo-font",
-      "expo-splash-screen"
-    ]
+      "expo-splash-screen",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/Logo.png",
+          "color": "#174EA6",
+          "defaultChannel": "crm_notifications"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "6efbff82-383c-417b-9baf-bac4c5c56a14"
+      }
+    },
+    "owner": "jayaveer"
   }
 }

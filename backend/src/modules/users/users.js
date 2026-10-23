@@ -321,9 +321,63 @@ router.delete('/:id', protect, authorize('admin'), async (req, res) => {
   }
 });
 
-// POST /api/users/fcm-token — deprecated (FCM removed)
+// POST /api/users/fcm-token — Register or update employee mobile FCM device token
 router.post('/fcm-token', protect, async (req, res) => {
-  res.json({ message: 'FCM token route deprecated' });
+  try {
+    const { token, platform = 'android' } = req.body;
+    if (!token || typeof token !== 'string') {
+      return res.status(400).json({ ok: false, message: 'Valid device FCM token is required' });
+    }
+
+    // Save token on user document
+    const updated = await User.findByIdAndUpdate(
+      req.user._id,
+      {
+        fcmToken: token.trim(),
+        fcmTokenUpdatedAt: new Date()
+      },
+      { new: true }
+    );
+
+    console.log(`[FCM Registration] ✓ Registered FCM token for ${updated?.name || req.user._id} (${updated?.email})`);
+    res.json({
+      ok: true,
+      message: 'FCM token registered successfully',
+      user: { id: updated?._id, email: updated?.email, fcmTokenUpdatedAt: updated?.fcmTokenUpdatedAt }
+    });
+  } catch (err) {
+    console.error('[FCM Registration Error]:', err.message);
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+// GET /api/users/fcm-status — Check current user's device push status
+router.get('/fcm-status', protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('name email fcmToken fcmTokenUpdatedAt');
+    res.json({
+      ok: true,
+      hasToken: !!(user?.fcmToken && user.fcmToken.trim().length > 0),
+      tokenPrefix: user?.fcmToken ? user.fcmToken.slice(0, 15) + '...' : null,
+      updatedAt: user?.fcmTokenUpdatedAt || null
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+// DELETE /api/users/fcm-token — Disassociate device token on logout
+router.delete('/fcm-token', protect, async (req, res) => {
+  try {
+    await User.findByIdAndUpdate(req.user._id, {
+      fcmToken: '',
+      fcmTokenUpdatedAt: new Date()
+    });
+    console.log(`[FCM Registration] Cleared FCM token for user ${req.user._id}`);
+    res.json({ ok: true, message: 'FCM token cleared successfully' });
+  } catch (err) {
+    res.status(500).json({ ok: false, message: err.message });
+  }
 });
 
 module.exports = router;

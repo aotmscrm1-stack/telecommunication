@@ -1,6 +1,10 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authApi } from '../api/authApi';
+import {
+  registerForPushNotificationsAsync,
+  unregisterPushNotificationsAsync
+} from '../services/notificationService';
 
 const AuthContext = createContext();
 
@@ -30,12 +34,16 @@ export const AuthProvider = ({ children }) => {
         // Immediately unblock UI so app opens in milliseconds
         setIsLoading(false);
 
+        // Immediately synchronize device push token in background
+        registerForPushNotificationsAsync().catch(() => {});
+
         // Verify token in background asynchronously without stalling app startup
         authApi.getMe()
           .then(async (meData) => {
             if (meData?.user) {
               setUser(meData.user);
               await AsyncStorage.setItem('aotms_user', JSON.stringify(meData.user));
+              registerForPushNotificationsAsync().catch(() => {});
             }
           })
           .catch(async (verifyErr) => {
@@ -65,6 +73,8 @@ export const AuthProvider = ({ children }) => {
     if (receivedUser) {
       await AsyncStorage.setItem('aotms_user', JSON.stringify(receivedUser));
       setUser(receivedUser);
+      // Register device FCM token after successful authentication
+      registerForPushNotificationsAsync().catch(() => {});
     }
     return data;
   };
@@ -81,12 +91,14 @@ export const AuthProvider = ({ children }) => {
     if (receivedUser) {
       await AsyncStorage.setItem('aotms_user', JSON.stringify(receivedUser));
       setUser(receivedUser);
+      registerForPushNotificationsAsync().catch(() => {});
     }
     return data;
   };
 
   const logout = async () => {
     try {
+      await unregisterPushNotificationsAsync().catch(() => {});
       await AsyncStorage.removeItem('aotms_token');
       await AsyncStorage.removeItem('aotms_user');
     } catch (e) {
