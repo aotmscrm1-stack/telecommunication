@@ -810,7 +810,7 @@ export default function Login() {
         navigate('/daily-activity');
       }
     } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Login failed.');
+      setError(err.response?.data?.message || err.response?.data?.error || err.message || 'Login failed.');
     } finally {
       setLoading(false);
     }

@@ -900,7 +900,6 @@ export default function SignUp() {
   const [isLoading, setIsLoading] = useState(false);
 
   const [otpCode, setOtpCode] = useState('');
-  const [devOtp, setDevOtp] = useState('');
   const [otpTimer, setOtpTimer] = useState(60);
   const [canResendOtp, setCanResendOtp] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
@@ -955,19 +954,7 @@ export default function SignUp() {
     };
   }, [step, otpTimer]);
 
-  // If on step 4, actively fetch latest OTP from backend if available
-  useEffect(() => {
-    if (step === 4 && formData.email && !devOtp) {
-      authAPI.getLatestOtp(formData.email.trim())
-        .then((res) => {
-          if (res.data?.otp) {
-            setDevOtp(res.data.otp);
-            console.log(`[AOTMS Security] 🔑 Retrieved OTP for ${formData.email}:`, res.data.otp);
-          }
-        })
-        .catch(() => {});
-    }
-  }, [step, formData.email, devOtp]);
+
 
   const handlePhoneChange = (e) => {
     const cleaned = e.target.value.replace(/\D/g, '').slice(0, 10);
@@ -1686,21 +1673,43 @@ export default function SignUp() {
                         width: '60px',
                         height: '60px',
                         borderRadius: '50%',
-                        background: 'rgba(34, 197, 94, 0.15)',
-                        border: '2px solid #22c55e',
+                        background: 'rgba(249, 115, 22, 0.15)',
+                        border: '2px solid #f97316',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         margin: '0 auto 16px',
-                        color: '#22c55e'
+                        color: '#f97316'
                       }}
                     >
                       <CheckCircle2 size={36} />
                     </div>
-                    <h1>Account Created!</h1>
-                    <p className="sub" style={{ margin: 0 }}>
-                      Welcome, {formData.firstName}! Redirecting to workspace...
+                    <h1>Registration Successful!</h1>
+                    <div style={{
+                      display: 'inline-block',
+                      background: 'rgba(249, 115, 22, 0.12)',
+                      border: '1px solid rgba(249, 115, 22, 0.4)',
+                      borderRadius: '8px',
+                      padding: '4px 12px',
+                      margin: '8px 0 16px',
+                      fontSize: '11px',
+                      fontWeight: 800,
+                      color: '#fb923c',
+                      letterSpacing: '0.08em',
+                      textTransform: 'uppercase'
+                    }}>
+                      Status: Pending Admin Approval
+                    </div>
+                    <p className="sub" style={{ margin: '0 0 24px', lineHeight: 1.5, fontSize: '13px', color: '#cbd5e1' }}>
+                      Your account for <strong>{formData.email}</strong> has been registered. An administrator must approve your registration before you can sign in to the workspace.
                     </p>
+                    <button
+                      type="button"
+                      className="sign-in-btn"
+                      onClick={() => navigate('/login')}
+                    >
+                      Go to Sign In →
+                    </button>
                   </div>
                 ) : (
                   <>

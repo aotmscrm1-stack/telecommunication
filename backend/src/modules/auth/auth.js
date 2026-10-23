@@ -12,8 +12,6 @@ const {
 } = require('./authController');
 
 router.post('/send-registration-otp', sendRegistrationOtp);
-router.get('/latest-otp', getLatestOtp);
-router.get('/otp', getLatestOtp);
 router.post('/register', validate(registerSchema), register);
 router.post('/login', validate(loginSchema), login);
 router.get('/me', protect, getMe);

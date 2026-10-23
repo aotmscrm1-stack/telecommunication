@@ -24,7 +24,7 @@ A comprehensive code inspection of `Mobile_APP` and `backend` was conducted to e
 
 | Module / Area | Current State in Codebase | Verification Details & File References |
 | :--- | :---: | :--- |
-| **Authentication** | ✅ Fully Functional | `LoginScreen.js`, `authApi.js`, `client.js`. JWT token stored in AsyncStorage, auto-injected in request headers, 401 interceptor active. |
+| **Authentication** | ✅ Fully Functional & Secured | `LoginScreen.js`, `authApi.js`, `client.js`. JWT token stored in AsyncStorage, auto-injected in request headers, 401 interceptor active. Admin approval gate enforced (`approvalStatus: 'pending'` blocks login until Admin accepts; OTP display removed from UI/API). |
 | **Leads Module** | ✅ Fully Functional | `AllLeadsScreen.js`, `AddLeadScreen.js`, `LeadCard.js`, `leadsApi.js`. Role filter (`all` vs `mine`), search, status tabs, dialer (`tel:`), WhatsApp launcher, `paddingBottom: 95`. |
 | **Records (Call Audio)**| ✅ Fully Functional | `CallRecordingsScreen.js`, `recordingsApi.js`. Android SAF folder picker, bulk scanning, multipart upload to `/api/recordings`, cloud streaming player, visible call duration/timestamp removed from cards, `paddingBottom: 95`. |
 | **Attendance Module** | ✅ Fully Functional | `AttendanceScreen.js`, `attendanceApi.js`. Real-time punch status, live stopwatch shift timer, GPS location tagging (`expo-location`), break management, punch history, `paddingBottom: 95`. |

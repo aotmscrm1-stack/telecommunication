@@ -136,34 +136,7 @@ const sendRegistrationOtp = async (req, res) => {
 };
 
 const getLatestOtp = async (req, res) => {
-  const email = (req.query.email || '').toLowerCase().trim();
-  let otpData = null;
-
-  if (email) {
-    otpData = registrationOtpStore.get(email);
-    if (!otpData) {
-      const dbDoc = await RegistrationOtp.findOne({ email }).lean();
-      if (dbDoc && dbDoc.expiresAt > new Date()) {
-        otpData = { email: dbDoc.email, otp: dbDoc.otp, expiresAt: dbDoc.expiresAt.getTime() };
-      }
-    }
-  } else {
-    const recentDb = await RegistrationOtp.findOne({}).sort({ updatedAt: -1 }).lean();
-    if (recentDb && recentDb.expiresAt > new Date()) {
-      otpData = { email: recentDb.email, otp: recentDb.otp, expiresAt: recentDb.expiresAt.getTime() };
-    }
-  }
-
-  if (!otpData) {
-    return res.status(404).json({ message: 'No active OTP found. Please request a new code.' });
-  }
-
-  return res.json({
-    success: true,
-    email: email || otpData.email,
-    otp: otpData.otp,
-    expiresInSeconds: Math.max(0, Math.round((otpData.expiresAt - Date.now()) / 1000)),
-  });
+  return res.status(403).json({ success: false, message: 'OTP retrieval via API is disabled for security.' });
 };
 
 const register = async (req, res) => {
@@ -237,16 +210,19 @@ const register = async (req, res) => {
     bloodGroup: bloodGroup || 'O+',
     address: address || '',
     avatar: avatarUrl,
+    approvalStatus: 'pending',
   });
 
-  const token = signToken(newUser._id);
   res.status(201).json({
-    token,
+    success: true,
+    approvalStatus: 'pending',
+    message: 'Account registered successfully. Your registration is pending administrator approval before you can sign in.',
     user: {
       id: newUser._id,
       name: newUser.name,
       email: newUser.email,
       role: newUser.role,
+      approvalStatus: 'pending',
       department: newUser.department,
       designation: newUser.designation,
       displayName: newUser.displayName,
@@ -266,6 +242,32 @@ const login = async (req, res) => {
     return res.status(401).json({ message: 'Invalid credentials' });
   }
 
+  // ── Approval Status & Active Gate ──────────────────────────────────────────
+  if (user.role !== 'admin') {
+    if (user.approvalStatus === 'pending') {
+      return res.status(403).json({
+        success: false,
+        approvalStatus: 'pending',
+        message: 'Your account is pending administrator approval. Please wait for an admin to approve your account before signing in.'
+      });
+    }
+
+    if (user.approvalStatus === 'rejected') {
+      return res.status(403).json({
+        success: false,
+        approvalStatus: 'rejected',
+        message: `Your registration request was rejected by admin.${user.rejectionReason ? ` Reason: ${user.rejectionReason}` : ''}`
+      });
+    }
+
+    if (user.isActive === false) {
+      return res.status(403).json({
+        success: false,
+        message: 'Your account has been deactivated. Please contact your administrator.'
+      });
+    }
+  }
+
   user.lastActiveAt = new Date();
   await user.save();
 
@@ -277,6 +279,7 @@ const login = async (req, res) => {
       name: user.name,
       email: user.email,
       role: user.role,
+      approvalStatus: user.approvalStatus,
       department: user.department,
       designation: user.designation,
       displayName: user.displayName,
