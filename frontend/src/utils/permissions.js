@@ -164,6 +164,42 @@ export const canDelete = (user) => {
 };
 
 /**
+ * Digital Calendar Delete Guard:
+ * Marketing team members CANNOT have delete option under any circumstance.
+ * Only Admin / CEO / Executive should have delete permissions.
+ */
+export const canDeleteDigitalCalendar = (user) => {
+  if (!user) return false;
+  if (isDigitalMarketing(user) && user?.role !== 'admin' && user?.role !== 'superadmin') return false;
+  return isCEO(user) || user?.role === 'admin' || user?.role === 'superadmin';
+};
+
+/**
+ * Digital Calendar Approve Guard:
+ * Approve button ONLY for admin. Marketing team cannot have approve button.
+ */
+export const canApproveDigitalCalendar = (user) => {
+  if (!user) return false;
+  // Strictly admin only
+  if (isDigitalMarketing(user) && user?.role !== 'admin' && user?.role !== 'superadmin') return false;
+  return isCEO(user) || user?.role === 'admin' || user?.role === 'superadmin';
+};
+
+/**
+ * Digital Calendar Complete Guard:
+ * Completed button ONLY for marketing team. Admin cannot have completed button.
+ */
+export const canCompleteDigitalCalendar = (user) => {
+  if (!user) return false;
+  // Admin cannot have completed button
+  const isAdmin = isCEO(user) || user?.role === 'admin' || user?.role === 'superadmin';
+  if (isAdmin) return false;
+
+  // Only marketing team members
+  return isDigitalMarketing(user) || String(user?.department || '').trim().toUpperCase().includes('MARKETING');
+};
+
+/**
  * Dashboard Access Guard:
  * - Only CEO and HR Management are allowed to view Dashboard.
  * - Telecallers and remaining staff do not show Dashboard and use Daily Activity & Assigned Leads.

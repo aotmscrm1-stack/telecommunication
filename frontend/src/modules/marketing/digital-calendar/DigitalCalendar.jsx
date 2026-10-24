@@ -2,7 +2,14 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { digitalCalendarAPI } from '../../../services/api';
-import { isCEO, isHR, isManager } from '../../../utils/permissions';
+import {
+  isCEO,
+  isHR,
+  isManager,
+  canDeleteDigitalCalendar,
+  canApproveDigitalCalendar,
+  canCompleteDigitalCalendar
+} from '../../../utils/permissions';
 import {
   FaCalendarDays,
   FaChevronLeft,
@@ -355,8 +362,13 @@ export default function DigitalCalendar() {
   const [editingItem, setEditingItem] = useState(null);
   const [prefilledDate, setPrefilledDate] = useState(null);
 
-  // Authorization flags
-  const canDeleteContent = isCEO(user) || user?.role === 'admin' || isManager(user);
+  // Authorization flags: marketing team members cannot delete; only admin should have delete
+  const canDeleteContent = canDeleteDigitalCalendar(user);
+  const canApproveContent = canApproveDigitalCalendar(user);
+  const canCompleteContent = canCompleteDigitalCalendar(user);
+
+  // Quick action state (approve / completed loading indicator per item & subIndex)
+  const [actionLoadingKey, setActionLoadingKey] = useState(null);
 
   // Holidays State for Mini Calendar Marking (Does not affect main cards feed)
   const [holidays, setHolidays] = useState([]);
@@ -696,6 +708,88 @@ export default function DigitalCalendar() {
       fetchData();
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to delete content');
+    }
+  };
+
+  // Direct approval action (Admin only)
+  const handleDirectApprove = async (item, subIdx = 0, e) => {
+    if (e) e.stopPropagation();
+    if (!item?._id) return;
+    const key = `${item._id}-${subIdx}-approve`;
+    setActionLoadingKey(key);
+
+    try {
+      const res = await digitalCalendarAPI.approve(item._id, subIdx);
+      if (res.data?.data) {
+        setItems(prev => prev.map(it => (it._id === item._id ? res.data.data : it)));
+      } else {
+        // Fallback optimistic update
+        setItems(prev => prev.map(it => {
+          if (it._id !== item._id) return it;
+          const updatedContents = (it.contents && it.contents.length > 0)
+            ? it.contents.map((c, i) => i === subIdx ? { ...c, approval_status: 'Approved', overall_status: (c.overall_status === 'Needs Approval' || c.overall_status === 'Planned') ? 'Ready to Post' : c.overall_status } : c)
+            : [];
+          return {
+            ...it,
+            approval_status: 'Approved',
+            overall_status: (it.overall_status === 'Needs Approval' || it.overall_status === 'Planned') ? 'Ready to Post' : it.overall_status,
+            contents: updatedContents
+          };
+        }));
+      }
+    } catch (err) {
+      console.error('Error approving content item:', err);
+      alert(err.response?.data?.message || 'Failed to approve content');
+      fetchData();
+    } finally {
+      setActionLoadingKey(null);
+    }
+  };
+
+  // Direct completed action (Marketing team member / Admin) -> turns into Posted
+  const handleDirectComplete = async (item, subIdx = 0, e) => {
+    if (e) e.stopPropagation();
+    if (!item?._id) return;
+    const key = `${item._id}-${subIdx}-complete`;
+    setActionLoadingKey(key);
+
+    try {
+      const res = await digitalCalendarAPI.complete(item._id, subIdx);
+      if (res.data?.data) {
+        setItems(prev => prev.map(it => (it._id === item._id ? res.data.data : it)));
+      } else {
+        // Fallback optimistic update
+        setItems(prev => prev.map(it => {
+          if (it._id !== item._id) return it;
+          const updatedContents = (it.contents && it.contents.length > 0)
+            ? it.contents.map((c, i) => {
+                if (i !== subIdx) return c;
+                return {
+                  ...c,
+                  overall_status: 'Posted',
+                  approval_status: 'Approved',
+                  instagram_status: c.instagram_status && c.instagram_status !== 'Not Required' ? 'Posted' : c.instagram_status,
+                  facebook_status: c.facebook_status && c.facebook_status !== 'Not Required' ? 'Posted' : c.facebook_status,
+                  youtube_status: c.youtube_status && c.youtube_status !== 'Not Required' ? 'Posted' : c.youtube_status,
+                  linkedin_status: c.linkedin_status && c.linkedin_status !== 'Not Required' ? 'Posted' : c.linkedin_status,
+                  x_status: c.x_status && c.x_status !== 'Not Required' ? 'Posted' : c.x_status
+                };
+              })
+            : [];
+          return {
+            ...it,
+            overall_status: 'Posted',
+            approval_status: 'Approved',
+            contents: updatedContents
+          };
+        }));
+      }
+    } catch (err) {
+      console.error('Error marking content as completed:', err);
+      alert(err.response?.data?.message || 'Failed to mark content as completed');
+      fetchData();
+    } finally {
+      setActionLoadingKey(null);
     }
   };
 
@@ -1660,6 +1754,57 @@ export default function DigitalCalendar() {
                         </span>
                       </div>
 
+                      {/* 4b. Direct Action Buttons for Admin (Approve) & Marketing Team (Completed) */}
+                      {((canApproveContent && currentItem.approval_status !== 'Approved') ||
+                        (canCompleteContent && currentItem.approval_status === 'Approved' && currentItem.overall_status !== 'Posted') ||
+                        (currentItem.overall_status === 'Posted')) && (
+                        <div className="flex items-center gap-1.5 mb-2.5" onClick={e => e.stopPropagation()}>
+                          {/* Direct Approve Button: ONLY for Admin */}
+                          {canApproveContent && currentItem.approval_status !== 'Approved' && (
+                            <button
+                              type="button"
+                              disabled={actionLoadingKey === `${item._id}-${activeSubIdx}-approve`}
+                              onClick={(e) => handleDirectApprove(item, activeSubIdx, e)}
+                              title="Directly approve content in admin panel"
+                              className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 shadow-2xs hover:shadow-xs transition active:scale-95 cursor-pointer"
+                            >
+                              {actionLoadingKey === `${item._id}-${activeSubIdx}-approve` ? (
+                                <FaRotate className="w-3 h-3 text-emerald-600 animate-spin" />
+                              ) : (
+                                <FaCheck className="w-3 h-3 text-emerald-600" />
+                              )}
+                              <span>Approve</span>
+                            </button>
+                          )}
+
+                          {/* Direct Completed Button: ONLY for Marketing Team when content is APPROVED */}
+                          {canCompleteContent && currentItem.approval_status === 'Approved' && currentItem.overall_status !== 'Posted' && (
+                            <button
+                              type="button"
+                              disabled={actionLoadingKey === `${item._id}-${activeSubIdx}-complete`}
+                              onClick={(e) => handleDirectComplete(item, activeSubIdx, e)}
+                              title="Click to mark completed (turns content and social platforms into Posted)"
+                              className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-semibold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-300 shadow-2xs hover:shadow-xs transition active:scale-95 cursor-pointer"
+                            >
+                              {actionLoadingKey === `${item._id}-${activeSubIdx}-complete` ? (
+                                <FaRotate className="w-3 h-3 text-sky-600 animate-spin" />
+                              ) : (
+                                <FaCircleCheck className="w-3 h-3 text-sky-600" />
+                              )}
+                              <span>Completed</span>
+                            </button>
+                          )}
+
+                          {/* When item is Posted, show clear completion indicator */}
+                          {currentItem.overall_status === 'Posted' && (
+                            <div className="w-full flex items-center justify-center gap-1.5 py-1 px-2 rounded-xl text-[11px] font-semibold text-emerald-700 bg-emerald-50/70 border border-emerald-200 shadow-3xs">
+                              <FaCircleCheck className="w-3 h-3 text-emerald-600" />
+                              <span>Completed & Posted</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {/* 5. Notes / Description (Renders only if present) */}
                       <AutoScrollNotes text={currentItem.notes} />
 
@@ -1951,13 +2096,31 @@ export default function DigitalCalendar() {
                       </td>
 
                       {/* Overall Status */}
-                      <td className="py-3.5 px-3 whitespace-nowrap">
-                        <span
-                          className="px-2.5 py-0.5 rounded-lg text-[11px] font-medium"
-                          style={{ background: st.bg, color: st.text, border: `1px solid ${st.border}` }}
-                        >
-                          {sub.overall_status}
-                        </span>
+                      <td className="py-3.5 px-3 whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className="px-2.5 py-0.5 rounded-lg text-[11px] font-medium"
+                            style={{ background: st.bg, color: st.text, border: `1px solid ${st.border}` }}
+                          >
+                            {sub.overall_status}
+                          </span>
+                          {canCompleteContent && sub.approval_status === 'Approved' && sub.overall_status !== 'Posted' && (
+                            <button
+                              type="button"
+                              disabled={actionLoadingKey === `${parentItem._id}-${sIdx}-complete`}
+                              onClick={(e) => handleDirectComplete(parentItem, sIdx, e)}
+                              title="Mark as completed (Turns into Posted)"
+                              className="px-2 py-0.5 rounded-lg text-[10px] font-semibold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-300 transition active:scale-95 cursor-pointer shadow-3xs flex items-center gap-1 whitespace-nowrap"
+                            >
+                              {actionLoadingKey === `${parentItem._id}-${sIdx}-complete` ? (
+                                <FaRotate className="w-2.5 h-2.5 text-sky-600 animate-spin" />
+                              ) : (
+                                <FaCircleCheck className="w-2.5 h-2.5 text-sky-600" />
+                              )}
+                              <span>Complete</span>
+                            </button>
+                          )}
+                        </div>
                       </td>
 
                       {/* Responsible Person: Name + Display Name */}
@@ -1976,13 +2139,31 @@ export default function DigitalCalendar() {
                       </td>
 
                       {/* Approval */}
-                      <td className="py-3.5 px-3 whitespace-nowrap">
-                        <span
-                          className="px-2.5 py-0.5 rounded-lg text-[11px] font-medium"
-                          style={{ background: app.bg, color: app.text, border: `1px solid ${app.border}` }}
-                        >
-                          {app.icon} {app.label}
-                        </span>
+                      <td className="py-3.5 px-3 whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className="px-2.5 py-0.5 rounded-lg text-[11px] font-medium"
+                            style={{ background: app.bg, color: app.text, border: `1px solid ${app.border}` }}
+                          >
+                            {app.icon} {app.label}
+                          </span>
+                          {canApproveContent && sub.approval_status !== 'Approved' && (
+                            <button
+                              type="button"
+                              disabled={actionLoadingKey === `${parentItem._id}-${sIdx}-approve`}
+                              onClick={(e) => handleDirectApprove(parentItem, sIdx, e)}
+                              title="Directly approve content as Admin"
+                              className="px-2 py-0.5 rounded-lg text-[10px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 transition active:scale-95 cursor-pointer shadow-3xs flex items-center gap-1 whitespace-nowrap"
+                            >
+                              {actionLoadingKey === `${parentItem._id}-${sIdx}-approve` ? (
+                                <FaRotate className="w-2.5 h-2.5 text-emerald-600 animate-spin" />
+                              ) : (
+                                <FaCheck className="w-2.5 h-2.5 text-emerald-600" />
+                              )}
+                              <span>Approve</span>
+                            </button>
+                          )}
+                        </div>
                       </td>
 
                       {/* Actions */}
@@ -2029,6 +2210,9 @@ export default function DigitalCalendar() {
           isEdit={showEditModal}
           initialData={showEditModal ? editingItem : { content_date: prefilledDate }}
           employees={marketingEmployees}
+          canDeleteContent={canDeleteContent}
+          canApproveContent={canApproveContent}
+          canCompleteContent={canCompleteContent}
           onClose={() => {
             setShowAddModal(false);
             setShowEditModal(false);
@@ -2055,8 +2239,8 @@ export default function DigitalCalendar() {
         />
       )}
 
-      {/* ── 6. Delete Confirmation Modal ─────────────────────────────────────── */}
-      {showDeleteModal && editingItem && (
+      {/* ── 6. Delete Confirmation Modal (Strictly Admin only) ─────────────────── */}
+      {showDeleteModal && editingItem && canDeleteContent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
           <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200">
             <div className="flex items-center gap-3 text-rose-600 mb-3">
@@ -2157,7 +2341,7 @@ function PlatformTimeInput({
 }
 
 // ── Content Form Modal Component ──────────────────────────────────────────────
-function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }) {
+function ContentFormModal({ isEdit, initialData, employees, canDeleteContent, canApproveContent, canCompleteContent, onClose, onSuccess }) {
   const createEmptyContent = (empId = null, empName = '') => ({
     _id: null,
     content_title: '',
@@ -2590,7 +2774,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
                     >
                       {cnt.content_type}
                     </span>
-                    {contents.length > 1 && (
+                    {canDeleteContent && contents.length > 1 && (
                       <button
                         type="button"
                         onClick={(e) => handleRemoveContent(idx, e)}
@@ -2626,7 +2810,7 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
               <span className="w-2 h-2 rounded-full bg-sky-500 animate-pulse" />
               <span>Editing Content #{safeActiveIndex + 1} of {contents.length}</span>
             </div>
-            {contents.length > 1 && (
+            {canDeleteContent && contents.length > 1 && (
               <button
                 type="button"
                 onClick={(e) => handleRemoveContent(safeActiveIndex, e)}
@@ -2860,13 +3044,33 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
           {/* 7. Approval & Overall Status */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
-              <label className="text-xs font-medium text-slate-700 uppercase tracking-wider block mb-1">
-                Approval Status
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-medium text-slate-700 uppercase tracking-wider block">
+                  Approval Status
+                </label>
+                {canApproveContent && activeContent.approval_status !== 'Approved' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleActiveChange('approval_status', 'Approved');
+                      if (activeContent.overall_status === 'Needs Approval' || activeContent.overall_status === 'Planned') {
+                        handleActiveChange('overall_status', 'Ready to Post');
+                      }
+                    }}
+                    className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <FaCheck className="w-2.5 h-2.5" />
+                    <span>Approve Now</span>
+                  </button>
+                )}
+              </div>
               <select
+                disabled={!canApproveContent}
                 value={activeContent.approval_status}
                 onChange={e => handleActiveChange('approval_status', e.target.value)}
-                className="w-full px-3 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-sky-500 cursor-pointer font-medium"
+                className={`w-full px-3 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-sky-500 font-medium ${
+                  !canApproveContent ? 'opacity-70 cursor-not-allowed bg-slate-100' : 'cursor-pointer'
+                }`}
               >
                 {APPROVAL_OPTIONS.map(opt => (
                   <option key={opt} value={opt}>
@@ -2874,12 +3078,36 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
                   </option>
                 ))}
               </select>
+              {!canApproveContent && (
+                <span className="text-[10px] text-slate-400 mt-1 block">
+                  * Only admin can approve content
+                </span>
+              )}
             </div>
 
             <div>
-              <label className="text-xs font-medium text-slate-700 uppercase tracking-wider block mb-1">
-                Overall Status
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-medium text-slate-700 uppercase tracking-wider block">
+                  Overall Status
+                </label>
+                {canCompleteContent && activeContent.approval_status === 'Approved' && activeContent.overall_status !== 'Posted' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleActiveChange('overall_status', 'Posted');
+                      ['instagram', 'facebook', 'youtube', 'linkedin', 'x'].forEach(pf => {
+                        if (activeContent[`${pf}_status`] && activeContent[`${pf}_status`] !== 'Not Required') {
+                          handleActiveChange(`${pf}_status`, 'Posted');
+                        }
+                      });
+                    }}
+                    className="text-[11px] font-semibold text-sky-600 hover:text-sky-700 hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <FaCircleCheck className="w-2.5 h-2.5" />
+                    <span>Mark as Posted</span>
+                  </button>
+                )}
+              </div>
               <select
                 value={activeContent.overall_status}
                 onChange={e => handleActiveChange('overall_status', e.target.value)}
@@ -2891,6 +3119,11 @@ function ContentFormModal({ isEdit, initialData, employees, onClose, onSuccess }
                   </option>
                 ))}
               </select>
+              {canCompleteContent && activeContent.approval_status !== 'Approved' && (
+                <span className="text-[10px] text-amber-600 font-medium mt-1 block">
+                  * Content requires admin approval before it can be completed/posted
+                </span>
+              )}
             </div>
           </div>
 

@@ -42,18 +42,23 @@ const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'F
 function isStrictAdminOrCEO(user) {
   if (!user) return false;
   const role = String(user.role || '').trim().toLowerCase();
-  if (role === 'admin' || role === 'superadmin' || role === 'manager') return true;
   const desig = String(user.designation || '').trim().toUpperCase();
   const dept = String(user.department || '').trim().toUpperCase();
+
+  // Marketing team members are NOT admins for delete/approval actions
+  const isMarketing = desig.includes('MARKETING') || dept.includes('MARKETING') || dept === 'MKT';
+  if (isMarketing && role !== 'admin' && role !== 'superadmin') {
+    return false;
+  }
+
+  if (role === 'admin' || role === 'superadmin') return true;
   return (
     desig.includes('MD') ||
     desig.includes('MANAGING DIRECTOR') ||
     desig.includes('CEO') ||
     desig.includes('CTO') ||
-    desig.includes('MANAGER') ||
     dept.includes('ADMIN') ||
-    dept.includes('MANAGEMENT') ||
-    dept.includes('MANAGER')
+    dept.includes('MANAGEMENT')
   );
 }
 
@@ -1017,7 +1022,150 @@ router.put('/:id', protect, async (req, res) => {
   }
 });
 
-// DELETE /api/marketing/digital-calendar/:id — Delete content
+// PATCH /api/marketing/digital-calendar/:id/approve — Direct approval by admin
+router.patch('/:id/approve', protect, async (req, res) => {
+  try {
+    const isAdmin = isStrictAdminOrCEO(req.user);
+    if (!isAdmin) {
+      return res.status(403).json({
+        ok: false,
+        message: 'Only administrators can approve content.'
+      });
+    }
+
+    const item = await DigitalCalendar.findById(req.params.id);
+    if (!item) {
+      return res.status(404).json({ ok: false, message: 'Content item not found' });
+    }
+
+    const subIndex = req.body.subIndex !== undefined && req.body.subIndex !== null ? Number(req.body.subIndex) : null;
+
+    if (Array.isArray(item.contents) && item.contents.length > 0) {
+      if (subIndex !== null && subIndex >= 0 && subIndex < item.contents.length) {
+        item.contents[subIndex].approval_status = 'Approved';
+        if (item.contents[subIndex].overall_status === 'Needs Approval' || item.contents[subIndex].overall_status === 'Planned') {
+          item.contents[subIndex].overall_status = 'Ready to Post';
+        }
+      } else {
+        item.contents.forEach(sub => {
+          sub.approval_status = 'Approved';
+          if (sub.overall_status === 'Needs Approval' || sub.overall_status === 'Planned') {
+            sub.overall_status = 'Ready to Post';
+          }
+        });
+      }
+      item.approval_status = item.contents[0].approval_status;
+      item.overall_status = item.contents[0].overall_status;
+    } else {
+      item.approval_status = 'Approved';
+      if (item.overall_status === 'Needs Approval' || item.overall_status === 'Planned') {
+        item.overall_status = 'Ready to Post';
+      }
+    }
+
+    item.updatedBy = req.user._id;
+    await item.save();
+
+    const populatedItem = await DigitalCalendar.findById(item._id)
+      .populate('responsible_employee', 'name firstName lastName displayName email designation avatar')
+      .populate('contents.responsible_employee', 'name firstName lastName displayName email designation avatar')
+      .populate('createdBy', 'name email designation avatar')
+      .populate('updatedBy', 'name email designation avatar');
+
+    res.json({
+      ok: true,
+      message: 'Content approved successfully',
+      data: populatedItem
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+// PATCH /api/marketing/digital-calendar/:id/complete — Mark as completed (turns into Posted)
+router.patch('/:id/complete', protect, async (req, res) => {
+  try {
+    const item = await DigitalCalendar.findById(req.params.id);
+    if (!item) {
+      return res.status(404).json({ ok: false, message: 'Content item not found' });
+    }
+
+    const subIndex = req.body.subIndex !== undefined && req.body.subIndex !== null ? Number(req.body.subIndex) : null;
+    const platforms = ['instagram', 'facebook', 'youtube', 'linkedin', 'x'];
+
+    // Verify that the content is approved before allowing completion
+    if (Array.isArray(item.contents) && item.contents.length > 0) {
+      if (subIndex !== null && subIndex >= 0 && subIndex < item.contents.length) {
+        if (item.contents[subIndex].approval_status !== 'Approved') {
+          return res.status(400).json({
+            ok: false,
+            message: 'Content cannot be marked as completed without admin approval.'
+          });
+        }
+      } else {
+        const anyUnapproved = item.contents.some(s => s.approval_status !== 'Approved');
+        if (anyUnapproved) {
+          return res.status(400).json({
+            ok: false,
+            message: 'Content cannot be marked as completed without admin approval.'
+          });
+        }
+      }
+    } else {
+      if (item.approval_status !== 'Approved') {
+        return res.status(400).json({
+          ok: false,
+          message: 'Content cannot be marked as completed without admin approval.'
+        });
+      }
+    }
+
+    const markSubComplete = (sub) => {
+      sub.overall_status = 'Posted';
+      platforms.forEach(pf => {
+        const key = `${pf}_status`;
+        if (sub[key] && sub[key] !== 'Not Required') {
+          sub[key] = 'Posted';
+        }
+      });
+    };
+
+    if (Array.isArray(item.contents) && item.contents.length > 0) {
+      if (subIndex !== null && subIndex >= 0 && subIndex < item.contents.length) {
+        markSubComplete(item.contents[subIndex]);
+      } else {
+        item.contents.forEach(sub => markSubComplete(sub));
+      }
+      item.overall_status = item.contents[0].overall_status;
+      item.approval_status = item.contents[0].approval_status;
+      platforms.forEach(pf => {
+        const key = `${pf}_status`;
+        item[key] = item.contents[0][key];
+      });
+    } else {
+      markSubComplete(item);
+    }
+
+    item.updatedBy = req.user._id;
+    await item.save();
+
+    const populatedItem = await DigitalCalendar.findById(item._id)
+      .populate('responsible_employee', 'name firstName lastName displayName email designation avatar')
+      .populate('contents.responsible_employee', 'name firstName lastName displayName email designation avatar')
+      .populate('createdBy', 'name email designation avatar')
+      .populate('updatedBy', 'name email designation avatar');
+
+    res.json({
+      ok: true,
+      message: 'Content marked as completed and posted successfully',
+      data: populatedItem
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+// DELETE /api/marketing/digital-calendar/:id — Delete content (strictly admin only)
 router.delete('/:id', protect, async (req, res) => {
   try {
     const item = await DigitalCalendar.findById(req.params.id);
@@ -1025,14 +1173,13 @@ router.delete('/:id', protect, async (req, res) => {
       return res.status(404).json({ ok: false, message: 'Content item not found' });
     }
 
-    // Permission check: admin, manager, CEO, or user who created it
+    // Permission check: strictly admin only (marketing team members CANNOT delete)
     const isAdmin = isStrictAdminOrCEO(req.user);
-    const isCreator = String(item.createdBy) === String(req.user._id);
 
-    if (!isAdmin && !isCreator) {
+    if (!isAdmin) {
       return res.status(403).json({
         ok: false,
-        message: 'You are not authorized to delete this content item'
+        message: 'Marketing team members cannot delete content. Only administrators have delete permissions.'
       });
     }
 

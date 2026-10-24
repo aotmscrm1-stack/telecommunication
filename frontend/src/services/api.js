@@ -485,6 +485,16 @@ export const digitalCalendarAPI = {
     emitCrmSync(CRM_EVENTS.DIGITAL_CALENDAR_CHANGED, { action: 'update', id });
     return res;
   },
+  approve: async (id, subIndex = null) => {
+    const res = await api.patch(`/marketing/digital-calendar/${id}/approve`, { subIndex });
+    emitCrmSync(CRM_EVENTS.DIGITAL_CALENDAR_CHANGED, { action: 'approve', id });
+    return res;
+  },
+  complete: async (id, subIndex = null) => {
+    const res = await api.patch(`/marketing/digital-calendar/${id}/complete`, { subIndex });
+    emitCrmSync(CRM_EVENTS.DIGITAL_CALENDAR_CHANGED, { action: 'complete', id });
+    return res;
+  },
   delete: async (id) => {
     const res = await api.delete(`/marketing/digital-calendar/${id}`);
     emitCrmSync(CRM_EVENTS.DIGITAL_CALENDAR_CHANGED, { action: 'delete', id });
