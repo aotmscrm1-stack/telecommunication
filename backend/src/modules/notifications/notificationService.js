@@ -1,13 +1,34 @@
 const Notification = require('../../database/models/Notification');
 const User = require('../../database/models/User');
+const { sendFcmNotification } = require('./fcmService');
 
 /**
- * Create a notification for a user
+ * Create a notification for a user and dispatch mobile push alert
  */
 async function createNotification({ recipient, type, title, message, lead, performedBy, data = {} }) {
   try {
     if (!recipient) return null;
     const notif = await Notification.create({ recipient, type, title, message, lead, performedBy, data });
+
+    // Asynchronously dispatch mobile FCM Push Notification
+    User.findById(recipient).select('fcmToken').then(targetUser => {
+      if (targetUser?.fcmToken) {
+        sendFcmNotification({
+          token: targetUser.fcmToken,
+          title: title || 'AOTMS CRM Alert',
+          body: message || 'You have received an update.',
+          data: {
+            type: type || 'general',
+            entityId: String(lead || ''),
+            ...data
+          },
+          userId: recipient
+        }).catch(err => {
+          console.warn('[Push Notification Notice]', err.message);
+        });
+      }
+    }).catch(() => {});
+
     return notif;
   } catch (err) {
     console.error('Failed to create notification:', err.message);

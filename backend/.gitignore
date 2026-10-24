@@ -3,3 +3,6 @@ node_modules/
 logs/
 uploads/
 *.log
+*serviceAccount*.json
+config/serviceAccountKey.json
+

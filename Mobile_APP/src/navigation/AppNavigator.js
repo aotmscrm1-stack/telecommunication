@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ActivityIndicator, Keyboard, Platform } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../theme/colors';
 
@@ -34,9 +35,32 @@ export default function AppNavigator() {
       Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
       () => setKeyboardVisible(false)
     );
+
+    // ── NOTIFICATION TAP NAVIGATION HANDLER ──
+    const notifSub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response?.notification?.request?.content?.data;
+      if (!data) return;
+
+      const type = data.type || '';
+      console.log('[AppNavigator] Notification tapped, payload:', data);
+
+      if (type.includes('meta')) {
+        setAuthScreen('meta_calls');
+      } else if (type.includes('lead')) {
+        setAuthScreen('all_leads');
+      } else if (type.includes('task') || type.includes('followup')) {
+        setAuthScreen('daily_activity');
+      } else if (type.includes('attendance')) {
+        setAuthScreen('attendance');
+      } else if (type.includes('recording') || type.includes('call')) {
+        setAuthScreen('call_recordings');
+      }
+    });
+
     return () => {
       showSub.remove();
       hideSub.remove();
+      notifSub.remove();
     };
   }, []);
 

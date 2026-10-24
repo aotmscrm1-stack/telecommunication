@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "551340249764",
+    "project_id": "telecommunication-77ecc",
+    "storage_bucket": "telecommunication-77ecc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:551340249764:android:7b779be4197e1d0b1bcc31",
+        "android_client_info": {
+          "package_name": "com.telecom.crm"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCnUf3g9oPxxj2OMs9-YVOOCUNSzWLsJYQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
