@@ -1,25 +1,5 @@
 services:
-  # ── 1. FRONTEND SERVICE (REACT + VITE STATIC VIA NGINX) ──────────────────
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: aotms-frontend
-    restart: always
-    networks:
-      - aotms-network
-    deploy:
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 256M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  # ── 2. BACKEND API & SOCKETS SERVICE ─────────────────────────────────────
+  # ── 1. BACKEND API & SOCKETS SERVICE ─────────────────────────────────────
   backend:
     build:
       context: ./backend
@@ -29,7 +9,8 @@ services:
     env_file:
       - ./backend/.env
     networks:
-      - aotms-network
+      aotms-network:
+        ipv4_address: 172.28.0.10
     volumes:
       - backend-uploads:/app/uploads
     deploy:
@@ -38,8 +19,8 @@ services:
           cpus: '1.50'
           memory: 1536M
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:5000/api/health" ]
-      interval: 30s
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 15s
       timeout: 5s
       retries: 3
       start_period: 20s
@@ -49,7 +30,7 @@ services:
         max-size: "10m"
         max-file: "5"
 
-  # ── 3. NGINX GATEWAY & REVERSE PROXY ──────────────────────────────────────
+  # ── 2. NGINX GATEWAY & REVERSE PROXY ──────────────────────────────────────
   nginx-gateway:
     image: nginx:alpine
     container_name: aotms-nginx
@@ -63,10 +44,9 @@ services:
       - ./certbot/www:/var/www/certbot:ro
       - backend-uploads:/var/www/uploads:ro
     networks:
-      - aotms-network
+      aotms-network:
+        ipv4_address: 172.28.0.20
     depends_on:
-      frontend:
-        condition: service_started
       backend:
         condition: service_healthy
     logging:
@@ -79,6 +59,10 @@ networks:
   aotms-network:
     name: aotms-network
     driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.0.0/16
 
 volumes:
   backend-uploads:
