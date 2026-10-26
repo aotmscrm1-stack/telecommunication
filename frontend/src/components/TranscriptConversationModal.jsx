@@ -87,7 +87,9 @@ export default function TranscriptConversationModal({ recording, onClose }) {
   const [copied, setCopied] = useState(false);
   if (!recording) return null;
 
-  const audioUrl = recording.cloudinaryUrl || recording.streamUrl || recording.url;
+  const audioUrl = recording.cloudinaryUrl || recording.streamUrl || recording.url || recording.audioUrl;
+  const isCloudinaryAudio = !!(audioUrl && (audioUrl.includes('cloudinary.com') || audioUrl.includes('res.cloudinary.com')));
+  const isAudioAvailable = !!audioUrl && (isCloudinaryAudio || (recording.fileExists !== false && recording.fileAvailable !== false));
   const leadName = recording.leadName || recording.lead?.name || recording.contactName || 'Customer / Lead';
   const agentName = recording.userName || recording.user?.name || 'Telecaller Agent';
 
@@ -172,7 +174,7 @@ export default function TranscriptConversationModal({ recording, onClose }) {
             <Volume2 style={{ width: '16px', height: '16px', color: C.blue }} /> Audio Player:
           </div>
           <div style={{ flex: 1 }}>
-            {recording.fileExists === false || recording.fileAvailable === false || !audioUrl ? (
+            {!isAudioAvailable ? (
               <span style={{ fontSize: '12px', color: '#64748b', fontStyle: 'italic', fontWeight: 500 }}>
                 Audio unavailable — transcript preserved below
               </span>

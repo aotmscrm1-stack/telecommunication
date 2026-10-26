@@ -1274,6 +1274,7 @@ function formatRecording(r) {
     _id: r._id,
     recordedAt: r.recordedAt,
     url: finalAudioUrl,
+    audioUrl: finalAudioUrl,
     streamUrl: cldUrl || absoluteUrl(streamPath),
     originalUrl: absoluteUrl(r.url),
     cloudinaryUrl: cldUrl,

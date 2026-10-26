@@ -147,7 +147,10 @@ const MemoizedAudioPlayer = memo(function MemoizedAudioPlayer({ audioUrl, mimeTy
   };
 
   // 1. If audio file is missing on storage or marked unavailable, gracefully show transcript preserved badge
-  if (!audioUrl || fileExists === false || fileAvailable === false) {
+  const isCloudinary = !!(audioUrl && (audioUrl.includes('cloudinary.com') || audioUrl.includes('res.cloudinary.com')));
+  const isAvailable = !!audioUrl && (isCloudinary || (fileExists !== false && fileAvailable !== false));
+
+  if (!isAvailable) {
     return (
       <div style={{
         display: 'inline-flex',
@@ -1793,10 +1796,11 @@ export default function CallRecordings() {
               {recordings.map((rec) => {
                 const recId = rec._id || rec.id;
                 const linkInfo = getLinkInfo(rec);
-                const audioUrl = getAudioUrl(rec.audioUrl);
+                const rawAudio = rec.cloudinaryUrl || rec.streamUrl || rec.url || rec.audioUrl;
+                const audioUrl = getAudioUrl(rawAudio);
                 const leadInitial = linkInfo.name ? linkInfo.name.trim().charAt(0).toUpperCase() : 'M';
                 const callerDesignation = rec.userDesignation || rec.userDepartment || 'HR';
-                const audioFilename = rec.originalName || (rec.audioUrl ? rec.audioUrl.split('/').pop().split('?')[0] : 'Audio Conversation');
+                const audioFilename = rec.originalName || (rawAudio ? rawAudio.split('/').pop().split('?')[0] : 'Audio Conversation');
 
                 return (
                   <div
