@@ -810,7 +810,12 @@ export default function Login() {
         navigate('/daily-activity');
       }
     } catch (err) {
-      setError(err.response?.data?.message || err.response?.data?.error || err.message || 'Login failed.');
+      const rawError = err.response?.data?.message
+        || (typeof err.response?.data?.error === 'string' ? err.response?.data?.error : err.response?.data?.error?.message)
+        || (typeof err.response?.data === 'string' ? err.response?.data : null)
+        || err.message
+        || 'Login failed.';
+      setError(typeof rawError === 'string' ? rawError : JSON.stringify(rawError));
     } finally {
       setLoading(false);
     }
