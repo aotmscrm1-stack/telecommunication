@@ -15,14 +15,10 @@ import {
 } from 'lucide-react';
 
 const CATEGORY_OPTIONS = [
-  'Interested',
-  'Follow-up Required',
-  'Not Interested',
-  'No Answer',
-  'Wrong Number',
-  'Converted',
-  'Call Back Requested',
-  'Other',
+  { value: 'Interested', label: 'Interested' },
+  { value: 'Follow-up', label: 'Follow-up' },
+  { value: 'New Lead', label: 'New Lead' },
+  { value: 'Other', label: 'Other' },
 ];
 
 export default function TelecallingActivityFields({
@@ -42,7 +38,7 @@ export default function TelecallingActivityFields({
   } = metrics;
 
   const handleMetricChange = (field, val) => {
-    const num = Math.max(0, parseInt(val, 10) || 0);
+    const num = val === '' ? '' : Math.max(0, parseInt(val, 10) || 0);
     onChangeMetrics({
       ...metrics,
       [field]: num,
@@ -60,10 +56,16 @@ export default function TelecallingActivityFields({
   };
 
   const handleAddOutcome = () => {
+    const lastCampaign =
+      outcomes.length > 0
+        ? outcomes[outcomes.length - 1].campaign || outcomes[outcomes.length - 1].leadName || ''
+        : '';
+
     onChangeOutcomes([
       ...outcomes,
       {
-        leadName: '',
+        campaign: lastCampaign,
+        leadName: lastCampaign,
         category: 'Interested',
         followUpAt: '',
         notes: '',
@@ -82,6 +84,16 @@ export default function TelecallingActivityFields({
     updated[idx] = {
       ...updated[idx],
       [field]: val,
+    };
+    onChangeOutcomes(updated);
+  };
+
+  const handleCampaignChange = (idx, val) => {
+    const updated = [...outcomes];
+    updated[idx] = {
+      ...updated[idx],
+      campaign: val,
+      leadName: val,
     };
     onChangeOutcomes(updated);
   };
@@ -226,7 +238,7 @@ export default function TelecallingActivityFields({
         )}
       </AnimatePresence>
 
-      {/* 2. KPI Metrics Cards Grid — Clean and Neat */}
+      {/* 2. KPI Metrics Cards Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
         {metricCards.map((card) => {
           const Icon = card.icon;
@@ -251,15 +263,15 @@ export default function TelecallingActivityFields({
                   type="number"
                   min="0"
                   disabled={disabled}
-                  value={card.value === 0 ? '' : card.value}
+                  value={card.value === '' ? '' : (card.value ?? 0)}
                   onChange={(e) => handleMetricChange(card.key, e.target.value)}
-                  placeholder=""
+                  placeholder="0"
                   title={card.label}
                   className="w-full text-center text-lg sm:text-xl font-black text-slate-900 bg-white border border-slate-200 rounded-xl py-1 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-200 transition text-slate-800"
                 />
               </div>
 
-              {/* Quick Stepper Buttons — Clean and Flat */}
+              {/* Quick Stepper Buttons */}
               {!disabled && (
                 <div className="flex items-center justify-between gap-1 pt-0.5">
                   <button
@@ -280,6 +292,7 @@ export default function TelecallingActivityFields({
                   </button>
                 </div>
               )}
+
             </div>
           );
         })}
@@ -335,8 +348,6 @@ export default function TelecallingActivityFields({
           <div className="flex flex-col gap-3">
             <AnimatePresence>
               {outcomes.map((outcome, idx) => {
-                const isFollowUpReq = outcome.category === 'Follow-up Required';
-
                 return (
                   <motion.div
                     key={idx}
@@ -347,56 +358,42 @@ export default function TelecallingActivityFields({
                     className="bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs flex flex-col gap-3 relative"
                   >
                     <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-start">
-                      {/* Lead Name */}
-                      <div className="sm:col-span-5">
+                      {/* Calling Campaign */}
+                      <div className="sm:col-span-7">
                         <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                          Client / Contact #{idx + 1}
+                          Calling Campaign #{idx + 1}
                         </label>
                         <input
                           type="text"
                           disabled={disabled}
-                          value={outcome.leadName || ''}
-                          onChange={(e) => handleOutcomeChange(idx, 'leadName', e.target.value)}
-                          placeholder="Client name or contact"
+                          value={outcome.campaign || outcome.leadName || ''}
+                          onChange={(e) => handleCampaignChange(idx, e.target.value)}
+                          placeholder="Campaign name or contact"
                           className="w-full text-xs font-semibold bg-slate-50/60 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 placeholder:text-slate-300 placeholder:font-light focus:outline-none focus:border-sky-500 focus:bg-white focus:ring-1 focus:ring-sky-200 transition"
                         />
                       </div>
 
-                      {/* Category Dropdown */}
-                      <div className="sm:col-span-3">
+                      {/* Call Disposition */}
+                      <div className="sm:col-span-4">
                         <label className="text-[11px] font-bold text-slate-600 block mb-1">
                           Call Disposition
                         </label>
                         <select
                           disabled={disabled}
-                          value={outcome.category || 'Interested'}
+                          value={outcome.category === 'Follow-up Required' ? 'Follow-up' : (outcome.category || 'Interested')}
                           onChange={(e) => handleOutcomeChange(idx, 'category', e.target.value)}
                           className="w-full text-xs font-semibold bg-slate-50/60 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-sky-500 focus:bg-white focus:ring-1 focus:ring-sky-200 transition cursor-pointer"
                         >
                           {CATEGORY_OPTIONS.map((cat) => (
-                            <option key={cat} value={cat}>
-                              {cat}
+                            <option key={cat.value} value={cat.value}>
+                              {cat.label}
                             </option>
                           ))}
+                          {outcome.category &&
+                            !['Interested', 'Follow-up', 'Follow-up Required', 'New Lead', 'Other'].includes(outcome.category) && (
+                              <option value={outcome.category}>{outcome.category}</option>
+                            )}
                         </select>
-                      </div>
-
-                      {/* Next Follow-up Date/Time */}
-                      <div className="sm:col-span-3">
-                        <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                          Next Callback {isFollowUpReq && <span className="text-rose-500">*</span>}
-                        </label>
-                        <input
-                          type="datetime-local"
-                          disabled={disabled}
-                          value={outcome.followUpAt ? outcome.followUpAt.slice(0, 16) : ''}
-                          onChange={(e) => handleOutcomeChange(idx, 'followUpAt', e.target.value)}
-                          className={`w-full text-xs font-medium bg-slate-50/60 border rounded-xl px-2.5 py-2 focus:outline-none focus:bg-white transition ${
-                            isFollowUpReq && !outcome.followUpAt
-                              ? 'border-rose-400 bg-rose-50/40 text-rose-800 focus:border-rose-500'
-                              : 'border-slate-200 text-slate-800 focus:border-sky-500'
-                          }`}
-                        />
                       </div>
 
                       {/* Delete button */}
@@ -414,7 +411,7 @@ export default function TelecallingActivityFields({
                       )}
                     </div>
 
-                    {/* Notes / Conversation Remarks */}
+                    {/* Discussion Notes */}
                     <div>
                       <label className="text-[11px] font-bold text-slate-600 block mb-1">
                         Discussion Notes

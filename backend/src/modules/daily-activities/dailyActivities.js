@@ -195,7 +195,9 @@ router.post('/', protect, async (req, res) => {
       });
     }
 
-    if (existing && existing.status === 'submitted') {
+    // Allow employee owner (or reviewer) to edit their activity at EOD before management review
+    const isOwner = existing?.employeeId?.toString() === req.user._id.toString();
+    if (existing && existing.status === 'submitted' && !isOwner && !canReviewReports(req.user)) {
       return res.status(409).json({
         success: false,
         message: 'This activity report was already submitted. If correction is needed, request manager review.',
@@ -286,8 +288,8 @@ router.post('/:id/submit', protect, async (req, res) => {
       return res.status(403).json({ success: false, message: 'You are not authorized to submit this report.' });
     }
 
-    if (activity.status === 'submitted') {
-      return res.status(400).json({ success: false, message: 'This report is already submitted.' });
+    if (activity.status === 'reviewed') {
+      return res.status(400).json({ success: false, message: 'This report has already been reviewed by management and cannot be modified.' });
     }
 
     const body = req.body || {};

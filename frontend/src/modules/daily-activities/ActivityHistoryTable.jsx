@@ -1,5 +1,5 @@
 import React from 'react';
-import { History, Calendar, CheckCircle2, AlertTriangle, Clock, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
+import { History, Calendar, CheckCircle2, AlertTriangle, Clock, ChevronLeft, ChevronRight, Eye, Edit2 } from 'lucide-react';
 
 export default function ActivityHistoryTable({
   history = [],
@@ -119,13 +119,12 @@ export default function ActivityHistoryTable({
                           </span>
                         </td>
                         <td className="py-2.5 text-slate-600 whitespace-nowrap">
-                          {row.metrics?.interestedLeads ? (
-                            <span className="font-semibold text-sky-700">
-                              {row.metrics.interestedLeads} Int.
-                            </span>
-                          ) : (
-                            '—'
-                          )}
+                          <span className="font-semibold text-sky-700">
+                            {row.metrics?.interestedLeads ?? 0} Int.
+                          </span>
+                          <span className="ml-1.5 px-1.5 py-0.5 rounded-md bg-purple-50 text-purple-700 font-bold text-[10px] border border-purple-200">
+                            {row.metrics?.conversions ?? 0} Conv.
+                          </span>
                         </td>
                       </>
                     ) : isDeveloper ? (
@@ -160,15 +159,28 @@ export default function ActivityHistoryTable({
 
                     <td className="py-2.5 whitespace-nowrap">{getStatusBadge(row.status)}</td>
                     <td className="py-2.5 text-right whitespace-nowrap">
-                      <button
-                        type="button"
-                        onClick={() => onSelectDate(row.activityDate)}
-                        className="px-2 py-1 text-[11px] font-bold text-sky-600 hover:text-sky-800 hover:bg-sky-50 rounded-lg transition inline-flex items-center gap-1 cursor-pointer"
-                        title="Load date report"
-                      >
-                        <Eye className="w-3 h-3" />
-                        <span>View</span>
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => onSelectDate(row.activityDate, 'view')}
+                          className="px-2 py-1 text-[11px] font-bold text-slate-600 hover:text-sky-700 hover:bg-slate-100 rounded-lg transition inline-flex items-center gap-1 cursor-pointer"
+                          title="View date report"
+                        >
+                          <Eye className="w-3 h-3 text-slate-400" />
+                          <span>View</span>
+                        </button>
+                        {row.status !== 'reviewed' && (
+                          <button
+                            type="button"
+                            onClick={() => onSelectDate(row.activityDate, 'edit')}
+                            className="px-2 py-1 text-[11px] font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-lg transition inline-flex items-center gap-1 cursor-pointer"
+                            title="Edit activity report at EOD"
+                          >
+                            <Edit2 className="w-3 h-3 text-sky-600" />
+                            <span>Edit</span>
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

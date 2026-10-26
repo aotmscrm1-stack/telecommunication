@@ -59,7 +59,7 @@ export default function DepartmentActivityForm({
   const isSubmitted = status === 'submitted';
   const isReviewed = status === 'reviewed';
   const isNeedsCorrection = status === 'needs_correction';
-  const isReadOnly = isSubmitted || isReviewed || isAdminPreview;
+  const isReadOnly = isReviewed || isAdminPreview || (isSubmitted && !isTelecalling);
 
   const dateObj = new Date(selectedDate + 'T00:00:00');
   const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
@@ -96,6 +96,10 @@ export default function DepartmentActivityForm({
           <span>Correction Requested</span>
         </div>
       );
+    }
+    // Remove "Draft (In Progress)" badge for counsellor
+    if (isTelecalling) {
+      return null;
     }
     return (
       <div className="px-3 py-1 text-xs font-bold rounded-xl bg-amber-50 text-amber-800 border border-amber-200 flex items-center gap-1.5">
@@ -325,44 +329,46 @@ export default function DepartmentActivityForm({
             />
           )}
 
-          {/* 4. Remarks & Priorities Section */}
-          <div className="border-t border-slate-100 pt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Daily Highlights & Remarks */}
-            <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80 flex flex-col gap-2">
-              <label className="text-xs font-bold text-slate-700 flex items-center gap-2">
-                <span className="p-1 rounded-lg bg-sky-100 text-sky-700">
-                  <MessageSquare className="w-3.5 h-3.5" />
-                </span>
-                <span>Remarks, Achievements & Daily Notes</span>
-              </label>
-              <textarea
-                rows={3}
-                disabled={isReadOnly}
-                value={formData.remarks || ''}
-                onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
-                placeholder="Remarks and notes"
-                className="w-full text-xs sm:text-sm bg-white border border-slate-200 rounded-xl p-3 text-slate-800 placeholder:text-slate-300 placeholder:font-light focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-200 transition leading-relaxed disabled:bg-slate-100/60"
-              />
-            </div>
+          {/* 4. Remarks & Priorities Section (Hidden for counsellor/telecalling) */}
+          {!isTelecalling && (
+            <div className="border-t border-slate-100 pt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Daily Highlights & Remarks */}
+              <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80 flex flex-col gap-2">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-2">
+                  <span className="p-1 rounded-lg bg-sky-100 text-sky-700">
+                    <MessageSquare className="w-3.5 h-3.5" />
+                  </span>
+                  <span>Remarks, Achievements & Daily Notes</span>
+                </label>
+                <textarea
+                  rows={3}
+                  disabled={isReadOnly}
+                  value={formData.remarks || ''}
+                  onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+                  placeholder="Remarks and notes"
+                  className="w-full text-xs sm:text-sm bg-white border border-slate-200 rounded-xl p-3 text-slate-800 placeholder:text-slate-300 placeholder:font-light focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-200 transition leading-relaxed disabled:bg-slate-100/60"
+                />
+              </div>
 
-            {/* Next Day Priorities */}
-            <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80 flex flex-col gap-2">
-              <label className="text-xs font-bold text-slate-700 flex items-center gap-2">
-                <span className="p-1 rounded-lg bg-indigo-100 text-indigo-700">
-                  <ArrowRightCircle className="w-3.5 h-3.5" />
-                </span>
-                <span>Next Working Day Priorities & Plan</span>
-              </label>
-              <textarea
-                rows={3}
-                disabled={isReadOnly}
-                value={formData.nextSteps || ''}
-                onChange={(e) => setFormData({ ...formData, nextSteps: e.target.value })}
-                placeholder="Tomorrow's plan and priorities"
-                className="w-full text-xs sm:text-sm bg-white border border-slate-200 rounded-xl p-3 text-slate-800 placeholder:text-slate-300 placeholder:font-light focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-200 transition leading-relaxed disabled:bg-slate-100/60"
-              />
+              {/* Next Day Priorities */}
+              <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80 flex flex-col gap-2">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-2">
+                  <span className="p-1 rounded-lg bg-indigo-100 text-indigo-700">
+                    <ArrowRightCircle className="w-3.5 h-3.5" />
+                  </span>
+                  <span>Next Working Day Priorities & Plan</span>
+                </label>
+                <textarea
+                  rows={3}
+                  disabled={isReadOnly}
+                  value={formData.nextSteps || ''}
+                  onChange={(e) => setFormData({ ...formData, nextSteps: e.target.value })}
+                  placeholder="Tomorrow's plan and priorities"
+                  className="w-full text-xs sm:text-sm bg-white border border-slate-200 rounded-xl p-3 text-slate-800 placeholder:text-slate-300 placeholder:font-light focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-200 transition leading-relaxed disabled:bg-slate-100/60"
+                />
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -423,7 +429,7 @@ export default function DepartmentActivityForm({
                 {!isSubmitted && !isReviewed && (
                   <div className="px-3.5 py-1.5 rounded-xl bg-slate-100 text-slate-600 text-xs font-medium flex items-center gap-1.5">
                     <Clock className="w-3.5 h-3.5 text-slate-500" />
-                    <span>{activity ? 'Draft in progress by employee' : 'No report submitted for this date'}</span>
+                    <span>{activity ? (isTelecalling ? 'Activity in progress' : 'Draft in progress by employee') : 'No report submitted for this date'}</span>
                   </div>
                 )}
               </div>
@@ -431,15 +437,17 @@ export default function DepartmentActivityForm({
               /* Regular Employee Submit/Save Draft buttons - ONLY when NOT Admin Preview and NOT Read Only */
               !isReadOnly && (
                 <div className="flex items-center gap-3 w-full sm:w-auto">
-                  <button
-                    type="button"
-                    disabled={saving || submitting}
-                    onClick={onSaveDraft}
-                    className="flex-1 sm:flex-none px-5 py-2.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                  >
-                    <Save className="w-4 h-4 text-slate-600" />
-                    <span>{saving ? 'Saving Draft...' : 'Save Draft'}</span>
-                  </button>
+                  {!isTelecalling && (
+                    <button
+                      type="button"
+                      disabled={saving || submitting}
+                      onClick={onSaveDraft}
+                      className="flex-1 sm:flex-none px-5 py-2.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    >
+                      <Save className="w-4 h-4 text-slate-600" />
+                      <span>{saving ? 'Saving Draft...' : 'Save Draft'}</span>
+                    </button>
+                  )}
 
                   <button
                     type="button"
@@ -451,7 +459,15 @@ export default function DepartmentActivityForm({
                     }}
                   >
                     <Send className="w-4 h-4" />
-                    <span>{submitting ? 'Submitting...' : 'Submit Daily Activity'}</span>
+                    <span>
+                      {submitting
+                        ? isSubmitted
+                          ? 'Updating...'
+                          : 'Submitting...'
+                        : isSubmitted
+                        ? 'Update Daily Activity (EOD)'
+                        : 'Submit Daily Activity'}
+                    </span>
                   </button>
                 </div>
               )

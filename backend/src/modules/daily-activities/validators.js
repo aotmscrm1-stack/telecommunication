@@ -89,23 +89,18 @@ function validateDailyActivityPayload(payload, isSubmitting = false) {
     if (Array.isArray(outcomes)) {
       outcomes.forEach((item, idx) => {
         if (!item || typeof item !== 'object') return;
-        if (item.category === 'Follow-up Required') {
-          if (!item.followUpAt) {
-            errors.push(`Outcome #${idx + 1}: Follow-up date/time is required when category is 'Follow-up Required'.`);
-          } else {
-            const fDate = new Date(item.followUpAt);
-            if (isNaN(fDate.getTime())) {
-              errors.push(`Outcome #${idx + 1}: Follow-up date/time is invalid.`);
-            }
+        if (item.followUpAt) {
+          const fDate = new Date(item.followUpAt);
+          if (isNaN(fDate.getTime())) {
+            errors.push(`Outcome #${idx + 1}: Follow-up date/time is invalid.`);
           }
         }
       });
     }
 
     if (isSubmitting && (!metrics || Number(metrics.callsAttempted || 0) === 0)) {
-      // If submitting with 0 calls, require remarks explaining reason
-      if (!payload.remarks || payload.remarks.trim().length < 5) {
-        errors.push('Please provide remarks explaining why 0 calls were logged for this date.');
+      if (payload.remarks && payload.remarks.trim().length > 0 && payload.remarks.trim().length < 5) {
+        errors.push('Remarks must be at least 5 characters if provided.');
       }
     }
   } else if (deptNormalized.includes('dev')) {

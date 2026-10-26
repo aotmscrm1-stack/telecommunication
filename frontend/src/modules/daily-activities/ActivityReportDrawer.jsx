@@ -17,6 +17,7 @@ import {
   GraduationCap,
   Briefcase,
   ExternalLink,
+  Target,
 } from 'lucide-react';
 import { dailyActivityAPI } from '../../services/api';
 
@@ -402,28 +403,55 @@ export default function ActivityReportDrawer({
               {/* Lead Call Outcomes — STRICTLY Telecalling Only */}
               {isTelecalling && outcomes.length > 0 && (
                 <div>
-                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2.5">
-                    Lead Call Outcomes ({outcomes.length})
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2.5 flex items-center justify-between">
+                    <span>Client Conversations & Outcomes ({outcomes.length})</span>
                   </h4>
                   <div className="space-y-2">
                     {outcomes.map((out, idx) => (
                       <div
                         key={idx}
-                        className="bg-slate-50/70 p-3 rounded-xl border border-slate-200 text-xs flex flex-col gap-1"
+                        className="bg-slate-50/80 p-3 rounded-xl border border-slate-200 text-xs flex flex-col gap-1.5 shadow-2xs"
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-slate-900">{out.leadName || 'Contact Lead'}</span>
-                          <span className="px-2 py-0.5 rounded-md bg-sky-50 text-sky-800 font-bold text-[10px]">
+                        <div className="flex flex-wrap items-center justify-between gap-1.5">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-slate-900">{out.leadName || 'Contact / Student'}</span>
+                            {out.campaign && (
+                              <span className="px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold text-[10px] flex items-center gap-1">
+                                <Target className="w-2.5 h-2.5" />
+                                <span>{out.campaign}</span>
+                              </span>
+                            )}
+                          </div>
+                          <span className="px-2 py-0.5 rounded-md bg-sky-50 text-sky-800 font-bold text-[10px] border border-sky-200">
                             {out.category}
                           </span>
                         </div>
-                        {out.followUpAt && (
-                          <div className="text-[11px] text-amber-700 font-medium">
-                            Scheduled Callback: {new Date(out.followUpAt).toLocaleString()}
-                          </div>
-                        )}
+
+                        <div className="flex flex-wrap items-center gap-2.5 text-[11px] text-slate-600">
+                          {out.phone && (
+                            <span className="flex items-center gap-1 text-slate-700 font-medium">
+                              <Phone className="w-2.5 h-2.5 text-slate-400" />
+                              <span>{out.phone}</span>
+                            </span>
+                          )}
+                          {out.course && (
+                            <span className="flex items-center gap-1 text-slate-700 font-medium">
+                              <GraduationCap className="w-3 h-3 text-sky-600" />
+                              <span>{out.course}</span>
+                            </span>
+                          )}
+                          {out.followUpAt && (
+                            <div className="text-[11px] text-amber-700 font-semibold flex items-center gap-1">
+                              <Clock className="w-2.5 h-2.5 text-amber-500" />
+                              <span>Callback: {new Date(out.followUpAt).toLocaleString()}</span>
+                            </div>
+                          )}
+                        </div>
+
                         {out.notes && (
-                          <div className="text-slate-600 text-[11px] mt-0.5">{out.notes}</div>
+                          <div className="text-slate-600 text-[11px] bg-white p-2 rounded-lg border border-slate-200/70 mt-0.5 leading-relaxed">
+                            {out.notes}
+                          </div>
                         )}
                       </div>
                     ))}

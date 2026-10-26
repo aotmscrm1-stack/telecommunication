@@ -12,6 +12,26 @@ const outcomeSubSchema = new mongoose.Schema(
       default: '',
       trim: true,
     },
+    campaign: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    campaignId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Campaign',
+      default: null,
+    },
+    phone: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    course: {
+      type: String,
+      default: '',
+      trim: true,
+    },
     category: {
       type: String,
       required: true,
@@ -19,11 +39,14 @@ const outcomeSubSchema = new mongoose.Schema(
       enum: [
         'Interested',
         'Follow-up Required',
+        'Follow-up',
+        'New Lead',
         'Not Interested',
         'No Answer',
         'Wrong Number',
         'Converted',
         'Call Back Requested',
+        'Demo Scheduled',
         'Other',
       ],
       default: 'Interested',
@@ -38,7 +61,7 @@ const outcomeSubSchema = new mongoose.Schema(
       trim: true,
     },
   },
-  { _id: true, timestamps: true }
+  { _id: true, timestamps: true, strict: false }
 );
 
 const revisionSubSchema = new mongoose.Schema(

@@ -502,9 +502,12 @@ export default function DailyActivityPage() {
     const existing = formData.outcomes || [];
     const newOutcome = {
       leadName: item.leadName || '',
+      phone: item.phone || item.leadPhone || '',
+      campaign: item.campaign || item.campaignName || '',
+      course: item.course || item.courseName || '',
       category: 'Follow-up Required',
       followUpAt: item.dueDate ? `${item.dueDate}T${item.dueTime || '10:00'}` : '',
-      notes: item.notes || `Callback with ${item.leadName}`,
+      notes: item.notes || `Callback with ${item.leadName || 'lead'}`,
     };
 
     setFormData({
@@ -514,8 +517,19 @@ export default function DailyActivityPage() {
     setIsDirty(true);
     setNotification({
       type: 'success',
-      message: `Lead '${item.leadName}' added to today's call outcomes. Complete notes and save draft.`,
+      message: `Lead '${item.leadName || 'Contact'}' added to today's call outcomes. Complete notes and save draft.`,
     });
+  };
+
+  const handleSelectDateFromHistory = (date, mode = 'view') => {
+    setSelectedDate(date);
+    window.scrollTo({ top: 120, behavior: 'smooth' });
+    if (mode === 'edit') {
+      setNotification({
+        type: 'info',
+        message: `Activity for ${date} loaded in edit mode. You can update your counts and client outcomes at EOD.`,
+      });
+    }
   };
 
   return (
@@ -735,7 +749,7 @@ export default function DailyActivityPage() {
                   page={historyPage}
                   totalPages={historyTotalPages}
                   onPageChange={(p) => loadHistory(p, activeDepartment, selectedEmployeeId)}
-                  onSelectDate={setSelectedDate}
+                  onSelectDate={handleSelectDateFromHistory}
                   loading={loadingHistory}
                   activeDepartment={activeDepartment}
                 />
@@ -758,7 +772,7 @@ export default function DailyActivityPage() {
                 page={historyPage}
                 totalPages={historyTotalPages}
                 onPageChange={(p) => loadHistory(p, activeDepartment, selectedEmployeeId)}
-                onSelectDate={setSelectedDate}
+                onSelectDate={handleSelectDateFromHistory}
                 loading={loadingHistory}
                 activeDepartment={activeDepartment}
               />
