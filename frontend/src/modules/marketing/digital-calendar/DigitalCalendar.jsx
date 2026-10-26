@@ -97,6 +97,7 @@ const MONTH_NAMES = [
 ];
 
 const MINI_CAL_DAYS = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+const FULL_WEEK_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 // Content Type styling pill colors
 const TYPE_STYLES = {
@@ -302,17 +303,24 @@ function AutoScrollContainer({ children, className = '' }) {
   );
 }
 
-// ── Compact Notes Component (Renders only when notes exist) ───────────────────
+// ── Compact Notes Component (Guaranteed uniform h-[36px]) ───────────────────
 function AutoScrollNotes({ text }) {
-  if (!text || !text.trim()) return null;
+  if (!text || !text.trim()) {
+    return (
+      <div className="h-[36px] px-3 rounded-xl border border-dashed border-slate-200/70 font-medium mb-2.5 flex items-center gap-2 text-slate-400 text-[11px] select-none bg-slate-50/40">
+        <span className="text-slate-300 text-xs">📝</span>
+        <span className="italic text-slate-400/80">No notes added</span>
+      </div>
+    );
+  }
 
   return (
     <div
-      className="text-xs text-slate-600 bg-slate-50/90 px-3 py-2 rounded-xl border border-slate-200/80 font-medium relative mb-2.5 flex items-start gap-2"
+      className="h-[36px] text-xs text-slate-600 bg-slate-50/90 px-3 py-1.5 rounded-xl border border-slate-200/80 font-medium relative mb-2.5 flex items-center gap-2 overflow-hidden"
       title={text}
     >
-      <span className="text-slate-400 shrink-0 text-xs mt-0.5">📝</span>
-      <span className="line-clamp-2 leading-relaxed text-slate-600 flex-1">
+      <span className="text-slate-400 shrink-0 text-xs">📝</span>
+      <span className="truncate leading-normal text-slate-600 flex-1 text-[11px]">
         {text}
       </span>
     </div>
@@ -329,8 +337,8 @@ export default function DigitalCalendar() {
   const [currentYear, setCurrentYear] = useState(() => today.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(() => today.getMonth()); // 0-indexed
 
-  // UI View Modes
-  const [viewMode, setViewMode] = useState('calendar'); // 'calendar' (Left Mini Cal + Middle Cards) | 'management' (Table View)
+  // UI View Modes: 'calendar' (Remaining Cards) | 'management' (Table View) | 'completed' (Completed & Posted Cards)
+  const [viewMode, setViewMode] = useState('calendar');
   const [timeTab, setTimeTab] = useState('all'); // 'all' | 'today' | 'upcoming' | 'review'
 
   // Data State
@@ -361,6 +369,27 @@ export default function DigitalCalendar() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [prefilledDate, setPrefilledDate] = useState(null);
+  const [timeUpdateModal, setTimeUpdateModal] = useState(null);
+  const [previewItem, setPreviewItem] = useState(null);
+
+  // Interactive Header Calendar Dropdown Popover (Shows Dates & Days)
+  const [showDateDropdown, setShowDateDropdown] = useState(false);
+  const dateDropdownRef = useRef(null);
+
+  // Close calendar popover on outside click
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dateDropdownRef.current && !dateDropdownRef.current.contains(event.target)) {
+        setShowDateDropdown(false);
+      }
+    }
+    if (showDateDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showDateDropdown]);
 
   // Authorization flags: marketing team members cannot delete; only admin should have delete
   const canDeleteContent = canDeleteDigitalCalendar(user);
@@ -543,11 +572,18 @@ export default function DigitalCalendar() {
       if (!it.content_date) return;
       const d = new Date(it.content_date);
       const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      const count = (it.contents && it.contents.length > 0) ? it.contents.length : 1;
-      map[dateKey] = (map[dateKey] || 0) + count;
+      const subItems = (it.contents && it.contents.length > 0) ? it.contents : [it];
+      const validSubItems = subItems.filter(sub => {
+        if (viewMode === 'calendar') return sub.overall_status !== 'Posted';
+        if (viewMode === 'completed') return sub.overall_status === 'Posted';
+        return true;
+      });
+      if (validSubItems.length > 0) {
+        map[dateKey] = (map[dateKey] || 0) + validSubItems.length;
+      }
     });
     return map;
-  }, [items]);
+  }, [items, viewMode]);
 
   // Group holidays by date string for holiday dots in mini calendar
   const holidaysByDate = useMemo(() => {
@@ -568,7 +604,7 @@ export default function DigitalCalendar() {
     return map;
   }, [holidays]);
 
-  // Dynamic Live Counts for the 5 Status Filters
+  // Dynamic Live Counts for Status Filters & Switcher Tabs
   const statusCounts = useMemo(() => {
     let total = 0;
     let scheduled = 0;
@@ -595,12 +631,47 @@ export default function DigitalCalendar() {
       });
     });
 
-    return { total, scheduled, posted, inProgress, needsApproval };
+    const remaining = total - posted;
+    return { total, scheduled, posted, inProgress, needsApproval, remaining };
+  }, [items]);
+
+  // Platform posted counts for completed view toolbar
+  const postedPlatformCounts = useMemo(() => {
+    const counts = { instagram: 0, facebook: 0, youtube: 0, linkedin: 0, x: 0 };
+    items.forEach(it => {
+      const subItems = (it.contents && it.contents.length > 0) ? it.contents : [it];
+      subItems.forEach(sub => {
+        if (sub.overall_status === 'Posted') {
+          if (sub.instagram_status === 'Posted') counts.instagram++;
+          if (sub.facebook_status === 'Posted') counts.facebook++;
+          if (sub.youtube_status === 'Posted') counts.youtube++;
+          if (sub.linkedin_status === 'Posted') counts.linkedin++;
+          if (sub.x_status === 'Posted') counts.x++;
+        }
+      });
+    });
+    return counts;
   }, [items]);
 
   // Filtered Cards to display in Middle Area
   const filteredItems = useMemo(() => {
     let list = [...items];
+
+    // Filter by viewMode:
+    // 'calendar' keeps remaining (non-Posted) items;
+    // 'completed' keeps posted (completed) items;
+    // 'management' retains all items.
+    if (viewMode === 'calendar') {
+      list = list.filter(it => {
+        const subItems = (it.contents && it.contents.length > 0) ? it.contents : [it];
+        return subItems.some(s => s.overall_status !== 'Posted');
+      });
+    } else if (viewMode === 'completed') {
+      list = list.filter(it => {
+        const subItems = (it.contents && it.contents.length > 0) ? it.contents : [it];
+        return subItems.some(s => s.overall_status === 'Posted');
+      });
+    }
 
     // Selected Date Filter from left mini calendar
     if (selectedDateFilter) {
@@ -612,7 +683,7 @@ export default function DigitalCalendar() {
       });
     }
 
-    // 5 Status Filter Tabs (checks all sub-contents if present)
+    // Status Filter Tabs (checks all sub-contents if present)
     if (filterStatus !== 'all') {
       list = list.filter(it => {
         const subItems = (it.contents && it.contents.length > 0) ? it.contents : [it];
@@ -683,11 +754,25 @@ export default function DigitalCalendar() {
 
     // Sort by content_date ascending
     return list.sort((a, b) => new Date(a.content_date) - new Date(b.content_date));
-  }, [items, selectedDateFilter, filterStatus, filterType, filterPlatform, filterEmployee, searchQuery]);
+  }, [items, viewMode, selectedDateFilter, filterStatus, filterType, filterPlatform, filterEmployee, searchQuery]);
 
-  // Open edit modal
-  const handleEditClick = (item, initialActiveIndex = 0) => {
+  // Open preview modal (read-only for completed & posted tasks)
+  const handlePreviewClick = (item, initialActiveIndex = 0) => {
+    if (!item?._id) return;
     setSelectedItemId(item._id);
+    setPreviewItem({ ...item, initialActiveIndex });
+  };
+
+  // Open edit modal (redirects to preview if task is already completed & posted)
+  const handleEditClick = (item, initialActiveIndex = 0) => {
+    if (!item?._id) return;
+    setSelectedItemId(item._id);
+    const allContents = (item.contents && item.contents.length > 0) ? item.contents : [item];
+    const target = allContents[initialActiveIndex] || allContents[0];
+    if (target?.overall_status === 'Posted' || item?.overall_status === 'Posted') {
+      handlePreviewClick(item, initialActiveIndex);
+      return;
+    }
     setEditingItem({ ...item, initialActiveIndex });
     setShowEditModal(true);
   };
@@ -746,15 +831,14 @@ export default function DigitalCalendar() {
     }
   };
 
-  // Direct completed action (Marketing team member / Admin) -> turns into Posted
-  const handleDirectComplete = async (item, subIdx = 0, e) => {
-    if (e) e.stopPropagation();
+  // Helper to execute completion with optional updated times
+  const executeComplete = async (item, subIdx = 0, timesToUpdate = null) => {
     if (!item?._id) return;
     const key = `${item._id}-${subIdx}-complete`;
     setActionLoadingKey(key);
 
     try {
-      const res = await digitalCalendarAPI.complete(item._id, subIdx);
+      const res = await digitalCalendarAPI.complete(item._id, subIdx, timesToUpdate);
       if (res.data?.data) {
         setItems(prev => prev.map(it => (it._id === item._id ? res.data.data : it)));
       } else {
@@ -764,7 +848,7 @@ export default function DigitalCalendar() {
           const updatedContents = (it.contents && it.contents.length > 0)
             ? it.contents.map((c, i) => {
                 if (i !== subIdx) return c;
-                return {
+                const updated = {
                   ...c,
                   overall_status: 'Posted',
                   approval_status: 'Approved',
@@ -774,6 +858,13 @@ export default function DigitalCalendar() {
                   linkedin_status: c.linkedin_status && c.linkedin_status !== 'Not Required' ? 'Posted' : c.linkedin_status,
                   x_status: c.x_status && c.x_status !== 'Not Required' ? 'Posted' : c.x_status
                 };
+                if (timesToUpdate) {
+                  ['instagram', 'facebook', 'youtube', 'linkedin', 'x'].forEach(pf => {
+                    const t = timesToUpdate[`${pf}_time`] || timesToUpdate[pf];
+                    if (t) updated[`${pf}_time`] = t;
+                  });
+                }
+                return updated;
               })
             : [];
           return {
@@ -784,6 +875,7 @@ export default function DigitalCalendar() {
           };
         }));
       }
+      setTimeUpdateModal(null);
     } catch (err) {
       console.error('Error marking content as completed:', err);
       alert(err.response?.data?.message || 'Failed to mark content as completed');
@@ -791,6 +883,98 @@ export default function DigitalCalendar() {
     } finally {
       setActionLoadingKey(null);
     }
+  };
+
+  // Direct completed action (Marketing team member / Admin) -> checks if time is kept near social media status
+  const handleDirectComplete = (item, subIdx = 0, e) => {
+    if (e) e.stopPropagation();
+    if (!item?._id) return;
+
+    const allContents = (item.contents && item.contents.length > 0)
+      ? item.contents
+      : [item];
+    const targetContent = allContents[subIdx] || allContents[0];
+
+    const platformsToCheck = [
+      {
+        id: 'instagram',
+        label: 'Instagram',
+        icon: FaInstagram,
+        color: 'text-pink-600',
+        badgeBg: 'bg-pink-50/70',
+        border: 'border-pink-200/80',
+        iconBg: 'bg-pink-100/60'
+      },
+      {
+        id: 'facebook',
+        label: 'Facebook',
+        icon: FaFacebook,
+        color: 'text-blue-700',
+        badgeBg: 'bg-blue-50/70',
+        border: 'border-blue-200/80',
+        iconBg: 'bg-blue-100/60'
+      },
+      {
+        id: 'youtube',
+        label: 'YouTube',
+        icon: FaYoutube,
+        color: 'text-red-600',
+        badgeBg: 'bg-red-50/70',
+        border: 'border-red-200/80',
+        iconBg: 'bg-red-100/60'
+      },
+      {
+        id: 'linkedin',
+        label: 'LinkedIn',
+        icon: FaLinkedinIn,
+        color: 'text-blue-600',
+        badgeBg: 'bg-blue-50/70',
+        border: 'border-blue-200/80',
+        iconBg: 'bg-blue-100/60'
+      },
+      {
+        id: 'x',
+        label: 'X / Twitter',
+        icon: FaXTwitter,
+        color: 'text-slate-900',
+        badgeBg: 'bg-slate-100/70',
+        border: 'border-slate-300/80',
+        iconBg: 'bg-slate-200/60'
+      }
+    ];
+
+    // Filter platforms that are active (status is NOT 'Not Required')
+    const activePlatforms = platformsToCheck.filter(pf => {
+      const st = targetContent[`${pf.id}_status`];
+      return st && st !== 'Not Required';
+    });
+
+    // Check if any active platform is missing a posting time
+    const missingTimePlatforms = activePlatforms.filter(pf => {
+      const t = targetContent[`${pf.id}_time`];
+      return !t || !String(t).trim();
+    });
+
+    // If time is not kept for any active platform, prompt to update time!
+    if (activePlatforms.length > 0 && missingTimePlatforms.length > 0) {
+      setTimeUpdateModal({
+        item,
+        subIdx,
+        targetContent,
+        activePlatforms,
+        times: {
+          instagram_time: targetContent.instagram_time || '',
+          facebook_time: targetContent.facebook_time || '',
+          youtube_time: targetContent.youtube_time || '',
+          linkedin_time: targetContent.linkedin_time || '',
+          x_time: targetContent.x_time || ''
+        }
+      });
+      return;
+    }
+
+    // Otherwise all active platforms already have time kept -> complete directly
+    executeComplete(item, subIdx);
   };
 
   const hasActiveFilters =
@@ -868,134 +1052,367 @@ export default function DigitalCalendar() {
         }
       `}</style>
 
-      {/* ── 1. Page Header (Modern Glass with Orange/Blue Brand Accent) ── */}
+      {/* ── 1. Page Header (All controls strictly in ONE ROW) ── */}
       <div
-        className="rounded-3xl p-5 sm:p-6 mb-6 shadow-sm border border-slate-200/80 backdrop-blur-md relative overflow-hidden"
+        className="rounded-3xl p-3 sm:p-4 mb-5 shadow-sm border border-slate-200/80 backdrop-blur-md relative z-30"
         style={{
           background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(240, 249, 255, 0.90))',
           boxShadow: '0 8px 30px -4px rgba(2, 132, 199, 0.08), 0 2px 6px rgba(15, 23, 42, 0.03)'
         }}
       >
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
-          {/* Left Title & Description */}
-          <div className="flex items-center gap-4">
+        <div className="flex items-center justify-between gap-3 w-full flex-nowrap">
+          {/* Left Title */}
+          <div className="flex items-center gap-3 shrink-0">
             <div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg relative shrink-0"
+              className="w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-md relative shrink-0"
               style={{
                 background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 50%, #f97316 100%)',
-                boxShadow: '0 8px 20px rgba(2, 132, 199, 0.35)'
+                boxShadow: '0 6px 16px rgba(2, 132, 199, 0.3)'
               }}
             >
-              <FaCalendarDays className="w-6 h-6" />
-              <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-orange-500 rounded-full border-2 border-white" />
+              <FaCalendarDays className="w-5 h-5" />
+              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-orange-500 rounded-full border-2 border-white" />
             </div>
 
-            <div>
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900 m-0">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-nowrap">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 m-0 whitespace-nowrap">
                   Digital Calendar
                 </h1>
-                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium tracking-wide uppercase bg-orange-50 text-orange-600 border border-orange-200/80 shadow-xs">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-orange-50 text-orange-600 border border-orange-200/80 shrink-0">
                   Info Hub
                 </span>
               </div>
-              <p className="text-xs sm:text-sm text-slate-500 font-medium m-0 mt-1">
-                Plan, schedule, review and track social media content across Instagram, YouTube, LinkedIn & X.
+              <p className="text-xs text-slate-500 font-medium m-0 truncate hidden 2xl:block">
+                Plan, schedule, review & track social media content.
               </p>
             </div>
           </div>
 
-          {/* Header Right Controls */}
-          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
-            {/* View Mode Switcher: Calendar vs Table View */}
-            <div className="flex items-center p-1 bg-slate-100/90 border border-slate-200 rounded-xl shadow-xs shrink-0">
+          {/* Right Controls: STRICTLY ONE ROW (View Switcher + Calendar Navigator + Today + Refresh + Add Content) */}
+          <div className="flex items-center gap-2 shrink-0 flex-nowrap">
+            {/* 1. View Mode Switcher: Calendar Cards vs Table View vs Completed */}
+            <div className="flex items-center p-0.5 sm:p-1 bg-slate-100/90 border border-slate-200 rounded-xl shadow-xs shrink-0 flex-nowrap">
               <button
-                onClick={() => setViewMode('calendar')}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                type="button"
+                onClick={() => {
+                  setViewMode('calendar');
+                  setFilterStatus('all');
+                }}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer whitespace-nowrap ${
                   viewMode === 'calendar'
-                    ? 'bg-white text-sky-700 shadow-sm border border-slate-200/60'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white text-sky-700 shadow-sm border border-slate-200/60 font-semibold'
+                    : 'text-slate-600 hover:text-slate-900 font-medium'
                 }`}
               >
                 <FaCalendarDays className={`w-3.5 h-3.5 ${viewMode === 'calendar' ? 'text-sky-600' : 'text-slate-400'}`} />
-                Calendar Cards
+                <span>Calendar Cards</span>
+                {statusCounts.remaining > 0 && (
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-semibold ${
+                    viewMode === 'calendar' ? 'bg-sky-100 text-sky-800' : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {statusCounts.remaining}
+                  </span>
+                )}
               </button>
               <button
+                type="button"
                 onClick={() => setViewMode('management')}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer whitespace-nowrap ${
                   viewMode === 'management'
-                    ? 'bg-white text-sky-700 shadow-sm border border-slate-200/60'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white text-sky-700 shadow-sm border border-slate-200/60 font-semibold'
+                    : 'text-slate-600 hover:text-slate-900 font-medium'
                 }`}
               >
                 <FaTableList className={`w-3.5 h-3.5 ${viewMode === 'management' ? 'text-sky-600' : 'text-slate-400'}`} />
-                Table View
+                <span>Table View</span>
               </button>
-            </div>
-
-            {/* Month Navigation */}
-            <div className="flex items-center bg-white border border-slate-200/90 rounded-xl shadow-xs px-2 py-1 shrink-0">
               <button
-                onClick={handlePrevMonth}
-                title="Previous Month"
-                className="p-1.5 text-slate-500 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition active:scale-95 cursor-pointer"
-              >
-                <FaChevronLeft className="w-3.5 h-3.5" />
-              </button>
-              <span className="px-3 text-xs font-medium text-slate-800 min-w-[130px] text-center select-none tracking-wide">
-                {MONTH_NAMES[currentMonth]} {currentYear}
-              </span>
-              <button
-                onClick={handleNextMonth}
-                title="Next Month"
-                className="p-1.5 text-slate-500 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition active:scale-95 cursor-pointer"
-              >
-                <FaChevronRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {/* Action Group: Today, Refresh & Add Content (Kept directly beside each other) */}
-            <div className="flex items-center gap-2 shrink-0">
-              {/* Today Jump */}
-              <button
-                onClick={handleGoToToday}
-                className="px-3.5 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 hover:border-sky-400 hover:text-sky-600 hover:bg-sky-50/50 rounded-xl shadow-xs transition active:scale-95 cursor-pointer"
-              >
-                Today
-              </button>
-
-              {/* Refresh */}
-              <button
-                onClick={fetchData}
-                title="Refresh Data"
-                className="p-2.5 text-slate-600 bg-white border border-slate-200 hover:text-sky-600 hover:border-sky-400 hover:bg-sky-50/50 rounded-xl shadow-xs transition active:scale-95 cursor-pointer"
-              >
-                <FaRotate className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-sky-600' : ''}`} />
-              </button>
-
-              {/* Add Content CTA Button */}
-              <button
+                type="button"
                 onClick={() => {
-                  setPrefilledDate(new Date().toISOString().split('T')[0]);
-                  setShowAddModal(true);
+                  setViewMode('completed');
+                  setFilterStatus('all');
                 }}
-                className="flex items-center gap-1.5 px-4 py-2 text-white rounded-xl text-xs sm:text-sm font-medium shadow-md transition-all transform hover:-translate-y-0.5 active:scale-95 cursor-pointer"
-                style={{
-                  background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
-                  boxShadow: '0 6px 20px rgba(249, 115, 22, 0.35)',
-                  border: '1px solid rgba(249, 115, 22, 0.4)'
-                }}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer whitespace-nowrap ${
+                  viewMode === 'completed'
+                    ? 'bg-white text-emerald-700 shadow-sm border border-slate-200/60 font-semibold'
+                    : 'text-slate-600 hover:text-slate-900 font-medium'
+                }`}
               >
-                <FaPlus className="w-3.5 h-3.5" />
-                <span>Add Content</span>
+                <FaCircleCheck className={`w-3.5 h-3.5 ${viewMode === 'completed' ? 'text-emerald-600' : 'text-slate-400'}`} />
+                <span>Completed</span>
+                {statusCounts.posted > 0 && (
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-semibold ${
+                    viewMode === 'completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {statusCounts.posted}
+                  </span>
+                )}
               </button>
             </div>
+
+            {/* 2. Calendar Navigator with Interactive Dates & Days Dropdown */}
+            <div className="relative shrink-0 z-40" ref={dateDropdownRef}>
+              <div className="flex items-center bg-white border border-slate-200/90 hover:border-sky-300 rounded-xl shadow-xs px-1 py-1 shrink-0 transition">
+                <button
+                  type="button"
+                  onClick={handlePrevMonth}
+                  title="Previous Month"
+                  className="p-1.5 text-slate-500 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition active:scale-95 cursor-pointer"
+                >
+                  <FaChevronLeft className="w-3.5 h-3.5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowDateDropdown(prev => !prev)}
+                  title="Touch or click to select dates and days"
+                  className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg transition cursor-pointer select-none ${
+                    selectedDateFilter
+                      ? 'bg-sky-50 text-sky-700 border border-sky-300 shadow-2xs font-bold'
+                      : 'text-slate-800 hover:text-sky-600 hover:bg-slate-100'
+                  }`}
+                >
+                  <FaCalendarDays className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                  <span className="tracking-wide whitespace-nowrap">
+                    {selectedDateFilter ? (
+                      <>
+                        {new Date(selectedDateFilter + 'T00:00:00').toLocaleDateString('en-US', {
+                          weekday: 'short',
+                          day: 'numeric',
+                          month: 'short'
+                        })}
+                      </>
+                    ) : (
+                      `${MONTH_NAMES[currentMonth].slice(0, 3)} ${currentYear}`
+                    )}
+                  </span>
+                  <FaChevronDown className={`w-2.5 h-2.5 text-slate-400 transition-transform ${showDateDropdown ? 'rotate-180 text-sky-600' : ''}`} />
+                </button>
+
+                {selectedDateFilter && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedDateFilter(null);
+                    }}
+                    title="Clear date filter (Show all dates)"
+                    className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                  >
+                    <FaXmark className="w-3 h-3" />
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleNextMonth}
+                  title="Next Month"
+                  className="p-1.5 text-slate-500 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition active:scale-95 cursor-pointer"
+                >
+                  <FaChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* Dates & Days Dropdown Popover */}
+              {showDateDropdown && (
+                <div
+                  className="absolute top-full mt-2 right-0 z-50 w-[320px] sm:w-[350px] bg-white rounded-3xl border border-slate-200/90 shadow-2xl p-4 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150"
+                  style={{
+                    boxShadow: '0 20px 45px -10px rgba(15, 23, 42, 0.22), 0 0 0 1px rgba(2, 132, 199, 0.1)'
+                  }}
+                >
+                  {/* Popover Header */}
+                  <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center">
+                        <FaCalendarDays className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <span className="text-xs font-bold text-slate-900 block leading-tight">
+                          {MONTH_NAMES[currentMonth]} {currentYear}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-medium block">
+                          Dates & Days
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={handlePrevMonth}
+                        className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition cursor-pointer"
+                        title="Previous Month"
+                      >
+                        <FaChevronLeft className="w-3 h-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleNextMonth}
+                        className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition cursor-pointer"
+                        title="Next Month"
+                      >
+                        <FaChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowDateDropdown(false)}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer ml-1"
+                        title="Close"
+                      >
+                        <FaXmark className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Weekday / Days Header Row */}
+                  <div className="grid grid-cols-7 gap-1 text-center mb-1 select-none">
+                    {FULL_WEEK_DAYS.map(day => (
+                      <span key={day} className="text-[10px] font-bold uppercase tracking-wider text-slate-500 py-1 bg-slate-50/90 rounded-md">
+                        {day}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Dates & Days Interactive Grid Matrix */}
+                  <div className="grid grid-cols-7 gap-1 text-center">
+                    {miniCalendarDays.map((dObj, idx) => {
+                      const count = itemsCountByDate[dObj.dateStr] || 0;
+                      const hasContent = count > 0;
+                      const dayHolidays = holidaysByDate[dObj.dateStr] || [];
+                      const hasHoliday = dayHolidays.length > 0;
+                      const holidayNames = dayHolidays.map(h => h.summary || h.content_title || h.name).filter(Boolean);
+                      const isSelected = selectedDateFilter === dObj.dateStr;
+                      const now = new Date();
+                      const isTodayDate =
+                        dObj.fullDate.getFullYear() === now.getFullYear() &&
+                        dObj.fullDate.getMonth() === now.getMonth() &&
+                        dObj.fullDate.getDate() === now.getDate();
+                      const dayOfWeekShort = dObj.fullDate.toLocaleDateString('en-US', { weekday: 'short' });
+
+                      return (
+                        <button
+                          key={`${dObj.dateStr}-${idx}`}
+                          type="button"
+                          onClick={() => {
+                            if (selectedDateFilter === dObj.dateStr) {
+                              setSelectedDateFilter(null);
+                            } else {
+                              setSelectedDateFilter(dObj.dateStr);
+                            }
+                          }}
+                          title={
+                            hasHoliday && hasContent
+                              ? `${dayOfWeekShort}, ${dObj.dayNumber}: Holiday (${holidayNames.join(', ')}) • ${count} content item(s)`
+                              : hasHoliday
+                              ? `${dayOfWeekShort}, ${dObj.dayNumber}: Holiday (${holidayNames.join(', ')})`
+                              : hasContent
+                              ? `${dayOfWeekShort}, ${dObj.dayNumber}: ${count} content item(s)`
+                              : `${dayOfWeekShort}, ${dObj.dayNumber} ${MONTH_NAMES[dObj.fullDate.getMonth()]}`
+                          }
+                          className={`mini-day-cell h-9 w-9 mx-auto rounded-xl flex flex-col items-center justify-center relative transition cursor-pointer p-0.5 ${
+                            isSelected
+                              ? 'bg-sky-600 text-white font-bold shadow-md ring-2 ring-sky-400 scale-105'
+                              : isTodayDate
+                              ? 'bg-sky-50 text-sky-700 font-bold ring-2 ring-sky-500'
+                              : dObj.isCurrentMonth
+                              ? 'text-slate-700 hover:bg-sky-50 hover:text-sky-700'
+                              : 'text-slate-300 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className="text-[11px] font-semibold leading-tight">{dObj.dayNumber}</span>
+                          <span className={`text-[7.5px] font-medium leading-none uppercase ${
+                            isSelected ? 'text-sky-100' : isTodayDate ? 'text-sky-600' : 'text-slate-400'
+                          }`}>
+                            {dayOfWeekShort}
+                          </span>
+                          {/* Dot indicators: Sky for content, Amber for holiday */}
+                          <div className="flex items-center gap-0.5 mt-0.5">
+                            {hasHoliday && <span className={`w-1 h-1 rounded-full ${isSelected ? 'bg-amber-300' : 'bg-amber-500'}`} />}
+                            {hasContent && <span className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-sky-500'}`} />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Popover Footer Bar with Quick Actions */}
+                  <div className="flex items-center justify-between pt-2.5 mt-2.5 border-t border-slate-100 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleGoToToday();
+                      }}
+                      className="flex items-center gap-1 text-sky-600 hover:text-sky-800 font-semibold cursor-pointer"
+                    >
+                      <FaClock className="w-3 h-3" />
+                      <span>Today ({today.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' })})</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedDateFilter(null);
+                      }}
+                      className={`font-medium transition cursor-pointer text-xs ${
+                        selectedDateFilter ? 'text-rose-600 hover:text-rose-800 font-semibold' : 'text-slate-400 hover:text-slate-700'
+                      }`}
+                    >
+                      {selectedDateFilter ? 'Clear (Show All)' : 'All Month'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowDateDropdown(false)}
+                      className="px-2.5 py-1 text-xs font-semibold bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition cursor-pointer"
+                    >
+                      Done
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 3. Today Jump Button */}
+            <button
+              type="button"
+              onClick={handleGoToToday}
+              className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-sky-400 hover:text-sky-600 hover:bg-sky-50/50 rounded-xl shadow-xs transition active:scale-95 cursor-pointer whitespace-nowrap shrink-0"
+            >
+              Today
+            </button>
+
+            {/* 4. Refresh Button */}
+            <button
+              type="button"
+              onClick={fetchData}
+              title="Refresh Data"
+              className="p-2 text-slate-600 bg-white border border-slate-200 hover:text-sky-600 hover:border-sky-400 hover:bg-sky-50/50 rounded-xl shadow-xs transition active:scale-95 cursor-pointer shrink-0"
+            >
+              <FaRotate className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-sky-600' : ''}`} />
+            </button>
+
+            {/* 5. Add Content CTA Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setPrefilledDate(selectedDateFilter || new Date().toISOString().split('T')[0]);
+                setShowAddModal(true);
+              }}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 text-white rounded-xl text-xs sm:text-sm font-semibold shadow-md transition-all transform hover:-translate-y-0.5 active:scale-95 cursor-pointer whitespace-nowrap shrink-0"
+              style={{
+                background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+                boxShadow: '0 6px 16px rgba(249, 115, 22, 0.35)',
+                border: '1px solid rgba(249, 115, 22, 0.4)'
+              }}
+            >
+              <FaPlus className="w-3.5 h-3.5" />
+              <span>Add Content</span>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* ── 2. Main Workspace: Calendar Mode (Left Mini-Cal + Middle Cards Feed) ─ */}
-      {viewMode === 'calendar' ? (
+      {/* ── 2. Main Workspace: Calendar Cards & Completed Modes (Sidebar + Cards Feed) ─ */}
+      {(viewMode === 'calendar' || viewMode === 'completed') ? (
         <div className="flex flex-col lg:flex-row gap-6 items-start w-full">
           {/* ─── LEFT SIDEBAR: Mini Calendar + Filter Categories (Reference Style) ─── */}
           <div className="w-full lg:w-[310px] shrink-0 flex flex-col gap-4">
@@ -1316,103 +1733,128 @@ export default function DigitalCalendar() {
               className="bg-white rounded-3xl p-3 sm:p-4 border border-slate-200/90 shadow-sm flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3"
               style={{ boxShadow: '0 8px 24px -4px rgba(2, 132, 199, 0.06)' }}
             >
-              {/* 5 Status Filter Tabs (Replacing top metric cards) */}
-              <div className="flex items-center p-1 bg-slate-100/90 border border-slate-200/80 rounded-2xl shadow-2xs overflow-x-auto gap-1">
-                {/* 1. Total Items */}
-                <button
-                  type="button"
-                  onClick={() => setFilterStatus('all')}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-medium transition whitespace-nowrap cursor-pointer ${
-                    filterStatus === 'all'
-                      ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-                  }`}
-                >
-                  <FaLayerGroup className={`w-3.5 h-3.5 ${filterStatus === 'all' ? 'text-sky-600' : 'text-slate-400'}`} />
-                  <span>Total Items</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                    filterStatus === 'all' ? 'bg-sky-100 text-sky-800' : 'bg-slate-200 text-slate-600'
-                  }`}>
-                    {statusCounts.total}
-                  </span>
-                </button>
+              {/* Status Filter Tabs (Dynamic for Calendar Cards vs Completed View) */}
+              {viewMode === 'completed' ? (
+                <div className="flex items-center p-1 bg-slate-100/90 border border-slate-200/80 rounded-2xl shadow-2xs overflow-x-auto gap-1">
+                  <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-emerald-600 text-white shadow-sm whitespace-nowrap">
+                    <FaCircleCheck className="w-3.5 h-3.5" />
+                    <span>Completed Tasks</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/20 text-white">
+                      {statusCounts.posted}
+                    </span>
+                  </div>
+                  {/* Quick platform filter pills for completed view */}
+                  {[
+                    { id: 'all', label: 'All', count: statusCounts.posted },
+                    { id: 'instagram', label: 'Instagram', count: postedPlatformCounts.instagram, icon: FaInstagram, color: 'text-pink-600' },
+                    { id: 'facebook', label: 'Facebook', count: postedPlatformCounts.facebook, icon: FaFacebook, color: 'text-blue-700' },
+                    { id: 'youtube', label: 'YouTube', count: postedPlatformCounts.youtube, icon: FaYoutube, color: 'text-red-600' },
+                    { id: 'linkedin', label: 'LinkedIn', count: postedPlatformCounts.linkedin, icon: FaLinkedinIn, color: 'text-blue-600' },
+                    { id: 'x', label: 'X', count: postedPlatformCounts.x, icon: FaXTwitter, color: 'text-slate-900' }
+                  ].map(pf => {
+                    const isSel = filterPlatform === pf.id;
+                    const PfIcon = pf.icon;
+                    return (
+                      <button
+                        key={pf.id}
+                        type="button"
+                        onClick={() => setFilterPlatform(pf.id)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition whitespace-nowrap cursor-pointer ${
+                          isSel
+                            ? 'bg-white text-emerald-800 shadow-sm border border-emerald-200'
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                        }`}
+                      >
+                        {PfIcon && <PfIcon className={`w-3 h-3 ${pf.color}`} />}
+                        <span>{pf.label}</span>
+                        <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-semibold ${
+                          isSel ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
+                        }`}>
+                          {pf.count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex items-center p-1 bg-slate-100/90 border border-slate-200/80 rounded-2xl shadow-2xs overflow-x-auto gap-1">
+                  {/* 1. Remaining Items */}
+                  <button
+                    type="button"
+                    onClick={() => setFilterStatus('all')}
+                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-medium transition whitespace-nowrap cursor-pointer ${
+                      filterStatus === 'all'
+                        ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                    }`}
+                  >
+                    <FaLayerGroup className={`w-3.5 h-3.5 ${filterStatus === 'all' ? 'text-sky-600' : 'text-slate-400'}`} />
+                    <span>All Active</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                      filterStatus === 'all' ? 'bg-sky-100 text-sky-800' : 'bg-slate-200 text-slate-600'
+                    }`}>
+                      {statusCounts.remaining}
+                    </span>
+                  </button>
 
-                {/* 2. Scheduled */}
-                <button
-                  type="button"
-                  onClick={() => setFilterStatus('scheduled')}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-medium transition whitespace-nowrap cursor-pointer ${
-                    filterStatus === 'scheduled'
-                      ? 'bg-white text-sky-700 shadow-sm border border-sky-200'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-                  }`}
-                >
-                  <FaClock className={`w-3.5 h-3.5 ${filterStatus === 'scheduled' ? 'text-sky-600' : 'text-slate-400'}`} />
-                  <span>Scheduled</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                    filterStatus === 'scheduled' ? 'bg-sky-500 text-white' : 'bg-slate-200 text-slate-600'
-                  }`}>
-                    {statusCounts.scheduled}
-                  </span>
-                </button>
+                  {/* 2. Scheduled */}
+                  <button
+                    type="button"
+                    onClick={() => setFilterStatus('scheduled')}
+                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-medium transition whitespace-nowrap cursor-pointer ${
+                      filterStatus === 'scheduled'
+                        ? 'bg-white text-sky-700 shadow-sm border border-sky-200'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                    }`}
+                  >
+                    <FaClock className={`w-3.5 h-3.5 ${filterStatus === 'scheduled' ? 'text-sky-600' : 'text-slate-400'}`} />
+                    <span>Scheduled</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                      filterStatus === 'scheduled' ? 'bg-sky-500 text-white' : 'bg-slate-200 text-slate-600'
+                    }`}>
+                      {statusCounts.scheduled}
+                    </span>
+                  </button>
 
-                {/* 3. Live / Posted */}
-                <button
-                  type="button"
-                  onClick={() => setFilterStatus('posted')}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-medium transition whitespace-nowrap cursor-pointer ${
-                    filterStatus === 'posted'
-                      ? 'bg-white text-emerald-700 shadow-sm border border-emerald-200'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-                  }`}
-                >
-                  <FaCheck className={`w-3.5 h-3.5 ${filterStatus === 'posted' ? 'text-emerald-600' : 'text-slate-400'}`} />
-                  <span>Live / Posted</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                    filterStatus === 'posted' ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-600'
-                  }`}>
-                    {statusCounts.posted}
-                  </span>
-                </button>
+                  {/* 3. In Progress */}
+                  <button
+                    type="button"
+                    onClick={() => setFilterStatus('in_progress')}
+                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-medium transition whitespace-nowrap cursor-pointer ${
+                      filterStatus === 'in_progress'
+                        ? 'bg-white text-amber-700 shadow-sm border border-amber-200'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                    }`}
+                  >
+                    <FaPenToSquare className={`w-3.5 h-3.5 ${filterStatus === 'in_progress' ? 'text-amber-600' : 'text-slate-400'}`} />
+                    <span>In Progress</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                      filterStatus === 'in_progress' ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-600'
+                    }`}>
+                      {statusCounts.inProgress}
+                    </span>
+                  </button>
 
-                {/* 4. In Progress */}
-                <button
-                  type="button"
-                  onClick={() => setFilterStatus('in_progress')}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-medium transition whitespace-nowrap cursor-pointer ${
-                    filterStatus === 'in_progress'
-                      ? 'bg-white text-amber-700 shadow-sm border border-amber-200'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-                  }`}
-                >
-                  <FaPenToSquare className={`w-3.5 h-3.5 ${filterStatus === 'in_progress' ? 'text-amber-600' : 'text-slate-400'}`} />
-                  <span>In Progress</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                    filterStatus === 'in_progress' ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-600'
-                  }`}>
-                    {statusCounts.inProgress}
-                  </span>
-                </button>
-
-                {/* 5. Needs Approval */}
-                <button
-                  type="button"
-                  onClick={() => setFilterStatus('needs_approval')}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-medium transition whitespace-nowrap cursor-pointer ${
-                    filterStatus === 'needs_approval'
-                      ? 'bg-white text-orange-700 shadow-sm border border-orange-200'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-                  }`}
-                >
-                  <FaHourglassHalf className={`w-3.5 h-3.5 ${filterStatus === 'needs_approval' ? 'text-orange-600' : 'text-slate-400'}`} />
-                  <span>Needs Approval</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                    filterStatus === 'needs_approval' ? 'bg-orange-500 text-white' : 'bg-slate-200 text-slate-600'
-                  }`}>
-                    {statusCounts.needsApproval}
-                  </span>
-                </button>
-              </div>
+                  {/* 4. Needs Approval */}
+                  <button
+                    type="button"
+                    onClick={() => setFilterStatus('needs_approval')}
+                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-medium transition whitespace-nowrap cursor-pointer ${
+                      filterStatus === 'needs_approval'
+                        ? 'bg-white text-orange-700 shadow-sm border border-orange-200'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                    }`}
+                  >
+                    <FaHourglassHalf className={`w-3.5 h-3.5 ${filterStatus === 'needs_approval' ? 'text-orange-600' : 'text-slate-400'}`} />
+                    <span>Needs Approval</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                      filterStatus === 'needs_approval' ? 'bg-orange-500 text-white' : 'bg-slate-200 text-slate-600'
+                    }`}>
+                      {statusCounts.needsApproval}
+                    </span>
+                  </button>
+                </div>
+              )}
 
               {/* Search Box & Active Reset */}
               <div className="flex items-center gap-2 flex-1 max-w-sm">
@@ -1515,12 +1957,50 @@ export default function DigitalCalendar() {
                   <span>Schedule Content Now</span>
                 </button>
               </div>
+            ) : filteredItems.length === 0 ? (
+              <div className="p-12 text-center bg-white rounded-3xl border border-slate-200 shadow-sm">
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 text-xl ${
+                  viewMode === 'completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-sky-50 text-sky-600'
+                }`}>
+                  {viewMode === 'completed' ? <FaCircleCheck /> : <FaCalendarDays />}
+                </div>
+                <h3 className="text-base font-semibold text-slate-900 m-0">
+                  {viewMode === 'completed' ? 'No Completed Tasks Yet' : 'No Active Tasks Scheduled'}
+                </h3>
+                <p className="text-xs text-slate-500 font-medium max-w-sm mx-auto mt-1 mb-4">
+                  {viewMode === 'completed'
+                    ? 'Tasks marked as completed by the marketing team will appear here.'
+                    : 'There are no active marketing schedules matching your filters.'}
+                </p>
+                {viewMode === 'completed' ? (
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('calendar')}
+                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md transition cursor-pointer"
+                  >
+                    <FaCalendarDays className="w-3 h-3" />
+                    <span>View Calendar Cards</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPrefilledDate(selectedDateFilter || new Date().toISOString().split('T')[0]);
+                      setShowAddModal(true);
+                    }}
+                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-md transition cursor-pointer"
+                  >
+                    <FaPlus className="w-3 h-3" />
+                    <span>Schedule Content Now</span>
+                  </button>
+                )}
+              </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4 items-start">
-                {/* Marketing Content Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4 items-stretch">
+                {/* Marketing Content Cards (Standardized uniform card sizes across completed & remaining tasks) */}
                 {filteredItems.map(item => {
-                  const allContents = (item.contents && item.contents.length > 0)
-                    ? item.contents
+                  const rawContents = (item.contents && item.contents.length > 0)
+                    ? item.contents.map((c, i) => ({ ...c, _originalIdx: i }))
                     : [{
                         _id: item._id,
                         content_title: item.content_title,
@@ -1540,13 +2020,23 @@ export default function DigitalCalendar() {
                         linkedin_status: item.linkedin_status,
                         linkedin_time: item.linkedin_time,
                         x_status: item.x_status,
-                        x_time: item.x_time
+                        x_time: item.x_time,
+                        _originalIdx: 0
                       }];
+
+                  const allContents = rawContents.filter(sub => {
+                    if (viewMode === 'calendar') return sub.overall_status !== 'Posted';
+                    if (viewMode === 'completed') return sub.overall_status === 'Posted';
+                    return true;
+                  });
+
+                  if (allContents.length === 0) return null;
 
                   const activeSubIdx = cardSubIndexMap[item._id] !== undefined
                     ? Math.min(cardSubIndexMap[item._id], allContents.length - 1)
                     : 0;
                   const currentItem = allContents[activeSubIdx] || allContents[0];
+                  const targetOriginalIdx = currentItem?._originalIdx ?? 0;
 
                   const typeStyle = getTypeStyle(currentItem.content_type);
                   const statusStyle = getStatusStyle(currentItem.overall_status);
@@ -1612,271 +2102,286 @@ export default function DigitalCalendar() {
                     year: 'numeric'
                   });
 
+                  const isCurrentItemPosted = currentItem.overall_status === 'Posted';
+
                   return (
                     <div
                       key={item._id}
-                      onClick={() => handleEditClick(item, activeSubIdx)}
-                      className="content-card-elevated bg-white rounded-3xl p-4 sm:p-4.5 border border-slate-200 shadow-sm flex flex-col relative cursor-pointer group transition-all"
+                      onClick={() => (isCurrentItemPosted ? handlePreviewClick(item, targetOriginalIdx) : handleEditClick(item, targetOriginalIdx))}
+                      className="content-card-elevated bg-white rounded-3xl p-4 sm:p-4.5 border border-slate-200 shadow-sm flex flex-col justify-between relative cursor-pointer group transition-all h-full min-h-[490px]"
                       style={{
                         boxShadow: '0 8px 24px -4px rgba(15, 23, 42, 0.05)'
                       }}
                     >
-                      {/* 1. Header: Date Pill + Content Type Badge + Action Controls */}
-                      <div className="flex items-center justify-between gap-1.5 mb-2.5">
-                        <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                          {/* Content Type Badge */}
-                          <span
-                            className={`px-2.5 py-0.5 rounded-lg text-[11px] font-semibold tracking-wide border shrink-0 ${typeStyle.bg} ${typeStyle.text} ${typeStyle.border}`}
-                          >
-                            {currentItem.content_type}
-                          </span>
-
-                          {/* Date Pill */}
-                          <span className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-medium text-slate-600 bg-slate-100/90 border border-slate-200/80 shrink-0">
-                            <FaCalendarDays className="w-2.5 h-2.5 text-sky-600 shrink-0" />
-                            <span>{formattedItemDate}</span>
-                            <span className="text-slate-400 font-normal">•</span>
-                            <span className="text-slate-500">{item.day || new Date(item.content_date).toLocaleDateString('en-US', { weekday: 'short' })}</span>
-                          </span>
-                        </div>
-
-                        {/* Top Right Action Icons */}
-                        <div className="flex items-center gap-0.5 shrink-0 ml-1" onClick={e => e.stopPropagation()}>
-                          {/* Quick Add Content to this Day */}
-                          <button
-                            type="button"
-                            onClick={() => handleEditClick(item, allContents.length)}
-                            title="Add another content to this day"
-                            className="p-1.5 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition cursor-pointer"
-                          >
-                            <FaPlus className="w-3 h-3" />
-                          </button>
-
-                          {/* Edit Button */}
-                          <button
-                            type="button"
-                            onClick={() => handleEditClick(item, activeSubIdx)}
-                            title="Edit content"
-                            className="p-1.5 text-slate-500 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition cursor-pointer"
-                          >
-                            <FaPenToSquare className="w-3.5 h-3.5" />
-                          </button>
-
-                          {/* Delete Button */}
-                          {canDeleteContent && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteClick(item)}
-                              title="Delete content"
-                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                      {/* Top Body Section */}
+                      <div>
+                        {/* 1. Header: Date Pill + Content Type Badge + Action Controls */}
+                        <div className="flex items-center justify-between gap-1.5 mb-2.5 min-h-[28px]">
+                          <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                            {/* Content Type Badge */}
+                            <span
+                              className={`px-2.5 py-0.5 rounded-lg text-[11px] font-semibold tracking-wide border shrink-0 ${typeStyle.bg} ${typeStyle.text} ${typeStyle.border}`}
                             >
-                              <FaTrashCan className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
+                              {currentItem.content_type}
+                            </span>
 
-                      {/* 2. Multi-Content Switcher (if > 1 content) */}
-                      {allContents.length > 1 && (
-                        <div
-                          className="flex items-center gap-1.5 p-1 bg-slate-100/90 rounded-2xl border border-slate-200/80 mb-2.5 overflow-x-auto no-scrollbar shadow-3xs"
-                          onClick={e => e.stopPropagation()}
-                        >
-                          <span className="text-[10px] font-semibold uppercase text-slate-500 pl-1.5 shrink-0 flex items-center gap-1">
-                            <FaLayerGroup className="w-2.5 h-2.5 text-sky-600" />
-                            <span>Contents:</span>
-                          </span>
-                          <div className="flex items-center gap-1 min-w-0 flex-1">
-                            {allContents.map((sub, sIdx) => {
-                              const isSel = activeSubIdx === sIdx;
-                              return (
-                                <button
-                                  key={sIdx}
-                                  type="button"
-                                  onClick={() => setCardSubIndexMap(prev => ({ ...prev, [item._id]: sIdx }))}
-                                  className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-semibold transition cursor-pointer shrink-0 ${
-                                    isSel
-                                      ? 'bg-sky-600 text-white shadow-xs'
-                                      : 'bg-white hover:bg-slate-200/70 text-slate-700 border border-slate-200/60'
-                                  }`}
-                                >
-                                  <span>#{sIdx + 1}</span>
-                                  <span className="truncate max-w-[65px]">{sub.content_type}</span>
-                                </button>
-                              );
-                            })}
+                            {/* Date Pill */}
+                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-medium text-slate-600 bg-slate-100/90 border border-slate-200/80 shrink-0">
+                              <FaCalendarDays className="w-2.5 h-2.5 text-sky-600 shrink-0" />
+                              <span>{formattedItemDate}</span>
+                              <span className="text-slate-400 font-normal">•</span>
+                              <span className="text-slate-500">{item.day || new Date(item.content_date).toLocaleDateString('en-US', { weekday: 'short' })}</span>
+                            </span>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => handleEditClick(item, allContents.length)}
-                            title="Add another content to this day"
-                            className="p-1 text-sky-600 hover:text-sky-800 hover:bg-white rounded-lg transition cursor-pointer shrink-0"
-                          >
-                            <FaPlus className="w-2.5 h-2.5" />
-                          </button>
-                        </div>
-                      )}
 
-                      {/* 3. Content Title */}
-                      <h4
-                        title={currentItem.content_title}
-                        className="text-sm sm:text-base font-semibold text-slate-900 group-hover:text-sky-600 transition-colors leading-snug line-clamp-2 mt-0.5 mb-2"
-                      >
-                        {currentItem.content_title || 'Untitled Content'}
-                      </h4>
-
-                      {/* 4. Overall Status & Approval Badges */}
-                      <div className="flex items-center flex-wrap gap-1.5 mb-2.5">
-                        {/* Overall Status Badge */}
-                        <span
-                          className="px-2 py-0.5 rounded-lg text-[11px] font-medium flex items-center gap-1.5 shadow-2xs shrink-0"
-                          style={{
-                            background: statusStyle.bg,
-                            color: statusStyle.text,
-                            border: `1px solid ${statusStyle.border}`
-                          }}
-                        >
-                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: statusStyle.dot }} />
-                          <span>{currentItem.overall_status}</span>
-                        </span>
-
-                        {/* Approval Status */}
-                        <span
-                          className="px-2 py-0.5 rounded-lg text-[10px] font-semibold flex items-center gap-1 shadow-2xs shrink-0"
-                          style={{
-                            background: approvalStyle.bg,
-                            color: approvalStyle.text,
-                            border: `1px solid ${approvalStyle.border}`
-                          }}
-                        >
-                          <span>{approvalStyle.icon}</span>
-                          <span>{approvalStyle.label}</span>
-                        </span>
-                      </div>
-
-                      {/* 4b. Direct Action Buttons for Admin (Approve) & Marketing Team (Completed) */}
-                      {((canApproveContent && currentItem.approval_status !== 'Approved') ||
-                        (canCompleteContent && currentItem.approval_status === 'Approved' && currentItem.overall_status !== 'Posted') ||
-                        (currentItem.overall_status === 'Posted')) && (
-                        <div className="flex items-center gap-1.5 mb-2.5" onClick={e => e.stopPropagation()}>
-                          {/* Direct Approve Button: ONLY for Admin */}
-                          {canApproveContent && currentItem.approval_status !== 'Approved' && (
+                          {/* Top Right Action Icons */}
+                          <div className="flex items-center gap-0.5 shrink-0 ml-1" onClick={e => e.stopPropagation()}>
+                            {/* Quick Add Content to this Day */}
                             <button
                               type="button"
-                              disabled={actionLoadingKey === `${item._id}-${activeSubIdx}-approve`}
-                              onClick={(e) => handleDirectApprove(item, activeSubIdx, e)}
-                              title="Directly approve content in admin panel"
-                              className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 shadow-2xs hover:shadow-xs transition active:scale-95 cursor-pointer"
+                              onClick={() => handleEditClick(item, (item.contents?.length || 1))}
+                              title="Add another content to this day"
+                              className="p-1.5 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition cursor-pointer"
                             >
-                              {actionLoadingKey === `${item._id}-${activeSubIdx}-approve` ? (
+                              <FaPlus className="w-3 h-3" />
+                            </button>
+
+                            {/* Edit or Preview Button */}
+                            {isCurrentItemPosted ? (
+                              <button
+                                type="button"
+                                onClick={() => handlePreviewClick(item, targetOriginalIdx)}
+                                title="Preview content details (Completed & Posted)"
+                                className="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition cursor-pointer"
+                              >
+                                <FaEye className="w-3.5 h-3.5 text-emerald-600" />
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleEditClick(item, targetOriginalIdx)}
+                                title="Edit content"
+                                className="p-1.5 text-slate-500 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition cursor-pointer"
+                              >
+                                <FaPenToSquare className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+
+                            {/* Delete Button */}
+                            {canDeleteContent && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteClick(item)}
+                                title="Delete content"
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                              >
+                                <FaTrashCan className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* 2. Multi-Content Switcher (if > 1 content in current view) */}
+                        {allContents.length > 1 && (
+                          <div
+                            className="flex items-center gap-1.5 p-1 bg-slate-100/90 rounded-2xl border border-slate-200/80 mb-2.5 overflow-x-auto no-scrollbar shadow-3xs"
+                            onClick={e => e.stopPropagation()}
+                          >
+                            <span className="text-[10px] font-semibold uppercase text-slate-500 pl-1.5 shrink-0 flex items-center gap-1">
+                              <FaLayerGroup className="w-2.5 h-2.5 text-sky-600" />
+                              <span>Contents:</span>
+                            </span>
+                            <div className="flex items-center gap-1 min-w-0 flex-1">
+                              {allContents.map((sub, sIdx) => {
+                                const isSel = activeSubIdx === sIdx;
+                                return (
+                                  <button
+                                    key={sIdx}
+                                    type="button"
+                                    onClick={() => setCardSubIndexMap(prev => ({ ...prev, [item._id]: sIdx }))}
+                                    className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-semibold transition cursor-pointer shrink-0 ${
+                                      isSel
+                                        ? 'bg-sky-600 text-white shadow-xs'
+                                        : 'bg-white hover:bg-slate-200/70 text-slate-700 border border-slate-200/60'
+                                    }`}
+                                  >
+                                    <span>#{sIdx + 1}</span>
+                                    <span className="truncate max-w-[65px]">{sub.content_type}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleEditClick(item, (item.contents?.length || 1))}
+                              title="Add another content to this day"
+                              className="p-1 text-sky-600 hover:text-sky-800 hover:bg-white rounded-lg transition cursor-pointer shrink-0"
+                            >
+                              <FaPlus className="w-2.5 h-2.5" />
+                            </button>
+                          </div>
+                        )}
+
+                        {/* 3. Content Title (Guaranteed min-h-[40px] for consistent alignment) */}
+                        <h4
+                          title={currentItem.content_title}
+                          className="text-sm sm:text-base font-semibold text-slate-900 group-hover:text-sky-600 transition-colors leading-snug line-clamp-2 mt-0.5 mb-2 min-h-[40px] flex items-center"
+                        >
+                          {currentItem.content_title || 'Untitled Content'}
+                        </h4>
+
+                        {/* 4. Overall Status & Approval Badges (Guaranteed min-h-[26px]) */}
+                        <div className="flex items-center flex-wrap gap-1.5 mb-2 min-h-[26px]">
+                          {/* Overall Status Badge */}
+                          <span
+                            className="px-2 py-0.5 rounded-lg text-[11px] font-medium flex items-center gap-1.5 shadow-2xs shrink-0"
+                            style={{
+                              background: statusStyle.bg,
+                              color: statusStyle.text,
+                              border: `1px solid ${statusStyle.border}`
+                            }}
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full" style={{ background: statusStyle.dot }} />
+                            <span>{currentItem.overall_status}</span>
+                          </span>
+
+                          {/* Approval Status */}
+                          <span
+                            className="px-2 py-0.5 rounded-lg text-[10px] font-semibold flex items-center gap-1 shadow-2xs shrink-0"
+                            style={{
+                              background: approvalStyle.bg,
+                              color: approvalStyle.text,
+                              border: `1px solid ${approvalStyle.border}`
+                            }}
+                          >
+                            <span>{approvalStyle.icon}</span>
+                            <span>{approvalStyle.label}</span>
+                          </span>
+                        </div>
+
+                        {/* 4b. Standardized Action / Completion Status Slot (Guaranteed uniform h-[34px] across all cards) */}
+                        <div className="w-full h-[34px] flex items-center mb-2.5" onClick={e => e.stopPropagation()}>
+                          {isCurrentItemPosted ? (
+                            <div className="w-full h-full flex items-center justify-center gap-1.5 px-3 rounded-xl text-xs font-semibold text-emerald-700 bg-emerald-50/90 border border-emerald-300 shadow-2xs">
+                              <FaCircleCheck className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Completed & Posted</span>
+                            </div>
+                          ) : canApproveContent && currentItem.approval_status !== 'Approved' ? (
+                            <button
+                              type="button"
+                              disabled={actionLoadingKey === `${item._id}-${targetOriginalIdx}-approve`}
+                              onClick={(e) => handleDirectApprove(item, targetOriginalIdx, e)}
+                              title="Directly approve content in admin panel"
+                              className="w-full h-full flex items-center justify-center gap-1.5 px-3 rounded-xl text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 shadow-2xs hover:shadow-xs transition active:scale-95 cursor-pointer"
+                            >
+                              {actionLoadingKey === `${item._id}-${targetOriginalIdx}-approve` ? (
                                 <FaRotate className="w-3 h-3 text-emerald-600 animate-spin" />
                               ) : (
                                 <FaCheck className="w-3 h-3 text-emerald-600" />
                               )}
-                              <span>Approve</span>
+                              <span>Approve Content</span>
                             </button>
-                          )}
-
-                          {/* Direct Completed Button: ONLY for Marketing Team when content is APPROVED */}
-                          {canCompleteContent && currentItem.approval_status === 'Approved' && currentItem.overall_status !== 'Posted' && (
+                          ) : canCompleteContent && currentItem.approval_status === 'Approved' ? (
                             <button
                               type="button"
-                              disabled={actionLoadingKey === `${item._id}-${activeSubIdx}-complete`}
-                              onClick={(e) => handleDirectComplete(item, activeSubIdx, e)}
+                              disabled={actionLoadingKey === `${item._id}-${targetOriginalIdx}-complete`}
+                              onClick={(e) => handleDirectComplete(item, targetOriginalIdx, e)}
                               title="Click to mark completed (turns content and social platforms into Posted)"
-                              className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-semibold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-300 shadow-2xs hover:shadow-xs transition active:scale-95 cursor-pointer"
+                              className="w-full h-full flex items-center justify-center gap-1.5 px-3 rounded-xl text-xs font-semibold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-300 shadow-2xs hover:shadow-xs transition active:scale-95 cursor-pointer"
                             >
-                              {actionLoadingKey === `${item._id}-${activeSubIdx}-complete` ? (
+                              {actionLoadingKey === `${item._id}-${targetOriginalIdx}-complete` ? (
                                 <FaRotate className="w-3 h-3 text-sky-600 animate-spin" />
                               ) : (
                                 <FaCircleCheck className="w-3 h-3 text-sky-600" />
                               )}
-                              <span>Completed</span>
+                              <span>Mark Completed</span>
                             </button>
-                          )}
-
-                          {/* When item is Posted, show clear completion indicator */}
-                          {currentItem.overall_status === 'Posted' && (
-                            <div className="w-full flex items-center justify-center gap-1.5 py-1 px-2 rounded-xl text-[11px] font-semibold text-emerald-700 bg-emerald-50/70 border border-emerald-200 shadow-3xs">
-                              <FaCircleCheck className="w-3 h-3 text-emerald-600" />
-                              <span>Completed & Posted</span>
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center gap-1.5 px-3 rounded-xl text-xs font-medium text-slate-500 bg-slate-50 border border-slate-200/80">
+                              <FaClock className="w-3 h-3 text-slate-400" />
+                              <span>{currentItem.approval_status === 'Pending' ? 'Waiting for Approval' : currentItem.overall_status || 'In Progress'}</span>
                             </div>
                           )}
                         </div>
-                      )}
 
-                      {/* 5. Notes / Description (Renders only if present) */}
-                      <AutoScrollNotes text={currentItem.notes} />
+                        {/* 5. Notes / Description (Uniform h-[36px] on every card) */}
+                        <AutoScrollNotes text={currentItem.notes} />
 
-                      {/* 6. Platform Breakdown & Posting Times */}
-                      <div className="space-y-1.5 mb-3">
-                        <span className="text-[10px] font-semibold uppercase text-slate-400 tracking-wider block">
-                          Social Media Platforms & Times
-                        </span>
-                        <div className="grid grid-cols-2 gap-1.5">
-                          {platformList.map((pf, pIdx) => {
-                            const PfIcon = pf.icon;
-                            const isOff = pf.status === 'Not Required' || !pf.status;
-                            const pfSt = getStatusStyle(pf.status);
-                            const isLastOdd = pIdx === 4; // 5th item (X / Twitter) spans 2 columns to fill row
+                        {/* 6. Platform Breakdown & Posting Times (Standardized h-[48px] per platform cell) */}
+                        <div className="space-y-1.5 mb-3">
+                          <span className="text-[10px] font-semibold uppercase text-slate-400 tracking-wider block">
+                            Social Media Platforms & Times
+                          </span>
+                          <div className="grid grid-cols-2 gap-1.5">
+                            {platformList.map((pf, pIdx) => {
+                              const PfIcon = pf.icon;
+                              const isOff = pf.status === 'Not Required' || !pf.status;
+                              const pfSt = getStatusStyle(pf.status);
+                              const isLastOdd = pIdx === 4; // 5th item (X / Twitter) spans 2 columns to fill row
+                              const pfDisplayTime = pf.time || (pf.status === 'Posted' && (currentItem?.updatedAt || item?.updatedAt) ? formatTime12h(currentItem?.updatedAt || item?.updatedAt) : '');
 
-                            return (
-                              <div
-                                key={pIdx}
-                                className={`p-1.5 rounded-xl border flex flex-col justify-between gap-1 transition-all shadow-3xs min-h-[46px] ${
-                                  isLastOdd ? 'col-span-2' : ''
-                                } ${
-                                  isOff
-                                    ? 'bg-slate-50/60 border-slate-200/60 opacity-60'
-                                    : `${pf.badgeBg} ${pf.border}`
-                                }`}
-                              >
-                                {/* Top: Icon + Full Name */}
-                                <div className="flex items-center gap-1.5 w-full min-w-0">
-                                  <div
-                                    className={`w-4 h-4 rounded-md flex items-center justify-center shrink-0 ${
-                                      isOff ? 'bg-slate-100 text-slate-400' : `${pf.iconBg} ${pf.color}`
-                                    }`}
-                                  >
-                                    <PfIcon className="w-2.5 h-2.5" />
-                                  </div>
-                                  <span
-                                    title={pf.name}
-                                    className={`text-[11px] font-medium leading-tight truncate ${
-                                      isOff ? 'text-slate-400' : 'text-slate-800'
-                                    }`}
-                                  >
-                                    {pf.name}
-                                  </span>
-                                </div>
-
-                                {/* Bottom: Status Tag + Time */}
-                                <div className="flex items-center justify-between gap-1 w-full pt-0.5 border-t border-slate-100/70 min-w-0">
-                                  <span
-                                    className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md inline-block shadow-3xs truncate max-w-[80px]"
-                                    style={{
-                                      background: isOff ? '#f1f5f9' : pfSt.bg,
-                                      color: isOff ? '#94a3b8' : pfSt.text,
-                                      border: `1px solid ${isOff ? '#e2e8f0' : pfSt.border}`
-                                    }}
-                                  >
-                                    {isOff ? 'Not Req' : pf.status}
-                                  </span>
-                                  {pf.time && !isOff && (
-                                    <span className="text-[8.5px] text-slate-500 font-medium shrink-0 ml-1 flex items-center gap-0.5">
-                                      <FaClock className="w-2 h-2 text-slate-400" />
-                                      {formatTime12h(pf.time)}
+                              return (
+                                <div
+                                  key={pIdx}
+                                  className={`h-[48px] p-1.5 rounded-xl border flex flex-col justify-between gap-0.5 transition-all shadow-3xs ${
+                                    isLastOdd ? 'col-span-2' : ''
+                                  } ${
+                                    isOff
+                                      ? 'bg-slate-50/60 border-slate-200/60 opacity-60'
+                                      : `${pf.badgeBg} ${pf.border}`
+                                  }`}
+                                >
+                                  {/* Top: Icon + Full Name */}
+                                  <div className="flex items-center gap-1.5 w-full min-w-0">
+                                    <div
+                                      className={`w-4 h-4 rounded-md flex items-center justify-center shrink-0 ${
+                                        isOff ? 'bg-slate-100 text-slate-400' : `${pf.iconBg} ${pf.color}`
+                                      }`}
+                                    >
+                                      <PfIcon className="w-2.5 h-2.5" />
+                                    </div>
+                                    <span
+                                      title={pf.name}
+                                      className={`text-[11px] font-medium leading-tight truncate ${
+                                        isOff ? 'text-slate-400' : 'text-slate-800'
+                                      }`}
+                                    >
+                                      {pf.name}
                                     </span>
-                                  )}
+                                  </div>
+
+                                  {/* Bottom: Status Tag + Time (Guaranteed h-[18px]) */}
+                                  <div className="h-[18px] flex items-center justify-between gap-1 w-full pt-0.5 border-t border-slate-100/70 min-w-0">
+                                    <span
+                                      className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md inline-block shadow-3xs truncate max-w-[80px]"
+                                      style={{
+                                        background: isOff ? '#f1f5f9' : pfSt.bg,
+                                        color: isOff ? '#94a3b8' : pfSt.text,
+                                        border: `1px solid ${isOff ? '#e2e8f0' : pfSt.border}`
+                                      }}
+                                    >
+                                      {isOff ? 'Not Req' : pf.status}
+                                    </span>
+                                    {pfDisplayTime && !isOff ? (
+                                      <span className="text-[8.5px] text-slate-500 font-medium shrink-0 ml-1 flex items-center gap-0.5">
+                                        <FaClock className="w-2 h-2 text-slate-400" />
+                                        {formatTime12h(pfDisplayTime)}
+                                      </span>
+                                    ) : (
+                                      <span className="text-[8.5px] text-slate-300 font-medium shrink-0 select-none">
+                                        --:--
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
 
-                      {/* 7. Card Footer: Responsible Person + Drive Link */}
-                      <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2 mt-auto">
+                      {/* 7. Card Footer: Responsible Person + Drive Link (Pinned at bottom with uniform h-[44px]) */}
+                      <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2 mt-auto h-[44px]">
                         {/* Responsible Member */}
                         <div className="flex items-center gap-2 min-w-0 flex-1">
                           {currentItem.responsible_employee?.avatar ? (
@@ -1989,7 +2494,7 @@ export default function DigitalCalendar() {
                   return (
                     <tr
                       key={rowKey}
-                      onClick={() => handleEditClick(parentItem, sIdx)}
+                      onClick={() => (sub.overall_status === 'Posted' ? handlePreviewClick(parentItem, sIdx) : handleEditClick(parentItem, sIdx))}
                       className="hover:bg-sky-50/40 transition cursor-pointer"
                     >
                       {/* Title */}
@@ -2030,8 +2535,10 @@ export default function DigitalCalendar() {
                         {sub.instagram_status && sub.instagram_status !== 'Not Required' ? (
                           <div>
                             <span className="font-medium text-pink-600">{sub.instagram_status}</span>
-                            {sub.instagram_time && (
-                              <div className="text-[10px] text-slate-400 font-medium">{formatTime12h(sub.instagram_time)}</div>
+                            {(sub.instagram_time || (sub.instagram_status === 'Posted' && item.updatedAt)) && (
+                              <div className="text-[10px] text-slate-400 font-medium">
+                                {formatTime12h(sub.instagram_time || item.updatedAt)}
+                              </div>
                             )}
                           </div>
                         ) : (
@@ -2044,8 +2551,10 @@ export default function DigitalCalendar() {
                         {sub.facebook_status && sub.facebook_status !== 'Not Required' ? (
                           <div>
                             <span className="font-medium text-blue-700">{sub.facebook_status}</span>
-                            {sub.facebook_time && (
-                              <div className="text-[10px] text-slate-400 font-medium">{formatTime12h(sub.facebook_time)}</div>
+                            {(sub.facebook_time || (sub.facebook_status === 'Posted' && item.updatedAt)) && (
+                              <div className="text-[10px] text-slate-400 font-medium">
+                                {formatTime12h(sub.facebook_time || item.updatedAt)}
+                              </div>
                             )}
                           </div>
                         ) : (
@@ -2058,8 +2567,10 @@ export default function DigitalCalendar() {
                         {sub.youtube_status && sub.youtube_status !== 'Not Required' ? (
                           <div>
                             <span className="font-medium text-red-600">{sub.youtube_status}</span>
-                            {sub.youtube_time && (
-                              <div className="text-[10px] text-slate-400 font-medium">{formatTime12h(sub.youtube_time)}</div>
+                            {(sub.youtube_time || (sub.youtube_status === 'Posted' && item.updatedAt)) && (
+                              <div className="text-[10px] text-slate-400 font-medium">
+                                {formatTime12h(sub.youtube_time || item.updatedAt)}
+                              </div>
                             )}
                           </div>
                         ) : (
@@ -2072,8 +2583,10 @@ export default function DigitalCalendar() {
                         {sub.linkedin_status && sub.linkedin_status !== 'Not Required' ? (
                           <div>
                             <span className="font-medium text-blue-600">{sub.linkedin_status}</span>
-                            {sub.linkedin_time && (
-                              <div className="text-[10px] text-slate-400 font-medium">{formatTime12h(sub.linkedin_time)}</div>
+                            {(sub.linkedin_time || (sub.linkedin_status === 'Posted' && item.updatedAt)) && (
+                              <div className="text-[10px] text-slate-400 font-medium">
+                                {formatTime12h(sub.linkedin_time || item.updatedAt)}
+                              </div>
                             )}
                           </div>
                         ) : (
@@ -2086,8 +2599,10 @@ export default function DigitalCalendar() {
                         {sub.x_status && sub.x_status !== 'Not Required' ? (
                           <div>
                             <span className="font-medium text-slate-900">{sub.x_status}</span>
-                            {sub.x_time && (
-                              <div className="text-[10px] text-slate-400 font-medium">{formatTime12h(sub.x_time)}</div>
+                            {(sub.x_time || (sub.x_status === 'Posted' && item.updatedAt)) && (
+                              <div className="text-[10px] text-slate-400 font-medium">
+                                {formatTime12h(sub.x_time || item.updatedAt)}
+                              </div>
                             )}
                           </div>
                         ) : (
@@ -2169,13 +2684,25 @@ export default function DigitalCalendar() {
                       {/* Actions */}
                       <td className="py-3.5 px-4 text-right whitespace-nowrap" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => handleEditClick(parentItem, sIdx)}
-                            title="Edit this item"
-                            className="p-1.5 text-slate-500 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition cursor-pointer"
-                          >
-                            <FaPenToSquare className="w-3.5 h-3.5" />
-                          </button>
+                          {sub.overall_status === 'Posted' ? (
+                            <button
+                              type="button"
+                              onClick={() => handlePreviewClick(parentItem, sIdx)}
+                              title="Preview content details (Completed & Posted)"
+                              className="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition cursor-pointer"
+                            >
+                              <FaEye className="w-3.5 h-3.5 text-emerald-600" />
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleEditClick(parentItem, sIdx)}
+                              title="Edit this item"
+                              className="p-1.5 text-slate-500 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition cursor-pointer"
+                            >
+                              <FaPenToSquare className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                           {canDeleteContent && (
                             <button
                               onClick={() => handleDeleteClick(parentItem)}
@@ -2277,6 +2804,33 @@ export default function DigitalCalendar() {
           </div>
         </div>
       )}
+
+      {/* ── 7. Update Social Media Posting Time Modal (When marking Completed) ──── */}
+      {timeUpdateModal && (
+        <UpdateTimeModal
+          modalData={timeUpdateModal}
+          isLoading={actionLoadingKey === `${timeUpdateModal.item?._id}-${timeUpdateModal.subIdx}-complete`}
+          onClose={() => setTimeUpdateModal(null)}
+          onOpenFullEdit={() => {
+            const it = timeUpdateModal.item;
+            const idx = timeUpdateModal.subIdx;
+            setTimeUpdateModal(null);
+            handleEditClick(it, idx);
+          }}
+          onConfirm={(updatedTimes) => {
+            executeComplete(timeUpdateModal.item, timeUpdateModal.subIdx, updatedTimes);
+          }}
+        />
+      )}
+
+      {/* ── 8. Content Preview Modal (Read-Only when Completed & Posted) ──────── */}
+      {previewItem && (
+        <ContentPreviewModal
+          item={previewItem}
+          initialActiveIndex={previewItem.initialActiveIndex || 0}
+          onClose={() => setPreviewItem(null)}
+        />
+      )}
     </div>
   );
 }
@@ -2336,6 +2890,794 @@ function PlatformTimeInput({
           {formatTime12h(value)}
         </span>
       )}
+    </div>
+  );
+}
+
+// ── Update Social Media Posting Time Modal (When marketing team clicks Completed) ──
+function UpdateTimeModal({ modalData, isLoading, onClose, onOpenFullEdit, onConfirm }) {
+  const { item, targetContent, activePlatforms = [] } = modalData;
+
+  const getCurrentTimeFormatted = () => {
+    const now = new Date();
+    let hours = now.getHours();
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    if (hours === 0) hours = 12;
+    return `${String(hours).padStart(2, '0')}:${minutes} ${ampm}`;
+  };
+
+  const [times, setTimes] = useState(() => {
+    const defaultTime = getCurrentTimeFormatted();
+    return {
+      instagram_time: targetContent?.instagram_time || defaultTime,
+      facebook_time: targetContent?.facebook_time || defaultTime,
+      youtube_time: targetContent?.youtube_time || defaultTime,
+      linkedin_time: targetContent?.linkedin_time || defaultTime,
+      x_time: targetContent?.x_time || defaultTime
+    };
+  });
+
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+
+  // Identify which active platforms are still missing time
+  const missingPlatforms = activePlatforms.filter(pf => {
+    const t = times[`${pf.id}_time`];
+    return !t || !String(t).trim();
+  });
+
+  const allFilled = missingPlatforms.length === 0;
+
+  const handleTimeChange = (platformId, val) => {
+    setTimes(prev => ({
+      ...prev,
+      [`${platformId}_time`]: val
+    }));
+  };
+
+  const handleApplyToAllActive = (val) => {
+    if (!val) return;
+    const formatted = formatTime12h(val);
+    setTimes(prev => {
+      const next = { ...prev };
+      activePlatforms.forEach(pf => {
+        next[`${pf.id}_time`] = formatted;
+      });
+      return next;
+    });
+  };
+
+  const handleApplyCurrentTime = () => {
+    const now = new Date();
+    const hours = now.getHours();
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const h12 = hours % 12 === 0 ? 12 : hours % 12;
+    const str = `${String(h12).padStart(2, '0')}:${minutes} ${ampm}`;
+    handleApplyToAllActive(str);
+  };
+
+  const handleSubmit = (e) => {
+    if (e) e.preventDefault();
+    setHasAttemptedSubmit(true);
+    if (!allFilled) return;
+    onConfirm(times);
+  };
+
+  const formattedItemDate = item?.content_date
+    ? new Date(item.content_date).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      })
+    : '';
+
+  const itemDay = item?.day || (item?.content_date ? new Date(item.content_date).toLocaleDateString('en-US', { weekday: 'short' }) : '');
+
+  const empName =
+    targetContent?.responsible_employee?.actualName ||
+    targetContent?.responsible_employee?.name ||
+    targetContent?.responsible_employee_name ||
+    'Unassigned';
+
+  const empAvatar = targetContent?.responsible_employee?.avatar;
+  const empInitial = (empName.charAt(0) || 'M').toUpperCase();
+
+  const typeStyle = getTypeStyle(targetContent?.content_type);
+
+  // Platforms marked as Not Required (for clarity)
+  const allPlatforms = [
+    { id: 'instagram', label: 'Instagram' },
+    { id: 'facebook', label: 'Facebook' },
+    { id: 'youtube', label: 'YouTube' },
+    { id: 'linkedin', label: 'LinkedIn' },
+    { id: 'x', label: 'X / Twitter' }
+  ];
+  const notRequiredPlatforms = allPlatforms.filter(
+    p => !activePlatforms.some(ap => ap.id === p.id)
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
+      <div
+        className="bg-white rounded-3xl w-full max-w-lg shadow-2xl border border-slate-200 my-6 overflow-hidden relative"
+        style={{
+          boxShadow: '0 24px 48px -12px rgba(15, 23, 42, 0.25)'
+        }}
+      >
+        {/* 1. Modal Header */}
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-sky-50/80 via-white to-amber-50/80">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-sky-100 text-sky-600 flex items-center justify-center shadow-xs shrink-0">
+              <FaClock className="w-5 h-5 text-sky-600" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900 m-0 leading-tight">
+                Update Social Media Posting Times
+              </h3>
+              <p className="text-[11px] text-slate-500 font-medium m-0 mt-0.5">
+                Time is required near social media status to complete this content
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer shrink-0"
+          >
+            <FaXmark className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* 2. Modal Body */}
+        <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
+          {/* Content Summary Card */}
+          <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <span
+                className={`px-2 py-0.5 rounded-lg text-[10.5px] font-semibold tracking-wide border shrink-0 ${typeStyle.bg} ${typeStyle.text} ${typeStyle.border}`}
+              >
+                {targetContent?.content_type}
+              </span>
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-medium text-slate-600 bg-white border border-slate-200/80">
+                <FaCalendarDays className="w-2.5 h-2.5 text-sky-600" />
+                <span>{formattedItemDate}</span>
+                {itemDay && (
+                  <>
+                    <span className="text-slate-400 font-normal">•</span>
+                    <span className="text-slate-500">{itemDay}</span>
+                  </>
+                )}
+              </span>
+            </div>
+            <h4 className="text-sm font-semibold text-slate-900 line-clamp-2 m-0">
+              {targetContent?.content_title || 'Untitled Content'}
+            </h4>
+            <div className="flex items-center gap-2 pt-1 border-t border-slate-200/60 text-xs text-slate-600">
+              {empAvatar ? (
+                <img
+                  src={empAvatar}
+                  alt={empName}
+                  className="w-5 h-5 rounded-full object-cover border border-slate-200 shrink-0"
+                />
+              ) : (
+                <div
+                  className="w-5 h-5 rounded-full text-white font-semibold text-[10px] flex items-center justify-center shrink-0"
+                  style={{ background: 'linear-gradient(135deg, #0284c7 0%, #f97316 100%)' }}
+                >
+                  {empInitial}
+                </div>
+              )}
+              <span className="truncate font-medium">{empName}</span>
+            </div>
+          </div>
+
+          {/* Alert / Prompt Notification */}
+          <div className="p-3 bg-amber-50/90 rounded-2xl border border-amber-200/90 flex items-start gap-2.5">
+            <FaTriangleExclamation className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <div className="text-xs text-amber-900 leading-relaxed font-medium">
+              Posting time is missing near social media status for {missingPlatforms.length} active platform(s).
+              Please update the time below. Once all active times are kept, you can click on Complete.
+            </div>
+          </div>
+
+          {/* Quick Time Presets Bar */}
+          <div className="p-3 bg-sky-50/60 rounded-2xl border border-sky-100 space-y-2">
+            <div className="flex items-center justify-between gap-1 text-[11px] font-semibold text-sky-900">
+              <span className="flex items-center gap-1">
+                <FaClock className="w-3 h-3 text-sky-600" />
+                <span>Quick Time Presets:</span>
+              </span>
+              <button
+                type="button"
+                onClick={handleApplyCurrentTime}
+                className="text-[11px] font-semibold text-sky-700 hover:text-sky-900 hover:underline cursor-pointer flex items-center gap-1"
+              >
+                <span>⏰ Use Current Time</span>
+              </button>
+            </div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {['05:00 PM', '05:30 PM', '06:00 PM', '06:30 PM'].map(preset => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => handleApplyToAllActive(preset)}
+                  className="px-2.5 py-1 rounded-xl text-xs font-semibold bg-white hover:bg-sky-100/70 text-slate-700 border border-sky-200 shadow-3xs transition cursor-pointer"
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Active Platforms Time Fields */}
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between text-xs font-semibold text-slate-700 uppercase tracking-wider">
+              <span>Active Social Media Platforms ({activePlatforms.length})</span>
+              <span className="text-[11px] text-slate-400 lowercase font-normal">
+                {allFilled ? 'All times kept' : `${missingPlatforms.length} missing`}
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              {activePlatforms.map(pf => {
+                const PfIcon = pf.icon;
+                const currentTime = times[`${pf.id}_time`];
+                const isSet = Boolean(currentTime && currentTime.trim());
+                const currentStatus = targetContent[`${pf.id}_status`] || 'Planned';
+                const st = getStatusStyle(currentStatus);
+
+                return (
+                  <div
+                    key={pf.id}
+                    className={`p-3 rounded-2xl border transition-all flex items-center justify-between gap-3 shadow-3xs ${
+                      isSet
+                        ? 'bg-emerald-50/20 border-emerald-200'
+                        : 'bg-white border-amber-300 ring-2 ring-amber-100/70'
+                    }`}
+                  >
+                    {/* Platform Info */}
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <div
+                        className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${pf.iconBg} ${pf.color}`}
+                      >
+                        <PfIcon className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold text-slate-800 leading-tight">
+                          {pf.label}
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span
+                            className="text-[9.5px] font-semibold px-1.5 py-0.2 rounded-md inline-block shadow-3xs"
+                            style={{ background: st.bg, color: st.text, border: `1px solid ${st.border}` }}
+                          >
+                            {currentStatus}
+                          </span>
+                          {isSet ? (
+                            <span className="text-[10px] font-semibold text-emerald-600 flex items-center gap-0.5">
+                              <FaCircleCheck className="w-2.5 h-2.5" />
+                              <span>Time kept</span>
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-semibold text-amber-600 flex items-center gap-0.5 animate-pulse">
+                              <FaTriangleExclamation className="w-2.5 h-2.5" />
+                              <span>Time required</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Time Input with native picker & instant click */}
+                    <div className="w-36 shrink-0">
+                      <PlatformTimeInput
+                        value={currentTime}
+                        onChange={val => handleTimeChange(pf.id, val)}
+                        focusBorderClass={isSet ? 'focus:border-emerald-500' : 'focus:border-amber-500'}
+                        textColorClass={isSet ? 'text-emerald-700' : 'text-amber-700'}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Inactive / Not Required Note */}
+            {notRequiredPlatforms.length > 0 && (
+              <p className="text-[11px] text-slate-400 font-medium m-0 pt-1 flex items-center gap-1">
+                <FaCircleInfo className="w-3 h-3 text-slate-400 shrink-0" />
+                <span>
+                  {notRequiredPlatforms.map(p => p.label).join(', ')} marked as Not Required (no time needed).
+                </span>
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* 3. Modal Footer */}
+        <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-100 flex flex-col gap-2">
+          {(!allFilled || hasAttemptedSubmit) && !allFilled && (
+            <div className="text-[11px] font-semibold text-amber-700 text-center bg-amber-100/60 py-1.5 px-3 rounded-xl border border-amber-200">
+              ⚠️ Please update posting time for:{' '}
+              {missingPlatforms.map(p => p.label).join(', ')} to enable Complete.
+            </div>
+          )}
+
+          <div className="flex items-center justify-between gap-2.5">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isLoading}
+              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-200/70 border border-slate-200 transition cursor-pointer"
+            >
+              Cancel
+            </button>
+
+            <div className="flex items-center gap-2">
+              {onOpenFullEdit && (
+                <button
+                  type="button"
+                  onClick={onOpenFullEdit}
+                  disabled={isLoading}
+                  className="px-3 py-2 rounded-xl text-xs font-semibold text-sky-700 hover:bg-sky-100 border border-sky-200 transition cursor-pointer"
+                >
+                  Open Full Editor
+                </button>
+              )}
+
+              <button
+                type="button"
+                disabled={!allFilled || isLoading}
+                onClick={handleSubmit}
+                title={!allFilled ? 'Update time for all active platforms to complete' : 'Click to complete and mark as posted'}
+                className={`flex items-center gap-1.5 px-5 py-2 rounded-xl text-xs font-semibold transition active:scale-95 shadow-xs ${
+                  !allFilled || isLoading
+                    ? 'bg-slate-200 text-slate-400 border border-slate-300 cursor-not-allowed opacity-60'
+                    : 'bg-gradient-to-r from-emerald-600 to-sky-600 hover:from-emerald-500 hover:to-sky-500 text-white shadow-md hover:shadow-lg cursor-pointer'
+                }`}
+              >
+                {isLoading ? (
+                  <>
+                    <FaRotate className="w-3 h-3 animate-spin" />
+                    <span>Updating & Completing...</span>
+                  </>
+                ) : (
+                  <>
+                    <FaCircleCheck className="w-3.5 h-3.5" />
+                    <span>✓ Complete & Mark as Posted</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Content Preview Modal (Read-Only Preview for Completed & Posted Tasks) ───
+function ContentPreviewModal({ item, initialActiveIndex = 0, onClose }) {
+  const allContents = (item?.contents && item.contents.length > 0)
+    ? item.contents
+    : [item];
+
+  const [activeSubIdx, setActiveSubIdx] = useState(() =>
+    Math.min(initialActiveIndex || 0, allContents.length - 1)
+  );
+
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedNotes, setCopiedNotes] = useState(false);
+
+  const currentSub = allContents[activeSubIdx] || allContents[0];
+
+  const formattedDate = item?.content_date
+    ? new Date(item.content_date).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      })
+    : '';
+
+  const itemDay = item?.day || (item?.content_date ? new Date(item.content_date).toLocaleDateString('en-US', { weekday: 'short' }) : '');
+
+  const typeStyle = getTypeStyle(currentSub?.content_type);
+  const statusStyle = getStatusStyle(currentSub?.overall_status || 'Posted');
+  const approvalStyle = getApprovalBadge(currentSub?.approval_status || 'Approved');
+
+  const empName =
+    currentSub?.responsible_employee?.actualName ||
+    currentSub?.responsible_employee?.name ||
+    currentSub?.responsible_employee?.displayName ||
+    currentSub?.responsible_employee_name ||
+    'Unassigned';
+
+  const empAvatar = currentSub?.responsible_employee?.avatar;
+  const empEmail = currentSub?.responsible_employee?.email;
+  const empDesignation = currentSub?.responsible_employee?.designation || 'Marketing Team';
+  const empInitial = (empName.charAt(0) || 'M').toUpperCase();
+
+  const platformList = [
+    {
+      id: 'instagram',
+      name: 'Instagram',
+      icon: FaInstagram,
+      status: currentSub?.instagram_status || 'Not Required',
+      time: currentSub?.instagram_time,
+      color: 'text-pink-600',
+      badgeBg: 'bg-pink-50/70',
+      border: 'border-pink-200/80',
+      iconBg: 'bg-pink-100/60'
+    },
+    {
+      id: 'facebook',
+      name: 'Facebook',
+      icon: FaFacebook,
+      status: currentSub?.facebook_status || 'Not Required',
+      time: currentSub?.facebook_time,
+      color: 'text-blue-700',
+      badgeBg: 'bg-blue-50/70',
+      border: 'border-blue-200/80',
+      iconBg: 'bg-blue-100/60'
+    },
+    {
+      id: 'youtube',
+      name: 'YouTube',
+      icon: FaYoutube,
+      status: currentSub?.youtube_status || 'Not Required',
+      time: currentSub?.youtube_time,
+      color: 'text-red-600',
+      badgeBg: 'bg-red-50/70',
+      border: 'border-red-200/80',
+      iconBg: 'bg-red-100/60'
+    },
+    {
+      id: 'linkedin',
+      name: 'LinkedIn',
+      icon: FaLinkedinIn,
+      status: currentSub?.linkedin_status || 'Not Required',
+      time: currentSub?.linkedin_time,
+      color: 'text-blue-600',
+      badgeBg: 'bg-blue-50/70',
+      border: 'border-blue-200/80',
+      iconBg: 'bg-blue-100/60'
+    },
+    {
+      id: 'x',
+      name: 'X / Twitter',
+      icon: FaXTwitter,
+      status: currentSub?.x_status || 'Not Required',
+      time: currentSub?.x_time,
+      color: 'text-slate-900',
+      badgeBg: 'bg-slate-100/70',
+      border: 'border-slate-300/80',
+      iconBg: 'bg-slate-200/60'
+    }
+  ];
+
+  const handleCopyLink = () => {
+    if (currentSub?.live_folder_link) {
+      navigator.clipboard.writeText(currentSub.live_folder_link);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+    }
+  };
+
+  const handleCopyNotes = () => {
+    if (currentSub?.notes) {
+      navigator.clipboard.writeText(currentSub.notes);
+      setCopiedNotes(true);
+      setTimeout(() => setCopiedNotes(false), 2000);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
+      <div
+        className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl border border-slate-200 my-6 overflow-hidden relative flex flex-col"
+        style={{
+          boxShadow: '0 24px 48px -12px rgba(15, 23, 42, 0.25)'
+        }}
+      >
+        {/* 1. Modal Header */}
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-emerald-50/80 via-white to-sky-50/80">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center shadow-xs shrink-0">
+              <FaEye className="w-5 h-5 text-emerald-600" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-bold text-slate-900 m-0 leading-tight">
+                  Content Preview
+                </h3>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold text-emerald-700 bg-emerald-100/80 border border-emerald-300 flex items-center gap-1">
+                  <FaCircleCheck className="w-2.5 h-2.5" />
+                  <span>Completed & Posted</span>
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 font-medium m-0 mt-0.5">
+                Read-only details • This task has been finalized and published
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer shrink-0"
+          >
+            <FaXmark className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* 2. Multi-Content Switcher (if > 1 content on this day) */}
+        {allContents.length > 1 && (
+          <div className="px-6 py-2.5 bg-slate-50/90 border-b border-slate-100 flex items-center gap-2 overflow-x-auto">
+            <span className="text-[10px] font-semibold uppercase text-slate-500 flex items-center gap-1 shrink-0">
+              <FaLayerGroup className="w-2.5 h-2.5 text-sky-600" />
+              <span>Contents:</span>
+            </span>
+            <div className="flex items-center gap-1.5 min-w-0">
+              {allContents.map((sub, sIdx) => {
+                const isSel = activeSubIdx === sIdx;
+                const isSubPosted = sub.overall_status === 'Posted';
+                return (
+                  <button
+                    key={sIdx}
+                    type="button"
+                    onClick={() => setActiveSubIdx(sIdx)}
+                    className={`flex items-center gap-1 px-3 py-1 rounded-xl text-xs font-semibold transition cursor-pointer shrink-0 ${
+                      isSel
+                        ? 'bg-sky-600 text-white shadow-xs'
+                        : 'bg-white hover:bg-slate-200/80 text-slate-700 border border-slate-200/80'
+                    }`}
+                  >
+                    <span>#{sIdx + 1}</span>
+                    <span className="truncate max-w-[80px]">{sub.content_type}</span>
+                    {isSubPosted && <span className="text-[9px] text-emerald-300 font-normal">✓</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 3. Modal Body: Read-only Presentation */}
+        <div className="p-6 space-y-5 max-h-[72vh] overflow-y-auto">
+          {/* Read-Only Status Banner */}
+          <div className="p-3 bg-emerald-50/90 rounded-2xl border border-emerald-200/90 flex items-start gap-2.5">
+            <FaCircleCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+            <div className="text-xs text-emerald-900 leading-relaxed font-medium">
+              This task is <strong>Completed & Posted</strong>. All details below are published and locked to prevent accidental changes.
+            </div>
+          </div>
+
+          {/* Title & Metadata Header */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Content Type Pill */}
+              <span
+                className={`px-2.5 py-0.5 rounded-lg text-xs font-semibold tracking-wide border shrink-0 ${typeStyle.bg} ${typeStyle.text} ${typeStyle.border}`}
+              >
+                {currentSub?.content_type}
+              </span>
+
+              {/* Date Pill */}
+              <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-medium text-slate-600 bg-slate-100 border border-slate-200">
+                <FaCalendarDays className="w-3 h-3 text-sky-600 shrink-0" />
+                <span>{formattedDate}</span>
+                {itemDay && (
+                  <>
+                    <span className="text-slate-400 font-normal">•</span>
+                    <span className="text-slate-600 font-medium">{itemDay}</span>
+                  </>
+                )}
+              </span>
+
+              {/* Overall Status */}
+              <span
+                className="px-2.5 py-0.5 rounded-lg text-xs font-medium flex items-center gap-1.5 shadow-3xs"
+                style={{
+                  background: statusStyle.bg,
+                  color: statusStyle.text,
+                  border: `1px solid ${statusStyle.border}`
+                }}
+              >
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: statusStyle.dot }} />
+                <span>{currentSub?.overall_status || 'Posted'}</span>
+              </span>
+
+              {/* Approval Status */}
+              <span
+                className="px-2.5 py-0.5 rounded-lg text-[11px] font-semibold flex items-center gap-1 shadow-3xs"
+                style={{
+                  background: approvalStyle.bg,
+                  color: approvalStyle.text,
+                  border: `1px solid ${approvalStyle.border}`
+                }}
+              >
+                <span>{approvalStyle.icon}</span>
+                <span>{approvalStyle.label}</span>
+              </span>
+            </div>
+
+            {/* Content Title */}
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 leading-snug m-0 pt-1">
+              {currentSub?.content_title || 'Untitled Content'}
+            </h2>
+          </div>
+
+          {/* Responsible Marketing Executive */}
+          <div className="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/80 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              {empAvatar ? (
+                <img
+                  src={empAvatar}
+                  alt={empName}
+                  className="w-10 h-10 rounded-xl object-cover border border-slate-200 shadow-3xs shrink-0"
+                />
+              ) : (
+                <div
+                  className="w-10 h-10 rounded-xl text-white font-bold text-sm flex items-center justify-center shrink-0 shadow-3xs"
+                  style={{ background: 'linear-gradient(135deg, #0284c7 0%, #f97316 100%)' }}
+                >
+                  {empInitial}
+                </div>
+              )}
+              <div className="min-w-0">
+                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
+                  Responsible Executive
+                </span>
+                <div className="text-xs sm:text-sm font-semibold text-slate-800 truncate">
+                  {empName}
+                </div>
+                <div className="text-[11px] text-slate-500 font-medium truncate">
+                  {empDesignation} {empEmail ? `• ${empEmail}` : ''}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Social Media Platforms & Posting Times */}
+          <div className="space-y-2">
+            <span className="text-xs font-semibold text-slate-700 uppercase tracking-wider block">
+              Social Media Platforms & Posting Times
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {platformList.map((pf, pIdx) => {
+                const PfIcon = pf.icon;
+                const isOff = pf.status === 'Not Required' || !pf.status;
+                const isLastOdd = pIdx === 4; // X spans 2 cols on tablet/desktop
+                const fallbackTime = (pf.status === 'Posted' && (currentSub?.updatedAt || item?.updatedAt))
+                  ? formatTime12h(currentSub?.updatedAt || item?.updatedAt)
+                  : '';
+                const displayTime = pf.time || fallbackTime;
+
+                return (
+                  <div
+                    key={pIdx}
+                    className={`p-2.5 rounded-2xl border flex items-center justify-between gap-2.5 transition-all shadow-3xs ${
+                      isLastOdd ? 'sm:col-span-2' : ''
+                    } ${
+                      isOff
+                        ? 'bg-slate-50/60 border-slate-200/60 opacity-60'
+                        : `${pf.badgeBg} ${pf.border}`
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div
+                        className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                          isOff ? 'bg-slate-100 text-slate-400' : `${pf.iconBg} ${pf.color}`
+                        }`}
+                      >
+                        <PfIcon className="w-3.5 h-3.5" />
+                      </div>
+                      <span
+                        className={`text-xs font-semibold truncate ${
+                          isOff ? 'text-slate-400' : 'text-slate-800'
+                        }`}
+                      >
+                        {pf.name}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${
+                          isOff
+                            ? 'bg-slate-100 text-slate-400 border border-slate-200'
+                            : 'bg-emerald-100/80 text-emerald-800 border border-emerald-300'
+                        }`}
+                      >
+                        {isOff ? 'Not Required' : `✓ ${pf.status}`}
+                      </span>
+                      {displayTime && !isOff && (
+                        <span className="text-[10.5px] font-semibold text-slate-700 bg-white px-2 py-0.5 rounded-md border border-slate-200/80 flex items-center gap-1 shadow-3xs">
+                          <FaClock className="w-2.5 h-2.5 text-sky-600" />
+                          <span>{formatTime12h(displayTime)}</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Google Drive / Asset Folder Link */}
+          {currentSub?.live_folder_link && (
+            <div className="space-y-1.5">
+              <span className="text-xs font-semibold text-slate-700 uppercase tracking-wider block">
+                Google Drive / Assets Folder
+              </span>
+              <div className="p-3 bg-sky-50/50 rounded-2xl border border-sky-200 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <FaLink className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                  <span className="text-xs text-sky-800 font-medium truncate">
+                    {currentSub.live_folder_link}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleCopyLink}
+                    className="px-2.5 py-1 rounded-xl text-xs font-semibold bg-white hover:bg-sky-100 text-sky-700 border border-sky-200 transition cursor-pointer"
+                  >
+                    {copiedLink ? '✓ Copied' : 'Copy'}
+                  </button>
+                  <a
+                    href={currentSub.live_folder_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 px-3 py-1 rounded-xl text-xs font-semibold bg-sky-600 hover:bg-sky-700 text-white shadow-3xs transition cursor-pointer"
+                  >
+                    <span>Open Link</span>
+                    <FaArrowUpRightFromSquare className="w-2.5 h-2.5" />
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Notes / Description / Caption */}
+          {currentSub?.notes && (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                  Notes & Captions
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyNotes}
+                  className="text-[11px] font-semibold text-sky-600 hover:text-sky-800 hover:underline cursor-pointer"
+                >
+                  {copiedNotes ? '✓ Caption Copied' : 'Copy Text'}
+                </button>
+              </div>
+              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-700 leading-relaxed whitespace-pre-wrap font-medium max-h-36 overflow-y-auto">
+                {currentSub.notes}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 4. Modal Footer: Locked notice + Close button ONLY */}
+        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-3">
+          <div className="text-xs font-medium text-slate-500 flex items-center gap-1.5">
+            <span className="text-slate-400">🔒</span>
+            <span>Completed & Posted content cannot be edited</span>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-5 py-2 rounded-xl text-xs font-semibold text-white bg-slate-800 hover:bg-slate-900 shadow-sm transition active:scale-95 cursor-pointer"
+          >
+            Close Preview
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -2559,6 +3901,10 @@ function ContentFormModal({ isEdit, initialData, employees, canDeleteContent, ca
     setContents(prev => {
       const next = [...prev];
       if (!next[safeActiveIndex]) return prev;
+      // Content marked as Posted is locked and cannot be changed
+      if (next[safeActiveIndex].overall_status === 'Posted') {
+        return prev;
+      }
       next[safeActiveIndex] = {
         ...next[safeActiveIndex],
         [field]: value
@@ -2617,6 +3963,30 @@ function ContentFormModal({ isEdit, initialData, employees, canDeleteContent, ca
         setActiveContentIndex(i);
         setError(`Content #${i + 1} requires a content topic / title.`);
         return;
+      }
+    }
+
+    // Validate that if any content is marked as Posted, active social media platforms have time set
+    for (let i = 0; i < contents.length; i++) {
+      const c = contents[i];
+      if (c.overall_status === 'Posted') {
+        const missing = ['instagram', 'facebook', 'youtube', 'linkedin', 'x'].filter(pf => {
+          const st = c[`${pf}_status`];
+          const tm = c[`${pf}_time`];
+          return st && st !== 'Not Required' && (!tm || !String(tm).trim());
+        });
+        if (missing.length > 0) {
+          const pfNames = {
+            instagram: 'Instagram',
+            facebook: 'Facebook',
+            youtube: 'YouTube',
+            linkedin: 'LinkedIn',
+            x: 'X / Twitter'
+          };
+          setActiveContentIndex(i);
+          setError(`Content #${i + 1} is marked as Posted, but posting time is missing near social media status for: ${missing.map(m => pfNames[m] || m).join(', ')}. Please update time before saving.`);
+          return;
+        }
       }
     }
 
@@ -2821,6 +4191,21 @@ function ContentFormModal({ isEdit, initialData, employees, canDeleteContent, ca
               </button>
             )}
           </div>
+
+          {/* Locked Notification if this content tab is already Posted */}
+          {activeContent.overall_status === 'Posted' && (
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between gap-2 text-xs text-emerald-900 font-medium shadow-3xs">
+              <div className="flex items-center gap-2">
+                <FaCircleCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>
+                  Content #{safeActiveIndex + 1} is <strong>Completed & Posted</strong> and locked from editing.
+                </span>
+              </div>
+              <span className="px-2.5 py-1 bg-white text-emerald-700 border border-emerald-300 rounded-xl text-[11px] font-semibold shadow-3xs flex items-center gap-1 shrink-0">
+                🔒 Read-Only
+              </span>
+            </div>
+          )}
 
           {/* 4. Content Topic / Title */}
           <div>
@@ -3094,6 +4479,22 @@ function ContentFormModal({ isEdit, initialData, employees, canDeleteContent, ca
                   <button
                     type="button"
                     onClick={() => {
+                      const missing = ['instagram', 'facebook', 'youtube', 'linkedin', 'x'].filter(pf => {
+                        const st = activeContent[`${pf}_status`];
+                        const tm = activeContent[`${pf}_time`];
+                        return st && st !== 'Not Required' && (!tm || !String(tm).trim());
+                      });
+                      if (missing.length > 0) {
+                        const pfNames = {
+                          instagram: 'Instagram',
+                          facebook: 'Facebook',
+                          youtube: 'YouTube',
+                          linkedin: 'LinkedIn',
+                          x: 'X / Twitter'
+                        };
+                        setError(`Please update posting time near social media status for: ${missing.map(m => pfNames[m] || m).join(', ')} before marking as Posted.`);
+                        return;
+                      }
                       handleActiveChange('overall_status', 'Posted');
                       ['instagram', 'facebook', 'youtube', 'linkedin', 'x'].forEach(pf => {
                         if (activeContent[`${pf}_status`] && activeContent[`${pf}_status`] !== 'Not Required') {

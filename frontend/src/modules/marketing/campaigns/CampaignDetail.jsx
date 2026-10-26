@@ -1427,14 +1427,17 @@ export default function CampaignDetail() {
       setLeads(fetched);
       setTotalPages(res.data.pages || 1);
       setTotalCount(res.data.total || fetched.length);
-      if (fetched.length > 0 && !selectedLead) setSelectedLead(fetched[0]);
+      if (fetched.length > 0) {
+        setSelectedLead(prev => prev || fetched[0]);
+      }
     } catch (err) { console.error(err); }
     finally { setLeadsLoading(false); }
-  }, [id, statusFilter, search, selectedLead]);
+  }, [id, statusFilter, search]);
 
   const handleLeadDetailsChange = (updatedLead) => {
-    setSelectedLead(prev => (prev && updatedLead?._id === prev._id ? updatedLead : prev));
-    fetchLeads(page);
+    if (!updatedLead) return;
+    setSelectedLead(prev => (prev && updatedLead._id === prev._id ? updatedLead : prev));
+    setLeads(prev => prev.map(l => l._id === updatedLead._id ? { ...l, ...updatedLead } : l));
   };
 
   const fetchAll = useCallback(async () => {
@@ -1462,8 +1465,8 @@ export default function CampaignDetail() {
   return (
     <div className="max-w-7xl mx-auto w-full px-2 sm:px-4 py-3 h-[calc(100vh-64px)] flex flex-col box-border font-sans">
       
-      {/* Mobile / Tablet Responsive Tab Navigation */}
-      <div className="flex lg:hidden items-center justify-between mb-2.5 p-1 bg-white border border-slate-200 rounded-xl shadow-xs">
+      {/* Mobile-Only Tab Navigation (< md screens) */}
+      <div className="flex md:hidden items-center justify-between mb-2.5 p-1 bg-white border border-slate-200 rounded-xl shadow-xs">
         <button
           onClick={() => setActiveMobileTab('students')}
           className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium transition-all ${
@@ -1491,11 +1494,11 @@ export default function CampaignDetail() {
       </div>
 
       {/* Main Responsive 3-Panel Card Shell */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col lg:flex-row flex-1 overflow-hidden min-h-0">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row flex-1 overflow-hidden min-h-0">
 
         {/* ─── LEFT PANEL: Student List ─────────────────────────────────────────── */}
-        <div className={`w-full lg:w-72 xl:w-80 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col overflow-hidden min-h-0 ${
-          activeMobileTab === 'students' ? 'flex flex-1' : 'hidden lg:flex'
+        <div className={`w-full md:w-72 xl:w-80 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col overflow-hidden min-h-0 ${
+          activeMobileTab === 'students' ? 'flex' : 'hidden md:flex'
         }`}>
           {/* Back + campaign summary card */}
           <div style={{ padding: '12px 14px 10px', borderBottom: `1px solid ${BORDER}` }}>
@@ -1572,7 +1575,9 @@ export default function CampaignDetail() {
                 <div key={lead._id}
                   onClick={() => {
                     setSelectedLead(lead);
-                    setActiveMobileTab('profile');
+                    if (window.innerWidth < 768) {
+                      setActiveMobileTab('profile');
+                    }
                   }}
                   style={{
                     padding: '9px 12px', borderBottom: `1px solid #f1f5f9`, cursor: 'pointer',
@@ -1615,8 +1620,8 @@ export default function CampaignDetail() {
         </div>
 
         {/* ─── MIDDLE PANEL: Analytics (White, Orange, Blue) ───────────────────── */}
-        <div className={`w-full lg:w-60 xl:w-64 flex-shrink-0 bg-slate-50/70 border-r border-slate-200 overflow-y-auto p-3 flex flex-col gap-3 min-h-0 ${
-          activeMobileTab === 'analytics' ? 'flex flex-1' : 'hidden lg:flex'
+        <div className={`w-full md:w-60 xl:w-64 flex-shrink-0 bg-slate-50/70 border-r border-slate-200 overflow-y-auto p-3 flex flex-col gap-3 min-h-0 ${
+          activeMobileTab === 'analytics' ? 'flex' : 'hidden md:flex'
         }`}>
 
           {/* Lead Status Distribution (Pie) */}
@@ -1714,7 +1719,7 @@ export default function CampaignDetail() {
 
         {/* ─── RIGHT PANEL: Lead Detail ─────────────────────────────────────────── */}
         <div className={`flex-1 min-w-0 bg-white overflow-y-auto min-h-0 ${
-          activeMobileTab === 'profile' ? 'flex flex-col flex-1' : 'hidden lg:flex flex-col'
+          activeMobileTab === 'profile' ? 'flex flex-col' : 'hidden md:flex flex-col'
         }`}>
           {selectedLead ? (
             <LeadDetailsPage

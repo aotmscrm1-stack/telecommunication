@@ -454,16 +454,160 @@ router.get('/random', protect, async (req, res) => {
   }
 });
 
+// Helper to synthesize a full CRM lead object from a MetaLead document
+async function formatMetaLeadAsLead(metaLead) {
+  if (!metaLead) return null;
+  const raw = metaLead.rawData || {};
+
+  // Extract Phone
+  let phone = metaLead.normalizedPhone || '';
+  if (!phone && metaLead.phone) {
+    phone = String(metaLead.phone).replace(/\D/g, '').slice(-10);
+  }
+  if (!phone && (raw.phone_number || raw.phone || raw.Phone || raw.mobile || raw.Mobile)) {
+    const rawP = raw.phone_number || raw.phone || raw.Phone || raw.mobile || raw.Mobile;
+    phone = String(rawP).replace(/\D/g, '').slice(-10);
+  }
+
+  // Extract Email
+  let email = metaLead.email || raw.email || raw.Email || raw['Email Address'] || '';
+  if (email && typeof email === 'string') email = email.trim();
+
+  // Extract Name
+  let name = metaLead.fullName || raw.full_name || raw.name || raw.Name || raw['Full Name'] || raw['Student Name'] || raw['Candidate Name'] || raw['Bhavani'] || 'Meta Lead';
+  if (name && typeof name === 'string') name = name.trim();
+
+  // Extract Course
+  let courseStr = raw.course || raw.Course || raw.subject || raw['course_name'] || raw['Course Interest'] || '';
+  if (!courseStr) {
+    if (raw['when_are_you_planning_to_start_digital_marketing_training?']) courseStr = 'Digital Marketing';
+    else if (metaLead.campaign?.toLowerCase().includes('marketing')) courseStr = 'Digital Marketing';
+    else if (metaLead.campaign?.toLowerCase().includes('analytics')) courseStr = 'Data Analytics';
+    else if (metaLead.campaign?.toLowerCase().includes('python')) courseStr = 'Python Full Stack';
+    else if (metaLead.campaign?.toLowerCase().includes('java')) courseStr = 'Java Full Stack';
+    else if (metaLead.campaign?.toLowerCase().includes('data science')) courseStr = 'Data Science';
+    else if (metaLead.campaign?.toLowerCase().includes('aws') || metaLead.campaign?.toLowerCase().includes('devops')) courseStr = 'AWS & DevOps';
+    else courseStr = metaLead.campaign || 'General Program';
+  }
+
+  let matchedCourse = null;
+  try {
+    matchedCourse = await Course.findOne({ name: new RegExp('^' + courseStr.trim() + '$', 'i') }).lean();
+    if (!matchedCourse) {
+      matchedCourse = await Course.findOne({ name: new RegExp(courseStr.trim().split(' ')[0], 'i') }).lean();
+    }
+  } catch (_) {}
+
+  const budget = Number(raw.budget || raw.Budget || (raw.course_fee ? String(raw.course_fee).replace(/\D/g, '') : (matchedCourse?.cost || 30000))) || (matchedCourse?.cost || 30000);
+
+  const courseObj = matchedCourse ? {
+    ...matchedCourse,
+    name: matchedCourse.name || courseStr,
+    cost: matchedCourse.cost || budget,
+    duration: matchedCourse.duration || '4 Months'
+  } : {
+    _id: 'meta_' + metaLead._id,
+    name: courseStr,
+    description: `Campaign: ${metaLead.campaign}`,
+    duration: '4 Months',
+    cost: budget
+  };
+
+  // Convert raw update notes & metaLead callNotes into activities
+  const activities = [];
+  if (Array.isArray(metaLead.callNotes)) {
+    metaLead.callNotes.forEach(cn => {
+      activities.push({
+        _id: cn._id || new mongoose.Types.ObjectId(),
+        type: cn.outcome === 'call' || cn.outcome === 'connected' ? 'call' : 'note',
+        description: cn.note || cn.outcome || 'Note recorded',
+        performedBy: cn.user ? { _id: cn.user, name: cn.userName } : null,
+        createdAt: cn.date || new Date()
+      });
+    });
+  }
+
+  // Also include updates from raw sheet columns
+  ['first update', 'second update', 'final update', 'not answering call 22/10', 'NOT  ANSWERING CALL 26/10'].forEach(k => {
+    if (raw[k]) {
+      activities.push({
+        _id: new mongoose.Types.ObjectId(),
+        type: 'note',
+        description: `${k.toUpperCase()}: ${raw[k]}`,
+        createdAt: metaLead.createdAt || new Date()
+      });
+    }
+  });
+
+  const location = raw.city || raw.City || raw.location || raw.Location || raw['Gudivada'] || '';
+  const qualification = raw.qualification || raw.Qualification || raw['Highest Qualification'] || raw.degree || raw['degree'] || 'Degree';
+  const platform = raw.platform?.toLowerCase() || '';
+  const source = platform === 'ig' ? 'Instagram' : (platform === 'fb' ? 'Facebook' : (metaLead.source === 'google_sheets_meta' ? 'Meta Ads' : 'Meta Ads'));
+
+  let status = metaLead.status || 'Fresh';
+  if (status === 'New') status = 'Fresh';
+
+  return {
+    _id: metaLead._id,
+    name,
+    phone,
+    alternatePhone: raw.alternate_phone || raw.alt_phone || raw['Alternate Phone'] || '',
+    email,
+    status,
+    rating: metaLead.rating || 0,
+    leadSource: source,
+    sourceSheetName: metaLead.campaign,
+    courseInterest: courseObj,
+    mode: raw.mode || raw.Mode || 'Hybrid',
+    budget,
+    location,
+    lastQualification: qualification,
+    assignedTo: metaLead.assignedTo || null,
+    campaign: { _id: metaLead.campaign, name: metaLead.campaign },
+    isStarred: !!metaLead.isStarred,
+    activities,
+    rawData: metaLead.rawData,
+    isMetaLead: true,
+    totalCalls: metaLead.callCount || 0,
+    totalCallDuration: 0,
+    lastCalledAt: metaLead.lastCallAt || null,
+    crmLeadId: metaLead.crmLeadId || null,
+  };
+}
+
 router.get('/:id', protect, async (req, res) => {
   try {
     const CallRecording = require('../../../database/models/CallRecording');
     const { normalizePhone10 } = require('../../../core/utils/phone');
+    const MetaLead = require('../../../database/models/MetaLead');
 
-    const lead = await Lead.findById(req.params.id)
-      .populate('assignedTo', 'name email avatar')
-      .populate('campaign', 'name')
-      .populate('courseInterest')
-      .populate('activities.performedBy', 'name avatar');
+    let lead = null;
+    if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+      lead = await Lead.findById(req.params.id)
+        .populate('assignedTo', 'name email avatar')
+        .populate('campaign', 'name')
+        .populate('courseInterest')
+        .populate('activities.performedBy', 'name avatar');
+    }
+
+    if (!lead && mongoose.Types.ObjectId.isValid(req.params.id)) {
+      const metaLead = await MetaLead.findById(req.params.id)
+        .populate('assignedTo', 'name email avatar');
+
+      if (metaLead) {
+        if (metaLead.crmLeadId) {
+          lead = await Lead.findById(metaLead.crmLeadId)
+            .populate('assignedTo', 'name email avatar')
+            .populate('campaign', 'name')
+            .populate('courseInterest')
+            .populate('activities.performedBy', 'name avatar');
+        }
+        if (!lead) {
+          lead = await formatMetaLeadAsLead(metaLead);
+        }
+      }
+    }
+
     if (!lead) return res.status(404).json({ message: 'Lead not found' });
 
     const p10 = normalizePhone10(lead.phone);
@@ -491,7 +635,40 @@ router.get('/:id', protect, async (req, res) => {
 
 router.put('/:id', protect, async (req, res) => {
   try {
-    const lead = await Lead.findById(req.params.id);
+    let lead = null;
+    if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+      lead = await Lead.findById(req.params.id);
+    }
+
+    if (!lead && mongoose.Types.ObjectId.isValid(req.params.id)) {
+      const MetaLead = require('../../../database/models/MetaLead');
+      const metaLead = await MetaLead.findById(req.params.id).populate('assignedTo', 'name email avatar');
+      if (metaLead) {
+        if (req.body.name) metaLead.fullName = req.body.name;
+        if (req.body.email) metaLead.email = req.body.email;
+        if (req.body.phone && req.user.role === 'admin') {
+          metaLead.phone = req.body.phone;
+          metaLead.normalizedPhone = req.body.phone.replace(/\D/g, '').slice(-10);
+        }
+        if (req.body.assignedTo !== undefined) metaLead.assignedTo = req.body.assignedTo || null;
+        if (req.body.status) metaLead.status = req.body.status;
+        if (req.body.rating !== undefined) metaLead.rating = req.body.rating;
+        if (req.body.isStarred !== undefined) metaLead.isStarred = req.body.isStarred;
+
+        if (!metaLead.rawData) metaLead.rawData = {};
+        if (req.body.location) metaLead.rawData.city = req.body.location;
+        if (req.body.lastQualification) metaLead.rawData.qualification = req.body.lastQualification;
+        if (req.body.budget) metaLead.rawData.budget = req.body.budget;
+        if (req.body.mode) metaLead.rawData.mode = req.body.mode;
+        if (req.body.alternatePhone) metaLead.rawData.alternate_phone = req.body.alternatePhone;
+
+        metaLead.markModified('rawData');
+        await metaLead.save();
+        const updated = await formatMetaLeadAsLead(metaLead);
+        return res.json({ lead: updated });
+      }
+    }
+
     if (!lead) return res.status(404).json({ message: 'Lead not found' });
     if ((req.user.role === 'employee' || req.user.role === 'caller') && lead.assignedTo?.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: 'You can only update leads assigned to you' });
@@ -553,7 +730,33 @@ router.put('/:id', protect, async (req, res) => {
 router.post('/:id/call', protect, async (req, res) => {
   try {
     const { duration, callStatus, note } = req.body;
-    const lead = await Lead.findById(req.params.id);
+    let lead = null;
+    if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+      lead = await Lead.findById(req.params.id);
+    }
+
+    if (!lead && mongoose.Types.ObjectId.isValid(req.params.id)) {
+      const MetaLead = require('../../../database/models/MetaLead');
+      const metaLead = await MetaLead.findById(req.params.id).populate('assignedTo', 'name email avatar');
+      if (metaLead) {
+        metaLead.callCount = (metaLead.callCount || 0) + 1;
+        metaLead.lastCallAt = new Date();
+        if (callStatus === 'connected' && duration > 0) metaLead.status = 'Connected';
+        else if (callStatus === 'no_answer') metaLead.status = 'Call Not Responding';
+        if (!Array.isArray(metaLead.callNotes)) metaLead.callNotes = [];
+        metaLead.callNotes.push({
+          note: note || 'Call logged',
+          outcome: callStatus || 'call',
+          user: req.user?._id,
+          userName: req.user?.name,
+          date: new Date()
+        });
+        await metaLead.save();
+        const updated = await formatMetaLeadAsLead(metaLead);
+        return res.json({ lead: updated });
+      }
+    }
+
     if (!lead) return res.status(404).json({ message: 'Lead not found' });
 
     const activity = {
@@ -583,7 +786,29 @@ router.post('/:id/call', protect, async (req, res) => {
 router.post('/:id/note', protect, async (req, res) => {
   try {
     const { note, type } = req.body;
-    const lead = await Lead.findById(req.params.id);
+    let lead = null;
+    if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+      lead = await Lead.findById(req.params.id);
+    }
+
+    if (!lead && mongoose.Types.ObjectId.isValid(req.params.id)) {
+      const MetaLead = require('../../../database/models/MetaLead');
+      const metaLead = await MetaLead.findById(req.params.id).populate('assignedTo', 'name email avatar');
+      if (metaLead) {
+        if (!Array.isArray(metaLead.callNotes)) metaLead.callNotes = [];
+        metaLead.callNotes.push({
+          note,
+          outcome: type || 'note',
+          user: req.user?._id,
+          userName: req.user?.name,
+          date: new Date()
+        });
+        await metaLead.save();
+        const updated = await formatMetaLeadAsLead(metaLead);
+        return res.json({ lead: updated });
+      }
+    }
+
     if (!lead) return res.status(404).json({ message: 'Lead not found' });
     const noteType = type || 'note';
     lead.activities.unshift({ type: noteType, description: note, performedBy: req.user._id });
@@ -599,7 +824,31 @@ router.post('/:id/note', protect, async (req, res) => {
 router.put('/:id/status', protect, async (req, res) => {
   try {
     const { status, demoScheduledDate } = req.body;
-    const lead = await Lead.findById(req.params.id).populate('assignedTo', 'name _id');
+    let lead = null;
+    if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+      lead = await Lead.findById(req.params.id).populate('assignedTo', 'name _id');
+    }
+
+    if (!lead && mongoose.Types.ObjectId.isValid(req.params.id)) {
+      const MetaLead = require('../../../database/models/MetaLead');
+      const metaLead = await MetaLead.findById(req.params.id).populate('assignedTo', 'name email avatar');
+      if (metaLead) {
+        const prevStatus = metaLead.status;
+        metaLead.status = status;
+        if (!Array.isArray(metaLead.callNotes)) metaLead.callNotes = [];
+        metaLead.callNotes.push({
+          note: `Status changed from ${prevStatus} to ${status}`,
+          outcome: 'status_change',
+          user: req.user?._id,
+          userName: req.user?.name,
+          date: new Date()
+        });
+        await metaLead.save();
+        const updated = await formatMetaLeadAsLead(metaLead);
+        return res.json({ lead: updated });
+      }
+    }
+
     if (!lead) return res.status(404).json({ message: 'Lead not found' });
     const prevStatus = lead.status;
     lead.status = status;
@@ -627,7 +876,20 @@ router.put('/:id/status', protect, async (req, res) => {
 
 router.delete('/:id', protect, authorize('employee', 'caller', 'manager', 'admin'), async (req, res) => {
   try {
-    const lead = await Lead.findById(req.params.id);
+    let lead = null;
+    if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+      lead = await Lead.findById(req.params.id);
+    }
+
+    if (!lead && mongoose.Types.ObjectId.isValid(req.params.id)) {
+      const MetaLead = require('../../../database/models/MetaLead');
+      const metaLead = await MetaLead.findById(req.params.id);
+      if (metaLead) {
+        await MetaLead.findByIdAndDelete(req.params.id);
+        return res.json({ message: 'Meta lead deleted successfully' });
+      }
+    }
+
     if (!lead) return res.status(404).json({ message: 'Lead not found' });
     if ((req.user.role === 'employee' || req.user.role === 'caller') && lead.assignedTo?.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: 'You can only delete leads assigned to you' });
@@ -641,7 +903,36 @@ router.delete('/:id', protect, authorize('employee', 'caller', 'manager', 'admin
 
 router.post('/:id/initiate-call', protect, async (req, res) => {
   try {
-    const lead = await Lead.findById(req.params.id).populate('assignedTo', 'name email');
+    let lead = null;
+    if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+      lead = await Lead.findById(req.params.id).populate('assignedTo', 'name email');
+    }
+
+    if (!lead && mongoose.Types.ObjectId.isValid(req.params.id)) {
+      const MetaLead = require('../../../database/models/MetaLead');
+      const metaLead = await MetaLead.findById(req.params.id).populate('assignedTo', 'name email');
+      if (metaLead) {
+        const caller = req.user;
+        const phone = metaLead.normalizedPhone || (metaLead.phone ? metaLead.phone.replace(/\D/g, '').slice(-10) : '');
+        if (!Array.isArray(metaLead.callNotes)) metaLead.callNotes = [];
+        metaLead.callNotes.push({
+          note: `📞 Call initiated by ${req.user.name}`,
+          outcome: 'call',
+          user: req.user._id,
+          userName: req.user.name,
+          date: new Date()
+        });
+        await metaLead.save();
+        return res.json({
+          success: true,
+          message: `✅ Call initiated for ${caller.name}`,
+          callerName: caller.name,
+          leadName: metaLead.fullName || 'Meta Lead',
+          leadPhone: phone,
+        });
+      }
+    }
+
     if (!lead) return res.status(404).json({ message: 'Lead not found' });
 
     let caller;

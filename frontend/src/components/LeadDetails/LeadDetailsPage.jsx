@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Phone, PhoneOff, Mail, MapPin, Award, IndianRupee, Globe, User, Calendar, Tag, Star, Edit3, Save, X, Plus, Clock, MessageCircle, Copy, Check, Trash2, BookOpen, Zap, Sparkles, ShieldAlert, CheckCircle2, ChevronRight, Volume2, Download, Mic, Maximize2 } from 'lucide-react';
+import { ArrowLeft, Phone, PhoneOff, Mail, MapPin, Award, IndianRupee, Globe, User, Calendar, Tag, Star, Edit3, Save, X, Plus, Clock, MessageCircle, Copy, Check, Trash2, BookOpen, Zap, Sparkles, ShieldAlert, CheckCircle2, ChevronRight, Volume2, Download, Mic, Maximize2, FileText, ChevronDown, ChevronUp } from 'lucide-react';
 import api, { leadsAPI, campaignsAPI, usersAPI, coursesAPI, followupsAPI, blocklistAPI, leadStagesAPI, messageTemplatesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { canDelete } from '../../utils/permissions';
@@ -738,6 +738,7 @@ export default function LeadDetailsPage({
   const [isEditingInfo, setIsEditingInfo] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [savingInfo, setSavingInfo] = useState(false);
+  const [showSheetDetails, setShowSheetDetails] = useState(false);
 
   const fetchLeadDetails = async () => {
     try {
@@ -749,7 +750,6 @@ export default function LeadDetailsPage({
       setLead(res.data.lead);
       setRecordings(res.data.recordings || []);
       setLeadFollowups(followupsRes.data?.followups || []);
-      onChange?.(res.data.lead);
       const l = res.data.lead;
       setEditForm({
         name: l.name || '',
@@ -837,6 +837,7 @@ export default function LeadDetailsPage({
     try {
       const res = await leadsAPI.update(lead._id, { isStarred: !lead.isStarred });
       setLead(prev => ({ ...prev, isStarred: res.data.lead.isStarred }));
+      onChange?.(res.data.lead);
     } catch (err) { console.error(err); }
   };
 
@@ -849,6 +850,7 @@ export default function LeadDetailsPage({
       const res = await leadsAPI.updateStatus(lead._id, { status: newStatus });
       setLead(res.data.lead);
       setEditForm(prev => ({ ...prev, status: newStatus }));
+      onChange?.(res.data.lead);
     } catch (err) { console.error(err); }
   };
 
@@ -857,6 +859,7 @@ export default function LeadDetailsPage({
     setLead(res.data.lead);
     setEditForm(prev => ({ ...prev, status: 'Demo Scheduled' }));
     setShowDemoModal(false);
+    onChange?.(res.data.lead);
   };
 
   const handleRatingChange = async (newRating) => {
@@ -864,6 +867,7 @@ export default function LeadDetailsPage({
       const res = await leadsAPI.update(lead._id, { rating: newRating });
       setLead(res.data.lead);
       setEditForm(prev => ({ ...prev, rating: newRating }));
+      onChange?.(res.data.lead);
     } catch (err) { console.error(err); }
   };
 
@@ -923,6 +927,7 @@ export default function LeadDetailsPage({
       const res = await leadsAPI.update(lead._id, data);
       setLead(res.data.lead);
       setIsEditingInfo(false);
+      onChange?.(res.data.lead);
     } catch (err) { alert(err.response?.data?.message || 'Failed to update lead profile information'); }
     finally { setSavingInfo(false); }
   };
@@ -1149,6 +1154,9 @@ export default function LeadDetailsPage({
                           <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1 block">Campaign</label>
                           <select className="w-full border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-800" value={editForm.campaign} onChange={e => setEditForm({ ...editForm, campaign: e.target.value })}>
                             <option value="">No Campaign</option>
+                            {editForm.campaign && !campaigns.some(c => c._id === editForm.campaign) && (
+                              <option value={editForm.campaign}>{lead.campaign?.name || editForm.campaign}</option>
+                            )}
                             {campaigns.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
                           </select>
                         </div>
@@ -1249,6 +1257,9 @@ export default function LeadDetailsPage({
                     }}
                   >
                     <option value="">No Course Linked</option>
+                    {editForm.courseInterest && !courses.some(c => c._id === editForm.courseInterest) && (
+                      <option value={editForm.courseInterest}>{lead.courseInterest?.name || editForm.courseInterest}</option>
+                    )}
                     {courses.map(c => <option key={c._id} value={c._id}>{c.name} (₹{c.cost.toLocaleString()})</option>)}
                   </select>
                 </div>
@@ -1351,6 +1362,39 @@ export default function LeadDetailsPage({
           </div>
         </div>
 
+        {/* ─── Google Sheet Raw Data (Meta Lead) ─── */}
+        {lead.rawData && Object.keys(lead.rawData).length > 0 && (
+          <div className="w-full bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+            <div
+              onClick={() => setShowSheetDetails(prev => !prev)}
+              className="p-3 sm:p-3.5 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between cursor-pointer hover:bg-slate-100/60 transition-colors"
+            >
+              <h3 className="font-semibold text-slate-800 text-xs sm:text-sm uppercase tracking-wider flex items-center gap-2">
+                <FileText className="w-4 h-4 text-emerald-600" /> Google Sheet Raw Fields ({Object.keys(lead.rawData).length})
+              </h3>
+              <span className="text-xs text-blue-600 font-medium flex items-center gap-1">
+                {showSheetDetails ? (
+                  <><span>Hide Columns</span><ChevronUp className="w-3.5 h-3.5" /></>
+                ) : (
+                  <><span>View All Columns</span><ChevronDown className="w-3.5 h-3.5" /></>
+                )}
+              </span>
+            </div>
+            {showSheetDetails && (
+              <div className="p-3 sm:p-4 max-h-80 overflow-y-auto bg-slate-50/40">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                  {Object.entries(lead.rawData).map(([k, v]) => (
+                    <div key={k} className="p-2.5 rounded-lg bg-white border border-slate-200 shadow-2xs text-xs">
+                      <span className="block font-medium text-slate-400 text-[10px] uppercase truncate">{k}</span>
+                      <span className="block font-semibold text-slate-800 truncate mt-0.5" title={String(v ?? '—')}>{String(v !== undefined && v !== null && v !== '' ? v : '—')}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ─── Down: Activity & Calling History ─── */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-3.5 sm:p-5">
           <h3 className="font-semibold text-slate-800 text-xs sm:text-sm uppercase tracking-wider mb-3 pb-2.5 border-b border-slate-100 flex items-center gap-2">
@@ -1438,7 +1482,7 @@ export default function LeadDetailsPage({
               }
 
               return (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className={embedded ? "grid grid-cols-1 sm:grid-cols-2 gap-3" : "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"}>
                   {allItems.map((a, i) => {
                     // 1. AUDIO RECORDING CARD
                     if (a._recording) {

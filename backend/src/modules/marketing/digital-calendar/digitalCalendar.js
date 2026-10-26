@@ -62,6 +62,35 @@ function isStrictAdminOrCEO(user) {
   );
 }
 
+function formatTime12hBackend(dateOrStr) {
+  if (!dateOrStr) return '';
+  if (typeof dateOrStr === 'string') {
+    const s = dateOrStr.trim();
+    if (!s) return '';
+    if (s.toUpperCase().includes('AM') || s.toUpperCase().includes('PM')) return s;
+    const parts = s.split(':');
+    if (parts.length >= 2) {
+      let h = parseInt(parts[0], 10);
+      const m = parts[1].slice(0, 2);
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12;
+      if (h === 0) h = 12;
+      return `${String(h).padStart(2, '0')}:${m} ${ampm}`;
+    }
+  }
+  const d = dateOrStr instanceof Date ? dateOrStr : new Date(dateOrStr);
+  if (isNaN(d.getTime())) return '';
+  // Convert UTC timestamp to Indian Standard Time (UTC+5:30)
+  const istOffsetMs = 5.5 * 60 * 60 * 1000;
+  const istDate = new Date(d.getTime() + istOffsetMs);
+  let h = istDate.getUTCHours();
+  const m = String(istDate.getUTCMinutes()).padStart(2, '0');
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12;
+  if (h === 0) h = 12;
+  return `${String(h).padStart(2, '0')}:${m} ${ampm}`;
+}
+
 function computeIntelligentOverallStatus(data) {
   const {
     overall_status,
@@ -310,15 +339,64 @@ async function ensureSeedData(user) {
       }
     }
 
-    // Ensure seed items have all 4 platforms configured properly
+    // Ensure seed items have all 4 platforms configured with proper times
     await DigitalCalendar.updateMany(
-      { content_title: 'Student Testimonial', $or: [{ linkedin_status: 'Not Required' }, { linkedin_status: { $exists: false } }, { linkedin_status: '' }] },
-      { $set: { linkedin_status: 'Ready', linkedin_time: '05:00 PM' } }
+      { content_title: 'Student Testimonial' },
+      {
+        $set: {
+          instagram_time: '06:30 PM',
+          youtube_time: '07:00 PM',
+          linkedin_time: '05:00 PM',
+          x_time: '07:30 PM'
+        }
+      }
     );
     await DigitalCalendar.updateMany(
       { content_title: 'Cyber Security Career Tips', $or: [{ youtube_status: 'Not Required' }, { youtube_status: { $exists: false } }, { youtube_status: '' }] },
       { $set: { youtube_status: 'Planned', youtube_time: '04:30 PM' } }
     );
+
+    // Auto-backfill posting times on any documents where platform is marked Posted but time is missing
+    const postedDocsToFix = await DigitalCalendar.find({
+      $or: [
+        { overall_status: 'Posted' },
+        { instagram_status: 'Posted', instagram_time: { $in: ['', null] } },
+        { youtube_status: 'Posted', youtube_time: { $in: ['', null] } },
+        { linkedin_status: 'Posted', linkedin_time: { $in: ['', null] } },
+        { x_status: 'Posted', x_time: { $in: ['', null] } },
+        { facebook_status: 'Posted', facebook_time: { $in: ['', null] } }
+      ]
+    }).limit(100);
+
+    for (const doc of postedDocsToFix) {
+      let modified = false;
+      const defaultPostTime = formatTime12hBackend(doc.updatedAt || doc.createdAt || new Date());
+      const pList = ['instagram', 'facebook', 'youtube', 'linkedin', 'x'];
+
+      const repairObjTimes = (target) => {
+        pList.forEach(pf => {
+          if (target[`${pf}_status`] === 'Posted' && (!target[`${pf}_time`] || !String(target[`${pf}_time`]).trim())) {
+            target[`${pf}_time`] = defaultPostTime;
+            modified = true;
+          }
+        });
+      };
+
+      repairObjTimes(doc);
+
+      if (Array.isArray(doc.contents) && doc.contents.length > 0) {
+        doc.contents.forEach(sub => repairObjTimes(sub));
+        pList.forEach(pf => {
+          if (doc.contents[0][`${pf}_time`]) {
+            doc[`${pf}_time`] = doc.contents[0][`${pf}_time`];
+          }
+        });
+      }
+
+      if (modified) {
+        await doc.save();
+      }
+    }
   } catch (err) {
     console.error('Failed to seed Digital Calendar data:', err.message);
   } finally {
@@ -874,6 +952,20 @@ router.put('/:id', protect, async (req, res) => {
       return res.status(404).json({ ok: false, message: 'Content item not found' });
     }
 
+    // Completed & Posted tasks are locked from editing
+    const isAdmin = isStrictAdminOrCEO(req.user);
+    if (!isAdmin) {
+      const isAlreadyPosted =
+        item.overall_status === 'Posted' &&
+        (!Array.isArray(item.contents) || item.contents.length === 0 || item.contents.every(c => c.overall_status === 'Posted'));
+      if (isAlreadyPosted) {
+        return res.status(403).json({
+          ok: false,
+          message: 'Content marked as Completed & Posted is finalized and cannot be modified.'
+        });
+      }
+    }
+
     const {
       contents,
       content_title,
@@ -1092,6 +1184,13 @@ router.patch('/:id/complete', protect, async (req, res) => {
 
     const subIndex = req.body.subIndex !== undefined && req.body.subIndex !== null ? Number(req.body.subIndex) : null;
     const platforms = ['instagram', 'facebook', 'youtube', 'linkedin', 'x'];
+    const platformDisplayNames = {
+      instagram: 'Instagram',
+      facebook: 'Facebook',
+      youtube: 'YouTube',
+      linkedin: 'LinkedIn',
+      x: 'X / Twitter'
+    };
 
     // Verify that the content is approved before allowing completion
     if (Array.isArray(item.contents) && item.contents.length > 0) {
@@ -1120,12 +1219,79 @@ router.patch('/:id/complete', protect, async (req, res) => {
       }
     }
 
+    const incomingTimes = req.body.times || req.body;
+
+    const applyTimesAndCheckMissing = (sub) => {
+      // 1. If times are provided in request, update them on the sub-item
+      if (incomingTimes && typeof incomingTimes === 'object') {
+        platforms.forEach(pf => {
+          const val = incomingTimes[`${pf}_time`] !== undefined ? incomingTimes[`${pf}_time`] : incomingTimes[pf];
+          if (typeof val === 'string' && val.trim() !== '') {
+            sub[`${pf}_time`] = val.trim();
+          }
+        });
+      }
+
+      // 2. Validate that every active platform has a time
+      const missing = [];
+      platforms.forEach(pf => {
+        const statusKey = `${pf}_status`;
+        const timeKey = `${pf}_time`;
+        const isActive = sub[statusKey] && sub[statusKey] !== 'Not Required';
+        if (isActive) {
+          if (!sub[timeKey] || !String(sub[timeKey]).trim()) {
+            missing.push(platformDisplayNames[pf] || pf);
+          }
+        }
+      });
+      return missing;
+    };
+
+    if (Array.isArray(item.contents) && item.contents.length > 0) {
+      if (subIndex !== null && subIndex >= 0 && subIndex < item.contents.length) {
+        const missing = applyTimesAndCheckMissing(item.contents[subIndex]);
+        if (missing.length > 0) {
+          return res.status(400).json({
+            ok: false,
+            message: `Posting time is required for ${missing.join(', ')} before marking as completed.`,
+            missingPlatforms: missing
+          });
+        }
+      } else {
+        for (const sub of item.contents) {
+          const missing = applyTimesAndCheckMissing(sub);
+          if (missing.length > 0) {
+            return res.status(400).json({
+              ok: false,
+              message: `Posting time is required for ${missing.join(', ')} before marking as completed.`,
+              missingPlatforms: missing
+            });
+          }
+        }
+      }
+    } else {
+      const missing = applyTimesAndCheckMissing(item);
+      if (missing.length > 0) {
+        return res.status(400).json({
+          ok: false,
+          message: `Posting time is required for ${missing.join(', ')} before marking as completed.`,
+          missingPlatforms: missing
+        });
+      }
+    }
+
+    const currentPostingTimeStr = formatTime12hBackend(new Date());
+
     const markSubComplete = (sub) => {
       sub.overall_status = 'Posted';
       platforms.forEach(pf => {
         const key = `${pf}_status`;
         if (sub[key] && sub[key] !== 'Not Required') {
           sub[key] = 'Posted';
+          // Ensure that particular time of posting is recorded
+          if (!sub[`${pf}_time`] || !String(sub[`${pf}_time`]).trim()) {
+            sub[`${pf}_time`] = currentPostingTimeStr;
+          }
         }
       });
     };
@@ -1141,6 +1307,7 @@ router.patch('/:id/complete', protect, async (req, res) => {
       platforms.forEach(pf => {
         const key = `${pf}_status`;
         item[key] = item.contents[0][key];
+        item[`${pf}_time`] = item.contents[0][`${pf}_time`];
       });
     } else {
       markSubComplete(item);
@@ -1158,6 +1325,59 @@ router.patch('/:id/complete', protect, async (req, res) => {
     res.json({
       ok: true,
       message: 'Content marked as completed and posted successfully',
+      data: populatedItem
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+// PATCH /api/marketing/digital-calendar/:id/times — Update posting times for platforms (e.g. from Preview or Edit)
+router.patch('/:id/times', protect, async (req, res) => {
+  try {
+    const item = await DigitalCalendar.findById(req.params.id);
+    if (!item) {
+      return res.status(404).json({ ok: false, message: 'Content item not found' });
+    }
+
+    const { subIndex = null, times = {} } = req.body;
+    const incomingTimes = times && typeof times === 'object' ? times : req.body;
+
+    const updatePlatformTimes = (target) => {
+      platforms.forEach(pf => {
+        const val = incomingTimes[`${pf}_time`] !== undefined ? incomingTimes[`${pf}_time`] : incomingTimes[pf];
+        if (val !== undefined && val !== null) {
+          const trimmed = String(val).trim();
+          target[`${pf}_time`] = trimmed ? formatTime12hBackend(trimmed) : '';
+        }
+      });
+    };
+
+    if (Array.isArray(item.contents) && item.contents.length > 0) {
+      if (subIndex !== null && subIndex !== undefined && subIndex >= 0 && subIndex < item.contents.length) {
+        updatePlatformTimes(item.contents[subIndex]);
+      } else {
+        item.contents.forEach(sub => updatePlatformTimes(sub));
+      }
+      platforms.forEach(pf => {
+        item[`${pf}_time`] = item.contents[0][`${pf}_time`];
+      });
+    } else {
+      updatePlatformTimes(item);
+    }
+
+    item.updatedBy = req.user._id;
+    await item.save();
+
+    const populatedItem = await DigitalCalendar.findById(item._id)
+      .populate('responsible_employee', 'name firstName lastName displayName email designation avatar')
+      .populate('contents.responsible_employee', 'name firstName lastName displayName email designation avatar')
+      .populate('createdBy', 'name email designation avatar')
+      .populate('updatedBy', 'name email designation avatar');
+
+    res.json({
+      ok: true,
+      message: 'Posting times updated successfully',
       data: populatedItem
     });
   } catch (err) {

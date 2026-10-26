@@ -851,7 +851,6 @@ This workflow resolves all previous flaws:
 ---
 
 ## 5. Frontend UI/UX Design Specification: Meta Leads Module
-
 ---
 
 ### A. Design System Tokens (Harmonized with Existing `Campaigns.jsx`)

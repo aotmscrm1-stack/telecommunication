@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { metaLeadsAPI, usersAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import AssignMembersModal from './AssignMembersModal';
+import LeadDetailsPage from '../../../components/LeadDetails/LeadDetailsPage';
 import {
   FiPlus, FiRefreshCw, FiSearch, FiLayers, FiUsers, FiCalendar,
   FiFlag, FiBarChart2, FiTrash2, FiArrowRight, FiX, FiCheck,
@@ -369,7 +370,11 @@ export default function MetaLeads() {
       if (res.data?.success) {
         alert('Lead successfully converted and pushed to Active Tele-Caller Queue!');
         if (selectedLead && selectedLead._id === leadId) {
-          setSelectedLead(prev => ({ ...prev, status: 'Converted' }));
+          setSelectedLead(prev => prev ? ({
+            ...prev,
+            status: 'Converted',
+            crmLeadId: res.data?.crmLead?._id || prev.crmLeadId
+          }) : null);
         }
         fetchLeads();
         fetchCampaigns();
@@ -1120,10 +1125,10 @@ export default function MetaLeads() {
                             </a>
                           )}
 
-                          {/* View Details Button */}
+                          {/* View / Preview Lead Profile Button */}
                           <button
                             onClick={() => setSelectedLead(lead)}
-                            title="Inspect All Sheet Fields"
+                            title="Preview Lead Profile"
                             style={{
                               width: 30, height: 30, borderRadius: 6,
                               background: T.white, color: T.textSecondary,
@@ -1214,7 +1219,7 @@ export default function MetaLeads() {
         </div>
       </div>
 
-      {/* ── Slide-Over Lead Detail Drawer (All Raw Sheet Columns) ─────────────── */}
+      {/* ── Slide-Over Lead Detail Drawer (Rich Profile Preview) ─────────────── */}
       <AnimatePresence>
         {selectedLead && (
           <div style={{ position: 'fixed', inset: 0, zIndex: 100 }}>
@@ -1224,7 +1229,7 @@ export default function MetaLeads() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedLead(null)}
-              style={{ position: 'absolute', inset: 0, background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(2px)' }}
+              style={{ position: 'absolute', inset: 0, background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(3px)' }}
             />
 
             {/* Drawer */}
@@ -1235,59 +1240,69 @@ export default function MetaLeads() {
               transition={{ type: 'spring', damping: 25, stiffness: 220 }}
               style={{
                 position: 'absolute', top: 0, right: 0, bottom: 0,
-                width: '100%', maxWidth: 520, background: T.white,
-                boxShadow: '-4px 0 25px rgba(0,0,0,0.15)',
+                width: '100%', maxWidth: 1060, background: '#f8fafc',
+                boxShadow: '-6px 0 35px rgba(0,0,0,0.2)',
                 display: 'flex', flexDirection: 'column', zIndex: 101
               }}
             >
-              {/* Drawer Header */}
+              {/* Drawer Top Header with Campaign Tag, Switcher, and Actions */}
               <div
                 style={{
-                  padding: '20px 24px', borderBottom: `1px solid ${T.border}`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+                  padding: '12px 20px', borderBottom: `1px solid ${T.border}`,
+                  background: T.white, display: 'flex', alignItems: 'center',
+                  justifyContent: 'space-between', gap: 12, flexWrap: 'wrap'
                 }}
               >
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span
-                      style={{
-                        fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 6,
-                        background: T.blueLight, color: T.blue, border: `1px solid ${T.blueBorder}`
-                      }}
-                    >
-                      {selectedLead.campaign}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 6,
-                        background: selectedLead.status === 'Converted' ? T.emeraldLight : T.orangeLight,
-                        color: selectedLead.status === 'Converted' ? T.emerald : T.orange
-                      }}
-                    >
-                      {selectedLead.status}
-                    </span>
-                  </div>
-                  <h2 style={{ fontSize: 18, fontWeight: 700, color: T.text, margin: '6px 0 0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                  <span
+                    style={{
+                      fontSize: 10.5, fontWeight: 700, padding: '3px 8px', borderRadius: 6,
+                      background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe',
+                      textTransform: 'uppercase', letterSpacing: '0.04em'
+                    }}
+                  >
+                    Meta Lead Preview
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 6,
+                      background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0',
+                      maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {selectedLead.campaign}
+                  </span>
+                  <h2 style={{ fontSize: 16, fontWeight: 700, color: T.text, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {getLeadIdentifiers(selectedLead).name}
                   </h2>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  {getLeadIdentifiers(selectedLead).phone && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  {/* Convert to CRM Lead Quick Action */}
+                  {selectedLead.status !== 'Converted' ? (
                     <button
-                      onClick={() => handleActivatePhoneCall(selectedLead)}
-                      title={`Click to call ${getLeadIdentifiers(selectedLead).phone}`}
+                      onClick={() => handleConvertLead(selectedLead._id)}
                       style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 6,
-                        padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600,
-                        background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0',
-                        cursor: 'pointer', boxShadow: '0 1px 2px rgba(16,185,129,0.12)'
+                        display: 'inline-flex', alignItems: 'center', gap: 5,
+                        padding: '5px 12px', borderRadius: 8, fontSize: 11.5, fontWeight: 600,
+                        background: '#2563eb', color: '#ffffff', border: 'none', cursor: 'pointer',
+                        boxShadow: '0 1px 2px rgba(37,99,235,0.2)'
                       }}
                     >
-                      <FiPhoneCall size={13} />
-                      <span>Call</span>
+                      <FiCheck size={13} />
+                      <span>Convert to CRM</span>
                     </button>
+                  ) : (
+                    <span
+                      style={{
+                        fontSize: 11, fontWeight: 600, padding: '4px 8px', borderRadius: 6,
+                        background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0'
+                      }}
+                    >
+                      ✓ Converted
+                    </span>
                   )}
+
                   <button
                     onClick={() => setSelectedLead(null)}
                     style={{
@@ -1295,119 +1310,28 @@ export default function MetaLeads() {
                       background: T.white, display: 'flex', alignItems: 'center', justifyContent: 'center',
                       cursor: 'pointer', color: T.muted
                     }}
+                    title="Close Preview"
                   >
                     <FiX size={18} />
                   </button>
                 </div>
               </div>
 
-              {/* Drawer Content: Renders All Raw Sheet Key-Values */}
-              <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: T.muted, textTransform: 'uppercase', marginBottom: 12 }}>
-                  All Google Sheet Column Values:
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
-                  {selectedLead.rawData && Object.keys(selectedLead.rawData).map(key => {
-                    const val = selectedLead.rawData[key];
-                    const isPhoneField = /phone|mobile|contact|cell/i.test(key) && val;
-                    return (
-                      <div
-                        key={key}
-                        style={{
-                          background: '#f8fafc', border: `1px solid ${T.borderSoft}`,
-                          borderRadius: 8, padding: '10px 14px', display: 'flex',
-                          flexDirection: 'column', gap: 2
-                        }}
-                      >
-                        <span style={{ fontSize: 11, fontWeight: 600, color: T.muted }}>
-                          {key}
-                        </span>
-                        {isPhoneField ? (
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                            <span style={{ fontSize: 13, fontWeight: 600, color: '#059669', wordBreak: 'break-word' }}>
-                              {String(val)}
-                            </span>
-                            <button
-                              onClick={() => handleActivatePhoneCall({ rawData: { phone: val } })}
-                              style={{
-                                display: 'inline-flex', alignItems: 'center', gap: 4,
-                                padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-                                background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              <FiPhoneCall size={11} />
-                              <span>Call</span>
-                            </button>
-                          </div>
-                        ) : (
-                          <span style={{ fontSize: 13, fontWeight: 500, color: T.text, wordBreak: 'break-word' }}>
-                            {val !== undefined && val !== null ? String(val) : '—'}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Drawer Footer Actions */}
-              <div
-                style={{
-                  padding: '16px 24px', borderTop: `1px solid ${T.border}`,
-                  background: '#f8fafc', display: 'flex', alignItems: 'center', gap: 10
-                }}
-              >
-                {getLeadIdentifiers(selectedLead).phone && (
-                  <button
-                    onClick={() => handleActivatePhoneCall(selectedLead)}
-                    style={{
-                      padding: '10px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-                      background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0',
-                      cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                      boxShadow: '0 1px 2px rgba(16,185,129,0.12)'
-                    }}
-                  >
-                    <FiPhoneCall size={15} />
-                    Call Lead
-                  </button>
-                )}
-
-                {selectedLead.status !== 'Converted' ? (
-                  <button
-                    onClick={() => handleConvertLead(selectedLead._id)}
-                    style={{
-                      flex: 1, padding: '10px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-                      background: T.blue, color: T.white, border: 'none', cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
-                    }}
-                  >
-                    <FiCheck size={16} />
-                    Convert to Active Tele-Caller Lead
-                  </button>
-                ) : (
-                  <div
-                    style={{
-                      flex: 1, padding: '10px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-                      background: T.emeraldLight, color: T.emerald, border: `1px solid ${T.emeraldBorder}`,
-                      textAlign: 'center'
-                    }}
-                  >
-                    ✓ Converted to CRM Leads
-                  </div>
-                )}
-
-                <button
-                  onClick={() => setSelectedLead(null)}
-                  style={{
-                    padding: '10px 16px', borderRadius: 8, fontSize: 13, fontWeight: 500,
-                    background: T.white, border: `1px solid ${T.border}`, color: T.text,
-                    cursor: 'pointer'
+              {/* Drawer Content */}
+              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }} className="bg-slate-50/60">
+                <LeadDetailsPage
+                  key={selectedLead._id}
+                  leadId={selectedLead.crmLeadId || selectedLead._id}
+                  embedded={true}
+                  showBackButton={false}
+                  onDeleted={() => {
+                    setSelectedLead(null);
+                    fetchLeads(page);
                   }}
-                >
-                  Close
-                </button>
+                  onChange={() => {
+                    fetchLeads(page);
+                  }}
+                />
               </div>
             </motion.div>
           </div>

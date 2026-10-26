@@ -490,14 +490,28 @@ export const digitalCalendarAPI = {
     emitCrmSync(CRM_EVENTS.DIGITAL_CALENDAR_CHANGED, { action: 'approve', id });
     return res;
   },
-  complete: async (id, subIndex = null) => {
-    const res = await api.patch(`/marketing/digital-calendar/${id}/complete`, { subIndex });
+  complete: async (id, subIndex = null, times = null) => {
+    const payload = { subIndex };
+    if (times && typeof times === 'object') {
+      payload.times = times;
+      Object.assign(payload, times);
+    }
+    const res = await api.patch(`/marketing/digital-calendar/${id}/complete`, payload);
     emitCrmSync(CRM_EVENTS.DIGITAL_CALENDAR_CHANGED, { action: 'complete', id });
     return res;
   },
   delete: async (id) => {
     const res = await api.delete(`/marketing/digital-calendar/${id}`);
     emitCrmSync(CRM_EVENTS.DIGITAL_CALENDAR_CHANGED, { action: 'delete', id });
+    return res;
+  },
+  updateTimes: async (id, subIndex = null, times = {}) => {
+    const payload = { subIndex, times };
+    if (times && typeof times === 'object') {
+      Object.assign(payload, times);
+    }
+    const res = await api.patch(`/marketing/digital-calendar/${id}/times`, payload);
+    emitCrmSync(CRM_EVENTS.DIGITAL_CALENDAR_CHANGED, { action: 'updateTimes', id });
     return res;
   },
   getGoogleConfig: () => api.get('/marketing/digital-calendar/google/config'),
