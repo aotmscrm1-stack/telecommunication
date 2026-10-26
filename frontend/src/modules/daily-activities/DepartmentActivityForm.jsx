@@ -59,7 +59,7 @@ export default function DepartmentActivityForm({
   const isSubmitted = status === 'submitted';
   const isReviewed = status === 'reviewed';
   const isNeedsCorrection = status === 'needs_correction';
-  const isReadOnly = isReviewed || isAdminPreview || (isSubmitted && !isTelecalling);
+  const isReadOnly = isReviewed || isAdminPreview;
 
   const dateObj = new Date(selectedDate + 'T00:00:00');
   const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
@@ -257,10 +257,10 @@ export default function DepartmentActivityForm({
             </div>
             <div className="text-xs">
               <span className="font-bold text-sky-900">
-                Submitted for Manager Review
+                Submitted for Review — Editable
               </span>
               <span className="block text-[11px] text-sky-700 mt-0.5">
-                Your report for {selectedDate} is in the management review queue.
+                Your report for {selectedDate} is active. You can edit present information and update your submission anytime before manager review.
               </span>
             </div>
           </motion.div>

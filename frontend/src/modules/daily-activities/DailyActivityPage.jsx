@@ -474,11 +474,14 @@ export default function DailyActivityPage() {
       // 2. Submit report
       const submitRes = await dailyActivityAPI.submitActivity(currentId, payload);
       if (submitRes.data?.success) {
+        const isUpdate = activity?.status === 'submitted';
         setActivity(submitRes.data.activity);
         setIsDirty(false);
         setNotification({
           type: 'success',
-          message: `Daily activity report for ${activeDepartment} formally submitted for review!`,
+          message: isUpdate
+            ? `Daily activity for ${selectedDate} updated successfully!`
+            : `Daily activity report for ${activeDepartment} formally submitted for review!`,
         });
         loadCalendarDots(currentMonth, activeDepartment);
         loadHistory(historyPage, activeDepartment);
@@ -521,13 +524,47 @@ export default function DailyActivityPage() {
     });
   };
 
-  const handleSelectDateFromHistory = (date, mode = 'view') => {
+  const handleSelectDateFromHistory = (date, mode = 'view', row = null) => {
+    // 1. If row is provided, immediately populate form with present information from this activity
+    if (row) {
+      setActivity(row);
+      setFormData({
+        metrics: row.metrics || {
+          callsAttempted: 0,
+          connectedCalls: 0,
+          unansweredCalls: 0,
+          interestedLeads: 0,
+          followUpsScheduled: 0,
+          conversions: 0,
+        },
+        outcomes: Array.isArray(row.outcomes) ? row.outcomes : [],
+        departmentData: row.departmentData || {},
+        remarks: row.remarks || '',
+        nextSteps: row.nextSteps || '',
+      });
+      if (row.department && row.department !== activeDepartment) {
+        setActiveDepartment(row.department);
+      }
+    }
+
     setSelectedDate(date);
+
+    // 2. Fetch fresh activity from server (covers case when selectedDate was already date)
+    loadActivityForDate(date, row?.department || activeDepartment, selectedEmployeeId);
+
+    // 3. Smooth scroll up to the form
     window.scrollTo({ top: 120, behavior: 'smooth' });
+
+    // 4. Feedback notification
     if (mode === 'edit') {
       setNotification({
         type: 'info',
-        message: `Activity for ${date} loaded in edit mode. You can update your counts and client outcomes at EOD.`,
+        message: `Activity for ${date} loaded. Present information is ready and can be edited.`,
+      });
+    } else {
+      setNotification({
+        type: 'info',
+        message: `Activity report for ${date} loaded.`,
       });
     }
   };

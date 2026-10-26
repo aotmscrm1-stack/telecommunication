@@ -162,7 +162,7 @@ export default function ActivityHistoryTable({
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           type="button"
-                          onClick={() => onSelectDate(row.activityDate, 'view')}
+                          onClick={() => onSelectDate(row.activityDate, 'view', row)}
                           className="px-2 py-1 text-[11px] font-bold text-slate-600 hover:text-sky-700 hover:bg-slate-100 rounded-lg transition inline-flex items-center gap-1 cursor-pointer"
                           title="View date report"
                         >
@@ -172,7 +172,7 @@ export default function ActivityHistoryTable({
                         {row.status !== 'reviewed' && (
                           <button
                             type="button"
-                            onClick={() => onSelectDate(row.activityDate, 'edit')}
+                            onClick={() => onSelectDate(row.activityDate, 'edit', row)}
                             className="px-2 py-1 text-[11px] font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-lg transition inline-flex items-center gap-1 cursor-pointer"
                             title="Edit activity report at EOD"
                           >
