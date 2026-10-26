@@ -1,6 +1,18 @@
 {
   "rewrites": [
     {
+      "source": "/api/:path*",
+      "destination": "https://api.academyoftechmasters.com/api/:path*"
+    },
+    {
+      "source": "/socket.io/:path*",
+      "destination": "https://api.academyoftechmasters.com/socket.io/:path*"
+    },
+    {
+      "source": "/uploads/:path*",
+      "destination": "https://api.academyoftechmasters.com/uploads/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

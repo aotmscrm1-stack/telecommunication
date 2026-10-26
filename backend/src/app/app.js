@@ -17,9 +17,12 @@ function normalizeOrigin(o) {
 }
 
 function isAllowedOrigin(origin) {
-  if (!configuredOrigin) return true;
   if (!origin) return true;
   const o = normalizeOrigin(origin);
+  if (o.includes('academyoftechmasters.com') || o.includes('vercel.app') || o.includes('localhost') || o.includes('127.0.0.1')) {
+    return true;
+  }
+  if (!configuredOrigin) return true;
   const withWww = configuredOrigin.replace(/^https?:\/\//, m => m).replace(/^(https?:\/\/)(?!www\.)/, '$1www.');
   const withoutWww = configuredOrigin.replace(/^(https?:\/\/)www\./, '$1');
   return o === configuredOrigin || o === withWww || o === withoutWww;
