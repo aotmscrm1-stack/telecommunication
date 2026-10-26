@@ -1,25 +1,5 @@
 services:
-  # ── 1. FRONTEND SERVICE (REACT + VITE STATIC VIA NGINX) ──────────────────
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: aotms-frontend
-    restart: always
-    networks:
-      - aotms-network
-    deploy:
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 256M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  # ── 2. BACKEND API & SOCKETS SERVICE ─────────────────────────────────────
+  # ── 1. BACKEND API & SOCKETS SERVICE ─────────────────────────────────────
   backend:
     build:
       context: ./backend
@@ -49,7 +29,7 @@ services:
         max-size: "10m"
         max-file: "5"
 
-  # ── 3. NGINX GATEWAY & REVERSE PROXY ──────────────────────────────────────
+  # ── 2. NGINX GATEWAY & REVERSE PROXY ──────────────────────────────────────
   nginx-gateway:
     image: nginx:alpine
     container_name: aotms-nginx
@@ -65,8 +45,6 @@ services:
     networks:
       - aotms-network
     depends_on:
-      frontend:
-        condition: service_started
       backend:
         condition: service_healthy
     logging:
