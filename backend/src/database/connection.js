@@ -1,6 +1,5 @@
 const mongoose = require('mongoose');
 const dns = require('dns');
-const { MongoMemoryServer } = require('mongodb-memory-server');
 
 // Fix for "querySrv ECONNREFUSED" on Windows — force Google DNS
 dns.setServers(['8.8.8.8', '8.8.4.4']);
@@ -48,6 +47,14 @@ const connectDB = async () => {
 };
 
 async function connectToMemoryServer() {
+  let MongoMemoryServer;
+  try {
+    const memModule = require('mongodb-memory-server');
+    MongoMemoryServer = memModule.MongoMemoryServer;
+  } catch (err) {
+    throw new Error('mongodb-memory-server is not installed. Please configure a valid MONGODB_URI.');
+  }
+
   if (memoryServer) {
     const conn = await mongoose.connect(memoryServer.getUri(), { serverSelectionTimeoutMS: 10000 });
     console.log(`MongoDB Connected (memory): ${conn.connection.host}`);
