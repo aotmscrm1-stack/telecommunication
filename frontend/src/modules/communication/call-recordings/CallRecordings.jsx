@@ -4,13 +4,19 @@ import {
   AudioLines, Table, LayoutGrid, PhoneCall, FileAudio, 
   Clock, Edit3, MoreVertical, Download, ExternalLink, RefreshCw, User, UserPlus, Sparkles, FileText,
   Maximize2, MessageSquare, Copy, Check, Volume2, Volume1, VolumeX, Trash2, Briefcase,
-  Megaphone, Search, X, Link2, Unlink, Layers, Filter, CheckCircle2
+  Megaphone, Search, X, Link2, Unlink, Layers, Filter, CheckCircle2, Calendar as CalendarIcon,
+  Columns, FileSpreadsheet, ArrowUpDown, ChevronLeft, ChevronRight, Headphones
 } from 'lucide-react';
 import { recordingsAPI, leadsAPI, metaLeadsAPI, campaignsAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
-import { formatISTDateTime } from '../../../utils/dateFormat';
+import { formatISTDateTime, formatISTDate, formatISTTime } from '../../../utils/dateFormat';
 import { isHR, isCEO, isManager, canViewCallRecordings } from '../../../utils/permissions';
 import TranscriptConversationModal from '../../../components/TranscriptConversationModal';
+import CallAnalyticsCards from './components/CallAnalyticsCards';
+import CallCalendarView from './components/CallCalendarView';
+import CallFilterPanel from './components/CallFilterPanel';
+import CallRecordDetailsDrawer from './components/CallRecordDetailsDrawer';
+import CallExportModal from './components/CallExportModal';
 
 // ── ADVANCED CUSTOM AUDIO PLAYER (Play/Pause, Seek, Current Time, Duration, Volume, Error handling)
 const MemoizedAudioPlayer = memo(function MemoizedAudioPlayer({ audioUrl, mimeType, fileExists, fileAvailable, onRetry }) {
@@ -783,11 +789,11 @@ function LinkSessionModal({ recording, onClose, onLinked }) {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between'
         }}>
           <div>
-            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: C.dark, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: C.dark, display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Link2 style={{ width: '18px', height: '18px', color: C.blue }} /> Link Recording Session
             </h3>
             <p style={{ margin: '3px 0 0 0', fontSize: '12px', color: C.textSoft }}>
-              Recording: <strong>{recording.originalName || 'Audio Recording'}</strong> {recording.phone ? `• 📞 ${recording.phone}` : ''}
+              Recording: <span style={{ fontWeight: 600, color: C.dark }}>{recording.originalName || 'Audio Recording'}</span> {recording.phone ? `• 📞 ${recording.phone}` : ''}
             </p>
           </div>
           <button
@@ -819,13 +825,13 @@ function LinkSessionModal({ recording, onClose, onLinked }) {
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{
-                    fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em',
+                    fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em',
                     background: '#ffffff', color: currentLink.badgeColor, padding: '2px 6px', borderRadius: '4px',
                     border: `1px solid ${currentLink.badgeBorder}`
                   }}>
                     {currentLink.badgeLabel}
                   </span>
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: C.dark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: C.dark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {currentLink.name}
                   </span>
                 </div>
@@ -840,7 +846,7 @@ function LinkSessionModal({ recording, onClose, onLinked }) {
                 disabled={linkingId === 'unlink'}
                 style={{
                   background: '#ef4444', color: '#ffffff', border: 'none', padding: '6px 12px',
-                  borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer',
+                  borderRadius: '6px', fontSize: '11px', fontWeight: 500, cursor: 'pointer',
                   display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0
                 }}
               >
@@ -852,7 +858,7 @@ function LinkSessionModal({ recording, onClose, onLinked }) {
 
           {/* Filtering Category Segmented Buttons (Three Options) */}
           <div>
-            <label style={{ fontSize: '11px', fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px', display: 'block' }}>
+            <label style={{ fontSize: '11px', fontWeight: 500, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px', display: 'block' }}>
               Select Link Category:
             </label>
             <div style={{
@@ -874,7 +880,7 @@ function LinkSessionModal({ recording, onClose, onLinked }) {
                       padding: '9px 12px', borderRadius: '8px', border: 'none',
                       background: isActive ? cat.activeBg : 'transparent',
                       color: isActive ? cat.activeText : '#475569',
-                      fontWeight: 700, fontSize: '12px', cursor: 'pointer',
+                      fontWeight: 500, fontSize: '12px', cursor: 'pointer',
                       boxShadow: isActive ? '0 2px 8px rgba(0,0,0,0.12)' : 'none',
                       transition: 'all 0.18s'
                     }}
@@ -979,7 +985,7 @@ function LinkSessionModal({ recording, onClose, onLinked }) {
                       >
                         <div style={{ minWidth: 0, flex: 1 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ fontWeight: 700, fontSize: '13px', color: C.dark }}>
+                            <span style={{ fontWeight: 600, fontSize: '13px', color: C.dark }}>
                               {leadName}
                             </span>
                             {lead.campaign && (
@@ -1003,7 +1009,7 @@ function LinkSessionModal({ recording, onClose, onLinked }) {
                           style={{
                             background: isCurrent ? C.green : '#7c3aed',
                             color: '#ffffff', border: 'none', padding: '6px 12px',
-                            borderRadius: '6px', fontSize: '11px', fontWeight: 700,
+                            borderRadius: '6px', fontSize: '11px', fontWeight: 500,
                             cursor: (isCurrent || isLinkingThis) ? 'default' : 'pointer',
                             opacity: isLinkingThis ? 0.7 : 1, flexShrink: 0
                           }}
@@ -1042,7 +1048,7 @@ function LinkSessionModal({ recording, onClose, onLinked }) {
                       >
                         <div style={{ minWidth: 0, flex: 1 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ fontWeight: 700, fontSize: '13px', color: C.dark }}>
+                            <span style={{ fontWeight: 600, fontSize: '13px', color: C.dark }}>
                               {camp.name}
                             </span>
                             {camp.status && (
@@ -1065,7 +1071,7 @@ function LinkSessionModal({ recording, onClose, onLinked }) {
                           style={{
                             background: isCurrent ? C.green : '#ea580c',
                             color: '#ffffff', border: 'none', padding: '6px 12px',
-                            borderRadius: '6px', fontSize: '11px', fontWeight: 700,
+                            borderRadius: '6px', fontSize: '11px', fontWeight: 500,
                             cursor: (isCurrent || isLinkingThis) ? 'default' : 'pointer',
                             opacity: isLinkingThis ? 0.7 : 1, flexShrink: 0
                           }}
@@ -1104,7 +1110,7 @@ function LinkSessionModal({ recording, onClose, onLinked }) {
                       >
                         <div style={{ minWidth: 0, flex: 1 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ fontWeight: 700, fontSize: '13px', color: C.dark }}>
+                            <span style={{ fontWeight: 600, fontSize: '13px', color: C.dark }}>
                               {lead.name}
                             </span>
                             {lead.status && (
@@ -1128,7 +1134,7 @@ function LinkSessionModal({ recording, onClose, onLinked }) {
                           style={{
                             background: isCurrent ? C.green : C.blue,
                             color: '#ffffff', border: 'none', padding: '6px 12px',
-                            borderRadius: '6px', fontSize: '11px', fontWeight: 700,
+                            borderRadius: '6px', fontSize: '11px', fontWeight: 500,
                             cursor: (isCurrent || isLinkingThis) ? 'default' : 'pointer',
                             opacity: isLinkingThis ? 0.7 : 1, flexShrink: 0
                           }}
@@ -1153,24 +1159,231 @@ export default function CallRecordings() {
   const { user } = useAuth();
   const [recordings, setRecordings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState('all'); // 'all', 'matched', 'unmatched'
-  const [viewMode, setViewMode] = useState('card'); // 'card' or 'table'
   const [error, setError] = useState(null);
+
+  // Analytics & Calendar state
+  const [summary, setSummary] = useState(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [calendarActivity, setCalendarActivity] = useState([]);
+  const [currentCalendarMonth, setCurrentCalendarMonth] = useState(new Date());
+
+  // Filter state
+  const [filters, setFilters] = useState({
+    search: '',
+    datePreset: 'all',
+    exactDate: '',
+    from: '',
+    to: '',
+    status: 'all',
+    direction: 'all',
+    durationTier: 'all',
+    fileAvailable: 'all',
+    linkType: 'all',
+    user: 'all',
+  });
+
+  // Pagination state
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 6, // 2 columns x 3 rows = 6 cards per page
+    total: 0,
+    totalPages: 1,
+  });
+
+  // Modals & Drawers
+  const [activeLinkRecording, setActiveLinkRecording] = useState(null);
+  const [activeConversationRecording, setActiveConversationRecording] = useState(null);
+  const [showExportModal, setShowExportModal] = useState(false);
+
+  // Action states
   const [rematching, setRematching] = useState(false);
   const [rematchMsg, setRematchMsg] = useState(null);
-  const [activeLinkRecording, setActiveLinkRecording] = useState(null);
   const [transcribingId, setTranscribingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
-  const [activeConversationRecording, setActiveConversationRecording] = useState(null);
 
   const isAllowed = canViewCallRecordings(user);
-
   const isHRUser = isHR(user) || user?.role === 'hr' || String(user?.designation || '').toUpperCase() === 'HR';
   const isCEOUser = isCEO(user) || user?.role === 'ceo' || user?.role === 'admin' || user?.role === 'superadmin';
   const canManageCRUD = isHRUser || isCEOUser || user?.role === 'admin' || user?.role === 'superadmin';
   const canViewAllRecordings = canManageCRUD || isManager(user) || user?.role === 'manager';
 
+  const getAudioUrl = (url) => {
+    if (!url) return '';
+    if (url.startsWith('http')) return url;
+    const backendHost = import.meta.env.VITE_API_URL || 'https://telecommunication-l3oz.onrender.com';
+    const baseUrl = backendHost.replace(/\/api\/?$/, '');
+    return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
+  };
+
+  // Build clean query params object
+  const buildQueryParams = (pageToLoad = pagination.page, filtersToUse = filters) => {
+    const params = {
+      page: pageToLoad,
+      limit: pagination.limit,
+    };
+    if (filtersToUse.search && filtersToUse.search.trim()) params.search = filtersToUse.search.trim();
+    if (filtersToUse.datePreset && filtersToUse.datePreset !== 'all' && filtersToUse.datePreset !== 'custom') {
+      params.datePreset = filtersToUse.datePreset;
+    }
+    if (filtersToUse.exactDate) params.date = filtersToUse.exactDate;
+    if (filtersToUse.from) params.from = filtersToUse.from;
+    if (filtersToUse.to) params.to = filtersToUse.to;
+    if (filtersToUse.status && filtersToUse.status !== 'all') params.status = filtersToUse.status;
+    if (filtersToUse.direction && filtersToUse.direction !== 'all') params.direction = filtersToUse.direction;
+    if (filtersToUse.durationTier && filtersToUse.durationTier !== 'all') params.durationTier = filtersToUse.durationTier;
+    if (filtersToUse.fileAvailable && filtersToUse.fileAvailable !== 'all') params.fileAvailable = filtersToUse.fileAvailable;
+    if (filtersToUse.linkType && filtersToUse.linkType !== 'all') params.linkType = filtersToUse.linkType;
+    if (filtersToUse.user && filtersToUse.user !== 'all') params.user = filtersToUse.user;
+
+    return params;
+  };
+
+  // Fetch paginated call recordings
+  const fetchRecordings = async (pageToLoad = 1, currentFilters = filters) => {
+    if (!isAllowed) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const params = buildQueryParams(pageToLoad, currentFilters);
+      let res;
+      if (canViewAllRecordings) {
+        res = await recordingsAPI.getAll(params);
+      } else {
+        res = await recordingsAPI.getMy(params);
+      }
+
+      const data = res.data || {};
+      const list = Array.isArray(data.recordings) ? data.recordings : (Array.isArray(data) ? data : []);
+      setRecordings(list);
+
+      if (data.pagination) {
+        setPagination({
+          page: data.pagination.page || pageToLoad,
+          limit: data.pagination.limit || 6,
+          total: data.pagination.total || list.length,
+          totalPages: data.pagination.totalPages || 1,
+        });
+      } else {
+        setPagination(prev => ({
+          ...prev,
+          page: pageToLoad,
+          limit: 6,
+          total: list.length,
+          totalPages: Math.max(1, Math.ceil(list.length / 6)),
+        }));
+      }
+    } catch (err) {
+      console.error('Failed to load call recordings:', err);
+      setError('Failed to fetch call recordings from server.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch summary analytics
+  const fetchSummary = async (currentFilters = filters) => {
+    if (!isAllowed) return;
+    setSummaryLoading(true);
+    try {
+      const params = buildQueryParams(1, currentFilters);
+      delete params.page;
+      delete params.limit;
+      const res = await recordingsAPI.getAnalyticsSummary(params);
+      setSummary(res.data?.summary || null);
+    } catch (err) {
+      console.error('Failed to load call analytics summary:', err);
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+
+  // Fetch calendar activity dots
+  const fetchCalendarActivity = async (targetDate = currentCalendarMonth) => {
+    if (!isAllowed) return;
+    try {
+      const year = targetDate.getFullYear();
+      const month = targetDate.getMonth() + 1;
+      const params = {
+        year,
+        month,
+      };
+      if (filters.user && filters.user !== 'all') params.user = filters.user;
+      if (filters.status && filters.status !== 'all') params.status = filters.status;
+      if (filters.direction && filters.direction !== 'all') params.direction = filters.direction;
+
+      const res = await recordingsAPI.getCalendarActivity(params);
+      setCalendarActivity(res.data?.activity || []);
+    } catch (err) {
+      console.error('Failed to load calendar activity:', err);
+    }
+  };
+
+  // Initial load
+  useEffect(() => {
+    if (isAllowed) {
+      fetchRecordings(1, filters);
+      fetchSummary(filters);
+      fetchCalendarActivity(currentCalendarMonth);
+    } else {
+      setLoading(false);
+    }
+  }, [user, isAllowed]);
+
+  // Handle filter changes
+  const handleFilterChange = (newFilters) => {
+    setFilters(newFilters);
+    fetchRecordings(1, newFilters);
+    fetchSummary(newFilters);
+  };
+
+  // Handle calendar month change
+  const handleCalendarMonthChange = (newDate) => {
+    setCurrentCalendarMonth(newDate);
+    fetchCalendarActivity(newDate);
+  };
+
+  // Handle clicking a date on the calendar
+  const handleSelectCalendarDate = (dateStr) => {
+    const updated = {
+      ...filters,
+      exactDate: dateStr,
+      datePreset: 'custom',
+      from: '',
+      to: '',
+    };
+    setFilters(updated);
+    fetchRecordings(1, updated);
+    fetchSummary(updated);
+  };
+
+  // Handle pagination navigation
+  const handlePageChange = (newPage) => {
+    if (newPage < 1 || newPage > pagination.totalPages || newPage === pagination.page) return;
+    fetchRecordings(newPage, filters);
+    window.scrollTo({ top: 350, behavior: 'smooth' });
+  };
+
+  // Auto-match leads
+  const handleRematch = async () => {
+    setRematching(true);
+    setRematchMsg(null);
+    try {
+      const res = await recordingsAPI.rematchLeads();
+      setRematchMsg(`Auto-match completed: ${res.data?.matched || 0} leads newly linked!`);
+      fetchRecordings(pagination.page, filters);
+      fetchSummary(filters);
+    } catch (err) {
+      console.error('Rematch error:', err);
+      setRematchMsg('Auto-match operation failed.');
+    } finally {
+      setRematching(false);
+    }
+  };
+
+  // Transcribe recording
   const handleTranscribe = async (recId) => {
     setTranscribingId(recId);
     try {
@@ -1187,64 +1400,11 @@ export default function CallRecordings() {
     }
   };
 
-  const fetchRecordings = async () => {
-    if (!isAllowed) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const res = canViewAllRecordings ? await recordingsAPI.getAll() : await recordingsAPI.getMy();
-      const list = res.data?.recordings || res.data || [];
-      setRecordings(Array.isArray(list) ? list : []);
-    } catch (err) {
-      console.error('Failed to load call recordings:', err);
-      setError('Failed to fetch call recordings from server.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (isAllowed) {
-      fetchRecordings();
-    } else {
-      setLoading(false);
-    }
-  }, [user, isAllowed]);
-
-  if (!isAllowed) {
-    return (
-      <div style={{ padding: '40px 20px', textAlign: 'center', background: '#fff', borderRadius: '16px', maxWidth: '600px', margin: '40px auto', border: `1px solid ${C.border}`, boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
-        <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔒</div>
-        <h2 style={{ fontSize: '20px', fontWeight: 800, color: C.dark, marginBottom: '8px' }}>Access Restricted</h2>
-        <p style={{ fontSize: '14px', color: C.textSoft, lineHeight: 1.6, margin: 0 }}>
-          The Call Recordings module is visible and accessible only to HR and Admin accounts.
-        </p>
-      </div>
-    );
-  }
-
-  const handleRematch = async () => {
-    setRematching(true);
-    setRematchMsg(null);
-    try {
-      const res = await recordingsAPI.rematchLeads();
-      setRematchMsg(`Auto-match completed: ${res.data?.matched || 0} leads newly linked!`);
-      fetchRecordings();
-    } catch (err) {
-      console.error('Rematch error:', err);
-      setRematchMsg('Auto-match operation failed.');
-    } finally {
-      setRematching(false);
-    }
-  };
-
+  // Delete recording
   const handleDeleteRecording = async (rec) => {
     const recId = rec._id || rec.id;
     if (!recId) return;
-    if (deletingId) return; // Prevent double-clicks while deletion is in flight
+    if (deletingId) return;
 
     const fileName = rec.originalName || 'this recording';
     const confirmDelete = window.confirm(
@@ -1256,8 +1416,9 @@ export default function CallRecordings() {
     try {
       const res = await recordingsAPI.delete(recId);
       if (res.data?.success) {
-        // Remove item from UI state only after the backend confirms complete deletion
         setRecordings(prev => prev.filter(r => (r._id || r.id) !== recId));
+        fetchSummary(filters);
+        fetchCalendarActivity(currentCalendarMonth);
       } else {
         throw new Error(res.data?.error || 'Failed to delete audio conversation');
       }
@@ -1270,561 +1431,770 @@ export default function CallRecordings() {
     }
   };
 
-  const filteredRecordings = recordings.filter(rec => {
-    const linkInfo = getLinkInfo(rec);
-    const leadName = linkInfo.name || rec.leadName || rec.lead?.name || '';
-    const phone = rec.phone || rec.leadPhone || rec.lead?.phone || rec.metaLeadPhone || '';
-    const filename = rec.originalName || '';
-    const campName = rec.campaignName || rec.metaLeadCampaign || '';
-
-    const matchesSearch =
-      leadName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      phone.includes(searchTerm) ||
-      filename.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      campName.toLowerCase().includes(searchTerm.toLowerCase());
-
-    if (!matchesSearch) return false;
-
-    if (filterType === 'matched') return linkInfo.isLinked;
-    if (filterType === 'unmatched') return !linkInfo.isLinked;
-
-    return true;
-  });
-
-  const getAudioUrl = (url) => {
-    if (!url) return '';
-    if (url.startsWith('http')) return url;
-    const backendHost = import.meta.env.VITE_API_URL || 'https://telecommunication-l3oz.onrender.com';
-    const baseUrl = backendHost.replace(/\/api\/?$/, '');
-    return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
-  };
-
-  const isAdmin = user?.role === 'admin' || user?.role === 'manager';
+  if (!isAllowed) {
+    return (
+      <div style={{ padding: '40px 20px', textAlign: 'center', background: '#fff', borderRadius: '16px', maxWidth: '600px', margin: '40px auto', border: `1px solid ${C.border}`, boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
+        <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔒</div>
+        <h2 style={{ fontSize: '20px', fontWeight: 600, color: C.dark, marginBottom: '8px' }}>Access Restricted</h2>
+        <p style={{ fontSize: '14px', color: C.textSoft, lineHeight: 1.6, margin: 0 }}>
+          The Call Recordings module is visible and accessible only to HR and Admin accounts.
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1280px', margin: '0 auto', fontFamily: 'Inter, system-ui, -apple-system, sans-serif' }}>
-      
-      {/* ── HEADER CARD ── */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        style={{
-          background: '#1a73e8',
-          padding: '24px 28px', borderRadius: '16px', color: '#ffffff',
-          boxShadow: '0 10px 25px -5px rgba(26, 115, 232, 0.35)', marginBottom: '24px',
-          display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '16px'
-        }}
-      >
+    <div style={{ padding: '24px', maxWidth: '1800px', margin: '0 auto', fontFamily: 'inherit' }}>
+      {/* ── HEADER ── */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '16px',
+        marginBottom: '20px',
+      }}>
         <div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(8px)', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '8px' }}>
-            <span>Marketing Call Intelligence</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <h1 style={{ fontSize: '22px', fontWeight: 600, color: C.dark, margin: 0, letterSpacing: '-0.01em' }}>
+              Live Calls & Conversation Records
+            </h1>
+            <span style={{
+              background: C.blueLight,
+              color: C.blueDark,
+              fontSize: '12px',
+              fontWeight: 500,
+              padding: '3px 10px',
+              borderRadius: '9999px',
+              border: '1px solid #bae6fd',
+            }}>
+              {pagination.total} Recorded Calls
+            </span>
           </div>
-          <h1 style={{ margin: 0, fontSize: '26px', fontWeight: 800, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <AudioLines style={{ width: '28px', height: '28px' }} /> Call Recordings Hub
-          </h1>
-          <p style={{ margin: '6px 0 0 0', opacity: 0.9, fontSize: '14px', maxWidth: '600px' }}>
-            Listen, search, and manually assign synced call recordings to CRM leads, campaigns & contacts.
+          <p style={{ fontSize: '13px', color: C.textSoft, margin: '4px 0 0 0' }}>
+            Interactive Calendar & 3-Column Smart Call Cards with real-time audio playback, caller tags, and AI Whisper transcript.
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px' }}>
+        {/* Action Buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           {canManageCRUD && (
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+            <button
               onClick={handleRematch}
               disabled={rematching}
               style={{
-                background: C.orange, color: '#ffffff', border: 'none', padding: '10px 18px',
-                borderRadius: '10px', fontWeight: 700, fontSize: '13px', cursor: rematching ? 'not-allowed' : 'pointer',
-                display: 'flex', alignItems: 'center', gap: '6px', opacity: rematching ? 0.7 : 1,
-                boxShadow: '0 4px 12px rgba(249, 115, 22, 0.4)'
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 14px',
+                background: '#ffffff',
+                border: `1px solid ${C.border}`,
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: 500,
+                color: C.dark,
+                cursor: rematching ? 'wait' : 'pointer',
+                transition: 'all 0.15s',
               }}
+              title="Automatically match unlinked call recordings to CRM leads by phone number"
             >
-              <RefreshCw style={{ width: '14px', height: '14px' }} className={rematching ? 'animate-spin' : ''} />
+              <RefreshCw style={{ width: '14px', height: '14px', animation: rematching ? 'spin 1s linear infinite' : 'none' }} />
               {rematching ? 'Matching...' : 'Auto-Match Leads'}
-            </motion.button>
+            </button>
           )}
 
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={fetchRecordings}
+          <button
+            onClick={() => setShowExportModal(true)}
             style={{
-              background: 'rgba(255,255,255,0.2)', color: '#ffffff', border: '1px solid rgba(255,255,255,0.4)',
-              backdropFilter: 'blur(10px)', padding: '10px 18px', borderRadius: '10px', fontWeight: 700,
-              fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px'
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 14px',
+              background: '#ffffff',
+              border: `1px solid ${C.border}`,
+              borderRadius: '8px',
+              fontSize: '13px',
+              fontWeight: 500,
+              color: C.dark,
+              cursor: 'pointer',
+              transition: 'all 0.15s',
             }}
           >
-            ⚡ Refresh List
-          </motion.button>
-        </div>
-      </motion.div>
+            <FileSpreadsheet style={{ width: '14px', height: '14px', color: C.green }} />
+            Export CSV
+          </button>
 
+          <button
+            onClick={() => {
+              fetchRecordings(pagination.page, filters);
+              fetchSummary(filters);
+              fetchCalendarActivity(currentCalendarMonth);
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 14px',
+              background: C.blue,
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '13px',
+              fontWeight: 500,
+              color: '#ffffff',
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+            }}
+          >
+            <RefreshCw style={{ width: '14px', height: '14px' }} />
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      {/* Auto-match Notification Banner */}
       {rematchMsg && (
         <div style={{
-          background: C.greenLight, color: C.green, padding: '12px 18px', borderRadius: '10px',
-          marginBottom: '20px', fontSize: '14px', fontWeight: 600, border: `1px solid ${C.greenBorder}`
+          marginBottom: '16px',
+          padding: '12px 16px',
+          borderRadius: '8px',
+          background: '#f0fdf4',
+          border: '1px solid #bbf7d0',
+          color: '#15803d',
+          fontSize: '13px',
+          fontWeight: 600,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
         }}>
-          ✅ {rematchMsg}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <CheckCircle2 style={{ width: '16px', height: '16px' }} />
+            <span>{rematchMsg}</span>
+          </div>
+          <button
+            onClick={() => setRematchMsg(null)}
+            style={{ background: 'none', border: 'none', color: '#15803d', cursor: 'pointer', fontSize: '16px' }}
+          >
+            ×
+          </button>
         </div>
       )}
 
-      {/* ── STATS BAR ── */}
-      <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px'
-      }}>
-        <div style={{ background: '#fff', padding: '16px 18px', borderRadius: '12px', border: `1px solid ${C.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-          <div style={{ color: C.textSoft, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Recordings</div>
-          <div style={{ fontSize: '24px', fontWeight: 800, color: C.dark, marginTop: '2px' }}>{recordings.length}</div>
-        </div>
+      {/* ── TOP KPI SUMMARY CARDS ── */}
+      <CallAnalyticsCards summary={summary} loading={summaryLoading} />
 
-        <div style={{ background: '#fff', padding: '16px 18px', borderRadius: '12px', border: `1px solid ${C.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-          <div style={{ color: C.textSoft, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Linked Sessions</div>
-          <div style={{ fontSize: '24px', fontWeight: 800, color: C.green, marginTop: '2px' }}>
-            {recordings.filter(r => getLinkInfo(r).isLinked).length}
-          </div>
-        </div>
-
-        <div style={{ background: '#fff', padding: '16px 18px', borderRadius: '12px', border: `1px solid ${C.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-          <div style={{ color: C.textSoft, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Unlinked Calls</div>
-          <div style={{ fontSize: '24px', fontWeight: 800, color: C.orange, marginTop: '2px' }}>
-            {recordings.filter(r => !getLinkInfo(r).isLinked).length}
-          </div>
-        </div>
-      </div>
-
-      {/* ── SEARCH & VIEW MODE SWITCH ── */}
-      <div style={{
-        background: '#fff', padding: '14px 18px', borderRadius: '14px', border: `1px solid ${C.border}`,
-        marginBottom: '24px', display: 'flex', flexWrap: 'wrap', gap: '14px', alignItems: 'center', justifyContent: 'space-between',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
-      }}>
-        <input
-          type="text"
-          placeholder="🔍 Search lead name, phone number, or filename..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{
-            flex: '1 1 260px', padding: '9px 14px', borderRadius: '8px', border: `1px solid ${C.border}`,
-            fontSize: '13px', outline: 'none'
-          }}
+      {/* ── ADVANCED FILTER PANEL ── */}
+      <div style={{ marginTop: '20px', marginBottom: '20px' }}>
+        <CallFilterPanel
+          filters={filters}
+          onChange={handleFilterChange}
+          totalCount={pagination.total}
+          loading={loading}
         />
-
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          {/* Filter Status Buttons */}
-          <div style={{ display: 'flex', gap: '4px' }}>
-            <button
-              onClick={() => setFilterType('all')}
-              style={{
-                padding: '7px 12px', borderRadius: '6px', border: 'none', fontSize: '12px', fontWeight: 700, cursor: 'pointer',
-                background: filterType === 'all' ? C.blue : '#f1f5f9',
-                color: filterType === 'all' ? '#ffffff' : C.textSoft
-              }}
-            >
-              All Calls
-            </button>
-            <button
-              onClick={() => setFilterType('matched')}
-              style={{
-                padding: '7px 12px', borderRadius: '6px', border: 'none', fontSize: '12px', fontWeight: 700, cursor: 'pointer',
-                background: filterType === 'matched' ? C.green : '#f1f5f9',
-                color: filterType === 'matched' ? '#ffffff' : C.textSoft
-              }}
-            >
-              Matched
-            </button>
-            <button
-              onClick={() => setFilterType('unmatched')}
-              style={{
-                padding: '7px 12px', borderRadius: '6px', border: 'none', fontSize: '12px', fontWeight: 700, cursor: 'pointer',
-                background: filterType === 'unmatched' ? C.orange : '#f1f5f9',
-                color: filterType === 'unmatched' ? '#ffffff' : C.textSoft
-              }}
-            >
-              Unlinked
-            </button>
-          </div>
-
-          {/* View Mode Switcher (Card vs Table) */}
-          <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: '8px', padding: '2px', border: `1px solid ${C.border}` }}>
-            <button
-              onClick={() => setViewMode('card')}
-              style={{
-                padding: '6px 12px', borderRadius: '6px', border: 'none', fontSize: '12px', fontWeight: 700, cursor: 'pointer',
-                background: viewMode === 'card' ? '#ffffff' : 'transparent',
-                color: viewMode === 'card' ? C.blue : C.textSoft,
-                boxShadow: viewMode === 'card' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                display: 'flex', alignItems: 'center', gap: '6px'
-              }}
-            >
-              <LayoutGrid style={{ width: '14px', height: '14px' }} /> Cards
-            </button>
-            <button
-              onClick={() => setViewMode('table')}
-              style={{
-                padding: '6px 12px', borderRadius: '6px', border: 'none', fontSize: '12px', fontWeight: 700, cursor: 'pointer',
-                background: viewMode === 'table' ? '#ffffff' : 'transparent',
-                color: viewMode === 'table' ? C.blue : C.textSoft,
-                boxShadow: viewMode === 'table' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                display: 'flex', alignItems: 'center', gap: '6px'
-              }}
-            >
-              <Table style={{ width: '14px', height: '14px' }} /> Table
-            </button>
-          </div>
-        </div>
       </div>
 
-      {/* ── RECORDINGS LIST ── */}
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '60px 0', background: '#fff', borderRadius: '14px', border: `1px solid ${C.border}` }}>
-          <div style={{ fontSize: '16px', color: C.textSoft, fontWeight: 600 }}>⏳ Loading call recordings...</div>
-        </div>
-      ) : error ? (
-        <div style={{ padding: '24px', background: '#fef2f2', color: '#dc2626', borderRadius: '14px', border: '1px solid #fecaca' }}>
-          {error}
-        </div>
-      ) : filteredRecordings.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px 20px', background: '#fff', borderRadius: '14px', border: `1px solid ${C.border}` }}>
-          <div style={{ fontSize: '44px', marginBottom: '12px' }}>🔇</div>
-          <h3 style={{ margin: '0 0 6px 0', color: C.dark, fontSize: '18px' }}>No Call Recordings Found</h3>
-          <p style={{ color: C.textSoft, fontSize: '14px', margin: 0 }}>
-            {searchTerm ? 'No recordings match your search query.' : 'Sync call recordings from your mobile app to view and play them here.'}
-          </p>
-        </div>
-      ) : viewMode === 'card' ? (
-        
-        /* ── COMPACT CARD GRID (With Framer-Motion Animations) ── */
+      {/* ── MAIN WORKSPACE: SPLIT VIEW ONLY (Calendar Left, Column-Wise 3 Cards Right) ── */}
+      {error && (
         <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '16px'
+          padding: '16px',
+          borderRadius: '10px',
+          background: '#fee2e2',
+          border: '1px solid #fecaca',
+          color: '#b91c1c',
+          marginBottom: '20px',
+          fontSize: '13px',
+          fontWeight: 600,
         }}>
-          {filteredRecordings.map((rec, index) => {
-            const audioUrl = getAudioUrl(rec.cloudinaryUrl || rec.url);
-            const linkInfo = getLinkInfo(rec);
+          ⚠️ {error}
+        </div>
+      )}
 
-            return (
-              <motion.div
-                key={rec._id || rec.id}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2, delay: index * 0.03 }}
-                whileHover={{ scale: 1.015, y: -2 }}
+      {/* ── RESPONSIVE CSS INJECTION ── */}
+      <style>{`
+        .call-recordings-split-layout {
+          display: grid;
+          grid-template-columns: 460px minmax(0, 1fr);
+          gap: 24px;
+          align-items: start;
+        }
+        .call-recordings-calendar-sticky {
+          position: sticky;
+          top: 20px;
+          width: 100%;
+        }
+        .call-records-responsive-grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 16px;
+        }
+        @media (max-width: 1550px) {
+          .call-recordings-split-layout {
+            grid-template-columns: 430px minmax(0, 1fr);
+            gap: 20px;
+          }
+          .call-records-responsive-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+          }
+        }
+        @media (max-width: 1350px) {
+          .call-recordings-split-layout {
+            grid-template-columns: 400px minmax(0, 1fr);
+            gap: 16px;
+          }
+          .call-records-responsive-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+        @media (max-width: 1100px) {
+          .call-recordings-split-layout {
+            grid-template-columns: 1fr;
+            gap: 20px;
+          }
+          .call-recordings-calendar-sticky {
+            position: static !important;
+          }
+          .call-records-responsive-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+        @media (max-width: 720px) {
+          .call-records-responsive-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
+
+      <div className="call-recordings-split-layout">
+        {/* ── LEFT COLUMN: Interactive Calendar (Increased Width: 460px) ── */}
+        <div className="call-recordings-calendar-sticky">
+          <CallCalendarView
+            activityData={calendarActivity}
+            calendarActivity={calendarActivity}
+            selectedDate={filters.exactDate}
+            onSelectDate={handleSelectCalendarDate}
+            viewMode="month"
+            onViewModeChange={() => {}}
+            currentMonth={currentCalendarMonth}
+            onMonthChange={handleCalendarMonthChange}
+          />
+
+          {/* Quick Active Date Filter Card under Calendar (Compact) */}
+          {filters.exactDate && (
+            <div style={{
+              marginTop: '8px',
+              padding: '8px 12px',
+              background: '#f0f9ff',
+              borderRadius: '8px',
+              border: '1px solid #bae6fd',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <div>
+                <div style={{ fontSize: '10px', fontWeight: 600, color: '#0369a1' }}>Active Filter</div>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: '#0c4a6e', marginTop: '1px' }}>
+                  📅 {filters.exactDate}
+                </div>
+              </div>
+              <button
+                onClick={() => handleFilterChange({ ...filters, exactDate: '' })}
                 style={{
-                  background: '#ffffff', borderRadius: '12px', border: `1px solid ${C.border}`,
-                  padding: '14px 16px', boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
-                  display: 'flex', flexDirection: 'column', gap: '10px',
-                  overflow: 'hidden', boxSizing: 'border-box'
+                  fontSize: '11px',
+                  fontWeight: 500,
+                  color: '#0284c7',
+                  background: '#ffffff',
+                  border: '1px solid #bae6fd',
+                  padding: '3px 8px',
+                  borderRadius: '5px',
+                  cursor: 'pointer',
                 }}
               >
-                {/* 1. TOP LINE: Linked Session (Avatar + Name + Badge) | Link Session Button | Three Dots Menu */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                  
-                  {/* Avatar + Name + Subtitle */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
-                    <div style={{
-                      width: '32px', height: '32px', borderRadius: '50%',
-                      background: linkInfo.avatarBg,
-                      color: linkInfo.avatarColor,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontWeight: 700, fontSize: '12px', border: `1px solid ${linkInfo.badgeBorder}`,
-                      flexShrink: 0
-                    }}>
-                      {linkInfo.avatarIcon}
-                    </div>
+                Clear ×
+              </button>
+            </div>
+          )}
+        </div>
 
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{
-                        fontWeight: 700, fontSize: '13px', color: C.dark, lineHeight: 1.2,
-                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-                      }} title={linkInfo.name}>
-                        {linkInfo.name}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px', flexWrap: 'wrap' }}>
-                        <span style={{
-                          fontSize: '10px',
-                          color: linkInfo.badgeColor,
-                          background: linkInfo.badgeBg,
-                          border: `1px solid ${linkInfo.badgeBorder}`,
-                          padding: '1px 5px',
-                          borderRadius: '4px',
-                          fontWeight: 700,
-                          display: 'inline-flex',
+        {/* ── RIGHT COLUMN: Column-Wise 3 Cards ── */}
+        <div style={{ minWidth: 0 }}>
+          {/* Header Bar above 3-column cards */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '12px 16px',
+            background: '#ffffff',
+            borderRadius: '10px',
+            border: `1px solid ${C.border}`,
+            marginBottom: '16px',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <PhoneCall style={{ width: '16px', height: '16px', color: C.blue }} />
+              <span style={{ fontSize: '14px', fontWeight: 600, color: C.dark }}>
+                {filters.exactDate ? `Calls on ${filters.exactDate}` : 'All Call Records'}
+              </span>
+              <span style={{ fontSize: '12px', color: C.textSoft, fontWeight: 500 }}>
+                ({recordings.length} calls displayed)
+              </span>
+            </div>
+
+            {filters.exactDate && (
+              <button
+                onClick={() => handleFilterChange({ ...filters, exactDate: '' })}
+                style={{
+                  fontSize: '11px',
+                  color: C.blueDark,
+                  background: C.blueLight,
+                  border: '1px solid #bae6fd',
+                  padding: '3px 9px',
+                  borderRadius: '5px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Show All Days ×
+              </button>
+            )}
+          </div>
+
+          {/* Loading or Empty State */}
+          {loading ? (
+            <div style={{
+              background: '#ffffff',
+              borderRadius: '12px',
+              border: `1px solid ${C.border}`,
+              padding: '60px 20px',
+              textAlign: 'center',
+              color: C.textSoft,
+              fontSize: '14px',
+            }}>
+              <RefreshCw style={{ width: '22px', height: '22px', animation: 'spin 1s linear infinite', margin: '0 auto 10px auto', color: C.blue }} />
+              Loading call records...
+            </div>
+          ) : recordings.length === 0 ? (
+            <div style={{
+              background: '#ffffff',
+              borderRadius: '12px',
+              border: `1px solid ${C.border}`,
+              padding: '60px 20px',
+              textAlign: 'center',
+            }}>
+              <div style={{ fontSize: '36px', marginBottom: '10px' }}>📭</div>
+              <div style={{ fontSize: '15px', fontWeight: 600, color: C.dark }}>No call records found</div>
+              <div style={{ fontSize: '13px', color: C.textSoft, marginTop: '4px' }}>
+                {filters.exactDate
+                  ? `No calls logged on ${filters.exactDate}. Click another date on the calendar.`
+                  : 'Try selecting a different filter or clearing search.'}
+              </div>
+            </div>
+          ) : (
+            /* 3-COLUMN CARDS GRID (Responsive Across All Devices) */
+            <div className="call-records-responsive-grid">
+              {recordings.map((rec) => {
+                const recId = rec._id || rec.id;
+                const linkInfo = getLinkInfo(rec);
+                const audioUrl = getAudioUrl(rec.audioUrl);
+                const leadInitial = linkInfo.name ? linkInfo.name.trim().charAt(0).toUpperCase() : 'M';
+                const callerDesignation = rec.userDesignation || rec.userDepartment || 'HR';
+                const audioFilename = rec.originalName || (rec.audioUrl ? rec.audioUrl.split('/').pop().split('?')[0] : 'Audio Conversation');
+
+                return (
+                  <div
+                    key={recId}
+                    style={{
+                      background: '#ffffff',
+                      borderRadius: '16px',
+                      border: '1px solid #e2e8f0',
+                      boxShadow: '0 2px 10px rgba(0,0,0,0.03)',
+                      padding: '16px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px',
+                      boxSizing: 'border-box',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.boxShadow = '0 6px 18px rgba(0,0,0,0.06)';
+                      e.currentTarget.style.borderColor = '#cbd5e1';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.boxShadow = '0 2px 10px rgba(0,0,0,0.03)';
+                      e.currentTarget.style.borderColor = '#e2e8f0';
+                    }}
+                  >
+                    {/* 1. TOP HEADER: Avatar + Name + Badge + Phone + Edit Link + Menu */}
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
+                      {/* Left: Avatar + Details */}
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', flex: 1, minWidth: 0 }}>
+                        <div style={{
+                          width: '38px',
+                          height: '38px',
+                          borderRadius: '50%',
+                          background: '#e0f2fe',
+                          color: '#0284c7',
+                          display: 'flex',
                           alignItems: 'center',
-                          gap: '3px'
+                          justifyContent: 'center',
+                          fontWeight: 600,
+                          fontSize: '15px',
+                          flexShrink: 0,
                         }}>
-                          {linkInfo.badgeLabel}
-                        </span>
-                        {linkInfo.subDetail && (
-                          <span style={{ fontSize: '10px', color: C.textSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={linkInfo.subDetail}>
-                            {linkInfo.subDetail}
-                          </span>
+                          {leadInitial}
+                        </div>
+
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{
+                            fontWeight: 600,
+                            fontSize: '15px',
+                            color: '#0f172a',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}>
+                            {linkInfo.name || 'Unknown Contact'}
+                          </div>
+
+                          <div style={{ marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{
+                              display: 'inline-block',
+                              background: linkInfo.badgeBg || '#e0f2fe',
+                              color: linkInfo.badgeColor || '#0284c7',
+                              border: `1px solid ${linkInfo.badgeBorder || '#bae6fd'}`,
+                              borderRadius: '6px',
+                              padding: '1px 8px',
+                              fontSize: '11px',
+                              fontWeight: 500,
+                            }}>
+                              {linkInfo.badgeLabel || 'Lead'}
+                            </span>
+                          </div>
+
+                          <div style={{
+                            marginTop: '3px',
+                            fontSize: '12px',
+                            fontWeight: 500,
+                            color: '#475569',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}>
+                            <span style={{ color: '#e11d48', fontSize: '11px' }}>📞</span>
+                            <span>{rec.phone || linkInfo.subDetail || 'No phone'}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: Edit Link Button + ⋮ Menu */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                        {canManageCRUD && (
+                          <button
+                            onClick={() => setActiveLinkRecording(rec)}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '5px 10px',
+                              borderRadius: '8px',
+                              background: '#f0f9ff',
+                              border: '1px solid #bae6fd',
+                              color: '#0284c7',
+                              fontSize: '12px',
+                              fontWeight: 500,
+                              cursor: 'pointer',
+                              transition: 'all 0.15s',
+                            }}
+                          >
+                            <Link2 style={{ width: '12px', height: '12px' }} />
+                            {linkInfo.isLinked ? 'Edit Link' : 'Link'}
+                          </button>
                         )}
+
+                        <ThreeDotsMenu
+                          audioUrl={audioUrl}
+                          originalName={rec.originalName}
+                          onDelete={canManageCRUD ? () => handleDeleteRecording(rec) : undefined}
+                        />
                       </div>
                     </div>
-                  </div>
 
-                  {/* Right Actions: Link Session Action Button & Three Dots Menu */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                    {canManageCRUD && (
-                      <motion.button
-                        whileHover={{ scale: 1.04 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => setActiveLinkRecording(rec)}
-                        title={linkInfo.isLinked ? "Edit linked lead or campaign" : "Link this recording session to Meta Leads, Campaigns, or Normal Leads"}
-                        style={{
-                          background: linkInfo.isLinked ? '#f8fafc' : C.orangeLight,
-                          border: `1px solid ${linkInfo.isLinked ? C.border : C.orange}`,
-                          borderRadius: '8px',
-                          padding: '5px 9px',
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          display: 'flex', alignItems: 'center', gap: '4px',
-                          cursor: 'pointer',
-                          color: linkInfo.isLinked ? C.blue : C.orangeDark,
-                          boxShadow: linkInfo.isLinked ? 'none' : '0 2px 6px rgba(249, 115, 22, 0.2)',
-                          transition: 'all 0.15s'
-                        }}
-                      >
-                        <Link2 style={{ width: '11px', height: '11px' }} />
-                        <span>{linkInfo.isLinked ? "Edit Link" : "Link Session"}</span>
-                      </motion.button>
-                    )}
-
-                    {/* Three Dots Menu for Download, Open, & Delete */}
-                    <ThreeDotsMenu
-                      audioUrl={audioUrl}
-                      originalName={rec.originalName}
-                      onDelete={canManageCRUD ? () => handleDeleteRecording(rec) : undefined}
-                    />
-                  </div>
-                </div>
-
-                {/* Caller Profile Badge (Employee / Caller Tracking) */}
-                <div style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  background: '#f1f5f9', padding: '5px 8px', borderRadius: '6px', fontSize: '11px'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#475569', fontWeight: 600 }}>
-                    <User style={{ width: '12px', height: '12px', color: C.blue }} />
-                    <span>Caller: <strong style={{ color: C.dark }}>{rec.userName || 'Assigned Caller'}</strong></span>
-                  </div>
-                  {rec.userDepartment || rec.userDesignation ? (
-                    <span style={{ fontSize: '10px', color: '#64748b', background: '#e2e8f0', padding: '1px 6px', borderRadius: '4px' }}>
-                      {rec.userDepartment || rec.userDesignation}
-                    </span>
-                  ) : null}
-                </div>
-
-                {/* 2. SECOND LINE: Call Record Name */}
-                <div style={{ fontSize: '12px', fontWeight: 600, color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <FileAudio style={{ width: '14px', height: '14px', color: C.blue, flexShrink: 0 }} />
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={rec.originalName}>
-                    {rec.originalName || 'Call Recording'}
-                  </span>
-                </div>
-
-                {/* 3. THIRD LINE: Date & Time */}
-                <div style={{ fontSize: '11px', color: C.textSoft, display: 'flex', alignItems: 'center', gap: '6px', background: C.bgSoft, padding: '4px 8px', borderRadius: '6px', border: `1px solid ${C.border}` }}>
-                  <Clock style={{ width: '12px', height: '12px', color: '#94a3b8', flexShrink: 0 }} />
-                  <span>{rec.recordedAt ? formatISTDateTime(rec.recordedAt) : `${rec.callDate || ''} ${rec.callTime || ''}`}</span>
-                </div>
-
-                {/* 4. FOURTH LINE: Phone Number */}
-                <div style={{ fontSize: '12px', fontWeight: 600, color: C.dark, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <div style={{ background: '#f1f5f9', border: `1px solid ${C.border}`, padding: '3px 8px', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: 'monospace' }}>
-                    <PhoneCall style={{ width: '13px', height: '13px', color: C.green }} />
-                    <span>{rec.phone || 'No Phone Number'}</span>
-                  </div>
-                </div>
-
-                {/* 5. FIFTH LINE: Audio Container */}
-                <div style={{ background: C.bgSoft, borderRadius: '8px', padding: '6px 8px', border: `1px solid ${C.border}`, overflow: 'hidden', boxSizing: 'border-box', width: '100%', maxWidth: '100%' }}>
-                  <MemoizedAudioPlayer audioUrl={audioUrl} mimeType={rec.mimeType} fileExists={rec.fileExists} fileAvailable={rec.fileAvailable} onRetry={fetchRecordings} />
-                </div>
-
-                {/* 6. SIXTH LINE: AI Whisper Transcription */}
-                <div style={{ marginTop: '2px' }}>
-                  {rec.transcript ? (
+                    {/* 2. CALLER BOX: 👤 Caller: Raja Sri [HR] */}
                     <div style={{
-                      background: '#f8fafc', padding: '8px 10px', borderRadius: '8px',
-                      border: `1px solid ${C.border}`, fontSize: '11px', color: '#334155'
+                      background: '#f1f5f9',
+                      borderRadius: '8px',
+                      padding: '7px 11px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      fontSize: '12px',
+                      color: '#475569',
                     }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 700, color: C.blue }}>
-                          <Sparkles style={{ width: '12px', height: '12px' }} />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <User style={{ width: '13px', height: '13px', color: '#0284c7' }} />
+                        <span>Caller: <span style={{ color: '#0f172a', fontWeight: 600 }}>{rec.userName || 'Assigned Caller'}</span></span>
+                      </div>
+                      <span style={{
+                        background: '#e2e8f0',
+                        color: '#475569',
+                        fontSize: '10px',
+                        fontWeight: 500,
+                        padding: '1px 6px',
+                        borderRadius: '4px',
+                        textTransform: 'uppercase',
+                      }}>
+                        {callerDesignation}
+                      </span>
+                    </div>
+
+                    {/* 3. FILENAME ROW: 🎧 7731864136%202026-10-23%2015-41-... */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '7px',
+                      fontSize: '12px',
+                      fontWeight: 500,
+                      color: '#1e293b',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      <Headphones style={{ width: '15px', height: '15px', color: '#0284c7', flexShrink: 0 }} />
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={audioFilename}>
+                        {audioFilename}
+                      </span>
+                    </div>
+
+                    {/* 4. DATE & TIME BOX: 🕒 23 Oct 2026, 06:45 pm IST */}
+                    <div style={{
+                      background: '#ffffff',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      padding: '7px 11px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '7px',
+                      fontSize: '12px',
+                      color: '#64748b',
+                      fontWeight: 500,
+                    }}>
+                      <Clock style={{ width: '13px', height: '13px', color: '#94a3b8' }} />
+                      <span>{rec.recordedAt ? formatISTDateTime(rec.recordedAt) : `${rec.callDate || ''} ${rec.callTime || ''}`}</span>
+                    </div>
+
+                    {/* 5. PHONE PILL: 📞 7731864136 */}
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      background: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      padding: '5px 11px',
+                      fontSize: '13px',
+                      fontWeight: 500,
+                      color: '#0f172a',
+                      alignSelf: 'flex-start',
+                    }}>
+                      <PhoneCall style={{ width: '13px', height: '13px', color: '#16a34a' }} />
+                      <span>{rec.phone || 'N/A'}</span>
+                    </div>
+
+                    {/* 6. VOICE AUDIO PLAYER */}
+                    <div style={{ marginTop: '2px' }}>
+                      <MemoizedAudioPlayer
+                        audioUrl={audioUrl}
+                        mimeType={rec.mimeType}
+                        fileExists={rec.fileExists}
+                        fileAvailable={rec.fileAvailable}
+                        onRetry={() => fetchRecordings(pagination.page, filters)}
+                      />
+                    </div>
+
+                    {/* 7. AI WHISPER TRANSCRIPT BOX */}
+                    <div style={{
+                      background: '#f0f9ff',
+                      border: '1px solid #e0f2fe',
+                      borderRadius: '10px',
+                      padding: '10px 12px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '6px',
+                      marginTop: '2px',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#0284c7', fontWeight: 600, fontSize: '12px' }}>
+                          <Sparkles style={{ width: '13px', height: '13px', color: '#0284c7' }} />
                           <span>AI Whisper Transcript:</span>
                         </div>
-                        <button
-                          onClick={() => setActiveConversationRecording(rec)}
-                          title="Open Fullscreen Chat Conversation View"
-                          style={{
-                            background: C.blueLight, color: C.blue, border: 'none', borderRadius: '4px',
-                            padding: '2px 7px', fontSize: '10px', fontWeight: 700, cursor: 'pointer',
-                            display: 'inline-flex', alignItems: 'center', gap: '3px'
-                          }}
-                        >
-                          <Maximize2 style={{ width: '11px', height: '11px' }} /> Chat View
-                        </button>
+
+                        {rec.transcript ? (
+                          <button
+                            onClick={() => setActiveConversationRecording(rec)}
+                            style={{
+                              background: '#e0f2fe',
+                              border: 'none',
+                              color: '#0369a1',
+                              padding: '2px 8px',
+                              borderRadius: '5px',
+                              fontSize: '11px',
+                              fontWeight: 500,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                            }}
+                          >
+                            <ExternalLink style={{ width: '10px', height: '10px' }} />
+                            Chat View
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleTranscribe(recId)}
+                            disabled={transcribingId === recId}
+                            style={{
+                              background: '#ffffff',
+                              border: '1px solid #bae6fd',
+                              color: '#0284c7',
+                              padding: '2px 8px',
+                              borderRadius: '5px',
+                              fontSize: '11px',
+                              fontWeight: 500,
+                              cursor: transcribingId === recId ? 'wait' : 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                            }}
+                          >
+                            <Sparkles style={{ width: '10px', height: '10px' }} />
+                            {transcribingId === recId ? 'Transcribing...' : 'Transcribe'}
+                          </button>
+                        )}
                       </div>
-                      <div style={{ maxHeight: '80px', overflowY: 'auto', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>
-                        {rec.transcript}
-                      </div>
+
+                      {rec.transcript ? (
+                        <div style={{
+                          fontSize: '12px',
+                          color: '#334155',
+                          lineHeight: 1.5,
+                          maxHeight: '75px',
+                          overflowY: 'auto',
+                          borderRight: '3px solid #38bdf8',
+                          paddingRight: '6px',
+                        }}>
+                          {rec.transcript}
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>
+                          No transcript yet. Click Transcribe to generate AI text.
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    <button
-                      onClick={() => handleTranscribe(rec._id || rec.id)}
-                      disabled={transcribingId === (rec._id || rec.id)}
-                      style={{
-                        background: C.blueSoft, color: C.blue, border: `1px solid ${C.blue}`,
-                        padding: '5px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 700,
-                        cursor: transcribingId === (rec._id || rec.id) ? 'not-allowed' : 'pointer',
-                        display: 'flex', alignItems: 'center', gap: '5px', width: '100%', justifyContent: 'center'
-                      }}
-                    >
-                      <Sparkles style={{ width: '12px', height: '12px' }} className={transcribingId === (rec._id || rec.id) ? 'animate-spin' : ''} />
-                      {transcribingId === (rec._id || rec.id) ? 'Transcribing with Whisper...' : 'Transcribe with AI (Whisper)'}
-                    </button>
-                  )}
-                </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
-              </motion.div>
-            );
-          })}
+          {/* ── PAGINATION CONTROLS ── */}
+          {pagination.total > 0 && (
+            <div style={{
+              marginTop: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '12px',
+              padding: '12px 18px',
+              background: '#ffffff',
+              borderRadius: '10px',
+              border: `1px solid ${C.border}`,
+            }}>
+              <div style={{ fontSize: '13px', color: C.textSoft }}>
+                Showing <span style={{ fontWeight: 600, color: C.dark }}>{Math.min(pagination.total, (pagination.page - 1) * pagination.limit + 1)}</span> to{' '}
+                <span style={{ fontWeight: 600, color: C.dark }}>{Math.min(pagination.total, pagination.page * pagination.limit)}</span> of{' '}
+                <span style={{ fontWeight: 600, color: C.dark }}>{pagination.total}</span> calls
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  onClick={() => handlePageChange(pagination.page - 1)}
+                  disabled={pagination.page <= 1 || loading}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid #e2e8f0',
+                    background: pagination.page <= 1 ? '#f8fafc' : '#ffffff',
+                    color: pagination.page <= 1 ? '#94a3b8' : C.dark,
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    cursor: pagination.page <= 1 ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  <ChevronLeft style={{ width: '14px', height: '14px' }} />
+                  Previous
+                </button>
+
+                <span style={{ fontSize: '12px', fontWeight: 500, color: C.dark, padding: '0 6px' }}>
+                  Page {pagination.page} of {pagination.totalPages}
+                </span>
+
+                <button
+                  onClick={() => handlePageChange(pagination.page + 1)}
+                  disabled={pagination.page >= pagination.totalPages || loading}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid #e2e8f0',
+                    background: pagination.page >= pagination.totalPages ? '#f8fafc' : '#ffffff',
+                    color: pagination.page >= pagination.totalPages ? '#94a3b8' : C.dark,
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    cursor: pagination.page >= pagination.totalPages ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  Next
+                  <ChevronRight style={{ width: '14px', height: '14px' }} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-
-      ) : (
-
-        /* ── TABLE VIEW FALLBACK ── */
-        <div style={{ background: '#fff', borderRadius: '14px', border: `1px solid ${C.border}`, overflow: 'hidden' }}>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-              <thead>
-                <tr style={{ background: C.bgSoft, borderBottom: `1px solid ${C.border}`, color: C.textSoft, fontSize: '11px', textTransform: 'uppercase' }}>
-                  <th style={{ padding: '14px 16px' }}>Linked Session / Entity</th>
-                  <th style={{ padding: '14px 16px' }}>Caller Profile</th>
-                  <th style={{ padding: '14px 16px' }}>Phone Number</th>
-                  <th style={{ padding: '14px 16px' }}>Date & Time</th>
-                  <th style={{ padding: '14px 16px' }}>Audio Player</th>
-                  <th style={{ padding: '14px 16px', textAlign: 'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredRecordings.map((rec) => {
-                  const audioUrl = getAudioUrl(rec.cloudinaryUrl || rec.url);
-                  const linkInfo = getLinkInfo(rec);
-
-                  return (
-                    <tr key={rec._id || rec.id} style={{ borderBottom: `1px solid ${C.border}` }}>
-                      <td style={{ padding: '14px 16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <div style={{
-                            width: '28px', height: '28px', borderRadius: '50%',
-                            background: linkInfo.avatarBg,
-                            color: linkInfo.avatarColor,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontWeight: 700, fontSize: '11px', border: `1px solid ${linkInfo.badgeBorder}`,
-                            flexShrink: 0
-                          }}>
-                            {linkInfo.avatarIcon}
-                          </div>
-                          <div>
-                            <div style={{ fontWeight: 700, color: C.dark }}>
-                              {linkInfo.name}
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                              <span style={{
-                                fontSize: '10px',
-                                color: linkInfo.badgeColor,
-                                background: linkInfo.badgeBg,
-                                border: `1px solid ${linkInfo.badgeBorder}`,
-                                padding: '1px 5px',
-                                borderRadius: '4px',
-                                fontWeight: 700
-                              }}>
-                                {linkInfo.badgeLabel}
-                              </span>
-                              <span style={{ fontSize: '11px', color: '#94a3b8' }}>
-                                {linkInfo.subDetail || rec.originalName}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-
-                      <td style={{ padding: '14px 16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <User style={{ width: '13px', height: '13px', color: C.blue }} />
-                          <span style={{ fontWeight: 600, color: C.dark, fontSize: '12px' }}>
-                            {rec.userName || 'Assigned Caller'}
-                          </span>
-                        </div>
-                        {rec.userDepartment || rec.userDesignation ? (
-                          <div style={{ fontSize: '10px', color: C.textSoft, marginTop: '2px' }}>
-                            {rec.userDepartment || rec.userDesignation}
-                          </div>
-                        ) : null}
-                      </td>
-
-                      <td style={{ padding: '14px 16px', fontWeight: 600 }}>
-                         {rec.phone || 'N/A'}
-                      </td>
-
-                      <td style={{ padding: '14px 16px', color: C.textSoft, fontSize: '12px' }}>
-                        {rec.recordedAt ? formatISTDateTime(rec.recordedAt) : `${rec.callDate || ''} ${rec.callTime || ''}`}
-                      </td>
-
-                      <td style={{ padding: '14px 16px', minWidth: '300px' }}>
-                        <MemoizedAudioPlayer audioUrl={audioUrl} mimeType={rec.mimeType} fileExists={rec.fileExists} fileAvailable={rec.fileAvailable} onRetry={fetchRecordings} />
-                      </td>
-
-                      <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                          {canManageCRUD && (
-                            <button
-                              onClick={() => setActiveLinkRecording(rec)}
-                              style={{
-                                background: linkInfo.isLinked ? C.blueLight : C.orangeLight,
-                                color: linkInfo.isLinked ? C.blue : C.orangeDark,
-                                border: `1px solid ${linkInfo.isLinked ? C.blue : C.orange}`,
-                                padding: '5px 10px', borderRadius: '6px', fontWeight: 700, fontSize: '11px',
-                                cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px'
-                              }}
-                            >
-                              <Link2 style={{ width: '12px', height: '12px' }} />
-                              {linkInfo.isLinked ? ' Edit Link' : ' Link Session'}
-                            </button>
-                          )}
-                          <ThreeDotsMenu
-                            audioUrl={audioUrl}
-                            originalName={rec.originalName}
-                            onDelete={canManageCRUD ? () => handleDeleteRecording(rec) : undefined}
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      </div>
 
       {/* ── MODALS ── */}
       <AnimatePresence>
+        {/* Link Session Modal */}
         {activeLinkRecording && (
           <LinkSessionModal
             recording={activeLinkRecording}
             onClose={() => setActiveLinkRecording(null)}
-            onLinked={fetchRecordings}
+            onLinked={() => {
+              fetchRecordings(pagination.page, filters);
+              fetchSummary(filters);
+            }}
           />
         )}
+
+        {/* AI Transcript Full Conversation Modal */}
         {activeConversationRecording && (
           <TranscriptConversationModal
             recording={activeConversationRecording}
             onClose={() => setActiveConversationRecording(null)}
+          />
+        )}
+
+        {/* Export CSV Modal */}
+        {showExportModal && (
+          <CallExportModal
+            isOpen={showExportModal}
+            onClose={() => setShowExportModal(false)}
+            filters={filters}
+            totalCount={pagination.total}
           />
         )}
       </AnimatePresence>

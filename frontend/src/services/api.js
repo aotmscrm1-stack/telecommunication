@@ -380,8 +380,16 @@ export const permissionTemplatesAPI = {
 
 
 export const recordingsAPI = {
-  getMy: () => api.get('/recordings/my'),
-  getAll: (userId) => api.get('/recordings', { params: userId ? { userId } : {} }),
+  getMy: (params = {}) => api.get('/recordings/my', { params }),
+  getAll: (paramsOrUserId = {}) => {
+    const params = typeof paramsOrUserId === 'object' && paramsOrUserId !== null
+      ? paramsOrUserId
+      : (paramsOrUserId ? { userId: paramsOrUserId } : {});
+    return api.get('/recordings', { params });
+  },
+  getAnalyticsSummary: (params = {}) => api.get('/recordings/analytics-summary', { params }),
+  getCalendarActivity: (params = {}) => api.get('/recordings/calendar-activity', { params }),
+  exportCsv: (params = {}) => api.get('/recordings/export', { params, responseType: 'blob' }),
   upload: (formData) => api.post('/recordings', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   update: (id, data) => api.put(`/recordings/${id}`, data),
   delete: (id) => api.delete(`/recordings/${id}`),

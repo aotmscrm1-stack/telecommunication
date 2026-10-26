@@ -108,6 +108,25 @@ const callRecordingSchema = new mongoose.Schema(
     transcriptStatus: { type: String, enum: ['none', 'pending', 'done', 'failed'], default: 'none' },
     transcriptError: { type: String, default: '' },
 
+    // Call duration in seconds (extracted from audio/device or calculated)
+    duration: { type: Number, default: 0, index: true },
+
+    // Call status outcome (connected, completed, missed, failed, etc.)
+    callStatus: {
+      type: String,
+      enum: ['completed', 'connected', 'missed', 'failed', 'busy', 'no_answer', 'rejected', 'in_progress', 'unknown'],
+      default: 'completed',
+      index: true,
+    },
+
+    // Call direction: outbound (agent called lead) or inbound (lead called agent)
+    direction: {
+      type: String,
+      enum: ['outbound', 'inbound', 'unknown'],
+      default: 'outbound',
+      index: true,
+    },
+
     // Snapshot of the MOST RECENT Call IQ audit run against this recording.
     // Overwritten every time "Run Call IQ" is used (never appended), so this
     // always reflects the latest report — not the first one ever run — and
@@ -126,7 +145,12 @@ const callRecordingSchema = new mongoose.Schema(
   { timestamps: true } // adds createdAt, updatedAt
 );
 
-// Fast lookups for "my recordings" and admin "all recordings" sorted by newest first
+// High performance indexes for calendar, smart filtering, and pagination
 callRecordingSchema.index({ user: 1, recordedAt: -1 });
+callRecordingSchema.index({ callDate: 1, user: 1 });
+callRecordingSchema.index({ recordedAt: -1, user: 1 });
+callRecordingSchema.index({ callStatus: 1, recordedAt: -1 });
+callRecordingSchema.index({ phone: 1, recordedAt: -1 });
+callRecordingSchema.index({ linkType: 1, recordedAt: -1 });
 
 module.exports = mongoose.model('CallRecording', callRecordingSchema);

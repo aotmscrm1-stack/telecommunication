@@ -1,0 +1,17 @@
+node_modules
+npm-debug.log
+.env
+.env.*
+*.env
+logs
+*.log
+backups
+tests
+.git
+.gitignore
+.vscode
+.idea
+serviceAccountKey.json
+*serviceAccount*.json
+uploads/recordings/*
+!uploads/recordings/.gitkeep

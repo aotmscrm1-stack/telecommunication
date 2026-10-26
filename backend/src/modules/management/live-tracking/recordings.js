@@ -11,6 +11,7 @@ const CallRecording = require('../../../database/models/CallRecording');
 const Lead = require('../../../database/models/Lead');
 const MetaLead = require('../../../database/models/MetaLead');
 const Campaign = require('../../../database/models/Campaign');
+const User = require('../../../database/models/User');
 const { normalizePhone10 } = require('../../../core/utils/phone');
 const { protect } = require('../../../core/middleware/auth');
 const { deleteFromCloudinary, uploadAudioToCloudinary } = require('../../../core/utils/cloudinary');
@@ -608,36 +609,412 @@ router.get('/my', protect, async (req, res) => {
   }
 });
 
-// ─── GET /api/recordings ─────────────────────────────────────────────────
-router.get('/', protect, async (req, res) => {
+// ─── HELPER: Build multi-dimensional recording filter ──────────────────────
+async function buildRecordingsFilter(req) {
+  const isElevated = isHRorAdmin(req.user);
+  const filter = {};
+
+  // 1. Role Scoping
+  if (!isElevated) {
+    filter.user = req.user._id || req.user.id;
+  } else if (req.query.userId && req.query.userId !== 'all') {
+    if (mongoose.Types.ObjectId.isValid(req.query.userId)) {
+      filter.user = req.query.userId;
+    }
+  }
+
+  // 2. Direct Phone
+  if (req.query.phone) {
+    const phoneDigits = normalizePhone10(req.query.phone);
+    if (phoneDigits) filter.phone = phoneDigits;
+  }
+
+  // 3. Date / Date Range
+  if (req.query.date) {
+    // Exact Day (e.g. from calendar click): "YYYY-MM-DD"
+    const exactDay = String(req.query.date).trim();
+    const dayStart = new Date(`${exactDay}T00:00:00.000Z`);
+    const dayEnd = new Date(`${exactDay}T23:59:59.999Z`);
+    filter.$or = [
+      { callDate: exactDay },
+      { recordedAt: { $gte: dayStart, $lte: dayEnd } }
+    ];
+  } else if (req.query.from || req.query.to) {
+    filter.recordedAt = {};
+    if (req.query.from) {
+      filter.recordedAt.$gte = new Date(`${String(req.query.from).trim()}T00:00:00.000Z`);
+    }
+    if (req.query.to) {
+      filter.recordedAt.$lte = new Date(`${String(req.query.to).trim()}T23:59:59.999Z`);
+    }
+  }
+
+  // 4. Status
+  if (req.query.status && req.query.status !== 'all') {
+    const s = String(req.query.status).toLowerCase();
+    if (s === 'completed' || s === 'connected') {
+      filter.callStatus = { $in: ['completed', 'connected'] };
+    } else if (s === 'missed') {
+      filter.callStatus = { $in: ['missed', 'no_answer', 'failed', 'busy', 'rejected'] };
+    } else {
+      filter.callStatus = s;
+    }
+  }
+
+  // 5. Direction
+  if (req.query.direction && req.query.direction !== 'all') {
+    filter.direction = req.query.direction;
+  }
+
+  // 6. Duration Tier
+  if (req.query.durationTier && req.query.durationTier !== 'all') {
+    if (req.query.durationTier === 'zero') {
+      filter.duration = { $lte: 0 };
+    } else if (req.query.durationTier === 'short') {
+      filter.duration = { $gt: 0, $lte: 60 };
+    } else if (req.query.durationTier === 'medium') {
+      filter.duration = { $gt: 60, $lte: 300 };
+    } else if (req.query.durationTier === 'long') {
+      filter.duration = { $gt: 300 };
+    }
+  }
+
+  // 7. File Availability
+  if (req.query.fileAvailable === 'true') {
+    filter.fileAvailable = { $ne: false };
+  } else if (req.query.fileAvailable === 'false') {
+    filter.fileAvailable = false;
+  }
+
+  // 8. Link Type
+  if (req.query.linkType && req.query.linkType !== 'all') {
+    if (req.query.linkType === 'lead') {
+      filter.$and = filter.$and || [];
+      filter.$and.push({ $or: [{ linkType: 'lead' }, { lead: { $ne: null } }] });
+    } else if (req.query.linkType === 'meta_lead') {
+      filter.$and = filter.$and || [];
+      filter.$and.push({ $or: [{ linkType: 'meta_lead' }, { metaLead: { $ne: null } }] });
+    } else if (req.query.linkType === 'campaign') {
+      filter.$and = filter.$and || [];
+      filter.$and.push({ $or: [{ linkType: 'campaign' }, { campaignRef: { $ne: null } }, { campaignName: { $ne: null, $ne: '' } }] });
+    } else if (req.query.linkType === 'unlinked') {
+      filter.lead = null;
+      filter.metaLead = null;
+      filter.campaignRef = null;
+      filter.linkType = null;
+    } else if (req.query.linkType === 'matched') {
+      filter.$and = filter.$and || [];
+      filter.$and.push({
+        $or: [
+          { lead: { $ne: null } },
+          { metaLead: { $ne: null } },
+          { campaignRef: { $ne: null } },
+          { linkType: { $in: ['lead', 'meta_lead', 'campaign'] } }
+        ]
+      });
+    }
+  }
+
+  // 9. Smart Search across contact, phone, agent, and campaign
+  if (req.query.search && req.query.search.trim()) {
+    const rawSearch = req.query.search.trim();
+    const regex = new RegExp(rawSearch.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), 'i');
+    const phoneDigits = rawSearch.replace(/\D/g, '');
+
+    const matchingLeads = await Lead.find({ name: regex }).select('_id').limit(40).lean();
+    const matchingLeadIds = matchingLeads.map(l => l._id);
+
+    const matchingUsers = await User.find({ name: regex }).select('_id').limit(40).lean();
+    const matchingUserIds = matchingUsers.map(u => u._id);
+
+    const searchConditions = [
+      { originalName: regex },
+      { storedName: regex },
+      { metaLeadName: regex },
+      { campaignName: regex }
+    ];
+
+    if (phoneDigits && phoneDigits.length >= 3) {
+      searchConditions.push({ phone: { $regex: phoneDigits } });
+      searchConditions.push({ metaLeadPhone: { $regex: phoneDigits } });
+    }
+    if (matchingLeadIds.length > 0) {
+      searchConditions.push({ lead: { $in: matchingLeadIds } });
+    }
+    if (matchingUserIds.length > 0) {
+      searchConditions.push({ user: { $in: matchingUserIds } });
+    }
+
+    if (filter.$or) {
+      filter.$and = filter.$and || [];
+      filter.$and.push({ $or: filter.$or });
+      delete filter.$or;
+    }
+
+    if (filter.$and) {
+      filter.$and.push({ $or: searchConditions });
+    } else {
+      filter.$or = searchConditions;
+    }
+  }
+
+  return filter;
+}
+
+// ─── GET /api/recordings/analytics-summary ─────────────────────────────────
+router.get('/analytics-summary', protect, async (req, res) => {
+  try {
+    const filter = await buildRecordingsFilter(req);
+
+    // Aggregate key call metrics
+    const stats = await CallRecording.aggregate([
+      { $match: filter },
+      {
+        $group: {
+          _id: null,
+          totalCalls: { $sum: 1 },
+          completedCalls: {
+            $sum: {
+              $cond: [
+                { $in: ['$callStatus', ['completed', 'connected', '', null]] },
+                1,
+                0
+              ]
+            }
+          },
+          missedCalls: {
+            $sum: {
+              $cond: [
+                { $in: ['$callStatus', ['missed', 'no_answer', 'failed', 'busy', 'rejected']] },
+                1,
+                0
+              ]
+            }
+          },
+          failedCalls: {
+            $sum: {
+              $cond: [{ $eq: ['$callStatus', 'failed'] }, 1, 0]
+            }
+          },
+          totalDurationSeconds: { $sum: { $ifNull: ['$duration', 0] } },
+          hasRecordingCount: {
+            $sum: {
+              $cond: [{ $ne: ['$fileAvailable', false] }, 1, 0]
+            }
+          }
+        }
+      }
+    ]);
+
+    const result = stats[0] || {
+      totalCalls: 0,
+      completedCalls: 0,
+      missedCalls: 0,
+      failedCalls: 0,
+      totalDurationSeconds: 0,
+      hasRecordingCount: 0
+    };
+
+    const avgDuration = result.completedCalls > 0
+      ? Math.round(result.totalDurationSeconds / result.completedCalls)
+      : 0;
+
+    const answerRate = result.totalCalls > 0
+      ? `${((result.completedCalls / result.totalCalls) * 100).toFixed(1)}%`
+      : '0.0%';
+
+    return res.json({
+      success: true,
+      summary: {
+        totalCalls: result.totalCalls,
+        completedCalls: result.completedCalls,
+        missedCalls: result.missedCalls,
+        failedCalls: result.failedCalls,
+        totalDurationSeconds: result.totalDurationSeconds,
+        avgDurationSeconds: avgDuration,
+        answerRate,
+        hasRecordingCount: result.hasRecordingCount
+      }
+    });
+  } catch (err) {
+    console.error('[Analytics Summary Error]', err);
+    return res.status(500).json({ error: 'Failed to generate analytics summary' });
+  }
+});
+
+// ─── GET /api/recordings/calendar-activity ─────────────────────────────────
+router.get('/calendar-activity', protect, async (req, res) => {
   try {
     const isElevated = isHRorAdmin(req.user);
     const filter = {};
 
     if (!isElevated) {
-      // Non-HR/Admin users are restricted to their own recordings
       filter.user = req.user._id || req.user.id;
-    } else if (req.query.userId) {
-      filter.user = req.query.userId;
+    } else if (req.query.userId && req.query.userId !== 'all') {
+      if (mongoose.Types.ObjectId.isValid(req.query.userId)) {
+        filter.user = req.query.userId;
+      }
     }
-    if (req.query.phone) {
-      const phoneDigits = normalizePhone10(req.query.phone);
-      if (phoneDigits) filter.phone = phoneDigits;
+
+    // Default to current month if not specified
+    const month = req.query.month || new Date().toISOString().slice(0, 7); // "YYYY-MM"
+    const startOfMonth = new Date(`${month}-01T00:00:00.000Z`);
+    const year = parseInt(month.split('-')[0], 10);
+    const m = parseInt(month.split('-')[1], 10);
+    const endOfMonth = new Date(Date.UTC(year, m, 0, 23, 59, 59, 999));
+
+    filter.recordedAt = { $gte: startOfMonth, $lte: endOfMonth };
+
+    const grouped = await CallRecording.aggregate([
+      { $match: filter },
+      {
+        $project: {
+          dayStr: {
+            $ifNull: [
+              '$callDate',
+              { $dateToString: { format: '%Y-%m-%d', date: '$recordedAt', timezone: '+05:30' } }
+            ]
+          },
+          callStatus: 1
+        }
+      },
+      {
+        $group: {
+          _id: '$dayStr',
+          total: { $sum: 1 },
+          completed: {
+            $sum: {
+              $cond: [{ $in: ['$callStatus', ['completed', 'connected', '', null]] }, 1, 0]
+            }
+          },
+          missed: {
+            $sum: {
+              $cond: [{ $in: ['$callStatus', ['missed', 'no_answer', 'failed', 'busy', 'rejected']] }, 1, 0]
+            }
+          }
+        }
+      }
+    ]);
+
+    const activityMap = {};
+    for (const item of grouped) {
+      if (item._id) {
+        activityMap[item._id] = {
+          total: item.total,
+          completed: item.completed,
+          missed: item.missed
+        };
+      }
     }
-    if (req.query.userId) {
-      filter.user = req.query.userId;
-    }
+
+    return res.json({
+      success: true,
+      month,
+      activity: activityMap
+    });
+  } catch (err) {
+    console.error('[Calendar Activity Error]', err);
+    return res.status(500).json({ error: 'Failed to fetch calendar activity' });
+  }
+});
+
+// ─── GET /api/recordings/export ───────────────────────────────────────────
+router.get('/export', protect, async (req, res) => {
+  try {
+    const filter = await buildRecordingsFilter(req);
 
     const recordings = await CallRecording.find(filter)
       .sort({ recordedAt: -1 })
-      .limit(500)
-      .populate('user', 'name email designation department role')
+      .limit(2000)
+      .populate('user', 'name email designation department')
       .populate('lead', 'name phone')
-      .populate('metaLead', 'fullName phone normalizedPhone email campaign rawData')
-      .populate('campaignRef', 'name description status')
+      .populate('metaLead', 'fullName phone normalizedPhone email campaign')
+      .populate('campaignRef', 'name')
       .lean();
 
-    return res.json({ recordings: recordings.map(formatRecording) });
+    const rows = recordings.map(formatRecording);
+
+    // Generate CSV
+    const headers = [
+      'Record ID', 'Call Date', 'Call Time', 'Phone', 'Contact / Lead',
+      'Agent Name', 'Agent Email', 'Duration (sec)', 'Status', 'Direction',
+      'Link Type', 'Audio Available', 'Audio URL', 'Transcript Status'
+    ];
+
+    const csvLines = [headers.join(',')];
+
+    for (const r of rows) {
+      const line = [
+        `"${r._id}"`,
+        `"${r.callDate || (r.recordedAt ? new Date(r.recordedAt).toISOString().slice(0, 10) : '')}"`,
+        `"${r.callTime || (r.recordedAt ? new Date(r.recordedAt).toTimeString().slice(0, 8) : '')}"`,
+        `"${r.phone || ''}"`,
+        `"${(r.leadName || '').replace(/"/g, '""')}"`,
+        `"${(r.userName || '').replace(/"/g, '""')}"`,
+        `"${r.userEmail || ''}"`,
+        r.duration || 0,
+        `"${r.callStatus || 'completed'}"`,
+        `"${r.direction || 'outbound'}"`,
+        `"${r.linkType || 'unlinked'}"`,
+        r.fileAvailable ? 'Yes' : 'No',
+        `"${r.url || ''}"`,
+        `"${r.transcriptStatus || 'none'}"`
+      ];
+      csvLines.push(line.join(','));
+    }
+
+    const csvContent = csvLines.join('\n');
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="call_records_${Date.now()}.csv"`);
+    return res.send(csvContent);
+  } catch (err) {
+    console.error('[Export Recordings Error]', err);
+    return res.status(500).json({ error: 'Failed to export recordings' });
+  }
+});
+
+// ─── GET /api/recordings (Paginated, Filtered, Backward Compatible) ─────────
+router.get('/', protect, async (req, res) => {
+  try {
+    const filter = await buildRecordingsFilter(req);
+
+    // Pagination
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = req.query.limit === 'all'
+      ? 1000
+      : Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 25));
+    const skip = (page - 1) * limit;
+
+    // Sorting
+    const sortBy = req.query.sortBy || 'recordedAt';
+    const sortOrder = req.query.sortOrder === 'asc' ? 1 : -1;
+    const sort = { [sortBy]: sortOrder };
+
+    const [total, recordings] = await Promise.all([
+      CallRecording.countDocuments(filter),
+      CallRecording.find(filter)
+        .sort(sort)
+        .skip(skip)
+        .limit(limit)
+        .populate('user', 'name email designation department role')
+        .populate('lead', 'name phone')
+        .populate('metaLead', 'fullName phone normalizedPhone email campaign rawData')
+        .populate('campaignRef', 'name description status')
+        .lean()
+    ]);
+
+    const formatted = recordings.map(formatRecording);
+
+    return res.json({
+      success: true,
+      recordings: formatted,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit) || 1
+      }
+    });
   } catch (err) {
     console.error('getAllRecordings error:', err);
     return res.status(500).json({ error: 'Failed to fetch recordings' });
@@ -924,6 +1301,11 @@ function formatRecording(r) {
     campaignId: r.campaignRef ? (r.campaignRef._id || r.campaignRef) : null,
     campaignName: campaignName,
     originalName: r.originalName || filename,
+    duration: r.duration || 0,
+    callStatus: r.callStatus || 'completed',
+    direction: r.direction || 'outbound',
+    callDate: r.callDate || (r.recordedAt ? new Date(r.recordedAt).toISOString().slice(0, 10) : ''),
+    callTime: r.callTime || (r.recordedAt ? new Date(r.recordedAt).toTimeString().slice(0, 8) : ''),
     transcript: r.transcript || '',
     transcriptStatus: r.transcriptStatus || 'none',
     transcriptError: r.transcriptError || '',

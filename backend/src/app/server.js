@@ -28,4 +28,29 @@ if (env.PUBLIC_BASE_URL) {
   }, 10 * 60 * 1000);
 }
 
+// Graceful shutdown handling for Docker and orchestrators
+const gracefulShutdown = (signal) => {
+  logger.info(`Received ${signal}. Initiating graceful shutdown...`);
+  server.close(() => {
+    logger.info('HTTP & Socket server closed.');
+    const mongoose = require('mongoose');
+    if (mongoose.connection.readyState !== 0) {
+      mongoose.connection.close(false).then(() => {
+        logger.info('MongoDB connection closed cleanly.');
+        process.exit(0);
+      }).catch(() => process.exit(0));
+    } else {
+      process.exit(0);
+    }
+  });
+
+  setTimeout(() => {
+    logger.error('Forced shutdown timeout reached. Exiting immediately.');
+    process.exit(1);
+  }, 10000).unref();
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
 module.exports = server;
