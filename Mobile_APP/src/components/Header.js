@@ -18,7 +18,7 @@ export default function Header({ title, subtitle, showBack = false, onBack, righ
       return trimmed;
     }
     const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
-    return `https://telecommunication-l3oz.onrender.com${cleanPath}`;
+    return `https://api.academyoftechmasters.com${cleanPath}`;
   };
 
   const avatarUri = getAvatarUri();
