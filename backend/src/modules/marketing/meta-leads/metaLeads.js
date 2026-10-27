@@ -728,7 +728,13 @@ router.get('/', protect, async (req, res) => {
     }
 
     if (status && status !== 'all' && status !== 'All') {
-      query.status = status;
+      if (status === 'Positive') {
+        query.status = { $in: ['Positive', 'Converted', 'Won', 'Contacted', 'Interested', 'Enrolled', 'Demo', 'Follow-up'] };
+      } else if (status === 'Negative') {
+        query.status = { $in: ['Negative', 'Discarded', 'Lost', 'Blocked', 'Not Interested', 'Not Answered', 'Call Not Responding'] };
+      } else {
+        query.status = status;
+      }
     }
 
     if (search && String(search).trim()) {

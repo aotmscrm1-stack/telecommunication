@@ -11,10 +11,20 @@ import {
   FaReceipt, FaCalendarCheck, FaLocationDot, FaPeopleGroup, FaClock,
   FaBan, FaUserGear, FaKey, FaPlug, FaCircleInfo, FaCoins, FaSitemap,
   FaCode, FaBell, FaChevronDown, FaBars, FaXmark, FaRightFromBracket,
-  FaUser, FaLock, FaUserCheck, FaBook, FaCalendarDays, FaTableList,
+  FaUser, FaLock, FaUserCheck, FaBook, FaCalendarDays,
   FaChartLine, FaMobileScreen, FaDownload
 } from 'react-icons/fa6';
+import { SiGooglesheets } from 'react-icons/si';
 import { isCEO, isHR, isManager, isLimitedStaff, canViewDashboard, canViewCallRecordings, isDigitalMarketing, canAccessDigitalCalendar, normalizeDesignation, canViewCallFollowups, canAccessMarketingLeads, canAccessDailyActivity, isTelecaller } from '../../../utils/permissions';
+
+function GoogleSheetsIcon({ className, style }) {
+  return (
+    <SiGooglesheets
+      className={className}
+      style={{ color: '#0F9D58', ...(style || {}) }}
+    />
+  );
+}
 
 function WhatsAppBlastIcon({ className, style }) {
   return (
@@ -559,7 +569,7 @@ export default function Navbar() {
         {
           id: 'meta-leads',
           title: 'Meta Leads',
-          icon: FaTableList,
+          icon: GoogleSheetsIcon,
           path: '/meta-leads',
           isDirect: true,
           badge: 'Google Sheets'
@@ -581,7 +591,7 @@ export default function Navbar() {
         { label: 'Contact', path: '/contacts', icon: FaBook },
         { label: 'WhatsApp Blast', path: '/whatsapp-blast', icon: WhatsAppBlastIcon },
         { label: 'WhatsApp', path: '/whatsapp', icon: FaWhatsapp },
-        { label: 'Meta Leads', path: '/meta-leads', icon: FaTableList },
+        { label: 'Meta Leads', path: '/meta-leads', icon: GoogleSheetsIcon },
         { label: 'Leaderboard', path: '/leaderboard', icon: FaTrophy },
         { label: 'Report', path: '/reports', icon: FaChartPie },
       ]
@@ -615,7 +625,7 @@ export default function Navbar() {
       title: 'Marketing',
       icon: FaBullhorn,
       items: [
-        { label: 'Meta Leads', path: '/meta-leads', icon: FaTableList },
+        { label: 'Meta Leads', path: '/meta-leads', icon: GoogleSheetsIcon },
       ]
     }] : []),
     ...(canAccessDigitalCalendar(user) ? [{
@@ -679,7 +689,7 @@ export default function Navbar() {
         {
           id: 'meta-leads',
           title: 'Meta Leads',
-          icon: FaTableList,
+          icon: GoogleSheetsIcon,
           path: '/meta-leads',
           isDirect: true,
           badge: 'Google Sheets'
@@ -701,7 +711,7 @@ export default function Navbar() {
         { label: 'Contact', path: '/contacts', icon: FaBook },
         { label: 'WhatsApp Blast', path: '/whatsapp-blast', icon: WhatsAppBlastIcon },
         { label: 'WhatsApp', path: '/whatsapp', icon: FaWhatsapp },
-        { label: 'Meta Leads', path: '/meta-leads', icon: FaTableList },
+        { label: 'Meta Leads', path: '/meta-leads', icon: GoogleSheetsIcon },
         { label: 'Leaderboard', path: '/leaderboard', icon: FaTrophy },
         { label: 'Report', path: '/reports', icon: FaChartPie },
       ]
@@ -709,7 +719,7 @@ export default function Navbar() {
       title: 'Marketing',
       icon: FaBullhorn,
       items: [
-        { label: 'Meta Leads', path: '/meta-leads', icon: FaTableList, badge: 'Assigned Leads' }
+        { label: 'Meta Leads', path: '/meta-leads', icon: GoogleSheetsIcon, badge: 'Assigned Leads' }
       ]
     },
     { title: 'Finance', icon: FaCoins, items: [

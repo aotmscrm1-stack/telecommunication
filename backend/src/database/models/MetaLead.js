@@ -46,7 +46,7 @@ const metaLeadSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['New', 'Contacted', 'Converted', 'Follow-up', 'Discarded'],
+    enum: ['New', 'Contacted', 'Converted', 'Follow-up', 'Discarded', 'Positive', 'Negative', 'Fresh', 'Won', 'Lost'],
     default: 'New',
     index: true
   },

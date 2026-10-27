@@ -231,6 +231,7 @@ export const metaLeadsAPI = {
   saveAssignments: (data) => api.post('/meta-leads/assignments', data),
   ingest: (data) => api.post('/meta-leads', data),
   convert: (id) => api.post(`/meta-leads/${id}/convert`),
+  update: (id, data) => api.patch(`/meta-leads/${id}`, data),
   delete: (id) => api.delete(`/meta-leads/${id}`),
   deleteCampaign: (campaign) => api.delete(`/meta-leads/campaign/${encodeURIComponent(campaign)}`),
   triggerSync: () => api.post('/meta-leads/sync'),

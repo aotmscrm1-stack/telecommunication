@@ -32,6 +32,8 @@ const MUTED = '#64748b';
 const BORDER = '#e2e8f0';
 
 const STATUS_COLORS = {
+  Positive: '#10b981',
+  Negative: '#ef4444',
   Fresh: '#ea580c',
   New: '#ea580c',
   Connected: '#2563eb',
@@ -52,7 +54,18 @@ const STATUS_COLORS = {
   Interested: '#d97706',
 };
 
-const PIE_COLORS = ['#ea580c', '#2563eb', '#f97316', '#3b82f6', '#0284c7', '#10b981', '#f59e0b', '#64748b'];
+const PIE_COLORS = ['#10b981', '#ef4444', '#f97316', '#2563eb', '#3b82f6', '#0284c7'];
+
+// Lead Positive / Negative Helper Classification
+function isLeadPositive(lead) {
+  const st = String(lead?.status || '').toLowerCase();
+  return st === 'positive' || st === 'converted' || st === 'won' || st === 'interested' || st === 'enrolled' || st === 'demo scheduled' || st === 'demo done' || st === 'connected';
+}
+
+function isLeadNegative(lead) {
+  const st = String(lead?.status || '').toLowerCase();
+  return st === 'negative' || st === 'discarded' || st === 'lost' || st === 'blocked' || st === 'not interested' || st === 'not answered' || st === 'call not responding';
+}
 
 // ── UI Helpers Matching Campaigns.jsx & CampaignDetail.jsx ───────────────────
 function fmtLeads(n) {
@@ -73,14 +86,14 @@ function timeAgo(dateStr) {
 }
 
 function Avatar({ name, size = 30, bg = ORANGE_LIGHT, color = ORANGE }) {
-  const initials = name
-    ? name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
-    : '?';
+  const initials = name && typeof name === 'string'
+    ? name.trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase()
+    : 'L';
   return (
     <div style={{
       width: size, height: size, borderRadius: '50%',
-      background: bg, color, fontWeight: 600,
-      fontSize: size * 0.36, display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: bg, color, fontWeight: 700,
+      fontSize: size * 0.38, display: 'flex', alignItems: 'center', justifyContent: 'center',
       flexShrink: 0, border: `1px solid ${BORDER}`,
     }}>
       {initials}
@@ -89,19 +102,27 @@ function Avatar({ name, size = 30, bg = ORANGE_LIGHT, color = ORANGE }) {
 }
 
 function MiniStatus({ status }) {
-  const color = STATUS_COLORS[status] || '#64748b';
+  const isPos = String(status).toLowerCase() === 'positive';
+  const isNeg = String(status).toLowerCase() === 'negative';
+  const color = isPos ? '#059669' : isNeg ? '#dc2626' : (STATUS_COLORS[status] || '#64748b');
+  const bg = isPos ? '#ecfdf5' : isNeg ? '#fff1f2' : `${color}18`;
+  const border = isPos ? '#a7f3d0' : isNeg ? '#fecdd3' : `${color}33`;
+
   return (
     <span style={{
-      background: `${color}18`,
+      background: bg,
       color,
       borderRadius: 16,
       padding: '2px 8px',
       fontSize: 10.5,
-      fontWeight: 600,
-      border: `1px solid ${color}33`,
-      display: 'inline-block'
+      fontWeight: 700,
+      border: `1px solid ${border}`,
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 3
     }}>
-      {status || '—'}
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: color }} />
+      {status || 'New'}
     </span>
   );
 }
@@ -316,7 +337,7 @@ export default function MetaLeads() {
   const [syncing, setSyncing] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
 
-  // Selected Campaign State (Exact Concept of CampaignDetail.jsx)
+  // Selected Campaign State (3-Panel CampaignDetail Layout)
   const [selectedCampaign, setSelectedCampaign] = useState(null);
   const [campaignLeads, setCampaignLeads] = useState([]);
   const [selectedLead, setSelectedLead] = useState(null);
@@ -325,6 +346,8 @@ export default function MetaLeads() {
   const [leadsPages, setLeadsPages] = useState(1);
   const [leadsTotal, setLeadsTotal] = useState(0);
   const [leadsSearch, setLeadsSearch] = useState('');
+
+  // 1 & 2: ONLY Positive and Negative Dropdown Filter
   const [leadsStatusFilter, setLeadsStatusFilter] = useState('');
 
   // Mobile Tabs inside Campaign Detail ('students' | 'analytics' | 'profile')
@@ -345,6 +368,75 @@ export default function MetaLeads() {
   const [assignments, setAssignments] = useState([]);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assignModalCampaign, setAssignModalCampaign] = useState('');
+
+  // ── Robust Name, Phone & Email Extraction (Resolves "Unknown Lead") ────────
+  const getLeadIdentifiers = (lead) => {
+    if (!lead) return { name: '', phone: '', email: '' };
+    const raw = lead.rawData || {};
+
+    // 1. Phone extraction
+    let phone = lead.phone || lead.normalizedPhone || raw.phone || raw.Phone || raw.phone_number || raw.mobile || raw.Mobile || raw['Phone Number'] || raw.Contact || raw['Contact Number'] || raw['Candidate Mobile'] || raw['Student Mobile'] || '';
+    if (!phone) {
+      for (const k of Object.keys(raw)) {
+        if (/phone|mobile|contact|cell/i.test(k) && raw[k]) {
+          phone = raw[k];
+          break;
+        }
+      }
+    }
+    if (!phone) {
+      for (const k of Object.keys(raw)) {
+        const digits = String(raw[k] || '').replace(/\D/g, '');
+        if (digits.length === 10) {
+          phone = raw[k];
+          break;
+        }
+      }
+    }
+
+    // 2. Full Name extraction (Checking fullName, full_name, name, Name, Bhavani, etc.)
+    let name = lead.fullName || lead.name || raw.full_name || raw.fullName || raw.name || raw.Name || raw['Full Name'] || raw['Candidate Name'] || raw['Student Name'] || '';
+    if (!name || name === 'full_name' || name === 'name') {
+      if (raw['Bhavani'] && typeof raw['Bhavani'] === 'string' && raw['Bhavani'] !== 'full_name') {
+        name = raw['Bhavani'];
+      }
+    }
+    if (!name) {
+      for (const [k, v] of Object.entries(raw)) {
+        if (/name|student|candidate|client|party/i.test(k) && typeof v === 'string' && v.trim() && !/ad_name|form_name|campaign_name/i.test(k) && v !== 'full_name') {
+          name = v;
+          break;
+        }
+      }
+    }
+    if (!name) {
+      if (lead.email || raw.email) {
+        name = (lead.email || raw.email).split('@')[0];
+      } else if (phone) {
+        const cleanDigits = String(phone).replace(/\D/g, '');
+        name = `Lead ${cleanDigits.slice(-4)}`;
+      } else {
+        name = 'Lead';
+      }
+    }
+
+    // 3. Email extraction
+    let email = lead.email || raw.email || raw.Email || raw['Email Address'] || '';
+    if (!email || !email.includes('@')) {
+      for (const [k, v] of Object.entries(raw)) {
+        if (typeof v === 'string' && v.includes('@') && v.includes('.')) {
+          email = v;
+          break;
+        }
+      }
+    }
+
+    return {
+      phone: String(phone).trim(),
+      name: String(name).trim(),
+      email: String(email).trim()
+    };
+  };
 
   // ── Fetch Campaigns Overview ───────────────────────────────────────────────
   const fetchCampaigns = async () => {
@@ -434,31 +526,22 @@ export default function MetaLeads() {
     }
   }, [selectedCampaign, fetchCampaignLeads]);
 
-  // Lead extraction helper
-  const getLeadIdentifiers = (lead) => {
-    if (!lead) return { name: '', phone: '', email: '' };
-    const raw = lead.rawData || {};
-    let phone = lead.phone || raw.phone || raw.Phone || raw.mobile || raw.Mobile || raw['Phone Number'] || raw.Contact || raw['Contact Number'] || raw['Candidate Mobile'] || raw['Student Mobile'] || '';
-    if (!phone) {
-      for (const k of Object.keys(raw)) {
-        if (/phone|mobile|contact|cell/i.test(k) && raw[k]) {
-          phone = raw[k];
-          break;
-        }
+  // ── Quick Update Lead Status (Positive vs Negative) ────────────────────────
+  const handleSetLeadStatus = async (lead, newStatus) => {
+    try {
+      await metaLeadsAPI.update(lead._id, { status: newStatus });
+      setStatusMessage(`Lead marked as ${newStatus}!`);
+
+      // Optimistically update list state
+      setCampaignLeads(prev => prev.map(l => l._id === lead._id ? { ...l, status: newStatus } : l));
+      if (selectedLead?._id === lead._id) {
+        setSelectedLead(prev => ({ ...prev, status: newStatus }));
       }
+      setTimeout(() => setStatusMessage(''), 2500);
+      fetchCampaigns();
+    } catch (err) {
+      console.error('Failed to update lead status:', err);
     }
-    if (!phone) {
-      for (const k of Object.keys(raw)) {
-        const digits = String(raw[k] || '').replace(/\D/g, '');
-        if (digits.length === 10) {
-          phone = raw[k];
-          break;
-        }
-      }
-    }
-    const name = lead.name || raw.name || raw.Name || raw['Full Name'] || raw['Candidate Name'] || raw['Student Name'] || 'Unknown Lead';
-    const email = lead.email || raw.email || raw.Email || raw['Email Address'] || '';
-    return { phone: String(phone).trim(), name: String(name).trim(), email: String(email).trim() };
   };
 
   // ── Sync Handler ────────────────────────────────────────────────────────────
@@ -596,17 +679,26 @@ export default function MetaLeads() {
     return activeCampaignObj.assignedUsers || assignments.find(a => a.campaign === selectedCampaign)?.assignedUsers || [];
   }, [activeCampaignObj, assignments, selectedCampaign]);
 
-  // Breakdown for Analytics Panel
-  const statusBreakdown = useMemo(() => {
-    const map = {};
-    campaignLeads.forEach(l => {
-      const st = l.status || 'Fresh';
-      map[st] = (map[st] || 0) + 1;
-    });
-    return Object.entries(map).map(([name, count]) => ({ name, count }));
+  // Breakdown for Analytics Panel: Positive vs Negative
+  const positiveCount = useMemo(() => {
+    return campaignLeads.filter(l => isLeadPositive(l)).length;
   }, [campaignLeads]);
 
-  const allStatuses = ['Fresh', 'New', 'Connected', 'Contacted', 'Not Answered', 'Call Back', 'Call Not Responding', 'Call Back Later', 'Won', 'Converted', 'Lost', 'Discarded'];
+  const negativeCount = useMemo(() => {
+    return campaignLeads.filter(l => isLeadNegative(l)).length;
+  }, [campaignLeads]);
+
+  const pendingCount = useMemo(() => {
+    return Math.max(0, campaignLeads.length - positiveCount - negativeCount);
+  }, [campaignLeads, positiveCount, negativeCount]);
+
+  const sentimentData = useMemo(() => {
+    const list = [];
+    if (positiveCount > 0) list.push({ name: 'Positive', count: positiveCount, color: '#10b981' });
+    if (negativeCount > 0) list.push({ name: 'Negative', count: negativeCount, color: '#ef4444' });
+    if (pendingCount > 0) list.push({ name: 'Pending / New', count: pendingCount, color: '#f97316' });
+    return list;
+  }, [positiveCount, negativeCount, pendingCount]);
 
   // Metrics
   const totalCampaignsCount = campaignStats.length;
@@ -621,7 +713,7 @@ export default function MetaLeads() {
     return (
       <div className="max-w-7xl mx-auto w-full px-2 sm:px-4 py-3 h-[calc(100vh-64px)] flex flex-col box-border font-sans">
         
-        {/* Mobile-Only Tab Navigation (< md screens, matching CampaignDetail.jsx) */}
+        {/* Mobile-Only Tab Navigation */}
         <div className="flex md:hidden items-center justify-between mb-2.5 p-1 bg-white border border-slate-200 rounded-xl shadow-xs">
           <button
             onClick={() => setActiveMobileTab('students')}
@@ -649,7 +741,7 @@ export default function MetaLeads() {
           </button>
         </div>
 
-        {/* Main Responsive 3-Panel Card Shell (Exact Match to CampaignDetail.jsx) */}
+        {/* Main Responsive 3-Panel Card Shell */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row flex-1 overflow-hidden min-h-0">
 
           {/* ─── LEFT PANEL: Student List ───────────────────────────────────── */}
@@ -669,7 +761,7 @@ export default function MetaLeads() {
                 Back to Campaigns
               </button>
 
-              {/* Campaign Summary Card (White, Orange, Blue) */}
+              {/* Campaign Summary Card */}
               <div style={{ background: '#f8fafc', border: `1px solid ${BORDER}`, borderRadius: 10, padding: '10px 12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                   <span style={{ fontSize: 12.5, fontWeight: 600, color: ORANGE, background: ORANGE_LIGHT, padding: '2px 8px', borderRadius: 8, border: `1px solid ${ORANGE_BORDER}` }}>
@@ -688,14 +780,14 @@ export default function MetaLeads() {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 5 }}>
                   <StatCard label="Total" value={activeCampaignObj.count || leadsTotal} color={BLUE} bg={BLUE_LIGHT} borderColor={BLUE_BORDER} />
-                  <StatCard label="Fresh" value={activeCampaignObj.newCount || 0} color={ORANGE} bg={ORANGE_LIGHT} borderColor={ORANGE_BORDER} />
-                  <StatCard label="Won" value={activeCampaignObj.convertedCount || 0} color="#16a34a" bg="#f0fdf4" borderColor="#bbf7d0" />
+                  <StatCard label="Positive" value={positiveCount} color="#10b981" bg="#ecfdf5" borderColor="#a7f3d0" />
+                  <StatCard label="Negative" value={negativeCount} color="#ef4444" bg="#fff1f2" borderColor="#fecdd3" />
                   <StatCard label="Callers" value={activeAssignees.length} color={TEXT} bg="#fff" borderColor={BORDER} />
                 </div>
               </div>
             </div>
 
-            {/* Search + Filter */}
+            {/* Search + 1 & 2: ONLY Positive & Negative Dropdown */}
             <div style={{ padding: '8px 12px', borderBottom: `1px solid ${BORDER}`, display: 'flex', flexDirection: 'column', gap: 6, background: '#fafafa' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 7, padding: '5px 8px' }}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
@@ -707,15 +799,30 @@ export default function MetaLeads() {
                   style={{ background: 'none', border: 'none', outline: 'none', fontSize: 11.5, color: TEXT, width: '100%', fontWeight: 400 }}
                 />
               </div>
+
+              {/* ONLY Positive / Negative Dropdown Filter */}
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                 <select
                   value={leadsStatusFilter}
                   onChange={e => { setLeadsStatusFilter(e.target.value); setLeadsPage(1); }}
-                  style={{ flex: 1, fontSize: 11, padding: '4px 6px', border: `1px solid ${BORDER}`, borderRadius: 6, color: TEXT, background: '#fff', outline: 'none', fontWeight: 400 }}
+                  style={{
+                    flex: 1,
+                    fontSize: 11.5,
+                    padding: '5px 8px',
+                    border: `1px solid ${leadsStatusFilter === 'Positive' ? '#a7f3d0' : leadsStatusFilter === 'Negative' ? '#fecdd3' : BORDER}`,
+                    borderRadius: 6,
+                    color: leadsStatusFilter === 'Positive' ? '#059669' : leadsStatusFilter === 'Negative' ? '#dc2626' : TEXT,
+                    background: leadsStatusFilter === 'Positive' ? '#ecfdf5' : leadsStatusFilter === 'Negative' ? '#fff1f2' : '#fff',
+                    outline: 'none',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
                 >
-                  <option value="">All Statuses</option>
-                  {allStatuses.map(s => <option key={s} value={s}>{s}</option>)}
+                  <option value="">All Leads</option>
+                  <option value="Positive">Positive</option>
+                  <option value="Negative">Negative</option>
                 </select>
+
                 {isAdmin && (
                   <button
                     onClick={() => handleOpenAssignModal(selectedCampaign)}
@@ -727,8 +834,14 @@ export default function MetaLeads() {
                   </button>
                 )}
               </div>
-              <div style={{ fontSize: 10.5, color: MUTED, fontWeight: 400 }}>
-                {leadsTotal} student{leadsTotal !== 1 ? 's' : ''} in this campaign
+
+              <div style={{ fontSize: 10.5, color: MUTED, fontWeight: 400, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>{leadsTotal} student{leadsTotal !== 1 ? 's' : ''} in this campaign</span>
+                {leadsStatusFilter && (
+                  <span style={{ fontWeight: 600, color: leadsStatusFilter === 'Positive' ? '#059669' : '#dc2626' }}>
+                    Filtering: {leadsStatusFilter}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -741,12 +854,17 @@ export default function MetaLeads() {
               ) : campaignLeads.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '28px 14px', color: MUTED }}>
                   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" style={{ marginBottom: 6, margin: '0 auto' }}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>
-                  <div style={{ fontSize: 11.5, fontWeight: 400 }}>No students found</div>
+                  <div style={{ fontSize: 11.5, fontWeight: 500 }}>
+                    {leadsStatusFilter ? `No ${leadsStatusFilter} leads found` : 'No students found'}
+                  </div>
                 </div>
               ) : (
                 campaignLeads.map(lead => {
                   const { name, phone } = getLeadIdentifiers(lead);
                   const isSelected = selectedLead?._id === lead._id;
+                  const isPos = isLeadPositive(lead);
+                  const isNeg = isLeadNegative(lead);
+
                   return (
                     <div
                       key={lead._id}
@@ -766,10 +884,10 @@ export default function MetaLeads() {
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                        <Avatar name={name} size={26} bg={isSelected ? '#fed7aa' : ORANGE_LIGHT} color={ORANGE} />
+                        <Avatar name={name} size={28} bg={isSelected ? '#fed7aa' : (isPos ? '#ecfdf5' : isNeg ? '#fff1f2' : ORANGE_LIGHT)} color={isPos ? '#059669' : isNeg ? '#dc2626' : ORANGE} />
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
-                            <div style={{ fontSize: 12, fontWeight: 500, color: TEXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: TEXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {name}
                             </div>
                           </div>
@@ -779,8 +897,47 @@ export default function MetaLeads() {
                         </div>
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><polyline points="9 18 15 12 9 6" /></svg>
                       </div>
-                      <div style={{ marginTop: 4 }}>
-                        <MiniStatus status={lead.status || 'New'} />
+
+                      {/* Positive / Negative Quick Toggle & Badge */}
+                      <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                        <MiniStatus status={isPos ? 'Positive' : isNeg ? 'Negative' : (lead.status || 'New')} />
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }} onClick={e => e.stopPropagation()}>
+                          <button
+                            onClick={() => handleSetLeadStatus(lead, isPos ? 'New' : 'Positive')}
+                            title="Mark as Positive"
+                            style={{
+                              padding: '2px 7px',
+                              fontSize: 10,
+                              fontWeight: 700,
+                              borderRadius: 5,
+                              cursor: 'pointer',
+                              background: isPos ? '#10b981' : '#ecfdf5',
+                              color: isPos ? '#ffffff' : '#059669',
+                              border: `1px solid ${isPos ? '#10b981' : '#a7f3d0'}`,
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            + Positive
+                          </button>
+                          <button
+                            onClick={() => handleSetLeadStatus(lead, isNeg ? 'New' : 'Negative')}
+                            title="Mark as Negative"
+                            style={{
+                              padding: '2px 7px',
+                              fontSize: 10,
+                              fontWeight: 700,
+                              borderRadius: 5,
+                              cursor: 'pointer',
+                              background: isNeg ? '#ef4444' : '#fff1f2',
+                              color: isNeg ? '#ffffff' : '#dc2626',
+                              border: `1px solid ${isNeg ? '#ef4444' : '#fecdd3'}`,
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            - Negative
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
@@ -816,73 +973,86 @@ export default function MetaLeads() {
             )}
           </div>
 
-          {/* ─── MIDDLE PANEL: Analytics (Exact Match to CampaignDetail.jsx) ─── */}
+          {/* ─── MIDDLE PANEL: Positive / Negative Analytics ─────────────────── */}
           <div className={`w-full md:w-60 xl:w-64 flex-shrink-0 bg-slate-50/70 border-r border-slate-200 overflow-y-auto p-3 flex flex-col gap-3 min-h-0 ${
             activeMobileTab === 'analytics' ? 'flex' : 'hidden md:flex'
           }`}>
-            {/* Status Distribution (PieChart) */}
+            {/* Positive vs Negative Sentiment Donut */}
             <div style={{ background: '#fff', borderRadius: 10, padding: '12px 10px', border: `1px solid ${BORDER}`, boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
-              <div style={{ fontSize: 11.5, fontWeight: 600, color: TEXT, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: ORANGE }} />
-                Status Distribution
+              <div style={{ fontSize: 11.5, fontWeight: 700, color: TEXT, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981' }} />
+                Lead Sentiment
               </div>
-              {statusBreakdown.length > 0 ? (
+              {sentimentData.length > 0 ? (
                 <>
                   <ResponsiveContainer width="100%" height={105}>
                     <PieChart>
                       <Pie
-                        data={statusBreakdown}
+                        data={sentimentData}
                         cx="50%"
                         cy="50%"
                         outerRadius={44}
                         innerRadius={22}
                         dataKey="count"
                       >
-                        {statusBreakdown.map((s, i) => (
-                          <Cell key={s.name} fill={STATUS_COLORS[s.name] || PIE_COLORS[i % PIE_COLORS.length]} />
+                        {sentimentData.map((s, i) => (
+                          <Cell key={s.name} fill={s.color || PIE_COLORS[i % PIE_COLORS.length]} />
                         ))}
                       </Pie>
                       <Tooltip formatter={(v, n) => [v, n]} />
                     </PieChart>
                   </ResponsiveContainer>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
-                    {statusBreakdown.map((s, i) => (
-                      <div key={s.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10.5 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginTop: 4 }}>
+                    {sentimentData.map((s) => (
+                      <div
+                        key={s.name}
+                        onClick={() => {
+                          if (s.name === 'Positive') setLeadsStatusFilter('Positive');
+                          else if (s.name === 'Negative') setLeadsStatusFilter('Negative');
+                          else setLeadsStatusFilter('');
+                        }}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11, cursor: 'pointer', padding: '2px 4px', borderRadius: 4 }}
+                        className="hover:bg-slate-50"
+                      >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <div style={{ width: 7, height: 7, borderRadius: '50%', background: STATUS_COLORS[s.name] || PIE_COLORS[i % PIE_COLORS.length], flexShrink: 0 }} />
-                          <span style={{ color: '#475569', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 400 }}>{s.name}</span>
+                          <div style={{ width: 7, height: 7, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
+                          <span style={{ color: '#475569', fontWeight: 500 }}>{s.name}</span>
                         </div>
-                        <span style={{ fontWeight: 500, color: TEXT }}>{s.count}</span>
+                        <span style={{ fontWeight: 700, color: TEXT }}>{s.count}</span>
                       </div>
                     ))}
                   </div>
                 </>
               ) : (
-                <div style={{ textAlign: 'center', color: MUTED, fontSize: 11, padding: '16px 0', fontWeight: 400 }}>No status data yet</div>
+                <div style={{ textAlign: 'center', color: MUTED, fontSize: 11, padding: '16px 0', fontWeight: 400 }}>No sentiment data yet</div>
               )}
             </div>
 
-            {/* Call Outcomes Breakdown */}
+            {/* Quick Filter Sentiment Bars */}
             <div style={{ background: '#fff', borderRadius: 10, padding: '12px 10px', border: `1px solid ${BORDER}`, boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
-              <div style={{ fontSize: 11.5, fontWeight: 600, color: TEXT, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ fontSize: 11.5, fontWeight: 700, color: TEXT, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: BLUE }} />
-                Call Outcomes
+                Conversion Ratios
               </div>
-              {statusBreakdown.length > 0 ? (
-                statusBreakdown.map((s, i) => (
-                  <div key={s.name} style={{ marginBottom: 6 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, marginBottom: 2 }}>
-                      <span style={{ color: '#475569', maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 400 }}>{s.name}</span>
-                      <span style={{ fontWeight: 500, color: TEXT }}>{s.count}</span>
-                    </div>
-                    <div style={{ height: 4, background: '#f1f5f9', borderRadius: 3, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', background: STATUS_COLORS[s.name] || PIE_COLORS[i % PIE_COLORS.length], borderRadius: 3, width: `${leadsTotal > 0 ? Math.round(s.count / leadsTotal * 100) : 0}%`, transition: 'width 0.4s' }} />
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div style={{ textAlign: 'center', color: MUTED, fontSize: 11, padding: '12px 0', fontWeight: 400 }}>No call data yet</div>
-              )}
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, marginBottom: 2 }}>
+                  <span style={{ color: '#059669', fontWeight: 600 }}>Positive Leads</span>
+                  <span style={{ fontWeight: 700, color: TEXT }}>{positiveCount}</span>
+                </div>
+                <div style={{ height: 5, background: '#f1f5f9', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', background: '#10b981', borderRadius: 3, width: `${campaignLeads.length > 0 ? Math.round(positiveCount / campaignLeads.length * 100) : 0}%`, transition: 'width 0.4s' }} />
+                </div>
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, marginBottom: 2 }}>
+                  <span style={{ color: '#dc2626', fontWeight: 600 }}>Negative Leads</span>
+                  <span style={{ fontWeight: 700, color: TEXT }}>{negativeCount}</span>
+                </div>
+                <div style={{ height: 5, background: '#f1f5f9', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', background: '#ef4444', borderRadius: 3, width: `${campaignLeads.length > 0 ? Math.round(negativeCount / campaignLeads.length * 100) : 0}%`, transition: 'width 0.4s' }} />
+                </div>
+              </div>
             </div>
 
             {/* Assigned Callers */}
@@ -944,7 +1114,7 @@ export default function MetaLeads() {
             ) : (
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: MUTED, flexDirection: 'column', gap: 8, padding: 32 }}>
                 <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
-                <span style={{ fontSize: 12.5, fontWeight: 400 }}>Select a student to view details</span>
+                <span style={{ fontSize: 12.5, fontWeight: 500 }}>Select a student to view details</span>
               </div>
             )}
           </div>
