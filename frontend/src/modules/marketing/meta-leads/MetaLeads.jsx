@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { metaLeadsAPI, usersAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import AssignMembersModal from './AssignMembersModal';
-import CampaignWorkspace from './CampaignWorkspace';
 import LeadDetailsPage from '../../../components/LeadDetails/LeadDetailsPage';
 import {
   FiPlus, FiRefreshCw, FiSearch, FiLayers, FiUsers, FiCalendar,
@@ -472,42 +471,9 @@ export default function MetaLeads() {
     window.location.href = `tel:${cleanPhone}`;
   };
 
-  // ── Render Dedicated 3-Column Campaign Workspace upon Campaign Selection ──
-  if (selectedCampaign !== 'all') {
-    return (
-      <>
-        <CampaignWorkspace
-          campaignName={selectedCampaign}
-          onBack={() => { setSelectedCampaign('all'); setPage(1); }}
-          isAdmin={isAdmin}
-          isRestricted={isRestricted}
-          employees={employees}
-          assignments={assignments}
-          onRefreshAll={fetchCampaigns}
-          onOpenAssignModal={handleOpenAssignModal}
-        />
-        {isAdmin && (
-          <AssignMembersModal
-            isOpen={showAssignModal}
-            onClose={() => setShowAssignModal(false)}
-            campaign={assignModalCampaign}
-            employees={employees}
-            currentAssignedUserIds={
-              (
-                campaignStats.find(c => c.campaign === assignModalCampaign)?.assignedUsers ||
-                assignments.find(a => a.campaign === assignModalCampaign)?.assignedUsers ||
-                []
-              ).map(u => (u?._id ? u._id : u))
-            }
-            onConfirm={handleConfirmAssignment}
-          />
-        )}
-      </>
-    );
-  }
-
   return (
-    <div style={{ background: T.bg, minHeight: '100vh', padding: '24px 28px' }}>
+    <div style={{ background: T.bg, minHeight: '100vh' }} className="p-4 md:p-6">
+      <div className="max-w-7xl mx-auto w-full">
       {/* ── Page Header (Matching Campaigns.jsx Style) ────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -1390,6 +1356,7 @@ export default function MetaLeads() {
           onConfirm={handleConfirmAssignment}
         />
       )}
+      </div>
     </div>
   );
 }
