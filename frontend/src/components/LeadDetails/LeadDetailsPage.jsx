@@ -872,6 +872,7 @@ export default function LeadDetailsPage({
   onChange,
   isMetaLead = false,
   metaLeadId = null,
+  metaLeadData = null,
 }) {
   const id = leadId;
   const navigate = useNavigate();
@@ -910,6 +911,15 @@ export default function LeadDetailsPage({
   const [savingInfo, setSavingInfo] = useState(false);
   const [showSheetDetails, setShowSheetDetails] = useState(false);
 
+  const isMeta = isMetaLead || Boolean(metaLeadId) || Boolean(metaLeadData) || String(lead?.source || '').toLowerCase().includes('meta');
+  const metaRaw = metaLeadData?.rawData || lead?.rawData || {};
+  const leadName = (lead?.name && lead.name !== 'Unknown Lead')
+    ? lead.name
+    : (metaLeadData?.fullName || metaRaw.full_name || metaRaw.fullName || metaRaw.Name || metaRaw.name || lead?.name || '—');
+  const leadPhone = lead?.phone || metaLeadData?.phone || metaRaw.phone || metaRaw.Phone || metaRaw.phone_number || '—';
+  const leadEmail = lead?.email || metaLeadData?.email || metaRaw.email || metaRaw.Email || '—';
+  const leadCity = metaRaw.city || metaRaw.City || metaRaw['city'] || metaRaw['City'] || metaRaw.Location || metaRaw.location || lead?.location || '—';
+
   const fetchLeadDetails = async () => {
     try {
       const isRandom = id === 'random';
@@ -920,19 +930,19 @@ export default function LeadDetailsPage({
       setLead(res.data.lead);
       setRecordings(res.data.recordings || []);
       setLeadFollowups(followupsRes.data?.followups || []);
-      const l = res.data.lead;
+      const l = res.data.lead || {};
       setEditForm({
-        name: l.name || '',
-        phone: l.phone || '',
+        name: (l.name && l.name !== 'Unknown Lead') ? l.name : (metaLeadData?.fullName || metaRaw.full_name || metaRaw.fullName || metaRaw.Name || metaRaw.name || l.name || ''),
+        phone: l.phone || metaLeadData?.phone || metaRaw.phone || metaRaw.Phone || '',
         alternatePhone: l.alternatePhone || '',
-        email: l.email || '',
-        status: l.status || 'Fresh',
-        rating: l.rating || 0,
+        email: l.email || metaLeadData?.email || metaRaw.email || metaRaw.Email || '',
+        status: l.status || metaLeadData?.status || 'Fresh',
+        rating: l.rating || metaLeadData?.rating || 0,
         leadSource: l.leadSource || 'Manual',
         courseInterest: l.courseInterest?._id || l.courseInterest || '',
         mode: l.mode || '',
         budget: l.budget > 0 ? l.budget : '',
-        location: l.location || '',
+        location: l.location || metaRaw.city || metaRaw.City || metaRaw['city'] || metaRaw['City'] || metaRaw.location || '',
         lastQualification: l.lastQualification || '',
         assignedTo: l.assignedTo?._id || '',
         campaign: l.campaign?._id || '',
@@ -1283,210 +1293,354 @@ export default function LeadDetailsPage({
           <form onSubmit={handleSaveInfo}>
             <div className="p-3 sm:p-4">
               {isEditingInfo ? (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {[
-                      ['Full Name', 'name', 'text', true],
-                      ['Phone Number', 'phone', 'text', true],
-                      ['Alternate Phone', 'alternatePhone', 'text', false],
-                      ['Email', 'email', 'email', false],
-                      ['Location', 'location', 'text', false],
-                      ['Last Qualification', 'lastQualification', 'text', false],
-                    ].map(([label, field, type, required]) => {
-                      const isPhoneField = field === 'phone';
-                      const locked = isPhoneField && !isSuperAdmin;
-                      return (
-                        <div key={field}>
-                          <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1 block">
-                            {label}{locked && <span className="normal-case text-slate-400"> (Admin only)</span>}
-                          </label>
-                          <input
-                            type={type}
-                            className={`w-full border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${locked ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white text-slate-800'}`}
-                            value={editForm[field]}
-                            onChange={e => setEditForm({ ...editForm, [field]: e.target.value })}
-                            required={required}
-                            readOnly={locked}
-                          />
-                        </div>
-                      );
-                    })}
-                    <div>
-                      <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1 block">Budget (INR)</label>
-                      <input type="number" className="w-full border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-800" value={editForm.budget} onChange={e => setEditForm({ ...editForm, budget: e.target.value })} placeholder="Budget" min={0} />
+                isMeta ? (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                      <div>
+                        <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1 block">Full Name</label>
+                        <input
+                          type="text"
+                          className="w-full border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-800"
+                          value={editForm.name || ''}
+                          onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1 block">Email</label>
+                        <input
+                          type="email"
+                          className="w-full border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-800"
+                          value={editForm.email || ''}
+                          onChange={e => setEditForm({ ...editForm, email: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1 block">Phone Number</label>
+                        <input
+                          type="text"
+                          className="w-full border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-800"
+                          value={editForm.phone || ''}
+                          onChange={e => setEditForm({ ...editForm, phone: e.target.value })}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1 block">City</label>
+                        <input
+                          type="text"
+                          className="w-full border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-800"
+                          value={editForm.location || ''}
+                          onChange={e => setEditForm({ ...editForm, location: e.target.value })}
+                          placeholder="City"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1 block">Lead Source</label>
-                      <select className="w-full border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-800" value={editForm.leadSource} onChange={e => setEditForm({ ...editForm, leadSource: e.target.value })}>
-                        {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
+                    <div className="flex justify-end pt-2">
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        type="submit"
+                        disabled={savingInfo}
+                        className="px-4 py-2 rounded-lg font-medium text-xs bg-blue-600 hover:bg-blue-700 text-white shadow-xs flex items-center gap-1.5 transition-colors"
+                      >
+                        <Save className="w-3.5 h-3.5" /> Save Details
+                      </motion.button>
                     </div>
-                    {isAdmin && (
-                      <>
-                        <div>
-                          <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1 block">Assignee</label>
-                          <select className="w-full border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-800" value={editForm.assignedTo} onChange={e => setEditForm({ ...editForm, assignedTo: e.target.value })}>
-                            <option value="">Unassigned</option>
-                            {callers.map(u => <option key={u._id} value={u._id}>{u.name} ({u.role})</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1 block">Campaign</label>
-                          <select className="w-full border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-800" value={editForm.campaign} onChange={e => setEditForm({ ...editForm, campaign: e.target.value })}>
-                            <option value="">No Campaign</option>
-                            {editForm.campaign && !campaigns.some(c => c._id === editForm.campaign) && (
-                              <option value={editForm.campaign}>{lead.campaign?.name || editForm.campaign}</option>
-                            )}
-                            {campaigns.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
-                          </select>
-                        </div>
-                      </>
-                    )}
                   </div>
-                  <div className="flex justify-end pt-2">
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      type="submit"
-                      disabled={savingInfo}
-                      className="px-4 py-2 rounded-lg font-medium text-xs bg-blue-600 hover:bg-blue-700 text-white shadow-xs flex items-center gap-1.5 transition-colors"
-                    >
-                      <Save className="w-3.5 h-3.5" /> Save Details
-                    </motion.button>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                      {[
+                        ['Full Name', 'name', 'text', true],
+                        ['Phone Number', 'phone', 'text', true],
+                        ['Alternate Phone', 'alternatePhone', 'text', false],
+                        ['Email', 'email', 'email', false],
+                        ['Location', 'location', 'text', false],
+                        ['Last Qualification', 'lastQualification', 'text', false],
+                      ].map(([label, field, type, required]) => {
+                        const isPhoneField = field === 'phone';
+                        const locked = isPhoneField && !isSuperAdmin;
+                        return (
+                          <div key={field}>
+                            <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1 block">
+                              {label}{locked && <span className="normal-case text-slate-400"> (Admin only)</span>}
+                            </label>
+                            <input
+                              type={type}
+                              className={`w-full border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${locked ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white text-slate-800'}`}
+                              value={editForm[field]}
+                              onChange={e => setEditForm({ ...editForm, [field]: e.target.value })}
+                              required={required}
+                              readOnly={locked}
+                            />
+                          </div>
+                        );
+                      })}
+                      <div>
+                        <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1 block">Budget (INR)</label>
+                        <input type="number" className="w-full border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-800" value={editForm.budget} onChange={e => setEditForm({ ...editForm, budget: e.target.value })} placeholder="Budget" min={0} />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1 block">Lead Source</label>
+                        <select className="w-full border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-800" value={editForm.leadSource} onChange={e => setEditForm({ ...editForm, leadSource: e.target.value })}>
+                          {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </div>
+                      {isAdmin && (
+                        <>
+                          <div>
+                            <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1 block">Assignee</label>
+                            <select className="w-full border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-800" value={editForm.assignedTo} onChange={e => setEditForm({ ...editForm, assignedTo: e.target.value })}>
+                              <option value="">Unassigned</option>
+                              {callers.map(u => <option key={u._id} value={u._id}>{u.name} ({u.role})</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1 block">Campaign</label>
+                            <select className="w-full border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-800" value={editForm.campaign} onChange={e => setEditForm({ ...editForm, campaign: e.target.value })}>
+                              <option value="">No Campaign</option>
+                              {editForm.campaign && !campaigns.some(c => c._id === editForm.campaign) && (
+                                <option value={editForm.campaign}>{lead.campaign?.name || editForm.campaign}</option>
+                              )}
+                              {campaigns.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                            </select>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <div className="flex justify-end pt-2">
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        type="submit"
+                        disabled={savingInfo}
+                        className="px-4 py-2 rounded-lg font-medium text-xs bg-blue-600 hover:bg-blue-700 text-white shadow-xs flex items-center gap-1.5 transition-colors"
+                      >
+                        <Save className="w-3.5 h-3.5" /> Save Details
+                      </motion.button>
+                    </div>
                   </div>
-                </div>
+                )
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5">
-                  {[
-                    { icon: Phone, label: 'Phone', value: lead.phone, copyable: true },
-                    { icon: Phone, label: 'Alt Phone', value: lead.alternatePhone || '—', copyable: !!lead.alternatePhone },
-                    { icon: Mail, label: 'Email', value: lead.email || '—' },
-                    { icon: MapPin, label: 'Location', value: lead.location || '—' },
-                    { icon: Award, label: 'Qualification', value: lead.lastQualification || '—' },
-                    { icon: IndianRupee, label: 'Budget', value: lead.budget ? `₹${lead.budget.toLocaleString()}` : '—' },
-                    { icon: Globe, label: 'Source', value: lead.leadSource },
-                    { icon: User, label: 'Campaign', value: lead.campaign?.name || 'None' },
-                    { icon: User, label: 'Assignee', value: lead.assignedTo?.name || 'Unassigned' },
-                  ].map(({ icon: Icon, label, value, copyable }) => (
-                    <div key={label} className="p-2 sm:p-2.5 rounded-lg bg-slate-50/80 border border-slate-100 hover:border-blue-200 transition-colors min-w-0">
+                isMeta ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
+                    {/* 1. Name */}
+                    <div className="p-2 sm:p-2.5 rounded-lg bg-slate-50/80 border border-slate-100 hover:border-blue-200 transition-colors min-w-0">
                       <div className="flex items-center gap-1.5 text-blue-600 mb-1">
-                        <Icon className="w-3.5 h-3.5 flex-shrink-0" />
-                        <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider truncate">{label}</span>
+                        <User className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider truncate">Name</span>
                       </div>
                       <div className="flex items-center justify-between gap-1">
-                        <span className="text-xs font-medium text-slate-800 truncate" title={value}>{value}</span>
-                        {copyable && value !== '—' && (
+                        <span className="text-xs font-semibold text-slate-800 truncate" title={leadName}>{leadName}</span>
+                      </div>
+                    </div>
+
+                    {/* 2. Email */}
+                    <div className="p-2 sm:p-2.5 rounded-lg bg-slate-50/80 border border-slate-100 hover:border-blue-200 transition-colors min-w-0">
+                      <div className="flex items-center gap-1.5 text-blue-600 mb-1">
+                        <Mail className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider truncate">Email</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-xs font-medium text-slate-800 truncate" title={leadEmail}>{leadEmail}</span>
+                        {leadEmail && leadEmail !== '—' && (
                           <button
                             type="button"
-                            onClick={() => copyToClipboard(value)}
+                            onClick={() => copyToClipboard(leadEmail)}
                             className="text-slate-400 hover:text-blue-600 transition-colors flex-shrink-0"
                           >
-                            {copiedText === value ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                            {copiedText === leadEmail ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
                           </button>
                         )}
                       </div>
                     </div>
-                  ))}
 
-                  {/* Inline Rating tile */}
-                  <div className="p-2 sm:p-2.5 rounded-lg bg-slate-50/80 border border-slate-100 flex flex-col justify-center min-w-0">
-                    <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-1">Rating</span>
-                    <div className="flex items-center gap-0.5">
-                      {[1, 2, 3, 4, 5].map(r => (
-                        <motion.button
-                          whileHover={{ scale: 1.2 }}
-                          whileTap={{ scale: 0.9 }}
-                          type="button"
-                          key={r}
-                          onClick={() => handleRatingChange(r)}
-                          className="focus:outline-none"
-                        >
-                          <Star className={`w-3.5 h-3.5 ${r <= lead.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}`} />
-                        </motion.button>
-                      ))}
+                    {/* 3. Phone */}
+                    <div className="p-2 sm:p-2.5 rounded-lg bg-slate-50/80 border border-slate-100 hover:border-blue-200 transition-colors min-w-0">
+                      <div className="flex items-center gap-1.5 text-blue-600 mb-1">
+                        <Phone className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider truncate">Phone</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-xs font-semibold text-slate-800 font-mono truncate" title={leadPhone}>{leadPhone}</span>
+                        {leadPhone && leadPhone !== '—' && (
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(leadPhone)}
+                            className="text-slate-400 hover:text-blue-600 transition-colors flex-shrink-0"
+                          >
+                            {copiedText === leadPhone ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 4. City */}
+                    <div className="p-2 sm:p-2.5 rounded-lg bg-slate-50/80 border border-slate-100 hover:border-blue-200 transition-colors min-w-0">
+                      <div className="flex items-center gap-1.5 text-blue-600 mb-1">
+                        <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider truncate">City</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-xs font-medium text-slate-800 truncate" title={leadCity}>{leadCity}</span>
+                      </div>
+                    </div>
+
+                    {/* 5. Rating */}
+                    <div className="p-2 sm:p-2.5 rounded-lg bg-slate-50/80 border border-slate-100 flex flex-col justify-center min-w-0">
+                      <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-1">Rating</span>
+                      <div className="flex items-center gap-0.5">
+                        {[1, 2, 3, 4, 5].map(r => (
+                          <motion.button
+                            whileHover={{ scale: 1.2 }}
+                            whileTap={{ scale: 0.9 }}
+                            type="button"
+                            key={r}
+                            onClick={() => handleRatingChange(r)}
+                            className="focus:outline-none"
+                          >
+                            <Star className={`w-3.5 h-3.5 ${r <= (lead?.rating || metaLeadData?.rating || 0) ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}`} />
+                          </motion.button>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5">
+                    {[
+                      { icon: Phone, label: 'Phone', value: lead.phone, copyable: true },
+                      { icon: Phone, label: 'Alt Phone', value: lead.alternatePhone || '—', copyable: !!lead.alternatePhone },
+                      { icon: Mail, label: 'Email', value: lead.email || '—' },
+                      { icon: MapPin, label: 'Location', value: lead.location || '—' },
+                      { icon: Award, label: 'Qualification', value: lead.lastQualification || '—' },
+                      { icon: IndianRupee, label: 'Budget', value: lead.budget ? `₹${lead.budget.toLocaleString()}` : '—' },
+                      { icon: Globe, label: 'Source', value: lead.leadSource },
+                      { icon: User, label: 'Campaign', value: lead.campaign?.name || 'None' },
+                      { icon: User, label: 'Assignee', value: lead.assignedTo?.name || 'Unassigned' },
+                    ].map(({ icon: Icon, label, value, copyable }) => (
+                      <div key={label} className="p-2 sm:p-2.5 rounded-lg bg-slate-50/80 border border-slate-100 hover:border-blue-200 transition-colors min-w-0">
+                        <div className="flex items-center gap-1.5 text-blue-600 mb-1">
+                          <Icon className="w-3.5 h-3.5 flex-shrink-0" />
+                          <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider truncate">{label}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-xs font-medium text-slate-800 truncate" title={value}>{value}</span>
+                          {copyable && value !== '—' && (
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(value)}
+                              className="text-slate-400 hover:text-blue-600 transition-colors flex-shrink-0"
+                            >
+                              {copiedText === value ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Inline Rating tile */}
+                    <div className="p-2 sm:p-2.5 rounded-lg bg-slate-50/80 border border-slate-100 flex flex-col justify-center min-w-0">
+                      <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-1">Rating</span>
+                      <div className="flex items-center gap-0.5">
+                        {[1, 2, 3, 4, 5].map(r => (
+                          <motion.button
+                            whileHover={{ scale: 1.2 }}
+                            whileTap={{ scale: 0.9 }}
+                            type="button"
+                            key={r}
+                            onClick={() => handleRatingChange(r)}
+                            className="focus:outline-none"
+                          >
+                            <Star className={`w-3.5 h-3.5 ${r <= (lead?.rating || 0) ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}`} />
+                          </motion.button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )
               )}
             </div>
           </form>
         </div>
 
-        {/* ─── Down: Course Interest & Mode (Fit on Screen Width) ─── */}
-        <div className="w-full bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-          <div className="p-3 sm:p-3.5 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between">
-            <h3 className="font-semibold text-slate-800 text-xs sm:text-sm uppercase tracking-wider flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-orange-600" /> Course Interest & Mode
-            </h3>
-          </div>
-          <div className="p-3 sm:p-4">
-            {isEditingInfo ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1 block">Course Target</label>
-                  <select
-                    className="w-full border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-800"
-                    value={editForm.courseInterest}
-                    onChange={e => {
-                      const selectedCourse = courses.find(c => c._id === e.target.value);
-                      setEditForm(prev => ({
-                        ...prev,
-                        courseInterest: e.target.value,
-                        budget: selectedCourse ? selectedCourse.cost : prev.budget,
-                      }));
-                    }}
-                  >
-                    <option value="">No Course Linked</option>
-                    {editForm.courseInterest && !courses.some(c => c._id === editForm.courseInterest) && (
-                      <option value={editForm.courseInterest}>{lead.courseInterest?.name || editForm.courseInterest}</option>
-                    )}
-                    {courses.map(c => <option key={c._id} value={c._id}>{c.name} (₹{c.cost.toLocaleString()})</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1 block">Learning Mode</label>
-                  <select className="w-full border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-800" value={editForm.mode} onChange={e => setEditForm({ ...editForm, mode: e.target.value })}>
-                    <option value="">Select Mode</option>
-                    {MODES.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
-                </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="sm:col-span-2 bg-orange-50/40 border border-orange-200/60 rounded-xl p-3 sm:p-3.5 flex gap-3 items-start">
-                  <div className="w-10 h-10 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <BookOpen className="w-5 h-5" />
-                  </div>
-                  <div className="min-w-0 flex-1 space-y-0.5">
-                    <p className="text-[10px] font-medium text-orange-600 uppercase tracking-wider">Selected Course</p>
-                    <h4 className="text-sm sm:text-base font-semibold text-slate-800 truncate">{lead.courseInterest?.name || 'No Course Selected'}</h4>
-                    {lead.courseInterest?.description && <p className="text-xs text-slate-500 line-clamp-2">{lead.courseInterest.description}</p>}
-                    {lead.courseInterest?.duration && (
-                      <div className="inline-flex items-center gap-1 bg-white border border-orange-200 text-[10px] font-medium text-orange-700 px-2.5 py-0.5 rounded-full mt-1">
-                        <Clock className="w-3 h-3" /> {lead.courseInterest.duration}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="bg-blue-50/40 border border-blue-200/60 rounded-xl p-3 sm:p-3.5 flex flex-col justify-between">
+        {/* ─── Down: Course Interest & Mode (Hidden for Meta Leads) ─── */}
+        {!isMeta && (
+          <div className="w-full bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+            <div className="p-3 sm:p-3.5 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between">
+              <h3 className="font-semibold text-slate-800 text-xs sm:text-sm uppercase tracking-wider flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-orange-600" /> Course Interest & Mode
+              </h3>
+            </div>
+            <div className="p-3 sm:p-4">
+              {isEditingInfo ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <p className="text-[10px] font-medium text-blue-600 uppercase tracking-wider">Course Fee</p>
-                    <h4 className="text-lg sm:text-xl font-semibold text-blue-900 mt-0.5">
-                      {lead.courseInterest?.cost ? `₹${lead.courseInterest.cost.toLocaleString()}` : '—'}
-                    </h4>
-                    {lead.budget > 0 && (
-                      <p className="text-xs text-blue-700 mt-0.5 font-medium">Budget: ₹{lead.budget.toLocaleString()}</p>
-                    )}
+                    <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1 block">Course Target</label>
+                    <select
+                      className="w-full border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-800"
+                      value={editForm.courseInterest}
+                      onChange={e => {
+                        const selectedCourse = courses.find(c => c._id === e.target.value);
+                        setEditForm(prev => ({
+                          ...prev,
+                          courseInterest: e.target.value,
+                          budget: selectedCourse ? selectedCourse.cost : prev.budget,
+                        }));
+                      }}
+                    >
+                      <option value="">No Course Linked</option>
+                      {editForm.courseInterest && !courses.some(c => c._id === editForm.courseInterest) && (
+                        <option value={editForm.courseInterest}>{lead.courseInterest?.name || editForm.courseInterest}</option>
+                      )}
+                      {courses.map(c => <option key={c._id} value={c._id}>{c.name} (₹{c.cost.toLocaleString()})</option>)}
+                    </select>
                   </div>
-                  <div className="pt-2 border-t border-blue-200/50 mt-2 flex items-center justify-between text-xs">
-                    <span className="text-slate-400">Mode</span>
-                    <span className="font-medium text-blue-800 bg-blue-100 px-2.5 py-0.5 rounded-full text-[11px] uppercase tracking-wider">{lead.mode || 'N/A'}</span>
+                  <div>
+                    <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1 block">Learning Mode</label>
+                    <select className="w-full border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-800" value={editForm.mode} onChange={e => setEditForm({ ...editForm, mode: e.target.value })}>
+                      <option value="">Select Mode</option>
+                      {MODES.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
                   </div>
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="sm:col-span-2 bg-orange-50/40 border border-orange-200/60 rounded-xl p-3 sm:p-3.5 flex gap-3 items-start">
+                    <div className="w-10 h-10 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <BookOpen className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0 flex-1 space-y-0.5">
+                      <p className="text-[10px] font-medium text-orange-600 uppercase tracking-wider">Selected Course</p>
+                      <h4 className="text-sm sm:text-base font-semibold text-slate-800 truncate">{lead?.courseInterest?.name || 'No Course Selected'}</h4>
+                      {lead?.courseInterest?.description && <p className="text-xs text-slate-500 line-clamp-2">{lead.courseInterest.description}</p>}
+                      {lead?.courseInterest?.duration && (
+                        <div className="inline-flex items-center gap-1 bg-white border border-orange-200 text-[10px] font-medium text-orange-700 px-2.5 py-0.5 rounded-full mt-1">
+                          <Clock className="w-3 h-3" /> {lead.courseInterest.duration}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="bg-blue-50/40 border border-blue-200/60 rounded-xl p-3 sm:p-3.5 flex flex-col justify-between">
+                    <div>
+                      <p className="text-[10px] font-medium text-blue-600 uppercase tracking-wider">Course Fee</p>
+                      <h4 className="text-lg sm:text-xl font-semibold text-blue-900 mt-0.5">
+                        {lead?.courseInterest?.cost ? `₹${lead.courseInterest.cost.toLocaleString()}` : '—'}
+                      </h4>
+                      {lead?.budget > 0 && (
+                        <p className="text-xs text-blue-700 mt-0.5 font-medium">Budget: ₹{lead.budget.toLocaleString()}</p>
+                      )}
+                    </div>
+                    <div className="pt-2 border-t border-blue-200/50 mt-2 flex items-center justify-between text-xs">
+                      <span className="text-slate-400">Mode</span>
+                      <span className="font-medium text-blue-800 bg-blue-100 px-2.5 py-0.5 rounded-full text-[11px] uppercase tracking-wider">{lead?.mode || 'N/A'}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* ─── Down: Quick Action Center (Fit on Screen Width) ─── */}
         <div className="w-full bg-white rounded-xl border border-slate-200 shadow-xs p-3.5 sm:p-4 relative overflow-hidden">

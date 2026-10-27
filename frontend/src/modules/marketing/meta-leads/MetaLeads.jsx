@@ -1135,6 +1135,7 @@ export default function MetaLeads() {
                 key={selectedLead._id}
                 leadId={selectedLead.crmLeadId || selectedLead._id}
                 metaLeadId={selectedLead._id}
+                metaLeadData={selectedLead}
                 isMetaLead={true}
                 embedded
                 onDeleted={() => {
