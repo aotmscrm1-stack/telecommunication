@@ -10,13 +10,12 @@ import {
   FiFlag, FiBarChart2, FiTrash2, FiArrowRight, FiX, FiCheck,
   FiCheckCircle, FiAlertTriangle, FiClock, FiChevronDown,
   FiTarget, FiActivity, FiEye, FiArrowUpRight, FiFilter,
-  FiDownload, FiPhoneCall, FiMail, FiColumns, FiDatabase,
-  FiUserPlus, FiShield
+  FiDownload, FiPhoneCall, FiMail, FiUserPlus, FiShield
 } from 'react-icons/fi';
 import { RiMegaphoneLine, RiFolderChartLine } from 'react-icons/ri';
 import { FaWhatsapp } from 'react-icons/fa';
 
-// ── White, Blue, Orange Theme Design Tokens (Matching Campaigns.jsx) ──────────
+// ── White, Blue, Orange Theme Design Tokens (Exact Match to Campaigns.jsx) ───
 const T = {
   white: '#ffffff',
   bg: '#f8fafc',
@@ -52,16 +51,15 @@ const T = {
   roseBorder: '#fecdd3',
 };
 
-// Standard Sheet Tab Headings
-const DEFAULT_CAMPAIGNS = [
-  'Digital Marketing_Leads',
-  'SAP_Leads',
-  'Python_Leads',
-  'CyberSecurity_Leads'
-];
+// ── UI Helpers Matching Campaigns.jsx ─────────────────────────────────────────
+function fmtLeads(n) {
+  if (!n) return '0';
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
+  return String(n);
+}
 
 function timeAgo(dateStr) {
-  if (!dateStr) return 'Just now';
+  if (!dateStr) return '—';
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
   const hrs = Math.floor(mins / 60);
@@ -71,27 +69,218 @@ function timeAgo(dateStr) {
   return `${Math.max(1, mins)}m ago`;
 }
 
+// Circular progress indicator (Matching Campaigns.jsx)
+function ProgressCircle({ value = 0 }) {
+  const r = 16;
+  const circ = 2 * Math.PI * r;
+  const pct = Math.min(100, Math.max(0, value));
+  const dash = (pct / 100) * circ;
+
+  const color = pct === 100 ? T.emerald : pct >= 70 ? T.blue : pct >= 40 ? T.orange : T.rose;
+  const trackColor = '#f1f5f9';
+
+  return (
+    <div className="flex items-center gap-2">
+      <svg width="38" height="38" viewBox="0 0 38 38" className="flex-shrink-0">
+        <circle cx="19" cy="19" r={r} fill="none" stroke={trackColor} strokeWidth="3" />
+        <circle
+          cx="19"
+          cy="19"
+          r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth="3"
+          strokeDasharray={`${dash} ${circ - dash}`}
+          strokeLinecap="round"
+          transform="rotate(-90 19 19)"
+          style={{ transition: 'stroke-dasharray 0.5s ease' }}
+        />
+        <text x="19" y="22" textAnchor="middle" fontSize="9" fill={color} fontWeight="500">
+          {pct}%
+        </text>
+      </svg>
+    </div>
+  );
+}
+
+// Stacked Assignee Avatars (Matching Campaigns.jsx)
+function AssigneeAvatars({ callers }) {
+  const avatarColors = [
+    { bg: T.blueLight, text: T.blue, border: T.blueBorder },
+    { bg: T.orangeLight, text: T.orange, border: T.orangeBorder },
+    { bg: T.emeraldLight, text: '#059669', border: T.emeraldBorder },
+    { bg: '#f8fafc', text: '#475569', border: T.border },
+  ];
+
+  if (!callers || callers.length === 0) {
+    return <span className="text-xs text-slate-400 font-normal">—</span>;
+  }
+
+  const shown = callers.slice(0, 4);
+  const extra = callers.length - 4;
+
+  return (
+    <div className="flex items-center">
+      {shown.map((c, i) => {
+        const theme = avatarColors[i % avatarColors.length];
+        return (
+          <div
+            key={c._id || i}
+            title={`${c.name || 'Staff'}${c.designation ? ` (${c.designation})` : ''}`}
+            style={{
+              width: 26,
+              height: 26,
+              borderRadius: '50%',
+              background: theme.bg,
+              color: theme.text,
+              border: `2px solid #ffffff`,
+              outline: `1px solid ${theme.border}`,
+              fontSize: 10,
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginLeft: i === 0 ? 0 : -7,
+              zIndex: shown.length - i,
+            }}
+          >
+            {c.avatar ? (
+              <img src={c.avatar} alt={c.name} className="w-full h-full rounded-full object-cover" />
+            ) : (
+              (c.name || 'U').slice(0, 2).toUpperCase()
+            )}
+          </div>
+        );
+      })}
+      {extra > 0 && (
+        <div
+          style={{
+            fontSize: 10,
+            fontWeight: 600,
+            color: T.blue,
+            background: T.blueLight,
+            borderRadius: 20,
+            padding: '1px 6px',
+            marginLeft: 5,
+            border: `1px solid ${T.blueBorder}`
+          }}
+        >
+          +{extra}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Filter Dropdown Component (Matching Campaigns.jsx)
+function FilterDropdown({ label, options, value, onChange, icon }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const active = !!value;
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(p => !p)}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border shadow-xs"
+        style={{
+          background: active ? T.blueLight : '#ffffff',
+          borderColor: active ? T.blue : T.border,
+          color: active ? T.blue : T.textSecondary,
+        }}
+      >
+        {icon && <span className="opacity-80">{icon}</span>}
+        <span>{active ? value : label}</span>
+        {active ? (
+          <span
+            onClick={e => { e.stopPropagation(); onChange(''); }}
+            className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-blue-100 text-xs font-medium ml-0.5"
+          >
+            ×
+          </span>
+        ) : (
+          <FiChevronDown className="w-3.5 h-3.5 opacity-60 ml-0.5" />
+        )}
+      </button>
+
+      {open && (
+        <div
+          className="absolute left-0 mt-1.5 w-44 rounded-xl border bg-white shadow-lg py-1 z-30 max-h-56 overflow-y-auto"
+          style={{ borderColor: T.border }}
+        >
+          <div
+            onClick={() => { onChange(''); setOpen(false); }}
+            className="px-3 py-1.5 text-xs text-slate-500 hover:bg-slate-50 cursor-pointer font-medium"
+          >
+            All
+          </div>
+          {options.map((opt, idx) => {
+            const optVal = typeof opt === 'object' ? opt.value : opt;
+            const optLabel = typeof opt === 'object' ? opt.label : opt;
+            const isSelected = value === optVal;
+            return (
+              <div
+                key={idx}
+                onClick={() => { onChange(optVal); setOpen(false); }}
+                className={`px-3 py-1.5 text-xs flex items-center justify-between cursor-pointer ${isSelected ? 'bg-blue-50 text-blue-700 font-medium' : 'text-slate-700 hover:bg-slate-50 font-normal'}`}
+              >
+                <div className="flex items-center gap-2 truncate">
+                  {opt.dot && (
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: opt.dot }} />
+                  )}
+                  <span className="truncate">{optLabel}</span>
+                </div>
+                {isSelected && <FiCheck className="w-3.5 h-3.5 text-blue-600 flex-shrink-0 ml-1.5" />}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MAIN META LEADS COMPONENT (Exact UI/UX Concept of Campaigns.jsx)
+// ─────────────────────────────────────────────────────────────────────────────
 export default function MetaLeads() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // State
-  const [leads, setLeads] = useState([]);
-  const [totalLeads, setTotalLeads] = useState(0);
+  // Primary Campaigns & Leads Data
   const [campaignStats, setCampaignStats] = useState([]);
-  const [selectedCampaign, setSelectedCampaign] = useState('all');
-  const [search, setSearch] = useState('');
+  const [totalLeadsAll, setTotalLeadsAll] = useState(0);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [limit, setLimit] = useState(25);
-  const [selectedLead, setSelectedLead] = useState(null);
-  const [visibleColumns, setVisibleColumns] = useState({});
-  const [showColumnDropdown, setShowColumnDropdown] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
 
-  // Assignment & Role Management State
+  // Selected Campaign State (When opening a campaign's leads list)
+  const [selectedCampaign, setSelectedCampaign] = useState(null);
+  const [campaignLeads, setCampaignLeads] = useState([]);
+  const [loadingLeads, setLoadingLeads] = useState(false);
+  const [leadsTotal, setLeadsTotal] = useState(0);
+  const [leadsPage, setLeadsPage] = useState(1);
+  const [leadsSearch, setLeadsSearch] = useState('');
+  const [leadStatusFilter, setLeadStatusFilter] = useState('');
+
+  // Filters for Campaigns Overview Table
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [assigneeFilter, setAssigneeFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
+  const [sortField, setSortField] = useState('count');
+  const [sortDir, setSortDir] = useState('desc');
+
+  // Permissions & Employees
   const [isAdmin, setIsAdmin] = useState(true);
   const [isRestricted, setIsRestricted] = useState(false);
   const [employees, setEmployees] = useState([]);
@@ -99,341 +288,175 @@ export default function MetaLeads() {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assignModalCampaign, setAssignModalCampaign] = useState('');
 
-  // Fetch campaign stats and role boundaries
+  // Lead Detail Drawer State
+  const [selectedLead, setSelectedLead] = useState(null);
+
+  // ── Fetch Campaigns Overview & Assignment Status ────────────────────────────
   const fetchCampaigns = async () => {
     try {
+      setLoading(true);
       const res = await metaLeadsAPI.getCampaigns();
-      if (res.data?.success) {
-        const fetchedCampaigns = res.data.campaigns || [];
-        setCampaignStats(fetchedCampaigns);
-        const adminFlag = res.data.isAdmin !== undefined ? res.data.isAdmin : true;
-        const restrictedFlag = !!res.data.isRestricted;
-        setIsAdmin(adminFlag);
-        setIsRestricted(restrictedFlag);
+      const payload = res.data || {};
+      const rawCampaigns = payload.campaigns || [];
+      const adminRole = payload.isAdmin !== undefined ? payload.isAdmin : true;
+      const restricted = payload.isRestricted || false;
 
-        // Auto-select first accessible campaign for restricted employees
-        if (restrictedFlag && fetchedCampaigns.length > 0) {
-          const allowedNames = fetchedCampaigns.map(c => c.campaign);
-          if (selectedCampaign === 'all' || !allowedNames.includes(selectedCampaign)) {
-            setSelectedCampaign(allowedNames[0]);
-          }
-        }
-      }
-    } catch (err) {
-      console.error('Failed to fetch campaigns:', err);
-    }
-  };
+      setIsAdmin(adminRole);
+      setIsRestricted(restricted);
+      setCampaignStats(rawCampaigns);
 
-  // Fetch employees list (for Admin assignment modal)
-  const fetchEmployees = async () => {
-    try {
-      const res = await usersAPI.getAll();
-      if (res.data?.users) {
-        setEmployees(res.data.users);
-      }
+      const total = rawCampaigns.reduce((acc, c) => acc + (c.count || 0), 0);
+      setTotalLeadsAll(total);
     } catch (err) {
-      console.error('Failed to fetch employees:', err);
-    }
-  };
-
-  // Fetch all assignments (for Admin assignment modal)
-  const fetchAssignments = async () => {
-    try {
-      const res = await metaLeadsAPI.getAssignments();
-      if (res.data?.success) {
-        setAssignments(res.data.assignments || []);
-      }
-    } catch (err) {
-      // Non-admins will receive 403, which is expected
-    }
-  };
-
-  // Fetch leads
-  const fetchLeads = async () => {
-    setLoading(true);
-    try {
-      const params = {
-        page,
-        limit,
-        campaign: selectedCampaign !== 'all' ? selectedCampaign : undefined,
-        search: search.trim() || undefined,
-      };
-      const res = await metaLeadsAPI.getAll(params);
-      if (res.data?.success) {
-        setLeads(res.data.leads || []);
-        setTotalLeads(res.data.total || 0);
-        setTotalPages(res.data.pages || 1);
-      }
-    } catch (err) {
-      console.error('Failed to fetch meta leads:', err);
+      console.error('Failed to load Meta campaigns:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Fetch Employees & Assignments
+  const fetchEmployeesAndAssignments = async () => {
+    try {
+      const [empRes, assignRes] = await Promise.allSettled([
+        usersAPI.getAll(),
+        metaLeadsAPI.getAssignments()
+      ]);
+
+      if (empRes.status === 'fulfilled') {
+        const userList = empRes.value?.data?.users || empRes.value?.data || [];
+        setEmployees(userList);
+      }
+      if (assignRes.status === 'fulfilled') {
+        setAssignments(assignRes.value?.data?.assignments || []);
+      }
+    } catch (err) {
+      console.error('Failed to load employees/assignments:', err);
     }
   };
 
   useEffect(() => {
     fetchCampaigns();
-    fetchEmployees();
-    fetchAssignments();
+    fetchEmployeesAndAssignments();
   }, []);
 
-  useEffect(() => {
-    fetchLeads();
-  }, [selectedCampaign, page, limit]);
-
-  // Handle Search Debounce
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setPage(1);
-      fetchLeads();
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [search]);
-
-  // Combine default campaigns with discovered database campaigns
-  const allCampaignTabs = useMemo(() => {
-    if (isRestricted) {
-      // Standard telecallers only see campaigns assigned to them
-      return campaignStats.map(c => c.campaign);
+  // ── Fetch Leads When a Specific Campaign is Selected ───────────────────────
+  const fetchCampaignLeads = async (campaignName, page = 1) => {
+    if (!campaignName) return;
+    try {
+      setLoadingLeads(true);
+      const params = {
+        campaign: campaignName,
+        page,
+        limit: 25,
+        search: leadsSearch,
+        status: leadStatusFilter
+      };
+      const res = await metaLeadsAPI.getAll(params);
+      const data = res.data || {};
+      setCampaignLeads(data.leads || []);
+      setLeadsTotal(data.total || (data.leads ? data.leads.length : 0));
+      setLeadsPage(page);
+    } catch (err) {
+      console.error('Failed to fetch leads for campaign:', err);
+    } finally {
+      setLoadingLeads(false);
     }
-
-    const list = [...DEFAULT_CAMPAIGNS];
-    campaignStats.forEach(c => {
-      if (c.campaign && !list.includes(c.campaign)) {
-        list.push(c.campaign);
-      }
-    });
-    return list;
-  }, [campaignStats, isRestricted]);
-
-  // Map of campaign lead counts
-  const campaignCountMap = useMemo(() => {
-    const map = {};
-    let sum = 0;
-    campaignStats.forEach(c => {
-      map[c.campaign] = c.count || 0;
-      sum += c.count || 0;
-    });
-    map['all'] = sum;
-    return map;
-  }, [campaignStats]);
-
-  // Assignees for the currently selected campaign tab
-  const activeCampaignAssignees = useMemo(() => {
-    if (selectedCampaign === 'all') {
-      // Return distinct assignees across all campaigns
-      const memberMap = new Map();
-      campaignStats.forEach(c => {
-        (c.assignedUsers || []).forEach(u => {
-          if (u && u._id) memberMap.set(u._id, u);
-        });
-      });
-      return Array.from(memberMap.values());
-    }
-
-    // Specific campaign
-    const stat = campaignStats.find(c => c.campaign === selectedCampaign);
-    if (stat && stat.assignedUsers) return stat.assignedUsers;
-
-    const asgn = assignments.find(a => a.campaign === selectedCampaign);
-    return asgn?.assignedUsers || [];
-  }, [selectedCampaign, campaignStats, assignments]);
-
-  // Handle opening the assignment modal
-  const handleOpenAssignModal = (targetCampaign) => {
-    const campaignToAssign = targetCampaign || (selectedCampaign !== 'all' ? selectedCampaign : (allCampaignTabs[0] || DEFAULT_CAMPAIGNS[0]));
-    setAssignModalCampaign(campaignToAssign);
-    setShowAssignModal(true);
   };
 
-  // Handle confirm assignment
-  const handleConfirmAssignment = async (campaignName, userIds) => {
-    await metaLeadsAPI.saveAssignments({ campaign: campaignName, userIds });
-    setStatusMessage(`✅ Updated member assignments for ${campaignName}!`);
-    await Promise.all([fetchCampaigns(), fetchAssignments()]);
-  };
-
-  // Extract all unique dynamic Google Sheet headers from current leads
-  const dynamicHeaders = useMemo(() => {
-    const set = new Set();
-    leads.forEach(l => {
-      if (l.rawData && typeof l.rawData === 'object') {
-        Object.keys(l.rawData).forEach(k => {
-          if (!k.startsWith('_') && k !== 'campaign' && k !== 'source') {
-            set.add(k);
-          }
-        });
-      }
-    });
-    const arr = Array.from(set);
-    // Sort so primary fields (Name, Phone, Email) appear first if available
-    return arr.sort((a, b) => {
-      const priority = ['Full Name', 'Name', 'name', 'Phone', 'phone', 'Mobile', 'mobile', 'Email', 'email', 'Timestamp', 'Date'];
-      const idxA = priority.indexOf(a);
-      const idxB = priority.indexOf(b);
-      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-      if (idxA !== -1) return -1;
-      if (idxB !== -1) return 1;
-      return a.localeCompare(b);
-    });
-  }, [leads]);
-
-  // Initialize visible columns
   useEffect(() => {
-    if (dynamicHeaders.length > 0) {
-      setVisibleColumns(prev => {
-        const next = { ...prev };
-        dynamicHeaders.forEach((h, idx) => {
-          if (next[h] === undefined) {
-            // By default, show first 7 columns to maintain great table density
-            next[h] = idx < 7;
-          }
-        });
-        return next;
-      });
+    if (selectedCampaign) {
+      fetchCampaignLeads(selectedCampaign, 1);
     }
-  }, [dynamicHeaders]);
+  }, [selectedCampaign, leadsSearch, leadStatusFilter]);
 
-  // Trigger n8n Webhook Sync with Live Status Polling & Concurrency Lock
+  // ── Sync Handler ────────────────────────────────────────────────────────────
   const handleSync = async () => {
     if (syncing) return;
     setSyncing(true);
-    setStatusMessage('Triggering n8n Google Sheets workflow...');
+    setStatusMessage('Syncing Meta Leads Google Sheets via live n8n pipeline...');
     try {
-      const res = await metaLeadsAPI.triggerSync();
-      setStatusMessage(res.data?.message || 'n8n workflow triggered! Ingesting Google Sheets...');
-      
-      // Poll execution status until completed or timed out
-      let attempts = 0;
-      const maxAttempts = 35; // 35 * 1.5s = ~52 seconds
-      const pollInterval = setInterval(async () => {
-        attempts++;
-        try {
-          const statusRes = await metaLeadsAPI.getSyncStatus();
-          const state = statusRes.data;
-          if (state && state.message) {
-            setStatusMessage(state.message);
-          }
-          if (!state.isSyncing || attempts >= maxAttempts) {
-            clearInterval(pollInterval);
-            await fetchCampaigns();
-            await fetchLeads();
-            setSyncing(false);
-            const summary = state.totalProcessed
-              ? `Sync completed! Processed: ${state.totalProcessed} (${state.insertedCount} new, ${state.updatedCount} updated, ${state.skippedCount} skipped).`
-              : 'Sync completed! Live leads updated from Google Sheets.';
-            setStatusMessage(summary);
-            setTimeout(() => setStatusMessage(''), 6000);
-          }
-        } catch (_) {
-          if (attempts >= maxAttempts) {
-            clearInterval(pollInterval);
-            await fetchCampaigns();
-            await fetchLeads();
-            setSyncing(false);
-            setStatusMessage('Sync finished. Refreshed leads.');
-            setTimeout(() => setStatusMessage(''), 5000);
-          }
+      await metaLeadsAPI.triggerSync();
+      setStatusMessage('Sync triggered! Updating campaigns and leads...');
+      setTimeout(async () => {
+        await fetchCampaigns();
+        if (selectedCampaign) {
+          await fetchCampaignLeads(selectedCampaign, leadsPage);
         }
-      }, 1500);
+        setStatusMessage('Meta Leads sync successfully completed!');
+        setSyncing(false);
+        setTimeout(() => setStatusMessage(''), 4000);
+      }, 2500);
     } catch (err) {
-      console.error('Sync error:', err);
-      const errMsg = err.response?.data?.message || err.message || 'Sync failed';
-      setStatusMessage(`Sync notice: ${errMsg}`);
+      console.error('Sync failed:', err);
+      setStatusMessage('Sync encountered an issue. Please try again.');
       setSyncing(false);
-      await fetchCampaigns();
-      await fetchLeads();
-      setTimeout(() => setStatusMessage(''), 5000);
     }
   };
 
-  // Clear / Purge all leads (Clean Slate)
-  const handleClearAll = async () => {
-    if (!window.confirm('Are you sure you want to clear all meta leads from the database? This cannot be undone.')) return;
-    setLoading(true);
-    try {
-      const res = await metaLeadsAPI.clearAll();
-      alert(res.data?.message || 'Leads cleared');
-      await fetchCampaigns();
-      await fetchLeads();
-    } catch (err) {
-      alert('Failed to clear: ' + err.message);
-    } finally {
-      setLoading(false);
-    }
+  // ── Assign Modal Handlers ──────────────────────────────────────────────────
+  const handleOpenAssignModal = (campaignName) => {
+    setAssignModalCampaign(campaignName || (campaignStats[0]?.campaign || ''));
+    setShowAssignModal(true);
   };
 
-  // Convert to CRM Lead
-  const handleConvertLead = async (leadId) => {
-    try {
-      const res = await metaLeadsAPI.convert(leadId);
-      if (res.data?.success) {
-        alert('Lead successfully converted and pushed to Active Tele-Caller Queue!');
-        if (selectedLead && selectedLead._id === leadId) {
-          setSelectedLead(prev => prev ? ({
-            ...prev,
-            status: 'Converted',
-            crmLeadId: res.data?.crmLead?._id || prev.crmLeadId
-          }) : null);
-        }
-        fetchLeads();
-        fetchCampaigns();
-      }
-    } catch (err) {
-      alert('Failed to convert: ' + (err.response?.data?.message || err.message));
-    }
+  const handleConfirmAssignment = async (campaignName, userIds) => {
+    await metaLeadsAPI.saveAssignments({ campaign: campaignName, userIds });
+    setStatusMessage(`Updated assignments for ${campaignName}!`);
+    await Promise.all([fetchCampaigns(), fetchEmployeesAndAssignments()]);
+    setTimeout(() => setStatusMessage(''), 3000);
   };
 
-  // Delete Lead
-  const handleDeleteLead = async (leadId) => {
-    if (!window.confirm('Are you sure you want to delete this meta lead?')) return;
-    try {
-      await metaLeadsAPI.delete(leadId);
-      fetchLeads();
-      fetchCampaigns();
-      if (selectedLead?._id === leadId) setSelectedLead(null);
-    } catch (err) {
-      alert('Failed to delete: ' + err.message);
-    }
-  };
-
-  // Export CSV preserving exact Google Sheet columns
+  // ── Export CSV Handler ──────────────────────────────────────────────────────
   const handleExportCSV = () => {
-    if (leads.length === 0) {
-      alert('No leads to export');
+    const listToExport = selectedCampaign ? campaignLeads : campaignStats;
+    if (!listToExport || listToExport.length === 0) return;
+
+    let csvContent = 'data:text/csv;charset=utf-8,';
+    if (selectedCampaign) {
+      csvContent += 'Name,Phone,Email,Campaign,Status,Synced Date\n';
+      campaignLeads.forEach(lead => {
+        const { name, phone, email } = getLeadIdentifiers(lead);
+        csvContent += `"${name}","${phone}","${email}","${lead.campaign || selectedCampaign}","${lead.status || 'New'}","${lead.syncedAt || ''}"\n`;
+      });
+    } else {
+      csvContent += 'Campaign Name,Total Leads,New Leads,Converted Leads,Completion Rate,Last Synced\n';
+      campaignStats.forEach(c => {
+        const rate = c.count ? Math.round(((c.convertedCount || 0) / c.count) * 100) : 0;
+        csvContent += `"${c.campaign}",${c.count || 0},${c.newCount || 0},${c.convertedCount || 0},"${rate}%","${c.lastSynced || ''}"\n`;
+      });
+    }
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `${selectedCampaign ? selectedCampaign : 'meta_leads_campaigns'}_export.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // ── Clear All Leads (Admin Only) ───────────────────────────────────────────
+  const handleClearAll = async () => {
+    if (!window.confirm('Are you sure you want to permanently clear all Meta Leads? This action cannot be undone.')) {
       return;
     }
-    const headers = dynamicHeaders.length > 0 ? dynamicHeaders : ['Campaign', 'Status', 'Date'];
-    const csvRows = [];
-    csvRows.push(['Campaign', 'Status', ...headers].map(h => `"${h}"`).join(','));
-
-    leads.forEach(l => {
-      const row = [
-        l.campaign || '',
-        l.status || '',
-        ...headers.map(h => {
-          const val = l.rawData?.[h] !== undefined ? l.rawData[h] : '';
-          return `"${String(val).replace(/"/g, '""')}"`;
-        })
-      ];
-      csvRows.push(row.join(','));
-    });
-
-    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `meta-leads-${selectedCampaign}-${Date.now()}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      await metaLeadsAPI.clearAll();
+      setStatusMessage('All Meta leads cleared.');
+      await fetchCampaigns();
+      if (selectedCampaign) {
+        setSelectedCampaign(null);
+      }
+      setTimeout(() => setStatusMessage(''), 3000);
+    } catch (err) {
+      console.error('Failed to clear leads:', err);
+    }
   };
 
-  // Helper to get phone, name, and email from dynamic Google Sheet columns
+  // ── Lead Helpers (Name, Phone, Email extraction) ───────────────────────────
   const getLeadIdentifiers = (lead) => {
     const raw = lead?.rawData || {};
-    let phone = raw.phone || raw.Phone || raw.mobile || raw.Mobile || raw['Phone Number'] || raw.Contact || raw['Contact Number'] || raw['Candidate Mobile'] || raw['Student Mobile'] || raw['Phone number'] || '';
-    
-    // Fallback: search any key in rawData that has phone/mobile/contact in its name
+    let phone = raw.phone || raw.Phone || raw.mobile || raw.Mobile || raw['Phone Number'] || raw.Contact || raw['Contact Number'] || raw['Candidate Mobile'] || raw['Student Mobile'] || '';
     if (!phone) {
       for (const k of Object.keys(raw)) {
         if (/phone|mobile|contact|cell/i.test(k) && raw[k]) {
@@ -442,884 +465,896 @@ export default function MetaLeads() {
         }
       }
     }
-    
-    // Fallback 2: check if any value in rawData matches 10 digits
     if (!phone) {
       for (const k of Object.keys(raw)) {
-        const strVal = String(raw[k] || '').replace(/\D/g, '');
-        if (strVal.length === 10) {
+        const digits = String(raw[k] || '').replace(/\D/g, '');
+        if (digits.length === 10) {
           phone = raw[k];
           break;
         }
       }
     }
-
     const name = raw.name || raw.Name || raw['Full Name'] || raw['Candidate Name'] || raw['Student Name'] || 'Unknown Lead';
     const email = raw.email || raw.Email || raw['Email Address'] || '';
     return { phone: String(phone).trim(), name: String(name).trim(), email: String(email).trim() };
   };
 
-  // Click Phone Call Activate
-  const handleActivatePhoneCall = (lead) => {
+  // Click-to-Call
+  const handleActivateCall = (lead) => {
     const { phone, name } = getLeadIdentifiers(lead);
     if (!phone) {
-      alert(`No phone number available for ${name}. Check the sheet fields.`);
+      alert(`No phone number available for ${name}`);
       return;
     }
     const cleanPhone = phone.replace(/\D/g, '');
-    setStatusMessage(`📞 Activating phone call to ${name} (${cleanPhone})...`);
+    setStatusMessage(`📞 Calling ${name} (${cleanPhone})...`);
     window.location.href = `tel:${cleanPhone}`;
+    setTimeout(() => setStatusMessage(''), 3000);
   };
 
+  // Toggle Converted Status
+  const handleConvertLead = async (lead) => {
+    try {
+      await metaLeadsAPI.convert(lead._id);
+      setStatusMessage(`Lead marked as Converted!`);
+      if (selectedCampaign) {
+        fetchCampaignLeads(selectedCampaign, leadsPage);
+      }
+      fetchCampaigns();
+      setTimeout(() => setStatusMessage(''), 3000);
+    } catch (err) {
+      console.error('Failed to convert lead:', err);
+    }
+  };
+
+  // Delete Single Lead
+  const handleDeleteLead = async (leadId) => {
+    if (!window.confirm('Delete this lead from the campaign?')) return;
+    try {
+      await metaLeadsAPI.delete(leadId);
+      setStatusMessage('Lead removed.');
+      if (selectedCampaign) {
+        fetchCampaignLeads(selectedCampaign, leadsPage);
+      }
+      fetchCampaigns();
+      setTimeout(() => setStatusMessage(''), 2500);
+    } catch (err) {
+      console.error('Failed to delete lead:', err);
+    }
+  };
+
+  // ── All Assignees List for Dropdown Filter ──────────────────────────────────
+  const allAssignees = useMemo(() => {
+    const map = new Map();
+    campaignStats.forEach(c => {
+      (c.assignedUsers || []).forEach(u => {
+        if (u && u._id) map.set(u._id, u);
+      });
+    });
+    return Array.from(map.values());
+  }, [campaignStats]);
+
+  // ── Filtered & Sorted Campaigns (Overview Table) ───────────────────────────
+  const filteredCampaigns = useMemo(() => {
+    return campaignStats.filter(c => {
+      const nameMatch = !search || c.campaign?.toLowerCase().includes(search.toLowerCase());
+      const assigneeMatch = !assigneeFilter || (c.assignedUsers || []).some(u => (u._id || u) === assigneeFilter);
+      let statusMatch = true;
+      if (statusFilter === 'active') statusMatch = (c.count || 0) > 0;
+      if (statusFilter === 'completed') statusMatch = (c.convertedCount || 0) > 0 && c.convertedCount === c.count;
+      if (statusFilter === 'pending') statusMatch = (c.count || 0) === 0;
+
+      let dateMatch = true;
+      if (dateFilter && c.lastSynced) {
+        const syncDate = new Date(c.lastSynced).getTime();
+        const now = Date.now();
+        if (dateFilter === 'Today') dateMatch = now - syncDate < 86400000;
+        if (dateFilter === 'Last 7 days') dateMatch = now - syncDate < 7 * 86400000;
+        if (dateFilter === 'Last 30 days') dateMatch = now - syncDate < 30 * 86400000;
+      }
+      return nameMatch && assigneeMatch && statusMatch && dateMatch;
+    }).sort((a, b) => {
+      if (sortField === 'count') {
+        return sortDir === 'asc' ? (a.count || 0) - (b.count || 0) : (b.count || 0) - (a.count || 0);
+      }
+      if (sortField === 'name') {
+        return sortDir === 'asc' ? a.campaign.localeCompare(b.campaign) : b.campaign.localeCompare(a.campaign);
+      }
+      if (sortField === 'lastSynced') {
+        const tA = new Date(a.lastSynced || 0).getTime();
+        const tB = new Date(b.lastSynced || 0).getTime();
+        return sortDir === 'asc' ? tA - tB : tB - tA;
+      }
+      return 0;
+    });
+  }, [campaignStats, search, assigneeFilter, statusFilter, dateFilter, sortField, sortDir]);
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDir('desc');
+    }
+  };
+
+  // Metrics calculation
+  const totalCampaignsCount = campaignStats.length;
+  const activeDrives = campaignStats.filter(c => (c.count || 0) > 0).length;
+  const totalConverted = campaignStats.reduce((acc, c) => acc + (c.convertedCount || 0), 0);
+  const avgCompletion = totalLeadsAll > 0 ? Math.round((totalConverted / totalLeadsAll) * 100) : 0;
+
   return (
-    <div style={{ background: T.bg, minHeight: '100vh' }} className="p-4 md:p-6">
-      <div className="max-w-7xl mx-auto w-full">
-      {/* ── Page Header (Matching Campaigns.jsx Style) ────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div
-            style={{
-              width: 44, height: 44, borderRadius: 12,
-              background: T.blueLight, border: `1px solid ${T.blueBorder}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: T.blue
-            }}
-          >
-            <RiFolderChartLine size={24} />
+    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-5" style={{ background: T.bg, minHeight: '100vh' }}>
+
+      {/* ── Top Header (Exact Match to Campaigns.jsx Style) ────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+            <RiMegaphoneLine className="w-3.5 h-3.5" /> Meta Leads Outreach
           </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <h1 style={{ fontSize: 20, fontWeight: 700, color: T.text, margin: 0 }}>
-                Meta Leads Ingestion Hub
-              </h1>
-              <span
-                style={{
-                  fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20,
-                  background: T.blueLight, color: T.blue, border: `1px solid ${T.blueBorder}`
-                }}
-              >
-                Google Sheets Live Sync
-              </span>
-            </div>
-            <p style={{ fontSize: 13, color: T.muted, margin: '2px 0 0' }}>
-              Multi-tab Google Sheets sync preserving 100% of custom column headings with zero data truncation.
-            </p>
+          <div className="flex items-center gap-2.5 mt-1.5">
+            <h1 className="text-xl md:text-2xl font-semibold text-slate-800">
+              {selectedCampaign ? (
+                <span className="flex items-center gap-2">
+                  <button
+                    onClick={() => setSelectedCampaign(null)}
+                    className="text-slate-400 hover:text-slate-700 text-lg flex items-center gap-1 font-normal"
+                  >
+                    Campaigns <span className="text-slate-300">/</span>
+                  </button>
+                  <span>{selectedCampaign.replace(/_/g, ' ')}</span>
+                </span>
+              ) : (
+                'Meta Leads Campaigns'
+              )}
+            </h1>
+            <button
+              onClick={() => {
+                fetchCampaigns();
+                if (selectedCampaign) fetchCampaignLeads(selectedCampaign, leadsPage);
+              }}
+              title="Refresh Campaigns"
+              className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors"
+            >
+              <FiRefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            </button>
           </div>
+          <p className="text-xs text-slate-500 font-normal mt-0.5">
+            {selectedCampaign
+              ? `Manage and call all ingested Meta leads for "${selectedCampaign.replace(/_/g, ' ')}".`
+              : 'Organize Meta Google Sheet campaigns, assign callers, and track calling progress across target batches.'}
+          </p>
         </div>
 
-        {/* Action Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          {/* Assign Members Action (Admin Only) */}
+        {/* Action Buttons (Orange & Blue Theme Matching Campaigns.jsx) */}
+        <div className="flex items-center gap-2.5 flex-wrap">
           {isAdmin && (
-            <div
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '4px 8px 4px 10px', borderRadius: 10,
-                background: T.white, border: `1px solid ${T.border}`
-              }}
-            >
-              {/* Avatar Stack for Active Campaign */}
-              {activeCampaignAssignees.length > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', marginRight: 4 }}>
-                  {activeCampaignAssignees.slice(0, 3).map((member, idx) => {
-                    const initials = (member.name || 'EM').slice(0, 2).toUpperCase();
-                    return member.avatar ? (
-                      <img
-                        key={member._id || idx}
-                        src={member.avatar}
-                        alt={member.name}
-                        title={`${member.name} (${member.designation || 'Staff'})`}
-                        style={{
-                          width: 26, height: 26, borderRadius: '50%',
-                          border: '2px solid #ffffff', marginLeft: idx > 0 ? -8 : 0,
-                          objectFit: 'cover'
-                        }}
-                      />
-                    ) : (
-                      <div
-                        key={member._id || idx}
-                        title={`${member.name} (${member.designation || 'Staff'})`}
-                        style={{
-                          width: 26, height: 26, borderRadius: '50%',
-                          border: '2px solid #ffffff', marginLeft: idx > 0 ? -8 : 0,
-                          background: '#dbeafe', color: '#1d4ed8',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 10, fontWeight: 700
-                        }}
-                      >
-                        {initials}
-                      </div>
-                    );
-                  })}
-                  {activeCampaignAssignees.length > 3 && (
-                    <div
-                      style={{
-                        width: 26, height: 26, borderRadius: '50%',
-                        border: '2px solid #ffffff', marginLeft: -8,
-                        background: '#f1f5f9', color: '#475569',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 10, fontWeight: 600
-                      }}
-                    >
-                      +{activeCampaignAssignees.length - 3}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <button
-                onClick={() => handleOpenAssignModal()}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '7px 13px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-                  background: T.blue, color: T.white, border: 'none', cursor: 'pointer',
-                  boxShadow: '0 1px 2px rgba(37,99,235,0.2)'
-                }}
-              >
-                <FiUserPlus size={14} />
-                Assign Members
-              </button>
-            </div>
-          )}
-
-          {leads.length > 0 && isAdmin && (
             <button
-              onClick={handleClearAll}
-              title="Clear all leads from the database"
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 500,
-                background: T.roseLight, border: `1px solid ${T.roseBorder}`, color: T.rose,
-                cursor: 'pointer'
-              }}
+              onClick={() => handleOpenAssignModal(selectedCampaign)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border text-xs font-medium text-orange-700 bg-orange-50/70 border-orange-200 hover:bg-orange-100 transition-colors shadow-xs"
             >
-              <FiTrash2 size={14} />
-              Clear All
+              <FiUserPlus className="w-3.5 h-3.5" />
+              {selectedCampaign ? 'Manage Campaign Access' : 'Assign Members'}
             </button>
           )}
 
           <button
             onClick={handleExportCSV}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 500,
-              background: T.white, border: `1px solid ${T.border}`, color: T.text,
-              cursor: 'pointer'
-            }}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 shadow-xs transition-colors"
+            style={{ borderColor: T.border }}
           >
-            <FiDownload size={15} />
-            Export CSV
+            <FiDownload className="w-3.5 h-3.5" /> Export CSV
           </button>
+
+          {isAdmin && totalLeadsAll > 0 && !selectedCampaign && (
+            <button
+              onClick={handleClearAll}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border text-xs font-medium text-rose-700 bg-rose-50/70 border-rose-200 hover:bg-rose-100 transition-colors shadow-xs"
+            >
+              <FiTrash2 className="w-3.5 h-3.5" /> Clear All
+            </button>
+          )}
 
           <button
             onClick={handleSync}
             disabled={syncing}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-              background: T.blue, color: T.white, border: 'none', cursor: 'pointer',
-              opacity: syncing ? 0.7 : 1
-            }}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition-all active:scale-[0.98] disabled:opacity-60"
           >
-            <FiRefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
+            <FiRefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
             {syncing ? 'Syncing...' : 'Sync Now'}
           </button>
         </div>
       </div>
 
-      {/* Sync Status Toast */}
+      {/* Sync / Status Toast Notification */}
       {statusMessage && (
-        <div
-          style={{
-            marginBottom: 16, padding: '10px 16px', borderRadius: 8,
-            background: T.emeraldLight, border: `1px solid ${T.emeraldBorder}`,
-            color: T.emerald, fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8
-          }}
-        >
-          <FiCheckCircle size={16} />
-          {statusMessage}
+        <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium flex items-center gap-2">
+          <FiCheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+          <span>{statusMessage}</span>
         </div>
       )}
 
-      {/* ── Metric Summary Cards ─────────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 24 }}>
-        <div style={{ background: T.white, border: `1px solid ${T.border}`, borderRadius: 12, padding: '16px 20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: T.muted, textTransform: 'uppercase' }}>Total Meta Leads</span>
-            <span style={{ color: T.blue, background: T.blueLight, padding: 6, borderRadius: 8 }}><FiUsers size={16} /></span>
-          </div>
-          <div style={{ fontSize: 24, fontWeight: 700, color: T.text }}>{campaignCountMap['all'] || totalLeads}</div>
-          <div style={{ fontSize: 12, color: T.emerald, marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
-            <FiActivity size={12} /> Across all connected tabs
-          </div>
-        </div>
-
-        <div style={{ background: T.white, border: `1px solid ${T.border}`, borderRadius: 12, padding: '16px 20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: T.muted, textTransform: 'uppercase' }}>Active Campaign Tabs</span>
-            <span style={{ color: T.orange, background: T.orangeLight, padding: 6, borderRadius: 8 }}><FiLayers size={16} /></span>
-          </div>
-          <div style={{ fontSize: 24, fontWeight: 700, color: T.text }}>{allCampaignTabs.length} Tabs</div>
-          <div style={{ fontSize: 12, color: T.muted, marginTop: 4 }}>
-            Google Sheets A:ZZ readers
-          </div>
-        </div>
-
-        <div style={{ background: T.white, border: `1px solid ${T.border}`, borderRadius: 12, padding: '16px 20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: T.muted, textTransform: 'uppercase' }}>Selected Tab Filter</span>
-            <span style={{ color: T.emerald, background: T.emeraldLight, padding: 6, borderRadius: 8 }}><FiTarget size={16} /></span>
-          </div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {selectedCampaign === 'all' ? 'All Campaigns' : selectedCampaign}
-          </div>
-          <div style={{ fontSize: 12, color: T.blue, marginTop: 4, fontWeight: 600 }}>
-            {campaignCountMap[selectedCampaign] || (selectedCampaign === 'all' ? totalLeads : 0)} Leads loaded
-          </div>
-        </div>
-
-        <div style={{ background: T.white, border: `1px solid ${T.border}`, borderRadius: 12, padding: '16px 20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: T.muted, textTransform: 'uppercase' }}>Live Sync Status</span>
-            <span style={{ color: '#059669', background: '#ecfdf5', padding: 6, borderRadius: 8 }}><FiClock size={16} /></span>
-          </div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: T.text, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
-            {campaignStats[0]?.lastSynced ? timeAgo(campaignStats[0].lastSynced) : 'Connected'}
-          </div>
-          <div style={{ fontSize: 12, color: T.muted, marginTop: 4 }}>
-            meta-leads
-          </div>
-        </div>
-      </div>
-
-      {/* ── Zero Assigned Campaigns Empty State for Tele-callers ── */}
-      {isRestricted && allCampaignTabs.length === 0 && (
-        <div
-          style={{
-            background: T.white, border: `1px solid ${T.border}`, borderRadius: 16,
-            padding: '44px 24px', textAlign: 'center', marginBottom: 24, maxWidth: 540, margin: '20px auto',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
-          }}
-        >
-          <div
-            style={{
-              width: 56, height: 56, borderRadius: '50%', background: T.blueLight,
-              color: T.blue, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              margin: '0 auto 16px'
-            }}
-          >
-            <FiUsers size={26} />
-          </div>
-          <h3 style={{ fontSize: 17, fontWeight: 700, color: T.text, margin: '0 0 8px' }}>
-            No campaigns assigned yet
-          </h3>
-          <p style={{ fontSize: 13, color: T.muted, lineHeight: 1.6, margin: 0 }}>
-            You don't currently have access to a Meta Leads campaign. Please contact your system administrator to request access.
-          </p>
-        </div>
-      )}
-
-      {/* ── INTERACTIVE CAMPAIGN HEADINGS (Same Pill Filter Styling as Campaigns.jsx) ── */}
-      {allCampaignTabs.length > 0 && (
-        <div style={{ background: T.white, border: `1px solid ${T.border}`, borderRadius: 14, padding: '14px 18px', marginBottom: 18 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              {isRestricted ? 'Your Assigned Campaigns:' : 'Click Campaign Heading to View Specific Leads:'}
-            </div>
-            {isAdmin && (
-              <button
-                onClick={() => handleOpenAssignModal(selectedCampaign !== 'all' ? selectedCampaign : allCampaignTabs[0])}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 5,
-                  fontSize: 12, fontWeight: 600, color: T.blue,
-                  background: 'transparent', border: 'none', cursor: 'pointer',
-                  padding: '2px 6px', borderRadius: 6
-                }}
-                className="hover:underline"
-              >
-                <FiUserPlus size={13} />
-                Manage Campaign Access
-              </button>
-            )}
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
-            {/* All Campaigns Pill (Admin only) */}
-            {!isRestricted && (
-              <button
-                onClick={() => { setSelectedCampaign('all'); setPage(1); }}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  padding: '8px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600,
-                  cursor: 'pointer', transition: 'all 0.15s ease',
-                  background: selectedCampaign === 'all' ? T.blueLight : T.white,
-                  border: `1px solid ${selectedCampaign === 'all' ? T.blueBorder : T.border}`,
-                  color: selectedCampaign === 'all' ? T.blue : T.muted,
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                <FiTarget size={14} />
-                <span>All Campaigns</span>
-                <span
-                  style={{
-                    fontSize: 11, padding: '1px 7px', borderRadius: 12,
-                    background: selectedCampaign === 'all' ? T.blue : T.borderSoft,
-                    color: selectedCampaign === 'all' ? T.white : T.textSecondary
-                  }}
-                >
-                  {campaignCountMap['all'] || totalLeads}
-                </span>
-              </button>
-            )}
-
-            {/* Individual Campaign Headings */}
-            {allCampaignTabs.map(tab => {
-              const isSelected = selectedCampaign === tab;
-              const count = campaignCountMap[tab] || 0;
-              const tabStat = campaignStats.find(c => c.campaign === tab);
-              const tabAssignees = tabStat?.assignedUsers || assignments.find(a => a.campaign === tab)?.assignedUsers || [];
-
-              return (
-                <button
-                  key={tab}
-                  onClick={() => { setSelectedCampaign(tab); setPage(1); }}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    padding: '8px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600,
-                    cursor: 'pointer', transition: 'all 0.15s ease',
-                    background: isSelected ? T.blueLight : T.white,
-                    border: `1px solid ${isSelected ? T.blueBorder : T.border}`,
-                    color: isSelected ? T.blue : T.muted,
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  <FiLayers size={14} style={{ color: isSelected ? T.blue : T.subtle }} />
-                  <span>{tab.replace(/_/g, ' ')}</span>
-                  <span
-                    style={{
-                      fontSize: 11, padding: '1px 7px', borderRadius: 12,
-                      background: isSelected ? T.blue : T.borderSoft,
-                      color: isSelected ? T.white : T.textSecondary
-                    }}
-                  >
-                    {count}
-                  </span>
-
-                  {/* Member count indicator badge on tab */}
-                  {tabAssignees.length > 0 && (
-                    <span
-                      title={`${tabAssignees.length} assigned member(s)`}
-                      style={{
-                        fontSize: 10, padding: '1px 6px', borderRadius: 10,
-                        background: isSelected ? '#dbeafe' : '#f1f5f9',
-                        color: isSelected ? '#1e40af' : '#64748b',
-                        fontWeight: 700, display: 'flex', alignItems: 'center', gap: 3
-                      }}
-                    >
-                      <FiUsers size={10} />
-                      {tabAssignees.length}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ── Search & Action Toolbar ─────────────────────────────────────────── */}
-      <div
-        style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          gap: 12, marginBottom: 16, flexWrap: 'wrap'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 280 }}>
-          {/* Universal Search Input */}
-          <div
-            style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              background: T.white, border: `1px solid ${T.border}`,
-              borderRadius: 8, padding: '8px 12px', flex: 1, maxWidth: 440
-            }}
-          >
-            <FiSearch size={16} color={T.muted} />
-            <input
-              type="text"
-              placeholder="Search by name, mobile, city, or any custom sheet attribute..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{
-                border: 'none', outline: 'none', background: 'transparent',
-                fontSize: 13, color: T.text, width: '100%'
-              }}
-            />
-            {search && (
-              <button
-                onClick={() => setSearch('')}
-                style={{ background: 'none', border: 'none', color: T.muted, cursor: 'pointer', padding: 0 }}
-              >
-                <FiX size={14} />
-              </button>
-            )}
-          </div>
-
-          {/* Column Visibility Dropdown */}
-          <div style={{ position: 'relative' }}>
-            <button
-              onClick={() => setShowColumnDropdown(o => !o)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                padding: '8px 12px', borderRadius: 8, fontSize: 13, fontWeight: 500,
-                background: T.white, border: `1px solid ${T.border}`, color: T.text,
-                cursor: 'pointer'
-              }}
+      {/* ── Summary Stats Cards (White, Blue, Orange, Emerald Matching Campaigns.jsx) ── */}
+      {!selectedCampaign && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          {[
+            {
+              label: 'Total Meta Campaigns',
+              value: totalCampaignsCount,
+              icon: <RiFolderChartLine className="w-4.5 h-4.5 text-blue-600" />,
+              bg: T.blueLight,
+              border: T.blueBorder,
+              suffix: ' Batches'
+            },
+            {
+              label: 'Total Leads Ingested',
+              value: fmtLeads(totalLeadsAll),
+              icon: <FiUsers className="w-4.5 h-4.5 text-orange-600" />,
+              bg: T.orangeLight,
+              border: T.orangeBorder,
+              suffix: ' Leads'
+            },
+            {
+              label: 'Active Calling Drives',
+              value: activeDrives,
+              icon: <FiActivity className="w-4.5 h-4.5 text-emerald-600" />,
+              bg: T.emeraldLight,
+              border: T.emeraldBorder,
+              suffix: ' In Progress'
+            },
+            {
+              label: 'Average Completion',
+              value: avgCompletion,
+              icon: <FiTarget className="w-4.5 h-4.5 text-blue-600" />,
+              bg: '#f1f5f9',
+              border: T.border,
+              suffix: '%'
+            },
+          ].map((stat, i) => (
+            <div
+              key={i}
+              className="p-3.5 rounded-xl border bg-white shadow-xs flex items-center gap-3 transition-transform hover:-translate-y-0.5"
+              style={{ borderColor: T.border }}
             >
-              <FiColumns size={14} color={T.muted} />
-              <span>Visible Columns</span>
-              <FiChevronDown size={14} />
-            </button>
-
-            {showColumnDropdown && (
               <div
-                style={{
-                  position: 'absolute', top: '100%', left: 0, marginTop: 6, zIndex: 30,
-                  background: T.white, border: `1px solid ${T.border}`, borderRadius: 10,
-                  boxShadow: '0 10px 25px rgba(0,0,0,0.1)', width: 240, maxHeight: 300,
-                  overflowY: 'auto', padding: 8
-                }}
+                className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: stat.bg, border: `1px solid ${stat.border}` }}
               >
-                <div style={{ fontSize: 11, fontWeight: 700, color: T.muted, padding: '4px 8px', textTransform: 'uppercase' }}>
-                  Toggle Google Sheet Columns
+                {stat.icon}
+              </div>
+              <div>
+                <div className="text-xl font-semibold text-slate-800">
+                  {stat.value}{stat.suffix.startsWith('%') ? '%' : ''}
                 </div>
-                {dynamicHeaders.map(col => (
-                  <label
-                    key={col}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 8,
-                      padding: '6px 8px', fontSize: 12, color: T.text,
-                      cursor: 'pointer', borderRadius: 6
-                    }}
-                    className="hover:bg-slate-50"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={visibleColumns[col] !== false}
-                      onChange={e => setVisibleColumns(v => ({ ...v, [col]: e.target.checked }))}
-                    />
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {col}
-                    </span>
-                  </label>
-                ))}
+                <div className="text-xs font-normal text-slate-500">
+                  {stat.label}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ═════════════════════════════════════════════════════════════════════════ */}
+      {/* VIEW 1: CAMPAIGNS OVERVIEW TABLE (Matching Campaigns.jsx UI/UX)           */}
+      {/* ═════════════════════════════════════════════════════════════════════════ */}
+      {!selectedCampaign && (
+        <>
+          {/* ── Filter & Search Bar ── */}
+          <div className="p-3.5 rounded-xl border bg-white shadow-xs space-y-2.5" style={{ borderColor: T.border }}>
+            <div className="flex flex-wrap items-center gap-2.5">
+              {/* Search Box */}
+              <div
+                className="flex-1 min-w-[200px] flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-slate-50/70 focus-within:bg-white focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all"
+                style={{ borderColor: T.border }}
+              >
+                <FiSearch className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                <input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search Meta campaigns by title..."
+                  className="w-full text-xs font-normal text-slate-800 bg-transparent focus:outline-none"
+                />
+                {search && (
+                  <button onClick={() => setSearch('')} className="text-slate-400 hover:text-slate-700">
+                    <FiX className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Status Filter */}
+              <FilterDropdown
+                label="Campaign Status"
+                value={statusFilter}
+                onChange={setStatusFilter}
+                icon={<FiFlag className="w-3.5 h-3.5" />}
+                options={[
+                  { label: 'Active Leads', value: 'active', dot: '#10b981' },
+                  { label: 'Completed', value: 'completed', dot: '#2563eb' },
+                  { label: 'Pending Sync', value: 'pending', dot: '#f59e0b' },
+                ]}
+              />
+
+              {/* Date Filter */}
+              <FilterDropdown
+                label="Last Synced"
+                value={dateFilter}
+                onChange={setDateFilter}
+                icon={<FiCalendar className="w-3.5 h-3.5" />}
+                options={['Today', 'Last 7 days', 'Last 30 days']}
+              />
+
+              {/* Assigned Caller Filter */}
+              <FilterDropdown
+                label="Assigned Caller"
+                value={assigneeFilter ? (allAssignees.find(a => a._id === assigneeFilter)?.name || assigneeFilter) : ''}
+                onChange={(val) => {
+                  if (!val) { setAssigneeFilter(''); return; }
+                  const found = allAssignees.find(a => a.name === val);
+                  setAssigneeFilter(found?._id || val);
+                }}
+                icon={<FiUsers className="w-3.5 h-3.5" />}
+                options={allAssignees.map(a => ({ label: a.name, value: a.name }))}
+              />
+
+              {(statusFilter || dateFilter || assigneeFilter || search) && (
+                <button
+                  onClick={() => {
+                    setStatusFilter('');
+                    setDateFilter('');
+                    setAssigneeFilter('');
+                    setSearch('');
+                  }}
+                  className="text-xs font-medium px-2.5 py-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+                >
+                  Reset Filters
+                </button>
+              )}
+            </div>
+
+            {/* Active Filter Chips */}
+            {(statusFilter || dateFilter || assigneeFilter) && (
+              <div className="flex flex-wrap items-center gap-2 pt-2 border-t" style={{ borderColor: T.borderSoft }}>
+                <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Active:</span>
+                {statusFilter && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                    Status: {statusFilter}
+                    <FiX className="w-3 h-3 cursor-pointer hover:text-blue-900" onClick={() => setStatusFilter('')} />
+                  </span>
+                )}
+                {dateFilter && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                    Date: {dateFilter}
+                    <FiX className="w-3 h-3 cursor-pointer hover:text-blue-900" onClick={() => setDateFilter('')} />
+                  </span>
+                )}
+                {assigneeFilter && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                    Assignee: {allAssignees.find(a => a._id === assigneeFilter)?.name || assigneeFilter}
+                    <FiX className="w-3 h-3 cursor-pointer hover:text-blue-900" onClick={() => setAssigneeFilter('')} />
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ── Campaigns Table (Exact Match to Campaigns.jsx) ── */}
+          <div className="rounded-xl border bg-white shadow-xs overflow-hidden" style={{ borderColor: T.border }}>
+            {loading ? (
+              <div className="text-center py-16">
+                <FiRefreshCw className="w-7 h-7 animate-spin mx-auto mb-2 text-blue-600" />
+                <p className="text-xs font-medium text-slate-500">Loading Meta outreach campaigns...</p>
+              </div>
+            ) : filteredCampaigns.length === 0 ? (
+              <div className="text-center py-16 px-4">
+                <div
+                  className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3"
+                  style={{ background: T.blueLight, border: `1px solid ${T.blueBorder}` }}
+                >
+                  <RiFolderChartLine className="w-6 h-6 text-blue-600" />
+                </div>
+                <h3 className="text-sm font-semibold text-slate-800 mb-1">No Meta Campaigns Found</h3>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto mb-4">
+                  {search || statusFilter || assigneeFilter
+                    ? 'No campaigns matched your active filters. Try resetting the filters.'
+                    : 'Sync your live Google Sheets via n8n to ingest campaign tabs and leads into the CRM.'}
+                </p>
+                <button
+                  onClick={handleSync}
+                  disabled={syncing}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-xs"
+                >
+                  <FiRefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
+                  Sync Google Sheets Now
+                </button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr style={{ background: '#f8fafc', borderBottom: `1px solid ${T.border}` }}>
+                      {[
+                        { label: 'Campaign Title', field: 'name' },
+                        { label: 'Status', field: null },
+                        { label: 'Team Assignees', field: null },
+                        { label: 'Total Leads', field: 'count' },
+                        { label: 'Outreach Progress', field: null },
+                        { label: 'Last Synced', field: 'lastSynced' },
+                        { label: 'Actions', field: null },
+                      ].map((col, idx) => (
+                        <th
+                          key={col.label || idx}
+                          onClick={() => col.field && handleSort(col.field)}
+                          className={`py-3 px-4 font-medium text-[11px] uppercase tracking-wider whitespace-nowrap text-slate-500 ${col.field ? 'cursor-pointer select-none hover:text-blue-600' : ''}`}
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <span style={{ color: sortField === col.field ? T.blue : undefined }}>{col.label}</span>
+                            {col.field && (
+                              <span className="text-slate-400">
+                                {sortField === col.field ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}
+                              </span>
+                            )}
+                          </div>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y" style={{ borderColor: T.borderSoft }}>
+                    {filteredCampaigns.map((c) => {
+                      const initial = (c.campaign || 'C').charAt(0).toUpperCase();
+                      const cleanTitle = c.campaign.replace(/_/g, ' ');
+                      const progressPct = c.count > 0 ? Math.round(((c.convertedCount || 0) / c.count) * 100) : 0;
+
+                      return (
+                        <tr
+                          key={c.campaign}
+                          onClick={() => setSelectedCampaign(c.campaign)}
+                          className="hover:bg-blue-50/30 transition-colors cursor-pointer group"
+                        >
+                          {/* Name with Orange/Blue branding badge */}
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-2.5">
+                              <div
+                                className="w-8 h-8 rounded-lg flex items-center justify-center font-semibold text-xs shadow-2xs flex-shrink-0"
+                                style={{
+                                  background: T.orangeLight,
+                                  color: T.orange,
+                                  border: `1px solid ${T.orangeBorder}`
+                                }}
+                              >
+                                {initial}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="font-medium text-xs sm:text-sm text-slate-800 truncate flex items-center gap-1.5">
+                                  <span>{cleanTitle}</span>
+                                  <FiArrowUpRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-blue-600" />
+                                </div>
+                                <p className="text-[11px] text-slate-400 font-normal truncate max-w-xs mt-0.5">
+                                  Google Sheets Live Sync batch
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Status Badge */}
+                          <td className="py-3.5 px-4 whitespace-nowrap">
+                            <span
+                              className="px-2.5 py-0.5 rounded-full text-[11px] font-medium inline-flex items-center gap-1.5"
+                              style={{
+                                background: c.count > 0 ? T.emeraldLight : T.orangeLight,
+                                color: c.count > 0 ? '#059669' : T.orange,
+                                border: `1px solid ${c.count > 0 ? T.emeraldBorder : T.orangeBorder}`
+                              }}
+                            >
+                              <span
+                                className="w-1.5 h-1.5 rounded-full"
+                                style={{ background: c.count > 0 ? '#10b981' : '#f97316' }}
+                              />
+                              {c.count > 0 ? 'Active Synced' : 'Empty Batch'}
+                            </span>
+                          </td>
+
+                          {/* Team Assignees */}
+                          <td className="py-3.5 px-4 whitespace-nowrap">
+                            <AssigneeAvatars callers={c.assignedUsers} />
+                          </td>
+
+                          {/* Total Leads */}
+                          <td className="py-3.5 px-4 whitespace-nowrap font-medium text-slate-800">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-semibold">{c.count || 0}</span>
+                              <span className="text-[11px] text-slate-400 font-normal">leads</span>
+                            </div>
+                          </td>
+
+                          {/* Outreach Progress */}
+                          <td className="py-3.5 px-4 whitespace-nowrap">
+                            <ProgressCircle value={progressPct} />
+                          </td>
+
+                          {/* Last Synced Date */}
+                          <td className="py-3.5 px-4 whitespace-nowrap text-slate-500 font-normal">
+                            <div className="flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                              <span>{timeAgo(c.lastSynced)}</span>
+                            </div>
+                          </td>
+
+                          {/* Actions */}
+                          <td
+                            className="py-3.5 px-4 whitespace-nowrap text-right"
+                            onClick={e => e.stopPropagation()}
+                          >
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => setSelectedCampaign(c.campaign)}
+                                className="px-3 py-1 rounded-lg text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 transition-colors"
+                              >
+                                View Leads
+                              </button>
+                              {isAdmin && (
+                                <button
+                                  onClick={() => handleOpenAssignModal(c.campaign)}
+                                  title="Assign Members"
+                                  className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors"
+                                >
+                                  <FiUserPlus className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ═════════════════════════════════════════════════════════════════════════ */}
+      {/* VIEW 2: CAMPAIGN LEADS DETAIL VIEW (When a Campaign is Clicked)           */}
+      {/* ═════════════════════════════════════════════════════════════════════════ */}
+      {selectedCampaign && (
+        <div className="space-y-4">
+          {/* ── Subheader Bar for Active Campaign ── */}
+          <div className="p-3.5 rounded-xl border bg-white shadow-xs flex flex-wrap items-center justify-between gap-3" style={{ borderColor: T.border }}>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setSelectedCampaign(null)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 transition-colors shadow-2xs"
+                style={{ borderColor: T.border }}
+              >
+                ← Back to Campaigns
+              </button>
+              <div className="h-5 w-[1px] bg-slate-200" />
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-slate-800 text-sm">
+                  {selectedCampaign.replace(/_/g, ' ')}
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                  {leadsTotal} Total Leads
+                </span>
+              </div>
+            </div>
+
+            {/* Campaign Assignees on Active Header */}
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-400">Assigned Team:</span>
+                <AssigneeAvatars
+                  callers={
+                    campaignStats.find(c => c.campaign === selectedCampaign)?.assignedUsers ||
+                    assignments.find(a => a.campaign === selectedCampaign)?.assignedUsers || []
+                  }
+                />
+              </div>
+              {isAdmin && (
+                <button
+                  onClick={() => handleOpenAssignModal(selectedCampaign)}
+                  className="text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                >
+                  Manage Assignees
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* ── Search & Filter Toolbar for Leads ── */}
+          <div className="p-3.5 rounded-xl border bg-white shadow-xs flex flex-wrap items-center justify-between gap-3" style={{ borderColor: T.border }}>
+            <div className="flex items-center gap-2.5 flex-1 min-w-[220px] max-w-md">
+              <div
+                className="flex-1 flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-slate-50/70 focus-within:bg-white focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all"
+                style={{ borderColor: T.border }}
+              >
+                <FiSearch className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                <input
+                  value={leadsSearch}
+                  onChange={e => setLeadsSearch(e.target.value)}
+                  placeholder="Search leads by name, phone, email..."
+                  className="w-full text-xs font-normal text-slate-800 bg-transparent focus:outline-none"
+                />
+                {leadsSearch && (
+                  <button onClick={() => setLeadsSearch('')} className="text-slate-400 hover:text-slate-700">
+                    <FiX className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <FilterDropdown
+                label="Lead Status"
+                value={leadStatusFilter}
+                onChange={setLeadStatusFilter}
+                icon={<FiFilter className="w-3.5 h-3.5" />}
+                options={[
+                  { label: 'New', value: 'New', dot: '#f97316' },
+                  { label: 'Converted', value: 'Converted', dot: '#10b981' },
+                  { label: 'Contacted', value: 'Contacted', dot: '#2563eb' },
+                  { label: 'Discarded', value: 'Discarded', dot: '#ef4444' }
+                ]}
+              />
+
+              {(leadsSearch || leadStatusFilter) && (
+                <button
+                  onClick={() => { setLeadsSearch(''); setLeadStatusFilter(''); }}
+                  className="text-xs font-medium text-slate-500 hover:text-slate-800 px-2 py-1"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
+
+            <div className="text-xs text-slate-500">
+              Showing <b>{campaignLeads.length}</b> of <b>{leadsTotal}</b> campaign leads
+            </div>
+          </div>
+
+          {/* ── Leads Table (Clean CRM Layout Matching Marketing UI/UX) ── */}
+          <div className="rounded-xl border bg-white shadow-xs overflow-hidden" style={{ borderColor: T.border }}>
+            {loadingLeads ? (
+              <div className="text-center py-16">
+                <FiRefreshCw className="w-7 h-7 animate-spin mx-auto mb-2 text-blue-600" />
+                <p className="text-xs font-medium text-slate-500">Loading campaign leads...</p>
+              </div>
+            ) : campaignLeads.length === 0 ? (
+              <div className="text-center py-16 px-4">
+                <FiUsers className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                <h3 className="text-sm font-semibold text-slate-800 mb-1">No Leads Found</h3>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  {leadsSearch || leadStatusFilter
+                    ? 'No leads matched your search or status filter.'
+                    : 'This campaign batch has no leads yet. Trigger Sync to ingest.'}
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr style={{ background: '#f8fafc', borderBottom: `1px solid ${T.border}` }}>
+                      <th className="py-3 px-4 font-medium text-[11px] uppercase tracking-wider text-slate-500 w-12">#</th>
+                      <th className="py-3 px-4 font-medium text-[11px] uppercase tracking-wider text-slate-500">Student / Lead</th>
+                      <th className="py-3 px-4 font-medium text-[11px] uppercase tracking-wider text-slate-500">Contact Details</th>
+                      <th className="py-3 px-4 font-medium text-[11px] uppercase tracking-wider text-slate-500">Status</th>
+                      <th className="py-3 px-4 font-medium text-[11px] uppercase tracking-wider text-slate-500">Sheet Attributes</th>
+                      <th className="py-3 px-4 font-medium text-[11px] uppercase tracking-wider text-slate-500 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y" style={{ borderColor: T.borderSoft }}>
+                    {campaignLeads.map((lead, idx) => {
+                      const { name, phone, email } = getLeadIdentifiers(lead);
+                      const initial = (name || 'L').charAt(0).toUpperCase();
+                      const isConverted = lead.status === 'Converted';
+
+                      return (
+                        <tr
+                          key={lead._id || idx}
+                          onClick={() => setSelectedLead(lead)}
+                          className="hover:bg-blue-50/25 transition-colors cursor-pointer group"
+                        >
+                          {/* Row Index */}
+                          <td className="py-3.5 px-4 text-slate-400 font-normal">
+                            {(leadsPage - 1) * 25 + idx + 1}
+                          </td>
+
+                          {/* Student Name & Avatar */}
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-2.5">
+                              <div
+                                className="w-8 h-8 rounded-full flex items-center justify-center font-semibold text-xs flex-shrink-0"
+                                style={{
+                                  background: T.blueLight,
+                                  color: T.blue,
+                                  border: `1px solid ${T.blueBorder}`
+                                }}
+                              >
+                                {initial}
+                              </div>
+                              <div>
+                                <div className="font-semibold text-slate-800 text-xs sm:text-sm">
+                                  {name}
+                                </div>
+                                <div className="text-[11px] text-slate-400">
+                                  Ingested: {timeAgo(lead.syncedAt || lead.createdAt)}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Contact Info (Click-to-call & WhatsApp) */}
+                          <td className="py-3.5 px-4" onClick={e => e.stopPropagation()}>
+                            <div className="space-y-1">
+                              {phone ? (
+                                <div className="flex items-center gap-2">
+                                  <a
+                                    href={`tel:${phone.replace(/\D/g, '')}`}
+                                    className="font-medium text-emerald-700 hover:text-emerald-900 inline-flex items-center gap-1"
+                                    title="Click to Call"
+                                  >
+                                    <FiPhoneCall className="w-3 h-3 text-emerald-600" />
+                                    <span>{phone}</span>
+                                  </a>
+                                  <a
+                                    href={`https://wa.me/${phone.replace(/\D/g, '')}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-emerald-600 hover:text-emerald-800"
+                                    title="WhatsApp Chat"
+                                  >
+                                    <FaWhatsapp className="w-3.5 h-3.5" />
+                                  </a>
+                                </div>
+                              ) : (
+                                <span className="text-slate-400 text-xs">No phone</span>
+                              )}
+                              {email && (
+                                <div className="text-slate-500 text-[11px] flex items-center gap-1">
+                                  <FiMail className="w-3 h-3 text-slate-400" />
+                                  <span className="truncate max-w-[160px]">{email}</span>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Status Badge with Quick Convert Toggle */}
+                          <td className="py-3.5 px-4 whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                            <button
+                              onClick={() => handleConvertLead(lead)}
+                              title="Click to toggle Converted status"
+                              className="px-2.5 py-0.5 rounded-full text-[11px] font-medium inline-flex items-center gap-1.5 transition-transform active:scale-95"
+                              style={{
+                                background: isConverted ? T.emeraldLight : T.orangeLight,
+                                color: isConverted ? '#059669' : T.orange,
+                                border: `1px solid ${isConverted ? T.emeraldBorder : T.orangeBorder}`
+                              }}
+                            >
+                              <span
+                                className="w-1.5 h-1.5 rounded-full"
+                                style={{ background: isConverted ? '#10b981' : '#f97316' }}
+                              />
+                              {lead.status || 'New'}
+                            </button>
+                          </td>
+
+                          {/* Raw Sheet Attributes Preview */}
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-1.5 flex-wrap max-w-xs">
+                              {lead.rawData && Object.entries(lead.rawData).slice(0, 3).map(([k, v]) => {
+                                if (!v || k.startsWith('_') || /phone|mobile|email|name/i.test(k)) return null;
+                                return (
+                                  <span
+                                    key={k}
+                                    className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-normal truncate max-w-[120px]"
+                                    title={`${k}: ${v}`}
+                                  >
+                                    <b>{k}:</b> {String(v)}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </td>
+
+                          {/* Action Buttons */}
+                          <td className="py-3.5 px-4 whitespace-nowrap text-right" onClick={e => e.stopPropagation()}>
+                            <div className="flex items-center justify-end gap-1.5">
+                              {/* Dedicated Call Action Button */}
+                              {phone && (
+                                <button
+                                  onClick={() => handleActivateCall(lead)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition-colors"
+                                  title="Instant Call"
+                                >
+                                  <FiPhoneCall className="w-3 h-3 text-emerald-600" />
+                                  <span>Call</span>
+                                </button>
+                              )}
+
+                              {/* WhatsApp Button */}
+                              {phone && (
+                                <a
+                                  href={`https://wa.me/${phone.replace(/\D/g, '')}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="p-1.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"
+                                  title="WhatsApp"
+                                >
+                                  <FaWhatsapp className="w-3.5 h-3.5" />
+                                </a>
+                              )}
+
+                              {/* View Details Drawer */}
+                              <button
+                                onClick={() => setSelectedLead(lead)}
+                                className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors"
+                                title="View Lead Details"
+                              >
+                                <FiEye className="w-3.5 h-3.5" />
+                              </button>
+
+                              {/* Delete Lead */}
+                              {isAdmin && (
+                                <button
+                                  onClick={() => handleDeleteLead(lead._id)}
+                                  className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 transition-colors"
+                                  title="Delete Lead"
+                                >
+                                  <FiTrash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
         </div>
+      )}
 
-        {/* Lead Count Display */}
-        <div style={{ fontSize: 13, color: T.muted }}>
-          Showing <b>{leads.length}</b> of <b>{totalLeads}</b> leads
-        </div>
-      </div>
-
-      {/* ── DYNAMIC ZERO-LOSS TABLE (Preserving Google Sheet Headings 100%) ── */}
-      <div
-        style={{
-          background: T.white, border: `1px solid ${T.border}`,
-          borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
-        }}
-      >
-        <div style={{ overflowX: 'auto', maxHeight: '600px' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
-            <thead>
-              <tr style={{ background: '#f8fafc', borderBottom: `1px solid ${T.border}` }}>
-                <th style={{ padding: '12px 14px', fontWeight: 600, color: T.muted, width: 48 }}>#</th>
-                <th style={{ padding: '12px 14px', fontWeight: 600, color: T.muted }}>Campaign Tab</th>
-                <th style={{ padding: '12px 14px', fontWeight: 600, color: T.muted }}>Status</th>
-
-                {/* DYNAMIC GOOGLE SHEET HEADERS (Exact columns, no loss!) */}
-                {dynamicHeaders
-                  .filter(h => visibleColumns[h] !== false)
-                  .map(header => (
-                    <th
-                      key={header}
-                      style={{
-                        padding: '12px 14px', fontWeight: 600, color: T.text,
-                        whiteSpace: 'nowrap', borderLeft: `1px solid ${T.borderSoft}`
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <span>{header}</span>
-                      </div>
-                    </th>
-                  ))}
-
-                <th style={{ padding: '12px 14px', fontWeight: 600, color: T.muted, textAlign: 'right', minWidth: 140 }}>
-                  Actions
-                </th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={dynamicHeaders.length + 4} style={{ padding: 48, textAlign: 'center', color: T.muted }}>
-                    <FiRefreshCw className="animate-spin inline-block mr-2" size={20} />
-                    Loading dynamic campaign leads...
-                  </td>
-                </tr>
-              ) : leads.length === 0 ? (
-                <tr>
-                  <td colSpan={dynamicHeaders.length + 4} style={{ padding: 60, textAlign: 'center' }}>
-                    <div style={{ maxWidth: 360, margin: '0 auto' }}>
-                      <div
-                        style={{
-                          width: 52, height: 52, borderRadius: '50%',
-                          background: T.blueLight, color: T.blue, margin: '0 auto 12px',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center'
-                        }}
-                      >
-                        <RiFolderChartLine size={26} />
-                      </div>
-                      <h3 style={{ fontSize: 16, fontWeight: 600, color: T.text, margin: '0 0 6px' }}>
-                        No Leads Ingested Yet
-                      </h3>
-                      <p style={{ fontSize: 13, color: T.muted, margin: '0 0 16px' }}>
-                        Trigger your live n8n workflow to read all campaign tabs from your Google Sheet and stream them into the CRM.
-                      </p>
-                      <button
-                        onClick={handleSync}
-                        disabled={syncing}
-                        style={{
-                          padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-                          background: T.blue, color: T.white, border: 'none', cursor: 'pointer',
-                          display: 'inline-flex', alignItems: 'center', gap: 8,
-                          opacity: syncing ? 0.7 : 1
-                        }}
-                      >
-                        <FiRefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
-                        {syncing ? 'Triggering n8n Workflow...' : 'Sync Now with n8n'}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                leads.map((lead, index) => {
-                  const { phone, name, email } = getLeadIdentifiers(lead);
-                  return (
-                    <tr
-                      key={lead._id || index}
-                      style={{ borderBottom: `1px solid ${T.borderSoft}`, transition: 'background 0.12s' }}
-                      className="hover:bg-slate-50"
-                    >
-                      {/* Row Index */}
-                      <td style={{ padding: '12px 14px', color: T.muted, fontSize: 12 }}>
-                        {(page - 1) * limit + index + 1}
-                      </td>
-
-                      {/* Campaign Pill */}
-                      <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
-                        <span
-                          style={{
-                            fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 6,
-                            background: T.blueLight, color: T.blue, border: `1px solid ${T.blueBorder}`
-                          }}
-                        >
-                          {lead.campaign}
-                        </span>
-                      </td>
-
-                      {/* Status Tag */}
-                      <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
-                        <span
-                          style={{
-                            fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 6,
-                            background: lead.status === 'Converted' ? T.emeraldLight : T.orangeLight,
-                            color: lead.status === 'Converted' ? T.emerald : T.orange,
-                            border: `1px solid ${lead.status === 'Converted' ? T.emeraldBorder : T.orangeBorder}`
-                          }}
-                        >
-                          {lead.status || 'New'}
-                        </span>
-                      </td>
-
-                      {/* DYNAMIC GOOGLE SHEET VALUES */}
-                      {dynamicHeaders
-                        .filter(h => visibleColumns[h] !== false)
-                        .map(header => {
-                          const val = lead.rawData?.[header];
-                          const strVal = val !== undefined && val !== null ? String(val) : '—';
-                          const isPhoneCol = header.toLowerCase().includes('phone') || header.toLowerCase().includes('mobile');
-                          const isEmailCol = header.toLowerCase().includes('email');
-
-                          return (
-                            <td
-                              key={header}
-                              style={{
-                                padding: '12px 14px', color: T.text,
-                                borderLeft: `1px solid ${T.borderSoft}`, whiteSpace: 'nowrap'
-                              }}
-                            >
-                              {isPhoneCol && val ? (
-                                <a
-                                  href={`tel:${String(val).replace(/\D/g, '')}`}
-                                  onClick={e => e.stopPropagation()}
-                                  title={`📞 Click to Call ${strVal}`}
-                                  style={{
-                                    fontWeight: 600, color: '#059669', display: 'inline-flex',
-                                    alignItems: 'center', gap: 5, textDecoration: 'none'
-                                  }}
-                                >
-                                  <FiPhoneCall size={12} style={{ color: '#059669' }} />
-                                  <span>{strVal}</span>
-                                </a>
-                              ) : isEmailCol && val ? (
-                                <span style={{ color: T.muted }}>
-                                  {strVal}
-                                </span>
-                              ) : (
-                                <span>{strVal}</span>
-                              )}
-                            </td>
-                          );
-                        })}
-
-                      {/* Actions Column (Call, WhatsApp, View Details, Delete) */}
-                      <td style={{ padding: '12px 14px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
-                          {/* Dedicated Call Action Button with Call Symbol & Click to Activate */}
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleActivatePhoneCall(lead); }}
-                            title={phone ? `📞 Click to Call ${phone}` : 'No phone number available in sheet'}
-                            style={{
-                              display: 'inline-flex', alignItems: 'center', gap: 6,
-                              padding: '6px 12px', borderRadius: 7, fontSize: 12, fontWeight: 600,
-                              background: phone ? '#ecfdf5' : '#f8fafc',
-                              color: phone ? '#059669' : '#94a3b8',
-                              border: `1px solid ${phone ? '#a7f3d0' : '#e2e8f0'}`,
-                              cursor: phone ? 'pointer' : 'not-allowed',
-                              boxShadow: phone ? '0 1px 3px rgba(16,185,129,0.18)' : 'none',
-                              transition: 'all 0.15s ease'
-                            }}
-                          >
-                            <FiPhoneCall size={13} style={{ color: phone ? '#059669' : '#94a3b8' }} />
-                            <span>Call</span>
-                          </button>
-
-                          {/* WhatsApp Action Button */}
-                          {phone && (
-                            <a
-                              href={`https://wa.me/${phone.replace(/\D/g, '')}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              title="Chat on WhatsApp"
-                              style={{
-                                width: 30, height: 30, borderRadius: 6,
-                                background: T.emeraldLight, color: T.emerald,
-                                border: `1px solid ${T.emeraldBorder}`,
-                                display: 'flex', alignItems: 'center', justifyContent: 'center'
-                              }}
-                            >
-                              <FaWhatsapp size={14} />
-                            </a>
-                          )}
-
-                          {/* View / Preview Lead Profile Button */}
-                          <button
-                            onClick={() => setSelectedLead(lead)}
-                            title="Preview Lead Profile"
-                            style={{
-                              width: 30, height: 30, borderRadius: 6,
-                              background: T.white, color: T.textSecondary,
-                              border: `1px solid ${T.border}`,
-                              display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
-                            }}
-                          >
-                            <FiEye size={14} />
-                          </button>
-
-                          {/* Delete Lead Button */}
-                          <button
-                            onClick={() => handleDeleteLead(lead._id)}
-                            title="Delete Lead"
-                            style={{
-                              width: 30, height: 30, borderRadius: 6,
-                              background: T.white, color: T.rose,
-                              border: `1px solid ${T.border}`,
-                              display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
-                            }}
-                          >
-                            <FiTrash2 size={13} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* ── Table Footer & Pagination ──────────────────────────────────────── */}
-        <div
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '12px 18px', borderTop: `1px solid ${T.border}`, background: '#f8fafc',
-            flexWrap: 'wrap', gap: 10
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: T.muted }}>
-            <span>Rows per page:</span>
-            <select
-              value={limit}
-              onChange={e => { setLimit(Number(e.target.value)); setPage(1); }}
-              style={{
-                background: T.white, border: `1px solid ${T.border}`, borderRadius: 6,
-                padding: '4px 8px', fontSize: 13, color: T.text, outline: 'none'
-              }}
-            >
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <button
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page <= 1}
-              style={{
-                padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 500,
-                background: T.white, border: `1px solid ${T.border}`,
-                cursor: page <= 1 ? 'not-allowed' : 'pointer',
-                opacity: page <= 1 ? 0.5 : 1
-              }}
-            >
-              Previous
-            </button>
-            <span style={{ fontSize: 12, color: T.muted, padding: '0 8px' }}>
-              Page <b>{page}</b> of <b>{totalPages}</b>
-            </span>
-            <button
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages}
-              style={{
-                padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 500,
-                background: T.white, border: `1px solid ${T.border}`,
-                cursor: page >= totalPages ? 'not-allowed' : 'pointer',
-                opacity: page >= totalPages ? 0.5 : 1
-              }}
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Slide-Over Lead Detail Drawer (Rich Profile Preview) ─────────────── */}
+      {/* ── Slide-Over Lead Details Drawer ─────────────────────────────────── */}
       <AnimatePresence>
         {selectedLead && (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 100 }}>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSelectedLead(null)}
-              style={{ position: 'absolute', inset: 0, background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(3px)' }}
-            />
-
-            {/* Drawer */}
+          <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-xs">
             <motion.div
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-              style={{
-                position: 'absolute', top: 0, right: 0, bottom: 0,
-                width: '100%', maxWidth: 1060, background: '#f8fafc',
-                boxShadow: '-6px 0 35px rgba(0,0,0,0.2)',
-                display: 'flex', flexDirection: 'column', zIndex: 101
-              }}
+              transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+              className="w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col"
             >
-              {/* Drawer Top Header with Campaign Tag, Switcher, and Actions */}
-              <div
-                style={{
-                  padding: '12px 20px', borderBottom: `1px solid ${T.border}`,
-                  background: T.white, display: 'flex', alignItems: 'center',
-                  justifyContent: 'space-between', gap: 12, flexWrap: 'wrap'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                  <span
-                    style={{
-                      fontSize: 10.5, fontWeight: 700, padding: '3px 8px', borderRadius: 6,
-                      background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe',
-                      textTransform: 'uppercase', letterSpacing: '0.04em'
-                    }}
+              <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: T.border }}>
+                <div className="flex items-center gap-2.5">
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs"
+                    style={{ background: T.blueLight, color: T.blue, border: `1px solid ${T.blueBorder}` }}
                   >
-                    Meta Lead Preview
-                  </span>
-                  <span
-                    style={{
-                      fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 6,
-                      background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0',
-                      maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-                    }}
-                  >
-                    {selectedLead.campaign}
-                  </span>
-                  <h2 style={{ fontSize: 16, fontWeight: 700, color: T.text, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {getLeadIdentifiers(selectedLead).name}
-                  </h2>
+                    {(getLeadIdentifiers(selectedLead).name || 'L').slice(0, 2).toUpperCase()}
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-800">
+                      {getLeadIdentifiers(selectedLead).name}
+                    </h3>
+                    <p className="text-[11px] text-slate-400">
+                      Campaign: {selectedLead.campaign}
+                    </p>
+                  </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  {/* Convert to CRM Lead Quick Action */}
-                  {selectedLead.status !== 'Converted' ? (
-                    <button
-                      onClick={() => handleConvertLead(selectedLead._id)}
-                      style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 5,
-                        padding: '5px 12px', borderRadius: 8, fontSize: 11.5, fontWeight: 600,
-                        background: '#2563eb', color: '#ffffff', border: 'none', cursor: 'pointer',
-                        boxShadow: '0 1px 2px rgba(37,99,235,0.2)'
-                      }}
-                    >
-                      <FiCheck size={13} />
-                      <span>Convert to CRM</span>
-                    </button>
-                  ) : (
-                    <span
-                      style={{
-                        fontSize: 11, fontWeight: 600, padding: '4px 8px', borderRadius: 6,
-                        background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0'
-                      }}
-                    >
-                      ✓ Converted
-                    </span>
-                  )}
-
-                  <button
-                    onClick={() => setSelectedLead(null)}
-                    style={{
-                      width: 32, height: 32, borderRadius: 8, border: `1px solid ${T.border}`,
-                      background: T.white, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      cursor: 'pointer', color: T.muted
-                    }}
-                    title="Close Preview"
-                  >
-                    <FiX size={18} />
-                  </button>
-                </div>
+                <button
+                  onClick={() => setSelectedLead(null)}
+                  className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-500"
+                >
+                  <FiX className="w-4 h-4" />
+                </button>
               </div>
 
-              {/* Drawer Content */}
-              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }} className="bg-slate-50/60">
+              {/* Drawer Embedded LeadDetailsPage */}
+              <div className="flex-1 min-h-0 overflow-y-auto bg-slate-50/60">
                 <LeadDetailsPage
                   key={selectedLead._id}
                   leadId={selectedLead.crmLeadId || selectedLead._id}
@@ -1327,10 +1362,12 @@ export default function MetaLeads() {
                   showBackButton={false}
                   onDeleted={() => {
                     setSelectedLead(null);
-                    fetchLeads(page);
+                    if (selectedCampaign) fetchCampaignLeads(selectedCampaign, leadsPage);
+                    fetchCampaigns();
                   }}
                   onChange={() => {
-                    fetchLeads(page);
+                    if (selectedCampaign) fetchCampaignLeads(selectedCampaign, leadsPage);
+                    fetchCampaigns();
                   }}
                 />
               </div>
@@ -1339,7 +1376,7 @@ export default function MetaLeads() {
         )}
       </AnimatePresence>
 
-      {/* ── Assign Members Modal (Admin Only) ── */}
+      {/* ── Assign Members Modal (Admin Only) ──────────────────────────────── */}
       {isAdmin && (
         <AssignMembersModal
           isOpen={showAssignModal}
@@ -1356,7 +1393,6 @@ export default function MetaLeads() {
           onConfirm={handleConfirmAssignment}
         />
       )}
-      </div>
     </div>
   );
 }
