@@ -32,6 +32,10 @@ const statusConfig = {
 
 // status: label text. color: optional hex from the configurable Lead Stage
 // (Workspace Settings > Lead Stage). When provided and there's no built-in
+import AutoScrollText from './AutoScrollText';
+
+// status: label text. color: optional hex from the configurable Lead Stage
+// (Workspace Settings > Lead Stage). When provided and there's no built-in
 // Tailwind preset for that label, the badge renders using the custom color
 // instead of falling back to plain gray.
 export default function StatusBadge({ status, color, size = 'sm' }) {
@@ -41,20 +45,21 @@ export default function StatusBadge({ status, color, size = 'sm' }) {
   if (!preset && color) {
     return (
       <span
-        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full font-medium ${sizeClass}`}
+        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-semibold max-w-[170px] whitespace-nowrap overflow-hidden flex-shrink-0 ${sizeClass}`}
         style={{ background: `${color}22`, color }}
+        title={status}
       >
-        <span className="w-1.5 h-1.5 rounded-full" style={{ background: color }}></span>
-        {status}
+        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }}></span>
+        <AutoScrollText text={status} maxWidth={130} />
       </span>
     );
   }
 
   const config = preset || { bg: 'bg-gray-100', text: 'text-gray-600', dot: 'bg-gray-400' };
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full font-medium ${config.bg} ${config.text} ${sizeClass}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${config.dot}`}></span>
-      {status}
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-semibold max-w-[170px] whitespace-nowrap overflow-hidden flex-shrink-0 ${config.bg} ${config.text} ${sizeClass}`} title={status}>
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${config.dot}`}></span>
+      <AutoScrollText text={status} maxWidth={130} />
     </span>
   );
 }

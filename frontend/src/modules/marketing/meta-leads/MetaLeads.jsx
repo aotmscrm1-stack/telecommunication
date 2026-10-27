@@ -5,6 +5,7 @@ import { metaLeadsAPI, usersAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import AssignMembersModal from './AssignMembersModal';
 import LeadDetailsPage from '../../../components/LeadDetails/LeadDetailsPage';
+import AutoScrollText from '../../../components/common/AutoScrollText';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 
 import {
@@ -142,14 +143,13 @@ function MiniStatus({ status }) {
       border: `1px solid ${border}`,
       display: 'inline-flex',
       alignItems: 'center',
-      gap: 3,
-      maxWidth: 150,
+      gap: 4,
+      maxWidth: 160,
       overflow: 'hidden',
-      textOverflow: 'ellipsis',
       whiteSpace: 'nowrap'
     }} title={status || 'New'}>
       <span style={{ width: 5, height: 5, borderRadius: '50%', background: color, flexShrink: 0 }} />
-      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{status || 'New'}</span>
+      <AutoScrollText text={status || 'New'} maxWidth={125} />
     </span>
   );
 }
@@ -720,12 +720,17 @@ export default function MetaLeads() {
   }, [campaignLeads, positiveCount, negativeCount]);
 
   const sentimentData = useMemo(() => {
-    const list = [];
-    if (positiveCount > 0) list.push({ name: 'Positive', count: positiveCount, color: '#10b981' });
-    if (negativeCount > 0) list.push({ name: 'Negative', count: negativeCount, color: '#ef4444' });
-    if (pendingCount > 0) list.push({ name: 'Pending', count: pendingCount, color: '#f97316' });
-    return list;
+    return [
+      { name: 'Positive', count: positiveCount, color: '#10b981' },
+      { name: 'Negative', count: negativeCount, color: '#ef4444' },
+      { name: 'Pending', count: pendingCount, color: '#f97316' }
+    ];
   }, [positiveCount, negativeCount, pendingCount]);
+
+  const pieChartData = useMemo(() => {
+    const active = sentimentData.filter(s => s.count > 0);
+    return active.length > 0 ? active : [{ name: 'Pending', count: 1, color: '#f1f5f9' }];
+  }, [sentimentData]);
 
   // Metrics
   const totalCampaignsCount = campaignStats.length;
@@ -872,12 +877,30 @@ export default function MetaLeads() {
                 )}
               </div>
 
-              <div style={{ fontSize: 10.5, color: MUTED, fontWeight: 400, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span>{leadsTotal} student{leadsTotal !== 1 ? 's' : ''} in this campaign</span>
+              <div style={{ fontSize: 10.5, color: MUTED, fontWeight: 400, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+                <span>{leadsTotal} student{leadsTotal !== 1 ? 's' : ''}</span>
                 {leadsStatusFilter && (
-                  <span style={{ fontWeight: 600, color: leadsStatusFilter === 'Positive' ? '#059669' : '#dc2626' }}>
-                    Filtering: {leadsStatusFilter}
-                  </span>
+                  <button
+                    onClick={() => setLeadsStatusFilter('')}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      fontSize: 10,
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: 12,
+                      background: leadsStatusFilter === 'Positive' ? '#ecfdf5' : leadsStatusFilter === 'Negative' ? '#fff1f2' : '#fff7ed',
+                      color: leadsStatusFilter === 'Positive' ? '#059669' : leadsStatusFilter === 'Negative' ? '#dc2626' : '#ea580c',
+                      border: `1px solid ${leadsStatusFilter === 'Positive' ? '#a7f3d0' : leadsStatusFilter === 'Negative' ? '#fecdd3' : '#fed7aa'}`,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                    title="Click to clear filter and show all leads"
+                  >
+                    <span>{leadsStatusFilter} Leads</span>
+                    <span style={{ fontSize: 11, fontWeight: 800 }}>✕</span>
+                  </button>
                 )}
               </div>
             </div>
@@ -990,14 +1013,14 @@ export default function MetaLeads() {
                   <ResponsiveContainer width="100%" height={105}>
                     <PieChart>
                       <Pie
-                        data={sentimentData}
+                        data={pieChartData}
                         cx="50%"
                         cy="50%"
                         outerRadius={44}
                         innerRadius={22}
                         dataKey="count"
                       >
-                        {sentimentData.map((s, i) => (
+                        {pieChartData.map((s, i) => (
                           <Cell key={s.name} fill={s.color || PIE_COLORS[i % PIE_COLORS.length]} />
                         ))}
                       </Pie>
@@ -1005,24 +1028,42 @@ export default function MetaLeads() {
                     </PieChart>
                   </ResponsiveContainer>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginTop: 4 }}>
-                    {sentimentData.map((s) => (
-                      <div
-                        key={s.name}
-                        onClick={() => {
-                          if (s.name === 'Positive') setLeadsStatusFilter('Positive');
-                          else if (s.name === 'Negative') setLeadsStatusFilter('Negative');
-                          else setLeadsStatusFilter('');
-                        }}
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11, cursor: 'pointer', padding: '2px 4px', borderRadius: 4 }}
-                        className="hover:bg-slate-50"
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <div style={{ width: 7, height: 7, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
-                          <span style={{ color: '#475569', fontWeight: 500 }}>{s.name}</span>
+                    {sentimentData.map((s) => {
+                      const isActive = leadsStatusFilter === s.name;
+                      return (
+                        <div
+                          key={s.name}
+                          onClick={() => {
+                            setLeadsStatusFilter(prev => prev === s.name ? '' : s.name);
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            fontSize: 11,
+                            cursor: 'pointer',
+                            padding: '4px 6px',
+                            borderRadius: 6,
+                            background: isActive ? `${s.color}18` : 'transparent',
+                            border: `1px solid ${isActive ? s.color : 'transparent'}`,
+                            transition: 'all 0.15s ease'
+                          }}
+                          className="hover:bg-slate-50"
+                          title={`Click to filter ${s.name} leads on the left`}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <div style={{ width: 7, height: 7, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
+                            <span style={{ color: isActive ? s.color : '#475569', fontWeight: isActive ? 700 : 500 }}>{s.name}</span>
+                            {isActive && (
+                              <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 3, background: s.color, color: '#fff', fontWeight: 700 }}>
+                                Active
+                              </span>
+                            )}
+                          </div>
+                          <span style={{ fontWeight: 700, color: isActive ? s.color : TEXT }}>{s.count}</span>
                         </div>
-                        <span style={{ fontWeight: 700, color: TEXT }}>{s.count}</span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </>
               ) : (
@@ -1036,9 +1077,29 @@ export default function MetaLeads() {
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: BLUE }} />
                 Conversion Ratios
               </div>
-              <div style={{ marginBottom: 8 }}>
+
+              {/* Positive Leads bar - Clickable */}
+              <div
+                onClick={() => setLeadsStatusFilter(prev => prev === 'Positive' ? '' : 'Positive')}
+                style={{
+                  marginBottom: 8,
+                  cursor: 'pointer',
+                  padding: '4px 6px',
+                  borderRadius: 6,
+                  background: leadsStatusFilter === 'Positive' ? '#ecfdf5' : 'transparent',
+                  border: `1px solid ${leadsStatusFilter === 'Positive' ? '#10b981' : 'transparent'}`,
+                  transition: 'all 0.15s ease'
+                }}
+                className="hover:bg-slate-50"
+                title="Click to filter Positive leads on the left"
+              >
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, marginBottom: 2 }}>
-                  <span style={{ color: '#059669', fontWeight: 600 }}>Positive Leads</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <span style={{ color: '#059669', fontWeight: 600 }}>Positive Leads</span>
+                    {leadsStatusFilter === 'Positive' && (
+                      <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 3, background: '#10b981', color: '#fff', fontWeight: 700 }}>Active</span>
+                    )}
+                  </div>
                   <span style={{ fontWeight: 700, color: TEXT }}>{positiveCount}</span>
                 </div>
                 <div style={{ height: 5, background: '#f1f5f9', borderRadius: 3, overflow: 'hidden' }}>
@@ -1046,9 +1107,27 @@ export default function MetaLeads() {
                 </div>
               </div>
 
-              <div>
+              {/* Negative Leads bar - Clickable */}
+              <div
+                onClick={() => setLeadsStatusFilter(prev => prev === 'Negative' ? '' : 'Negative')}
+                style={{
+                  cursor: 'pointer',
+                  padding: '4px 6px',
+                  borderRadius: 6,
+                  background: leadsStatusFilter === 'Negative' ? '#fff1f2' : 'transparent',
+                  border: `1px solid ${leadsStatusFilter === 'Negative' ? '#ef4444' : 'transparent'}`,
+                  transition: 'all 0.15s ease'
+                }}
+                className="hover:bg-slate-50"
+                title="Click to filter Negative leads on the left"
+              >
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, marginBottom: 2 }}>
-                  <span style={{ color: '#dc2626', fontWeight: 600 }}>Negative Leads</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <span style={{ color: '#dc2626', fontWeight: 600 }}>Negative Leads</span>
+                    {leadsStatusFilter === 'Negative' && (
+                      <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 3, background: '#ef4444', color: '#fff', fontWeight: 700 }}>Active</span>
+                    )}
+                  </div>
                   <span style={{ fontWeight: 700, color: TEXT }}>{negativeCount}</span>
                 </div>
                 <div style={{ height: 5, background: '#f1f5f9', borderRadius: 3, overflow: 'hidden' }}>
@@ -1111,6 +1190,7 @@ export default function MetaLeads() {
                 onChange={(updated) => {
                   if (updated) {
                     setSelectedLead(prev => ({ ...prev, ...updated }));
+                    setCampaignLeads(prev => prev.map(l => (l._id === updated._id || l._id === updated.metaLeadId) ? { ...l, ...updated } : l));
                   }
                   fetchCampaignLeads(selectedCampaign, leadsPage);
                   fetchCampaigns();

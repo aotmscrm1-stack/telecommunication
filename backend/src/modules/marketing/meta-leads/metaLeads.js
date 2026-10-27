@@ -811,6 +811,8 @@ router.get('/', protect, async (req, res) => {
         query.status = { $in: ALL_POSITIVE_STATUSES };
       } else if (status === 'Negative') {
         query.status = { $in: ALL_NEGATIVE_STATUSES };
+      } else if (status === 'Pending') {
+        query.status = { $nin: [...ALL_POSITIVE_STATUSES, ...ALL_NEGATIVE_STATUSES] };
       } else {
         query.status = status;
       }

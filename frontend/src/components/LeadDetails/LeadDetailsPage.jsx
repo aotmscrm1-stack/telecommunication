@@ -6,6 +6,7 @@ import api, { leadsAPI, campaignsAPI, usersAPI, coursesAPI, followupsAPI, blockl
 import { useAuth } from '../../context/AuthContext';
 import { canDelete } from '../../utils/permissions';
 import StatusBadge from '../common/StatusBadge';
+import AutoScrollText from '../common/AutoScrollText';
 import { formatDistanceToNow, format } from 'date-fns';
 import TranscriptConversationModal from '../TranscriptConversationModal';
 
@@ -75,11 +76,9 @@ export function MetaLeadStatusPicker({ status, onStatusChange }) {
             : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
         }`}
       >
-        <span className={`w-2 h-2 rounded-full ${isPos ? 'bg-emerald-500' : isNeg ? 'bg-red-500' : 'bg-slate-400'}`} />
-        <span className="truncate max-w-[170px] sm:max-w-[220px]">
-          {displayStatus}
-        </span>
-        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isPos ? 'bg-emerald-500' : isNeg ? 'bg-red-500' : 'bg-slate-400'}`} />
+        <AutoScrollText text={displayStatus} maxWidth={130} />
+        <ChevronDown className={`w-3.5 h-3.5 flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
