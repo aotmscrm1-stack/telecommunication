@@ -19,6 +19,7 @@ import GradientWaves from './GradientWaves';
 import useBreakpoint from '../../hooks/useBreakpoint';
 import TextType from '../../components/TextType';
 import crmImage from '../../assets/CRM.png';
+import PlushButton from '../../components/ui/button';
 
 const EASE = [0.22, 1, 0.36, 1];
 
@@ -521,46 +522,15 @@ export function HeroSection({
             alignItems: 'center',
           }}
         >
-          {/* PRIMARY BUTTON — BG WHITE, TEXT BLACK, HOVER NONE */}
-          <motion.button
-            onClick={() => navigate('/login')}
-            whileTap={{ scale: 0.97 }}
-            transition={{ duration: 0.28, ease: EASE }}
-            style={{
-              padding: isMobile ? '14px 22px' : '13px 20px 13px 28px',
-              borderRadius: 9999,
-              border: 'none',
-              background: '#ffffff',
-              color: '#000000',
-              fontWeight: 800,
-              fontSize: isMobile ? 14 : 15,
-              cursor: 'pointer',
-              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.16)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 12,
-              letterSpacing: '-0.01em',
-              fontFamily: '"Inter", system-ui, sans-serif',
-            }}
-          >
-            {currentSlide.primaryBtnText}
-            <span
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: '50%',
-                background: '#000000',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#ffffff',
-                boxShadow: '0 2px 6px rgba(0, 0, 0, 0.2)',
-              }}
-            >
-              <ArrowUpRight size={16} strokeWidth={2.6} />
-            </span>
-          </motion.button>
+          {/* PRIMARY 3D PLUSH BUTTON */}
+          <div style={{ position: 'relative', width: isMobile ? 220 : 250, height: 58, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <PlushButton
+              label={currentSlide.primaryBtnText || 'Get Started'}
+              onClick={() => navigate('/login')}
+              width={isMobile ? 220 : 250}
+              height={58}
+            />
+          </div>
 
           {/* SECONDARY BUTTON */}
           <motion.button
