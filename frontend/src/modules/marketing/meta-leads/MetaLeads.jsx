@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { metaLeadsAPI, usersAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import AssignMembersModal from './AssignMembersModal';
+import CampaignWorkspace from './CampaignWorkspace';
 import LeadDetailsPage from '../../../components/LeadDetails/LeadDetailsPage';
 import {
   FiPlus, FiRefreshCw, FiSearch, FiLayers, FiUsers, FiCalendar,
@@ -470,6 +471,40 @@ export default function MetaLeads() {
     setStatusMessage(`📞 Activating phone call to ${name} (${cleanPhone})...`);
     window.location.href = `tel:${cleanPhone}`;
   };
+
+  // ── Render Dedicated 3-Column Campaign Workspace upon Campaign Selection ──
+  if (selectedCampaign !== 'all') {
+    return (
+      <>
+        <CampaignWorkspace
+          campaignName={selectedCampaign}
+          onBack={() => { setSelectedCampaign('all'); setPage(1); }}
+          isAdmin={isAdmin}
+          isRestricted={isRestricted}
+          employees={employees}
+          assignments={assignments}
+          onRefreshAll={fetchCampaigns}
+          onOpenAssignModal={handleOpenAssignModal}
+        />
+        {isAdmin && (
+          <AssignMembersModal
+            isOpen={showAssignModal}
+            onClose={() => setShowAssignModal(false)}
+            campaign={assignModalCampaign}
+            employees={employees}
+            currentAssignedUserIds={
+              (
+                campaignStats.find(c => c.campaign === assignModalCampaign)?.assignedUsers ||
+                assignments.find(a => a.campaign === assignModalCampaign)?.assignedUsers ||
+                []
+              ).map(u => (u?._id ? u._id : u))
+            }
+            onConfirm={handleConfirmAssignment}
+          />
+        )}
+      </>
+    );
+  }
 
   return (
     <div style={{ background: T.bg, minHeight: '100vh', padding: '24px 28px' }}>
