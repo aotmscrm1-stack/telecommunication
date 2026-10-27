@@ -523,12 +523,20 @@ export function HeroSection({
           }}
         >
           {/* PRIMARY 3D PLUSH BUTTON */}
-          <div style={{ position: 'relative', width: isMobile ? 220 : 250, height: 58, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{
+            position: 'relative',
+            width: isMobile ? 190 : 215,
+            height: isMobile ? 54 : 58,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0
+          }}>
             <PlushButton
               label={currentSlide.primaryBtnText || 'Get Started'}
               onClick={() => navigate('/login')}
-              width={isMobile ? 220 : 250}
-              height={58}
+              width="100%"
+              height="100%"
             />
           </div>
 
@@ -544,7 +552,9 @@ export function HeroSection({
             whileTap={{ scale: 0.97 }}
             transition={{ duration: 0.28, ease: EASE }}
             style={{
-              padding: isMobile ? '14px 22px' : '13px 26px 13px 18px',
+              padding: isMobile ? '12px 20px' : '13px 26px 13px 18px',
+              height: isMobile ? 54 : 58,
+              boxSizing: 'border-box',
               borderRadius: 9999,
               border: '1.5px solid rgba(255, 255, 255, 0.45)',
               background: 'rgba(255, 255, 255, 0.12)',
@@ -561,6 +571,7 @@ export function HeroSection({
               letterSpacing: '-0.01em',
               fontFamily: '"Inter", system-ui, sans-serif',
               boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
+              flexShrink: 0
             }}
           >
             <span

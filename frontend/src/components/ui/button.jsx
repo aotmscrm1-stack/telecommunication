@@ -4,7 +4,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
 import gsap from 'gsap'
 
 const L = 1.6, R = 0.62 // pill = capsule: straight length L, end radius R  (half-length 1.42)
-const BUTTON_SCALE = 0.2
+const BUTTON_SCALE = 0.82
 
 /* ---------------- soft-body deformation (vertex) ---------------- */
 const VERT_COMMON = /* glsl */ `
@@ -50,10 +50,16 @@ function makeText(label) {
   const c = document.createElement('canvas'); c.width = 1024; c.height = 512
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8
   const draw = () => {
-    const x = c.getContext('2d'); x.clearRect(0, 0, 1024, 512); x.filter = 'blur(1.3px)'; x.fillStyle = '#fff'
-    x.font = '800 135px "Plus Jakarta Sans", system-ui, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(label, 512, 270); t.needsUpdate = true
+    const x = c.getContext('2d'); x.clearRect(0, 0, 1024, 512); x.filter = 'blur(1.1px)'; x.fillStyle = '#fff'
+    const len = (label || '').length || 1;
+    const fontSize = Math.min(135, Math.floor(1050 / (len * 0.72)));
+    x.font = `800 ${fontSize}px "Plus Jakarta Sans", "Inter", system-ui, sans-serif`;
+    x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText(label, 512, 265);
+    t.needsUpdate = true
   }
-  draw(); document.fonts?.load('800 135px "Plus Jakarta Sans"').then(draw).catch(() => {})
+  draw();
+  document.fonts?.load('800 135px "Plus Jakarta Sans"').then(draw).catch(() => {})
   return t
 }
 function makeFleece() { // fine fleece grain used as a bump map
@@ -65,7 +71,7 @@ function makeFleece() { // fine fleece grain used as a bump map
   return t
 }
 
-export default function PlushButton({ label = 'Explore', onClick, className = '', style = {}, width = 210, height = 56 }) {
+export default function PlushButton({ label = 'Explore', onClick, className = '', style = {}, width = '100%', height = '100%' }) {
   const ref = useRef()
   useEffect(() => {
     const el = ref.current; const W = () => el.clientWidth, H = () => el.clientHeight
@@ -78,7 +84,12 @@ export default function PlushButton({ label = 'Explore', onClick, className = ''
     const pm = new THREE.PMREMGenerator(renderer)
     scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.2
     const cam = new THREE.PerspectiveCamera(35, W() / H(), 0.1, 50)
-    const fit = () => { cam.aspect = W() / H(); cam.position.set(0, 0, Math.max(6.5, 6.9 / cam.aspect)); cam.updateProjectionMatrix() }; fit()
+    const fit = () => {
+      cam.aspect = W() / H();
+      cam.position.set(0, 0, Math.max(2.4, 2.9 / cam.aspect));
+      cam.updateProjectionMatrix();
+    };
+    fit()
 
     const key = new THREE.DirectionalLight(0xffffff, 1.9); key.position.set(3, 4, 5)
     const fill = new THREE.DirectionalLight(0x4a6cff, 0.8); fill.position.set(-4, -1, 3)
@@ -102,7 +113,7 @@ export default function PlushButton({ label = 'Explore', onClick, className = ''
     let hover = false
     const setHover = (h) => {
       if (h === hover) return; hover = h
-      proxy.scale.setScalar(BUTTON_SCALE * (h ? 1.18 : 8))
+      proxy.scale.setScalar(BUTTON_SCALE * (h ? 1.18 : 1.0))
       gsap.to(U.uHover, { value: h ? 1 : 0, duration: h ? 1.1 : 1.3, ease: 'elastic.out(1,.4)', overwrite: true })
       gsap.to(U.uTextA, { value: h ? 0.78 : 1, duration: 0.5 })
       el.style.cursor = h ? 'pointer' : 'default'
