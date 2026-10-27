@@ -2,12 +2,180 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Phone, PhoneOff, Mail, MapPin, Award, IndianRupee, Globe, User, Calendar, Tag, Star, Edit3, Save, X, Plus, Clock, MessageCircle, Copy, Check, Trash2, BookOpen, Zap, Sparkles, ShieldAlert, CheckCircle2, ChevronRight, Volume2, Download, Mic, Maximize2, FileText, ChevronDown, ChevronUp } from 'lucide-react';
-import api, { leadsAPI, campaignsAPI, usersAPI, coursesAPI, followupsAPI, blocklistAPI, leadStagesAPI, messageTemplatesAPI } from '../../services/api';
+import api, { leadsAPI, campaignsAPI, usersAPI, coursesAPI, followupsAPI, blocklistAPI, leadStagesAPI, messageTemplatesAPI, metaLeadsAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { canDelete } from '../../utils/permissions';
 import StatusBadge from '../common/StatusBadge';
 import { formatDistanceToNow, format } from 'date-fns';
 import TranscriptConversationModal from '../TranscriptConversationModal';
+
+export const POSITIVE_SUB_STATUSES = [
+  "Agreed to Office visit's but no luck",
+  "Interested/Need time(After few months) waiting for parents approval",
+  "office visit's",
+  "Demo attended",
+  "Demo not attended-Call Back",
+  "time issues/Fee issues",
+  "Call back/We will Call",
+  "Not answering-call back/whats app text"
+];
+
+export const NEGATIVE_SUB_STATUSES = [
+  "Not interested/Time pass",
+  "WN-SO-ON",
+  "joined another institute/jobs"
+];
+
+// Interactive Positive & Negative Status Dropdown Component
+export function MetaLeadStatusPicker({ status, onStatusChange }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState(() => {
+    if (POSITIVE_SUB_STATUSES.includes(status) || status === 'Positive') return 'positive';
+    if (NEGATIVE_SUB_STATUSES.includes(status) || status === 'Negative') return 'negative';
+    return 'positive';
+  });
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  const isPos = status === 'Positive' || POSITIVE_SUB_STATUSES.includes(status);
+  const isNeg = status === 'Negative' || NEGATIVE_SUB_STATUSES.includes(status);
+
+  return (
+    <div className="relative inline-block text-left" ref={containerRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border shadow-xs cursor-pointer ${
+          isPos
+            ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+            : isNeg
+            ? 'bg-red-50 text-red-800 border-red-300 hover:bg-red-100'
+            : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+        }`}
+      >
+        <span className={`w-2 h-2 rounded-full ${isPos ? 'bg-emerald-500' : isNeg ? 'bg-red-500' : 'bg-slate-400'}`} />
+        <span className="truncate max-w-[170px] sm:max-w-[220px]">
+          {status || 'Select Status'}
+        </span>
+        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 mt-1.5 w-72 sm:w-80 rounded-xl bg-white shadow-xl border border-slate-200 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+          {/* Top Tabs: ONLY Positive and Negative */}
+          <div className="flex border-b border-slate-200 bg-slate-50/80 p-1 gap-1">
+            <button
+              type="button"
+              onClick={() => setActiveTab('positive')}
+              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                activeTab === 'positive'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-emerald-700 hover:bg-emerald-50'
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full ${activeTab === 'positive' ? 'bg-white' : 'bg-emerald-500'}`} />
+              Positive ({POSITIVE_SUB_STATUSES.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('negative')}
+              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                activeTab === 'negative'
+                  ? 'bg-red-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-red-700 hover:bg-red-50'
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full ${activeTab === 'negative' ? 'bg-white' : 'bg-red-500'}`} />
+              Negative ({NEGATIVE_SUB_STATUSES.length})
+            </button>
+          </div>
+
+          {/* List of Sub-Options from Image */}
+          <div className="max-h-64 overflow-y-auto p-1.5 space-y-1">
+            {activeTab === 'positive' ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => { onStatusChange('Positive'); setIsOpen(false); }}
+                  className={`w-full text-left px-3 py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-between ${
+                    status === 'Positive'
+                      ? 'bg-emerald-100/70 text-emerald-900 border border-emerald-300'
+                      : 'text-emerald-800 hover:bg-emerald-50'
+                  }`}
+                >
+                  <span>✓ Positive (General)</span>
+                  {status === 'Positive' && <Check className="w-3.5 h-3.5 text-emerald-600" />}
+                </button>
+                {POSITIVE_SUB_STATUSES.map(opt => {
+                  const selected = status === opt;
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => { onStatusChange(opt); setIsOpen(false); }}
+                      className={`w-full text-left px-3 py-1.5 rounded-lg text-xs transition-colors flex items-center justify-between ${
+                        selected
+                          ? 'bg-emerald-50 text-emerald-900 font-semibold border border-emerald-200'
+                          : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                      }`}
+                    >
+                      <span className="leading-snug pr-2">{opt}</span>
+                      {selected && <Check className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />}
+                    </button>
+                  );
+                })}
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => { onStatusChange('Negative'); setIsOpen(false); }}
+                  className={`w-full text-left px-3 py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-between ${
+                    status === 'Negative'
+                      ? 'bg-red-100/70 text-red-900 border border-red-300'
+                      : 'text-red-800 hover:bg-red-50'
+                  }`}
+                >
+                  <span>✗ Negative (General)</span>
+                  {status === 'Negative' && <Check className="w-3.5 h-3.5 text-red-600" />}
+                </button>
+                {NEGATIVE_SUB_STATUSES.map(opt => {
+                  const selected = status === opt;
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => { onStatusChange(opt); setIsOpen(false); }}
+                      className={`w-full text-left px-3 py-1.5 rounded-lg text-xs transition-colors flex items-center justify-between ${
+                        selected
+                          ? 'bg-red-50 text-red-900 font-semibold border border-red-200'
+                          : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                      }`}
+                    >
+                      <span className="leading-snug pr-2">{opt}</span>
+                      {selected && <Check className="w-3.5 h-3.5 text-red-600 flex-shrink-0" />}
+                    </button>
+                  );
+                })}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const PALETTE = {
   navy: '#1d3557',
@@ -702,6 +870,8 @@ export default function LeadDetailsPage({
   onBack,
   onDeleted,
   onChange,
+  isMetaLead = false,
+  metaLeadId = null,
 }) {
   const id = leadId;
   const navigate = useNavigate();
@@ -847,10 +1017,23 @@ export default function LeadDetailsPage({
       return;
     }
     try {
-      const res = await leadsAPI.updateStatus(lead._id, { status: newStatus });
-      setLead(res.data.lead);
+      const targetMetaId = metaLeadId || (isMetaLead ? id : null);
+      if (targetMetaId) {
+        await metaLeadsAPI.update(targetMetaId, { status: newStatus }).catch(() => {});
+      }
+      let updated = null;
+      if (lead?._id) {
+        try {
+          const res = await leadsAPI.updateStatus(lead._id, { status: newStatus });
+          updated = res.data.lead;
+        } catch (_) {}
+      }
+      if (!updated) {
+        updated = { ...(lead || {}), status: newStatus };
+      }
+      setLead(updated);
       setEditForm(prev => ({ ...prev, status: newStatus }));
-      onChange?.(res.data.lead);
+      onChange?.(updated);
     } catch (err) { console.error(err); }
   };
 
@@ -1049,14 +1232,11 @@ export default function LeadDetailsPage({
               <span>WhatsApp</span>
             </motion.button>
 
-            {/* Status Dropdown */}
-            <select
-              value={lead.status}
-              onChange={e => handleStatusChange(e.target.value)}
-              className="text-xs font-medium border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-700 cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all hover:border-slate-300"
-            >
-              {statuses.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
+            {/* Status Selector: Positive / Negative with Image Sub-statuses */}
+            <MetaLeadStatusPicker
+              status={lead.status}
+              onStatusChange={handleStatusChange}
+            />
 
             {canDelete(user) && (
               <motion.button

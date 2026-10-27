@@ -56,15 +56,38 @@ const STATUS_COLORS = {
 
 const PIE_COLORS = ['#10b981', '#ef4444', '#f97316', '#2563eb', '#3b82f6', '#0284c7'];
 
+export const POSITIVE_STATUSES = [
+  "Agreed to Office visit's but no luck",
+  "Interested/Need time(After few months) waiting for parents approval",
+  "office visit's",
+  "Demo attended",
+  "Demo not attended-Call Back",
+  "time issues/Fee issues",
+  "Call back/We will Call",
+  "Not answering-call back/whats app text"
+];
+
+export const NEGATIVE_STATUSES = [
+  "Not interested/Time pass",
+  "WN-SO-ON",
+  "joined another institute/jobs"
+];
+
 // Lead Positive / Negative Helper Classification
 function isLeadPositive(lead) {
-  const st = String(lead?.status || '').toLowerCase();
-  return st === 'positive' || st === 'converted' || st === 'won' || st === 'interested' || st === 'enrolled' || st === 'demo scheduled' || st === 'demo done' || st === 'connected';
+  const st = String(lead?.status || '').toLowerCase().trim();
+  if (st === 'positive' || st === 'converted' || st === 'won' || st === 'interested' || st === 'enrolled' || st === 'demo scheduled' || st === 'demo done' || st === 'connected') {
+    return true;
+  }
+  return POSITIVE_STATUSES.some(p => p.toLowerCase().trim() === st);
 }
 
 function isLeadNegative(lead) {
-  const st = String(lead?.status || '').toLowerCase();
-  return st === 'negative' || st === 'discarded' || st === 'lost' || st === 'blocked' || st === 'not interested' || st === 'not answered' || st === 'call not responding';
+  const st = String(lead?.status || '').toLowerCase().trim();
+  if (st === 'negative' || st === 'discarded' || st === 'lost' || st === 'blocked' || st === 'not interested' || st === 'not answered' || st === 'call not responding') {
+    return true;
+  }
+  return NEGATIVE_STATUSES.some(n => n.toLowerCase().trim() === st);
 }
 
 // ── UI Helpers Matching Campaigns.jsx & CampaignDetail.jsx ───────────────────
@@ -102,8 +125,8 @@ function Avatar({ name, size = 30, bg = ORANGE_LIGHT, color = ORANGE }) {
 }
 
 function MiniStatus({ status }) {
-  const isPos = String(status).toLowerCase() === 'positive';
-  const isNeg = String(status).toLowerCase() === 'negative';
+  const isPos = isLeadPositive({ status });
+  const isNeg = isLeadNegative({ status });
   const color = isPos ? '#059669' : isNeg ? '#dc2626' : (STATUS_COLORS[status] || '#64748b');
   const bg = isPos ? '#ecfdf5' : isNeg ? '#fff1f2' : `${color}18`;
   const border = isPos ? '#a7f3d0' : isNeg ? '#fecdd3' : `${color}33`;
@@ -119,10 +142,14 @@ function MiniStatus({ status }) {
       border: `1px solid ${border}`,
       display: 'inline-flex',
       alignItems: 'center',
-      gap: 3
-    }}>
-      <span style={{ width: 5, height: 5, borderRadius: '50%', background: color }} />
-      {status || 'New'}
+      gap: 3,
+      maxWidth: 150,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    }} title={status || 'New'}>
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: color, flexShrink: 0 }} />
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{status || 'New'}</span>
     </span>
   );
 }
@@ -809,18 +836,28 @@ export default function MetaLeads() {
                     flex: 1,
                     fontSize: 11.5,
                     padding: '5px 8px',
-                    border: `1px solid ${leadsStatusFilter === 'Positive' ? '#a7f3d0' : leadsStatusFilter === 'Negative' ? '#fecdd3' : BORDER}`,
+                    border: `1px solid ${isLeadPositive({ status: leadsStatusFilter }) ? '#a7f3d0' : isLeadNegative({ status: leadsStatusFilter }) ? '#fecdd3' : BORDER}`,
                     borderRadius: 6,
-                    color: leadsStatusFilter === 'Positive' ? '#059669' : leadsStatusFilter === 'Negative' ? '#dc2626' : TEXT,
-                    background: leadsStatusFilter === 'Positive' ? '#ecfdf5' : leadsStatusFilter === 'Negative' ? '#fff1f2' : '#fff',
+                    color: isLeadPositive({ status: leadsStatusFilter }) ? '#059669' : isLeadNegative({ status: leadsStatusFilter }) ? '#dc2626' : TEXT,
+                    background: isLeadPositive({ status: leadsStatusFilter }) ? '#ecfdf5' : isLeadNegative({ status: leadsStatusFilter }) ? '#fff1f2' : '#fff',
                     outline: 'none',
                     fontWeight: 600,
                     cursor: 'pointer'
                   }}
                 >
                   <option value="">All Leads</option>
-                  <option value="Positive">Positive</option>
-                  <option value="Negative">Negative</option>
+                  <optgroup label="🟢 Positive">
+                    <option value="Positive">All Positive</option>
+                    {POSITIVE_STATUSES.map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="🔴 Negative">
+                    <option value="Negative">All Negative</option>
+                    {NEGATIVE_STATUSES.map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </optgroup>
                 </select>
 
                 {isAdmin && (
@@ -1097,6 +1134,8 @@ export default function MetaLeads() {
               <LeadDetailsPage
                 key={selectedLead._id}
                 leadId={selectedLead.crmLeadId || selectedLead._id}
+                metaLeadId={selectedLead._id}
+                isMetaLead={true}
                 embedded
                 onDeleted={() => {
                   setSelectedLead(null);

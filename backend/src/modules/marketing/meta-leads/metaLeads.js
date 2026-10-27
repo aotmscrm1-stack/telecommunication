@@ -10,6 +10,46 @@ const Department = require('../../../database/models/Department');
 const { protect } = require('../../../core/middleware/auth');
 const env = require('../../../config/env');
 
+const POSITIVE_SUB_STATUSES = [
+  "Agreed to Office visit's but no luck",
+  "Interested/Need time(After few months) waiting for parents approval",
+  "office visit's",
+  "Demo attended",
+  "Demo not attended-Call Back",
+  "time issues/Fee issues",
+  "Call back/We will Call",
+  "Not answering-call back/whats app text"
+];
+
+const NEGATIVE_SUB_STATUSES = [
+  "Not interested/Time pass",
+  "WN-SO-ON",
+  "joined another institute/jobs"
+];
+
+const ALL_POSITIVE_STATUSES = [
+  'Positive',
+  'Converted',
+  'Won',
+  'Contacted',
+  'Interested',
+  'Enrolled',
+  'Demo',
+  'Follow-up',
+  ...POSITIVE_SUB_STATUSES
+];
+
+const ALL_NEGATIVE_STATUSES = [
+  'Negative',
+  'Discarded',
+  'Lost',
+  'Blocked',
+  'Not Interested',
+  'Not Answered',
+  'Call Not Responding',
+  ...NEGATIVE_SUB_STATUSES
+];
+
 // Helper to determine if user has full administrative / management access
 function isExecutiveOrAdminUser(user) {
   if (!user) return false;
@@ -729,9 +769,9 @@ router.get('/', protect, async (req, res) => {
 
     if (status && status !== 'all' && status !== 'All') {
       if (status === 'Positive') {
-        query.status = { $in: ['Positive', 'Converted', 'Won', 'Contacted', 'Interested', 'Enrolled', 'Demo', 'Follow-up'] };
+        query.status = { $in: ALL_POSITIVE_STATUSES };
       } else if (status === 'Negative') {
-        query.status = { $in: ['Negative', 'Discarded', 'Lost', 'Blocked', 'Not Interested', 'Not Answered', 'Call Not Responding'] };
+        query.status = { $in: ALL_NEGATIVE_STATUSES };
       } else {
         query.status = status;
       }
@@ -977,6 +1017,35 @@ router.get('/sync-status', async (req, res) => {
     return res.json({ success: true, ...state });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PATCH /api/meta-leads/:id (Update Meta Lead status, rating, assigned user)
+// ─────────────────────────────────────────────────────────────────────────────
+router.patch('/:id', protect, async (req, res) => {
+  try {
+    const { status, rating, assignedTo, notes } = req.body;
+    const update = {};
+    if (status !== undefined) update.status = status;
+    if (rating !== undefined) update.rating = rating;
+    if (assignedTo !== undefined) update.assignedTo = assignedTo;
+    if (notes !== undefined) update.notes = notes;
+
+    const lead = await MetaLead.findByIdAndUpdate(req.params.id, update, { new: true });
+    if (!lead) {
+      return res.status(404).json({ success: false, message: 'Meta lead not found' });
+    }
+
+    // Also update connected CRM lead if one exists
+    if (lead.crmLeadId && status) {
+      await Lead.findByIdAndUpdate(lead.crmLeadId, { status }).catch(() => {});
+    }
+
+    res.json({ success: true, lead });
+  } catch (err) {
+    console.error('Error updating meta lead:', err);
+    res.status(500).json({ success: false, message: 'Failed to update lead', error: err.message });
   }
 });
 
