@@ -723,7 +723,7 @@ export default function MetaLeads() {
     const list = [];
     if (positiveCount > 0) list.push({ name: 'Positive', count: positiveCount, color: '#10b981' });
     if (negativeCount > 0) list.push({ name: 'Negative', count: negativeCount, color: '#ef4444' });
-    if (pendingCount > 0) list.push({ name: 'Pending / New', count: pendingCount, color: '#f97316' });
+    if (pendingCount > 0) list.push({ name: 'Pending', count: pendingCount, color: '#f97316' });
     return list;
   }, [positiveCount, negativeCount, pendingCount]);
 
@@ -935,47 +935,12 @@ export default function MetaLeads() {
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><polyline points="9 18 15 12 9 6" /></svg>
                       </div>
 
-                      {/* Positive / Negative Quick Toggle & Badge */}
-                      <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                        <MiniStatus status={isPos ? 'Positive' : isNeg ? 'Negative' : (lead.status || 'New')} />
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }} onClick={e => e.stopPropagation()}>
-                          <button
-                            onClick={() => handleSetLeadStatus(lead, isPos ? 'New' : 'Positive')}
-                            title="Mark as Positive"
-                            style={{
-                              padding: '2px 7px',
-                              fontSize: 10,
-                              fontWeight: 700,
-                              borderRadius: 5,
-                              cursor: 'pointer',
-                              background: isPos ? '#10b981' : '#ecfdf5',
-                              color: isPos ? '#ffffff' : '#059669',
-                              border: `1px solid ${isPos ? '#10b981' : '#a7f3d0'}`,
-                              transition: 'all 0.15s ease'
-                            }}
-                          >
-                            + Positive
-                          </button>
-                          <button
-                            onClick={() => handleSetLeadStatus(lead, isNeg ? 'New' : 'Negative')}
-                            title="Mark as Negative"
-                            style={{
-                              padding: '2px 7px',
-                              fontSize: 10,
-                              fontWeight: 700,
-                              borderRadius: 5,
-                              cursor: 'pointer',
-                              background: isNeg ? '#ef4444' : '#fff1f2',
-                              color: isNeg ? '#ffffff' : '#dc2626',
-                              border: `1px solid ${isNeg ? '#ef4444' : '#fecdd3'}`,
-                              transition: 'all 0.15s ease'
-                            }}
-                          >
-                            - Negative
-                          </button>
+                      {/* Status Badge (Only shown if positive or negative status is set; no New/Follow-up/Fresh tags) */}
+                      {(isPos || isNeg) && (
+                        <div style={{ marginTop: 6, display: 'flex', alignItems: 'center' }}>
+                          <MiniStatus status={lead.status} />
                         </div>
-                      </div>
+                      )}
                     </div>
                   );
                 })

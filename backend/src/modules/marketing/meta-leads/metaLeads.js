@@ -176,11 +176,47 @@ function extractCoreIdentifiers(rawData = {}) {
   if (!fullName || fullName === 'full_name' || fullName === 'name') {
     if (rawData['Bhavani'] && typeof rawData['Bhavani'] === 'string' && rawData['Bhavani'] !== 'full_name') {
       fullName = rawData['Bhavani'].trim();
+    } else if (rawData['Aman Shaik'] && typeof rawData['Aman Shaik'] === 'string' && rawData['Aman Shaik'] !== 'full_name') {
+      fullName = rawData['Aman Shaik'].trim();
+    } else {
+      for (const [k, v] of Object.entries(rawData)) {
+        if (typeof v === 'string' && v.trim().length >= 2 && v.trim().length <= 50) {
+          const s = v.trim();
+          if (!s.includes('@') && !s.startsWith('p:') && !s.startsWith('ag:') && !s.startsWith('as:') &&
+              !s.startsWith('c:') && !s.startsWith('f:') && !s.startsWith('l:') && !s.startsWith('202') &&
+              !s.toLowerCase().includes('call') && !s.toLowerCase().includes('lead') &&
+              !s.toLowerCase().includes('workshop') && !s.toLowerCase().includes('created') &&
+              !s.toLowerCase().includes('immediately') && !s.toLowerCase().includes('exploring')) {
+            const lk = k.toLowerCase();
+            if (lk.includes('name') || lk === 'aman shaik' || lk === 'bhavani') {
+              fullName = s;
+              break;
+            }
+          }
+        }
+      }
     }
   }
   if (!fullName) fullName = 'Unknown Lead';
 
-  // 5. Empty or Inverted Header Row Check
+  // 5. City / Location
+  let city = rawData.city || rawData.City || rawData.location || rawData.Location || rawData.town || rawData.Town || '';
+  if (typeof city === 'string') city = city.trim();
+  if (!city || city.toLowerCase() === 'city' || city.toLowerCase() === 'location') {
+    for (const [k, v] of Object.entries(rawData)) {
+      if (typeof v === 'string' && v.trim()) {
+        const lk = k.toLowerCase().trim();
+        if (lk === 'city' || lk === 'location' || lk === 'town' || lk.includes('city') || lk.includes('location')) {
+          if (v.trim().toLowerCase() !== 'city' && v.trim().toLowerCase() !== 'location') {
+            city = v.trim();
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // 6. Empty or Inverted Header Row Check
   const isHeaderRow = (metaLeadId === 'id' || metaLeadId === 'lead_id') 
     || (phone === 'phone_number' || phone === 'phone')
     || (fullName === 'full_name');
@@ -193,6 +229,7 @@ function extractCoreIdentifiers(rawData = {}) {
     normalizedPhone,
     email: email && email !== 'email' ? email : '',
     fullName,
+    city: city || '',
     isEmptyRow
   };
 }
@@ -224,7 +261,7 @@ router.post('/', async (req, res) => {
       const rawData = item.rawData || item;
 
       // Extract structured identifiers
-      const { metaLeadId, phone, normalizedPhone, email, fullName, isEmptyRow } = extractCoreIdentifiers(rawData);
+      const { metaLeadId, phone, normalizedPhone, email, fullName, city, isEmptyRow } = extractCoreIdentifiers(rawData);
 
       // Skip blank rows or accidental header rows
       if (isEmptyRow) {
@@ -283,6 +320,7 @@ router.post('/', async (req, res) => {
         existing.phone = phone || existing.phone || undefined;
         existing.normalizedPhone = normalizedPhone || existing.normalizedPhone || undefined;
         existing.email = email || existing.email || undefined;
+        if (city) existing.city = city;
         if (fullName && fullName !== 'Unknown Lead') {
           existing.fullName = fullName;
         }
@@ -302,6 +340,7 @@ router.post('/', async (req, res) => {
           phone: phone || undefined,
           normalizedPhone: normalizedPhone || undefined,
           email: email || undefined,
+          city: city || undefined,
           fullName: fullName || 'Unknown Lead',
           rawData,
           status: 'New',

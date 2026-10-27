@@ -39,6 +39,10 @@ const metaLeadSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  city: {
+    type: String,
+    trim: true
+  },
   // Flexible container holding the exact, raw Google Sheet columns
   rawData: {
     type: mongoose.Schema.Types.Mixed,

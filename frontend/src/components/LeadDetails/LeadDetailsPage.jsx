@@ -26,6 +26,16 @@ export const NEGATIVE_SUB_STATUSES = [
   "joined another institute/jobs"
 ];
 
+export function isLeadPositive(lead) {
+  const s = String(lead?.status || lead || '').trim();
+  return s === 'Positive' || POSITIVE_SUB_STATUSES.includes(s);
+}
+
+export function isLeadNegative(lead) {
+  const s = String(lead?.status || lead || '').trim();
+  return s === 'Negative' || NEGATIVE_SUB_STATUSES.includes(s);
+}
+
 // Interactive Positive & Negative Status Dropdown Component
 export function MetaLeadStatusPicker({ status, onStatusChange }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -50,6 +60,7 @@ export function MetaLeadStatusPicker({ status, onStatusChange }) {
 
   const isPos = status === 'Positive' || POSITIVE_SUB_STATUSES.includes(status);
   const isNeg = status === 'Negative' || NEGATIVE_SUB_STATUSES.includes(status);
+  const displayStatus = (status && status !== 'Fresh' && status !== 'New') ? status : 'Select Status';
 
   return (
     <div className="relative inline-block text-left" ref={containerRef}>
@@ -66,7 +77,7 @@ export function MetaLeadStatusPicker({ status, onStatusChange }) {
       >
         <span className={`w-2 h-2 rounded-full ${isPos ? 'bg-emerald-500' : isNeg ? 'bg-red-500' : 'bg-slate-400'}`} />
         <span className="truncate max-w-[170px] sm:max-w-[220px]">
-          {status || 'Select Status'}
+          {displayStatus}
         </span>
         <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
@@ -101,22 +112,10 @@ export function MetaLeadStatusPicker({ status, onStatusChange }) {
             </button>
           </div>
 
-          {/* List of Sub-Options from Image */}
+          {/* List of Sub-Options from Image: exact sub-statuses only */}
           <div className="max-h-64 overflow-y-auto p-1.5 space-y-1">
             {activeTab === 'positive' ? (
               <>
-                <button
-                  type="button"
-                  onClick={() => { onStatusChange('Positive'); setIsOpen(false); }}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-between ${
-                    status === 'Positive'
-                      ? 'bg-emerald-100/70 text-emerald-900 border border-emerald-300'
-                      : 'text-emerald-800 hover:bg-emerald-50'
-                  }`}
-                >
-                  <span>✓ Positive (General)</span>
-                  {status === 'Positive' && <Check className="w-3.5 h-3.5 text-emerald-600" />}
-                </button>
                 {POSITIVE_SUB_STATUSES.map(opt => {
                   const selected = status === opt;
                   return (
@@ -138,18 +137,6 @@ export function MetaLeadStatusPicker({ status, onStatusChange }) {
               </>
             ) : (
               <>
-                <button
-                  type="button"
-                  onClick={() => { onStatusChange('Negative'); setIsOpen(false); }}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-between ${
-                    status === 'Negative'
-                      ? 'bg-red-100/70 text-red-900 border border-red-300'
-                      : 'text-red-800 hover:bg-red-50'
-                  }`}
-                >
-                  <span>✗ Negative (General)</span>
-                  {status === 'Negative' && <Check className="w-3.5 h-3.5 text-red-600" />}
-                </button>
                 {NEGATIVE_SUB_STATUSES.map(opt => {
                   const selected = status === opt;
                   return (
@@ -915,17 +902,68 @@ export default function LeadDetailsPage({
   const metaRaw = metaLeadData?.rawData || lead?.rawData || {};
   const leadName = (lead?.name && lead.name !== 'Unknown Lead')
     ? lead.name
-    : (metaLeadData?.fullName || metaRaw.full_name || metaRaw.fullName || metaRaw.Name || metaRaw.name || lead?.name || '—');
-  const leadPhone = lead?.phone || metaLeadData?.phone || metaRaw.phone || metaRaw.Phone || metaRaw.phone_number || '—';
-  const leadEmail = lead?.email || metaLeadData?.email || metaRaw.email || metaRaw.Email || '—';
-  const leadCity = metaRaw.city || metaRaw.City || metaRaw['city'] || metaRaw['City'] || metaRaw.Location || metaRaw.location || lead?.location || '—';
+    : (metaLeadData?.fullName || metaRaw.full_name || metaRaw.fullName || metaRaw.Name || metaRaw.name || metaRaw['Candidate Name'] || metaRaw['Student Name'] || metaRaw['Bhavani'] || metaRaw['Aman Shaik'] || lead?.name || '—');
+  const leadPhone = lead?.phone || metaLeadData?.phone || metaRaw.phone || metaRaw.Phone || metaRaw.phone_number || metaRaw.Mobile || metaRaw.mobile || '—';
+  
+  const leadEmail = (() => {
+    if (lead?.email && lead.email !== '—' && lead.email.includes('@')) return lead.email;
+    if (metaLeadData?.email && metaLeadData.email !== '—' && metaLeadData.email.includes('@')) return metaLeadData.email;
+    if (metaRaw.email && typeof metaRaw.email === 'string' && metaRaw.email.includes('@')) return metaRaw.email.trim();
+    if (metaRaw.Email && typeof metaRaw.Email === 'string' && metaRaw.Email.includes('@')) return metaRaw.Email.trim();
+    for (const [k, v] of Object.entries(metaRaw)) {
+      if (typeof v === 'string' && v.includes('@')) return v.trim();
+    }
+    return '—';
+  })();
+
+  const leadCity = (() => {
+    if (lead?.location && lead.location !== '—') return lead.location;
+    if (metaLeadData?.city && metaLeadData.city !== '—') return metaLeadData.city;
+    if (metaRaw.city && metaRaw.city.toLowerCase() !== 'city') return metaRaw.city;
+    if (metaRaw.City && metaRaw.City.toLowerCase() !== 'city') return metaRaw.City;
+    if (metaRaw.location && metaRaw.location.toLowerCase() !== 'location') return metaRaw.location;
+    if (metaRaw.Location && metaRaw.Location.toLowerCase() !== 'location') return metaRaw.Location;
+    if (metaRaw.town) return metaRaw.town;
+    if (metaRaw.Town) return metaRaw.Town;
+    for (const [k, v] of Object.entries(metaRaw)) {
+      if (typeof v === 'string' && v.trim()) {
+        const lk = k.toLowerCase().trim();
+        if ((lk === 'city' || lk === 'location' || lk === 'town' || lk.includes('city')) && v.trim().toLowerCase() !== 'city' && v.trim().toLowerCase() !== 'location') {
+          return v.trim();
+        }
+      }
+    }
+    return '—';
+  })();
 
   const fetchLeadDetails = async () => {
     try {
       const isRandom = id === 'random';
       const [res, followupsRes] = await Promise.all([
-        isRandom ? leadsAPI.getRandom() : leadsAPI.getOne(id),
-        isRandom ? Promise.resolve({ data: { followups: [] } }) : followupsAPI.getAll({ leadId: id }),
+        isRandom ? leadsAPI.getRandom() : leadsAPI.getOne(id).catch(err => {
+          if (metaLeadData || isMeta) {
+            return {
+              data: {
+                lead: {
+                  _id: metaLeadData?._id || id,
+                  name: metaLeadData?.fullName || metaRaw.full_name || metaRaw.Name || metaRaw['Bhavani'] || metaRaw['Aman Shaik'] || '—',
+                  phone: metaLeadData?.phone || metaRaw.phone || metaRaw.phone_number || '—',
+                  email: metaLeadData?.email || metaRaw.email || '—',
+                  location: metaLeadData?.city || metaRaw.city || '—',
+                  status: metaLeadData?.status || 'New',
+                  rating: metaLeadData?.rating || 0,
+                  leadSource: 'Meta Lead',
+                  rawData: metaLeadData?.rawData || {},
+                  campaign: metaLeadData?.campaign ? { name: metaLeadData.campaign } : null,
+                  assignedTo: metaLeadData?.assignedTo || null,
+                },
+                recordings: []
+              }
+            };
+          }
+          throw err;
+        }),
+        isRandom ? Promise.resolve({ data: { followups: [] } }) : followupsAPI.getAll({ leadId: id }).catch(() => ({ data: { followups: [] } })),
       ]);
       setLead(res.data.lead);
       setRecordings(res.data.recordings || []);
@@ -938,17 +976,41 @@ export default function LeadDetailsPage({
         email: l.email || metaLeadData?.email || metaRaw.email || metaRaw.Email || '',
         status: l.status || metaLeadData?.status || 'Fresh',
         rating: l.rating || metaLeadData?.rating || 0,
-        leadSource: l.leadSource || 'Manual',
+        leadSource: l.leadSource || (isMeta ? 'Meta Lead' : 'Manual'),
         courseInterest: l.courseInterest?._id || l.courseInterest || '',
         mode: l.mode || '',
         budget: l.budget > 0 ? l.budget : '',
-        location: l.location || metaRaw.city || metaRaw.City || metaRaw['city'] || metaRaw['City'] || metaRaw.location || '',
+        location: l.location || (leadCity !== '—' ? leadCity : ''),
         lastQualification: l.lastQualification || '',
         assignedTo: l.assignedTo?._id || '',
         campaign: l.campaign?._id || '',
       });
     } catch (err) {
-      console.error('Failed to load lead details:', err);
+      console.warn('Failed to load lead details from CRM API:', err?.message);
+      if (metaLeadData) {
+        const synth = {
+          _id: metaLeadData._id,
+          name: metaLeadData.fullName || metaRaw.full_name || metaRaw.Name || metaRaw['Bhavani'] || metaRaw['Aman Shaik'] || '—',
+          phone: metaLeadData.phone || metaRaw.phone || metaRaw.phone_number || '—',
+          email: metaLeadData.email || metaRaw.email || '—',
+          location: metaLeadData.city || metaRaw.city || '—',
+          status: metaLeadData.status || 'New',
+          rating: metaLeadData.rating || 0,
+          leadSource: 'Meta Lead',
+          rawData: metaLeadData.rawData || {},
+          campaign: metaLeadData.campaign ? { name: metaLeadData.campaign } : null,
+          assignedTo: metaLeadData.assignedTo || null,
+        };
+        setLead(synth);
+        setEditForm({
+          name: synth.name !== '—' ? synth.name : '',
+          phone: synth.phone !== '—' ? synth.phone : '',
+          email: synth.email !== '—' ? synth.email : '',
+          status: synth.status,
+          rating: synth.rating,
+          location: synth.location !== '—' ? synth.location : '',
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -1186,7 +1248,7 @@ export default function LeadDetailsPage({
             )}
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-sm sm:text-base font-semibold text-slate-800 truncate tracking-tight">{lead.name}</h2>
+                <h2 className="text-sm sm:text-base font-semibold text-slate-800 truncate tracking-tight">{leadName || lead.name}</h2>
                 <motion.button
                   whileHover={{ scale: 1.2, rotate: 15 }}
                   whileTap={{ scale: 0.85 }}
@@ -1196,8 +1258,10 @@ export default function LeadDetailsPage({
                   <Star className={`w-4 h-4 ${lead.isStarred ? 'fill-amber-400' : 'text-slate-300'}`} />
                 </motion.button>
 
-                {/* Status Badge */}
-                <StatusBadge status={lead.status} />
+                {/* Status Badge: only show for Meta leads if an actual Positive/Negative status is set (no default Fresh/New) */}
+                {(!isMeta ? Boolean(lead.status) : (isLeadPositive(lead) || isLeadNegative(lead))) && (
+                  <StatusBadge status={lead.status} />
+                )}
 
                 {/* ── AI state badges ── */}
                 {isAILocked && (
@@ -1213,7 +1277,7 @@ export default function LeadDetailsPage({
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-slate-400 font-mono font-normal mt-0.5">ID: {lead._id}</p>
+              <p className="text-[11px] text-slate-400 font-mono font-normal mt-0.5">ID: {lead._id || metaLeadData?._id}</p>
             </div>
           </div>
 
