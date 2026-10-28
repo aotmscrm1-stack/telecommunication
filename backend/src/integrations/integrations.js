@@ -2,6 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const Integration = require('../database/models/Integration');
 const Lead = require('../database/models/Lead');
+const MetaLead = require('../database/models/MetaLead');
 const { protect, authorize } = require('../core/middleware/auth');
 const { toIndiaE164 } = require('../core/utils/phone');
 const {
@@ -171,9 +172,35 @@ router.delete('/:id', protect, authorize('manager', 'admin'), async (req, res) =
 
 router.get('/:id/leads', protect, async (req, res) => {
   try {
-    const { page = 1, limit = 20 } = req.query;
+    const { page = 1, limit = 50 } = req.query;
     const integration = await Integration.findById(req.params.id);
     if (!integration) return res.status(404).json({ message: 'Integration not found' });
+
+    if (integration.type === 'google_sheets') {
+      const metaLeads = await MetaLead.find({})
+        .sort({ createdAt: -1 })
+        .skip((Number(page) - 1) * Number(limit))
+        .limit(Number(limit))
+        .lean();
+      const total = await MetaLead.countDocuments({});
+
+      const mappedLeads = metaLeads.map(ml => ({
+        _id: ml._id,
+        name: ml.fullName || ml.rawData?.name || 'Unknown Lead',
+        phone: ml.phone || ml.rawData?.phone || '',
+        email: ml.email || ml.rawData?.email || '',
+        location: ml.city || ml.rawData?.location || ml.rawData?.city || '',
+        city: ml.city || ml.rawData?.city || '',
+        status: ml.status || 'New',
+        campaign: { name: ml.campaign },
+        sourceSheetName: ml.campaign,
+        assignedTo: ml.assignedTo ? { name: String(ml.assignedTo) } : null,
+        createdAt: ml.createdAt
+      }));
+
+      return res.json({ leads: mappedLeads, total });
+    }
+
     const query = { leadSource: integration.name };
     const leads = await Lead.find(query)
       .populate('assignedTo', 'name role')
@@ -188,8 +215,6 @@ router.get('/:id/leads', protect, async (req, res) => {
   }
 });
 
-
-// GET /:id/sheets/columns — Fetch column headers from a Google Sheet tab
 router.get('/:id/sheets/columns', protect, async (req, res) => {
   try {
     const { sheetId, range } = req.query;
@@ -384,6 +409,7 @@ router.post('/whatsapp/send-template-direct', protect, async (req, res) => {
 
     const MessageTemplate = require('../database/models/MessageTemplate');
     const Lead = require('../database/models/Lead');
+const MetaLead = require('../database/models/MetaLead');
 
     let leadObj = null;
     if (leadId) {
@@ -401,6 +427,7 @@ router.post('/whatsapp/send-template-direct', protect, async (req, res) => {
 
     if (leadId) {
       const Lead = require('../database/models/Lead');
+const MetaLead = require('../database/models/MetaLead');
       await Lead.findByIdAndUpdate(leadId, {
         $push: {
           activities: {

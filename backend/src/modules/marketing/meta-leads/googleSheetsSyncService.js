@@ -147,6 +147,18 @@ function normalize10DigitPhone(raw) {
   return digits.length >= 10 ? digits.slice(-10) : '';
 }
 
+function normalizeHeaderName(raw) {
+  if (!raw || typeof raw !== 'string') return '';
+  const s = raw.trim().toLowerCase();
+  if (s.startsWith('ad_name') || s.startsWith('adset_name') || s.startsWith('campaign_name')) return s.split(/\s+/)[0];
+  if (s.startsWith('email')) return 'email';
+  if (s.startsWith('phone') || s.startsWith('mobile') || s.startsWith('contact')) return 'phone';
+  if (s.startsWith('city') || s.startsWith('location') || s.startsWith('town') || s.startsWith('address')) return 'city';
+  if (s.startsWith('full_name') || s.startsWith('full name') || s.startsWith('candidate') || s.startsWith('student') || s === 'name' || s.startsWith('name ')) return 'name';
+  if (s.startsWith('l:') || s.startsWith('id') || s.startsWith('lead_id')) return 'id';
+  return s.split(/\s+/)[0].replace(/[^a-z0-9_]/g, '');
+}
+
 function extractCoreIdentifiers(rawData) {
   if (!rawData || typeof rawData !== 'object') {
     return { metaLeadId: '', phone: '', normalizedPhone: '', email: '', fullName: '', city: '', isEmptyRow: true };
@@ -161,7 +173,7 @@ function extractCoreIdentifiers(rawData) {
   if (typeof metaLeadId === 'string') metaLeadId = metaLeadId.trim();
 
   // 2. Phone Number
-  let phone = rawData.phone_number || rawData.phone || rawData.Phone || rawData['Phone Number'] || rawData.mobile || rawData.Mobile || '';
+  let phone = rawData.phone || rawData.phone_number || rawData.Phone || rawData['Phone Number'] || rawData.mobile || rawData.Mobile || '';
   if (typeof phone === 'string') phone = phone.trim();
 
   if (!phone || phone === 'phone_number' || phone === 'phone') {
@@ -185,8 +197,8 @@ function extractCoreIdentifiers(rawData) {
     else email = '';
   }
 
-  // 4. Full Name
-  let fullName = rawData.full_name || rawData.name || rawData.Name || rawData['Full Name'] || rawData['Candidate Name'] || rawData['Student Name'] || '';
+  // 4. Full Name (Priority on clean candidate name)
+  let fullName = rawData.name || rawData.full_name || rawData.Name || rawData['Full Name'] || rawData['Candidate Name'] || rawData['Student Name'] || '';
   if (typeof fullName === 'string') fullName = fullName.trim();
   if (!fullName || fullName === 'full_name' || fullName === 'name') {
     for (const [k, v] of Object.entries(rawData)) {
@@ -196,9 +208,10 @@ function extractCoreIdentifiers(rawData) {
             !s.startsWith('c:') && !s.startsWith('f:') && !s.startsWith('l:') && !s.startsWith('202') &&
             !s.toLowerCase().includes('call') && !s.toLowerCase().includes('lead') &&
             !s.toLowerCase().includes('workshop') && !s.toLowerCase().includes('created') &&
-            !s.toLowerCase().includes('immediately') && !s.toLowerCase().includes('exploring')) {
+            !s.toLowerCase().includes('immediately') && !s.toLowerCase().includes('exploring') &&
+            !s.toLowerCase().includes('reel') && !s.toLowerCase().includes('campaign')) {
           const lk = k.toLowerCase();
-          if (lk.includes('name') || lk === 'aman shaik' || lk === 'bhavani') {
+          if (lk.includes('full_name') || lk === 'name' || lk.startsWith('name') || lk === 'aman shaik' || lk === 'bhavani') {
             fullName = s;
             break;
           }
@@ -211,11 +224,16 @@ function extractCoreIdentifiers(rawData) {
   // 5. City / Location
   let city = rawData.city || rawData.City || rawData.location || rawData.Location || rawData.town || rawData.Town || '';
   if (typeof city === 'string') city = city.trim();
+  if (!city) {
+    const foundCity = Object.entries(rawData).find(([k]) => k.toLowerCase().includes('city') || k.toLowerCase().includes('location'));
+    if (foundCity && typeof foundCity[1] === 'string') city = foundCity[1].trim();
+  }
 
   // 6. Empty / Header Row Check
   const isHeaderRow = (metaLeadId === 'id' || metaLeadId === 'lead_id') 
     || (phone === 'phone_number' || phone === 'phone')
-    || (fullName === 'full_name');
+    || (fullName.toLowerCase() === 'full_name' || fullName.toLowerCase() === 'name')
+    || (email.toLowerCase() === 'email');
 
   const isEmptyRow = isHeaderRow || (!metaLeadId && !normalizedPhone && !email && (fullName === 'Unknown Lead' || !fullName));
 
@@ -240,7 +258,7 @@ function parseTabName(range, name) {
 }
 
 /**
- * Fetch rows from Google Sheet via GViz public CSV endpoint
+ * Fetch rows from Google Sheet via GViz public CSV endpoint using matrix row parsing
  */
 async function fetchSheetRows(sheetId, tabName) {
   const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}`;
@@ -251,7 +269,25 @@ async function fetchSheetRows(sheetId, tabName) {
   });
   const workbook = xlsx.read(response.data, { type: 'buffer' });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  return xlsx.utils.sheet_to_json(sheet, { defval: '' });
+  const matrix = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+  if (!matrix || matrix.length === 0) return [];
+
+  const rawHeaders = matrix[0] || [];
+  const cleanHeaders = rawHeaders.map(normalizeHeaderName);
+
+  const rows = [];
+  for (let i = 1; i < matrix.length; i++) {
+    const rawRow = matrix[i];
+    if (!rawRow || rawRow.every(v => v === '' || v == null)) continue;
+    const obj = {};
+    cleanHeaders.forEach((key, colIdx) => {
+      if (key && obj[key] === undefined) {
+        obj[key] = rawRow[colIdx] != null ? String(rawRow[colIdx]).trim() : '';
+      }
+    });
+    rows.push(obj);
+  }
+  return rows;
 }
 
 /**
@@ -273,14 +309,14 @@ async function getSheetHeaders(sheetId, range) {
     if (rawMatrix.length > 0) {
       headers = (rawMatrix[0] || []).filter(h => typeof h === 'string' && h.trim().length > 0 && !h.startsWith('__EMPTY'));
     }
-    const allowed = ['full_name', 'phone_number', 'email', 'city'];
-    const filtered = headers.filter(h => /name|phone|mobile|email|city|location/i.test(h));
-    return { success: true, columns: filtered.length > 0 ? Array.from(new Set([...allowed, ...filtered])) : allowed };
+    const cleanHeaders = headers.map(normalizeHeaderName).filter(h => h);
+    const allowed = ['name', 'phone', 'email', 'city'];
+    return { success: true, columns: Array.from(new Set([...allowed, ...cleanHeaders])) };
   } catch (err) {
     return {
       success: false,
       message: err.message,
-      columns: ['full_name', 'phone_number', 'email', 'city']
+      columns: ['name', 'phone', 'email', 'city']
     };
   }
 }
@@ -339,11 +375,12 @@ async function ingestRowsIntoMetaLeads(rows, campaignName, sourceLabel) {
       });
     }
 
-    // Strictly allow only Name, Phone, Email, Location
+    // Strictly allow only Name, Phone, Email, Location / City
     const allowedRawData = {
       name: fullName,
       phone: phone || normalizedPhone,
       email: email || '',
+      city: city || '',
       location: city || ''
     };
 

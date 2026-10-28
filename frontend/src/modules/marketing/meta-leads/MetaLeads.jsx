@@ -592,7 +592,7 @@ export default function MetaLeads() {
 
   // ── Robust Name, Phone & Email Extraction (Resolves "Unknown Lead") ────────
   const getLeadIdentifiers = (lead) => {
-    if (!lead) return { name: '', phone: '', email: '' };
+    if (!lead) return { name: '', phone: '', email: '', city: '' };
     const raw = lead.rawData || {};
 
     // 1. Phone extraction
@@ -615,8 +615,8 @@ export default function MetaLeads() {
       }
     }
 
-    // 2. Full Name extraction (Checking fullName, full_name, name, Name, Bhavani, etc.)
-    let name = lead.fullName || lead.name || raw.full_name || raw.fullName || raw.name || raw.Name || raw['Full Name'] || raw['Candidate Name'] || raw['Student Name'] || '';
+    // 2. Full Name extraction
+    let name = lead.fullName || lead.name || raw.name || raw.full_name || raw.fullName || raw.Name || raw['Full Name'] || raw['Candidate Name'] || raw['Student Name'] || '';
     if (!name || name === 'full_name' || name === 'name') {
       if (raw['Bhavani'] && typeof raw['Bhavani'] === 'string' && raw['Bhavani'] !== 'full_name') {
         name = raw['Bhavani'];
@@ -652,10 +652,22 @@ export default function MetaLeads() {
       }
     }
 
+    // 4. City / Location extraction
+    let city = lead.city || raw.city || raw.City || raw.location || raw.Location || raw.town || raw.Town || '';
+    if (!city) {
+      for (const [k, v] of Object.entries(raw)) {
+        if (/city|location|town/i.test(k) && typeof v === 'string' && v.trim()) {
+          city = v;
+          break;
+        }
+      }
+    }
+
     return {
       phone: String(phone).trim(),
       name: String(name).trim(),
-      email: String(email).trim()
+      email: String(email).trim(),
+      city: String(city).trim()
     };
   };
 
@@ -769,23 +781,22 @@ export default function MetaLeads() {
   const handleSync = async () => {
     if (syncing) return;
     setSyncing(true);
-    setStatusMessage('Syncing Meta Leads Google Sheets directly...');
+    setStatusMessage('Syncing Meta Leads Google Sheets directly (Name, Phone, City, Email)...');
     try {
-      await metaLeadsAPI.triggerSync();
-      setStatusMessage('Sync triggered! Refreshing campaigns...');
-      setTimeout(async () => {
-        await fetchCampaigns();
-        if (selectedCampaign) {
-          await fetchCampaignLeads(selectedCampaign, leadsPage);
-        }
-        setStatusMessage('Sync successfully finished!');
-        setSyncing(false);
-        setTimeout(() => setStatusMessage(''), 4000);
-      }, 2500);
+      const res = await metaLeadsAPI.triggerSync();
+      const msg = res.data?.message || 'Google Sheets sync completed!';
+      setStatusMessage(msg);
+      await fetchCampaigns();
+      if (selectedCampaign) {
+        await fetchCampaignLeads(selectedCampaign, 1);
+      }
+      setSyncing(false);
+      setTimeout(() => setStatusMessage(''), 5000);
     } catch (err) {
       console.error('Sync failed:', err);
-      setStatusMessage('Sync encountered an issue.');
+      setStatusMessage(err.response?.data?.message || 'Sync encountered an issue. Please check network/permissions.');
       setSyncing(false);
+      setTimeout(() => setStatusMessage(''), 5000);
     }
   };
 
@@ -809,10 +820,10 @@ export default function MetaLeads() {
 
     let csvContent = 'data:text/csv;charset=utf-8,';
     if (selectedCampaign) {
-      csvContent += 'Name,Phone,Email,Campaign,Status,Synced Date\n';
+      csvContent += 'Name,Phone,City,Email,Campaign,Status,Synced Date\n';
       campaignLeads.forEach(lead => {
-        const { name, phone, email } = getLeadIdentifiers(lead);
-        csvContent += `"${name}","${phone}","${email}","${lead.campaign || selectedCampaign}","${lead.status || 'New'}","${lead.syncedAt || ''}"\n`;
+        const { name, phone, email, city } = getLeadIdentifiers(lead);
+        csvContent += `"${name}","${phone}","${city}","${email}","${lead.campaign || selectedCampaign}","${lead.status || 'New'}","${lead.syncedAt || ''}"\n`;
       });
     } else {
       csvContent += 'Campaign Name,Total Leads,New Leads,Converted Leads,Completion Rate,Last Synced\n';
@@ -1114,7 +1125,7 @@ export default function MetaLeads() {
                 </div>
               ) : (
                 campaignLeads.map(lead => {
-                  const { name, phone } = getLeadIdentifiers(lead);
+                  const { name, phone, email, city } = getLeadIdentifiers(lead);
                   const isSelected = selectedLead?._id === lead._id;
                   const isPos = isLeadPositive(lead);
                   const isNeg = isLeadNegative(lead);
@@ -1145,8 +1156,9 @@ export default function MetaLeads() {
                               {name}
                             </div>
                           </div>
-                          <div style={{ fontSize: 10.5, color: MUTED, fontFamily: 'monospace', fontWeight: 400 }}>
-                            {phone || 'No phone'}
+                          <div style={{ fontSize: 10.5, color: MUTED, fontFamily: 'monospace', fontWeight: 400, display: 'flex', alignItems: 'center', gap: 4, overflow: 'hidden' }}>
+                            <span style={{ flexShrink: 0 }}>{phone || 'No phone'}</span>
+                            {city && <span style={{ fontFamily: 'inherit', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>· {city}</span>}
                           </div>
                         </div>
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><polyline points="9 18 15 12 9 6" /></svg>

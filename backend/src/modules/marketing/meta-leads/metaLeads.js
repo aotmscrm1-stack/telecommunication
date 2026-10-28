@@ -1177,55 +1177,21 @@ router.patch('/:id', protect, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// POST /api/meta-leads/sync (Trigger in-build Google Sheets Sync with Concurrency Lock)
+// POST /api/meta-leads/sync (Trigger in-build Google Sheets Sync)
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/sync', async (req, res) => {
-  const LOCK_TIMEOUT_MS = 60 * 1000; // 60-second concurrency lock
-
   try {
-    // 1. Check for existing active sync execution to prevent overlapping/concurrent runs
-    const existingSync = await MetaSyncState.findOne({ key: 'meta_leads_sync' }).lean();
-    if (existingSync && existingSync.isSyncing && existingSync.startedAt) {
-      const elapsed = Date.now() - new Date(existingSync.startedAt).getTime();
-      if (elapsed < LOCK_TIMEOUT_MS) {
-        return res.status(429).json({
-          success: false,
-          inProgress: true,
-          message: `A sync is already actively running (${Math.round(elapsed / 1000)}s elapsed). Please wait for it to complete.`,
-          startedAt: existingSync.startedAt
-        });
-      }
-    }
-
-    // 2. Set sync lock atomically
-    await MetaSyncState.findOneAndUpdate(
-      { key: 'meta_leads_sync' },
-      {
-        isSyncing: true,
-        startedAt: new Date(),
-        lastStatus: 'in_progress',
-        totalProcessed: 0,
-        insertedCount: 0,
-        updatedCount: 0,
-        skippedCount: 0,
-        message: 'Google Sheets sync initiated natively...',
-        lastError: ''
-      },
-      { upsert: true, new: true }
-    );
-
     console.log('[MetaLeads] Starting in-build Google Sheets sync pipeline...');
-
-    // Run sync asynchronously in background; client polls /api/meta-leads/sync-status for live updates
-    syncAllMetaSheets().catch(err => {
-      console.error('[MetaLeads] Background Google Sheets sync error:', err);
-    });
-
+    const result = await syncAllMetaSheets();
     res.json({
       success: true,
-      inProgress: true,
-      message: 'Google Sheets sync started natively! Ingesting campaign tabs into CRM...',
-      startedAt: new Date()
+      inProgress: false,
+      message: result.message,
+      totalProcessed: result.totalProcessed,
+      insertedCount: result.insertedCount,
+      updatedCount: result.updatedCount,
+      skippedCount: result.skippedCount,
+      sheetResults: result.sheetResults
     });
   } catch (err) {
     console.error(`[MetaLeads] Sync error: ${err.message}`);
