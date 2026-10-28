@@ -1458,11 +1458,11 @@ function EditModal({ task, onClose, onSaved, readOnly = false }) {
 
   const handleSave = async () => {
     if (readOnly) return;
-    if (repeatFrequency !== 'none' && !repeatEndDate) {
+    if (!isTodo && repeatFrequency !== 'none' && !repeatEndDate) {
       setError('Please choose an end date for the repeating task');
       return;
     }
-    if (repeatFrequency !== 'none' && form.scheduledAt && repeatEndDate && new Date(repeatEndDate) < new Date(form.scheduledAt)) {
+    if (!isTodo && repeatFrequency !== 'none' && form.scheduledAt && repeatEndDate && new Date(repeatEndDate) < new Date(form.scheduledAt)) {
       setError('Repeat end date must be after the due date');
       return;
     }
@@ -1475,7 +1475,7 @@ function EditModal({ task, onClose, onSaved, readOnly = false }) {
         scheduledAt: form.scheduledAt ? new Date(form.scheduledAt).toISOString() : undefined,
         priority: form.priority,
         status: form.status,
-        recurrence: repeatFrequency !== 'none' ? {
+        recurrence: (!isTodo && repeatFrequency !== 'none') ? {
           frequency: repeatFrequency,
           endDate: repeatEndDate ? new Date(repeatEndDate + 'T23:59:59').toISOString() : undefined,
         } : { frequency: 'none' }
@@ -1615,33 +1615,35 @@ function EditModal({ task, onClose, onSaved, readOnly = false }) {
             </div>
           </div>
 
-          <div>
-            <label style={{ fontSize: 13, fontWeight: 500, color: COLOR_DEEP_BLUE, display: 'block', marginBottom: 6 }}>Recurrence</label>
-            <select
-              value={repeatFrequency}
-              onChange={e => setRepeatFrequency(e.target.value)}
-              disabled={readOnly}
-              style={{ width: '100%', border: `1px solid ${COLOR_BORDER}`, borderRadius: 8, padding: '9px 12px', fontSize: 14, fontWeight: 400, outline: 'none', background: readOnly ? '#f8fafc' : '#fff', color: readOnly ? '#64748b' : COLOR_DEEP_BLUE }}
-            >
-              <option value="none">Does not repeat</option>
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
-            </select>
-            {repeatFrequency !== 'none' && (
-              <div style={{ marginTop: 10 }}>
-                <label style={{ fontSize: 13, fontWeight: 500, color: COLOR_DEEP_BLUE, display: 'block', marginBottom: 4 }}>Repeat Until</label>
-                <input
-                  type="date"
-                  value={repeatEndDate}
-                  min={form.scheduledAt ? form.scheduledAt.slice(0, 10) : undefined}
-                  onChange={e => setRepeatEndDate(e.target.value)}
-                  disabled={readOnly}
-                  style={{ width: '100%', border: `1px solid ${COLOR_BORDER}`, borderRadius: 8, padding: '9px 12px', fontSize: 14, fontWeight: 400, outline: 'none', boxSizing: 'border-box', background: readOnly ? '#f8fafc' : '#fff', color: readOnly ? '#64748b' : COLOR_DEEP_BLUE }}
-                />
-              </div>
-            )}
-          </div>
+          {!isTodo && (
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 500, color: COLOR_DEEP_BLUE, display: 'block', marginBottom: 6 }}>Recurrence</label>
+              <select
+                value={repeatFrequency}
+                onChange={e => setRepeatFrequency(e.target.value)}
+                disabled={readOnly}
+                style={{ width: '100%', border: `1px solid ${COLOR_BORDER}`, borderRadius: 8, padding: '9px 12px', fontSize: 14, fontWeight: 400, outline: 'none', background: readOnly ? '#f8fafc' : '#fff', color: readOnly ? '#64748b' : COLOR_DEEP_BLUE }}
+              >
+                <option value="none">Does not repeat</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+              {repeatFrequency !== 'none' && (
+                <div style={{ marginTop: 10 }}>
+                  <label style={{ fontSize: 13, fontWeight: 500, color: COLOR_DEEP_BLUE, display: 'block', marginBottom: 4 }}>Repeat Until</label>
+                  <input
+                    type="date"
+                    value={repeatEndDate}
+                    min={form.scheduledAt ? form.scheduledAt.slice(0, 10) : undefined}
+                    onChange={e => setRepeatEndDate(e.target.value)}
+                    disabled={readOnly}
+                    style={{ width: '100%', border: `1px solid ${COLOR_BORDER}`, borderRadius: 8, padding: '9px 12px', fontSize: 14, fontWeight: 400, outline: 'none', boxSizing: 'border-box', background: readOnly ? '#f8fafc' : '#fff', color: readOnly ? '#64748b' : COLOR_DEEP_BLUE }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {error && <p style={{ color: '#dc2626', fontSize: 13, marginTop: 12 }}>{error}</p>}
@@ -2181,11 +2183,11 @@ function AddTaskModal({ type = 'todo', onClose, onCreated }) {
       setError('Please choose a due date & time');
       return;
     }
-    if (repeatFrequency !== 'none' && !repeatEndDate) {
+    if (!isTodo && repeatFrequency !== 'none' && !repeatEndDate) {
       setError('Please choose an end date for the repeating task');
       return;
     }
-    if (repeatFrequency !== 'none' && new Date(repeatEndDate) < new Date(scheduledAt)) {
+    if (!isTodo && repeatFrequency !== 'none' && new Date(repeatEndDate) < new Date(scheduledAt)) {
       setError('Repeat end date must be after the due date');
       return;
     }
@@ -2223,7 +2225,7 @@ function AddTaskModal({ type = 'todo', onClose, onCreated }) {
             departmentId: matchedDeptObj?._id || undefined,
           };
           if (isCallFollowup && selectedLead) payload.lead = selectedLead._id;
-          if (repeatFrequency !== 'none') {
+          if (!isTodo && repeatFrequency !== 'none') {
             payload.recurrence = {
               frequency: repeatFrequency,
               endDate: new Date(repeatEndDate + 'T23:59:59').toISOString(),
@@ -2376,31 +2378,33 @@ function AddTaskModal({ type = 'todo', onClose, onCreated }) {
             </select>
           </div>
 
-          <div>
-            <label style={{ fontSize: 13, fontWeight: 500, color: COLOR_DEEP_BLUE, display: 'block', marginBottom: 6 }}>Recurrence</label>
-            <select
-              value={repeatFrequency}
-              onChange={e => setRepeatFrequency(e.target.value)}
-              style={{ width: '100%', border: `1px solid ${COLOR_BORDER}`, borderRadius: 8, padding: '9px 12px', fontSize: 14, outline: 'none', color: COLOR_DEEP_BLUE }}
-            >
-              <option value="none">Does not repeat</option>
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
-            </select>
-            {repeatFrequency !== 'none' && (
-              <div style={{ marginTop: 10 }}>
-                <label style={{ fontSize: 13, fontWeight: 500, color: COLOR_DEEP_BLUE, display: 'block', marginBottom: 4 }}>Repeat Until</label>
-                <input
-                  type="date"
-                  value={repeatEndDate}
-                  min={scheduledAt ? scheduledAt.slice(0, 10) : undefined}
-                  onChange={e => setRepeatEndDate(e.target.value)}
-                  style={{ width: '100%', border: `1px solid ${COLOR_BORDER}`, borderRadius: 8, padding: '9px 12px', fontSize: 14, outline: 'none', boxSizing: 'border-box', color: COLOR_DEEP_BLUE }}
-                />
-              </div>
-            )}
-          </div>
+          {!isTodo && (
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 500, color: COLOR_DEEP_BLUE, display: 'block', marginBottom: 6 }}>Recurrence</label>
+              <select
+                value={repeatFrequency}
+                onChange={e => setRepeatFrequency(e.target.value)}
+                style={{ width: '100%', border: `1px solid ${COLOR_BORDER}`, borderRadius: 8, padding: '9px 12px', fontSize: 14, outline: 'none', color: COLOR_DEEP_BLUE }}
+              >
+                <option value="none">Does not repeat</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+              {repeatFrequency !== 'none' && (
+                <div style={{ marginTop: 10 }}>
+                  <label style={{ fontSize: 13, fontWeight: 500, color: COLOR_DEEP_BLUE, display: 'block', marginBottom: 4 }}>Repeat Until</label>
+                  <input
+                    type="date"
+                    value={repeatEndDate}
+                    min={scheduledAt ? scheduledAt.slice(0, 10) : undefined}
+                    onChange={e => setRepeatEndDate(e.target.value)}
+                    style={{ width: '100%', border: `1px solid ${COLOR_BORDER}`, borderRadius: 8, padding: '9px 12px', fontSize: 14, outline: 'none', boxSizing: 'border-box', color: COLOR_DEEP_BLUE }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           {canAssign && isAdminOrExecutive && (
             <div>
