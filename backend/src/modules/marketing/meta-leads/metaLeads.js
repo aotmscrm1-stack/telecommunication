@@ -9,6 +9,7 @@ const User = require('../../../database/models/User');
 const Department = require('../../../database/models/Department');
 const { protect } = require('../../../core/middleware/auth');
 const env = require('../../../config/env');
+const { syncAllMetaSheets } = require('./googleSheetsSyncService');
 
 const POSITIVE_SUB_STATUSES = [
   "Agreed to Office visit's but no luck",
@@ -1091,10 +1092,9 @@ router.patch('/:id', protect, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// POST /api/meta-leads/sync (Trigger n8n Webhook Workflow with Concurrency Lock)
+// POST /api/meta-leads/sync (Trigger in-build Google Sheets Sync with Concurrency Lock)
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/sync', async (req, res) => {
-  const webhookUrl = env.N8N_META_LEADS_WEBHOOK_URL || 'https://aotms.app.n8n.cloud/webhook/Meta_Leads';
   const LOCK_TIMEOUT_MS = 60 * 1000; // 60-second concurrency lock
 
   try {
@@ -1123,42 +1123,30 @@ router.post('/sync', async (req, res) => {
         insertedCount: 0,
         updatedCount: 0,
         skippedCount: 0,
-        message: 'n8n workflow triggered! Reading Google Sheets...',
+        message: 'Google Sheets sync initiated natively...',
         lastError: ''
       },
       { upsert: true, new: true }
     );
 
-    console.log(`[MetaLeads] Triggering n8n webhook workflow at: ${webhookUrl}`);
+    console.log('[MetaLeads] Starting in-build Google Sheets sync pipeline...');
 
-    const response = await axios.post(
-      webhookUrl,
-      {
-        trigger: 'crm_manual_sync_now',
-        requestedAt: new Date().toISOString(),
-        client: 'AOTMS_CRM_Frontend'
-      },
-      {
-        headers: { 'Content-Type': 'application/json' },
-        timeout: 15000
-      }
-    );
+    // Run sync asynchronously in background; client polls /api/meta-leads/sync-status for live updates
+    syncAllMetaSheets().catch(err => {
+      console.error('[MetaLeads] Background Google Sheets sync error:', err);
+    });
 
     res.json({
       success: true,
       inProgress: true,
-      message: 'n8n workflow triggered successfully! Google Sheets reading started.',
-      webhookUrl,
-      n8nResponse: response.data || 'Webhook accepted'
+      message: 'Google Sheets sync started natively! Ingesting campaign tabs into CRM...',
+      startedAt: new Date()
     });
   } catch (err) {
-    console.warn(`[MetaLeads] n8n webhook call warning (${err.message}). Webhook URL: ${webhookUrl}`);
-    res.json({
-      success: true,
-      inProgress: true,
-      message: `Trigger sent to n8n webhook (${err.response?.status || 'dispatched'}). Workflow is processing.`,
-      webhookUrl,
-      warning: err.message
+    console.error(`[MetaLeads] Sync error: ${err.message}`);
+    res.status(500).json({
+      success: false,
+      message: `Failed to trigger Google Sheets sync: ${err.message}`
     });
   }
 });
@@ -1174,7 +1162,7 @@ router.delete('/clear-all', protect, async (req, res) => {
     const result = await MetaLead.deleteMany({});
     res.json({
       success: true,
-      message: `Successfully cleared all ${result.deletedCount} leads from the database. Clean slate ready for n8n sync!`
+      message: `Successfully cleared all ${result.deletedCount} leads from the database. Clean slate ready for Google Sheets sync!`
     });
   } catch (err) {
     console.error('Error clearing leads:', err);

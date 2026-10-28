@@ -575,7 +575,7 @@ export default function MetaLeads() {
   const handleSync = async () => {
     if (syncing) return;
     setSyncing(true);
-    setStatusMessage('Syncing Meta Leads Google Sheets via live n8n pipeline...');
+    setStatusMessage('Syncing Meta Leads Google Sheets directly...');
     try {
       await metaLeadsAPI.triggerSync();
       setStatusMessage('Sync triggered! Refreshing campaigns...');
@@ -1467,7 +1467,7 @@ export default function MetaLeads() {
             <p className="text-xs text-slate-500 max-w-sm mx-auto mb-4">
               {search || statusFilter || assigneeFilter
                 ? 'No campaigns matched your active filters. Try resetting the filters.'
-                : 'Sync your live Google Sheets via n8n to ingest campaign tabs and leads into the CRM.'}
+                : 'Sync your live Google Sheets directly to ingest campaign tabs and leads into the CRM.'}
             </p>
             <button
               onClick={handleSync}
