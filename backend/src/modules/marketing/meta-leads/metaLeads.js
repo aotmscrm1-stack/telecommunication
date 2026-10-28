@@ -314,6 +314,14 @@ router.post('/', async (req, res) => {
         });
       }
 
+      // Strictly allow only Name, Phone, Email, Location
+      const allowedRawData = {
+        name: fullName,
+        phone: phone || normalizedPhone,
+        email: email || '',
+        location: city || ''
+      };
+
       if (existing) {
         // PRESERVE CRM-MANAGED FIELDS:
         // status, crmLeadId, assignedEmployees, notes must NEVER be overwritten back to 'New'!
@@ -325,7 +333,7 @@ router.post('/', async (req, res) => {
         if (fullName && fullName !== 'Unknown Lead') {
           existing.fullName = fullName;
         }
-        existing.rawData = { ...(existing.rawData || {}), ...rawData };
+        existing.rawData = allowedRawData;
         existing.syncedAt = new Date();
         existing.source = source || existing.source;
 
@@ -343,7 +351,7 @@ router.post('/', async (req, res) => {
           email: email || undefined,
           city: city || undefined,
           fullName: fullName || 'Unknown Lead',
-          rawData,
+          rawData: allowedRawData,
           status: 'New',
           syncedAt: new Date()
         });

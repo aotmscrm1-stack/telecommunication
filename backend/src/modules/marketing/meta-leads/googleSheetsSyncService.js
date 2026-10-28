@@ -17,10 +17,7 @@ const DEFAULT_META_SHEET_SOURCES = [
       email: 'email',
       location: 'city'
     },
-    columns: [
-      'id', 'created_time', 'ad_name', 'campaign_name',
-      'full_name', 'phone_number', 'email', 'city', 'lead_status', 'platform'
-    ]
+    columns: ['full_name', 'phone_number', 'email', 'city']
   },
   {
     name: 'SAP_Leads',
@@ -33,10 +30,7 @@ const DEFAULT_META_SHEET_SOURCES = [
       email: 'email',
       location: 'city'
     },
-    columns: [
-      'id', 'created_time', 'ad_name', 'campaign_name',
-      'full_name', 'phone_number', 'email', 'city', 'which_sap_module_are_you_interested_in?', 'lead_status', 'platform'
-    ]
+    columns: ['full_name', 'phone_number', 'email', 'city']
   },
   {
     name: 'Python_Leads',
@@ -49,10 +43,7 @@ const DEFAULT_META_SHEET_SOURCES = [
       email: 'email',
       location: 'city'
     },
-    columns: [
-      'id', 'created_time', 'ad_name', 'campaign_name',
-      'full_name', 'phone_number', 'email', 'city', 'lead_status', 'platform'
-    ]
+    columns: ['full_name', 'phone_number', 'email', 'city']
   },
   {
     name: 'CyberSecurity_Leads',
@@ -65,10 +56,7 @@ const DEFAULT_META_SHEET_SOURCES = [
       email: 'email',
       location: 'city'
     },
-    columns: [
-      'id', 'created_time', 'ad_name', 'campaign_name',
-      'full_name', 'phone_number', 'email', 'city', 'lead_status', 'platform'
-    ]
+    columns: ['full_name', 'phone_number', 'email', 'city']
   },
   {
     name: 'DSAPython_workshop',
@@ -81,10 +69,7 @@ const DEFAULT_META_SHEET_SOURCES = [
       email: 'email',
       location: 'city'
     },
-    columns: [
-      'id', 'created_time', 'ad_name', 'campaign_name',
-      'full_name', 'phone_number', 'email', 'city', 'lead_status', 'platform'
-    ]
+    columns: ['full_name', 'phone_number', 'email', 'city']
   },
   {
     name: 'Cyber security workshop oct 22/10',
@@ -97,10 +82,7 @@ const DEFAULT_META_SHEET_SOURCES = [
       email: 'email',
       location: 'city'
     },
-    columns: [
-      'id', 'created_time', 'ad_name', 'campaign_name',
-      'full_name', 'phone_number', 'email', 'city', 'lead_status', 'platform'
-    ]
+    columns: ['full_name', 'phone_number', 'email', 'city']
   },
   {
     name: 'UI/UX_Leads',
@@ -113,10 +95,7 @@ const DEFAULT_META_SHEET_SOURCES = [
       email: 'email',
       location: 'city'
     },
-    columns: [
-      'id', 'created_time', 'ad_name', 'campaign_name',
-      'full_name', 'phone_number', 'email', 'city', 'lead_status', 'platform'
-    ]
+    columns: ['full_name', 'phone_number', 'email', 'city']
   },
   {
     name: 'Data_Careers_Leads',
@@ -129,10 +108,7 @@ const DEFAULT_META_SHEET_SOURCES = [
       email: 'email',
       location: 'city'
     },
-    columns: [
-      'id', 'created_time', 'ad_name', 'campaign_name',
-      'full_name', 'phone_number', 'email', 'city', 'lead_status', 'platform'
-    ]
+    columns: ['full_name', 'phone_number', 'email', 'city']
   },
   {
     name: 'Website_Leads',
@@ -145,9 +121,7 @@ const DEFAULT_META_SHEET_SOURCES = [
       email: 'email',
       location: 'city'
     },
-    columns: [
-      'id', 'created_time', 'full_name', 'phone_number', 'email', 'city'
-    ]
+    columns: ['full_name', 'phone_number', 'email', 'city']
   },
   {
     name: 'Practice Sheet',
@@ -160,9 +134,7 @@ const DEFAULT_META_SHEET_SOURCES = [
       email: 'email',
       location: 'city'
     },
-    columns: [
-      'id', 'created_time', 'full_name', 'phone_number', 'email', 'city'
-    ]
+    columns: ['full_name', 'phone_number', 'email', 'city']
   }
 ];
 
@@ -301,16 +273,14 @@ async function getSheetHeaders(sheetId, range) {
     if (rawMatrix.length > 0) {
       headers = (rawMatrix[0] || []).filter(h => typeof h === 'string' && h.trim().length > 0 && !h.startsWith('__EMPTY'));
     }
-    if (headers.length === 0) {
-      // Fallback to standard Meta Leads columns
-      headers = ['id', 'created_time', 'full_name', 'phone_number', 'email', 'city', 'ad_name', 'campaign_name', 'platform'];
-    }
-    return { success: true, columns: headers };
+    const allowed = ['full_name', 'phone_number', 'email', 'city'];
+    const filtered = headers.filter(h => /name|phone|mobile|email|city|location/i.test(h));
+    return { success: true, columns: filtered.length > 0 ? Array.from(new Set([...allowed, ...filtered])) : allowed };
   } catch (err) {
     return {
       success: false,
       message: err.message,
-      columns: ['id', 'created_time', 'full_name', 'phone_number', 'email', 'city', 'ad_name', 'campaign_name', 'platform']
+      columns: ['full_name', 'phone_number', 'email', 'city']
     };
   }
 }
@@ -369,6 +339,14 @@ async function ingestRowsIntoMetaLeads(rows, campaignName, sourceLabel) {
       });
     }
 
+    // Strictly allow only Name, Phone, Email, Location
+    const allowedRawData = {
+      name: fullName,
+      phone: phone || normalizedPhone,
+      email: email || '',
+      location: city || ''
+    };
+
     if (existing) {
       // PRESERVE existing CRM status and employee assignments
       existing.metaLeadId = metaLeadId || existing.metaLeadId || undefined;
@@ -379,7 +357,7 @@ async function ingestRowsIntoMetaLeads(rows, campaignName, sourceLabel) {
       if (fullName && fullName !== 'Unknown Lead') {
         existing.fullName = fullName;
       }
-      existing.rawData = { ...(existing.rawData || {}), ...rawData };
+      existing.rawData = allowedRawData;
       existing.syncedAt = new Date();
       existing.source = sourceLabel || existing.source || 'google_sheets_meta';
       await existing.save();
@@ -394,7 +372,7 @@ async function ingestRowsIntoMetaLeads(rows, campaignName, sourceLabel) {
         email: email || undefined,
         city: city || undefined,
         fullName: fullName || 'Unknown Lead',
-        rawData,
+        rawData: allowedRawData,
         status: 'New',
         syncedAt: new Date()
       });

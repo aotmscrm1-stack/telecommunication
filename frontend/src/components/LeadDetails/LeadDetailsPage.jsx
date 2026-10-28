@@ -895,7 +895,6 @@ export default function LeadDetailsPage({
   const [isEditingInfo, setIsEditingInfo] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [savingInfo, setSavingInfo] = useState(false);
-  const [showSheetDetails, setShowSheetDetails] = useState(false);
 
   const isMeta = isMetaLead || Boolean(metaLeadId) || Boolean(metaLeadData) || String(lead?.source || '').toLowerCase().includes('meta');
   const metaRaw = metaLeadData?.rawData || lead?.rawData || {};
@@ -1758,39 +1757,6 @@ export default function LeadDetailsPage({
             </button>
           </div>
         </div>
-
-        {/* ─── Google Sheet Raw Data (Meta Lead) ─── */}
-        {lead.rawData && Object.keys(lead.rawData).length > 0 && (
-          <div className="w-full bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-            <div
-              onClick={() => setShowSheetDetails(prev => !prev)}
-              className="p-3 sm:p-3.5 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between cursor-pointer hover:bg-slate-100/60 transition-colors"
-            >
-              <h3 className="font-semibold text-slate-800 text-xs sm:text-sm uppercase tracking-wider flex items-center gap-2">
-                <FileText className="w-4 h-4 text-emerald-600" /> Google Sheet Raw Fields ({Object.keys(lead.rawData).length})
-              </h3>
-              <span className="text-xs text-blue-600 font-medium flex items-center gap-1">
-                {showSheetDetails ? (
-                  <><span>Hide Columns</span><ChevronUp className="w-3.5 h-3.5" /></>
-                ) : (
-                  <><span>View All Columns</span><ChevronDown className="w-3.5 h-3.5" /></>
-                )}
-              </span>
-            </div>
-            {showSheetDetails && (
-              <div className="p-3 sm:p-4 max-h-80 overflow-y-auto bg-slate-50/40">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                  {Object.entries(lead.rawData).map(([k, v]) => (
-                    <div key={k} className="p-2.5 rounded-lg bg-white border border-slate-200 shadow-2xs text-xs">
-                      <span className="block font-medium text-slate-400 text-[10px] uppercase truncate">{k}</span>
-                      <span className="block font-semibold text-slate-800 truncate mt-0.5" title={String(v ?? '—')}>{String(v !== undefined && v !== null && v !== '' ? v : '—')}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* ─── Down: Activity & Calling History ─── */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-3.5 sm:p-5">
