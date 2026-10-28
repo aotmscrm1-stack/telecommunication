@@ -25,7 +25,7 @@ import VerifyAccount from '../pages/auth/verify-account/VerifyAccount';
 
 // Dashboard & Daily Activity Modules
 import Dashboard from '../modules/dashboard';
-import DailyActivityPage from '../modules/daily-activities/DailyActivityPage';
+import Tasks from '../modules/tasks';
 
 // Marketing Modules
 import { AllLeads, AddLead, BulkImport } from '../modules/marketing/leads';
@@ -80,11 +80,9 @@ import ServerError from '../pages/errors/500/ServerError';
 // Default route helper based on role and department
 const getDefaultHomeRoute = (user) => {
   if (!user) return '/login';
-  if (isTelecaller(user)) return '/daily-activity';
   if (canViewDashboard(user)) return '/dashboard';
-  if (canAccessDailyActivity(user)) return '/daily-activity';
   if (canAccessDigitalCalendar(user)) return '/digital-calendar';
-  return '/daily-activity';
+  return '/tasks';
 };
 
 // Guard Wrappers
@@ -220,25 +218,23 @@ export function AppRoutes() {
         <Route path="bulk-import" element={<StaffRestrictedRoute><BulkImport /></StaffRestrictedRoute>} />
         <Route path="add-lead" element={<StaffRestrictedRoute><AddLead /></StaffRestrictedRoute>} />
 
-        {/* Daily Activity & Telecaller Module */}
-        <Route path="daily-activity" element={<DailyActivityRoute><DailyActivityPage /></DailyActivityRoute>} />
-        <Route path="daily-activities" element={<DailyActivityRoute><DailyActivityPage /></DailyActivityRoute>} />
-        <Route path=":userId/daily-activity" element={<DailyActivityRoute><DailyActivityPage /></DailyActivityRoute>} />
-        <Route path=":userId/daily-activities" element={<DailyActivityRoute><DailyActivityPage /></DailyActivityRoute>} />
-
-        {/* Legacy Tasks & Todo Safely Re-routed */}
-        <Route path="tasks" element={<Navigate to="/daily-activity" replace />} />
-        <Route path="task" element={<Navigate to="/daily-activity" replace />} />
-        <Route path="todo" element={<Navigate to="/daily-activity" replace />} />
-        <Route path="todos" element={<Navigate to="/daily-activity" replace />} />
-        <Route path="follow-ups" element={<Navigate to="/daily-activity" replace />} />
-        <Route path="followups" element={<Navigate to="/daily-activity" replace />} />
-        <Route path=":userId/tasks" element={<Navigate to="/daily-activity" replace />} />
-        <Route path=":userId/task" element={<Navigate to="/daily-activity" replace />} />
-        <Route path=":userId/todo" element={<Navigate to="/daily-activity" replace />} />
-        <Route path=":userId/todos" element={<Navigate to="/daily-activity" replace />} />
-        <Route path=":userId/follow-ups" element={<Navigate to="/daily-activity" replace />} />
-        <Route path=":userId/followups" element={<Navigate to="/daily-activity" replace />} />
+        {/* Tasks & Todo */}
+        <Route path="tasks" element={<Tasks />} />
+        <Route path="task" element={<Tasks />} />
+        <Route path="todo" element={<Tasks />} />
+        <Route path="todos" element={<Tasks />} />
+        <Route path="follow-ups" element={<Tasks />} />
+        <Route path="followups" element={<Tasks />} />
+        <Route path=":userId/tasks" element={<Tasks />} />
+        <Route path=":userId/task" element={<Tasks />} />
+        <Route path=":userId/todo" element={<Tasks />} />
+        <Route path=":userId/todos" element={<Tasks />} />
+        <Route path=":userId/follow-ups" element={<Tasks />} />
+        <Route path=":userId/followups" element={<Tasks />} />
+        <Route path="daily-activity" element={<Navigate to="/tasks" replace />} />
+        <Route path="daily-activities" element={<Navigate to="/tasks" replace />} />
+        <Route path=":userId/daily-activity" element={<Navigate to="/tasks" replace />} />
+        <Route path=":userId/daily-activities" element={<Navigate to="/tasks" replace />} />
 
         {/* Finance Module Routes */}
         <Route path="offer-letter" element={<AdminRoute><OfferLetter /></AdminRoute>} />

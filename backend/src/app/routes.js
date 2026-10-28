@@ -17,6 +17,9 @@ router.use('/permission-templates', apiLimiter, require('../modules/roles/permis
 router.use('/reports', apiLimiter, require('../modules/dashboard/reports'));
 
 // ── Followups & Daily Activity (Preserved & Protected) ──────────────────────
+// ── Tasks & Followups ────────────────────────────────────────────────────────
+router.use('/tasks', apiLimiter, require('../modules/tasks/tasks'));
+router.use('/todos', apiLimiter, require('../modules/tasks/todos'));
 router.use('/followups', apiLimiter, require('../modules/tasks/followups'));
 
 // ── Marketing Modules ────────────────────────────────────────────────────────
@@ -56,7 +59,7 @@ router.use('/admin/digital-calendar', apiLimiter, require('../modules/marketing/
 router.use('/digital-calendar', apiLimiter, require('../modules/marketing/digital-calendar/digitalCalendar'));
 
 // ── Daily Activities & Telecaller Dashboard ──────────────────────────────────
-router.use('/daily-activities', apiLimiter, require('../modules/daily-activities/dailyActivities'));
+// router.use('/daily-activities', apiLimiter, require('../modules/daily-activities/dailyActivities'));
 
 // ── Finance Modules ──────────────────────────────────────────────────────────
 router.use('/payslips', apiLimiter, require('../modules/finance/payslips/payslips'));

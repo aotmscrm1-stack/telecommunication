@@ -536,10 +536,12 @@ export default function Navbar() {
 
   const telecallerNavGroups = [
     {
-      title: 'Daily Activity',
-      icon: FaCalendarCheck,
+      title: 'Tasks & Todo',
+      icon: FaListCheck,
       items: [
-        { label: 'Daily Activity', path: '/daily-activity', icon: FaCalendarCheck }
+        { label: 'Tasks', path: user?._id ? `/${user._id}/tasks` : '/tasks', icon: FaListCheck },
+        { label: 'TODO List', path: '/tasks?tab=Todo', icon: FaListCheck },
+        ...(canViewCallFollowups(user) ? [{ label: 'Call Follow-ups', path: '/tasks?tab=Call+Followups', icon: FaClock }] : []),
       ]
     },
     {
@@ -613,14 +615,15 @@ export default function Navbar() {
   ];
 
   const topDropdownGroups = isCaller ? telecallerNavGroups : (!hasDashboard ? [
-    ...(canAccessDailyActivity(user) ? [{
-      title: 'Daily Activity',
-      icon: FaCalendarCheck,
+    {
+      title: 'Tasks & Todo',
+      icon: FaListCheck,
       items: [
-        { label: 'Daily Activity', path: '/daily-activity', icon: FaCalendarCheck },
-        ...(canViewCallFollowups(user) ? [{ label: 'Call Follow-ups', path: '/daily-activity#followups', icon: FaClock }] : []),
+        { label: 'Tasks', path: user?._id ? `/${user._id}/tasks` : '/tasks', icon: FaListCheck },
+        { label: 'TODO List', path: '/tasks?tab=Todo', icon: FaListCheck },
+        ...(canViewCallFollowups(user) ? [{ label: 'Call Follow-ups', path: '/tasks?tab=Call+Followups', icon: FaClock }] : []),
       ]
-    }] : []),
+    },
     ...(canSeeMetaLeads ? [{
       title: 'Marketing',
       icon: FaBullhorn,
@@ -659,7 +662,7 @@ export default function Navbar() {
   ] : [
     { title: 'Info', icon: FaCircleInfo, items: [
       { label: 'Dashboard', path: '/dashboard', icon: FaHouse },
-      ...(canAccessDailyActivity(user) ? [{ label: 'Daily Activity', path: '/daily-activity', icon: FaCalendarCheck }] : []),
+      { label: 'Task', path: user?._id ? `/${user._id}/tasks` : '/tasks', icon: FaListCheck },
       { label: 'Digital Calendar', path: '/digital-calendar', icon: FaCalendarDays },
     ]},
     (user?.role === 'admin' || isCEO(user) || (String(user?.department || '').toUpperCase() === 'MARKETING' && user?.role === 'manager')) ? {
@@ -839,11 +842,7 @@ export default function Navbar() {
                   to={
                     hasDashboard
                       ? "/dashboard"
-                      : canAccessDailyActivity(user)
-                      ? "/daily-activity"
-                      : canAccessDigitalCalendar(user)
-                      ? "/digital-calendar"
-                      : "/daily-activity"
+                      : "/tasks"
                   }
                   className="flex items-center gap-2 group"
                 >

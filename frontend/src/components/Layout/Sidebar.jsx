@@ -239,7 +239,7 @@ export default function Sidebar() {
         <div style={{ flex: 1, paddingTop: 6 }}>
           {isTelecaller(user) ? (
             <>
-              <NavItem to="/daily-activity" icon={Icons.calendar} label="Daily Activity" iconColor="#10b981" />
+              <NavItem to="/tasks" icon={Icons.tasks} label="Tasks" />
 
               <SectionLabel text="Overall Marketing" />
               <ExpandGroup
@@ -278,9 +278,7 @@ export default function Sidebar() {
             <>
               <NavItem to="/dashboard"     icon={Icons.dashboard}   label="Dashboard" />
               <NavItem to="/leads"         icon={Icons.leads}       label="All Leads" />
-              {canAccessDailyActivity(user) && (
-                <NavItem to="/daily-activity" icon={Icons.calendar}   label="Daily Activity" iconColor="#10b981" />
-              )}
+              <NavItem to="/tasks" icon={Icons.tasks} label="Tasks" />
               {canViewCallRecordings(user) && (
                 <NavItem to="/recordings"  icon={Icons.recordings}  label="Call Recordings" iconColor="#0284c7" />
               )}

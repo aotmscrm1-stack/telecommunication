@@ -120,6 +120,32 @@ export const followupsAPI = {
   import: (formData) => api.post('/followups/import', formData),
 };
 
+export const tasksAPI = {
+  getAll: (params) => api.get('/tasks', { params }),
+  getByUser: (userId, params) => api.get(`/tasks/user/${userId}`, { params }),
+  create: (data) => api.post('/tasks', data),
+  update: (id, data) => api.put(`/tasks/${id}`, data),
+  delete: (id) => api.delete(`/tasks/${id}`),
+};
+
+export const todosAPI = {
+  getAll: (params) => api.get('/todos', { params }),
+  getByUser: (userId, params) => api.get(`/todos/user/${userId}`, { params }),
+  getStats: () => api.get('/todos/stats'),
+  getOne: (id) => api.get(`/todos/${id}`),
+  create: (data) => api.post('/todos', data),
+  update: (id, data) => api.put(`/todos/${id}`, data),
+  delete: (id) => api.delete(`/todos/${id}`),
+  updateStatus: (id, status) => api.patch(`/todos/${id}/status`, { status }),
+  assign: (id, assignedTo) => api.patch(`/todos/${id}/assign`, { assignedTo }),
+  addChecklist: (id, title) => api.post(`/todos/${id}/checklist`, { title }),
+  toggleChecklist: (id, itemId) => api.patch(`/todos/${id}/checklist/${itemId}`),
+  deleteChecklist: (id, itemId) => api.delete(`/todos/${id}/checklist/${itemId}`),
+  addComment: (id, text) => api.post(`/todos/${id}/comments`, { text }),
+  addAttachment: (id, data) => api.post(`/todos/${id}/attachments`, data),
+};
+
+
 export const campaignsAPI = {
   getAll: () => api.get('/campaigns'),
   getOne: (id) => api.get(`/campaigns/${id}`),

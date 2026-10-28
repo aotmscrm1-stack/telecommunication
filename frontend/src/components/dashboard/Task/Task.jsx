@@ -159,7 +159,8 @@ function handleNumericKeyDown(e, value, setValue) {
       }, 0);
       return;
     }
-
+
+
   }
 }
 
@@ -1563,7 +1564,7 @@ function EditModal({ task, onClose, onSaved, readOnly = false }) {
           </div>
 
           <div>
-            <label style={{ fontSize: 13, fontWeight: 500, color: COLOR_DEEP_BLUE, display: 'block', marginBottom: 6 }}>Due Date & Time</label>
+            <label style={{ fontSize: 13, fontWeight: 500, color: COLOR_DEEP_BLUE, display: 'block', marginBottom: 6 }}>Due Date & Logout Time</label>
             <div style={{ display: 'flex', gap: 10, opacity: readOnly ? 0.6 : 1, pointerEvents: readOnly ? 'none' : 'auto' }}>
               <input
                 type="date"
@@ -2341,7 +2342,7 @@ function AddTaskModal({ type = 'todo', onClose, onCreated }) {
           </div>
 
           <div>
-            <label style={{ fontSize: 13, fontWeight: 500, color: COLOR_DEEP_BLUE, display: 'block', marginBottom: 6 }}>Due Date & Time</label>
+            <label style={{ fontSize: 13, fontWeight: 500, color: COLOR_DEEP_BLUE, display: 'block', marginBottom: 6 }}>Due Date & Logout Time </label>
             <div style={{ display: 'flex', gap: 10 }}>
               <input
                 type="date"
