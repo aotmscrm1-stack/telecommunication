@@ -9,6 +9,7 @@ const User = require('../../../database/models/User');
 const Department = require('../../../database/models/Department');
 const { protect } = require('../../../core/middleware/auth');
 const env = require('../../../config/env');
+const { syncAllMetaSheets } = require('./googleSheetsSyncService');
 
 const POSITIVE_SUB_STATUSES = [
   "Agreed to Office visit's but no luck",
@@ -313,6 +314,14 @@ router.post('/', async (req, res) => {
         });
       }
 
+      // Strictly allow only Name, Phone, Email, Location
+      const allowedRawData = {
+        name: fullName,
+        phone: phone || normalizedPhone,
+        email: email || '',
+        location: city || ''
+      };
+
       if (existing) {
         // PRESERVE CRM-MANAGED FIELDS:
         // status, crmLeadId, assignedEmployees, notes must NEVER be overwritten back to 'New'!
@@ -324,7 +333,7 @@ router.post('/', async (req, res) => {
         if (fullName && fullName !== 'Unknown Lead') {
           existing.fullName = fullName;
         }
-        existing.rawData = { ...(existing.rawData || {}), ...rawData };
+        existing.rawData = allowedRawData;
         existing.syncedAt = new Date();
         existing.source = source || existing.source;
 
@@ -342,7 +351,7 @@ router.post('/', async (req, res) => {
           email: email || undefined,
           city: city || undefined,
           fullName: fullName || 'Unknown Lead',
-          rawData,
+          rawData: allowedRawData,
           status: 'New',
           syncedAt: new Date()
         });
@@ -484,6 +493,83 @@ router.post('/assignments', protect, async (req, res) => {
   } catch (err) {
     console.error('Error saving campaign assignment:', err);
     res.status(500).json({ success: false, message: 'Failed to save campaign assignment', error: err.message });
+  }
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI Calling Controls for Meta Campaigns
+// ─────────────────────────────────────────────────────────────────────────────
+router.get('/campaign/:campaign/ai-status', protect, async (req, res) => {
+  try {
+    const { campaign } = req.params;
+    const assignment = await MetaCampaignAssignment.findOne({ campaign }).lean();
+    const inProgress = await MetaLead.countDocuments({ campaign, status: 'In Progress' });
+    const queued = await MetaLead.countDocuments({ campaign, status: 'New' });
+    const completedToday = await MetaLead.countDocuments({
+      campaign,
+      status: { $in: ['Converted', 'Follow-up', 'Closed'] },
+      updatedAt: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) }
+    });
+    res.json({
+      success: true,
+      aiCallingEnabled: assignment?.aiCallingEnabled || false,
+      aiConcurrencyLimit: assignment?.aiConcurrencyLimit || 5,
+      inProgress,
+      queued,
+      completedToday
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.post('/campaign/:campaign/ai-start', protect, async (req, res) => {
+  try {
+    const { campaign } = req.params;
+    const { aiConcurrencyLimit = 5 } = req.body;
+    const assignment = await MetaCampaignAssignment.findOneAndUpdate(
+      { campaign },
+      {
+        $set: {
+          aiCallingEnabled: true,
+          aiConcurrencyLimit: Number(aiConcurrencyLimit) || 5,
+          updatedAt: new Date()
+        }
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+    res.json({
+      success: true,
+      message: `AI Calling started for campaign "${campaign}" with ${assignment.aiConcurrencyLimit} concurrent calls`,
+      aiCallingEnabled: true,
+      aiConcurrencyLimit: assignment.aiConcurrencyLimit
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.post('/campaign/:campaign/ai-pause', protect, async (req, res) => {
+  try {
+    const { campaign } = req.params;
+    await MetaCampaignAssignment.findOneAndUpdate(
+      { campaign },
+      {
+        $set: {
+          aiCallingEnabled: false,
+          updatedAt: new Date()
+        }
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+    res.json({
+      success: true,
+      message: `AI Calling paused for campaign "${campaign}"`,
+      aiCallingEnabled: false
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -1091,74 +1177,27 @@ router.patch('/:id', protect, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// POST /api/meta-leads/sync (Trigger n8n Webhook Workflow with Concurrency Lock)
+// POST /api/meta-leads/sync (Trigger in-build Google Sheets Sync)
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/sync', async (req, res) => {
-  const webhookUrl = env.N8N_META_LEADS_WEBHOOK_URL || 'https://aotms.app.n8n.cloud/webhook/Meta_Leads';
-  const LOCK_TIMEOUT_MS = 60 * 1000; // 60-second concurrency lock
-
   try {
-    // 1. Check for existing active sync execution to prevent overlapping/concurrent runs
-    const existingSync = await MetaSyncState.findOne({ key: 'meta_leads_sync' }).lean();
-    if (existingSync && existingSync.isSyncing && existingSync.startedAt) {
-      const elapsed = Date.now() - new Date(existingSync.startedAt).getTime();
-      if (elapsed < LOCK_TIMEOUT_MS) {
-        return res.status(429).json({
-          success: false,
-          inProgress: true,
-          message: `A sync is already actively running (${Math.round(elapsed / 1000)}s elapsed). Please wait for it to complete.`,
-          startedAt: existingSync.startedAt
-        });
-      }
-    }
-
-    // 2. Set sync lock atomically
-    await MetaSyncState.findOneAndUpdate(
-      { key: 'meta_leads_sync' },
-      {
-        isSyncing: true,
-        startedAt: new Date(),
-        lastStatus: 'in_progress',
-        totalProcessed: 0,
-        insertedCount: 0,
-        updatedCount: 0,
-        skippedCount: 0,
-        message: 'n8n workflow triggered! Reading Google Sheets...',
-        lastError: ''
-      },
-      { upsert: true, new: true }
-    );
-
-    console.log(`[MetaLeads] Triggering n8n webhook workflow at: ${webhookUrl}`);
-
-    const response = await axios.post(
-      webhookUrl,
-      {
-        trigger: 'crm_manual_sync_now',
-        requestedAt: new Date().toISOString(),
-        client: 'AOTMS_CRM_Frontend'
-      },
-      {
-        headers: { 'Content-Type': 'application/json' },
-        timeout: 15000
-      }
-    );
-
+    console.log('[MetaLeads] Starting in-build Google Sheets sync pipeline...');
+    const result = await syncAllMetaSheets();
     res.json({
       success: true,
-      inProgress: true,
-      message: 'n8n workflow triggered successfully! Google Sheets reading started.',
-      webhookUrl,
-      n8nResponse: response.data || 'Webhook accepted'
+      inProgress: false,
+      message: result.message,
+      totalProcessed: result.totalProcessed,
+      insertedCount: result.insertedCount,
+      updatedCount: result.updatedCount,
+      skippedCount: result.skippedCount,
+      sheetResults: result.sheetResults
     });
   } catch (err) {
-    console.warn(`[MetaLeads] n8n webhook call warning (${err.message}). Webhook URL: ${webhookUrl}`);
-    res.json({
-      success: true,
-      inProgress: true,
-      message: `Trigger sent to n8n webhook (${err.response?.status || 'dispatched'}). Workflow is processing.`,
-      webhookUrl,
-      warning: err.message
+    console.error(`[MetaLeads] Sync error: ${err.message}`);
+    res.status(500).json({
+      success: false,
+      message: `Failed to trigger Google Sheets sync: ${err.message}`
     });
   }
 });
@@ -1174,7 +1213,7 @@ router.delete('/clear-all', protect, async (req, res) => {
     const result = await MetaLead.deleteMany({});
     res.json({
       success: true,
-      message: `Successfully cleared all ${result.deletedCount} leads from the database. Clean slate ready for n8n sync!`
+      message: `Successfully cleared all ${result.deletedCount} leads from the database. Clean slate ready for Google Sheets sync!`
     });
   } catch (err) {
     console.error('Error clearing leads:', err);

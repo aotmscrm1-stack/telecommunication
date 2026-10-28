@@ -17,6 +17,14 @@ const metaCampaignAssignmentSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
+  aiCallingEnabled: {
+    type: Boolean,
+    default: false
+  },
+  aiConcurrencyLimit: {
+    type: Number,
+    default: 5
+  },
   updatedAt: {
     type: Date,
     default: Date.now

@@ -2,8 +2,15 @@ const express = require('express');
 const crypto = require('crypto');
 const Integration = require('../database/models/Integration');
 const Lead = require('../database/models/Lead');
+const MetaLead = require('../database/models/MetaLead');
 const { protect, authorize } = require('../core/middleware/auth');
 const { toIndiaE164 } = require('../core/utils/phone');
+const {
+  ensureGoogleSheetsIntegration,
+  getSheetHeaders,
+  syncAllMetaSheets,
+  DEFAULT_META_SHEET_SOURCES
+} = require('../modules/marketing/meta-leads/googleSheetsSyncService');
 
 const whatsapp = require('../integrations/whatsapp/whatsapp');
 const knowlarity = require('../integrations/calling/knowlarity');
@@ -28,6 +35,7 @@ router.get('/catalog', protect, (req, res) => {
 
 router.get('/', protect, async (req, res) => {
   try {
+    await ensureGoogleSheetsIntegration().catch(() => {});
     const saved = await Integration.find()
       .populate('defaultCampaign', 'name')
       .populate('defaultAssignedTo', 'name role')
@@ -109,10 +117,13 @@ router.post('/webhook/:webhookKey', async (req, res) => {
 
 router.get('/:id', protect, async (req, res) => {
   try {
-    const integration = await Integration.findById(req.params.id)
+    let integration = await Integration.findById(req.params.id)
       .populate('defaultCampaign', 'name')
       .populate('defaultAssignedTo', 'name role');
     if (!integration) return res.status(404).json({ message: 'Integration not found' });
+    if (integration.type === 'google_sheets' && (!integration.config?.sheetSources || integration.config.sheetSources.length === 0)) {
+      integration = await ensureGoogleSheetsIntegration();
+    }
     res.json(integration);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -161,9 +172,35 @@ router.delete('/:id', protect, authorize('manager', 'admin'), async (req, res) =
 
 router.get('/:id/leads', protect, async (req, res) => {
   try {
-    const { page = 1, limit = 20 } = req.query;
+    const { page = 1, limit = 50 } = req.query;
     const integration = await Integration.findById(req.params.id);
     if (!integration) return res.status(404).json({ message: 'Integration not found' });
+
+    if (integration.type === 'google_sheets') {
+      const metaLeads = await MetaLead.find({})
+        .sort({ createdAt: -1 })
+        .skip((Number(page) - 1) * Number(limit))
+        .limit(Number(limit))
+        .lean();
+      const total = await MetaLead.countDocuments({});
+
+      const mappedLeads = metaLeads.map(ml => ({
+        _id: ml._id,
+        name: ml.fullName || ml.rawData?.name || 'Unknown Lead',
+        phone: ml.phone || ml.rawData?.phone || '',
+        email: ml.email || ml.rawData?.email || '',
+        location: ml.city || ml.rawData?.location || ml.rawData?.city || '',
+        city: ml.city || ml.rawData?.city || '',
+        status: ml.status || 'New',
+        campaign: { name: ml.campaign },
+        sourceSheetName: ml.campaign,
+        assignedTo: ml.assignedTo ? { name: String(ml.assignedTo) } : null,
+        createdAt: ml.createdAt
+      }));
+
+      return res.json({ leads: mappedLeads, total });
+    }
+
     const query = { leadSource: integration.name };
     const leads = await Lead.find(query)
       .populate('assignedTo', 'name role')
@@ -173,6 +210,35 @@ router.get('/:id/leads', protect, async (req, res) => {
       .limit(Number(limit));
     const total = await Lead.countDocuments(query);
     res.json({ leads, total });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.get('/:id/sheets/columns', protect, async (req, res) => {
+  try {
+    const { sheetId, range } = req.query;
+    if (!sheetId) return res.status(400).json({ message: 'sheetId is required' });
+    const result = await getSheetHeaders(sheetId, range);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ message: err.message, columns: [] });
+  }
+});
+
+// POST /:id/sheets/import — Trigger in-build sync for Google Sheets
+router.post('/:id/sheets/import', protect, async (req, res) => {
+  try {
+    const integration = await Integration.findById(req.params.id);
+    if (!integration) return res.status(404).json({ message: 'Integration not found' });
+    const result = await syncAllMetaSheets();
+    res.json({
+      success: true,
+      message: result.message,
+      imported: result.insertedCount,
+      updated: result.updatedCount,
+      totalProcessed: result.totalProcessed
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -343,6 +409,7 @@ router.post('/whatsapp/send-template-direct', protect, async (req, res) => {
 
     const MessageTemplate = require('../database/models/MessageTemplate');
     const Lead = require('../database/models/Lead');
+const MetaLead = require('../database/models/MetaLead');
 
     let leadObj = null;
     if (leadId) {
@@ -360,6 +427,7 @@ router.post('/whatsapp/send-template-direct', protect, async (req, res) => {
 
     if (leadId) {
       const Lead = require('../database/models/Lead');
+const MetaLead = require('../database/models/MetaLead');
       await Lead.findByIdAndUpdate(leadId, {
         $push: {
           activities: {

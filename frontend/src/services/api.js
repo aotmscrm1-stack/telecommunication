@@ -264,6 +264,9 @@ export const metaLeadsAPI = {
   getSyncStatus: () => api.get('/meta-leads/sync-status'),
   clearAll: () => api.delete('/meta-leads/clear-all'),
   getMyAssignmentStatus: () => api.get('/meta-leads/my-assignment-status'),
+  aiStart: (campaign, config) => api.post(`/meta-leads/campaign/${encodeURIComponent(campaign)}/ai-start`, config),
+  aiPause: (campaign) => api.post(`/meta-leads/campaign/${encodeURIComponent(campaign)}/ai-pause`),
+  aiStatus: (campaign) => api.get(`/meta-leads/campaign/${encodeURIComponent(campaign)}/ai-status`),
 };
 
 export const contactsAPI = {
@@ -301,6 +304,8 @@ export const integrationsAPI = {
   remove: (id) => api.delete(`/integrations/${id}`),
   getLeads: (id, params) => api.get(`/integrations/${id}/leads`, { params }),
   testWebhook: (id) => api.post(`/integrations/${id}/test-webhook`),
+  getSheetColumns: (id, sheetId, range) => api.get(`/integrations/${id}/sheets/columns`, { params: { sheetId, range } }),
+  importSheets: (id, sheetId) => api.post(`/integrations/${id}/sheets/import`, { sheetId }),
 
 
   // WhatsApp

@@ -351,6 +351,200 @@ function FilterDropdown({ label, options, value, onChange, icon }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// AI Calling Panel for Meta Campaigns
+// ─────────────────────────────────────────────────────────────────────────────
+function MetaAICallingPanel({ campaign, onStatusChange }) {
+  const [aiStatus, setAiStatus] = useState(null);
+  const [aiConcurrency, setAiConcurrency] = useState(5);
+  const [loading, setLoading] = useState(false);
+  const [expanded, setExpanded] = useState(true);
+
+  const refreshStatus = useCallback(async () => {
+    if (!campaign) return;
+    try {
+      const res = await metaLeadsAPI.aiStatus(campaign);
+      if (res.data?.success) {
+        setAiStatus(res.data);
+        if (res.data.aiConcurrencyLimit) {
+          setAiConcurrency(res.data.aiConcurrencyLimit);
+        }
+      }
+    } catch (err) {
+      // silently ignore if endpoint not available yet
+    }
+  }, [campaign]);
+
+  useEffect(() => {
+    if (!campaign) return;
+    refreshStatus();
+    const interval = setInterval(refreshStatus, 5000);
+    return () => clearInterval(interval);
+  }, [campaign, refreshStatus]);
+
+  const handleStart = async () => {
+    setLoading(true);
+    try {
+      await metaLeadsAPI.aiStart(campaign, { aiConcurrencyLimit: aiConcurrency });
+      await refreshStatus();
+      if (onStatusChange) onStatusChange();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to start AI calling');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePause = async () => {
+    setLoading(true);
+    try {
+      await metaLeadsAPI.aiPause(campaign);
+      await refreshStatus();
+      if (onStatusChange) onStatusChange();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to pause AI calling');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const isEnabled = aiStatus?.aiCallingEnabled;
+
+  return (
+    <div style={{
+      background: isEnabled ? '#f0fdf4' : '#ffffff',
+      border: `1px solid ${isEnabled ? '#86efac' : BORDER}`,
+      borderRadius: 10,
+      overflow: 'hidden',
+      transition: 'border-color 0.2s, background 0.2s',
+      boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
+    }}>
+      {/* Header row */}
+      <div
+        style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
+        onClick={() => setExpanded(e => !e)}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+          {/* Animated dot */}
+          <div style={{
+            width: 7, height: 7, borderRadius: '50%',
+            background: isEnabled ? '#16a34a' : '#94a3b8',
+            boxShadow: isEnabled ? '0 0 0 3px #bbf7d0' : 'none',
+            animation: isEnabled ? 'aipulse 1.5s infinite' : 'none',
+            flexShrink: 0,
+          }} />
+          <style>{`@keyframes aipulse{0%,100%{box-shadow:0 0 0 0 #bbf7d0}50%{box-shadow:0 0 0 4px #bbf7d000}}`}</style>
+          <span style={{ fontSize: 11.5, fontWeight: 500, color: isEnabled ? '#15803d' : TEXT }}>
+            AI Calling {isEnabled ? '— Active' : '— Paused'}
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 10.5, color: MUTED, fontVariantNumeric: 'tabular-nums', fontWeight: 400 }}>
+            {aiStatus?.inProgress ?? 0} active · {aiStatus?.queued ?? 0} queued
+          </span>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2"
+            style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </div>
+      </div>
+
+      {/* Expanded body */}
+      {expanded && (
+        <div style={{ padding: '0 12px 12px', borderTop: `1px solid ${isEnabled ? '#bbf7d0' : BORDER}` }}>
+          {/* Stats row */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5, margin: '8px 0' }}>
+            {[
+              { label: 'In Progress', value: aiStatus?.inProgress ?? 0, color: '#16a34a' },
+              { label: 'Queued', value: aiStatus?.queued ?? 0, color: '#f59e0b' },
+              { label: 'Done Today', value: aiStatus?.completedToday ?? 0, color: BLUE },
+            ].map(({ label, value, color }) => (
+              <div key={label} style={{ background: '#f8fafc', border: `1px solid ${BORDER}`, borderRadius: 7, padding: '5px 4px', textAlign: 'center' }}>
+                <div style={{ fontSize: 9.5, color: MUTED, marginBottom: 1, fontWeight: 400 }}>{label}</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color }}>{value}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Concurrency input (only when not active) */}
+          {!isEnabled && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+              <label style={{ fontSize: 11, color: MUTED, fontWeight: 400, whiteSpace: 'nowrap' }}>Concurrent calls:</label>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={aiConcurrency}
+                onChange={e => setAiConcurrency(Math.max(1, Math.min(20, Number(e.target.value))))}
+                style={{
+                  width: 50, padding: '4px 6px', borderRadius: 6,
+                  border: `1px solid ${BORDER}`, fontSize: 11.5, color: TEXT,
+                  fontWeight: 500, outline: 'none', textAlign: 'center',
+                }}
+              />
+            </div>
+          )}
+
+          {/* Action button */}
+          {isEnabled ? (
+            <button
+              onClick={handlePause}
+              disabled={loading}
+              style={{
+                width: '100%', padding: '7px', borderRadius: 7,
+                background: loading ? '#fef9c3' : '#fef08a',
+                border: '1px solid #fde047', color: '#854d0e',
+                fontSize: 11.5, fontWeight: 500, cursor: loading ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              }}
+            >
+              {loading ? (
+                <>
+                  <div className="spinner-gradient" style={{ width: 11, height: 11 }} />
+                  Pausing…
+                </>
+              ) : (
+                <>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" />
+                  </svg>
+                  Pause AI Calling
+                </>
+              )}
+            </button>
+          ) : (
+            <button
+              onClick={handleStart}
+              disabled={loading}
+              style={{
+                width: '100%', padding: '7px', borderRadius: 7,
+                background: loading ? '#93c5fd' : BLUE,
+                border: 'none', color: '#fff',
+                fontSize: 11.5, fontWeight: 500, cursor: loading ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              }}
+            >
+              {loading ? (
+                <>
+                  <div className="spinner-gradient" style={{ width: 11, height: 11 }} />
+                  Starting…
+                </>
+              ) : (
+                <>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polygon points="5 3 19 12 5 21 5 3" />
+                  </svg>
+                  Start AI Calling
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // MAIN META LEADS COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 export default function MetaLeads() {
@@ -398,7 +592,7 @@ export default function MetaLeads() {
 
   // ── Robust Name, Phone & Email Extraction (Resolves "Unknown Lead") ────────
   const getLeadIdentifiers = (lead) => {
-    if (!lead) return { name: '', phone: '', email: '' };
+    if (!lead) return { name: '', phone: '', email: '', city: '' };
     const raw = lead.rawData || {};
 
     // 1. Phone extraction
@@ -421,8 +615,8 @@ export default function MetaLeads() {
       }
     }
 
-    // 2. Full Name extraction (Checking fullName, full_name, name, Name, Bhavani, etc.)
-    let name = lead.fullName || lead.name || raw.full_name || raw.fullName || raw.name || raw.Name || raw['Full Name'] || raw['Candidate Name'] || raw['Student Name'] || '';
+    // 2. Full Name extraction
+    let name = lead.fullName || lead.name || raw.name || raw.full_name || raw.fullName || raw.Name || raw['Full Name'] || raw['Candidate Name'] || raw['Student Name'] || '';
     if (!name || name === 'full_name' || name === 'name') {
       if (raw['Bhavani'] && typeof raw['Bhavani'] === 'string' && raw['Bhavani'] !== 'full_name') {
         name = raw['Bhavani'];
@@ -458,10 +652,22 @@ export default function MetaLeads() {
       }
     }
 
+    // 4. City / Location extraction
+    let city = lead.city || raw.city || raw.City || raw.location || raw.Location || raw.town || raw.Town || '';
+    if (!city) {
+      for (const [k, v] of Object.entries(raw)) {
+        if (/city|location|town/i.test(k) && typeof v === 'string' && v.trim()) {
+          city = v;
+          break;
+        }
+      }
+    }
+
     return {
       phone: String(phone).trim(),
       name: String(name).trim(),
-      email: String(email).trim()
+      email: String(email).trim(),
+      city: String(city).trim()
     };
   };
 
@@ -575,23 +781,22 @@ export default function MetaLeads() {
   const handleSync = async () => {
     if (syncing) return;
     setSyncing(true);
-    setStatusMessage('Syncing Meta Leads Google Sheets via live n8n pipeline...');
+    setStatusMessage('Syncing Meta Leads Google Sheets directly (Name, Phone, City, Email)...');
     try {
-      await metaLeadsAPI.triggerSync();
-      setStatusMessage('Sync triggered! Refreshing campaigns...');
-      setTimeout(async () => {
-        await fetchCampaigns();
-        if (selectedCampaign) {
-          await fetchCampaignLeads(selectedCampaign, leadsPage);
-        }
-        setStatusMessage('Sync successfully finished!');
-        setSyncing(false);
-        setTimeout(() => setStatusMessage(''), 4000);
-      }, 2500);
+      const res = await metaLeadsAPI.triggerSync();
+      const msg = res.data?.message || 'Google Sheets sync completed!';
+      setStatusMessage(msg);
+      await fetchCampaigns();
+      if (selectedCampaign) {
+        await fetchCampaignLeads(selectedCampaign, 1);
+      }
+      setSyncing(false);
+      setTimeout(() => setStatusMessage(''), 5000);
     } catch (err) {
       console.error('Sync failed:', err);
-      setStatusMessage('Sync encountered an issue.');
+      setStatusMessage(err.response?.data?.message || 'Sync encountered an issue. Please check network/permissions.');
       setSyncing(false);
+      setTimeout(() => setStatusMessage(''), 5000);
     }
   };
 
@@ -615,10 +820,10 @@ export default function MetaLeads() {
 
     let csvContent = 'data:text/csv;charset=utf-8,';
     if (selectedCampaign) {
-      csvContent += 'Name,Phone,Email,Campaign,Status,Synced Date\n';
+      csvContent += 'Name,Phone,City,Email,Campaign,Status,Synced Date\n';
       campaignLeads.forEach(lead => {
-        const { name, phone, email } = getLeadIdentifiers(lead);
-        csvContent += `"${name}","${phone}","${email}","${lead.campaign || selectedCampaign}","${lead.status || 'New'}","${lead.syncedAt || ''}"\n`;
+        const { name, phone, email, city } = getLeadIdentifiers(lead);
+        csvContent += `"${name}","${phone}","${city}","${email}","${lead.campaign || selectedCampaign}","${lead.status || 'New'}","${lead.syncedAt || ''}"\n`;
       });
     } else {
       csvContent += 'Campaign Name,Total Leads,New Leads,Converted Leads,Completion Rate,Last Synced\n';
@@ -920,7 +1125,7 @@ export default function MetaLeads() {
                 </div>
               ) : (
                 campaignLeads.map(lead => {
-                  const { name, phone } = getLeadIdentifiers(lead);
+                  const { name, phone, email, city } = getLeadIdentifiers(lead);
                   const isSelected = selectedLead?._id === lead._id;
                   const isPos = isLeadPositive(lead);
                   const isNeg = isLeadNegative(lead);
@@ -951,8 +1156,9 @@ export default function MetaLeads() {
                               {name}
                             </div>
                           </div>
-                          <div style={{ fontSize: 10.5, color: MUTED, fontFamily: 'monospace', fontWeight: 400 }}>
-                            {phone || 'No phone'}
+                          <div style={{ fontSize: 10.5, color: MUTED, fontFamily: 'monospace', fontWeight: 400, display: 'flex', alignItems: 'center', gap: 4, overflow: 'hidden' }}>
+                            <span style={{ flexShrink: 0 }}>{phone || 'No phone'}</span>
+                            {city && <span style={{ fontFamily: 'inherit', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>· {city}</span>}
                           </div>
                         </div>
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><polyline points="9 18 15 12 9 6" /></svg>
@@ -1071,70 +1277,11 @@ export default function MetaLeads() {
               )}
             </div>
 
-            {/* Quick Filter Sentiment Bars */}
-            <div style={{ background: '#fff', borderRadius: 10, padding: '12px 10px', border: `1px solid ${BORDER}`, boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
-              <div style={{ fontSize: 11.5, fontWeight: 700, color: TEXT, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: BLUE }} />
-                Conversion Ratios
-              </div>
-
-              {/* Positive Leads bar - Clickable */}
-              <div
-                onClick={() => setLeadsStatusFilter(prev => prev === 'Positive' ? '' : 'Positive')}
-                style={{
-                  marginBottom: 8,
-                  cursor: 'pointer',
-                  padding: '4px 6px',
-                  borderRadius: 6,
-                  background: leadsStatusFilter === 'Positive' ? '#ecfdf5' : 'transparent',
-                  border: `1px solid ${leadsStatusFilter === 'Positive' ? '#10b981' : 'transparent'}`,
-                  transition: 'all 0.15s ease'
-                }}
-                className="hover:bg-slate-50"
-                title="Click to filter Positive leads on the left"
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, marginBottom: 2 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <span style={{ color: '#059669', fontWeight: 600 }}>Positive Leads</span>
-                    {leadsStatusFilter === 'Positive' && (
-                      <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 3, background: '#10b981', color: '#fff', fontWeight: 700 }}>Active</span>
-                    )}
-                  </div>
-                  <span style={{ fontWeight: 700, color: TEXT }}>{positiveCount}</span>
-                </div>
-                <div style={{ height: 5, background: '#f1f5f9', borderRadius: 3, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', background: '#10b981', borderRadius: 3, width: `${campaignLeads.length > 0 ? Math.round(positiveCount / campaignLeads.length * 100) : 0}%`, transition: 'width 0.4s' }} />
-                </div>
-              </div>
-
-              {/* Negative Leads bar - Clickable */}
-              <div
-                onClick={() => setLeadsStatusFilter(prev => prev === 'Negative' ? '' : 'Negative')}
-                style={{
-                  cursor: 'pointer',
-                  padding: '4px 6px',
-                  borderRadius: 6,
-                  background: leadsStatusFilter === 'Negative' ? '#fff1f2' : 'transparent',
-                  border: `1px solid ${leadsStatusFilter === 'Negative' ? '#ef4444' : 'transparent'}`,
-                  transition: 'all 0.15s ease'
-                }}
-                className="hover:bg-slate-50"
-                title="Click to filter Negative leads on the left"
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, marginBottom: 2 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <span style={{ color: '#dc2626', fontWeight: 600 }}>Negative Leads</span>
-                    {leadsStatusFilter === 'Negative' && (
-                      <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 3, background: '#ef4444', color: '#fff', fontWeight: 700 }}>Active</span>
-                    )}
-                  </div>
-                  <span style={{ fontWeight: 700, color: TEXT }}>{negativeCount}</span>
-                </div>
-                <div style={{ height: 5, background: '#f1f5f9', borderRadius: 3, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', background: '#ef4444', borderRadius: 3, width: `${campaignLeads.length > 0 ? Math.round(negativeCount / campaignLeads.length * 100) : 0}%`, transition: 'width 0.4s' }} />
-                </div>
-              </div>
-            </div>
+            {/* AI Calling Panel */}
+            <MetaAICallingPanel
+              campaign={selectedCampaign}
+              onStatusChange={() => fetchCampaignLeads(selectedCampaign, leadsPage)}
+            />
 
             {/* Assigned Callers */}
             {activeAssignees.length > 0 && (
@@ -1467,7 +1614,7 @@ export default function MetaLeads() {
             <p className="text-xs text-slate-500 max-w-sm mx-auto mb-4">
               {search || statusFilter || assigneeFilter
                 ? 'No campaigns matched your active filters. Try resetting the filters.'
-                : 'Sync your live Google Sheets via n8n to ingest campaign tabs and leads into the CRM.'}
+                : 'Sync your live Google Sheets directly to ingest campaign tabs and leads into the CRM.'}
             </p>
             <button
               onClick={handleSync}

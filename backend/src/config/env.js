@@ -11,5 +11,4 @@ module.exports = {
   META_WA_ACCESS_TOKEN: process.env.META_WA_ACCESS_TOKEN,
   META_WA_PHONE_NUMBER_ID: process.env.META_WA_PHONE_NUMBER_ID,
   META_WA_VERIFY_TOKEN: process.env.META_WA_VERIFY_TOKEN || 'zest_eat_meta_verify_8f9q2a',
-  N8N_META_LEADS_WEBHOOK_URL: process.env.N8N_META_LEADS_WEBHOOK_URL || 'https://aotms.app.n8n.cloud/webhook/Meta_Leads',
 };
