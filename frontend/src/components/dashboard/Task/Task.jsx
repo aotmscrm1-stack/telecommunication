@@ -3007,31 +3007,6 @@ export default function Task() {
 
             {!historyMode && (
               <>
-                {/* New Task / Todo CTA */}
-                <button
-                  onClick={() => setShowAddModal(true)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    background: COLOR_ORANGE,
-                    border: 'none',
-                    borderRadius: 8,
-                    cursor: 'pointer',
-                    fontSize: 14,
-                    color: '#fff',
-                    fontWeight: 500,
-                    padding: '9px 18px',
-                    boxShadow: '0 2px 8px rgba(251, 133, 0, 0.25)',
-                    transition: 'background 0.15s ease'
-                  }}
-                >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                    <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                  New Todo
-                </button>
-
                 {/* Upload Todo List / Tasks Form Button */}
                 <button
                   onClick={() => setShowUploadModal(true)}
@@ -3399,6 +3374,7 @@ export default function Task() {
           onCompleteTask={handleMarkComplete}
           onDeleteTask={handleDelete}
           onDateShift={handleDateShift}
+          onNewTodo={() => setShowAddModal(true)}
           historyMode={historyMode}
           markingId={markingCompleteId}
           deletingId={deletingTaskId}

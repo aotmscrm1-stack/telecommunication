@@ -356,6 +356,10 @@ export default function DigitalCalendar() {
   const [selectedDateFilter, setSelectedDateFilter] = useState(null); // 'YYYY-MM-DD' or null
   const [cardSubIndexMap, setCardSubIndexMap] = useState({}); // { [itemId]: activeSubIndex }
 
+  // Cards Pagination (Max 8 cards visible at a time)
+  const CARDS_PER_PAGE = 8;
+  const [currentPage, setCurrentPage] = useState(1);
+
   // Filters State
   const [filterEmployee, setFilterEmployee] = useState('all');
   const [filterType, setFilterType] = useState('all');
@@ -755,6 +759,18 @@ export default function DigitalCalendar() {
     // Sort by content_date ascending
     return list.sort((a, b) => new Date(a.content_date) - new Date(b.content_date));
   }, [items, viewMode, selectedDateFilter, filterStatus, filterType, filterPlatform, filterEmployee, searchQuery]);
+
+  // Reset pagination when any filter, mode, or date changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedDateFilter, filterStatus, filterType, filterPlatform, filterEmployee, searchQuery, viewMode, currentMonth, currentYear]);
+
+  // Paginated items: only 8 cards visible per page (9th card triggers Next/Previous buttons)
+  const totalCards = filteredItems.length;
+  const totalPages = Math.max(1, Math.ceil(totalCards / CARDS_PER_PAGE));
+  const validPage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = (validPage - 1) * CARDS_PER_PAGE;
+  const paginatedItems = filteredItems.slice(startIndex, startIndex + CARDS_PER_PAGE);
 
   // Open preview modal (read-only for completed & posted tasks)
   const handlePreviewClick = (item, initialActiveIndex = 0) => {
@@ -1938,27 +1954,6 @@ export default function DigitalCalendar() {
               </div>
             ) : filteredItems.length === 0 ? (
               <div className="p-12 text-center bg-white rounded-3xl border border-slate-200 shadow-sm">
-                <div className="w-14 h-14 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center mx-auto mb-3 text-xl">
-                  <FaCalendarDays />
-                </div>
-                <h3 className="text-base font-semibold text-slate-900 m-0">No Events Scheduled</h3>
-                <p className="text-xs text-slate-500 font-medium max-w-sm mx-auto mt-1 mb-4">
-                  There are no marketing schedules or events matching the selected date and filters.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPrefilledDate(selectedDateFilter || new Date().toISOString().split('T')[0]);
-                    setShowAddModal(true);
-                  }}
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-md transition cursor-pointer"
-                >
-                  <FaPlus className="w-3 h-3" />
-                  <span>Schedule Content Now</span>
-                </button>
-              </div>
-            ) : filteredItems.length === 0 ? (
-              <div className="p-12 text-center bg-white rounded-3xl border border-slate-200 shadow-sm">
                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 text-xl ${
                   viewMode === 'completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-sky-50 text-sky-600'
                 }`}>
@@ -1996,9 +1991,10 @@ export default function DigitalCalendar() {
                 )}
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4 items-stretch">
-                {/* Marketing Content Cards (Standardized uniform card sizes across completed & remaining tasks) */}
-                {filteredItems.map(item => {
+              <div className="flex flex-col gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4 items-stretch">
+                  {/* Marketing Content Cards (Standardized uniform card sizes across completed & remaining tasks) */}
+                  {paginatedItems.map(item => {
                   const rawContents = (item.contents && item.contents.length > 0)
                     ? item.contents.map((c, i) => ({ ...c, _originalIdx: i }))
                     : [{
@@ -2436,8 +2432,43 @@ export default function DigitalCalendar() {
                         )}
                       </div>
                     </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+
+                {/* ── Next / Previous Pagination Controls (Visible when more than 8 cards) ── */}
+                {totalCards > CARDS_PER_PAGE && (
+                  <div className="flex items-center justify-between w-full bg-white border border-slate-200/90 rounded-2xl px-5 py-3 shadow-xs">
+                    {/* Left side: Previous button */}
+                    <button
+                      type="button"
+                      disabled={validPage <= 1}
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      className="px-4 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-xs rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                    >
+                      <FaChevronLeft className="w-3.5 h-3.5" />
+                      <span>Previous</span>
+                    </button>
+
+                    {/* Middle: 1 / .. like this */}
+                    <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                      <span className="px-3.5 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-800 font-extrabold text-sm shadow-2xs">
+                        {validPage} / {totalPages}
+                      </span>
+                    </div>
+
+                    {/* Right side: Next button */}
+                    <button
+                      type="button"
+                      disabled={validPage >= totalPages}
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      className="px-4 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-xs rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                    >
+                      <span>Next</span>
+                      <FaChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

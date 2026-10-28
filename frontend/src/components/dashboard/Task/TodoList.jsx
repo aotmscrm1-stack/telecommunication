@@ -600,6 +600,7 @@ export default function TodoList({
   onCompleteTask, 
   onDeleteTask,
   onDateShift,
+  onNewTodo,
   historyMode = false,
   markingId = null,
   deletingId = null,
@@ -653,8 +654,13 @@ export default function TodoList({
 
   // 1-Click Quick Add Handler
   const handleQuickAdd = async (e) => {
-    e.preventDefault();
-    if (!quickTitle.trim()) return;
+    if (e && e.preventDefault) e.preventDefault();
+    if (!quickTitle.trim()) {
+      if (onNewTodo) {
+        onNewTodo();
+      }
+      return;
+    }
     setIsAdding(true);
     try {
       let scheduledTime;
@@ -675,7 +681,13 @@ export default function TodoList({
         assignedTo: currentUser?._id,
         assignedBy: currentUser?._id,
       };
-      await todosAPI.create(payload);
+
+      // Save via followupsAPI (which fetchTasks reads from) and sync with todosAPI
+      await Promise.all([
+        followupsAPI.create(payload),
+        todosAPI.create(payload).catch(() => {})
+      ]);
+
       setQuickTitle('');
       if (fetchTasks) fetchTasks();
     } catch (err) {
@@ -685,9 +697,7 @@ export default function TodoList({
     }
   };
 
-  // Filtered Todos with deduplication for recurring series & date filter
-  const seenGroupIds = new Set();
-  const seenRecurringKeys = new Set();
+  // Filtered Todos with date filter
   const filteredTodos = tasks.filter(t => {
     if (priorityFilter !== 'all' && priorityFilter !== '' && t.priority !== priorityFilter) return false;
 
@@ -704,21 +714,6 @@ export default function TodoList({
       if (!noteStr.includes(q) && !assigneeStr.includes(q)) return false;
     }
 
-    const isRec = !!(t.recurrence?.frequency || t.recurrenceFrequency || (t.recurrence && t.recurrence.frequency !== 'none'));
-    if (isRec) {
-      if (t.recurringGroupId) {
-        const gId = String(t.recurringGroupId);
-        if (seenGroupIds.has(gId)) return false;
-        seenGroupIds.add(gId);
-      } else {
-        const assigneeId = t.assignedTo?._id || t.assignedTo || '';
-        const taskTitle = (t.title || t.note || t.description || '').trim();
-        const freq = t.recurrence?.frequency || t.recurrenceFrequency || '';
-        const recKey = `${taskTitle}_${assigneeId}_${freq}`;
-        if (seenRecurringKeys.has(recKey)) return false;
-        seenRecurringKeys.add(recKey);
-      }
-    }
     return true;
   });
 
@@ -766,11 +761,12 @@ export default function TodoList({
 
               <button
                 type="submit"
-                disabled={isAdding || !quickTitle.trim()}
+                disabled={isAdding}
                 className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 shrink-0 cursor-pointer"
+                title={!quickTitle.trim() ? "Click to open New Todo dialog, or type a title to quick-add" : "Create this Todo"}
               >
                 <Plus size={15} />
-                {isAdding ? 'Adding...' : 'Add Todo'}
+                {isAdding ? 'Creating...' : 'New Todo'}
               </button>
             </form>
           )}
@@ -860,126 +856,7 @@ export default function TodoList({
                   </span>
                 </div>
 
-                {/* Single Card Date Navigation for Recurring Todos */}
-                {(() => {
-                  const isRecurring = !!(t.recurrence?.frequency || t.recurrenceFrequency || (t.recurrence && t.recurrence.frequency !== 'none'));
-                  if (!isRecurring) return null;
-                  const recurrenceFreq = (t.recurrence?.frequency || t.recurrenceFrequency || 'daily').toLowerCase();
-                  const initialDueDate = t.initialScheduledAt || t.createdAt || t.scheduledAt;
-                  const repeatEndDate = t.recurrence?.endDate;
-                  const currentDate = new Date(t.scheduledAt || Date.now());
-                  const minDate = initialDueDate ? new Date(initialDueDate) : null;
-                  const maxDate = repeatEndDate ? new Date(repeatEndDate) : null;
-                  const isAtMinDate = minDate ? (currentDate.getTime() <= minDate.getTime() + 60000) : false;
-                  const isAtMaxDate = maxDate ? (currentDate.getTime() >= maxDate.getTime() - 60000) : false;
 
-                  let occurrenceBadgeText = null;
-                  if (minDate) {
-                    const dayMs = 24 * 60 * 60 * 1000;
-                    const diffDaysFromStart = Math.max(0, Math.floor((currentDate.getTime() - minDate.getTime()) / dayMs));
-
-                    let currentStep = 1;
-                    let totalSteps = null;
-
-                    if (recurrenceFreq === 'weekly') {
-                      currentStep = Math.floor(diffDaysFromStart / 7) + 1;
-                      if (maxDate && maxDate > minDate) {
-                        const totalDays = Math.floor((maxDate.getTime() - minDate.getTime()) / dayMs);
-                        totalSteps = Math.floor(totalDays / 7) + 1;
-                      }
-                    } else if (recurrenceFreq === 'monthly') {
-                      currentStep = ((currentDate.getFullYear() - minDate.getFullYear()) * 12) + (currentDate.getMonth() - minDate.getMonth()) + 1;
-                      currentStep = Math.max(1, currentStep);
-                      if (maxDate && maxDate > minDate) {
-                        totalSteps = ((maxDate.getFullYear() - minDate.getFullYear()) * 12) + (maxDate.getMonth() - minDate.getMonth()) + 1;
-                        totalSteps = Math.max(1, totalSteps);
-                      }
-                    } else {
-                      currentStep = diffDaysFromStart + 1;
-                      if (maxDate && maxDate > minDate) {
-                        const totalDays = Math.floor((maxDate.getTime() - minDate.getTime()) / dayMs);
-                        totalSteps = totalDays + 1;
-                      }
-                    }
-
-                    const doneCount = t.completedCount || 0;
-                    if (totalSteps) {
-                      occurrenceBadgeText = `Day ${currentStep} of ${totalSteps} (Completed: ${doneCount})`;
-                    } else {
-                      occurrenceBadgeText = `Occurrence #${currentStep} (Completed: ${doneCount})`;
-                    }
-                  }
-
-                  return (
-                    <div className="flex flex-col gap-2 w-full box-border bg-gradient-to-br from-sky-50 to-white border border-sky-200/80 rounded-xl p-2.5 shadow-xs">
-                      <div className="flex items-center justify-between w-full">
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-orange-600 flex items-center gap-1.5">
-                          <Repeat size={12} className="text-orange-500" />
-                          <span>{recurrenceFreq} Todo</span>
-                        </div>
-
-                        {/* Today Reset Button */}
-                        {!isTodayDate(t.scheduledAt) && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (onDateShift) onDateShift(t, 'today');
-                            }}
-                            className="text-[10px] font-bold bg-gradient-to-r from-slate-800 to-sky-700 text-white rounded-full px-2 py-0.5 shadow-xs hover:scale-105 transition-all flex items-center gap-1 ml-auto cursor-pointer"
-                            title="Jump date back to Today"
-                          >
-                            <Clock size={10} /> Today
-                          </button>
-                        )}
-                      </div>
-
-                      <div className="flex items-center justify-between w-full gap-2">
-                        <button
-                          type="button"
-                          disabled={isAtMinDate}
-                          onClick={(e) => { e.stopPropagation(); if (!isAtMinDate && onDateShift) onDateShift(t, -1); }}
-                          className={`w-7 h-7 rounded-full flex items-center justify-center border transition-all ${
-                            isAtMinDate 
-                              ? 'bg-slate-100 border-slate-200 text-slate-400 opacity-40 cursor-not-allowed' 
-                              : 'bg-white border-slate-200 text-slate-700 hover:border-orange-500 hover:text-orange-500 hover:scale-105 shadow-xs cursor-pointer'
-                          }`}
-                          title={isAtMinDate ? "Cannot shift prior to initial Due Date" : "Previous Occurrence"}
-                        >
-                          <ChevronLeft size={14} />
-                        </button>
-
-                        <div className="flex flex-col items-center flex-1 text-center">
-                          {occurrenceBadgeText && (
-                            <span className="text-[9.5px] font-bold bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded-md mb-0.5">
-                              🔥 {occurrenceBadgeText}
-                            </span>
-                          )}
-                          <span className="text-xs font-semibold text-slate-800">
-                            {t.scheduledAt ? formatIST(t.scheduledAt) : 'Active Date'}
-                          </span>
-                          <span className="text-[10px] text-slate-400">
-                            Repeat Until: <strong className="text-slate-600">{repeatEndDate ? formatISTDate(repeatEndDate) : 'No Limit'}</strong>
-                          </span>
-                        </div>
-
-                        <button
-                          type="button"
-                          disabled={isAtMaxDate}
-                          onClick={(e) => { e.stopPropagation(); if (!isAtMaxDate && onDateShift) onDateShift(t, 1); }}
-                          className={`w-7 h-7 rounded-full flex items-center justify-center border transition-all ${
-                            isAtMaxDate 
-                              ? 'bg-slate-100 border-slate-200 text-slate-400 opacity-40 cursor-not-allowed' 
-                              : 'bg-white border-slate-200 text-slate-700 hover:border-orange-500 hover:text-orange-500 hover:scale-105 shadow-xs cursor-pointer'
-                          }`}
-                          title={isAtMaxDate ? "Cannot shift beyond repeat end date" : "Next Occurrence"}
-                        >
-                          <ChevronRight size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })()}
 
                 {/* Center Description / Checklist */}
                 <div className="bg-slate-50/70 border border-slate-100 rounded-xl p-3.5 min-h-[70px]">
@@ -1060,61 +937,37 @@ export default function TodoList({
                 })}
               </div>
 
-              {/* ── Next / Previous Pagination Controls ── */}
-              {totalPages > 1 && (
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white border border-slate-200/90 rounded-2xl p-3 px-4 shadow-xs mt-1">
-                  <div className="text-xs font-medium text-slate-500">
-                    Showing <span className="font-bold text-slate-800">{startIndex + 1}</span>–<span className="font-bold text-slate-800">{endIndex}</span> of <span className="font-bold text-slate-800">{filteredTodos.length}</span> todos
-                    <span className="hidden sm:inline text-slate-400 ml-1.5">(Page {validPage} of {totalPages} • 2 rows max)</span>
+              {/* ── Next / Previous Pagination Controls (Visible if more than 6 todos) ── */}
+              {filteredTodos.length > 6 && (
+                <div className="flex items-center justify-between w-full bg-white border border-slate-200/90 rounded-2xl px-5 py-3 shadow-xs mt-1">
+                  {/* Left side: Previous button */}
+                  <button
+                    type="button"
+                    disabled={validPage <= 1}
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    className="px-4 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-xs rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                  >
+                    <ChevronLeft size={15} />
+                    <span>Previous</span>
+                  </button>
+
+                  {/* Middle: 1 / .. like this */}
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                    <span className="px-3.5 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-800 font-extrabold text-sm shadow-2xs">
+                      {validPage} / {totalPages}
+                    </span>
                   </div>
 
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      disabled={validPage <= 1}
-                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                      className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 font-semibold text-xs rounded-xl hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1 shadow-2xs cursor-pointer"
-                    >
-                      <ChevronLeft size={14} />
-                      <span>Previous</span>
-                    </button>
-
-                    <div className="flex items-center gap-1">
-                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => {
-                        if (totalPages > 5 && Math.abs(pageNum - validPage) > 2 && pageNum !== 1 && pageNum !== totalPages) {
-                          if (pageNum === 2 || pageNum === totalPages - 1) {
-                            return <span key={pageNum} className="px-1 text-slate-400 text-xs">...</span>;
-                          }
-                          return null;
-                        }
-                        const isActive = pageNum === validPage;
-                        return (
-                          <button
-                            key={pageNum}
-                            type="button"
-                            onClick={() => setCurrentPage(pageNum)}
-                            className={`w-7 h-7 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                              isActive
-                                ? 'bg-indigo-600 text-white shadow-xs'
-                                : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
-                            }`}
-                          >
-                            {pageNum}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    <button
-                      type="button"
-                      disabled={validPage >= totalPages}
-                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                      className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 font-semibold text-xs rounded-xl hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1 shadow-2xs cursor-pointer"
-                    >
-                      <span>Next</span>
-                      <ChevronRight size={14} />
-                    </button>
-                  </div>
+                  {/* Right side: Next button */}
+                  <button
+                    type="button"
+                    disabled={validPage >= totalPages}
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    className="px-4 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-xs rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                  >
+                    <span>Next</span>
+                    <ChevronRight size={15} />
+                  </button>
                 </div>
               )}
             </div>
