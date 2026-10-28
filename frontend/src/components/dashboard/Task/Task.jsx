@@ -3125,50 +3125,31 @@ export default function Task() {
         {/* Tabs bar */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${COLOR_BORDER}`, marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            {['Tasks', 'Todo'].map(tab => {
-              const isActive = activeTab === tab;
-              const isTabHistoryOn = !!historyModeMap[tab];
-              const tabLabel = tab === 'Tasks' ? 'Tasks' : 'Todo List & Actions';
-              return (
-                <button
-                  key={tab}
-                  onClick={() => handleTabSwitch(tab)}
-                  style={{
-                    padding: '11px 22px',
-                    border: 'none',
-                    background: 'none',
-                    cursor: 'pointer',
-                    fontSize: 15,
-                    fontWeight: isActive ? 600 : 500,
-                    color: isActive ? COLOR_DEEP_BLUE : COLOR_MUTED,
-                    borderBottom: isActive ? `3px solid ${COLOR_ORANGE}` : '3px solid transparent',
-                    marginBottom: -1,
-                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    borderRadius: '8px 8px 0 0',
-                    boxShadow: isActive ? '0 4px 14px rgba(251, 133, 0, 0.12)' : 'none'
-                  }}
-                >
-                  {tab === 'Tasks' ? (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={isActive ? COLOR_ORANGE : 'currentColor'} strokeWidth="2.2">
-                      <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
-                    </svg>
-                  ) : (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={isActive ? COLOR_ORANGE : 'currentColor'} strokeWidth="2.2">
-                      <polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-                    </svg>
-                  )}
-                  <span>{tabLabel}</span>
-                  {isTabHistoryOn && (
-                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                      History
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+            <div
+              style={{
+                padding: '11px 22px',
+                fontSize: 15,
+                fontWeight: 600,
+                color: COLOR_DEEP_BLUE,
+                borderBottom: `3px solid ${COLOR_ORANGE}`,
+                marginBottom: -1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                borderRadius: '8px 8px 0 0',
+                boxShadow: '0 4px 14px rgba(251, 133, 0, 0.12)'
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={COLOR_ORANGE} strokeWidth="2.2">
+                <polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+              </svg>
+              <span>Todo List & Actions</span>
+              {historyMode && (
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                  History
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Section-Specific History Button */}
