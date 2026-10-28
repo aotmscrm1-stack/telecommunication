@@ -536,12 +536,10 @@ export default function Navbar() {
 
   const telecallerNavGroups = [
     {
-      title: 'Tasks & Todo',
+      title: 'TODO List',
       icon: FaListCheck,
       items: [
-        { label: 'Tasks', path: user?._id ? `/${user._id}/tasks` : '/tasks', icon: FaListCheck },
-        { label: 'TODO List', path: '/tasks?tab=Todo', icon: FaListCheck },
-        ...(canViewCallFollowups(user) ? [{ label: 'Call Follow-ups', path: '/tasks?tab=Call+Followups', icon: FaClock }] : []),
+        { label: 'TODO List', path: '/todo', icon: FaListCheck },
       ]
     },
     {
@@ -616,12 +614,10 @@ export default function Navbar() {
 
   const topDropdownGroups = isCaller ? telecallerNavGroups : (!hasDashboard ? [
     {
-      title: 'Tasks & Todo',
+      title: 'TODO List',
       icon: FaListCheck,
       items: [
-        { label: 'Tasks', path: user?._id ? `/${user._id}/tasks` : '/tasks', icon: FaListCheck },
-        { label: 'TODO List', path: '/tasks?tab=Todo', icon: FaListCheck },
-        ...(canViewCallFollowups(user) ? [{ label: 'Call Follow-ups', path: '/tasks?tab=Call+Followups', icon: FaClock }] : []),
+        { label: 'TODO List', path: '/todo', icon: FaListCheck },
       ]
     },
     ...(canSeeMetaLeads ? [{
@@ -662,7 +658,7 @@ export default function Navbar() {
   ] : [
     { title: 'Info', icon: FaCircleInfo, items: [
       { label: 'Dashboard', path: '/dashboard', icon: FaHouse },
-      { label: 'Task', path: user?._id ? `/${user._id}/tasks` : '/tasks', icon: FaListCheck },
+      { label: 'TODO List', path: '/todo', icon: FaListCheck },
       { label: 'Digital Calendar', path: '/digital-calendar', icon: FaCalendarDays },
     ]},
     (user?.role === 'admin' || isCEO(user) || (String(user?.department || '').toUpperCase() === 'MARKETING' && user?.role === 'manager')) ? {
@@ -842,7 +838,7 @@ export default function Navbar() {
                   to={
                     hasDashboard
                       ? "/dashboard"
-                      : "/tasks"
+                      : "/todo"
                   }
                   className="flex items-center gap-2 group"
                 >

@@ -2525,19 +2525,8 @@ export default function Task() {
   const hasCallFollowupsAccess = canViewCallFollowups(currentUser);
 
   const getTabFromLocationOrQuery = useCallback(() => {
-    const p = location.pathname.toLowerCase();
-    if (p.includes('/todo')) return 'Todo';
-    if ((p.includes('/follow-up') || p.includes('/followup')) && hasCallFollowupsAccess) return 'Call Followups';
-    
-    const tabParam = searchParams.get('tab');
-    if (tabParam) {
-      const lower = tabParam.toLowerCase();
-      if (lower === 'todo' || lower === 'todo list' || lower === 'todos') return 'Todo';
-      if ((lower === 'call followups' || lower === 'call_followup' || lower === 'calls') && hasCallFollowupsAccess) return 'Call Followups';
-      if (lower === 'tasks' || lower === 'all' || lower === 'all tasks') return 'Tasks';
-    }
-    return 'Tasks';
-  }, [location.pathname, searchParams, hasCallFollowupsAccess]);
+    return 'Todo';
+  }, []);
 
   const [activeTab, setActiveTab] = useState(getTabFromLocationOrQuery);
 
@@ -2628,10 +2617,7 @@ export default function Task() {
   const fetchTasks = useCallback(async () => {
     setLoading(true);
     try {
-      let queryType;
-      if (activeTab === 'Call Followups') queryType = 'call_followup';
-      else if (activeTab === 'Todo') queryType = 'todo';
-      else queryType = 'task';
+      const queryType = 'todo';
 
       if (historyMode) {
         const res = await followupsAPI.getAll({
@@ -2983,18 +2969,10 @@ export default function Task() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
           <div>
             <h1 style={{ fontSize: 26, fontWeight: 500, color: COLOR_DEEP_BLUE, margin: 0, letterSpacing: '-0.01em' }}>
-              {activeTab === 'Todo'
-                ? 'Todo List & Actions'
-                : activeTab === 'Call Followups'
-                  ? 'Call Follow-up Management'
-                  : 'Tasks & Todo Management'}
+              Todo List & Actions
             </h1>
             <p style={{ fontSize: 14, color: COLOR_MUTED, margin: '4px 0 0', fontWeight: 400 }}>
-              {activeTab === 'Todo'
-                ? 'Organize daily to-dos, shift tasks, and internal assignments'
-                : activeTab === 'Call Followups'
-                  ? 'Track call follow-ups, customer schedules, and lead commitments'
-                  : 'Overview of all tasks, shift goals, and call follow-up commitments'}
+              Organize daily to-dos, shift tasks, and internal assignments
             </p>
           </div>
 
@@ -3047,7 +3025,7 @@ export default function Task() {
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                     <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
                   </svg>
-                  {activeTab === 'Todo' ? 'New Todo' : activeTab === 'Call Followups' ? 'New Follow-up' : 'New Task'}
+                  New Todo
                 </button>
 
                 {/* Upload Todo List / Tasks Form Button */}
@@ -3074,7 +3052,7 @@ export default function Task() {
                     <polyline points="17 8 12 3 7 8" />
                     <line x1="12" y1="3" x2="12" y2="15" />
                   </svg>
-                  {activeTab === 'Todo' ? 'Upload Todo List' : 'Upload Tasks'}
+                  Upload Todo List
                 </button>
               </>
             )}
@@ -3083,7 +3061,7 @@ export default function Task() {
             <button
               onClick={() => fetchTasks()}
               disabled={loading}
-              title={`Refresh ${activeTab === 'Todo' ? 'Todo List' : activeTab === 'Call Followups' ? 'Call Follow-ups' : 'Tasks'}`}
+              title="Refresh Todo List"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -3113,7 +3091,7 @@ export default function Task() {
                 <path d="M21.5 2v6h-6M2.5 22v-6h6" />
                 <path d="M2 11.5a10 10 0 0 1 18.8-4.3L21.5 8M22 12.5a10 10 0 0 1-18.8 4.3L2.5 16" />
               </svg>
-              Refresh {activeTab === 'Todo' ? 'Todo' : activeTab === 'Call Followups' ? 'Follow-ups' : 'Tasks'}
+              Refresh Todo
             </button>
 
             {/* Export CSV */}
@@ -3428,174 +3406,20 @@ export default function Task() {
           </div>
         </div>
 
-        {activeTab === 'Todo' ? (
-          <TodoList
-            tasks={tasks}
-            fetchTasks={fetchTasks}
-            onEditTask={setEditingTask}
-            onCompleteTask={handleMarkComplete}
-            onDeleteTask={handleDelete}
-            onDateShift={handleDateShift}
-            historyMode={historyMode}
-            markingId={markingCompleteId}
-            deletingId={deletingTaskId}
-            priorityFilter={priorityFilter}
-            setPriorityFilter={setPriorityFilter}
-          />
-        ) : (
-          <>
-
-
-
-        {/* Main Container: Card Grid View (4 Columns Layout) */}
-        {!loading && paginatedTasks.length > 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {paginatedTasks.map(task => (
-                <TodoCard
-                  key={task._id}
-                  task={task}
-                  onEdit={setEditingTask}
-                  onComplete={handleMarkComplete}
-                  onDelete={handleDelete}
-                  canComplete={canMarkCompleteTask(currentUser)}
-                  canEdit={canEditTask(task)}
-                  canDelete={checkCanDelete(task)}
-                  isLocked={isTaskLocked(task.scheduledAt)}
-                  markingId={markingCompleteId}
-                  deletingId={deletingTaskId}
-                  onDateShift={handleDateShift}
-                />
-              ))}
-            </div>
-
-            {/* Pagination Bar for Cards */}
-            {totalItems > 0 && (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '14px 20px',
-                background: '#fff',
-                border: `1px solid ${COLOR_BORDER}`,
-                borderRadius: 12,
-                flexWrap: 'wrap',
-                gap: 12
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                  <span style={{ fontSize: 13, color: COLOR_MUTED, fontWeight: 400 }}>
-                    Showing <strong style={{ color: COLOR_DEEP_BLUE, fontWeight: 500 }}>{startIndex + 1}</strong> to <strong style={{ color: COLOR_DEEP_BLUE, fontWeight: 500 }}>{endIndex}</strong> of <strong style={{ color: COLOR_DEEP_BLUE, fontWeight: 500 }}>{totalItems}</strong> {activeTab === 'Todo' ? 'todos' : 'tasks'}
-                  </span>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 13, color: COLOR_MUTED, fontWeight: 400 }}>Rows:</span>
-                    <select
-                      value={pageSize}
-                      onChange={e => {
-                        setPageSize(Number(e.target.value));
-                        setCurrentPage(1);
-                      }}
-                      style={{
-                        padding: '4px 8px',
-                        border: `1px solid ${COLOR_BORDER}`,
-                        borderRadius: 6,
-                        fontSize: 13,
-                        background: '#fff',
-                        color: COLOR_DEEP_BLUE,
-                        outline: 'none',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <option value={10}>10</option>
-                      <option value={20}>20</option>
-                      <option value={50}>50</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <button
-                    onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
-                    disabled={currentPage <= 1}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      padding: '6px 14px',
-                      borderRadius: 6,
-                      border: `1px solid ${currentPage <= 1 ? '#e2e8f0' : COLOR_BORDER}`,
-                      background: currentPage <= 1 ? '#f8fafc' : '#fff',
-                      color: currentPage <= 1 ? '#94a3b8' : COLOR_DEEP_BLUE,
-                      fontSize: 13,
-                      fontWeight: 500,
-                      cursor: currentPage <= 1 ? 'not-allowed' : 'pointer',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <polyline points="15 18 9 12 15 6" />
-                    </svg>
-                    Previous
-                  </button>
-
-                  <div style={{
-                    fontSize: 13,
-                    color: COLOR_DEEP_BLUE,
-                    padding: '6px 12px',
-                    borderRadius: 6,
-                    background: COLOR_SKY_SURFACE,
-                    border: `1px solid ${COLOR_BORDER}`,
-                    fontWeight: 500
-                  }}>
-                    {currentPage} of {totalPages}
-                  </div>
-
-                  <button
-                    onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
-                    disabled={currentPage >= totalPages}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      padding: '6px 14px',
-                      borderRadius: 6,
-                      border: `1px solid ${currentPage >= totalPages ? '#e2e8f0' : COLOR_BORDER}`,
-                      background: currentPage >= totalPages ? '#f8fafc' : '#fff',
-                      color: currentPage >= totalPages ? '#94a3b8' : COLOR_DEEP_BLUE,
-                      fontSize: 13,
-                      fontWeight: 500,
-                      cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    Next
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <polyline points="9 18 15 12 9 6" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : loading ? (
-          <div style={{ background: '#fff', border: `1px solid ${COLOR_BORDER}`, borderRadius: 12, padding: '40px 20px', textAlign: 'center' }}>
-            <OrangeLoadingState />
-          </div>
-        ) : (
-          <div style={{ background: '#fff', border: `1px dashed ${COLOR_BORDER}`, borderRadius: 12, padding: '60px 20px', textAlign: 'center' }}>
-            <div style={{ fontSize: 18, color: COLOR_DEEP_BLUE, fontWeight: 500 }}>
-              No {activeTab === 'Todo' ? 'Todos' : activeTab === 'Call Followups' ? 'Call Follow-ups' : 'Tasks'} Found
-            </div>
-            <p style={{ fontSize: 14, color: COLOR_MUTED, margin: '6px 0 0', fontWeight: 400 }}>
-              {historyMode
-                ? `No completed ${activeTab === 'Todo' ? 'todos' : 'tasks'} in history`
-                : `You're all caught up! Create a new ${activeTab === 'Todo' ? 'todo' : 'task'} or upload an Excel/CSV list.`}
-            </p>
-          </div>
-        )}
-
-      </>
-    )}
+        {/* Pure Todo Session View */}
+        <TodoList
+          tasks={tasks}
+          fetchTasks={fetchTasks}
+          onEditTask={setEditingTask}
+          onCompleteTask={handleMarkComplete}
+          onDeleteTask={handleDelete}
+          onDateShift={handleDateShift}
+          historyMode={historyMode}
+          markingId={markingCompleteId}
+          deletingId={deletingTaskId}
+          priorityFilter={priorityFilter}
+          setPriorityFilter={setPriorityFilter}
+        />
       </div>
     </div>
   );

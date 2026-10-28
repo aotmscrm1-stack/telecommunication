@@ -82,7 +82,7 @@ const getDefaultHomeRoute = (user) => {
   if (!user) return '/login';
   if (canViewDashboard(user)) return '/dashboard';
   if (canAccessDigitalCalendar(user)) return '/digital-calendar';
-  return '/tasks';
+  return '/todo';
 };
 
 // Guard Wrappers
@@ -219,14 +219,14 @@ export function AppRoutes() {
         <Route path="add-lead" element={<StaffRestrictedRoute><AddLead /></StaffRestrictedRoute>} />
 
         {/* Tasks & Todo */}
-        <Route path="tasks" element={<Tasks />} />
-        <Route path="task" element={<Tasks />} />
+        <Route path="tasks" element={<Navigate to="/todo" replace />} />
+        <Route path="task" element={<Navigate to="/todo" replace />} />
         <Route path="todo" element={<Tasks />} />
         <Route path="todos" element={<Tasks />} />
         <Route path="follow-ups" element={<Tasks />} />
         <Route path="followups" element={<Tasks />} />
-        <Route path=":userId/tasks" element={<Tasks />} />
-        <Route path=":userId/task" element={<Tasks />} />
+        <Route path=":userId/tasks" element={<Navigate to="/todo" replace />} />
+        <Route path=":userId/task" element={<Navigate to="/todo" replace />} />
         <Route path=":userId/todo" element={<Tasks />} />
         <Route path=":userId/todos" element={<Tasks />} />
         <Route path=":userId/follow-ups" element={<Tasks />} />

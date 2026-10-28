@@ -239,7 +239,7 @@ export default function Sidebar() {
         <div style={{ flex: 1, paddingTop: 6 }}>
           {isTelecaller(user) ? (
             <>
-              <NavItem to="/tasks" icon={Icons.tasks} label="Tasks" />
+              <NavItem to="/todo" icon={Icons.tasks} label="TODO List" />
 
               <SectionLabel text="Overall Marketing" />
               <ExpandGroup
@@ -278,7 +278,7 @@ export default function Sidebar() {
             <>
               <NavItem to="/dashboard"     icon={Icons.dashboard}   label="Dashboard" />
               <NavItem to="/leads"         icon={Icons.leads}       label="All Leads" />
-              <NavItem to="/tasks" icon={Icons.tasks} label="Tasks" />
+              <NavItem to="/todo" icon={Icons.tasks} label="TODO List" />
               {canViewCallRecordings(user) && (
                 <NavItem to="/recordings"  icon={Icons.recordings}  label="Call Recordings" iconColor="#0284c7" />
               )}
