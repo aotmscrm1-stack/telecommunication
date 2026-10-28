@@ -264,6 +264,9 @@ export const metaLeadsAPI = {
   getSyncStatus: () => api.get('/meta-leads/sync-status'),
   clearAll: () => api.delete('/meta-leads/clear-all'),
   getMyAssignmentStatus: () => api.get('/meta-leads/my-assignment-status'),
+  aiStart: (campaign, config) => api.post(`/meta-leads/campaign/${encodeURIComponent(campaign)}/ai-start`, config),
+  aiPause: (campaign) => api.post(`/meta-leads/campaign/${encodeURIComponent(campaign)}/ai-pause`),
+  aiStatus: (campaign) => api.get(`/meta-leads/campaign/${encodeURIComponent(campaign)}/ai-status`),
 };
 
 export const contactsAPI = {

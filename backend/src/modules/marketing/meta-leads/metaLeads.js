@@ -496,6 +496,83 @@ router.post('/assignments', protect, async (req, res) => {
   }
 });
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI Calling Controls for Meta Campaigns
+// ─────────────────────────────────────────────────────────────────────────────
+router.get('/campaign/:campaign/ai-status', protect, async (req, res) => {
+  try {
+    const { campaign } = req.params;
+    const assignment = await MetaCampaignAssignment.findOne({ campaign }).lean();
+    const inProgress = await MetaLead.countDocuments({ campaign, status: 'In Progress' });
+    const queued = await MetaLead.countDocuments({ campaign, status: 'New' });
+    const completedToday = await MetaLead.countDocuments({
+      campaign,
+      status: { $in: ['Converted', 'Follow-up', 'Closed'] },
+      updatedAt: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) }
+    });
+    res.json({
+      success: true,
+      aiCallingEnabled: assignment?.aiCallingEnabled || false,
+      aiConcurrencyLimit: assignment?.aiConcurrencyLimit || 5,
+      inProgress,
+      queued,
+      completedToday
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.post('/campaign/:campaign/ai-start', protect, async (req, res) => {
+  try {
+    const { campaign } = req.params;
+    const { aiConcurrencyLimit = 5 } = req.body;
+    const assignment = await MetaCampaignAssignment.findOneAndUpdate(
+      { campaign },
+      {
+        $set: {
+          aiCallingEnabled: true,
+          aiConcurrencyLimit: Number(aiConcurrencyLimit) || 5,
+          updatedAt: new Date()
+        }
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+    res.json({
+      success: true,
+      message: `AI Calling started for campaign "${campaign}" with ${assignment.aiConcurrencyLimit} concurrent calls`,
+      aiCallingEnabled: true,
+      aiConcurrencyLimit: assignment.aiConcurrencyLimit
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.post('/campaign/:campaign/ai-pause', protect, async (req, res) => {
+  try {
+    const { campaign } = req.params;
+    await MetaCampaignAssignment.findOneAndUpdate(
+      { campaign },
+      {
+        $set: {
+          aiCallingEnabled: false,
+          updatedAt: new Date()
+        }
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+    res.json({
+      success: true,
+      message: `AI Calling paused for campaign "${campaign}"`,
+      aiCallingEnabled: false
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/meta-leads/campaigns (Returns distinct campaigns with lead counts & assignees)
 // ─────────────────────────────────────────────────────────────────────────────
