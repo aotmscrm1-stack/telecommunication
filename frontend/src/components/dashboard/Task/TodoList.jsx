@@ -319,7 +319,6 @@ export default function TodoList({
   // Quick Add State
   const [quickTitle, setQuickTitle] = useState('');
   const [quickPriority, setQuickPriority] = useState('medium');
-  const [quickRecurrence, setQuickRecurrence] = useState('none');
   const [isAdding, setIsAdding] = useState(false);
 
   // Filters
@@ -353,17 +352,8 @@ export default function TodoList({
         assignedTo: currentUser?._id,
         assignedBy: currentUser?._id,
       };
-      if (quickRecurrence !== 'none') {
-        const nextMonth = new Date();
-        nextMonth.setMonth(nextMonth.getMonth() + 1);
-        payload.recurrence = {
-          frequency: quickRecurrence,
-          endDate: nextMonth.toISOString()
-        };
-      }
       await todosAPI.create(payload);
       setQuickTitle('');
-      setQuickRecurrence('none');
       if (fetchTasks) fetchTasks();
     } catch (err) {
       console.error('Quick Add Todo error:', err);
@@ -423,17 +413,6 @@ export default function TodoList({
             <option value="low">Low Priority</option>
             <option value="medium">Medium Priority</option>
             <option value="high">High Priority</option>
-          </select>
-
-          <select
-            value={quickRecurrence}
-            onChange={(e) => setQuickRecurrence(e.target.value)}
-            className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 capitalize focus:outline-none focus:border-indigo-500"
-          >
-            <option value="none">Does not repeat</option>
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-            <option value="monthly">Monthly</option>
           </select>
 
           <button
