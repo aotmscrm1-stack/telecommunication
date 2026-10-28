@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   CheckCircle2, 
   Calendar, 
@@ -16,11 +16,25 @@ import {
   Repeat,
   Clock,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  CalendarDays,
+  X,
+  CalendarCheck2
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { isExecutive, isHR, canEditOrDeleteTask, canMarkCompleteTask } from '../../../utils/permissions';
 import { followupsAPI, todosAPI } from '../../../services/api';
+
+// Helper to get YYYY-MM-DD in local time
+function getLocalDateKey(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 
 // Helper for IST Date formatting
 function formatISTDate(dateStr) {
@@ -300,6 +314,284 @@ function TodoChecklist({ text, task, onUpdated }) {
   );
 }
 
+// Real-world Interactive Calendar Widget for Left Sidebar
+function RealWorldCalendar({ selectedDate, onSelectDate, taskCountByDate = {}, totalTasksCount = 0 }) {
+  const [viewDate, setViewDate] = useState(() => {
+    if (selectedDate) {
+      const d = new Date(selectedDate);
+      if (!isNaN(d.getTime())) return d;
+    }
+    return new Date();
+  });
+
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  const weekDayNames = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+  const prevMonth = () => {
+    setViewDate(new Date(year, month - 1, 1));
+  };
+
+  const nextMonth = () => {
+    setViewDate(new Date(year, month + 1, 1));
+  };
+
+  const today = new Date();
+  const todayKey = getLocalDateKey(today);
+
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowKey = getLocalDateKey(tomorrow);
+
+  const handleJumpToday = () => {
+    setViewDate(new Date());
+    onSelectDate(todayKey);
+  };
+
+  // Compute days in month and calendar cells (42 cells: 6 rows of 7 days)
+  const firstDayOfWeek = new Date(year, month, 1).getDay(); // 0 is Sun
+  const daysInCurrentMonth = new Date(year, month + 1, 0).getDate();
+  const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+  const cells = [];
+
+  // Trailing days from previous month
+  for (let i = firstDayOfWeek - 1; i >= 0; i--) {
+    const dayNum = daysInPrevMonth - i;
+    const dateObj = new Date(year, month - 1, dayNum);
+    cells.push({
+      dateObj,
+      dayNum,
+      isCurrentMonth: false,
+      dateKey: getLocalDateKey(dateObj)
+    });
+  }
+
+  // Days in current month
+  for (let i = 1; i <= daysInCurrentMonth; i++) {
+    const dateObj = new Date(year, month, i);
+    cells.push({
+      dateObj,
+      dayNum: i,
+      isCurrentMonth: true,
+      dateKey: getLocalDateKey(dateObj)
+    });
+  }
+
+  // Leading days of next month to complete 35 or 42 cells
+  const targetTotal = cells.length > 35 ? 42 : 35;
+  const remaining = targetTotal - cells.length;
+  for (let i = 1; i <= remaining; i++) {
+    const dateObj = new Date(year, month + 1, i);
+    cells.push({
+      dateObj,
+      dayNum: i,
+      isCurrentMonth: false,
+      dateKey: getLocalDateKey(dateObj)
+    });
+  }
+
+  // Month scheduled todos count
+  const currentMonthTaskCount = useMemo(() => {
+    let count = 0;
+    cells.forEach(c => {
+      if (c.isCurrentMonth && taskCountByDate[c.dateKey]) {
+        count += taskCountByDate[c.dateKey];
+      }
+    });
+    return count;
+  }, [cells, taskCountByDate]);
+
+  return (
+    <div className="w-full lg:w-80 shrink-0 bg-white border border-slate-200/90 rounded-2xl p-4.5 shadow-xs flex flex-col gap-4 lg:sticky lg:top-4">
+      {/* Calendar Header with Navigation */}
+      <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-2xs">
+            <Calendar size={16} />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-slate-800 leading-tight">
+              {monthNames[month]} {year}
+            </h3>
+            <p className="text-[11px] font-medium text-slate-400">
+              {currentMonthTaskCount} {currentMonthTaskCount === 1 ? 'todo' : 'todos'} this month
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={prevMonth}
+            className="w-7 h-7 rounded-lg border border-slate-200 hover:border-indigo-300 hover:bg-slate-50 flex items-center justify-center text-slate-600 hover:text-indigo-600 transition-all cursor-pointer"
+            title="Previous Month"
+          >
+            <ChevronLeft size={14} />
+          </button>
+
+          <button
+            type="button"
+            onClick={handleJumpToday}
+            className={`px-2 py-1 rounded-lg border text-[11px] font-bold transition-all cursor-pointer ${
+              selectedDate === todayKey 
+                ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs' 
+                : 'border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700'
+            }`}
+            title="Jump to Today"
+          >
+            Today
+          </button>
+
+          <button
+            type="button"
+            onClick={nextMonth}
+            className="w-7 h-7 rounded-lg border border-slate-200 hover:border-indigo-300 hover:bg-slate-50 flex items-center justify-center text-slate-600 hover:text-indigo-600 transition-all cursor-pointer"
+            title="Next Month"
+          >
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      </div>
+
+      {/* Quick Filter Buttons */}
+      <div className="grid grid-cols-3 gap-1.5">
+        <button
+          type="button"
+          onClick={() => onSelectDate(null)}
+          className={`py-1.5 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center border cursor-pointer ${
+            !selectedDate 
+              ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs' 
+              : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300'
+          }`}
+        >
+          <span>All Todos</span>
+          <span className={`text-[10px] font-semibold ${!selectedDate ? 'text-indigo-100' : 'text-slate-400'}`}>
+            {totalTasksCount} total
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onSelectDate(selectedDate === todayKey ? null : todayKey)}
+          className={`py-1.5 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center border cursor-pointer ${
+            selectedDate === todayKey 
+              ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs' 
+              : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300'
+          }`}
+        >
+          <span>Today</span>
+          <span className={`text-[10px] font-semibold ${selectedDate === todayKey ? 'text-indigo-100' : 'text-slate-400'}`}>
+            {taskCountByDate[todayKey] || 0} todos
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onSelectDate(selectedDate === tomorrowKey ? null : tomorrowKey)}
+          className={`py-1.5 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center border cursor-pointer ${
+            selectedDate === tomorrowKey 
+              ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs' 
+              : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300'
+          }`}
+        >
+          <span>Tomorrow</span>
+          <span className={`text-[10px] font-semibold ${selectedDate === tomorrowKey ? 'text-indigo-100' : 'text-slate-400'}`}>
+            {taskCountByDate[tomorrowKey] || 0} todos
+          </span>
+        </button>
+      </div>
+
+      {/* Days of Week Header */}
+      <div className="grid grid-cols-7 gap-1 text-center">
+        {weekDayNames.map(d => (
+          <div key={d} className="text-[11px] font-bold text-slate-400 py-1">
+            {d}
+          </div>
+        ))}
+      </div>
+
+      {/* Calendar Grid Days */}
+      <div className="grid grid-cols-7 gap-1">
+        {cells.map((cell, idx) => {
+          const isSelected = selectedDate === cell.dateKey;
+          const isToday = cell.dateKey === todayKey;
+          const count = taskCountByDate[cell.dateKey] || 0;
+
+          return (
+            <button
+              key={`${cell.dateKey}-${idx}`}
+              type="button"
+              onClick={() => {
+                if (isSelected) {
+                  onSelectDate(null);
+                } else {
+                  onSelectDate(cell.dateKey);
+                  if (!cell.isCurrentMonth) {
+                    setViewDate(new Date(cell.dateObj));
+                  }
+                }
+              }}
+              className={`relative h-9 rounded-xl flex flex-col items-center justify-center transition-all cursor-pointer ${
+                isSelected
+                  ? 'bg-indigo-600 text-white font-bold shadow-xs scale-105 z-10'
+                  : isToday
+                    ? 'border-2 border-indigo-500 bg-indigo-50/60 font-bold text-indigo-900'
+                    : cell.isCurrentMonth
+                      ? 'text-slate-700 hover:bg-slate-100 font-medium'
+                      : 'text-slate-300 hover:bg-slate-50 font-normal'
+              }`}
+              title={`${cell.dateKey} (${count} todos)`}
+            >
+              <span className="text-xs leading-none">
+                {cell.dayNum}
+              </span>
+
+              {/* Dot / Badge indicator */}
+              {count > 0 && (
+                <span className={`absolute bottom-1 w-1.5 h-1.5 rounded-full ${
+                  isSelected 
+                    ? 'bg-white' 
+                    : count > 3 
+                      ? 'bg-red-500 ring-1 ring-white' 
+                      : 'bg-orange-500'
+                }`} />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Selected Date Summary & Clear Button */}
+      {selectedDate ? (
+        <div className="mt-1 bg-gradient-to-r from-indigo-50 to-sky-50 border border-indigo-200/80 rounded-xl p-2.5 flex items-center justify-between text-xs">
+          <div className="flex flex-col min-w-0">
+            <span className="text-[10px] uppercase tracking-wider font-extrabold text-indigo-700">Active Date Filter</span>
+            <span className="font-bold text-slate-800 truncate">{formatISTDate(selectedDate)}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => onSelectDate(null)}
+            className="text-[11px] font-bold text-indigo-600 hover:text-indigo-900 hover:bg-indigo-100 px-2 py-1 rounded-lg transition-all flex items-center gap-1 cursor-pointer shrink-0"
+          >
+            <X size={12} /> Clear
+          </button>
+        </div>
+      ) : (
+        <div className="mt-1 bg-slate-50 border border-slate-200/70 rounded-xl p-2 text-center text-[11px] text-slate-400 font-medium">
+          💡 Click any date above to filter todos
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Standalone TodoList Main Component
 export default function TodoList({ 
   tasks = [], 
@@ -316,6 +608,13 @@ export default function TodoList({
 }) {
   const { user: currentUser } = useAuth();
   
+  // Real-world Calendar selected date state (YYYY-MM-DD or null)
+  const [selectedDate, setSelectedDate] = useState(null);
+
+  // Pagination: strictly 3 cards per row * 2 rows = 6 cards per page
+  const ITEMS_PER_PAGE = 6;
+  const [currentPage, setCurrentPage] = useState(1);
+
   // Quick Add State
   const [quickTitle, setQuickTitle] = useState('');
   const [quickPriority, setQuickPriority] = useState('medium');
@@ -330,10 +629,27 @@ export default function TodoList({
     : internalPriorityFilter;
   const setPriorityFilter = parentSetPriorityFilter || setInternalPriorityFilter;
 
+  // Reset page when any filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedDate, priorityFilter, searchQuery, historyMode]);
+
   // Edit, Delete & Complete Permission Helpers based on MongoDB Auth
   const canComplete = canMarkCompleteTask(currentUser);
   const checkCanEdit = (todo) => canEditOrDeleteTask(todo, currentUser);
   const checkCanDelete = (todo) => canEditOrDeleteTask(todo, currentUser);
+
+  // Map of date string -> count of scheduled tasks
+  const taskCountByDate = useMemo(() => {
+    const map = {};
+    tasks.forEach(t => {
+      const k = getLocalDateKey(t.scheduledAt);
+      if (k) {
+        map[k] = (map[k] || 0) + 1;
+      }
+    });
+    return map;
+  }, [tasks]);
 
   // 1-Click Quick Add Handler
   const handleQuickAdd = async (e) => {
@@ -341,12 +657,19 @@ export default function TodoList({
     if (!quickTitle.trim()) return;
     setIsAdding(true);
     try {
+      let scheduledTime;
+      if (selectedDate) {
+        scheduledTime = new Date(`${selectedDate}T09:00:00`).toISOString();
+      } else {
+        scheduledTime = new Date().toISOString();
+      }
+
       const payload = {
         type: 'todo',
         title: quickTitle.trim(),
         note: quickTitle.trim(),
         description: quickTitle.trim(),
-        scheduledAt: new Date().toISOString(),
+        scheduledAt: scheduledTime,
         priority: quickPriority,
         department: currentUser?.department || '',
         assignedTo: currentUser?._id,
@@ -362,11 +685,18 @@ export default function TodoList({
     }
   };
 
-  // Filtered Todos with deduplication for recurring series
+  // Filtered Todos with deduplication for recurring series & date filter
   const seenGroupIds = new Set();
   const seenRecurringKeys = new Set();
   const filteredTodos = tasks.filter(t => {
     if (priorityFilter !== 'all' && priorityFilter !== '' && t.priority !== priorityFilter) return false;
+
+    // Date filter from real-world calendar
+    if (selectedDate) {
+      const taskDateKey = getLocalDateKey(t.scheduledAt);
+      if (taskDateKey !== selectedDate) return false;
+    }
+
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       const noteStr = (t.title || t.note || t.description || '').toLowerCase();
@@ -392,50 +722,101 @@ export default function TodoList({
     return true;
   });
 
+  // Pagination calculations: exactly 6 items per page (3 per row * 2 rows)
+  const totalPages = Math.max(1, Math.ceil(filteredTodos.length / ITEMS_PER_PAGE));
+  const validPage = Math.min(currentPage, totalPages);
+  const startIndex = (validPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, filteredTodos.length);
+  const paginatedTodos = filteredTodos.slice(startIndex, endIndex);
+
   return (
     <div className="w-full flex flex-col gap-6 font-sans">
-      {/* ── Quick Add Todo Bar ─────────────────────────────────────────────── */}
-      {!historyMode && (
-        <form onSubmit={handleQuickAdd} className="bg-white border border-slate-200/90 p-3 rounded-2xl shadow-xs flex flex-wrap sm:flex-nowrap items-center gap-3">
-          <input
-            type="text"
-            placeholder="Add a new Todo item (e.g. 1. data analytics)..."
-            value={quickTitle}
-            onChange={(e) => setQuickTitle(e.target.value)}
-            className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all"
-          />
-          
-          <select
-            value={quickPriority}
-            onChange={(e) => setQuickPriority(e.target.value)}
-            className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 capitalize focus:outline-none focus:border-indigo-500"
-          >
-            <option value="low">Low Priority</option>
-            <option value="medium">Medium Priority</option>
-            <option value="high">High Priority</option>
-          </select>
+      {/* 2-Column Main Layout: Left Calendar + Right Todo Content */}
+      <div className="w-full flex flex-col lg:flex-row gap-6 items-start">
+        {/* Left Side: Real-World Calendar Widget */}
+        <RealWorldCalendar 
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
+          taskCountByDate={taskCountByDate}
+          totalTasksCount={tasks.length}
+        />
 
-          <button
-            type="submit"
-            disabled={isAdding || !quickTitle.trim()}
-            className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 shrink-0"
-          >
-            <Plus size={15} />
-            {isAdding ? 'Adding...' : 'Add Todo'}
-          </button>
-        </form>
-      )}
+        {/* Right Side: Quick Add Todo Bar + Todo Cards (3 per row, 2 rows max) + Pagination */}
+        <div className="flex-1 min-w-0 w-full flex flex-col gap-5">
+          {/* ── Quick Add Todo Bar ─────────────────────────────────────────── */}
+          {!historyMode && (
+            <form onSubmit={handleQuickAdd} className="bg-white border border-slate-200/90 p-3 rounded-2xl shadow-xs flex flex-wrap sm:flex-nowrap items-center gap-3">
+              <input
+                type="text"
+                placeholder={selectedDate ? `Add Todo for ${formatISTDate(selectedDate)}...` : "Add a new Todo item (e.g. 1. data analytics)..."}
+                value={quickTitle}
+                onChange={(e) => setQuickTitle(e.target.value)}
+                className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all"
+              />
+              
+              <select
+                value={quickPriority}
+                onChange={(e) => setQuickPriority(e.target.value)}
+                className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 capitalize focus:outline-none focus:border-indigo-500"
+              >
+                <option value="low">Low Priority</option>
+                <option value="medium">Medium Priority</option>
+                <option value="high">High Priority</option>
+              </select>
 
-      {/* ── Todo Items Cards Grid ───────────────────────────────────────────── */}
-      {filteredTodos.length === 0 ? (
-        <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-12 text-center">
-          <ListTodo size={40} className="mx-auto text-slate-300 mb-3" />
-          <h4 className="text-base font-semibold text-slate-700">No Todo Items Found</h4>
-          <p className="text-xs text-slate-400 mt-1">There are no active todos matching your current criteria.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredTodos.map(t => {
+              <button
+                type="submit"
+                disabled={isAdding || !quickTitle.trim()}
+                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 shrink-0 cursor-pointer"
+              >
+                <Plus size={15} />
+                {isAdding ? 'Adding...' : 'Add Todo'}
+              </button>
+            </form>
+          )}
+
+          {/* Active Date Banner when filtered */}
+          {selectedDate && (
+            <div className="bg-indigo-50/90 border border-indigo-200/90 rounded-2xl p-3 px-4 flex items-center justify-between gap-3 text-xs shadow-xs">
+              <div className="flex items-center gap-2 text-indigo-900 font-semibold">
+                <CalendarCheck2 size={16} className="text-indigo-600" />
+                <span>Showing todos for <strong>{formatISTDate(selectedDate)}</strong> ({filteredTodos.length} {filteredTodos.length === 1 ? 'item' : 'items'})</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedDate(null)}
+                className="flex items-center gap-1 text-indigo-700 hover:text-indigo-950 font-bold bg-white border border-indigo-200 px-2.5 py-1 rounded-lg text-[11px] shadow-2xs hover:bg-indigo-100/50 transition-all cursor-pointer"
+              >
+                <X size={12} /> Show All Dates
+              </button>
+            </div>
+          )}
+
+          {/* ── Todo Items Cards Grid ───────────────────────────────────────── */}
+          {filteredTodos.length === 0 ? (
+            <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-12 text-center">
+              <ListTodo size={40} className="mx-auto text-slate-300 mb-3" />
+              <h4 className="text-base font-semibold text-slate-700">No Todo Items Found</h4>
+              <p className="text-xs text-slate-400 mt-1">
+                {selectedDate 
+                  ? `There are no active todos scheduled for ${formatISTDate(selectedDate)}.`
+                  : "There are no active todos matching your current criteria."}
+              </p>
+              {selectedDate && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedDate(null)}
+                  className="mt-3 text-xs font-semibold px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl transition-all border border-indigo-200 cursor-pointer"
+                >
+                  Show All Dates ({tasks.length} total)
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-5">
+              {/* Strictly 3 cards per row, 2 rows max (up to 6 cards on the page) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {paginatedTodos.map(t => {
             const isLate = t.status === 'upcoming' && new Date(t.scheduledAt) < new Date();
             const assigneeObj = t.assignedTo || t.assignee;
             const assigneeName = assigneeObj?.name || 'Me';
@@ -676,9 +1057,70 @@ export default function TodoList({
                 </div>
               </div>
             );
-          })}
+                })}
+              </div>
+
+              {/* ── Next / Previous Pagination Controls ── */}
+              {totalPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white border border-slate-200/90 rounded-2xl p-3 px-4 shadow-xs mt-1">
+                  <div className="text-xs font-medium text-slate-500">
+                    Showing <span className="font-bold text-slate-800">{startIndex + 1}</span>–<span className="font-bold text-slate-800">{endIndex}</span> of <span className="font-bold text-slate-800">{filteredTodos.length}</span> todos
+                    <span className="hidden sm:inline text-slate-400 ml-1.5">(Page {validPage} of {totalPages} • 2 rows max)</span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      disabled={validPage <= 1}
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 font-semibold text-xs rounded-xl hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1 shadow-2xs cursor-pointer"
+                    >
+                      <ChevronLeft size={14} />
+                      <span>Previous</span>
+                    </button>
+
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => {
+                        if (totalPages > 5 && Math.abs(pageNum - validPage) > 2 && pageNum !== 1 && pageNum !== totalPages) {
+                          if (pageNum === 2 || pageNum === totalPages - 1) {
+                            return <span key={pageNum} className="px-1 text-slate-400 text-xs">...</span>;
+                          }
+                          return null;
+                        }
+                        const isActive = pageNum === validPage;
+                        return (
+                          <button
+                            key={pageNum}
+                            type="button"
+                            onClick={() => setCurrentPage(pageNum)}
+                            className={`w-7 h-7 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                              isActive
+                                ? 'bg-indigo-600 text-white shadow-xs'
+                                : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={validPage >= totalPages}
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 font-semibold text-xs rounded-xl hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1 shadow-2xs cursor-pointer"
+                    >
+                      <span>Next</span>
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
