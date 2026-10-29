@@ -4,14 +4,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { metaLeadsAPI, usersAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import AssignMembersModal from './AssignMembersModal';
-import LeadDetailsPage from '../../../components/LeadDetails/LeadDetailsPage';
+import LeadDetailsPage, { cleanLeadName } from '../../../components/LeadDetails/LeadDetailsPage';
+import leadNoteReminderService, { isStatusRequiringNote, leadHasNote } from '../../../services/leadNoteReminderService';
 import AutoScrollText from '../../../components/common/AutoScrollText';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
+
 
 import {
   FiPlus, FiRefreshCw, FiSearch, FiLayers, FiUsers, FiCalendar,
   FiFlag, FiBarChart2, FiTrash2, FiArrowRight, FiX, FiCheck,
-  FiCheckCircle, FiAlertTriangle, FiClock, FiChevronDown,
+  FiCheckCircle, FiAlertTriangle, FiClock, FiChevronDown, FiChevronLeft, FiChevronRight,
   FiTarget, FiActivity, FiEye, FiArrowUpRight, FiFilter,
   FiDownload, FiPhoneCall, FiMail, FiUserPlus, FiShield
 } from 'react-icons/fi';
@@ -545,6 +547,318 @@ function MetaAICallingPanel({ campaign, onStatusChange }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Real-Time Calendar Component for Meta Leads
+// Displays live real-time clock, month navigation, call activity dots & date filter
+// ─────────────────────────────────────────────────────────────────────────────
+function RealTimeCallCalendar({ campaign, selectedDate, onSelectDate, callDates = {}, loading = false }) {
+  // Live real-time clock updating every second
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Calendar month view (defaults to current real-time month)
+  const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
+  const [viewMonth, setViewMonth] = useState(() => new Date().getMonth()); // 0-indexed
+
+  // Today key: 'YYYY-MM-DD'
+  const todayKey = useMemo(() => {
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }, [now]);
+
+  // Live time string (e.g. "12:45:08 PM")
+  const liveTimeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const liveDateStr = now.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' });
+
+  // Month navigation handlers
+  const handlePrevMonth = () => {
+    if (viewMonth === 0) {
+      setViewMonth(11);
+      setViewYear(y => y - 1);
+    } else {
+      setViewMonth(m => m - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (viewMonth === 11) {
+      setViewMonth(0);
+      setViewYear(y => y + 1);
+    } else {
+      setViewMonth(m => m + 1);
+    }
+  };
+
+  const handleGoToday = () => {
+    const n = new Date();
+    setViewYear(n.getFullYear());
+    setViewMonth(n.getMonth());
+  };
+
+  // Formatted Month Header (e.g. "October 2026")
+  const monthName = new Date(viewYear, viewMonth, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  // Generate calendar days grid
+  const calendarDays = useMemo(() => {
+    const firstDay = new Date(viewYear, viewMonth, 1).getDay(); // 0 = Sun
+    const daysInCurrent = new Date(viewYear, viewMonth + 1, 0).getDate();
+    const daysInPrev = new Date(viewYear, viewMonth, 0).getDate();
+
+    const days = [];
+
+    // Leading days from previous month
+    for (let i = firstDay - 1; i >= 0; i--) {
+      const dayNum = daysInPrev - i;
+      const prevM = viewMonth === 0 ? 12 : viewMonth;
+      const prevY = viewMonth === 0 ? viewYear - 1 : viewYear;
+      const dateKey = `${prevY}-${String(prevM).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+      days.push({
+        dayNum,
+        dateKey,
+        isCurrentMonth: false,
+        calls: callDates[dateKey] || 0
+      });
+    }
+
+    // Days in current month
+    for (let d = 1; d <= daysInCurrent; d++) {
+      const dateKey = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      days.push({
+        dayNum: d,
+        dateKey,
+        isCurrentMonth: true,
+        calls: callDates[dateKey] || 0
+      });
+    }
+
+    // Trailing days for complete grid (multiple of 7)
+    const remaining = (7 - (days.length % 7)) % 7;
+    for (let t = 1; t <= remaining; t++) {
+      const nextM = viewMonth === 11 ? 1 : viewMonth + 2;
+      const nextY = viewMonth === 11 ? viewYear + 1 : viewYear;
+      const dateKey = `${nextY}-${String(nextM).padStart(2, '0')}-${String(t).padStart(2, '0')}`;
+      days.push({
+        dayNum: t,
+        dateKey,
+        isCurrentMonth: false,
+        calls: callDates[dateKey] || 0
+      });
+    }
+
+    return days;
+  }, [viewYear, viewMonth, callDates]);
+
+  // Total calls in current view
+  const currentMonthCalls = useMemo(() => {
+    return calendarDays
+      .filter(d => d.isCurrentMonth)
+      .reduce((acc, d) => acc + (d.calls || 0), 0);
+  }, [calendarDays]);
+
+  const weekHeaders = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+  return (
+    <div style={{ background: '#fff', borderRadius: 10, padding: '12px 10px', border: `1px solid ${BORDER}`, boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
+      {/* Real-time Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ position: 'relative', width: 7, height: 7 }}>
+            <span style={{ position: 'absolute', width: '100%', height: '100%', borderRadius: '50%', background: '#10b981', opacity: 0.75, animation: 'ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite' }} />
+            <span style={{ position: 'relative', display: 'block', width: 7, height: 7, borderRadius: '50%', background: '#10b981' }} />
+          </div>
+          <span style={{ fontSize: 11.5, fontWeight: 700, color: TEXT }}>Real-Time Calendar</span>
+        </div>
+        <div style={{ fontSize: 9.5, color: MUTED, fontFamily: 'monospace', background: '#f8fafc', border: `1px solid ${BORDER}`, padding: '1.5px 5px', borderRadius: 4, fontWeight: 600 }} title="Live Time">
+          {liveTimeStr}
+        </div>
+      </div>
+
+      {/* Today info & Activity summary */}
+      <div style={{ fontSize: 10, color: MUTED, marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span>Today: <strong style={{ color: TEXT }}>{liveDateStr}</strong></span>
+        {currentMonthCalls > 0 && (
+          <span style={{ color: ORANGE, fontWeight: 700, fontSize: 9.5, background: ORANGE_LIGHT, padding: '1px 6px', borderRadius: 10, border: `1px solid ${ORANGE_BORDER}` }}>
+            {currentMonthCalls} calls logged
+          </span>
+        )}
+      </div>
+
+      {/* Month Navigation */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, padding: '2px 0' }}>
+        <button
+          type="button"
+          onClick={handlePrevMonth}
+          style={{
+            background: '#f8fafc', border: `1px solid ${BORDER}`, borderRadius: 5, width: 22, height: 22,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: TEXT, fontSize: 13, fontWeight: 600
+          }}
+          title="Previous Month"
+        >
+          ‹
+        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 11.5, fontWeight: 700, color: TEXT }}>{monthName}</span>
+          {(viewYear !== now.getFullYear() || viewMonth !== now.getMonth()) && (
+            <button
+              type="button"
+              onClick={handleGoToday}
+              style={{
+                fontSize: 9, padding: '1px 5px', borderRadius: 4, background: BLUE_LIGHT,
+                color: BLUE, border: `1px solid ${BLUE_BORDER}`, fontWeight: 600, cursor: 'pointer'
+              }}
+            >
+              Today
+            </button>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={handleNextMonth}
+          style={{
+            background: '#f8fafc', border: `1px solid ${BORDER}`, borderRadius: 5, width: 22, height: 22,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: TEXT, fontSize: 13, fontWeight: 600
+          }}
+          title="Next Month"
+        >
+          ›
+        </button>
+      </div>
+
+      {/* Weekday Labels */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, textAlign: 'center', marginBottom: 4 }}>
+        {weekHeaders.map((w, idx) => (
+          <div key={idx} style={{ fontSize: 9.5, fontWeight: 700, color: idx === 0 ? '#ef4444' : MUTED }}>
+            {w}
+          </div>
+        ))}
+      </div>
+
+      {/* Day Cells Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
+        {calendarDays.map((cell, idx) => {
+          const isSelected = selectedDate === cell.dateKey;
+          const isToday = todayKey === cell.dateKey;
+          const hasCalls = cell.calls > 0;
+
+          // Background, border & text colors
+          let bg = 'transparent';
+          let border = '1px solid transparent';
+          let color = cell.isCurrentMonth ? TEXT : '#cbd5e1';
+          let fontWeight = 400;
+
+          if (isSelected) {
+            bg = ORANGE;
+            border = `1px solid ${ORANGE_HOVER}`;
+            color = '#ffffff';
+            fontWeight = 700;
+          } else if (isToday) {
+            bg = BLUE_LIGHT;
+            border = `1px solid ${BLUE}`;
+            color = BLUE;
+            fontWeight = 700;
+          } else if (hasCalls) {
+            bg = ORANGE_LIGHT;
+            border = `1px solid ${ORANGE_BORDER}`;
+            color = '#9a3412';
+            fontWeight = 600;
+          }
+
+          return (
+            <div
+              key={idx}
+              onClick={() => {
+                // Clicking selected toggles off; clicking any cell selects that date
+                onSelectDate(isSelected ? null : cell.dateKey);
+              }}
+              style={{
+                position: 'relative',
+                height: 32,
+                borderRadius: 6,
+                background: bg,
+                border,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.12s ease',
+                boxShadow: isSelected ? '0 2px 4px rgba(234, 88, 12, 0.35)' : 'none'
+              }}
+              title={
+                hasCalls
+                  ? `${cell.calls} lead${cell.calls !== 1 ? 's' : ''} called on ${cell.dateKey} (Click to filter)`
+                  : `${cell.dateKey} (No calls logged)`
+              }
+            >
+              <span style={{ fontSize: 11, color, fontWeight, lineHeight: 1 }}>
+                {cell.dayNum}
+              </span>
+
+              {/* Call indicator: count badge or small dot */}
+              {hasCalls ? (
+                <span
+                  style={{
+                    fontSize: 8,
+                    fontWeight: 700,
+                    lineHeight: 1,
+                    marginTop: 2,
+                    padding: '1px 3px',
+                    borderRadius: 8,
+                    background: isSelected ? '#ffffff' : ORANGE,
+                    color: isSelected ? ORANGE : '#ffffff',
+                    transform: 'scale(0.9)'
+                  }}
+                >
+                  {cell.calls > 99 ? '99+' : cell.calls}
+                </span>
+              ) : isToday && !isSelected ? (
+                <span style={{ width: 3, height: 3, borderRadius: '50%', background: BLUE, marginTop: 2 }} />
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Selected Date Filter Footer */}
+      {selectedDate ? (
+        <div style={{
+          marginTop: 9,
+          padding: '6px 8px',
+          borderRadius: 6,
+          background: ORANGE_LIGHT,
+          border: `1px solid ${ORANGE_BORDER}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          fontSize: 10.5
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: ORANGE, fontWeight: 600 }}>
+            <FiCheckCircle size={12} />
+            <span>Called: {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { day: 'numeric', month: 'short' })} ({callDates[selectedDate] || 0} calls)</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => onSelectDate(null)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: ORANGE, fontWeight: 700, fontSize: 10.5, padding: 0 }}
+            title="Clear date filter"
+          >
+            ✕ Clear
+          </button>
+        </div>
+      ) : (
+        <div style={{ marginTop: 7, fontSize: 9.5, color: MUTED, textAlign: 'center', fontStyle: 'italic' }}>
+          💡 Tap any highlighted date to view called students
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // MAIN META LEADS COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 export default function MetaLeads() {
@@ -570,6 +884,12 @@ export default function MetaLeads() {
 
   // 1 & 2: ONLY Positive and Negative Dropdown Filter
   const [leadsStatusFilter, setLeadsStatusFilter] = useState('');
+  const [campaignSentiment, setCampaignSentiment] = useState(null);
+
+  // Real-Time Calendar Date Filter
+  const [selectedCallDate, setSelectedCallDate] = useState(null);
+  const [callDatesMap, setCallDatesMap] = useState({});
+  const [callDatesLoading, setCallDatesLoading] = useState(false);
 
   // Mobile Tabs inside Campaign Detail ('students' | 'analytics' | 'profile')
   const [activeMobileTab, setActiveMobileTab] = useState('students');
@@ -589,6 +909,46 @@ export default function MetaLeads() {
   const [assignments, setAssignments] = useState([]);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assignModalCampaign, setAssignModalCampaign] = useState('');
+
+  // ── Clean zero-width, mojibake, or unformatted lead names ────────────────
+  const cleanLeadName = (rawName) => {
+    if (!rawName || typeof rawName !== 'string') return '';
+    let str = rawName;
+
+    // 1. Remove mojibake sequences of ZWNJ / ZWJ / BOM that got decoded as Windows-1252
+    str = str.replace(/â€Œ/g, '')
+             .replace(/â€‹/g, '')
+             .replace(/â€/g, '')
+             .replace(/ï»¿/g, '');
+
+    // 2. Remove leading/trailing or repeated â characters if they are artifacts of zero-width mojibake
+    str = str.replace(/^[\sâ\u00e2\uFFFD\u200B-\u200F\u202A-\u202E\uFEFF\u00A0]+/, '');
+    str = str.replace(/[\sâ\u00e2\uFFFD\u200B-\u200F\u202A-\u202E\uFEFF\u00A0]+$/, '');
+
+    // 3. Remove zero-width characters (\u200B = zero width space, \uFEFF = BOM, \u200E / \u200F = directional marks)
+    str = str.replace(/[\u200B\uFEFF\u200E\u200F\u2060]/g, '');
+
+    // Remove zero-width non-joiners (\u200C) or joiners (\u200D) unless between Indic virama and Indic character
+    str = str.replace(/[\u200C\u200D]+/g, (match, offset, full) => {
+      const prevChar = offset > 0 ? full[offset - 1] : '';
+      const nextChar = offset + match.length < full.length ? full[offset + match.length] : '';
+      const isIndic = (c) => c && c.charCodeAt(0) >= 0x0900 && c.charCodeAt(0) <= 0x0D7F;
+      if (isIndic(prevChar) && isIndic(nextChar)) {
+        return match;
+      }
+      return '';
+    });
+
+    // 4. Normalize multiple spaces
+    str = str.replace(/\s+/g, ' ').trim();
+
+    // 5. If word is lowercase Latin (like "shyam"), capitalize properly ("Shyam")
+    if (/^[a-z]+(\s+[a-z]+)*$/.test(str)) {
+      str = str.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    }
+
+    return str;
+  };
 
   // ── Robust Name, Phone & Email Extraction (Resolves "Unknown Lead") ────────
   const getLeadIdentifiers = (lead) => {
@@ -640,6 +1000,9 @@ export default function MetaLeads() {
         name = 'Lead';
       }
     }
+
+    // Clean zero-width artifacts and mojibake from name
+    name = cleanLeadName(name) || 'Lead';
 
     // 3. Email extraction
     let email = lead.email || raw.email || raw.Email || raw['Email Address'] || '';
@@ -719,6 +1082,23 @@ export default function MetaLeads() {
     fetchEmployeesAndAssignments();
   }, []);
 
+  // Fetch Call Dates for Selected Campaign
+  const fetchCallDates = useCallback(async (campaignName) => {
+    if (!campaignName) return;
+    try {
+      setCallDatesLoading(true);
+      const res = await metaLeadsAPI.getCallDates({
+        campaign: campaignName,
+        tzOffset: new Date().getTimezoneOffset()
+      });
+      setCallDatesMap(res.data?.callDates || {});
+    } catch (err) {
+      console.error('Failed to load call dates:', err);
+    } finally {
+      setCallDatesLoading(false);
+    }
+  }, []);
+
   // ── Fetch Leads When a Specific Campaign is Selected ───────────────────────
   const fetchCampaignLeads = useCallback(async (campaignName, pg = 1) => {
     if (!campaignName) return;
@@ -727,10 +1107,12 @@ export default function MetaLeads() {
       const params = {
         campaign: campaignName,
         page: pg,
-        limit: 20
+        limit: 20,
+        tzOffset: new Date().getTimezoneOffset()
       };
       if (leadsSearch) params.search = leadsSearch;
       if (leadsStatusFilter) params.status = leadsStatusFilter;
+      if (selectedCallDate) params.calledDate = selectedCallDate;
 
       const res = await metaLeadsAPI.getAll(params);
       const data = res.data || {};
@@ -740,6 +1122,9 @@ export default function MetaLeads() {
       setLeadsTotal(data.total || fetched.length);
       setLeadsPages(data.pages || 1);
       setLeadsPage(pg);
+      if (data.sentiment) {
+        setCampaignSentiment(data.sentiment);
+      }
 
       if (fetched.length > 0) {
         setSelectedLead(prev => (prev && fetched.some(l => l._id === prev._id) ? prev : fetched[0]));
@@ -751,13 +1136,35 @@ export default function MetaLeads() {
     } finally {
       setLeadsLoading(false);
     }
-  }, [leadsSearch, leadsStatusFilter]);
+  }, [leadsSearch, leadsStatusFilter, selectedCallDate]);
+
+  useEffect(() => {
+    if (selectedCampaign) {
+      fetchCallDates(selectedCampaign);
+    }
+  }, [selectedCampaign, fetchCallDates]);
 
   useEffect(() => {
     if (selectedCampaign) {
       fetchCampaignLeads(selectedCampaign, 1);
     }
   }, [selectedCampaign, fetchCampaignLeads]);
+
+  // Listen to open-lead-note-modal event dispatched from Sonner toast action button
+  useEffect(() => {
+    const handleOpenNote = (e) => {
+      const targetId = e.detail?.leadId;
+      if (targetId && selectedLead?._id !== targetId) {
+        const found = campaignLeads.find(l => l._id === targetId || l.crmLeadId === targetId);
+        if (found) {
+          setSelectedLead(found);
+          setActiveMobileTab('profile');
+        }
+      }
+    };
+    window.addEventListener('open-lead-note-modal', handleOpenNote);
+    return () => window.removeEventListener('open-lead-note-modal', handleOpenNote);
+  }, [campaignLeads, selectedLead?._id]);
 
   // ── Quick Update Lead Status (Positive vs Negative) ────────────────────────
   const handleSetLeadStatus = async (lead, newStatus) => {
@@ -772,10 +1179,24 @@ export default function MetaLeads() {
       }
       setTimeout(() => setStatusMessage(''), 2500);
       fetchCampaigns();
+
+      // Track 5-minute note reminder for office visit's or Demo attended
+      const studentName = cleanLeadName(lead.fullName || lead.rawData?.full_name || lead.rawData?.Name || lead.name || 'Student');
+      if (isStatusRequiringNote(newStatus)) {
+        leadNoteReminderService.trackLead({
+          id: lead._id,
+          name: studentName,
+          status: newStatus,
+          hasExistingNote: leadHasNote(lead),
+        });
+      } else {
+        leadNoteReminderService.resolveLead(lead._id);
+      }
     } catch (err) {
       console.error('Failed to update lead status:', err);
     }
   };
+
 
   // ── Sync Handler ────────────────────────────────────────────────────────────
   const handleSync = async () => {
@@ -911,18 +1332,28 @@ export default function MetaLeads() {
     return activeCampaignObj.assignedUsers || assignments.find(a => a.campaign === selectedCampaign)?.assignedUsers || [];
   }, [activeCampaignObj, assignments, selectedCampaign]);
 
-  // Breakdown for Analytics Panel: Positive vs Negative
+  // Total student counts across the entire campaign (not per page)
+  const totalCampaignStudents = useMemo(() => {
+    return campaignSentiment?.total ?? activeCampaignObj.count ?? leadsTotal ?? 0;
+  }, [campaignSentiment, activeCampaignObj, leadsTotal]);
+
   const positiveCount = useMemo(() => {
+    if (campaignSentiment?.positive !== undefined) return campaignSentiment.positive;
+    if (activeCampaignObj.positiveCount !== undefined) return activeCampaignObj.positiveCount;
     return campaignLeads.filter(l => isLeadPositive(l)).length;
-  }, [campaignLeads]);
+  }, [campaignSentiment, activeCampaignObj, campaignLeads]);
 
   const negativeCount = useMemo(() => {
+    if (campaignSentiment?.negative !== undefined) return campaignSentiment.negative;
+    if (activeCampaignObj.negativeCount !== undefined) return activeCampaignObj.negativeCount;
     return campaignLeads.filter(l => isLeadNegative(l)).length;
-  }, [campaignLeads]);
+  }, [campaignSentiment, activeCampaignObj, campaignLeads]);
 
   const pendingCount = useMemo(() => {
-    return Math.max(0, campaignLeads.length - positiveCount - negativeCount);
-  }, [campaignLeads, positiveCount, negativeCount]);
+    if (campaignSentiment?.pending !== undefined) return campaignSentiment.pending;
+    if (activeCampaignObj.pendingCount !== undefined) return activeCampaignObj.pendingCount;
+    return Math.max(0, totalCampaignStudents - positiveCount - negativeCount);
+  }, [campaignSentiment, activeCampaignObj, totalCampaignStudents, positiveCount, negativeCount]);
 
   const sentimentData = useMemo(() => {
     return [
@@ -1016,7 +1447,7 @@ export default function MetaLeads() {
                   </button>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 5 }}>
-                  <StatCard label="Total" value={activeCampaignObj.count || leadsTotal} color={BLUE} bg={BLUE_LIGHT} borderColor={BLUE_BORDER} />
+                  <StatCard label="Total" value={totalCampaignStudents} color={BLUE} bg={BLUE_LIGHT} borderColor={BLUE_BORDER} />
                   <StatCard label="Positive" value={positiveCount} color="#10b981" bg="#ecfdf5" borderColor="#a7f3d0" />
                   <StatCard label="Negative" value={negativeCount} color="#ef4444" bg="#fff1f2" borderColor="#fecdd3" />
                   <StatCard label="Callers" value={activeAssignees.length} color={TEXT} bg="#fff" borderColor={BORDER} />
@@ -1056,6 +1487,7 @@ export default function MetaLeads() {
                   }}
                 >
                   <option value="">All Leads</option>
+                  <option value="Pending">🟡 Pending Leads ({pendingCount})</option>
                   <optgroup label="🟢 Positive">
                     <option value="Positive">All Positive</option>
                     {POSITIVE_STATUSES.map(s => (
@@ -1084,30 +1516,85 @@ export default function MetaLeads() {
 
               <div style={{ fontSize: 10.5, color: MUTED, fontWeight: 400, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
                 <span>{leadsTotal} student{leadsTotal !== 1 ? 's' : ''}</span>
-                {leadsStatusFilter && (
-                  <button
-                    onClick={() => setLeadsStatusFilter('')}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      fontSize: 10,
-                      fontWeight: 700,
-                      padding: '2px 8px',
-                      borderRadius: 12,
-                      background: leadsStatusFilter === 'Positive' ? '#ecfdf5' : leadsStatusFilter === 'Negative' ? '#fff1f2' : '#fff7ed',
-                      color: leadsStatusFilter === 'Positive' ? '#059669' : leadsStatusFilter === 'Negative' ? '#dc2626' : '#ea580c',
-                      border: `1px solid ${leadsStatusFilter === 'Positive' ? '#a7f3d0' : leadsStatusFilter === 'Negative' ? '#fecdd3' : '#fed7aa'}`,
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease'
-                    }}
-                    title="Click to clear filter and show all leads"
-                  >
-                    <span>{leadsStatusFilter} Leads</span>
-                    <span style={{ fontSize: 11, fontWeight: 800 }}>✕</span>
-                  </button>
-                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                  {leadsStatusFilter && (
+                    <button
+                      onClick={() => setLeadsStatusFilter('')}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        fontSize: 10,
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: 12,
+                        background: leadsStatusFilter === 'Positive' ? '#ecfdf5' : leadsStatusFilter === 'Negative' ? '#fff1f2' : '#fff7ed',
+                        color: leadsStatusFilter === 'Positive' ? '#059669' : leadsStatusFilter === 'Negative' ? '#dc2626' : '#ea580c',
+                        border: `1px solid ${leadsStatusFilter === 'Positive' ? '#a7f3d0' : leadsStatusFilter === 'Negative' ? '#fecdd3' : '#fed7aa'}`,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                      title="Click to clear status filter and show all leads"
+                    >
+                      <span>{leadsStatusFilter} Leads</span>
+                      <span style={{ fontSize: 11, fontWeight: 800 }}>✕</span>
+                    </button>
+                  )}
+                  {selectedCallDate && (
+                    <button
+                      onClick={() => setSelectedCallDate(null)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        fontSize: 10,
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: 12,
+                        background: ORANGE_LIGHT,
+                        color: ORANGE,
+                        border: `1px solid ${ORANGE_BORDER}`,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                      title="Click to clear date filter and show all leads"
+                    >
+                      <FiCalendar size={10} />
+                      <span>{new Date(selectedCallDate + 'T00:00:00').toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</span>
+                      <span style={{ fontSize: 11, fontWeight: 800 }}>✕</span>
+                    </button>
+                  )}
+                </div>
               </div>
+
+              {/* Active Call Date Indicator Banner */}
+              {selectedCallDate && (
+                <div style={{
+                  marginTop: 6,
+                  padding: '5px 8px',
+                  borderRadius: 6,
+                  background: ORANGE_LIGHT,
+                  border: `1px solid ${ORANGE_BORDER}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  fontSize: 10.5,
+                  color: ORANGE
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontWeight: 600 }}>
+                    <FiCalendar size={12} />
+                    <span>Called on {new Date(selectedCallDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCallDate(null)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: ORANGE, fontWeight: 700, fontSize: 10.5, padding: 0 }}
+                    title="View all students"
+                  >
+                    View All ✕
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Student List */}
@@ -1120,7 +1607,22 @@ export default function MetaLeads() {
                 <div style={{ textAlign: 'center', padding: '28px 14px', color: MUTED }}>
                   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" style={{ marginBottom: 6, margin: '0 auto' }}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>
                   <div style={{ fontSize: 11.5, fontWeight: 500 }}>
-                    {leadsStatusFilter ? `No ${leadsStatusFilter} leads found` : 'No students found'}
+                    {selectedCallDate ? (
+                      <div>
+                        <div>No leads called on {new Date(selectedCallDate + 'T00:00:00').toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedCallDate(null)}
+                          style={{ marginTop: 8, fontSize: 11, color: BLUE, background: 'none', border: 'none', textDecoration: 'underline', cursor: 'pointer', fontWeight: 600 }}
+                        >
+                          View all campaign leads
+                        </button>
+                      </div>
+                    ) : leadsStatusFilter ? (
+                      `No ${leadsStatusFilter} leads found`
+                    ) : (
+                      'No students found'
+                    )}
                   </div>
                 </div>
               ) : (
@@ -1164,12 +1666,23 @@ export default function MetaLeads() {
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><polyline points="9 18 15 12 9 6" /></svg>
                       </div>
 
-                      {/* Status Badge (Only shown if positive or negative status is set; no New/Follow-up/Fresh tags) */}
-                      {(isPos || isNeg) && (
-                        <div style={{ marginTop: 6, display: 'flex', alignItems: 'center' }}>
+                      {/* Status Badge & Call Date Badge */}
+                      <div style={{ marginTop: 5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
+                        {(isPos || isNeg) ? (
                           <MiniStatus status={lead.status} />
-                        </div>
-                      )}
+                        ) : <div />}
+                        {lead.lastCallAt ? (
+                          <span style={{ fontSize: 9.5, color: MUTED, display: 'flex', alignItems: 'center', gap: 3, background: '#f8fafc', padding: '1px 5px', borderRadius: 4, border: `1px solid ${BORDER}` }} title={`Last called: ${new Date(lead.lastCallAt).toLocaleString()}`}>
+                            <FiPhoneCall size={9} style={{ color: ORANGE }} />
+                            <span>{new Date(lead.lastCallAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</span>
+                          </span>
+                        ) : lead.callNotes?.length > 0 ? (
+                          <span style={{ fontSize: 9.5, color: MUTED, display: 'flex', alignItems: 'center', gap: 3, background: '#f8fafc', padding: '1px 5px', borderRadius: 4, border: `1px solid ${BORDER}` }} title={`${lead.callNotes.length} call session(s)`}>
+                            <FiPhoneCall size={9} style={{ color: BLUE }} />
+                            <span>{new Date(lead.callNotes[lead.callNotes.length - 1].date || lead.callNotes[0].date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</span>
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
                   );
                 })
@@ -1204,11 +1717,20 @@ export default function MetaLeads() {
             )}
           </div>
 
-          {/* ─── MIDDLE PANEL: Positive / Negative Analytics ─────────────────── */}
-          <div className={`w-full md:w-60 xl:w-64 flex-shrink-0 bg-slate-50/70 border-r border-slate-200 overflow-y-auto p-3 flex flex-col gap-3 min-h-0 ${
+          {/* ─── MIDDLE PANEL: Real-Time Calendar & Lead Sentiment ─────────────── */}
+          <div className={`w-full md:w-64 xl:w-72 flex-shrink-0 bg-slate-50/70 border-r border-slate-200 overflow-y-auto p-3 flex flex-col gap-3 min-h-0 ${
             activeMobileTab === 'analytics' ? 'flex' : 'hidden md:flex'
           }`}>
-            {/* Positive vs Negative Sentiment Donut */}
+            {/* 1. Real-Time Calendar (Placed ABOVE Lead Sentiment) */}
+            <RealTimeCallCalendar
+              campaign={selectedCampaign}
+              selectedDate={selectedCallDate}
+              onSelectDate={(date) => setSelectedCallDate(date)}
+              callDates={callDatesMap}
+              loading={callDatesLoading}
+            />
+
+            {/* 2. Lead Sentiment (Placed BELOW the Calendar) */}
             <div style={{ background: '#fff', borderRadius: 10, padding: '12px 10px', border: `1px solid ${BORDER}`, boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
               <div style={{ fontSize: 11.5, fontWeight: 700, color: TEXT, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981' }} />

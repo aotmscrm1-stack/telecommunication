@@ -26,7 +26,7 @@ const upload = multer({
 
 // ── Smart Header & Row Extractor ──────────────────────────────────────────────
 function parseExcelToRows(buffer) {
-  const wb = XLSX.read(buffer, { type: 'buffer', cellDates: true });
+  const wb = XLSX.read(buffer, { type: 'buffer', cellDates: true, codepage: 65001 });
   const sheetName = wb.SheetNames[0];
   if (!sheetName) return { contacts: [], totalRows: 0, validRows: 0, invalidRows: 0 };
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { followupsAPI, leadsAPI, usersAPI, departmentsAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
@@ -2516,6 +2516,109 @@ function downloadCSV(tasks, tab) {
   URL.revokeObjectURL(url);
 }
 
+// ── Department & Team Categorization Helpers ─────────────────────────────────
+export function getDepartmentForUser(user, departmentsList = []) {
+  if (!user) return 'General';
+  const rawDept = String(user.department || '').trim();
+  const rawDesig = String(user.designation || '').trim();
+  const rawRole = String(user.role || '').trim();
+
+  // 1. Exact or partial match with formal departments from MongoDB
+  if (Array.isArray(departmentsList) && departmentsList.length > 0) {
+    const matched = departmentsList.find(d => {
+      const dName = typeof d === 'string' ? d : (d?.name || d?.code);
+      return dName && (
+        dName.toLowerCase() === rawDept.toLowerCase() ||
+        (d?.code && d.code.toLowerCase() === rawDept.toLowerCase())
+      );
+    });
+    if (matched) return typeof matched === 'string' ? matched : (matched.name || 'General');
+  }
+
+  // 2. Canonical mapping based on designation, role or department name
+  const combined = `${rawDept} ${rawDesig} ${rawRole}`.toLowerCase();
+  if (combined.includes('dev') || combined.includes('software') || combined.includes('engineer')) return 'Development';
+  if (combined.includes('train')) return 'Trainer';
+  if (combined.includes('market') || combined.includes('digital')) return 'Marketing';
+  if (combined.includes('hr') || combined.includes('counsel') || combined.includes('human')) return 'HR';
+  if (combined.includes('tele') || combined.includes('caller') || combined.includes('calling')) return 'Telecalling';
+  if (combined.includes('admin') || combined.includes('managing') || combined.includes('md') || combined.includes('ceo') || combined.includes('cto') || combined.includes('management') || combined.includes('executive')) return 'Management';
+
+  return rawDept || 'General';
+}
+
+const DEPT_CONFIG = {
+  Development: { color: '#2563eb', bg: '#eff6ff', border: '#dbeafe', label: 'Development', icon: 'code' },
+  Developer: { color: '#2563eb', bg: '#eff6ff', border: '#dbeafe', label: 'Development', icon: 'code' },
+  Trainer: { color: '#059669', bg: '#ecfdf5', border: '#a7f3d0', label: 'Trainer', icon: 'award' },
+  Marketing: { color: '#ea580c', bg: '#fff7ed', border: '#ffedd5', label: 'Marketing', icon: 'megaphone' },
+  HR: { color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe', label: 'HR', icon: 'users' },
+  Management: { color: '#d97706', bg: '#fffbeb', border: '#fef3c7', label: 'Management', icon: 'shield' },
+  Admin: { color: '#d97706', bg: '#fffbeb', border: '#fef3c7', label: 'Management', icon: 'shield' },
+  Telecalling: { color: '#0284c7', bg: '#f0f9ff', border: '#bae6fd', label: 'Telecalling', icon: 'phone' },
+  General: { color: '#64748b', bg: '#f8fafc', border: '#e2e8f0', label: 'General', icon: 'folder' },
+};
+
+function DeptIcon({ name, size = 13 }) {
+  const n = String(name || '').toLowerCase();
+  if (n.includes('dev') || n.includes('soft') || n.includes('eng')) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <polyline points="16 18 22 12 16 6" />
+        <polyline points="8 6 2 12 8 18" />
+      </svg>
+    );
+  }
+  if (n.includes('train')) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+        <path d="M6 12v5c3 3 9 3 12 0v-5" />
+      </svg>
+    );
+  }
+  if (n.includes('market') || n.includes('digital')) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M3 11l18-5v12L3 14v-3z" />
+        <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" />
+      </svg>
+    );
+  }
+  if (n.includes('hr') || n.includes('counsel') || n.includes('human')) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+    );
+  }
+  if (n.includes('tele') || n.includes('call')) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+      </svg>
+    );
+  }
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  );
+}
+
+function LayersIcon({ size = 13 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <polygon points="12 2 2 7 12 12 22 7 12 2" />
+      <polyline points="2 17 12 22 22 17" />
+      <polyline points="2 12 12 17 22 12" />
+    </svg>
+  );
+}
+
 // ── Main Task Component ───────────────────────────────────────────────────────
 export default function Task() {
   const { userId: routeUserId } = useParams();
@@ -2595,6 +2698,11 @@ export default function Task() {
   const [descriptionPopup, setDescriptionPopup] = useState(null);
   const [teamUsers, setTeamUsers] = useState([]);
   const [teamMemberFilter, setTeamMemberFilter] = useState('');
+  const [teamDepartmentFilter, setTeamDepartmentFilter] = useState('');
+  const [departmentsList, setDepartmentsList] = useState([]);
+  const [activeHoverDept, setActiveHoverDept] = useState(null);
+  const [dropdownSide, setDropdownSide] = useState('right');
+  const hoverTimeoutRef = useRef(null);
   const [showTeamDrop, setShowTeamDrop] = useState(false);
   const teamDropRef = useRef(null);
   const isAdminOrExecutive = isExecutive(currentUser) || currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
@@ -2616,7 +2724,7 @@ export default function Task() {
   // Reset page to 1 whenever tab or any filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab, forFilter, dueFilter, statusFilter, priorityFilter, teamMemberFilter, historyMode]);
+  }, [activeTab, forFilter, dueFilter, statusFilter, priorityFilter, teamMemberFilter, teamDepartmentFilter, historyMode]);
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);
@@ -2631,12 +2739,31 @@ export default function Task() {
           status: 'done',
           type: queryType,
           ...(teamMemberFilter ? { callerId: teamMemberFilter } : {}),
+          ...(teamDepartmentFilter && !teamMemberFilter ? { department: teamDepartmentFilter } : {}),
         });
         let items = res.data.followups || res.data.tasks || [];
         if (activeTab === 'Todo') items = items.filter(t => t.status === 'done' && t.type === 'todo');
         else if (activeTab === 'Call Followups') items = items.filter(t => t.status === 'done' && t.type === 'call_followup');
         else items = items.filter(t => t.status === 'done' && (t.type === 'task' || (t.type !== 'todo' && t.type !== 'call_followup')));
         if (priorityFilter) items = items.filter(t => t.priority === priorityFilter);
+
+        if (teamMemberFilter) {
+          items = items.filter(t => {
+            const aid = String(t.assignedTo?._id || t.assignedTo || '');
+            const abid = String(t.assignedBy?._id || t.assignedBy || '');
+            return aid === String(teamMemberFilter) || abid === String(teamMemberFilter);
+          });
+        } else if (teamDepartmentFilter) {
+          const deptUsers = teamUsers.filter(u => getDepartmentForUser(u, departmentsList).toLowerCase() === teamDepartmentFilter.toLowerCase());
+          const deptUserIds = new Set(deptUsers.map(u => String(u._id)));
+          items = items.filter(t => {
+            const aid = String(t.assignedTo?._id || t.assignedTo || '');
+            const abid = String(t.assignedBy?._id || t.assignedBy || '');
+            const tDept = String(t.department || t.assignedTo?.department || '').toLowerCase();
+            return deptUserIds.has(aid) || deptUserIds.has(abid) || tDept === teamDepartmentFilter.toLowerCase();
+          });
+        }
+
         setTasks(items);
         return;
       }
@@ -2657,6 +2784,7 @@ export default function Task() {
         status: dbStatuses.join(','),
         type: queryType,
         ...(teamMemberFilter ? { callerId: teamMemberFilter } : {}),
+        ...(teamDepartmentFilter && !teamMemberFilter ? { department: teamDepartmentFilter } : {}),
       });
       let items = res.data.followups || res.data.tasks || [];
       if (activeTab === 'Todo') items = items.filter(t => t.status !== 'done' && t.type === 'todo');
@@ -2682,6 +2810,24 @@ export default function Task() {
 
       if (priorityFilter) {
         items = items.filter(t => t.priority === priorityFilter);
+      }
+
+      // Department & Member filtering on client
+      if (teamMemberFilter) {
+        items = items.filter(t => {
+          const aid = String(t.assignedTo?._id || t.assignedTo || '');
+          const abid = String(t.assignedBy?._id || t.assignedBy || '');
+          return aid === String(teamMemberFilter) || abid === String(teamMemberFilter);
+        });
+      } else if (teamDepartmentFilter) {
+        const deptUsers = teamUsers.filter(u => getDepartmentForUser(u, departmentsList).toLowerCase() === teamDepartmentFilter.toLowerCase());
+        const deptUserIds = new Set(deptUsers.map(u => String(u._id)));
+        items = items.filter(t => {
+          const aid = String(t.assignedTo?._id || t.assignedTo || '');
+          const abid = String(t.assignedBy?._id || t.assignedBy || '');
+          const tDept = String(t.department || t.assignedTo?.department || '').toLowerCase();
+          return deptUserIds.has(aid) || deptUserIds.has(abid) || tDept === teamDepartmentFilter.toLowerCase();
+        });
       }
 
       // Deduplicate recurring task series so ONLY ONE CARD is rendered per series
@@ -2714,7 +2860,7 @@ export default function Task() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, activeUserId, forFilter, dueFilter, statusFilter, priorityFilter, teamMemberFilter, historyMode]);
+  }, [activeTab, activeUserId, forFilter, dueFilter, statusFilter, priorityFilter, teamMemberFilter, teamDepartmentFilter, historyMode, teamUsers, departmentsList]);
 
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
@@ -2728,6 +2874,12 @@ export default function Task() {
   }, [fetchTasks]);
 
   useEffect(() => {
+    departmentsAPI.getAll().then(r => {
+      setDepartmentsList(r.data.departments || []);
+    }).catch(() => { });
+  }, []);
+
+  useEffect(() => {
     usersAPI.getAll().then(r => {
       const all = r.data.users || [];
       setTeamUsers(filterTeamDropdownUsers(all, currentUser));
@@ -2736,11 +2888,75 @@ export default function Task() {
 
   useEffect(() => {
     const handler = (e) => {
-      if (teamDropRef.current && !teamDropRef.current.contains(e.target)) setShowTeamDrop(false);
+      if (teamDropRef.current && !teamDropRef.current.contains(e.target)) {
+        setShowTeamDrop(false);
+        setActiveHoverDept(null);
+      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  const departmentGroups = useMemo(() => {
+    const map = new Map();
+    teamUsers.forEach(u => {
+      const deptName = getDepartmentForUser(u, departmentsList);
+      if (!map.has(deptName)) {
+        map.set(deptName, []);
+      }
+      map.get(deptName).push(u);
+    });
+
+    const list = [];
+    for (const [name, users] of map.entries()) {
+      if (users.length > 0) {
+        list.push({
+          name,
+          users: [...users].sort((a, b) => (a.name || '').localeCompare(b.name || '')),
+          count: users.length
+        });
+      }
+    }
+
+    const deptOrder = ['Development', 'Trainer', 'Marketing', 'HR', 'Management', 'Telecalling'];
+    return list.sort((a, b) => {
+      const idxA = deptOrder.indexOf(a.name);
+      const idxB = deptOrder.indexOf(b.name);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [teamUsers, departmentsList]);
+
+  const teamButtonLabel = useMemo(() => {
+    if (teamMemberFilter) {
+      const member = teamUsers.find(u => u._id === teamMemberFilter);
+      return member ? member.name : 'Team';
+    }
+    if (teamDepartmentFilter) {
+      return `${teamDepartmentFilter} Team`;
+    }
+    return 'Team';
+  }, [teamMemberFilter, teamDepartmentFilter, teamUsers]);
+
+  const hasActiveTeamFilter = Boolean(teamMemberFilter || teamDepartmentFilter);
+
+  const handleDeptMouseEnter = (deptName) => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    setActiveHoverDept(deptName);
+  };
+
+  const handleMenuMouseLeave = () => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    hoverTimeoutRef.current = setTimeout(() => {
+      setActiveHoverDept(teamDepartmentFilter || null);
+    }, 180);
+  };
+
+  const handleSideMouseEnter = () => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+  };
 
   const fetchTasksRef = useRef(fetchTasks);
   useEffect(() => { fetchTasksRef.current = fetchTasks; }, [fetchTasks]);
@@ -3209,9 +3425,26 @@ export default function Task() {
               My {activeTab === 'Todo' ? 'Todos' : 'Tasks'}
             </button>
             {isAdminOrExecutive && (
-              <div ref={teamDropRef} style={{ position: 'relative' }}>
+              <div
+                ref={teamDropRef}
+                style={{ position: 'relative' }}
+                onMouseLeave={handleMenuMouseLeave}
+              >
                 <button
-                  onClick={() => { setForFilter('Team'); setShowTeamDrop(p => !p); }}
+                  onClick={() => {
+                    setForFilter('Team');
+                    setShowTeamDrop(p => {
+                      const next = !p;
+                      if (next && teamDropRef.current) {
+                        const rect = teamDropRef.current.getBoundingClientRect();
+                        setDropdownSide(rect.left + 500 > window.innerWidth ? 'left' : 'right');
+                        if (teamDepartmentFilter) {
+                          setActiveHoverDept(teamDepartmentFilter);
+                        }
+                      }
+                      return next;
+                    });
+                  }}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -3227,38 +3460,361 @@ export default function Task() {
                     transition: 'all 0.15s ease'
                   }}
                 >
-                  {teamMemberFilter ? (teamUsers.find(u => u._id === teamMemberFilter)?.name || 'Team') : 'Team'}
+                  <span style={{ fontWeight: hasActiveTeamFilter ? 600 : 500 }}>{teamButtonLabel}</span>
+                  {hasActiveTeamFilter && (
+                    <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTeamMemberFilter('');
+                        setTeamDepartmentFilter('');
+                        setActiveHoverDept(null);
+                      }}
+                      title="Clear team filter"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 14,
+                        height: 14,
+                        borderRadius: '50%',
+                        background: forFilter === 'Team' ? 'rgba(255,255,255,0.3)' : 'rgba(2, 48, 71, 0.15)',
+                        fontSize: 9,
+                        fontWeight: 700,
+                        marginLeft: 1,
+                        lineHeight: 1
+                      }}
+                    >
+                      ✕
+                    </span>
+                  )}
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <polyline points={showTeamDrop ? '18 15 12 9 6 15' : '6 9 12 15 18 9'} />
                   </svg>
                 </button>
+
                 {showTeamDrop && (
-                  <div style={{
-                    position: 'absolute', top: '115%', left: 0, zIndex: 300,
-                    background: '#fff', border: `1px solid ${COLOR_BORDER}`, borderRadius: 8,
-                    boxShadow: '0 8px 24px rgba(2, 48, 71, 0.12)', minWidth: 200, padding: '6px 0'
-                  }}>
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '115%',
+                      left: dropdownSide === 'left' ? 'auto' : 0,
+                      right: dropdownSide === 'left' ? 0 : 'auto',
+                      zIndex: 350,
+                      display: 'flex',
+                      flexDirection: dropdownSide === 'left' ? 'row-reverse' : 'row',
+                      alignItems: 'flex-start',
+                      filter: 'drop-shadow(0 12px 28px rgba(2, 48, 71, 0.16))'
+                    }}
+                  >
+                    {/* Primary Dropdown: Departments Menu */}
                     <div
-                      onClick={() => { setTeamMemberFilter(''); setShowTeamDrop(false); }}
-                      style={{ padding: '9px 14px', fontSize: 13, cursor: 'pointer', color: !teamMemberFilter ? COLOR_BLUE_GREEN : COLOR_DEEP_BLUE, fontWeight: 500, background: !teamMemberFilter ? COLOR_SKY_SURFACE : 'transparent' }}
+                      style={{
+                        width: 220,
+                        background: '#fff',
+                        border: `1px solid ${COLOR_BORDER}`,
+                        borderRadius: 10,
+                        padding: '6px 0',
+                        maxHeight: 440,
+                        overflowY: 'auto'
+                      }}
                     >
-                      All (HR, CTO, MD)
-                    </div>
-                    {teamUsers.map(u => (
+                      {/* All Teams (All Departments) Option */}
                       <div
-                        key={u._id}
-                        onClick={() => { setTeamMemberFilter(u._id); setShowTeamDrop(false); }}
-                        style={{ padding: '9px 14px', fontSize: 13, cursor: 'pointer', color: teamMemberFilter === u._id ? COLOR_BLUE_GREEN : COLOR_DEEP_BLUE, fontWeight: 400, background: teamMemberFilter === u._id ? COLOR_SKY_SURFACE : 'transparent', display: 'flex', alignItems: 'center', gap: 8 }}
+                        onClick={() => {
+                          setTeamMemberFilter('');
+                          setTeamDepartmentFilter('');
+                          setActiveHoverDept(null);
+                          setShowTeamDrop(false);
+                        }}
+                        onMouseEnter={() => handleDeptMouseEnter(null)}
+                        style={{
+                          padding: '9px 14px',
+                          fontSize: 13,
+                          cursor: 'pointer',
+                          color: (!teamMemberFilter && !teamDepartmentFilter) ? COLOR_BLUE_GREEN : COLOR_DEEP_BLUE,
+                          fontWeight: (!teamMemberFilter && !teamDepartmentFilter) ? 700 : 500,
+                          background: (!teamMemberFilter && !teamDepartmentFilter) ? COLOR_SKY_SURFACE : 'transparent',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          transition: 'background 0.15s ease'
+                        }}
                       >
-                        <div style={{ width: 22, height: 22, borderRadius: '50%', background: COLOR_SKY_SURFACE, color: COLOR_DEEP_BLUE, fontSize: 10, fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          {u.name.slice(0, 2).toUpperCase()}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ color: COLOR_BLUE_GREEN, display: 'flex', alignItems: 'center' }}>
+                            <LayersIcon />
+                          </span>
+                          <span>All Teams</span>
                         </div>
-                        <div>
-                          <div style={{ fontWeight: 500 }}>{u.name}</div>
-                          {u.designation && <div style={{ fontSize: 11, color: COLOR_MUTED }}>{u.designation}</div>}
-                        </div>
+                        <span style={{
+                          fontSize: 10.5,
+                          fontWeight: 600,
+                          background: COLOR_SKY_SURFACE,
+                          color: COLOR_DEEP_BLUE,
+                          padding: '1px 6px',
+                          borderRadius: 10,
+                          border: `1px solid ${COLOR_BORDER}`
+                        }}>
+                          {teamUsers.length}
+                        </span>
                       </div>
-                    ))}
+
+                      <div style={{ height: 1, background: '#f1f5f9', margin: '4px 0' }} />
+
+                      <div style={{
+                        padding: '5px 14px 4px',
+                        fontSize: 10,
+                        fontWeight: 700,
+                        color: COLOR_MUTED,
+                        letterSpacing: '0.04em',
+                        textTransform: 'uppercase'
+                      }}>
+                        Departments
+                      </div>
+
+                      {/* Department List */}
+                      {departmentGroups.map(dept => {
+                        const isSelectedDept = teamDepartmentFilter === dept.name;
+                        const isHovered = activeHoverDept === dept.name;
+                        const config = DEPT_CONFIG[dept.name] || DEPT_CONFIG.General;
+
+                        return (
+                          <div
+                            key={dept.name}
+                            onMouseEnter={() => handleDeptMouseEnter(dept.name)}
+                            onClick={() => {
+                              setActiveHoverDept(dept.name);
+                            }}
+                            style={{
+                              padding: '8px 14px',
+                              fontSize: 13,
+                              cursor: 'pointer',
+                              color: isSelectedDept ? config.color : COLOR_DEEP_BLUE,
+                              fontWeight: isSelectedDept ? 600 : 500,
+                              background: (isHovered || isSelectedDept) ? config.bg : 'transparent',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              transition: 'all 0.12s ease',
+                              borderLeft: isSelectedDept ? `3px solid ${config.color}` : '3px solid transparent'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                              <div style={{
+                                width: 22,
+                                height: 22,
+                                borderRadius: 6,
+                                background: (isHovered || isSelectedDept) ? '#fff' : config.bg,
+                                color: config.color,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                border: `1px solid ${config.border}`,
+                                flexShrink: 0
+                              }}>
+                                <DeptIcon name={dept.name} />
+                              </div>
+                              <span style={{ whiteSpace: 'nowrap' }}>{dept.name}</span>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{
+                                fontSize: 10.5,
+                                fontWeight: 600,
+                                color: isSelectedDept ? config.color : COLOR_MUTED,
+                                background: (isHovered || isSelectedDept) ? '#fff' : '#f8fafc',
+                                padding: '1px 6px',
+                                borderRadius: 10,
+                                border: `1px solid ${(isHovered || isSelectedDept) ? config.border : '#e2e8f0'}`
+                              }}>
+                                {dept.count}
+                              </span>
+                              <svg
+                                width="12"
+                                height="12"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke={(isHovered || isSelectedDept) ? config.color : '#94a3b8'}
+                                strokeWidth="2.5"
+                                style={{
+                                  transform: dropdownSide === 'left' ? 'rotate(180deg)' : (isHovered ? 'translateX(2px)' : 'none'),
+                                  transition: 'transform 0.15s ease'
+                                }}
+                              >
+                                <polyline points="9 18 15 12 9 6" />
+                              </svg>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Secondary Side Dropdown: Employees List */}
+                    {activeHoverDept && (
+                      <div
+                        onMouseEnter={handleSideMouseEnter}
+                        style={{
+                          width: 245,
+                          background: '#fff',
+                          border: `1px solid ${COLOR_BORDER}`,
+                          borderRadius: 10,
+                          marginLeft: dropdownSide === 'left' ? 0 : 6,
+                          marginRight: dropdownSide === 'left' ? 6 : 0,
+                          padding: '6px 0',
+                          maxHeight: 440,
+                          overflowY: 'auto'
+                        }}
+                      >
+                        {(() => {
+                          const activeDept = departmentGroups.find(d => d.name === activeHoverDept);
+                          if (!activeDept) return null;
+                          const config = DEPT_CONFIG[activeDept.name] || DEPT_CONFIG.General;
+                          const isDeptOnlySelected = teamDepartmentFilter === activeDept.name && !teamMemberFilter;
+
+                          return (
+                            <>
+                              {/* Side Header: Department Name */}
+                              <div style={{
+                                padding: '8px 14px',
+                                background: config.bg,
+                                borderBottom: `1px solid ${config.border}`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                marginBottom: 4
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <span style={{ color: config.color, display: 'flex', alignItems: 'center' }}>
+                                    <DeptIcon name={activeDept.name} size={14} />
+                                  </span>
+                                  <span style={{ fontSize: 12.5, fontWeight: 700, color: config.color }}>
+                                    {activeDept.name} Team
+                                  </span>
+                                </div>
+                                <span style={{ fontSize: 10, fontWeight: 600, color: config.color }}>
+                                  {activeDept.count} {activeDept.count === 1 ? 'employee' : 'employees'}
+                                </span>
+                              </div>
+
+                              {/* Option: All in this Department */}
+                              <div
+                                onClick={() => {
+                                  setTeamDepartmentFilter(activeDept.name);
+                                  setTeamMemberFilter('');
+                                  setShowTeamDrop(false);
+                                }}
+                                style={{
+                                  padding: '8px 14px',
+                                  fontSize: 12.5,
+                                  cursor: 'pointer',
+                                  color: isDeptOnlySelected ? config.color : COLOR_DEEP_BLUE,
+                                  fontWeight: isDeptOnlySelected ? 700 : 500,
+                                  background: isDeptOnlySelected ? config.bg : 'transparent',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  borderBottom: `1px solid #f1f5f9`
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: config.color }} />
+                                  <span>All in {activeDept.name}</span>
+                                </div>
+                                {isDeptOnlySelected && (
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={config.color} strokeWidth="3">
+                                    <polyline points="20 6 9 17 4 12" />
+                                  </svg>
+                                )}
+                              </div>
+
+                              {/* Section Title */}
+                              <div style={{
+                                padding: '6px 14px 3px',
+                                fontSize: 10,
+                                fontWeight: 700,
+                                color: COLOR_MUTED,
+                                letterSpacing: '0.04em',
+                                textTransform: 'uppercase'
+                              }}>
+                                Employees ({activeDept.users.length})
+                              </div>
+
+                              {/* Employees in Department */}
+                              {activeDept.users.map(u => {
+                                const isSelectedMember = teamMemberFilter === u._id;
+                                return (
+                                  <div
+                                    key={u._id}
+                                    onClick={() => {
+                                      setTeamMemberFilter(u._id);
+                                      setTeamDepartmentFilter(activeDept.name);
+                                      setShowTeamDrop(false);
+                                    }}
+                                    style={{
+                                      padding: '8px 14px',
+                                      fontSize: 12.5,
+                                      cursor: 'pointer',
+                                      color: isSelectedMember ? config.color : COLOR_DEEP_BLUE,
+                                      fontWeight: isSelectedMember ? 600 : 400,
+                                      background: isSelectedMember ? config.bg : 'transparent',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'space-between',
+                                      transition: 'background 0.12s ease'
+                                    }}
+                                  >
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
+                                      <div style={{
+                                        width: 24,
+                                        height: 24,
+                                        borderRadius: '50%',
+                                        background: isSelectedMember ? config.color : COLOR_SKY_SURFACE,
+                                        color: isSelectedMember ? '#fff' : COLOR_DEEP_BLUE,
+                                        fontSize: 9.5,
+                                        fontWeight: 700,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        flexShrink: 0
+                                      }}>
+                                        {u.name.slice(0, 2).toUpperCase()}
+                                      </div>
+                                      <div style={{ minWidth: 0 }}>
+                                        <div style={{
+                                          fontWeight: isSelectedMember ? 600 : 500,
+                                          overflow: 'hidden',
+                                          textOverflow: 'ellipsis',
+                                          whiteSpace: 'nowrap'
+                                        }}>
+                                          {u.name}
+                                        </div>
+                                        {u.designation && (
+                                          <div style={{
+                                            fontSize: 10.5,
+                                            color: COLOR_MUTED,
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap'
+                                          }}>
+                                            {u.designation}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {isSelectedMember && (
+                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={config.color} strokeWidth="3" style={{ flexShrink: 0, marginLeft: 6 }}>
+                                        <polyline points="20 6 9 17 4 12" />
+                                      </svg>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </>
+                          );
+                        })()}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

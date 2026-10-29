@@ -105,6 +105,45 @@ function isExecutiveOrAdminUser(user) {
   return false;
 }
 
+function cleanLeadName(rawName) {
+  if (!rawName || typeof rawName !== 'string') return '';
+  let str = rawName;
+
+  // 1. Remove mojibake sequences of ZWNJ / ZWJ / BOM that got decoded as Windows-1252
+  str = str.replace(/â€Œ/g, '')
+           .replace(/â€‹/g, '')
+           .replace(/â€/g, '')
+           .replace(/ï»¿/g, '');
+
+  // 2. Remove leading/trailing or repeated â characters if they are artifacts of zero-width mojibake
+  str = str.replace(/^[\sâ\u00e2\uFFFD\u200B-\u200F\u202A-\u202E\uFEFF\u00A0]+/, '');
+  str = str.replace(/[\sâ\u00e2\uFFFD\u200B-\u200F\u202A-\u202E\uFEFF\u00A0]+$/, '');
+
+  // 3. Remove zero-width characters (\u200B = zero width space, \uFEFF = BOM, \u200E / \u200F = directional marks)
+  str = str.replace(/[\u200B\uFEFF\u200E\u200F\u2060]/g, '');
+
+  // Remove zero-width non-joiners (\u200C) or joiners (\u200D) unless between Indic virama and Indic character
+  str = str.replace(/[\u200C\u200D]+/g, (match, offset, full) => {
+    const prevChar = offset > 0 ? full[offset - 1] : '';
+    const nextChar = offset + match.length < full.length ? full[offset + match.length] : '';
+    const isIndic = (c) => c && c.charCodeAt(0) >= 0x0900 && c.charCodeAt(0) <= 0x0D7F;
+    if (isIndic(prevChar) && isIndic(nextChar)) {
+      return match;
+    }
+    return '';
+  });
+
+  // 4. Normalize multiple spaces
+  str = str.replace(/\s+/g, ' ').trim();
+
+  // 5. If word is lowercase Latin (like "shyam"), capitalize properly ("Shyam")
+  if (/^[a-z]+(\s+[a-z]+)*$/.test(str)) {
+    str = str.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  }
+
+  return str;
+}
+
 // Normalize phone numbers consistently to 10 standard digits
 function normalize10DigitPhone(rawPhone) {
   if (!rawPhone) return '';
@@ -199,6 +238,7 @@ function extractCoreIdentifiers(rawData = {}) {
       }
     }
   }
+  fullName = cleanLeadName(fullName);
   if (!fullName) fullName = 'Unknown Lead';
 
   // 5. City / Location
@@ -637,6 +677,12 @@ router.get('/campaigns', protect, async (req, res) => {
           },
           convertedCount: {
             $sum: { $cond: [{ $eq: ['$status', 'Converted'] }, 1, 0] }
+          },
+          positiveCount: {
+            $sum: { $cond: [{ $in: ['$status', ALL_POSITIVE_STATUSES] }, 1, 0] }
+          },
+          negativeCount: {
+            $sum: { $cond: [{ $in: ['$status', ALL_NEGATIVE_STATUSES] }, 1, 0] }
           }
         }
       },
@@ -656,14 +702,22 @@ router.get('/campaigns', protect, async (req, res) => {
       assignmentMap[a.campaign] = a.assignedUsers || [];
     });
 
-    const campaigns = stats.map(s => ({
-      campaign: s._id,
-      count: s.count,
-      lastSynced: s.lastSynced,
-      newCount: s.newCount,
-      convertedCount: s.convertedCount,
-      assignedUsers: assignmentMap[s._id] || []
-    }));
+    const campaigns = stats.map(s => {
+      const pos = s.positiveCount || 0;
+      const neg = s.negativeCount || 0;
+      const pending = Math.max(0, s.count - pos - neg);
+      return {
+        campaign: s._id,
+        count: s.count,
+        lastSynced: s.lastSynced,
+        newCount: s.newCount,
+        convertedCount: s.convertedCount,
+        positiveCount: pos,
+        negativeCount: neg,
+        pendingCount: pending,
+        assignedUsers: assignmentMap[s._id] || []
+      };
+    });
 
     // If an assigned campaign doesn't have leads in MetaLead yet, include it so the tele-caller can see the tab
     if (allowedCampaigns) {
@@ -675,6 +729,9 @@ router.get('/campaigns', protect, async (req, res) => {
             lastSynced: null,
             newCount: 0,
             convertedCount: 0,
+            positiveCount: 0,
+            negativeCount: 0,
+            pendingCount: 0,
             assignedUsers: assignmentMap[ac] || []
           });
         }
@@ -820,12 +877,68 @@ router.get('/departments', protect, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GET /api/meta-leads/call-dates (Returns call activity counts by date)
+// ─────────────────────────────────────────────────────────────────────────────
+router.get('/call-dates', protect, async (req, res) => {
+  try {
+    const { campaign, tzOffset } = req.query;
+    const offsetMin = tzOffset !== undefined ? parseInt(tzOffset, 10) : -330; // default IST (-330)
+
+    const query = {
+      $or: [
+        { lastCallAt: { $ne: null } },
+        { 'callNotes.0': { $exists: true } }
+      ]
+    };
+
+    if (campaign && campaign !== 'all' && campaign !== 'All') {
+      query.campaign = campaign;
+    }
+
+    const leads = await MetaLead.find(query)
+      .select('campaign lastCallAt callNotes')
+      .lean();
+
+    const countsByDate = {};
+    leads.forEach(l => {
+      const datesSet = new Set();
+      const addDate = (d) => {
+        if (!d) return;
+        const dt = new Date(d);
+        if (isNaN(dt.getTime())) return;
+        const localTime = new Date(dt.getTime() - (offsetMin * 60 * 1000));
+        const dateStr = localTime.toISOString().slice(0, 10);
+        datesSet.add(dateStr);
+      };
+
+      if (l.lastCallAt) addDate(l.lastCallAt);
+      if (Array.isArray(l.callNotes)) {
+        l.callNotes.forEach(cn => addDate(cn.date));
+      }
+
+      datesSet.forEach(d => {
+        countsByDate[d] = (countsByDate[d] || 0) + 1;
+      });
+    });
+
+    res.json({
+      success: true,
+      campaign: campaign || 'all',
+      callDates: countsByDate
+    });
+  } catch (err) {
+    console.error('Error fetching call dates:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch call dates', error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GET /api/meta-leads (List leads with dynamic query & campaign filter)
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/', protect, async (req, res) => {
   try {
     const isAdmin = isExecutiveOrAdminUser(req.user);
-    const { campaign, department, search, status, page = 1, limit = 25 } = req.query;
+    const { campaign, department, search, status, calledDate, tzOffset, page = 1, limit = 25 } = req.query;
     const query = {};
 
     let allowedCampaigns = null;
@@ -946,6 +1059,33 @@ router.get('/', protect, async (req, res) => {
       query.$and.push({ $or: searchOr });
     }
 
+    if (calledDate) {
+      const dateStr = String(calledDate).slice(0, 10);
+      const offsetMin = tzOffset !== undefined ? parseInt(tzOffset, 10) : -330;
+      const [y, m, d] = dateStr.split('-').map(Number);
+      if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+        const localMidnightUtc = Date.UTC(y, m - 1, d, 0, 0, 0) + (offsetMin * 60 * 1000);
+        const localEndOfDayUtc = localMidnightUtc + (24 * 60 * 60 * 1000 - 1);
+        const start = new Date(localMidnightUtc);
+        const end = new Date(localEndOfDayUtc);
+
+        const dateQuery = {
+          $or: [
+            { lastCallAt: { $gte: start, $lte: end } },
+            {
+              callNotes: {
+                $elemMatch: {
+                  date: { $gte: start, $lte: end }
+                }
+              }
+            }
+          ]
+        };
+        query.$and = query.$and || [];
+        query.$and.push(dateQuery);
+      }
+    }
+
     const pageNum = Math.max(1, parseInt(page, 10));
     const limitNum = Math.max(1, Math.min(200, parseInt(limit, 10)));
     const skip = (pageNum - 1) * limitNum;
@@ -971,12 +1111,32 @@ router.get('/', protect, async (req, res) => {
       }
     });
 
+    let sentiment = null;
+    if (campaign) {
+      const baseCampaignQuery = { campaign };
+      if (allowedCampaigns) {
+        baseCampaignQuery.campaign = { $in: allowedCampaigns.filter(c => c === campaign) };
+      }
+      const [posCount, negCount, campTotal] = await Promise.all([
+        MetaLead.countDocuments({ ...baseCampaignQuery, status: { $in: ALL_POSITIVE_STATUSES } }),
+        MetaLead.countDocuments({ ...baseCampaignQuery, status: { $in: ALL_NEGATIVE_STATUSES } }),
+        MetaLead.countDocuments(baseCampaignQuery)
+      ]);
+      sentiment = {
+        total: campTotal,
+        positive: posCount,
+        negative: negCount,
+        pending: Math.max(0, campTotal - posCount - negCount)
+      };
+    }
+
     res.json({
       success: true,
       isAdmin,
       isRestricted: !isAdmin,
       leads,
       total,
+      sentiment,
       page: pageNum,
       pages: Math.ceil(total / limitNum) || 1,
       availableHeaders: Array.from(headerSet)
@@ -1199,6 +1359,18 @@ router.patch('/:id', protect, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/sync', async (req, res) => {
   try {
+    const currentState = await MetaSyncState.findOne({ key: 'meta_leads_sync' });
+    if (currentState && currentState.isSyncing) {
+      const isStale = (Date.now() - new Date(currentState.startedAt || 0).getTime()) > 10 * 60 * 1000;
+      if (!isStale) {
+        return res.status(429).json({
+          success: false,
+          inProgress: true,
+          message: 'A Google Sheets sync is already running in the background. Please wait.'
+        });
+      }
+    }
+
     console.log('[MetaLeads] Starting in-build Google Sheets sync pipeline...');
     const result = await syncAllMetaSheets();
     try {

@@ -94,7 +94,7 @@ function isValidId(val) {
 // GET /api/followups
 router.get('/', protect, async (req, res) => {
   try {
-    const { status, date, due: dueQuery, callerId, userId: queryUserId, type, forMe: forMeQuery, leadId } = req.query;
+    const { status, date, due: dueQuery, callerId, userId: queryUserId, type, forMe: forMeQuery, leadId, department } = req.query;
     const query = {};
 
     if (isValidId(leadId)) {
@@ -128,6 +128,18 @@ router.get('/', protect, async (req, res) => {
         // Manager Panel: View relative department items & team members
         if (callerId && callerId !== 'all' && isValidId(callerId)) {
           query.$or = [{ assignedTo: callerId }, { assignedBy: callerId }, { createdBy: callerId }];
+        } else if (department && department !== 'All' && department !== 'all') {
+          const deptRegex = new RegExp(`^${department}$`, 'i');
+          const deptUsers = await User.find({
+            $or: [{ department: deptRegex }, { designation: deptRegex }]
+          }).select('_id');
+          const deptUserIds = deptUsers.map(u => u._id);
+          query.$or = [
+            { assignedTo: { $in: deptUserIds } },
+            { assignedBy: { $in: deptUserIds } },
+            { createdBy: { $in: deptUserIds } },
+            { department: deptRegex }
+          ];
         } else if (req.user.department) {
           const deptUsers = await User.find({ department: req.user.department }).select('_id');
           const deptUserIds = deptUsers.map(u => u._id);
@@ -151,6 +163,18 @@ router.get('/', protect, async (req, res) => {
         query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { createdBy: req.user._id }];
       } else if (callerId && callerId !== 'all' && isValidId(callerId)) {
         query.$or = [{ assignedTo: callerId }, { assignedBy: callerId }, { createdBy: callerId }];
+      } else if (department && department !== 'All' && department !== 'all') {
+        const deptRegex = new RegExp(`^${department}$`, 'i');
+        const deptUsers = await User.find({
+          $or: [{ department: deptRegex }, { designation: deptRegex }]
+        }).select('_id');
+        const deptUserIds = deptUsers.map(u => u._id);
+        query.$or = [
+          { assignedTo: { $in: deptUserIds } },
+          { assignedBy: { $in: deptUserIds } },
+          { createdBy: { $in: deptUserIds } },
+          { department: deptRegex }
+        ];
       }
     }
 
@@ -180,14 +204,14 @@ router.get('/', protect, async (req, res) => {
     const ModelClass = getTargetModel(type);
     let reqQueryFind = ModelClass.find(query)
       .populate('lead', 'name phone status')
-      .populate('assignedTo', 'name avatar')
-      .populate('assignedBy', 'name avatar')
+      .populate('assignedTo', 'name avatar department designation')
+      .populate('assignedBy', 'name avatar department designation')
       .populate('completedBy', 'name avatar');
     const results = await reqQueryFind.sort({ scheduledAt: 1, createdAt: -1 });
 
     const sanitized = results.map(f => {
       const doc = f.toObject ? f.toObject() : { ...f };
-      doc.type = type || (ModelClass === Todo ? 'todo' : ModelClass === Task ? 'task' : 'call_followup');
+      doc.type = type || 'call_followup';
       doc.scheduledAt = doc.scheduledAt || doc.dueDate || doc.startDate || doc.createdAt;
       doc.dueDate = doc.dueDate || doc.scheduledAt;
       doc.note = doc.note || doc.description || doc.title || '';
@@ -542,7 +566,7 @@ router.post('/import', protect, upload.single('file'), async (req, res) => {
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
+    const workbook = xlsx.read(req.file.buffer, { type: 'buffer', codepage: 65001 });
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
     const rows = xlsx.utils.sheet_to_json(sheet);

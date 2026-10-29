@@ -513,10 +513,13 @@ async function formatMetaLeadAsLead(metaLead) {
     cost: budget
   };
 
-  // Convert raw update notes & metaLead callNotes into activities
+  // Convert raw update notes & metaLead callNotes into activities (excluding status change logs)
   const activities = [];
   if (Array.isArray(metaLead.callNotes)) {
     metaLead.callNotes.forEach(cn => {
+      if (cn.outcome === 'status_change' || (cn.note && String(cn.note).toLowerCase().startsWith('status changed'))) {
+        return; // Skip status change logs so they do not fill the Notes tab
+      }
       activities.push({
         _id: cn._id || new mongoose.Types.ObjectId(),
         type: cn.outcome === 'call' || cn.outcome === 'connected' ? 'call' : 'note',
@@ -833,16 +836,7 @@ router.put('/:id/status', protect, async (req, res) => {
       const MetaLead = require('../../../database/models/MetaLead');
       const metaLead = await MetaLead.findById(req.params.id).populate('assignedTo', 'name email avatar');
       if (metaLead) {
-        const prevStatus = metaLead.status;
         metaLead.status = status;
-        if (!Array.isArray(metaLead.callNotes)) metaLead.callNotes = [];
-        metaLead.callNotes.push({
-          note: `Status changed from ${prevStatus} to ${status}`,
-          outcome: 'status_change',
-          user: req.user?._id,
-          userName: req.user?.name,
-          date: new Date()
-        });
         await metaLead.save();
         const updated = await formatMetaLeadAsLead(metaLead);
         return res.json({ lead: updated });

@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Phone, PhoneOff, Mail, MapPin, Award, IndianRupee, Globe, User, Calendar, Tag, Star, Edit3, Save, X, Plus, Clock, MessageCircle, Copy, Check, Trash2, BookOpen, Zap, Sparkles, ShieldAlert, CheckCircle2, ChevronRight, Volume2, Download, Mic, Maximize2, FileText, ChevronDown, ChevronUp } from 'lucide-react';
 import api, { leadsAPI, campaignsAPI, usersAPI, coursesAPI, followupsAPI, blocklistAPI, leadStagesAPI, messageTemplatesAPI, metaLeadsAPI } from '../../services/api';
+import leadNoteReminderService, { isStatusRequiringNote, leadHasNote } from '../../services/leadNoteReminderService';
 import { useAuth } from '../../context/AuthContext';
 import { canDelete } from '../../utils/permissions';
 import StatusBadge from '../common/StatusBadge';
 import AutoScrollText from '../common/AutoScrollText';
 import { formatDistanceToNow, format } from 'date-fns';
 import TranscriptConversationModal from '../TranscriptConversationModal';
+
 
 export const POSITIVE_SUB_STATUSES = [
   "Agreed to Office visit's but no luck",
@@ -35,6 +37,46 @@ export function isLeadPositive(lead) {
 export function isLeadNegative(lead) {
   const s = String(lead?.status || lead || '').trim();
   return s === 'Negative' || NEGATIVE_SUB_STATUSES.includes(s);
+}
+
+// Clean zero-width, mojibake, or unformatted lead names
+export function cleanLeadName(rawName) {
+  if (!rawName || typeof rawName !== 'string') return '';
+  let str = rawName;
+
+  // 1. Remove mojibake sequences of ZWNJ / ZWJ / BOM that got decoded as Windows-1252
+  str = str.replace(/â€Œ/g, '')
+           .replace(/â€‹/g, '')
+           .replace(/â€/g, '')
+           .replace(/ï»¿/g, '');
+
+  // 2. Remove leading/trailing or repeated â characters if they are artifacts of zero-width mojibake
+  str = str.replace(/^[\sâ\u00e2\uFFFD\u200B-\u200F\u202A-\u202E\uFEFF\u00A0]+/, '');
+  str = str.replace(/[\sâ\u00e2\uFFFD\u200B-\u200F\u202A-\u202E\uFEFF\u00A0]+$/, '');
+
+  // 3. Remove zero-width characters
+  str = str.replace(/[\u200B\uFEFF\u200E\u200F\u2060]/g, '');
+
+  // Remove zero-width non-joiners (\u200C) or joiners (\u200D) unless between Indic virama and Indic character
+  str = str.replace(/[\u200C\u200D]+/g, (match, offset, full) => {
+    const prevChar = offset > 0 ? full[offset - 1] : '';
+    const nextChar = offset + match.length < full.length ? full[offset + match.length] : '';
+    const isIndic = (c) => c && c.charCodeAt(0) >= 0x0900 && c.charCodeAt(0) <= 0x0D7F;
+    if (isIndic(prevChar) && isIndic(nextChar)) {
+      return match;
+    }
+    return '';
+  });
+
+  // 4. Normalize multiple spaces
+  str = str.replace(/\s+/g, ' ').trim();
+
+  // 5. If word is lowercase Latin (like "shyam"), capitalize properly ("Shyam")
+  if (/^[a-z]+(\s+[a-z]+)*$/.test(str)) {
+    str = str.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  }
+
+  return str;
 }
 
 // Interactive Positive & Negative Status Dropdown Component
@@ -898,9 +940,10 @@ export default function LeadDetailsPage({
 
   const isMeta = isMetaLead || Boolean(metaLeadId) || Boolean(metaLeadData) || String(lead?.source || '').toLowerCase().includes('meta');
   const metaRaw = metaLeadData?.rawData || lead?.rawData || {};
-  const leadName = (lead?.name && lead.name !== 'Unknown Lead')
+  const rawLeadName = (lead?.name && lead.name !== 'Unknown Lead')
     ? lead.name
     : (metaLeadData?.fullName || metaRaw.full_name || metaRaw.fullName || metaRaw.Name || metaRaw.name || metaRaw['Candidate Name'] || metaRaw['Student Name'] || metaRaw['Bhavani'] || metaRaw['Aman Shaik'] || lead?.name || '—');
+  const leadName = (rawLeadName && rawLeadName !== '—') ? (cleanLeadName(rawLeadName) || rawLeadName) : '—';
   const leadPhone = lead?.phone || metaLeadData?.phone || metaRaw.phone || metaRaw.Phone || metaRaw.phone_number || metaRaw.Mobile || metaRaw.mobile || '—';
   
   const leadEmail = (() => {
@@ -944,7 +987,7 @@ export default function LeadDetailsPage({
               data: {
                 lead: {
                   _id: metaLeadData?._id || id,
-                  name: metaLeadData?.fullName || metaRaw.full_name || metaRaw.Name || metaRaw['Bhavani'] || metaRaw['Aman Shaik'] || '—',
+                  name: cleanLeadName(metaLeadData?.fullName || metaRaw.full_name || metaRaw.Name || metaRaw['Bhavani'] || metaRaw['Aman Shaik'] || '—') || '—',
                   phone: metaLeadData?.phone || metaRaw.phone || metaRaw.phone_number || '—',
                   email: metaLeadData?.email || metaRaw.email || '—',
                   location: metaLeadData?.city || metaRaw.city || '—',
@@ -968,7 +1011,7 @@ export default function LeadDetailsPage({
       setLeadFollowups(followupsRes.data?.followups || []);
       const l = res.data.lead || {};
       setEditForm({
-        name: (l.name && l.name !== 'Unknown Lead') ? l.name : (metaLeadData?.fullName || metaRaw.full_name || metaRaw.fullName || metaRaw.Name || metaRaw.name || l.name || ''),
+        name: cleanLeadName((l.name && l.name !== 'Unknown Lead') ? l.name : (metaLeadData?.fullName || metaRaw.full_name || metaRaw.fullName || metaRaw.Name || metaRaw.name || l.name || '')),
         phone: l.phone || metaLeadData?.phone || metaRaw.phone || metaRaw.Phone || '',
         alternatePhone: l.alternatePhone || '',
         email: l.email || metaLeadData?.email || metaRaw.email || metaRaw.Email || '',
@@ -988,7 +1031,7 @@ export default function LeadDetailsPage({
       if (metaLeadData) {
         const synth = {
           _id: metaLeadData._id,
-          name: metaLeadData.fullName || metaRaw.full_name || metaRaw.Name || metaRaw['Bhavani'] || metaRaw['Aman Shaik'] || '—',
+          name: cleanLeadName(metaLeadData.fullName || metaRaw.full_name || metaRaw.Name || metaRaw['Bhavani'] || metaRaw['Aman Shaik'] || '—') || '—',
           phone: metaLeadData.phone || metaRaw.phone || metaRaw.phone_number || '—',
           email: metaLeadData.email || metaRaw.email || '—',
           location: metaLeadData.city || metaRaw.city || '—',
@@ -1037,6 +1080,38 @@ export default function LeadDetailsPage({
       setBlockEntryId(res.data.entry?._id || null);
     }).catch(() => {});
   }, [lead?.phone]);
+
+  // Open Add Note Modal if triggered from Sonner reminder toast or custom event
+  useEffect(() => {
+    const handleOpenNoteModal = (e) => {
+      const targetId = e.detail?.leadId;
+      if (!targetId || targetId === lead?._id || targetId === metaLeadId || targetId === id) {
+        setShowNoteModal(true);
+      }
+    };
+    window.addEventListener('open-lead-note-modal', handleOpenNoteModal);
+    return () => window.removeEventListener('open-lead-note-modal', handleOpenNoteModal);
+  }, [lead?._id, metaLeadId, id]);
+
+  // Sync reminder tracking when lead loads or updates
+  useEffect(() => {
+    if (!lead) return;
+    const currentId = lead._id || metaLeadId || id;
+    if (isStatusRequiringNote(lead.status)) {
+      if (leadHasNote(lead)) {
+        leadNoteReminderService.resolveLead(currentId);
+      } else {
+        leadNoteReminderService.trackLead({
+          id: currentId,
+          name: leadName || lead.name,
+          status: lead.status,
+          hasExistingNote: false,
+        });
+      }
+    } else {
+      leadNoteReminderService.resolveLead(currentId);
+    }
+  }, [lead?.status, lead?.activities?.length, lead?.callNotes?.length, lead?._id, metaLeadId, id, leadName]);
 
   const handleBlockToggle = async () => {
     setBlockingAction(true);
@@ -1104,6 +1179,19 @@ export default function LeadDetailsPage({
       setLead(updated);
       setEditForm(prev => ({ ...prev, status: newStatus }));
       onChange?.(updated);
+
+      // Track 5-minute note reminder for office visit's or Demo attended
+      const currentId = updated?._id || targetMetaId || id;
+      if (isStatusRequiringNote(newStatus)) {
+        leadNoteReminderService.trackLead({
+          id: currentId,
+          name: leadName || updated.name,
+          status: newStatus,
+          hasExistingNote: leadHasNote(updated),
+        });
+      } else {
+        leadNoteReminderService.resolveLead(currentId);
+      }
     } catch (err) { console.error(err); }
   };
 
@@ -1165,12 +1253,23 @@ export default function LeadDetailsPage({
   const handleAddNote = async (note, type) => {
     setSavingInfo(true);
     try {
-      await leadsAPI.addNote(lead._id, { note, type });
+      const targetMetaId = metaLeadId || (isMetaLead ? id : null);
+      if (lead?._id) {
+        await leadsAPI.addNote(lead._id, { note, type }).catch(() => {});
+      }
+      if (targetMetaId) {
+        await metaLeadsAPI.update(targetMetaId, { note }).catch(() => {});
+      }
       setShowNoteModal(false);
       await fetchLeadDetails();
+
+      // Successfully added note -> cancel 5-minute reminder
+      const currentId = lead?._id || targetMetaId || id;
+      leadNoteReminderService.resolveLead(currentId, leadName || lead?.name);
     } catch (err) { console.error(err); }
     finally { setSavingInfo(false); }
   };
+
 
   const handleSaveInfo = async (e) => {
     e.preventDefault();
@@ -1774,11 +1873,13 @@ export default function LeadDetailsPage({
               { key: 'note', label: 'Notes' },
             ].map(tab => {
               let count = 0;
-              if (tab.key === 'all') count = (lead.activities?.length || 0) + leadFollowups.length + recordings.length;
+              const nonStatusActivities = (lead.activities || []).filter(a => !String(a.description || a.note || '').toLowerCase().startsWith('status changed'));
+              if (tab.key === 'all') count = nonStatusActivities.length + leadFollowups.length + recordings.length;
               else if (tab.key === 'followup') count = leadFollowups.length;
               else if (tab.key === 'recordings') count = recordings.length;
-              else if (tab.key === 'call') count = (lead.activities?.filter(a => a.type === 'call').length || 0);
-              else count = lead.activities?.filter(a => a.type === tab.key).length || 0;
+              else if (tab.key === 'call') count = nonStatusActivities.filter(a => a.type === 'call').length;
+              else if (tab.key === 'note') count = nonStatusActivities.filter(a => a.type === 'note').length;
+              else count = nonStatusActivities.filter(a => a.type === tab.key).length;
 
               const isActive = activityFilter === tab.key;
               return (
@@ -1803,8 +1904,9 @@ export default function LeadDetailsPage({
           {/* 4-COLUMN CARD GRID DISPLAY */}
           <div>
             {(() => {
+              const nonStatusActivities = (lead.activities || []).filter(a => !String(a.description || a.note || '').toLowerCase().startsWith('status changed'));
               const activityItems = (activityFilter === 'all' || activityFilter === 'call' || activityFilter === 'note')
-                ? (lead.activities || []).filter(a => activityFilter === 'all' ? true : a.type === activityFilter)
+                ? nonStatusActivities.filter(a => activityFilter === 'all' ? true : a.type === activityFilter)
                 : [];
 
               const followupItems = (activityFilter === 'all' || activityFilter === 'followup')
