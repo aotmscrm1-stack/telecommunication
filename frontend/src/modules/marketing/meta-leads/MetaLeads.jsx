@@ -1202,7 +1202,7 @@ export default function MetaLeads() {
   const handleSync = async () => {
     if (syncing) return;
     setSyncing(true);
-    setStatusMessage('n8n Workflow is running... Syncing Google Sheets tabs (Fetching Name, Email, Mobile, City)...');
+    setStatusMessage('Syncing Google Sheets tabs (Fetching Name, Email, Mobile, City)...');
 
     // Background poller to monitor execution status every 2.5s
     const pollId = setInterval(async () => {
@@ -1211,7 +1211,7 @@ export default function MetaLeads() {
         if (res.data && res.data.isSyncing === false) {
           clearInterval(pollId);
           setSyncing(false);
-          setStatusMessage(res.data.lastStatus === 'completed' ? '✅ n8n Sync completed successfully!' : (res.data.message || 'Sync finished.'));
+          setStatusMessage(res.data.lastStatus === 'completed' ? '✅ Google Sheets sync completed successfully!' : (res.data.message || 'Sync finished.'));
           await fetchCampaigns();
           if (selectedCampaign) await fetchCampaignLeads(selectedCampaign, 1);
           setTimeout(() => setStatusMessage(''), 8000);
@@ -1223,7 +1223,7 @@ export default function MetaLeads() {
       const res = await metaLeadsAPI.triggerSync();
       clearInterval(pollId);
       setSyncing(false);
-      setStatusMessage(res.data?.message || '✅ n8n Sync completed successfully!');
+      setStatusMessage(res.data?.message || '✅ Google Sheets sync completed successfully!');
       await fetchCampaigns();
       if (selectedCampaign) {
         await fetchCampaignLeads(selectedCampaign, 1);
@@ -1233,7 +1233,7 @@ export default function MetaLeads() {
       clearInterval(pollId);
       setSyncing(false);
       console.error('Sync failed:', err);
-      setStatusMessage(err.response?.data?.message || 'n8n sync finished.');
+      setStatusMessage(err.response?.data?.message || 'Google Sheets sync finished.');
       await fetchCampaigns();
       setTimeout(() => setStatusMessage(''), 8000);
     }
@@ -1968,7 +1968,7 @@ export default function MetaLeads() {
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition-all active:scale-[0.98] disabled:opacity-60"
           >
             <FiRefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? 'Syncing via n8n in progress...' : 'Sync via n8n'}
+            {syncing ? 'Syncing Google Sheets in progress...' : 'Sync Leads Now'}
           </button>
         </div>
       </div>
@@ -2154,7 +2154,7 @@ export default function MetaLeads() {
             <p className="text-xs text-slate-500 max-w-sm mx-auto mb-4">
               {search || statusFilter || assigneeFilter
                 ? 'No campaigns matched your active filters. Try resetting the filters.'
-                : 'Sync your live Google Sheets via n8n workflow (Fetching Name, Email, Mobile, City) directly into the CRM.'}
+                : 'Sync your live Google Sheets (Fetching Name, Email, Mobile, City) directly into the CRM.'}
             </p>
             <button
               onClick={handleSync}
@@ -2162,7 +2162,7 @@ export default function MetaLeads() {
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-xs"
             >
               <FiRefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
-              Sync via n8n Workflow
+              Sync Google Sheets Now
             </button>
           </div>
         ) : (

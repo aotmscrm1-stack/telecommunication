@@ -427,10 +427,12 @@ async function ingestRowsIntoMetaLeads(rows, campaignName, sourceLabel) {
 
     // Strictly allow only Name, Phone, Email, Location / City
     const allowedRawData = {
+      full_name: fullName,
+      email: email || '',
+      phone_number: phone || normalizedPhone,
+      city: city || '',
       name: fullName,
       phone: phone || normalizedPhone,
-      email: email || '',
-      city: city || '',
       location: city || ''
     };
 

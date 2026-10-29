@@ -1362,8 +1362,7 @@ router.patch('/:id', protect, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/sync', async (req, res) => {
   try {
-    const n8nWebhookUrl = process.env.N8N_META_LEADS_WEBHOOK_URL || 'https://aotms.app.n8n.cloud/webhook/Meta_Leads';
-    console.log('[MetaLeads] Triggering n8n Meta Leads Workflow: ' + n8nWebhookUrl);
+    console.log('[MetaLeads] Starting direct Google Sheets Sync across all configured tabs...');
 
     // 1. Mark sync as in-progress in database
     await MetaSyncState.findOneAndUpdate(
@@ -1372,7 +1371,7 @@ router.post('/sync', async (req, res) => {
         isSyncing: true,
         lastStatus: 'syncing',
         startedAt: new Date(),
-        message: 'n8n Meta Leads workflow is currently running across all tabs...'
+        message: 'Syncing all Google Sheets tabs directly...'
       },
       { upsert: true }
     );
@@ -1384,43 +1383,8 @@ router.post('/sync', async (req, res) => {
       });
     } catch (_) {}
 
-    // 2. Dispatch request to n8n and wait until workflow completes
-    let n8nResponse = null;
-    try {
-      const response = await axios.post(n8nWebhookUrl, {
-        trigger: 'manual_crm_sync',
-        source: 'crm_dashboard',
-        requestedAt: new Date().toISOString(),
-      }, {
-        headers: { 'Content-Type': 'application/json' },
-        timeout: 180000 // 3 minutes timeout
-      });
-      n8nResponse = response.data;
-    } catch (netErr) {
-      console.error('[MetaLeads] n8n Webhook Error:', netErr.message);
-      await MetaSyncState.findOneAndUpdate(
-        { key: 'meta_leads_sync' },
-        {
-          isSyncing: false,
-          lastStatus: 'failed',
-          lastFinishedAt: new Date(),
-          message: 'n8n workflow error: ' + (netErr.response?.data?.message || netErr.message)
-        }
-      );
-      try {
-        broadcastWebSocketEvent('meta_leads:sync_completed', {
-          success: false,
-          error: netErr.message,
-          timestamp: Date.now()
-        });
-      } catch (_) {}
-      return res.status(502).json({
-        success: false,
-        inProgress: false,
-        isSyncing: false,
-        message: 'Failed to complete n8n workflow: ' + (netErr.response?.data?.message || netErr.message)
-      });
-    }
+    // 2. Run direct Google Sheets synchronization
+    const result = await syncAllMetaSheets();
 
     // 3. Mark sync as completed
     await MetaSyncState.findOneAndUpdate(
@@ -1429,7 +1393,7 @@ router.post('/sync', async (req, res) => {
         isSyncing: false,
         lastStatus: 'completed',
         lastFinishedAt: new Date(),
-        message: 'n8n Meta Leads workflow completed successfully!'
+        message: 'Google Sheets sync completed successfully! All tabs synced.'
       }
     );
 
@@ -1440,7 +1404,7 @@ router.post('/sync', async (req, res) => {
         timestamp: Date.now()
       });
       broadcastWebSocketEvent('meta_leads:changed', {
-        source: 'n8n_sync_completed',
+        source: 'sheets_sync_completed',
         timestamp: Date.now()
       });
     } catch (_) {}
@@ -1449,8 +1413,8 @@ router.post('/sync', async (req, res) => {
       success: true,
       inProgress: false,
       isSyncing: false,
-      message: 'n8n Meta Leads workflow completed successfully! All Google Sheets tabs synced.',
-      n8nResponse
+      message: 'Google Sheets sync completed successfully! All tabs synced.',
+      result
     });
   } catch (err) {
     console.error('[MetaLeads] Sync error: ' + err.message);
@@ -1458,11 +1422,18 @@ router.post('/sync', async (req, res) => {
       { key: 'meta_leads_sync' },
       { isSyncing: false, lastStatus: 'failed', message: err.message }
     );
+    try {
+      broadcastWebSocketEvent('meta_leads:sync_completed', {
+        success: false,
+        error: err.message,
+        timestamp: Date.now()
+      });
+    } catch (_) {}
     res.status(500).json({
       success: false,
       inProgress: false,
       isSyncing: false,
-      message: 'Failed to complete n8n sync: ' + err.message
+      message: 'Failed to complete Google Sheets sync: ' + err.message
     });
   }
 });

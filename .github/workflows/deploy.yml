@@ -31,9 +31,9 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
 
-            # Ensure n8n Meta Leads variables exist in backend/.env on the VPS
-            grep -q "N8N_META_LEADS_WEBHOOK_URL" backend/.env || echo "N8N_META_LEADS_WEBHOOK_URL=https://aotms.app.n8n.cloud/webhook/Meta_Leads" >> backend/.env
-            grep -q "N8N_META_LEADS_WORKFLOW_ID" backend/.env || echo "N8N_META_LEADS_WORKFLOW_ID=Cf3Wiu05i5DH1X7q" >> backend/.env
+            # Clean up old n8n Meta Leads variables if present in backend/.env on VPS
+            sed -i '/N8N_META_LEADS_WEBHOOK_URL/d' backend/.env || true
+            sed -i '/N8N_META_LEADS_WORKFLOW_ID/d' backend/.env || true
 
             docker compose up -d --build --remove-orphans
             docker image prune -f
