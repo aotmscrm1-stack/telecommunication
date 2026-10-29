@@ -5,6 +5,7 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "Meta_Leads",
+        "responseMode": "lastNode",
         "options": {}
       },
       "id": "9c7438e9-8a9c-445b-8c4f-d167aad6ffb3",

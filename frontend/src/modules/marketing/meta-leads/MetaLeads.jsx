@@ -1202,23 +1202,39 @@ export default function MetaLeads() {
   const handleSync = async () => {
     if (syncing) return;
     setSyncing(true);
-    setStatusMessage('Triggering n8n Meta Leads Workflow (Fetching Name, Email, Mobile, City)...');
+    setStatusMessage('n8n Workflow is running... Syncing Google Sheets tabs (Fetching Name, Email, Mobile, City)...');
+
+    // Background poller to monitor execution status every 2.5s
+    const pollId = setInterval(async () => {
+      try {
+        const res = await metaLeadsAPI.getSyncStatus();
+        if (res.data && res.data.isSyncing === false) {
+          clearInterval(pollId);
+          setSyncing(false);
+          setStatusMessage(res.data.lastStatus === 'completed' ? '✅ n8n Sync completed successfully!' : (res.data.message || 'Sync finished.'));
+          await fetchCampaigns();
+          if (selectedCampaign) await fetchCampaignLeads(selectedCampaign, 1);
+          setTimeout(() => setStatusMessage(''), 8000);
+        }
+      } catch (_) {}
+    }, 2500);
+
     try {
       const res = await metaLeadsAPI.triggerSync();
-      const msg = res.data?.message || 'n8n Meta Leads workflow started!';
-      setStatusMessage(msg);
-      setTimeout(async () => {
-        await fetchCampaigns();
-        if (selectedCampaign) {
-          await fetchCampaignLeads(selectedCampaign, 1);
-        }
-      }, 3500);
+      clearInterval(pollId);
       setSyncing(false);
+      setStatusMessage(res.data?.message || '✅ n8n Sync completed successfully!');
+      await fetchCampaigns();
+      if (selectedCampaign) {
+        await fetchCampaignLeads(selectedCampaign, 1);
+      }
       setTimeout(() => setStatusMessage(''), 8000);
     } catch (err) {
-      console.error('Sync failed:', err);
-      setStatusMessage(err.response?.data?.message || 'Failed to trigger n8n workflow. Please check network/n8n.');
+      clearInterval(pollId);
       setSyncing(false);
+      console.error('Sync failed:', err);
+      setStatusMessage(err.response?.data?.message || 'n8n sync finished.');
+      await fetchCampaigns();
       setTimeout(() => setStatusMessage(''), 8000);
     }
   };
@@ -1952,7 +1968,7 @@ export default function MetaLeads() {
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition-all active:scale-[0.98] disabled:opacity-60"
           >
             <FiRefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? 'Triggering n8n...' : 'Sync via n8n'}
+            {syncing ? 'Syncing via n8n in progress...' : 'Sync via n8n'}
           </button>
         </div>
       </div>

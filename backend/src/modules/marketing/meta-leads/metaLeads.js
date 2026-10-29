@@ -1362,6 +1362,26 @@ router.post('/sync', async (req, res) => {
     const n8nWebhookUrl = process.env.N8N_META_LEADS_WEBHOOK_URL || 'https://aotms.app.n8n.cloud/webhook/Meta_Leads';
     console.log('[MetaLeads] Triggering n8n Meta Leads Workflow: ' + n8nWebhookUrl);
 
+    // 1. Mark sync as in-progress in database
+    await MetaSyncState.findOneAndUpdate(
+      { key: 'meta_leads_sync' },
+      {
+        isSyncing: true,
+        lastStatus: 'syncing',
+        startedAt: new Date(),
+        message: 'n8n Meta Leads workflow is currently running across all tabs...'
+      },
+      { upsert: true }
+    );
+
+    try {
+      broadcastWebSocketEvent('meta_leads:sync_started', {
+        startedAt: new Date(),
+        timestamp: Date.now()
+      });
+    } catch (_) {}
+
+    // 2. Dispatch request to n8n and wait until workflow completes
     let n8nResponse = null;
     try {
       const response = await axios.post(n8nWebhookUrl, {
@@ -1370,36 +1390,101 @@ router.post('/sync', async (req, res) => {
         requestedAt: new Date().toISOString(),
       }, {
         headers: { 'Content-Type': 'application/json' },
-        timeout: 25000
+        timeout: 180000 // 3 minutes timeout
       });
       n8nResponse = response.data;
     } catch (netErr) {
       console.error('[MetaLeads] n8n Webhook Error:', netErr.message);
+      await MetaSyncState.findOneAndUpdate(
+        { key: 'meta_leads_sync' },
+        {
+          isSyncing: false,
+          lastStatus: 'failed',
+          lastFinishedAt: new Date(),
+          message: 'n8n workflow error: ' + (netErr.response?.data?.message || netErr.message)
+        }
+      );
+      try {
+        broadcastWebSocketEvent('meta_leads:sync_completed', {
+          success: false,
+          error: netErr.message,
+          timestamp: Date.now()
+        });
+      } catch (_) {}
       return res.status(502).json({
         success: false,
-        message: 'Failed to trigger n8n workflow: ' + (netErr.response?.data?.message || netErr.message)
+        inProgress: false,
+        isSyncing: false,
+        message: 'Failed to complete n8n workflow: ' + (netErr.response?.data?.message || netErr.message)
       });
     }
 
+    // 3. Mark sync as completed
+    await MetaSyncState.findOneAndUpdate(
+      { key: 'meta_leads_sync' },
+      {
+        isSyncing: false,
+        lastStatus: 'completed',
+        lastFinishedAt: new Date(),
+        message: 'n8n Meta Leads workflow completed successfully!'
+      }
+    );
+
     try {
+      broadcastWebSocketEvent('meta_leads:sync_completed', {
+        success: true,
+        finishedAt: new Date(),
+        timestamp: Date.now()
+      });
       broadcastWebSocketEvent('meta_leads:changed', {
-        source: 'n8n_sync_started',
+        source: 'n8n_sync_completed',
         timestamp: Date.now()
       });
     } catch (_) {}
 
     res.json({
       success: true,
-      inProgress: true,
-      message: 'n8n Meta Leads workflow started successfully! Processing Google Sheet tabs via n8n...',
+      inProgress: false,
+      isSyncing: false,
+      message: 'n8n Meta Leads workflow completed successfully! All Google Sheets tabs synced.',
       n8nResponse
     });
   } catch (err) {
     console.error('[MetaLeads] Sync error: ' + err.message);
+    await MetaSyncState.findOneAndUpdate(
+      { key: 'meta_leads_sync' },
+      { isSyncing: false, lastStatus: 'failed', message: err.message }
+    );
     res.status(500).json({
       success: false,
-      message: 'Failed to start n8n sync: ' + err.message
+      inProgress: false,
+      isSyncing: false,
+      message: 'Failed to complete n8n sync: ' + err.message
     });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/meta-leads/sync-complete (Callback endpoint if called by n8n or external workers)
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/sync-complete', async (req, res) => {
+  try {
+    await MetaSyncState.findOneAndUpdate(
+      { key: 'meta_leads_sync' },
+      {
+        isSyncing: false,
+        lastStatus: 'completed',
+        lastFinishedAt: new Date(),
+        message: req.body?.message || 'n8n workflow completed.'
+      }
+    );
+    try {
+      broadcastWebSocketEvent('meta_leads:sync_completed', { timestamp: Date.now() });
+      broadcastWebSocketEvent('meta_leads:changed', { timestamp: Date.now() });
+    } catch (_) {}
+    res.json({ success: true, message: 'Sync marked as completed.' });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
   }
 });
 
