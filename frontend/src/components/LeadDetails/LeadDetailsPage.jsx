@@ -1180,7 +1180,7 @@ export default function LeadDetailsPage({
       setEditForm(prev => ({ ...prev, status: newStatus }));
       onChange?.(updated);
 
-      // Track 1-minute note reminder for office visit's or Demo attended
+      // Track 5-minute note reminder for office visit's or Demo attended
       const currentId = updated?._id || targetMetaId || id;
       if (isStatusRequiringNote(newStatus)) {
         leadNoteReminderService.trackLead({
@@ -1263,7 +1263,7 @@ export default function LeadDetailsPage({
       setShowNoteModal(false);
       await fetchLeadDetails();
 
-      // Successfully added note -> cancel 1-minute reminder
+      // Successfully added note -> cancel 5-minute reminder
       const currentId = lead?._id || targetMetaId || id;
       leadNoteReminderService.resolveLead(currentId, leadName || lead?.name);
     } catch (err) { console.error(err); }

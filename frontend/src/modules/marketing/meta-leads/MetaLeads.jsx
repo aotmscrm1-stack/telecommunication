@@ -1180,7 +1180,7 @@ export default function MetaLeads() {
       setTimeout(() => setStatusMessage(''), 2500);
       fetchCampaigns();
 
-      // Track 1-minute note reminder for office visit's or Demo attended
+      // Track 5-minute note reminder for office visit's or Demo attended
       const studentName = cleanLeadName(lead.fullName || lead.rawData?.full_name || lead.rawData?.Name || lead.name || 'Student');
       if (isStatusRequiringNote(newStatus)) {
         leadNoteReminderService.trackLead({

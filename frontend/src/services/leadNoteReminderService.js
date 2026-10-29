@@ -1,7 +1,7 @@
 import { toast } from 'sonner';
 
 const STORAGE_KEY = 'aotms_note_reminders_pending';
-export const REMINDER_INTERVAL_MS = 1 * 60 * 1000; // 1 minute in milliseconds (60,000 ms)
+export const REMINDER_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes in milliseconds (300,000 ms)
 
 /**
  * Checks if the lead status requires a counsellor note
@@ -97,16 +97,16 @@ class LeadNoteReminderService {
   }
 
   /**
-   * Initialize background timer (checks every 5 seconds for 1-minute intervals)
+   * Initialize background timer (checks every 10 seconds for 5-minute intervals)
    */
   init() {
     if (this.initialized) return;
     this.initialized = true;
 
-    // Check every 5 seconds
+    // Check every 10 seconds
     this.intervalId = setInterval(() => {
       this.checkAndTriggerPendingReminders();
-    }, 5000);
+    }, 10000);
   }
 
   stop() {
@@ -119,7 +119,7 @@ class LeadNoteReminderService {
 
   /**
    * Tracks a lead when their status is set to "office visit's" or "Demo attended".
-   * If they don't have a note, shows an immediate toast and sets up recurring 1-minute reminders.
+   * If they don't have a note, shows an immediate toast and sets up recurring 5-minute reminders.
    */
   trackLead({ id, name, status, hasExistingNote = false }) {
     if (!id || !isStatusRequiringNote(status)) {
@@ -154,7 +154,7 @@ class LeadNoteReminderService {
 
   /**
    * Called when a note is added for the lead.
-   * Cancels the 1-minute reminders and dismisses the alert.
+   * Cancels the 5-minute reminders and dismisses the alert.
    */
   resolveLead(id, name) {
     if (!id) return;
@@ -169,7 +169,7 @@ class LeadNoteReminderService {
 
       // Show confirmation toast
       toast.success(`Note added for ${leadName}`, {
-        description: '1-minute note reminders have been stopped.',
+        description: '5-minute note reminders have been stopped.',
         duration: 4000,
       });
     }
