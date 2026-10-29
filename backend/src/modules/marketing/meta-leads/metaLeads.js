@@ -357,9 +357,12 @@ router.post('/', async (req, res) => {
 
       // Strictly allow only Name, Phone, Email, Location
       const allowedRawData = {
+        full_name: fullName,
+        email: email || '',
+        phone_number: phone || normalizedPhone,
+        city: city || '',
         name: fullName,
         phone: phone || normalizedPhone,
-        email: email || '',
         location: city || ''
       };
 

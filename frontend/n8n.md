@@ -51,8 +51,8 @@
               "type": "string"
             },
             {
-              "id": "name_tag___digital_marketing",
-              "name": "name",
+              "id": "full_name_tag___digital_marketing",
+              "name": "full_name",
               "value": "={{ $json.full_name || $json.name || $json.Name || $json['Full Name'] || $json['Candidate Name'] || $json['Student Name'] || '' }}",
               "type": "string"
             },
@@ -63,8 +63,8 @@
               "type": "string"
             },
             {
-              "id": "mobile_tag___digital_marketing",
-              "name": "mobile",
+              "id": "phone_number_tag___digital_marketing",
+              "name": "phone_number",
               "value": "={{ $json.phone_number || $json.phone || $json.mobile || $json.Mobile || $json.Contact || $json['Phone Number'] || $json['Contact Number'] || '' }}",
               "type": "string"
             },
@@ -121,8 +121,8 @@
               "type": "string"
             },
             {
-              "id": "name_tag___sap_leads",
-              "name": "name",
+              "id": "full_name_tag___sap_leads",
+              "name": "full_name",
               "value": "={{ $json.full_name || $json.name || $json.Name || $json['Full Name'] || $json['Candidate Name'] || $json['Student Name'] || '' }}",
               "type": "string"
             },
@@ -133,8 +133,8 @@
               "type": "string"
             },
             {
-              "id": "mobile_tag___sap_leads",
-              "name": "mobile",
+              "id": "phone_number_tag___sap_leads",
+              "name": "phone_number",
               "value": "={{ $json.phone_number || $json.phone || $json.mobile || $json.Mobile || $json.Contact || $json['Phone Number'] || $json['Contact Number'] || '' }}",
               "type": "string"
             },
@@ -191,8 +191,8 @@
               "type": "string"
             },
             {
-              "id": "name_tag___python_leads",
-              "name": "name",
+              "id": "full_name_tag___python_leads",
+              "name": "full_name",
               "value": "={{ $json.full_name || $json.name || $json.Name || $json['Full Name'] || $json['Candidate Name'] || $json['Student Name'] || '' }}",
               "type": "string"
             },
@@ -203,8 +203,8 @@
               "type": "string"
             },
             {
-              "id": "mobile_tag___python_leads",
-              "name": "mobile",
+              "id": "phone_number_tag___python_leads",
+              "name": "phone_number",
               "value": "={{ $json.phone_number || $json.phone || $json.mobile || $json.Mobile || $json.Contact || $json['Phone Number'] || $json['Contact Number'] || '' }}",
               "type": "string"
             },
@@ -261,8 +261,8 @@
               "type": "string"
             },
             {
-              "id": "name_tag___cybersecurity_leads",
-              "name": "name",
+              "id": "full_name_tag___cybersecurity_leads",
+              "name": "full_name",
               "value": "={{ $json.full_name || $json.name || $json.Name || $json['Full Name'] || $json['Candidate Name'] || $json['Student Name'] || '' }}",
               "type": "string"
             },
@@ -273,8 +273,8 @@
               "type": "string"
             },
             {
-              "id": "mobile_tag___cybersecurity_leads",
-              "name": "mobile",
+              "id": "phone_number_tag___cybersecurity_leads",
+              "name": "phone_number",
               "value": "={{ $json.phone_number || $json.phone || $json.mobile || $json.Mobile || $json.Contact || $json['Phone Number'] || $json['Contact Number'] || '' }}",
               "type": "string"
             },
@@ -331,8 +331,8 @@
               "type": "string"
             },
             {
-              "id": "name_website_leads",
-              "name": "name",
+              "id": "full_name_website_leads",
+              "name": "full_name",
               "value": "={{ $json.full_name || $json.name || $json.Name || $json['Full Name'] || $json['Candidate Name'] || $json['Student Name'] || '' }}",
               "type": "string"
             },
@@ -343,8 +343,8 @@
               "type": "string"
             },
             {
-              "id": "mobile_website_leads",
-              "name": "mobile",
+              "id": "phone_number_website_leads",
+              "name": "phone_number",
               "value": "={{ $json.phone_number || $json.phone || $json.mobile || $json.Mobile || $json.Contact || $json['Phone Number'] || $json['Contact Number'] || '' }}",
               "type": "string"
             },
@@ -401,8 +401,8 @@
               "type": "string"
             },
             {
-              "id": "name_practice_sheet",
-              "name": "name",
+              "id": "full_name_practice_sheet",
+              "name": "full_name",
               "value": "={{ $json.full_name || $json.name || $json.Name || $json['Full Name'] || $json['Candidate Name'] || $json['Student Name'] || '' }}",
               "type": "string"
             },
@@ -413,8 +413,8 @@
               "type": "string"
             },
             {
-              "id": "mobile_practice_sheet",
-              "name": "mobile",
+              "id": "phone_number_practice_sheet",
+              "name": "phone_number",
               "value": "={{ $json.phone_number || $json.phone || $json.mobile || $json.Mobile || $json.Contact || $json['Phone Number'] || $json['Contact Number'] || '' }}",
               "type": "string"
             },
@@ -471,8 +471,8 @@
               "type": "string"
             },
             {
-              "id": "name_dsapython_workshop1",
-              "name": "name",
+              "id": "full_name_dsapython_workshop1",
+              "name": "full_name",
               "value": "={{ $json.full_name || $json.name || $json.Name || $json['Full Name'] || $json['Candidate Name'] || $json['Student Name'] || '' }}",
               "type": "string"
             },
@@ -483,8 +483,8 @@
               "type": "string"
             },
             {
-              "id": "mobile_dsapython_workshop1",
-              "name": "mobile",
+              "id": "phone_number_dsapython_workshop1",
+              "name": "phone_number",
               "value": "={{ $json.phone_number || $json.phone || $json.mobile || $json.Mobile || $json.Contact || $json['Phone Number'] || $json['Contact Number'] || '' }}",
               "type": "string"
             },
@@ -541,8 +541,8 @@
               "type": "string"
             },
             {
-              "id": "name_cyber_security_workshop_oct_22_10",
-              "name": "name",
+              "id": "full_name_cyber_security_workshop_oct_22_10",
+              "name": "full_name",
               "value": "={{ $json.full_name || $json.name || $json.Name || $json['Full Name'] || $json['Candidate Name'] || $json['Student Name'] || '' }}",
               "type": "string"
             },
@@ -553,8 +553,8 @@
               "type": "string"
             },
             {
-              "id": "mobile_cyber_security_workshop_oct_22_10",
-              "name": "mobile",
+              "id": "phone_number_cyber_security_workshop_oct_22_10",
+              "name": "phone_number",
               "value": "={{ $json.phone_number || $json.phone || $json.mobile || $json.Mobile || $json.Contact || $json['Phone Number'] || $json['Contact Number'] || '' }}",
               "type": "string"
             },
@@ -611,8 +611,8 @@
               "type": "string"
             },
             {
-              "id": "name_ui_ux_leads",
-              "name": "name",
+              "id": "full_name_ui_ux_leads",
+              "name": "full_name",
               "value": "={{ $json.full_name || $json.name || $json.Name || $json['Full Name'] || $json['Candidate Name'] || $json['Student Name'] || '' }}",
               "type": "string"
             },
@@ -623,8 +623,8 @@
               "type": "string"
             },
             {
-              "id": "mobile_ui_ux_leads",
-              "name": "mobile",
+              "id": "phone_number_ui_ux_leads",
+              "name": "phone_number",
               "value": "={{ $json.phone_number || $json.phone || $json.mobile || $json.Mobile || $json.Contact || $json['Phone Number'] || $json['Contact Number'] || '' }}",
               "type": "string"
             },
@@ -681,8 +681,8 @@
               "type": "string"
             },
             {
-              "id": "name_data_careers_leads1",
-              "name": "name",
+              "id": "full_name_data_careers_leads1",
+              "name": "full_name",
               "value": "={{ $json.full_name || $json.name || $json.Name || $json['Full Name'] || $json['Candidate Name'] || $json['Student Name'] || '' }}",
               "type": "string"
             },
@@ -693,8 +693,8 @@
               "type": "string"
             },
             {
-              "id": "mobile_data_careers_leads1",
-              "name": "mobile",
+              "id": "phone_number_data_careers_leads1",
+              "name": "phone_number",
               "value": "={{ $json.phone_number || $json.phone || $json.mobile || $json.Mobile || $json.Contact || $json['Phone Number'] || $json['Contact Number'] || '' }}",
               "type": "string"
             },
@@ -746,7 +746,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { campaign: $json.campaign, source: 'google_sheets_meta', name: $json.name, email: $json.email, phone: $json.mobile, city: $json.city, rawData: { name: $json.name, email: $json.email, phone: $json.mobile, location: $json.city } } }}",
+        "jsonBody": "={{ { campaign: $json.campaign, source: 'google_sheets_meta', full_name: $json.full_name, email: $json.email, phone_number: $json.phone_number, city: $json.city, name: $json.full_name, phone: $json.phone_number, rawData: { full_name: $json.full_name, email: $json.email, phone_number: $json.phone_number, city: $json.city } } }}",
         "options": {
           "batching": {
             "batch": {
