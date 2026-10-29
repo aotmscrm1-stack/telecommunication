@@ -9,131 +9,91 @@ const DEFAULT_META_SHEET_SOURCES = [
   {
     name: 'Digital Marketing_Leads',
     sheetId: '1NK3yVkkKxAOjgTCL46nEaCl1zpOxnn1vCeTAY9nX2Jg',
+    gid: '994032620',
     sheetRange: "'Digital Marketing_Leads'!A:ZZ",
     campaign: 'Digital Marketing_Leads',
-    fieldMapping: {
-      name: 'full_name',
-      phone: 'phone_number',
-      email: 'email',
-      location: 'city'
-    },
+    fieldMapping: { name: 'full_name', phone: 'phone_number', email: 'email', location: 'city' },
     columns: ['full_name', 'phone_number', 'email', 'city']
   },
   {
     name: 'SAP_Leads',
     sheetId: '1NK3yVkkKxAOjgTCL46nEaCl1zpOxnn1vCeTAY9nX2Jg',
+    gid: '462616912',
     sheetRange: "'SAP_Leads'!A:ZZ",
     campaign: 'SAP_Leads',
-    fieldMapping: {
-      name: 'full_name',
-      phone: 'phone_number',
-      email: 'email',
-      location: 'city'
-    },
+    fieldMapping: { name: 'full_name', phone: 'phone_number', email: 'email', location: 'city' },
     columns: ['full_name', 'phone_number', 'email', 'city']
   },
   {
     name: 'Python_Leads',
     sheetId: '1NK3yVkkKxAOjgTCL46nEaCl1zpOxnn1vCeTAY9nX2Jg',
+    gid: '1203358862',
     sheetRange: "'Python_Leads'!A:ZZ",
     campaign: 'Python_Leads',
-    fieldMapping: {
-      name: 'full_name',
-      phone: 'phone_number',
-      email: 'email',
-      location: 'city'
-    },
+    fieldMapping: { name: 'full_name', phone: 'phone_number', email: 'email', location: 'city' },
     columns: ['full_name', 'phone_number', 'email', 'city']
   },
   {
     name: 'CyberSecurity_Leads',
     sheetId: '1NK3yVkkKxAOjgTCL46nEaCl1zpOxnn1vCeTAY9nX2Jg',
+    gid: '678096374',
     sheetRange: "'CyberSecurity_Leads'!A:ZZ",
     campaign: 'CyberSecurity_Leads',
-    fieldMapping: {
-      name: 'full_name',
-      phone: 'phone_number',
-      email: 'email',
-      location: 'city'
-    },
+    fieldMapping: { name: 'full_name', phone: 'phone_number', email: 'email', location: 'city' },
     columns: ['full_name', 'phone_number', 'email', 'city']
   },
   {
     name: 'DSAPython_workshop',
     sheetId: '1NK3yVkkKxAOjgTCL46nEaCl1zpOxnn1vCeTAY9nX2Jg',
+    gid: '675987833',
     sheetRange: "'DSAPython_workshop'!A:ZZ",
     campaign: 'DSAPython_workshop',
-    fieldMapping: {
-      name: 'full_name',
-      phone: 'phone_number',
-      email: 'email',
-      location: 'city'
-    },
+    fieldMapping: { name: 'full_name', phone: 'phone_number', email: 'email', location: 'city' },
     columns: ['full_name', 'phone_number', 'email', 'city']
   },
   {
     name: 'Cyber security workshop oct 22/10',
     sheetId: '1NK3yVkkKxAOjgTCL46nEaCl1zpOxnn1vCeTAY9nX2Jg',
+    gid: '662686398',
     sheetRange: "'Cyber security workshop oct 22/10'!A:ZZ",
     campaign: 'Cyber security workshop oct 22/10',
-    fieldMapping: {
-      name: 'full_name',
-      phone: 'phone_number',
-      email: 'email',
-      location: 'city'
-    },
+    fieldMapping: { name: 'full_name', phone: 'phone_number', email: 'email', location: 'city' },
     columns: ['full_name', 'phone_number', 'email', 'city']
   },
   {
     name: 'UI/UX_Leads',
     sheetId: '1NK3yVkkKxAOjgTCL46nEaCl1zpOxnn1vCeTAY9nX2Jg',
+    gid: '1925193575',
     sheetRange: "'UI/UX_Leads'!A:ZZ",
     campaign: 'UI/UX_Leads',
-    fieldMapping: {
-      name: 'full_name',
-      phone: 'phone_number',
-      email: 'email',
-      location: 'city'
-    },
+    fieldMapping: { name: 'full_name', phone: 'phone_number', email: 'email', location: 'city' },
     columns: ['full_name', 'phone_number', 'email', 'city']
   },
   {
     name: 'Data_Careers_Leads',
     sheetId: '1NK3yVkkKxAOjgTCL46nEaCl1zpOxnn1vCeTAY9nX2Jg',
+    gid: '985928295',
     sheetRange: "'Data_Careers_Leads'!A:ZZ",
     campaign: 'Data_Careers_Leads',
-    fieldMapping: {
-      name: 'full_name',
-      phone: 'phone_number',
-      email: 'email',
-      location: 'city'
-    },
+    fieldMapping: { name: 'full_name', phone: 'phone_number', email: 'email', location: 'city' },
     columns: ['full_name', 'phone_number', 'email', 'city']
   },
   {
     name: 'Website_Leads',
     sheetId: '1M2GDTW065pJU6eBk0BiDrp1Tio1V6ffEevuNQnwbIe4',
+    gid: '0',
     sheetRange: "'Website_Leads'!A:ZZ",
     campaign: 'Website_Leads',
-    fieldMapping: {
-      name: 'full_name',
-      phone: 'phone_number',
-      email: 'email',
-      location: 'city'
-    },
+    fieldMapping: { name: 'full_name', phone: 'phone_number', email: 'email', location: 'city' },
     columns: ['full_name', 'phone_number', 'email', 'city']
   },
   {
     name: 'Practice Sheet',
     sheetId: '1Df8LIYoUfZb-qvmv7ZHwAy5iV7gFv9H0QeFLXDZF1XI',
+    gid: '0',
     sheetRange: "'Practice Sheet'!A:ZZ",
     campaign: 'Practice Sheet',
-    fieldMapping: {
-      name: 'full_name',
-      phone: 'phone_number',
-      email: 'email',
-      location: 'city'
-    },
+    fieldMapping: { name: 'full_name', phone: 'phone_number', email: 'email', location: 'city' },
     columns: ['full_name', 'phone_number', 'email', 'city']
   }
 ];
@@ -300,18 +260,41 @@ function parseTabName(range, name) {
 /**
  * Fetch rows from Google Sheet via GViz public CSV endpoint using matrix row parsing
  */
-async function fetchSheetRows(sheetId, tabName) {
-  const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}`;
-  const response = await axios.get(url, {
-    responseType: 'arraybuffer',
-    timeout: 20000,
-    headers: { 'Accept': 'text/csv,application/octet-stream; charset=utf-8' }
-  });
-  const csvText = Buffer.isBuffer(response.data)
-    ? response.data.toString('utf8').replace(/^\uFEFF/, '')
-    : typeof response.data === 'string'
-      ? response.data.replace(/^\uFEFF/, '')
-      : Buffer.from(response.data).toString('utf8').replace(/^\uFEFF/, '');
+/**
+ * Fetch rows from Google Sheet via direct CSV export endpoint (Priority 1) or GViz endpoint (Fallback)
+ */
+async function fetchSheetRows(sheetId, tabName, gid) {
+  let csvText = '';
+  // Priority 1: Direct Google Sheets CSV export endpoint via gid (Returns ALL rows, no 59-row GViz cutoff!)
+  if (gid !== undefined && gid !== null && String(gid).length > 0) {
+    try {
+      const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+      const response = await axios.get(exportUrl, {
+        responseType: 'arraybuffer',
+        timeout: 25000,
+        headers: { 'Accept': 'text/csv,application/octet-stream; charset=utf-8' }
+      });
+      csvText = Buffer.from(response.data).toString('utf8').replace(/^\uFEFF/, '');
+    } catch (exportErr) {
+      console.warn(`[MetaLeads Native Sync] Direct CSV export via gid=${gid} failed (${exportErr.message}), trying GViz...`);
+    }
+  }
+
+  // Priority 2: Fallback to GViz endpoint
+  if (!csvText) {
+    const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}`;
+    const response = await axios.get(url, {
+      responseType: 'arraybuffer',
+      timeout: 20000,
+      headers: { 'Accept': 'text/csv,application/octet-stream; charset=utf-8' }
+    });
+    csvText = Buffer.isBuffer(response.data)
+      ? response.data.toString('utf8').replace(/^\uFEFF/, '')
+      : typeof response.data === 'string'
+        ? response.data.replace(/^\uFEFF/, '')
+        : Buffer.from(response.data).toString('utf8').replace(/^\uFEFF/, '');
+  }
+
   const workbook = xlsx.read(csvText, { type: 'string', raw: false, codepage: 65001 });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const matrix = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: '' });
@@ -330,7 +313,10 @@ async function fetchSheetRows(sheetId, tabName) {
         obj[key] = rawRow[colIdx] != null ? String(rawRow[colIdx]).trim() : '';
       }
     });
-    rows.push(obj);
+    // Ensure the row has at least a Name, Phone, or Email
+    if (obj.name || obj.phone || obj.email) {
+      rows.push(obj);
+    }
   }
   return rows;
 }
@@ -500,6 +486,10 @@ async function ingestRowsIntoMetaLeads(rows, campaignName, sourceLabel) {
 async function ensureGoogleSheetsIntegration() {
   try {
     let integration = await Integration.findOne({ type: 'google_sheets' });
+    if (integration) {
+      integration.config.sheetSources = DEFAULT_META_SHEET_SOURCES;
+      await integration.save();
+    }
     if (!integration) {
       integration = await Integration.create({
         name: 'Google Sheets',
@@ -593,7 +583,7 @@ async function syncAllMetaSheets() {
     ).catch(() => {});
 
     try {
-      const rows = await fetchSheetRows(src.sheetId, tabName);
+      const rows = await fetchSheetRows(src.sheetId, tabName, src.gid);
       const res = await ingestRowsIntoMetaLeads(rows, campaignName, 'google_sheets_meta');
 
       totalProcessed += res.total;
