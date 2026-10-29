@@ -422,7 +422,7 @@ function MetaAICallingPanel({ campaign, onStatusChange }) {
     }}>
       {/* Header row */}
       <div
-        style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
+        style={{ padding: '9px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
         onClick={() => setExpanded(e => !e)}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
@@ -435,12 +435,12 @@ function MetaAICallingPanel({ campaign, onStatusChange }) {
             flexShrink: 0,
           }} />
           <style>{`@keyframes aipulse{0%,100%{box-shadow:0 0 0 0 #bbf7d0}50%{box-shadow:0 0 0 4px #bbf7d000}}`}</style>
-          <span style={{ fontSize: 11.5, fontWeight: 500, color: isEnabled ? '#15803d' : TEXT }}>
+          <span style={{ fontSize: 11.5, fontWeight: 700, color: isEnabled ? '#15803d' : TEXT }}>
             AI Calling {isEnabled ? '— Active' : '— Paused'}
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 10.5, color: MUTED, fontVariantNumeric: 'tabular-nums', fontWeight: 400 }}>
+          <span style={{ fontSize: 10.5, color: MUTED, fontVariantNumeric: 'tabular-nums', fontWeight: 500 }}>
             {aiStatus?.inProgress ?? 0} active · {aiStatus?.queued ?? 0} queued
           </span>
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2"
@@ -460,17 +460,17 @@ function MetaAICallingPanel({ campaign, onStatusChange }) {
               { label: 'Queued', value: aiStatus?.queued ?? 0, color: '#f59e0b' },
               { label: 'Done Today', value: aiStatus?.completedToday ?? 0, color: BLUE },
             ].map(({ label, value, color }) => (
-              <div key={label} style={{ background: '#f8fafc', border: `1px solid ${BORDER}`, borderRadius: 7, padding: '5px 4px', textAlign: 'center' }}>
-                <div style={{ fontSize: 9.5, color: MUTED, marginBottom: 1, fontWeight: 400 }}>{label}</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color }}>{value}</div>
+              <div key={label} style={{ background: '#f8fafc', border: `1px solid ${BORDER}`, borderRadius: 7, padding: '6px 4px', textAlign: 'center' }}>
+                <div style={{ fontSize: 9.5, color: MUTED, marginBottom: 2, fontWeight: 500 }}>{label}</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color }}>{value}</div>
               </div>
             ))}
           </div>
 
           {/* Concurrency input (only when not active) */}
           {!isEnabled && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-              <label style={{ fontSize: 11, color: MUTED, fontWeight: 400, whiteSpace: 'nowrap' }}>Concurrent calls:</label>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 10, background: '#f8fafc', padding: '6px 10px', borderRadius: 7, border: `1px solid ${BORDER}` }}>
+              <label style={{ fontSize: 11, color: TEXT, fontWeight: 600, whiteSpace: 'nowrap' }}>Concurrent calls:</label>
               <input
                 type="number"
                 min={1}
@@ -479,8 +479,8 @@ function MetaAICallingPanel({ campaign, onStatusChange }) {
                 onChange={e => setAiConcurrency(Math.max(1, Math.min(20, Number(e.target.value))))}
                 style={{
                   width: 50, padding: '4px 6px', borderRadius: 6,
-                  border: `1px solid ${BORDER}`, fontSize: 11.5, color: TEXT,
-                  fontWeight: 500, outline: 'none', textAlign: 'center',
+                  border: `1px solid ${BORDER}`, fontSize: 12, color: TEXT,
+                  fontWeight: 700, outline: 'none', textAlign: 'center', background: '#fff'
                 }}
               />
             </div>
@@ -492,21 +492,21 @@ function MetaAICallingPanel({ campaign, onStatusChange }) {
               onClick={handlePause}
               disabled={loading}
               style={{
-                width: '100%', padding: '7px', borderRadius: 7,
+                width: '100%', padding: '8px', borderRadius: 8,
                 background: loading ? '#fef9c3' : '#fef08a',
                 border: '1px solid #fde047', color: '#854d0e',
-                fontSize: 11.5, fontWeight: 500, cursor: loading ? 'not-allowed' : 'pointer',
+                fontSize: 12, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               }}
             >
               {loading ? (
                 <>
-                  <div className="spinner-gradient" style={{ width: 11, height: 11 }} />
+                  <div className="spinner-gradient" style={{ width: 12, height: 12 }} />
                   Pausing…
                 </>
               ) : (
                 <>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" />
                   </svg>
                   Pause AI Calling
@@ -518,21 +518,22 @@ function MetaAICallingPanel({ campaign, onStatusChange }) {
               onClick={handleStart}
               disabled={loading}
               style={{
-                width: '100%', padding: '7px', borderRadius: 7,
+                width: '100%', padding: '8px', borderRadius: 8,
                 background: loading ? '#93c5fd' : BLUE,
                 border: 'none', color: '#fff',
-                fontSize: 11.5, fontWeight: 500, cursor: loading ? 'not-allowed' : 'pointer',
+                fontSize: 12, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                boxShadow: '0 2px 4px rgba(37, 99, 235, 0.25)'
               }}
             >
               {loading ? (
                 <>
-                  <div className="spinner-gradient" style={{ width: 11, height: 11 }} />
+                  <div className="spinner-gradient" style={{ width: 12, height: 12 }} />
                   Starting…
                 </>
               ) : (
                 <>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                     <polygon points="5 3 19 12 5 21 5 3" />
                   </svg>
                   Start AI Calling
@@ -662,52 +663,52 @@ function RealTimeCallCalendar({ campaign, selectedDate, onSelectDate, callDates 
   const weekHeaders = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
   return (
-    <div style={{ background: '#fff', borderRadius: 10, padding: '7px 8px', border: `1px solid ${BORDER}`, boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
+    <div style={{ background: '#fff', borderRadius: 10, padding: '10px 10px', border: `1px solid ${BORDER}`, boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
       {/* Real-time Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          <div style={{ position: 'relative', width: 6, height: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ position: 'relative', width: 7, height: 7 }}>
             <span style={{ position: 'absolute', width: '100%', height: '100%', borderRadius: '50%', background: '#10b981', opacity: 0.75, animation: 'ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite' }} />
-            <span style={{ position: 'relative', display: 'block', width: 6, height: 6, borderRadius: '50%', background: '#10b981' }} />
+            <span style={{ position: 'relative', display: 'block', width: 7, height: 7, borderRadius: '50%', background: '#10b981' }} />
           </div>
-          <span style={{ fontSize: 11, fontWeight: 700, color: TEXT }}>Real-Time Calendar</span>
+          <span style={{ fontSize: 11.5, fontWeight: 700, color: TEXT }}>Real-Time Calendar</span>
         </div>
-        <div style={{ fontSize: 9, color: MUTED, fontFamily: 'monospace', background: '#f8fafc', border: `1px solid ${BORDER}`, padding: '1px 4px', borderRadius: 4, fontWeight: 600 }} title="Live Time">
+        <div style={{ fontSize: 9.5, color: MUTED, fontFamily: 'monospace', background: '#f8fafc', border: `1px solid ${BORDER}`, padding: '1.5px 5px', borderRadius: 4, fontWeight: 600 }} title="Live Time">
           {liveTimeStr}
         </div>
       </div>
 
       {/* Today info & Activity summary */}
-      <div style={{ fontSize: 9.5, color: MUTED, marginBottom: 5, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ fontSize: 10, color: MUTED, marginBottom: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span>Today: <strong style={{ color: TEXT }}>{liveDateStr}</strong></span>
         {currentMonthCalls > 0 && (
-          <span style={{ color: ORANGE, fontWeight: 700, fontSize: 8.5, background: ORANGE_LIGHT, padding: '0.5px 5px', borderRadius: 8, border: `1px solid ${ORANGE_BORDER}` }}>
+          <span style={{ color: ORANGE, fontWeight: 700, fontSize: 9, background: ORANGE_LIGHT, padding: '1px 6px', borderRadius: 8, border: `1px solid ${ORANGE_BORDER}` }}>
             {currentMonthCalls} calls logged
           </span>
         )}
       </div>
 
       {/* Month Navigation */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, padding: '1px 0' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, padding: '1px 0' }}>
         <button
           type="button"
           onClick={handlePrevMonth}
           style={{
-            background: '#f8fafc', border: `1px solid ${BORDER}`, borderRadius: 4, width: 20, height: 20,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: TEXT, fontSize: 11, fontWeight: 600
+            background: '#f8fafc', border: `1px solid ${BORDER}`, borderRadius: 5, width: 22, height: 22,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: TEXT, fontSize: 12, fontWeight: 700
           }}
           title="Previous Month"
         >
           ‹
         </button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: TEXT }}>{monthName}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 11.5, fontWeight: 700, color: TEXT }}>{monthName}</span>
           {(viewYear !== now.getFullYear() || viewMonth !== now.getMonth()) && (
             <button
               type="button"
               onClick={handleGoToday}
               style={{
-                fontSize: 8.5, padding: '1px 4px', borderRadius: 4, background: BLUE_LIGHT,
+                fontSize: 9, padding: '1px 5px', borderRadius: 4, background: BLUE_LIGHT,
                 color: BLUE, border: `1px solid ${BLUE_BORDER}`, fontWeight: 600, cursor: 'pointer'
               }}
             >
@@ -719,8 +720,8 @@ function RealTimeCallCalendar({ campaign, selectedDate, onSelectDate, callDates 
           type="button"
           onClick={handleNextMonth}
           style={{
-            background: '#f8fafc', border: `1px solid ${BORDER}`, borderRadius: 4, width: 20, height: 20,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: TEXT, fontSize: 11, fontWeight: 600
+            background: '#f8fafc', border: `1px solid ${BORDER}`, borderRadius: 5, width: 22, height: 22,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: TEXT, fontSize: 12, fontWeight: 700
           }}
           title="Next Month"
         >
@@ -729,16 +730,16 @@ function RealTimeCallCalendar({ campaign, selectedDate, onSelectDate, callDates 
       </div>
 
       {/* Weekday Labels */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1.5, textAlign: 'center', marginBottom: 2 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, textAlign: 'center', marginBottom: 3 }}>
         {weekHeaders.map((w, idx) => (
-          <div key={idx} style={{ fontSize: 8.5, fontWeight: 700, color: idx === 0 ? '#ef4444' : MUTED }}>
+          <div key={idx} style={{ fontSize: 9, fontWeight: 700, color: idx === 0 ? '#ef4444' : MUTED }}>
             {w}
           </div>
         ))}
       </div>
 
-      {/* Day Cells Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1.5 }}>
+      {/* Day Cells Grid (Height Increased for Comfortable Viewing) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
         {calendarDays.map((cell, idx) => {
           const isSelected = selectedDate === cell.dateKey;
           const isToday = todayKey === cell.dateKey;
@@ -776,8 +777,8 @@ function RealTimeCallCalendar({ campaign, selectedDate, onSelectDate, callDates 
               }}
               style={{
                 position: 'relative',
-                height: 22,
-                borderRadius: 4,
+                height: 28,
+                borderRadius: 5,
                 background: bg,
                 border,
                 display: 'flex',
@@ -786,7 +787,7 @@ function RealTimeCallCalendar({ campaign, selectedDate, onSelectDate, callDates 
                 justifyContent: 'center',
                 cursor: 'pointer',
                 transition: 'all 0.12s ease',
-                boxShadow: isSelected ? '0 1px 3px rgba(234, 88, 12, 0.35)' : 'none'
+                boxShadow: isSelected ? '0 2px 4px rgba(234, 88, 12, 0.35)' : 'none'
               }}
               title={
                 hasCalls
@@ -794,7 +795,7 @@ function RealTimeCallCalendar({ campaign, selectedDate, onSelectDate, callDates 
                   : `${cell.dateKey} (No calls logged)`
               }
             >
-              <span style={{ fontSize: 9.5, color, fontWeight, lineHeight: 1 }}>
+              <span style={{ fontSize: 10.5, color, fontWeight, lineHeight: 1 }}>
                 {cell.dayNum}
               </span>
 
@@ -802,21 +803,21 @@ function RealTimeCallCalendar({ campaign, selectedDate, onSelectDate, callDates 
               {hasCalls ? (
                 <span
                   style={{
-                    fontSize: 7.5,
+                    fontSize: 8,
                     fontWeight: 700,
                     lineHeight: 1,
-                    marginTop: 1,
-                    padding: '0.5px 2.5px',
+                    marginTop: 1.5,
+                    padding: '1px 3px',
                     borderRadius: 6,
                     background: isSelected ? '#ffffff' : ORANGE,
                     color: isSelected ? ORANGE : '#ffffff',
-                    transform: 'scale(0.85)'
+                    transform: 'scale(0.9)'
                   }}
                 >
                   {cell.calls > 99 ? '99+' : cell.calls}
                 </span>
               ) : isToday && !isSelected ? (
-                <span style={{ width: 2.5, height: 2.5, borderRadius: '50%', background: BLUE, marginTop: 1 }} />
+                <span style={{ width: 3, height: 3, borderRadius: '50%', background: BLUE, marginTop: 1.5 }} />
               ) : null}
             </div>
           );
@@ -1735,11 +1736,11 @@ export default function MetaLeads() {
             )}
           </div>
 
-          {/* ─── MIDDLE PANEL: Real-Time Calendar, AI Calling & Lead Sentiment ─── */}
+          {/* ─── MIDDLE PANEL: Real-Time Calendar, Lead Sentiment & AI Calling ─── */}
           <div className={`w-full md:w-64 xl:w-72 flex-shrink-0 bg-slate-50/70 border-r border-slate-200 overflow-y-auto p-3 flex flex-col gap-3 min-h-0 ${
             activeMobileTab === 'analytics' ? 'flex' : 'hidden md:flex'
           }`}>
-            {/* 1. Real-Time Calendar (Compact Fit for Screen) */}
+            {/* 1. Real-Time Calendar (Comfortable Height) */}
             <RealTimeCallCalendar
               campaign={selectedCampaign}
               selectedDate={selectedCallDate}
@@ -1748,17 +1749,11 @@ export default function MetaLeads() {
               loading={callDatesLoading}
             />
 
-            {/* 2. AI Calling Concept (Placed BEFORE Lead Sentiment) */}
-            <MetaAICallingPanel
-              campaign={selectedCampaign}
-              onStatusChange={() => fetchCampaignLeads(selectedCampaign, leadsPage)}
-            />
-
-            {/* 3. Lead Sentiment (Placed AFTER AI Calling Concept) */}
+            {/* 2. Lead Sentiment */}
             <div style={{ background: '#fff', borderRadius: 10, padding: '12px 10px', border: `1px solid ${BORDER}`, boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
               <div style={{ fontSize: 11.5, fontWeight: 700, color: TEXT, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981' }} />
-                Lead Sentiment (AI Voice & Call Analysis)
+                Lead Sentiment
               </div>
               {sentimentData.length > 0 ? (
                 <>
@@ -1822,6 +1817,12 @@ export default function MetaLeads() {
                 <div style={{ textAlign: 'center', color: MUTED, fontSize: 11, padding: '16px 0', fontWeight: 400 }}>No sentiment data yet</div>
               )}
             </div>
+
+            {/* 3. AI Calling Concept (Placed right below Lead Sentiment) */}
+            <MetaAICallingPanel
+              campaign={selectedCampaign}
+              onStatusChange={() => fetchCampaignLeads(selectedCampaign, leadsPage)}
+            />
 
             {/* Assigned Callers */}
             {activeAssignees.length > 0 && (
