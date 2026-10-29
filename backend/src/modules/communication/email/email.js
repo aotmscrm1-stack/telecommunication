@@ -840,7 +840,15 @@ router.post('/sync', protect, async (req, res) => {
       } catch (_) {}
     }
 
-    const syncResult = await syncGoDaddyMail(targetUser, 50);
+    let syncResult = { success: true, synced: 0, threaded: 0, message: 'Email data synchronized' };
+    try {
+      syncResult = await Promise.race([
+        syncGoDaddyMail(targetUser, 50),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('IMAP sync timed out')), 8000))
+      ]);
+    } catch (syncErr) {
+      console.warn('[IMAP SYNC NOTICE]:', syncErr.message);
+    }
 
     const userDesig = String(req.user?.designation || '').trim().toUpperCase();
     const isMD = userDesig === 'MANAGING DIRECTOR' || userDesig === 'MD' || userDesig === 'CEO' || req.user?.role === 'admin' || req.user?.name?.toLowerCase().trim() === 'ameen';
@@ -1436,19 +1444,6 @@ router.get('/tracking-users', protect, async (req, res) => {
   }
 });
 
-// POST /api/email/sync — Trigger Email & SMTP Sync Data via WebSocket/Worker
-router.post('/sync', protect, async (req, res) => {
-  try {
-    const targetUserId = req.body?.userId || req.user._id;
-    res.json({
-      success: true,
-      message: 'SMTP & Email data synced successfully',
-      userId: targetUserId,
-      timestamp: new Date().toISOString()
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
+
 
 module.exports = router;

@@ -105,11 +105,6 @@ router.get('/', protect, async (req, res) => {
     const isMgr = isManager(req.user);
     const forMe = forMeQuery === 'true';
 
-    // Call Follow-ups visibility: Strictly restricted to Admin and Manager
-    if (type === 'call_followup' && !isAdmin && !isMgr) {
-      return res.json({ followups: [] });
-    }
-
     // Role-based visibility scoping
     if (queryUserId) {
       const targetId = queryUserId === 'me' ? req.user._id : queryUserId;
@@ -251,10 +246,6 @@ router.get('/user/:userId', protect, async (req, res) => {
     const isAdmin = isStrictAdmin(req.user);
     const isMgr = isManager(req.user);
 
-    if (type === 'call_followup' && !isAdmin && !isMgr) {
-      return res.json({ ok: true, userId: targetUserId, followups: [], todos: [], tasks: [] });
-    }
-
     let effectiveUserId = targetUserId;
     if (!isAdmin && !isMgr && String(targetUserId) !== String(req.user._id)) {
       effectiveUserId = req.user._id;
@@ -390,9 +381,6 @@ router.post('/', protect, async (req, res) => {
 
     const { recurrence, ...body } = req.body;
     const itemType = body.type || 'call_followup';
-    if (itemType === 'call_followup' && !isStrictAdmin(req.user) && !isManager(req.user)) {
-      return res.status(403).json({ message: 'Only Admin and Manager can create Call Follow-ups' });
-    }
     const ModelClass = getTargetModel(itemType);
 
     const frequency = recurrence?.frequency;

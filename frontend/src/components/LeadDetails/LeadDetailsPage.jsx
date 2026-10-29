@@ -103,7 +103,7 @@ export function MetaLeadStatusPicker({ status, onStatusChange }) {
 
   const isPos = status === 'Positive' || POSITIVE_SUB_STATUSES.includes(status);
   const isNeg = status === 'Negative' || NEGATIVE_SUB_STATUSES.includes(status);
-  const displayStatus = (status && status !== 'Fresh' && status !== 'New') ? status : 'Select Status';
+  const displayStatus = (status && status !== 'Fresh' && status !== 'New') ? status : 'Call Summary';
 
   return (
     <div className="relative inline-block text-left" ref={containerRef}>
@@ -890,6 +890,175 @@ function AIStateBanner({ lead }) {
 }
 
 // ── Shared Lead Details Component ─────────────────────────────────────────────
+// ── Call Summary Detail Modal (Popup Module for Calling & Activity Records) ───
+function CallSummaryDetailModal({ activity, lead, onClose, onInitiateCall, onScheduleCallback }) {
+  const [copied, setCopied] = useState(false);
+  if (!activity) return null;
+
+  const isRecording = Boolean(activity._recording);
+  const isFollowup = Boolean(activity._followup);
+  const isCall = activity.type === 'call';
+
+  const title = isRecording
+    ? 'Audio Recording & Call Summary'
+    : isFollowup
+    ? 'Scheduled Callback Summary'
+    : isCall
+    ? 'Call Log & Call Summary'
+    : 'Note & Activity Summary';
+
+  const summaryText =
+    activity.description ||
+    activity.note ||
+    activity.rec?.transcript ||
+    (isFollowup ? 'Callback reminder scheduled for lead.' : 'No notes recorded.');
+
+  const handleCopy = () => {
+    navigator.clipboard?.writeText(summaryText);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-150">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-150 flex flex-col max-h-[90vh]">
+        {/* Header */}
+        <div className="px-5 py-3.5 border-b border-slate-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50/60 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center border border-sky-200 shadow-2xs">
+              {isRecording ? <Volume2 className="w-4.5 h-4.5 text-sky-600" /> : isFollowup ? <Clock className="w-4.5 h-4.5 text-amber-600" /> : isCall ? <Phone className="w-4.5 h-4.5 text-emerald-600" /> : <MessageCircle className="w-4.5 h-4.5 text-blue-600" />}
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-900 text-sm sm:text-base leading-tight">
+                {title}
+              </h3>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                {lead?.name} ({lead?.phone})
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Modal Body */}
+        <div className="p-5 overflow-y-auto space-y-4">
+          {/* Metadata Badges Bar */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
+              Type: {isRecording ? 'Voice Call' : isFollowup ? 'Callback' : isCall ? 'Logged Call' : 'Activity Note'}
+            </span>
+            {activity.callStatus && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase">
+                Status: {activity.callStatus}
+              </span>
+            )}
+            {activity.callDuration ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                Duration: {fmtDuration(activity.callDuration)}
+              </span>
+            ) : null}
+            {isFollowup && activity.status && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                {activity.status === 'upcoming' ? '⏳ Scheduled' : '✅ Completed'}
+              </span>
+            )}
+          </div>
+
+          {/* Timing & Agent Details */}
+          <div className="bg-slate-50/80 rounded-xl p-3 border border-slate-200/80 grid grid-cols-2 gap-3 text-xs">
+            <div>
+              <span className="text-slate-400 block text-[11px] font-medium">Logged By</span>
+              <span className="font-semibold text-slate-800">
+                {activity.performedBy?.name || activity.rec?.user?.name || 'Agent'}
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-400 block text-[11px] font-medium">Date & Time</span>
+              <span className="font-semibold text-slate-800">
+                {activity.createdAt ? format(new Date(activity.createdAt), 'dd MMM yyyy, hh:mm a') : 'Recent'}
+              </span>
+            </div>
+            {isFollowup && activity.scheduledAt && (
+              <div className="col-span-2 bg-amber-50/80 p-2.5 rounded-lg border border-amber-200 text-amber-900 font-medium">
+                ⏰ Reminder scheduled for: <strong>{format(new Date(activity.scheduledAt), 'dd MMM yyyy, hh:mm a')}</strong>
+              </div>
+            )}
+          </div>
+
+          {/* Audio Player if recording */}
+          {isRecording && (activity.rec?.streamUrl || activity.rec?.url) && (
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+              <span className="text-xs font-bold text-slate-700 block mb-1.5 flex items-center gap-1.5">
+                <Volume2 className="w-3.5 h-3.5 text-blue-600" /> Call Audio Recording
+              </span>
+              <audio
+                controls
+                preload="metadata"
+                className="w-full h-9 rounded-lg"
+                src={activity.rec.streamUrl || activity.rec.url}
+              >
+                Audio not supported
+              </audio>
+            </div>
+          )}
+
+          {/* Full Call Summary / Discussion Box */}
+          <div className="bg-white rounded-xl border border-slate-200 p-3.5">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-blue-600" /> Call Summary & Discussion
+              </span>
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1"
+              >
+                {copied ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+            <div className="text-xs text-slate-800 leading-relaxed whitespace-pre-wrap bg-slate-50/70 p-3 rounded-lg border border-slate-100 font-normal">
+              {summaryText}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Actions */}
+        <div className="px-5 py-3 border-t border-slate-100 bg-slate-50/80 flex items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onInitiateCall}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 flex items-center gap-1.5 transition-colors"
+            >
+              <Phone className="w-3.5 h-3.5" /> Call Again
+            </button>
+            <button
+              type="button"
+              onClick={onScheduleCallback}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 flex items-center gap-1.5 transition-colors"
+            >
+              <Clock className="w-3.5 h-3.5" /> Schedule Callback
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-1.5 rounded-lg text-xs font-bold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 transition-colors"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function LeadDetailsPage({
   leadId,
   embedded = false,
@@ -929,6 +1098,7 @@ export default function LeadDetailsPage({
   const [copiedText, setCopiedText] = useState('');
   const [isBlocked, setIsBlocked] = useState(false);
   const [blockEntryId, setBlockEntryId] = useState(null);
+  const [selectedCallSummaryActivity, setSelectedCallSummaryActivity] = useState(null);
   const [blockingAction, setBlockingAction] = useState(false);
   const [activeConversationRecording, setActiveConversationRecording] = useState(null);
 
@@ -1803,54 +1973,54 @@ export default function LeadDetailsPage({
           </div>
         )}
 
-        {/* ─── Down: Quick Action Center (Fit on Screen Width) ─── */}
-        <div className="w-full bg-white rounded-xl border border-slate-200 shadow-xs p-3.5 sm:p-4 relative overflow-hidden">
+        {/* ─── Down: Quick Action Center (Compact Size · Light Sky Blue & Light Green Theme) ─── */}
+        <div className="w-full bg-white rounded-xl border border-slate-200 shadow-xs p-2.5 sm:p-3 relative overflow-hidden">
           {isBlocked && (
-            <div className="absolute inset-0 bg-rose-50/95 z-10 flex flex-col items-center justify-center gap-1.5 rounded-xl p-4 text-center">
-              <ShieldAlert className="w-7 h-7 text-rose-600" />
+            <div className="absolute inset-0 bg-rose-50/95 z-10 flex flex-col items-center justify-center gap-1.5 rounded-xl p-3 text-center">
+              <ShieldAlert className="w-6 h-6 text-rose-600" />
               <span className="text-xs font-semibold text-rose-700">Phone Number Blocked — Actions Disabled</span>
               <span className="text-[11px] text-rose-600">Unblock this lead to re-enable communication actions.</span>
             </div>
           )}
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-slate-800 text-xs sm:text-sm uppercase tracking-wider flex items-center gap-2">
-              <Zap className="w-4 h-4 text-blue-600" /> Quick Action Center
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1.5">
+              <Zap className="w-3.5 h-3.5 text-sky-600" /> Quick Action Center
             </h3>
             <button
               onClick={handleBlockToggle}
               disabled={blockingAction}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
                 isBlocked ? 'bg-emerald-50 text-emerald-700 border border-emerald-300' : 'bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100'
               }`}
             >
               {isBlocked ? 'Unblock Phone' : 'Block Phone'}
             </button>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
             {[
-              { icon: Phone, label: 'CALL NOW', action: () => setShowInitiateCallModal(true), bg: 'bg-emerald-600 hover:bg-emerald-700 text-white', disabled: isBlocked },
-              { icon: MessageCircle, label: 'SEND TEMPLATE', action: () => setShowSendTemplateModal(true), bg: 'bg-blue-600 hover:bg-blue-700 text-white', disabled: isBlocked },
-              { icon: Clock, label: 'CALLBACK LATER', action: () => setShowCallbackModal(true), bg: 'bg-orange-50 hover:bg-orange-100 text-orange-800 border border-orange-200', disabled: isBlocked },
-              { icon: Plus, label: 'ADD NOTE', action: () => setShowNoteModal(true), bg: 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200', disabled: isBlocked },
-            ].map(({ icon: Icon, label, action, bg, disabled }) => (
+              { icon: Phone, label: 'CALL NOW', action: () => setShowInitiateCallModal(true), bg: 'bg-emerald-50 hover:bg-emerald-100/90 text-emerald-800 border border-emerald-300 shadow-2xs', iconColor: 'text-emerald-700', disabled: isBlocked },
+              { icon: Clock, label: 'CALLBACK LATER', action: () => setShowCallbackModal(true), bg: 'bg-sky-50 hover:bg-sky-100/90 text-sky-800 border border-sky-300 shadow-2xs', iconColor: 'text-sky-700', disabled: isBlocked },
+              { icon: MessageCircle, label: 'SEND TEMPLATE', action: () => setShowSendTemplateModal(true), bg: 'bg-teal-50 hover:bg-teal-100/90 text-teal-800 border border-teal-300 shadow-2xs', iconColor: 'text-teal-700', disabled: isBlocked },
+              { icon: Plus, label: 'ADD NOTE', action: () => setShowNoteModal(true), bg: 'bg-blue-50 hover:bg-blue-100/90 text-blue-800 border border-blue-300 shadow-2xs', iconColor: 'text-blue-700', disabled: isBlocked },
+            ].map(({ icon: Icon, label, action, bg, iconColor, disabled }) => (
               <motion.button
                 key={label}
                 whileHover={{ scale: disabled ? 1 : 1.02, y: disabled ? 0 : -1 }}
                 whileTap={{ scale: disabled ? 1 : 0.98 }}
                 onClick={action}
                 disabled={disabled}
-                className={`flex flex-col items-center justify-center gap-1.5 py-3 px-2 rounded-xl font-medium transition-all text-center shadow-xs ${bg} disabled:opacity-40 disabled:cursor-not-allowed`}
+                className={`flex flex-col items-center justify-center gap-1 py-2 px-2 rounded-lg font-bold transition-all text-center shadow-xs ${bg} disabled:opacity-40 disabled:cursor-not-allowed`}
               >
-                <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span className="text-[10px] sm:text-xs tracking-wider uppercase font-medium">{label}</span>
+                <Icon className={`w-4 h-4 ${iconColor}`} />
+                <span className="text-[10px] sm:text-[11px] tracking-wide uppercase font-bold">{label}</span>
               </motion.button>
             ))}
           </div>
-          <div className="mt-3 flex justify-center">
+          <div className="mt-2 flex justify-center">
             <button
               disabled={isBlocked}
               onClick={() => setShowLogCallModal(true)}
-              className="text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline transition-colors disabled:opacity-40"
+              className="text-[11px] font-semibold text-sky-700 hover:text-sky-900 hover:underline transition-colors disabled:opacity-40"
             >
               + Log call records manually
             </button>
@@ -1957,7 +2127,8 @@ export default function LeadDetailsPage({
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.2, delay: i * 0.03 }}
                           key={a._id || i}
-                          className="bg-white border border-blue-200/90 rounded-2xl p-4 shadow-xs hover:shadow-md hover:border-blue-400 transition-all flex flex-col justify-between"
+                          onClick={() => setSelectedCallSummaryActivity(a)}
+                          className="bg-white border border-blue-200/90 rounded-2xl p-4 shadow-xs hover:shadow-md hover:border-blue-400 hover:ring-2 hover:ring-blue-100 transition-all flex flex-col justify-between cursor-pointer group"
                         >
                           <div>
                             <div className="flex items-center justify-between gap-2 mb-2.5">
@@ -1970,6 +2141,7 @@ export default function LeadDetailsPage({
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 title="Download Audio"
+                                onClick={e => e.stopPropagation()}
                                 className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-200"
                               >
                                 <Download className="w-3.5 h-3.5" />
@@ -1988,6 +2160,7 @@ export default function LeadDetailsPage({
                             {/* Audio Player Container */}
                             <div className="bg-slate-50 border border-slate-200 rounded-xl p-2 mb-2.5">
                               <audio
+                                onClick={e => e.stopPropagation()}
                                 controls
                                 preload="metadata"
                                 className="w-full h-8 rounded-lg"
@@ -2037,7 +2210,8 @@ export default function LeadDetailsPage({
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.2, delay: i * 0.03 }}
                           key={a._id || i}
-                          className="bg-white border border-amber-200/90 rounded-2xl p-4 shadow-xs hover:shadow-md hover:border-amber-400 transition-all flex flex-col justify-between"
+                          onClick={() => setSelectedCallSummaryActivity(a)}
+                          className="bg-white border border-amber-200/90 rounded-2xl p-4 shadow-xs hover:shadow-md hover:border-amber-400 hover:ring-2 hover:ring-amber-100 transition-all flex flex-col justify-between cursor-pointer group"
                         >
                           <div>
                             <div className="flex items-center justify-between gap-2 mb-2.5">
@@ -2080,7 +2254,8 @@ export default function LeadDetailsPage({
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.2, delay: i * 0.03 }}
                           key={a._id || i}
-                          className="bg-white border border-emerald-200/90 rounded-2xl p-4 shadow-xs hover:shadow-md hover:border-emerald-400 transition-all flex flex-col justify-between"
+                          onClick={() => setSelectedCallSummaryActivity(a)}
+                          className="bg-white border border-emerald-200/90 rounded-2xl p-4 shadow-xs hover:shadow-md hover:border-emerald-400 hover:ring-2 hover:ring-emerald-100 transition-all flex flex-col justify-between cursor-pointer group"
                         >
                           <div>
                             <div className="flex items-center justify-between gap-2 mb-2.5">
@@ -2124,7 +2299,8 @@ export default function LeadDetailsPage({
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.2, delay: i * 0.03 }}
                         key={a._id || i}
-                        className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs hover:shadow-md hover:border-slate-300 transition-all flex flex-col justify-between"
+                        onClick={() => setSelectedCallSummaryActivity(a)}
+                        className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs hover:shadow-md hover:border-slate-300 hover:ring-2 hover:ring-slate-100 transition-all flex flex-col justify-between cursor-pointer group"
                       >
                         <div>
                           <div className="flex items-center justify-between gap-2 mb-2.5">
@@ -2178,6 +2354,21 @@ export default function LeadDetailsPage({
           <TranscriptConversationModal
             recording={activeConversationRecording}
             onClose={() => setActiveConversationRecording(null)}
+          />
+        )}
+        {selectedCallSummaryActivity && (
+          <CallSummaryDetailModal
+            activity={selectedCallSummaryActivity}
+            lead={lead}
+            onClose={() => setSelectedCallSummaryActivity(null)}
+            onInitiateCall={() => {
+              setSelectedCallSummaryActivity(null);
+              setShowInitiateCallModal(true);
+            }}
+            onScheduleCallback={() => {
+              setSelectedCallSummaryActivity(null);
+              setShowCallbackModal(true);
+            }}
           />
         )}
       </AnimatePresence>

@@ -662,52 +662,52 @@ function RealTimeCallCalendar({ campaign, selectedDate, onSelectDate, callDates 
   const weekHeaders = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
   return (
-    <div style={{ background: '#fff', borderRadius: 10, padding: '12px 10px', border: `1px solid ${BORDER}`, boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
+    <div style={{ background: '#fff', borderRadius: 10, padding: '7px 8px', border: `1px solid ${BORDER}`, boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
       {/* Real-time Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div style={{ position: 'relative', width: 7, height: 7 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <div style={{ position: 'relative', width: 6, height: 6 }}>
             <span style={{ position: 'absolute', width: '100%', height: '100%', borderRadius: '50%', background: '#10b981', opacity: 0.75, animation: 'ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite' }} />
-            <span style={{ position: 'relative', display: 'block', width: 7, height: 7, borderRadius: '50%', background: '#10b981' }} />
+            <span style={{ position: 'relative', display: 'block', width: 6, height: 6, borderRadius: '50%', background: '#10b981' }} />
           </div>
-          <span style={{ fontSize: 11.5, fontWeight: 700, color: TEXT }}>Real-Time Calendar</span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: TEXT }}>Real-Time Calendar</span>
         </div>
-        <div style={{ fontSize: 9.5, color: MUTED, fontFamily: 'monospace', background: '#f8fafc', border: `1px solid ${BORDER}`, padding: '1.5px 5px', borderRadius: 4, fontWeight: 600 }} title="Live Time">
+        <div style={{ fontSize: 9, color: MUTED, fontFamily: 'monospace', background: '#f8fafc', border: `1px solid ${BORDER}`, padding: '1px 4px', borderRadius: 4, fontWeight: 600 }} title="Live Time">
           {liveTimeStr}
         </div>
       </div>
 
       {/* Today info & Activity summary */}
-      <div style={{ fontSize: 10, color: MUTED, marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ fontSize: 9.5, color: MUTED, marginBottom: 5, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span>Today: <strong style={{ color: TEXT }}>{liveDateStr}</strong></span>
         {currentMonthCalls > 0 && (
-          <span style={{ color: ORANGE, fontWeight: 700, fontSize: 9.5, background: ORANGE_LIGHT, padding: '1px 6px', borderRadius: 10, border: `1px solid ${ORANGE_BORDER}` }}>
+          <span style={{ color: ORANGE, fontWeight: 700, fontSize: 8.5, background: ORANGE_LIGHT, padding: '0.5px 5px', borderRadius: 8, border: `1px solid ${ORANGE_BORDER}` }}>
             {currentMonthCalls} calls logged
           </span>
         )}
       </div>
 
       {/* Month Navigation */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, padding: '2px 0' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, padding: '1px 0' }}>
         <button
           type="button"
           onClick={handlePrevMonth}
           style={{
-            background: '#f8fafc', border: `1px solid ${BORDER}`, borderRadius: 5, width: 22, height: 22,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: TEXT, fontSize: 13, fontWeight: 600
+            background: '#f8fafc', border: `1px solid ${BORDER}`, borderRadius: 4, width: 20, height: 20,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: TEXT, fontSize: 11, fontWeight: 600
           }}
           title="Previous Month"
         >
           ‹
         </button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 11.5, fontWeight: 700, color: TEXT }}>{monthName}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: TEXT }}>{monthName}</span>
           {(viewYear !== now.getFullYear() || viewMonth !== now.getMonth()) && (
             <button
               type="button"
               onClick={handleGoToday}
               style={{
-                fontSize: 9, padding: '1px 5px', borderRadius: 4, background: BLUE_LIGHT,
+                fontSize: 8.5, padding: '1px 4px', borderRadius: 4, background: BLUE_LIGHT,
                 color: BLUE, border: `1px solid ${BLUE_BORDER}`, fontWeight: 600, cursor: 'pointer'
               }}
             >
@@ -719,8 +719,8 @@ function RealTimeCallCalendar({ campaign, selectedDate, onSelectDate, callDates 
           type="button"
           onClick={handleNextMonth}
           style={{
-            background: '#f8fafc', border: `1px solid ${BORDER}`, borderRadius: 5, width: 22, height: 22,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: TEXT, fontSize: 13, fontWeight: 600
+            background: '#f8fafc', border: `1px solid ${BORDER}`, borderRadius: 4, width: 20, height: 20,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: TEXT, fontSize: 11, fontWeight: 600
           }}
           title="Next Month"
         >
@@ -729,16 +729,16 @@ function RealTimeCallCalendar({ campaign, selectedDate, onSelectDate, callDates 
       </div>
 
       {/* Weekday Labels */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, textAlign: 'center', marginBottom: 4 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1.5, textAlign: 'center', marginBottom: 2 }}>
         {weekHeaders.map((w, idx) => (
-          <div key={idx} style={{ fontSize: 9.5, fontWeight: 700, color: idx === 0 ? '#ef4444' : MUTED }}>
+          <div key={idx} style={{ fontSize: 8.5, fontWeight: 700, color: idx === 0 ? '#ef4444' : MUTED }}>
             {w}
           </div>
         ))}
       </div>
 
       {/* Day Cells Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1.5 }}>
         {calendarDays.map((cell, idx) => {
           const isSelected = selectedDate === cell.dateKey;
           const isToday = todayKey === cell.dateKey;
@@ -776,8 +776,8 @@ function RealTimeCallCalendar({ campaign, selectedDate, onSelectDate, callDates 
               }}
               style={{
                 position: 'relative',
-                height: 32,
-                borderRadius: 6,
+                height: 22,
+                borderRadius: 4,
                 background: bg,
                 border,
                 display: 'flex',
@@ -786,7 +786,7 @@ function RealTimeCallCalendar({ campaign, selectedDate, onSelectDate, callDates 
                 justifyContent: 'center',
                 cursor: 'pointer',
                 transition: 'all 0.12s ease',
-                boxShadow: isSelected ? '0 2px 4px rgba(234, 88, 12, 0.35)' : 'none'
+                boxShadow: isSelected ? '0 1px 3px rgba(234, 88, 12, 0.35)' : 'none'
               }}
               title={
                 hasCalls
@@ -794,7 +794,7 @@ function RealTimeCallCalendar({ campaign, selectedDate, onSelectDate, callDates 
                   : `${cell.dateKey} (No calls logged)`
               }
             >
-              <span style={{ fontSize: 11, color, fontWeight, lineHeight: 1 }}>
+              <span style={{ fontSize: 9.5, color, fontWeight, lineHeight: 1 }}>
                 {cell.dayNum}
               </span>
 
@@ -802,21 +802,21 @@ function RealTimeCallCalendar({ campaign, selectedDate, onSelectDate, callDates 
               {hasCalls ? (
                 <span
                   style={{
-                    fontSize: 8,
+                    fontSize: 7.5,
                     fontWeight: 700,
                     lineHeight: 1,
-                    marginTop: 2,
-                    padding: '1px 3px',
-                    borderRadius: 8,
+                    marginTop: 1,
+                    padding: '0.5px 2.5px',
+                    borderRadius: 6,
                     background: isSelected ? '#ffffff' : ORANGE,
                     color: isSelected ? ORANGE : '#ffffff',
-                    transform: 'scale(0.9)'
+                    transform: 'scale(0.85)'
                   }}
                 >
                   {cell.calls > 99 ? '99+' : cell.calls}
                 </span>
               ) : isToday && !isSelected ? (
-                <span style={{ width: 3, height: 3, borderRadius: '50%', background: BLUE, marginTop: 2 }} />
+                <span style={{ width: 2.5, height: 2.5, borderRadius: '50%', background: BLUE, marginTop: 1 }} />
               ) : null}
             </div>
           );
@@ -1735,11 +1735,11 @@ export default function MetaLeads() {
             )}
           </div>
 
-          {/* ─── MIDDLE PANEL: Real-Time Calendar & Lead Sentiment ─────────────── */}
+          {/* ─── MIDDLE PANEL: Real-Time Calendar, AI Calling & Lead Sentiment ─── */}
           <div className={`w-full md:w-64 xl:w-72 flex-shrink-0 bg-slate-50/70 border-r border-slate-200 overflow-y-auto p-3 flex flex-col gap-3 min-h-0 ${
             activeMobileTab === 'analytics' ? 'flex' : 'hidden md:flex'
           }`}>
-            {/* 1. Real-Time Calendar (Placed ABOVE Lead Sentiment) */}
+            {/* 1. Real-Time Calendar (Compact Fit for Screen) */}
             <RealTimeCallCalendar
               campaign={selectedCampaign}
               selectedDate={selectedCallDate}
@@ -1748,11 +1748,17 @@ export default function MetaLeads() {
               loading={callDatesLoading}
             />
 
-            {/* 2. Lead Sentiment (Placed BELOW the Calendar) */}
+            {/* 2. AI Calling Concept (Placed BEFORE Lead Sentiment) */}
+            <MetaAICallingPanel
+              campaign={selectedCampaign}
+              onStatusChange={() => fetchCampaignLeads(selectedCampaign, leadsPage)}
+            />
+
+            {/* 3. Lead Sentiment (Placed AFTER AI Calling Concept) */}
             <div style={{ background: '#fff', borderRadius: 10, padding: '12px 10px', border: `1px solid ${BORDER}`, boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
               <div style={{ fontSize: 11.5, fontWeight: 700, color: TEXT, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981' }} />
-                Lead Sentiment
+                Lead Sentiment (AI Voice & Call Analysis)
               </div>
               {sentimentData.length > 0 ? (
                 <>
@@ -1816,12 +1822,6 @@ export default function MetaLeads() {
                 <div style={{ textAlign: 'center', color: MUTED, fontSize: 11, padding: '16px 0', fontWeight: 400 }}>No sentiment data yet</div>
               )}
             </div>
-
-            {/* AI Calling Panel */}
-            <MetaAICallingPanel
-              campaign={selectedCampaign}
-              onStatusChange={() => fetchCampaignLeads(selectedCampaign, leadsPage)}
-            />
 
             {/* Assigned Callers */}
             {activeAssignees.length > 0 && (
@@ -1981,58 +1981,64 @@ export default function MetaLeads() {
         </div>
       )}
 
-      {/* ── Summary Stats Cards (White, Blue, Orange, Emerald Matching Campaigns.jsx) ── */}
+      {/* ── Summary Stats Cards (Light Sky Blue, Light Warm Orange, Emerald Theme) ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         {[
           {
             label: 'Total Meta Campaigns',
             value: totalCampaignsCount,
-            icon: <RiFolderChartLine className="w-4.5 h-4.5 text-blue-600" />,
-            bg: BLUE_LIGHT,
-            border: BLUE_BORDER,
+            icon: <RiFolderChartLine className="w-5 h-5 text-sky-600" />,
+            cardBg: 'bg-gradient-to-br from-sky-50 via-white to-sky-50/50',
+            cardBorder: 'border-sky-200/90',
+            iconBg: 'bg-sky-100/90 border-sky-200',
+            textColor: 'text-sky-950',
             suffix: ' Batches'
           },
           {
             label: 'Total Leads Ingested',
             value: fmtLeads(totalLeadsAll),
-            icon: <FiUsers className="w-4.5 h-4.5 text-orange-600" />,
-            bg: ORANGE_LIGHT,
-            border: ORANGE_BORDER,
+            icon: <FiUsers className="w-5 h-5 text-orange-600" />,
+            cardBg: 'bg-gradient-to-br from-orange-50 via-white to-amber-50/50',
+            cardBorder: 'border-orange-200/90',
+            iconBg: 'bg-orange-100/90 border-orange-200',
+            textColor: 'text-amber-950',
             suffix: ' Leads'
           },
           {
             label: 'Active Calling Drives',
             value: activeDrives,
-            icon: <FiActivity className="w-4.5 h-4.5 text-emerald-600" />,
-            bg: '#ecfdf5',
-            border: '#a7f3d0',
+            icon: <FiActivity className="w-5 h-5 text-emerald-600" />,
+            cardBg: 'bg-gradient-to-br from-emerald-50 via-white to-teal-50/50',
+            cardBorder: 'border-emerald-200/90',
+            iconBg: 'bg-emerald-100/90 border-emerald-200',
+            textColor: 'text-emerald-950',
             suffix: ' In Progress'
           },
           {
             label: 'Average Completion',
             value: avgCompletion,
-            icon: <FiTarget className="w-4.5 h-4.5 text-blue-600" />,
-            bg: '#f1f5f9',
-            border: BORDER,
+            icon: <FiTarget className="w-5 h-5 text-blue-600" />,
+            cardBg: 'bg-gradient-to-br from-blue-50 via-white to-indigo-50/50',
+            cardBorder: 'border-blue-200/90',
+            iconBg: 'bg-blue-100/90 border-blue-200',
+            textColor: 'text-blue-950',
             suffix: '%'
           },
         ].map((stat, i) => (
           <div
             key={i}
-            className="p-3.5 rounded-xl border bg-white shadow-xs flex items-center gap-3 transition-transform hover:-translate-y-0.5"
-            style={{ borderColor: BORDER }}
+            className={`p-3.5 rounded-xl border shadow-xs flex items-center gap-3 transition-all hover:-translate-y-0.5 hover:shadow-sm ${stat.cardBg} ${stat.cardBorder}`}
           >
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ background: stat.bg, border: `1px solid ${stat.border}` }}
+              className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 border shadow-2xs ${stat.iconBg}`}
             >
               {stat.icon}
             </div>
             <div>
-              <div className="text-xl font-semibold text-slate-800">
+              <div className={`text-xl font-bold tracking-tight ${stat.textColor}`}>
                 {stat.value}{stat.suffix.startsWith('%') ? '%' : ''}
               </div>
-              <div className="text-xs font-normal text-slate-500">
+              <div className="text-xs font-medium text-slate-500">
                 {stat.label}
               </div>
             </div>
@@ -2264,9 +2270,37 @@ export default function MetaLeads() {
                         </div>
                       </td>
 
-                      {/* Outreach Progress */}
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        <ProgressCircle value={progressPct} />
+                      {/* Outreach Progress (Live Progress UI) */}
+                      <td className="py-3.5 px-4 whitespace-nowrap min-w-[195px]">
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-1.5 font-semibold text-slate-700">
+                              <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                              </span>
+                              <span className="text-[11px] text-slate-600 font-medium">
+                                <strong className="text-slate-900">{c.convertedCount || 0}</strong> / {c.count || 0} Reached
+                              </span>
+                            </div>
+                            <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-sky-50 text-sky-700 border border-sky-200/80">
+                              {progressPct}%
+                            </span>
+                          </div>
+                          <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden p-0.5 border border-slate-200/60">
+                            <div
+                              className="h-full rounded-full transition-all duration-500 ease-out bg-gradient-to-r from-sky-500 via-blue-600 to-emerald-500"
+                              style={{ width: `${Math.min(100, Math.max(progressPct > 0 ? 6 : 0, progressPct))}%` }}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between text-[10px] text-slate-400">
+                            <span className="flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                              <span>Live Outreach</span>
+                            </span>
+                            <span>{Math.max(0, (c.count || 0) - (c.convertedCount || 0))} Pending</span>
+                          </div>
+                        </div>
                       </td>
 
                       {/* Last Synced Date */}

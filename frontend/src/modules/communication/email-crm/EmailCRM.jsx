@@ -234,7 +234,7 @@ export default function EmailCRM() {
   // Admin / MD Tracking Portal State
   const [mdStats, setMdStats] = useState(null);
   const [trackingUsers, setTrackingUsers] = useState([]);
-  const [selectedEmployeeFilter, setSelectedEmployeeFilter] = useState(() => user?._id || 'all');
+  const [selectedEmployeeFilter, setSelectedEmployeeFilter] = useState('all');
   const [showEmpDropdown, setShowEmpDropdown] = useState(false);
 
   // Create Template Modal State
@@ -318,14 +318,15 @@ ${user?.designation || 'Staff'}`
       });
   };
 
-  const fetchEmailLogs = (empFilter = selectedEmployeeFilter, search = searchQuery) => {
+  const fetchEmailLogs = (empFilter = selectedEmployeeFilter || 'all', search = searchQuery) => {
     setLoadingLogs(true);
-    let url = `/email/logs?employeeId=${empFilter}`;
-    if (search.trim()) url += `&search=${encodeURIComponent(search.trim())}`;
+    const filterToUse = empFilter || 'all';
+    let url = `/email/logs?employeeId=${filterToUse}`;
+    if (search && search.trim()) url += `&search=${encodeURIComponent(search.trim())}`;
 
-    api.get(url)
+    return api.get(url)
       .then(res => {
-        const fetchedLogs = res.data?.logs || [];
+        const fetchedLogs = Array.isArray(res.data?.logs) ? res.data.logs : [];
         setLogs(fetchedLogs);
         if (res.data?.stats) setMdStats(res.data.stats);
         if (res.data?.unreadCount !== undefined) setUnreadCount(res.data.unreadCount);
@@ -337,9 +338,11 @@ ${user?.designation || 'Staff'}`
           const fresh = fetchedLogs.find(l => (l._id || l.id) === (prev._id || prev.id));
           return fresh || prev;
         });
+        return fetchedLogs;
       })
       .catch(err => {
         console.warn('Failed to load email logs:', err.message);
+        return [];
       })
       .finally(() => setLoadingLogs(false));
   };
@@ -514,9 +517,12 @@ ${user?.designation || 'Staff'}`
       const activeUserId = routeUserId || user?._id;
       try {
         await api.post('/email/sync', { userId: activeUserId });
-      } catch (_) {}
+      } catch (syncErr) {
+        console.warn('Background mail sync notice:', syncErr.message);
+      }
+      const targetFilter = selectedEmployeeFilter || 'all';
       await Promise.all([
-        fetchEmailLogs(selectedEmployeeFilter, searchQuery),
+        fetchEmailLogs(targetFilter, searchQuery),
         fetchContacts()
       ]);
       setSyncNotice('Data Synced Successfully! SMTP & Email Data Updated.');
