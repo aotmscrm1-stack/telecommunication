@@ -122,13 +122,13 @@ export default function EmailCRM() {
   }, [user, routeUserId, navigate]);
 
   const isMD = isManagingDirector(user) || isExecutive(user);
-  const isBlastAllowed = canAccessEmailBlast(user);
+  const isBlastAllowed = false; // Hidden for Admin and all users per instruction
 
   // Active Navigation Tab: 'sent', 'inbox', 'contacts', 'templates', 'admin_audit', 'blast'
   const [activeFolder, setActiveFolder] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     const tab = params.get('folder') || params.get('tab');
-    if (tab === 'blast') return 'blast';
+    if (tab === 'blast') return 'sent';
     if (tab === 'contacts') return 'contacts';
     return 'sent';
   });
@@ -1432,23 +1432,7 @@ ${user?.designation || 'Staff'}`
             <span style={{ fontSize: 12, fontWeight: 600, color: TEXT_MUTED }}>{templates.length}</span>
           </div>
 
-          {/* Folder Item: Email Blast (Exclusively CTO, HR, Managing Director) */}
-          {isBlastAllowed && (
-            <div
-              onClick={() => { setActiveFolder('blast'); setSelectedEmail(null); }}
-              style={getSidebarItemStyle(activeFolder === 'blast')}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-                </svg>
-                <span style={{ fontWeight: activeFolder === 'blast' ? 700 : 500 }}>Email Blast</span>
-              </div>
-              <span style={{ fontSize: 9.5, fontWeight: 700, background: '#dbeafe', color: '#1d4ed8', padding: '1px 6px', borderRadius: 10 }}>
-                AI-Mail
-              </span>
-            </div>
-          )}
+
 
           {/* Folder Item: Admin Audit Records (Automatically available for MD / Admin) */}
           {isMD && (
@@ -1476,11 +1460,7 @@ ${user?.designation || 'Staff'}`
         </div>
 
         {/* ── 3. CONTENT AREA: GMAIL STYLE MESSAGE LIST OR BULK EMAIL BLAST ─── */}
-        {activeFolder === 'blast' ? (
-          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100%' }}>
-            <BulkEmailBlast />
-          </div>
-        ) : activeFolder === 'contacts' ? (
+        {activeFolder === 'contacts' ? (
           /* ── 3B. CONTACTS DIRECTORY VIEW ───────────────────────── */
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#f8fafd', overflowY: 'auto' }}>
             {/* Header Banner */}

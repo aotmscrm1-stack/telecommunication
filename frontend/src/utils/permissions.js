@@ -147,9 +147,8 @@ export const canAccessMarketingLeads = (user) => {
  * Counsellors, Developers, Trainers, and Digital Marketing are strictly excluded.
  */
 export const canAccessEmailBlast = (user) => {
-  if (!user) return false;
-  if (isCounsellor(user) || isDeveloper(user) || isTrainer(user) || isDigitalMarketing(user)) return false;
-  return isManagingDirector(user) || isCTO(user) || isHR(user) || isExecutive(user);
+  // Hidden for Admin and all roles - Don't show to anyone
+  return false;
 };
 
 /**
