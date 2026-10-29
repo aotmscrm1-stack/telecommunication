@@ -9,6 +9,7 @@ const User = require('../../../database/models/User');
 const Department = require('../../../database/models/Department');
 const { protect } = require('../../../core/middleware/auth');
 const env = require('../../../config/env');
+const { broadcastWebSocketEvent } = require('../../../app/websocket');
 const { syncAllMetaSheets } = require('./googleSheetsSyncService');
 
 const POSITIVE_SUB_STATUSES = [
@@ -418,6 +419,23 @@ router.post('/', async (req, res) => {
         },
         { upsert: true }
       );
+    } catch (_) {}
+
+    // Real-time WebSocket broadcast so live dashboard & panels update instantaneously
+    try {
+      broadcastWebSocketEvent('meta_leads:changed', {
+        insertedCount,
+        updatedCount,
+        skippedCount,
+        totalProcessed: items.length,
+        campaign: items[0]?.campaign || 'Meta Campaign',
+        timestamp: Date.now()
+      });
+      broadcastWebSocketEvent('lead:created', {
+        source: 'meta_leads',
+        insertedCount,
+        timestamp: Date.now()
+      });
     } catch (_) {}
 
     res.status(201).json({
@@ -1355,6 +1373,13 @@ router.post('/sync', async (req, res) => {
 
     console.log('[MetaLeads] Starting in-build Google Sheets sync pipeline...');
     const result = await syncAllMetaSheets();
+    try {
+      broadcastWebSocketEvent('meta_leads:changed', {
+        source: 'syncAllMetaSheets',
+        result,
+        timestamp: Date.now()
+      });
+    } catch (_) {}
     res.json({
       success: true,
       inProgress: false,
