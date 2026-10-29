@@ -855,12 +855,12 @@ function LiveLeadPanel() {
       // Format Meta Leads so both sources merge seamlessly
       const formattedMeta = Array.isArray(metaList) ? metaList.map((m) => ({
         _id: m._id || 'meta_' + Math.random(),
-        name: m.name || 'Meta Inquirer',
-        phone: m.phone || '—',
-        email: m.email || '',
+        name: m.fullName || m.name || m.rawData?.name || 'Meta Inquirer',
+        phone: m.phone || m.normalizedPhone || m.rawData?.phone || '—',
+        email: m.email || m.rawData?.email || '',
         leadSource: m.campaign ? ('Meta: ' + m.campaign.replace(/_Leads|_leads/gi, '')) : 'Meta Ads',
         course: m.campaign || 'Executive Program',
-        city: m.city || m.location || 'AP / TS Hub',
+        city: m.city || m.location || m.rawData?.location || 'AP / TS Hub',
         status: m.status || 'Fresh',
         createdAt: m.createdAt || m.created_time || new Date().toISOString(),
         assignedTo: m.assignedTo ? { name: (typeof m.assignedTo === 'object' ? m.assignedTo.name : m.assignedTo) } : null,
@@ -882,8 +882,49 @@ function LiveLeadPanel() {
 
   useEffect(() => {
     fetchLeads();
-    const id = setInterval(() => fetchLeads(true), 25000);
-    return () => clearInterval(id);
+
+    // 1. Subscribe to internal CRM mutation bus (instant across UI tabs/modals)
+    const unsubCrm = onCrmSync([CRM_EVENTS.LEADS_CHANGED, CRM_EVENTS.KPIS_CHANGED], () => {
+      fetchLeads(true);
+    });
+
+    // 2. Real-time WebSocket connection to backend (/ws) for instant lead webhooks
+    const wsProtocol = (import.meta.env.VITE_API_URL?.startsWith('https') || window.location.protocol === 'https:') ? 'wss:' : 'ws:';
+    let wsHost = window.location.host;
+    if (import.meta.env.VITE_API_URL) {
+      try {
+        const u = new URL(import.meta.env.VITE_API_URL);
+        wsHost = u.host;
+      } catch (e) {}
+    }
+    const wsUrl = `${wsProtocol}//${wsHost}/ws`;
+
+    let socket;
+    try {
+      socket = new WebSocket(wsUrl);
+      socket.onmessage = (event) => {
+        try {
+          const raw = JSON.parse(event.data);
+          const ev = raw.event || raw.type;
+          if (ev === 'meta_leads:changed' || ev === 'lead:created' || ev === 'leads:changed' || ev === 'lead:new') {
+            fetchLeads(true);
+          }
+        } catch (_) {}
+      };
+    } catch (err) {
+      console.warn('[LiveLeadPanel] WebSocket error:', err);
+    }
+
+    // 3. Fallback active polling every 8s
+    const id = setInterval(() => fetchLeads(true), 8000);
+
+    return () => {
+      clearInterval(id);
+      unsubCrm();
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.close();
+      }
+    };
   }, []);
 
   // Database Overview counts
