@@ -444,3 +444,4 @@ function removeAutoSyncTriggers() {
     ScriptApp.deleteTrigger(triggers[i]);
   }
 }
+
