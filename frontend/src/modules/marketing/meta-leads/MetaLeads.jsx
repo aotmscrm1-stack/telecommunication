@@ -1968,7 +1968,7 @@ export default function MetaLeads() {
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition-all active:scale-[0.98] disabled:opacity-60"
           >
             <FiRefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? 'Syncing Google Sheets in progress...' : 'Sync Leads Now'}
+            {syncing ? 'Syncing...' : 'Sync Leads Now'}
           </button>
         </div>
       </div>
@@ -2162,7 +2162,7 @@ export default function MetaLeads() {
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-xs"
             >
               <FiRefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
-              Sync Google Sheets Now
+              Sync Leads Now
             </button>
           </div>
         ) : (

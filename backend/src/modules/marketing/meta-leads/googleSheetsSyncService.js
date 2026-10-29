@@ -4,7 +4,7 @@ const MetaLead = require('../../../database/models/MetaLead');
 const MetaSyncState = require('../../../database/models/MetaSyncState');
 const Integration = require('../../../database/models/Integration');
 
-// Default sheets configured from n8n.md workflow
+// Default sheets configured for CRM Live Sync
 const DEFAULT_META_SHEET_SOURCES = [
   {
     name: 'Digital Marketing_Leads',
@@ -511,7 +511,7 @@ async function ensureGoogleSheetsIntegration() {
           sheetSources: DEFAULT_META_SHEET_SOURCES,
           sheetId: DEFAULT_META_SHEET_SOURCES[0].sheetId,
           sheetRange: DEFAULT_META_SHEET_SOURCES[0].sheetRange,
-          webhookUrl: '' // Cleared out n8n webhook URL
+          webhookUrl: ''
         };
         integration.status = 'active';
         await integration.save();

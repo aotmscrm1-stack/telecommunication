@@ -277,7 +277,7 @@ function extractCoreIdentifiers(rawData = {}) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// POST /api/meta-leads (Ingestion from n8n / Webhook / Manual)
+// POST /api/meta-leads (Ingestion from Google Sheets Apps Script / Webhook / Manual)
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/', async (req, res) => {
   try {
@@ -1439,7 +1439,7 @@ router.post('/sync', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// POST /api/meta-leads/sync-complete (Callback endpoint if called by n8n or external workers)
+// POST /api/meta-leads/sync-complete (Callback endpoint if called by external workers)
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/sync-complete', async (req, res) => {
   try {
@@ -1449,7 +1449,7 @@ router.post('/sync-complete', async (req, res) => {
         isSyncing: false,
         lastStatus: 'completed',
         lastFinishedAt: new Date(),
-        message: req.body?.message || 'n8n workflow completed.'
+        message: req.body?.message || 'Google Sheets sync completed.'
       }
     );
     try {
