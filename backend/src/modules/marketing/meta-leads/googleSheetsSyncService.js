@@ -138,6 +138,45 @@ const DEFAULT_META_SHEET_SOURCES = [
   }
 ];
 
+function cleanLeadName(rawName) {
+  if (!rawName || typeof rawName !== 'string') return '';
+  let str = rawName;
+
+  // 1. Remove mojibake sequences of ZWNJ / ZWJ / BOM that got decoded as Windows-1252
+  str = str.replace(/â€Œ/g, '')
+           .replace(/â€‹/g, '')
+           .replace(/â€/g, '')
+           .replace(/ï»¿/g, '');
+
+  // 2. Remove leading/trailing or repeated â characters if they are artifacts of zero-width mojibake
+  str = str.replace(/^[\sâ\u00e2\uFFFD\u200B-\u200F\u202A-\u202E\uFEFF\u00A0]+/, '');
+  str = str.replace(/[\sâ\u00e2\uFFFD\u200B-\u200F\u202A-\u202E\uFEFF\u00A0]+$/, '');
+
+  // 3. Remove zero-width characters (\u200B = zero width space, \uFEFF = BOM, \u200E / \u200F = directional marks)
+  str = str.replace(/[\u200B\uFEFF\u200E\u200F\u2060]/g, '');
+
+  // Remove zero-width non-joiners (\u200C) or joiners (\u200D) unless between Indic virama and Indic character
+  str = str.replace(/[\u200C\u200D]+/g, (match, offset, full) => {
+    const prevChar = offset > 0 ? full[offset - 1] : '';
+    const nextChar = offset + match.length < full.length ? full[offset + match.length] : '';
+    const isIndic = (c) => c && c.charCodeAt(0) >= 0x0900 && c.charCodeAt(0) <= 0x0D7F;
+    if (isIndic(prevChar) && isIndic(nextChar)) {
+      return match;
+    }
+    return '';
+  });
+
+  // 4. Normalize multiple spaces
+  str = str.replace(/\s+/g, ' ').trim();
+
+  // 5. If word is lowercase Latin (like "shyam"), capitalize properly ("Shyam")
+  if (/^[a-z]+(\s+[a-z]+)*$/.test(str)) {
+    str = str.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  }
+
+  return str;
+}
+
 function normalize10DigitPhone(raw) {
   if (!raw) return '';
   const digits = String(raw).replace(/\D/g, '');
@@ -219,6 +258,7 @@ function extractCoreIdentifiers(rawData) {
       }
     }
   }
+  fullName = cleanLeadName(fullName);
   if (!fullName) fullName = 'Unknown Lead';
 
   // 5. City / Location
@@ -265,9 +305,14 @@ async function fetchSheetRows(sheetId, tabName) {
   const response = await axios.get(url, {
     responseType: 'arraybuffer',
     timeout: 20000,
-    headers: { 'Accept': 'text/csv,application/octet-stream' }
+    headers: { 'Accept': 'text/csv,application/octet-stream; charset=utf-8' }
   });
-  const workbook = xlsx.read(response.data, { type: 'buffer' });
+  const csvText = Buffer.isBuffer(response.data)
+    ? response.data.toString('utf8').replace(/^\uFEFF/, '')
+    : typeof response.data === 'string'
+      ? response.data.replace(/^\uFEFF/, '')
+      : Buffer.from(response.data).toString('utf8').replace(/^\uFEFF/, '');
+  const workbook = xlsx.read(csvText, { type: 'string', raw: false, codepage: 65001 });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const matrix = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: '' });
   if (!matrix || matrix.length === 0) return [];
@@ -300,9 +345,14 @@ async function getSheetHeaders(sheetId, range) {
     const response = await axios.get(url, {
       responseType: 'arraybuffer',
       timeout: 15000,
-      headers: { 'Accept': 'text/csv,application/octet-stream' }
+      headers: { 'Accept': 'text/csv,application/octet-stream; charset=utf-8' }
     });
-    const workbook = xlsx.read(response.data, { type: 'buffer' });
+    const csvText = Buffer.isBuffer(response.data)
+      ? response.data.toString('utf8').replace(/^\uFEFF/, '')
+      : typeof response.data === 'string'
+        ? response.data.replace(/^\uFEFF/, '')
+        : Buffer.from(response.data).toString('utf8').replace(/^\uFEFF/, '');
+    const workbook = xlsx.read(csvText, { type: 'string', raw: false, codepage: 65001 });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rawMatrix = xlsx.utils.sheet_to_json(sheet, { header: 1 });
     let headers = [];

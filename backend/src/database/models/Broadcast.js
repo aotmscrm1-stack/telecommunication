@@ -25,7 +25,7 @@ const broadcastSchema = new mongoose.Schema({
   startedAt: { type: Date },
   completedAt: { type: Date },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-}, { timestamps: true });
+}, { timestamps: true, suppressReservedKeysWarning: true });
 
 broadcastSchema.index({ createdBy: 1 });
 broadcastSchema.index({ status: 1 });

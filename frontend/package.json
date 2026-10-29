@@ -10,8 +10,10 @@
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
+    "@radix-ui/react-slot": "^1.5.0",
     "animejs": "^4.5.0",
     "axios": "^1.6.2",
+    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^3.0.6",
     "framer-motion": "^13.4.0",
@@ -21,6 +23,7 @@
     "lucide-react": "^0.303.0",
     "maplibre-gl": "^6.9.0",
     "motion": "^13.4.0",
+    "next-themes": "^0.4.6",
     "ogl": "^1.0.11",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -29,6 +32,7 @@
     "reacticons": "^0.0.1",
     "recharts": "^2.10.3",
     "socket.io-client": "^4.8.3",
+    "sonner": "^2.0.8",
     "tailwind-merge": "^3.7.0",
     "three": "^0.160.1",
     "xlsx": "^0.18.5"

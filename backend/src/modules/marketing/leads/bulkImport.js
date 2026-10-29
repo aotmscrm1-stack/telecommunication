@@ -152,7 +152,7 @@ router.get('/system-fields', protect, (req, res) => res.json({ fields: SYSTEM_FI
 router.post('/parse-file', protect, authorize('manager','admin'), upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
-    const wb = XLSX.read(req.file.buffer, { type:'buffer', cellDates:true });
+    const wb = XLSX.read(req.file.buffer, { type:'buffer', cellDates:true, codepage: 65001 });
     const sheetNames = wb.SheetNames;
     const ws = wb.Sheets[sheetNames[0]];
     const { rows, columns } = sheetToRows(ws);
@@ -164,7 +164,7 @@ router.post('/parse-file', protect, authorize('manager','admin'), upload.single(
 router.post('/select-sheet', protect, authorize('manager','admin'), upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
-    const wb = XLSX.read(req.file.buffer, { type:'buffer', cellDates:true });
+    const wb = XLSX.read(req.file.buffer, { type:'buffer', cellDates:true, codepage: 65001 });
     const name = req.body.sheetName || wb.SheetNames[0];
     const ws = wb.Sheets[name];
     if (!ws) return res.status(400).json({ message: `Sheet "${name}" not found` });
@@ -179,7 +179,7 @@ router.post('/check-duplicates', protect, authorize('manager','admin'), upload.s
     if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
     const { sheetName, fieldMapping: rawMapping } = req.body;
     const fieldMapping = JSON.parse(rawMapping || '{}');
-    const wb = XLSX.read(req.file.buffer, { type:'buffer', cellDates:true });
+    const wb = XLSX.read(req.file.buffer, { type:'buffer', cellDates:true, codepage: 65001 });
     const ws = wb.Sheets[sheetName || wb.SheetNames[0]];
     const { rows } = sheetToRows(ws);
     const phoneCol = Object.keys(fieldMapping).find(k => fieldMapping[k] === 'phone');
@@ -226,7 +226,7 @@ router.post('/import', protect, authorize('manager','admin'), upload.single('fil
     const validCallers = await User.find({ _id: { $in: callerIds } }).select('_id name').lean();
     if (validCallers.length !== callerIds.length) return res.status(404).json({ message: 'One or more callers not found' });
     const callerMap = Object.fromEntries(validCallers.map(u => [String(u._id), u.name]));
-    const wb = XLSX.read(req.file.buffer, { type:'buffer', cellDates:true });
+    const wb = XLSX.read(req.file.buffer, { type:'buffer', cellDates:true, codepage: 65001 });
     const ws = wb.Sheets[sheetName || wb.SheetNames[0]];
     if (!ws) return res.status(400).json({ message: 'Sheet not found' });
     const { rows } = sheetToRows(ws);

@@ -267,6 +267,7 @@ export const metaLeadsAPI = {
   aiStart: (campaign, config) => api.post(`/meta-leads/campaign/${encodeURIComponent(campaign)}/ai-start`, config),
   aiPause: (campaign) => api.post(`/meta-leads/campaign/${encodeURIComponent(campaign)}/ai-pause`),
   aiStatus: (campaign) => api.get(`/meta-leads/campaign/${encodeURIComponent(campaign)}/ai-status`),
+  getCallDates: (params) => api.get('/meta-leads/call-dates', { params }),
 };
 
 export const contactsAPI = {
