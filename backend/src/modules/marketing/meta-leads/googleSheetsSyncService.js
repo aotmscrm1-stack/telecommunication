@@ -378,6 +378,8 @@ async function ingestRowsIntoMetaLeads(rows, campaignName, sourceLabel) {
   let insertedCount = 0;
   let updatedCount = 0;
   let skippedCount = 0;
+  let deletedCount = 0;
+  const activeLeadIds = [];
 
   for (const rawData of rows) {
     const { metaLeadId, phone, normalizedPhone, email, fullName, city, isEmptyRow } = extractCoreIdentifiers(rawData);
@@ -450,9 +452,10 @@ async function ingestRowsIntoMetaLeads(rows, campaignName, sourceLabel) {
       existing.syncedAt = new Date();
       existing.source = sourceLabel || existing.source || 'google_sheets_meta';
       await existing.save();
+      activeLeadIds.push(existing._id);
       updatedCount++;
     } else {
-      await MetaLead.create({
+      const created = await MetaLead.create({
         campaign: campaignName,
         source: sourceLabel || 'google_sheets_meta',
         metaLeadId: metaLeadId || undefined,
@@ -465,7 +468,20 @@ async function ingestRowsIntoMetaLeads(rows, campaignName, sourceLabel) {
         status: 'New',
         syncedAt: new Date()
       });
+      activeLeadIds.push(created._id);
       insertedCount++;
+    }
+  }
+
+  // Erase any leads from this campaign in DB that were deleted from Google Sheet
+  if (activeLeadIds.length > 0) {
+    const delRes = await MetaLead.deleteMany({
+      campaign: campaignName,
+      _id: { $nin: activeLeadIds }
+    });
+    deletedCount = delRes.deletedCount || 0;
+    if (deletedCount > 0) {
+      console.log(`[MetaLeads Native Sync] Erased ${deletedCount} deleted lead(s) from campaign "${campaignName}" that were removed from Google Sheet.`);
     }
   }
 
@@ -473,6 +489,7 @@ async function ingestRowsIntoMetaLeads(rows, campaignName, sourceLabel) {
     total: rows.length,
     insertedCount,
     updatedCount,
+    deletedCount,
     skippedCount
   };
 }
@@ -556,6 +573,7 @@ async function syncAllMetaSheets() {
   let totalProcessed = 0;
   let insertedCount = 0;
   let updatedCount = 0;
+  let deletedCount = 0;
   let skippedCount = 0;
   const sheetResults = [];
 
@@ -581,6 +599,7 @@ async function syncAllMetaSheets() {
       totalProcessed += res.total;
       insertedCount += res.insertedCount;
       updatedCount += res.updatedCount;
+      deletedCount += (res.deletedCount || 0);
       skippedCount += res.skippedCount;
 
       sheetResults.push({

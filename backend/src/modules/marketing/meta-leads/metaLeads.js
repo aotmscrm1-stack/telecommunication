@@ -383,6 +383,7 @@ router.post('/', async (req, res) => {
 
         await existing.save();
         results.push(existing);
+        activeLeadIds.push(existing._id);
         updatedCount++;
       } else {
         // Safe insert new lead with structured fields
@@ -400,6 +401,7 @@ router.post('/', async (req, res) => {
           syncedAt: new Date()
         });
         results.push(created);
+        activeLeadIds.push(created._id);
         insertedCount++;
       }
     }

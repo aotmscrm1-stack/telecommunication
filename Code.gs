@@ -236,11 +236,15 @@ function syncCurrentSheetLeads() {
     return;
   }
 
-  // Send batch to CRM API
+  // Send batch to CRM API (mirrors Google Sheet and erases any deleted leads)
   var options = {
     method: 'post',
     contentType: 'application/json',
-    payload: JSON.stringify(leadsToSend),
+    payload: JSON.stringify({
+      campaign: sheetName,
+      isFullTabSync: true,
+      leads: leadsToSend
+    }),
     muteHttpExceptions: true
   };
 
