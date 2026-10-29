@@ -1359,42 +1359,46 @@ router.patch('/:id', protect, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/sync', async (req, res) => {
   try {
-    const currentState = await MetaSyncState.findOne({ key: 'meta_leads_sync' });
-    if (currentState && currentState.isSyncing) {
-      const isStale = (Date.now() - new Date(currentState.startedAt || 0).getTime()) > 10 * 60 * 1000;
-      if (!isStale) {
-        return res.status(429).json({
-          success: false,
-          inProgress: true,
-          message: 'A Google Sheets sync is already running in the background. Please wait.'
-        });
-      }
+    const n8nWebhookUrl = process.env.N8N_META_LEADS_WEBHOOK_URL || 'https://aotms.app.n8n.cloud/webhook/Meta_Leads';
+    console.log('[MetaLeads] Triggering n8n Meta Leads Workflow: ' + n8nWebhookUrl);
+
+    let n8nResponse = null;
+    try {
+      const response = await axios.post(n8nWebhookUrl, {
+        trigger: 'manual_crm_sync',
+        source: 'crm_dashboard',
+        requestedAt: new Date().toISOString(),
+      }, {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 25000
+      });
+      n8nResponse = response.data;
+    } catch (netErr) {
+      console.error('[MetaLeads] n8n Webhook Error:', netErr.message);
+      return res.status(502).json({
+        success: false,
+        message: 'Failed to trigger n8n workflow: ' + (netErr.response?.data?.message || netErr.message)
+      });
     }
 
-    console.log('[MetaLeads] Starting in-build Google Sheets sync pipeline...');
-    const result = await syncAllMetaSheets();
     try {
       broadcastWebSocketEvent('meta_leads:changed', {
-        source: 'syncAllMetaSheets',
-        result,
+        source: 'n8n_sync_started',
         timestamp: Date.now()
       });
     } catch (_) {}
+
     res.json({
       success: true,
-      inProgress: false,
-      message: result.message,
-      totalProcessed: result.totalProcessed,
-      insertedCount: result.insertedCount,
-      updatedCount: result.updatedCount,
-      skippedCount: result.skippedCount,
-      sheetResults: result.sheetResults
+      inProgress: true,
+      message: 'n8n Meta Leads workflow started successfully! Processing Google Sheet tabs via n8n...',
+      n8nResponse
     });
   } catch (err) {
-    console.error(`[MetaLeads] Sync error: ${err.message}`);
+    console.error('[MetaLeads] Sync error: ' + err.message);
     res.status(500).json({
       success: false,
-      message: `Failed to trigger Google Sheets sync: ${err.message}`
+      message: 'Failed to start n8n sync: ' + err.message
     });
   }
 });
