@@ -44,14 +44,38 @@
         "assignments": {
           "assignments": [
             {
-              "id": "campaign_tag_dm",
+              "id": "camp_tag___digital_marketing",
               "name": "campaign",
               "value": "Digital Marketing_Leads",
+              "type": "string"
+            },
+            {
+              "id": "name_tag___digital_marketing",
+              "name": "name",
+              "value": "={{ $json.full_name || $json.name || $json.Name || $json['Full Name'] || $json['Candidate Name'] || $json['Student Name'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "email_tag___digital_marketing",
+              "name": "email",
+              "value": "={{ $json.email || $json.Email || $json['Email Address'] || $json['email_address'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "mobile_tag___digital_marketing",
+              "name": "mobile",
+              "value": "={{ $json.phone_number || $json.phone || $json.mobile || $json.Mobile || $json.Contact || $json['Phone Number'] || $json['Contact Number'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "city_tag___digital_marketing",
+              "name": "city",
+              "value": "={{ $json.city || $json.location || $json.City || $json.Location || $json.town || $json.Town || '' }}",
               "type": "string"
             }
           ]
         },
-        "includeOtherFields": true,
+        "includeOtherFields": false,
         "options": {}
       },
       "id": "64268f14-0a08-4f60-ac08-1d1d177886d1",
@@ -90,14 +114,38 @@
         "assignments": {
           "assignments": [
             {
-              "id": "campaign_tag_sap",
+              "id": "camp_tag___sap_leads",
               "name": "campaign",
               "value": "SAP_Leads",
+              "type": "string"
+            },
+            {
+              "id": "name_tag___sap_leads",
+              "name": "name",
+              "value": "={{ $json.full_name || $json.name || $json.Name || $json['Full Name'] || $json['Candidate Name'] || $json['Student Name'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "email_tag___sap_leads",
+              "name": "email",
+              "value": "={{ $json.email || $json.Email || $json['Email Address'] || $json['email_address'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "mobile_tag___sap_leads",
+              "name": "mobile",
+              "value": "={{ $json.phone_number || $json.phone || $json.mobile || $json.Mobile || $json.Contact || $json['Phone Number'] || $json['Contact Number'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "city_tag___sap_leads",
+              "name": "city",
+              "value": "={{ $json.city || $json.location || $json.City || $json.Location || $json.town || $json.Town || '' }}",
               "type": "string"
             }
           ]
         },
-        "includeOtherFields": true,
+        "includeOtherFields": false,
         "options": {}
       },
       "id": "fab0d3e4-168a-4a44-9e5c-5ef276af64c9",
@@ -136,14 +184,38 @@
         "assignments": {
           "assignments": [
             {
-              "id": "campaign_tag_python",
+              "id": "camp_tag___python_leads",
               "name": "campaign",
               "value": "Python_Leads",
+              "type": "string"
+            },
+            {
+              "id": "name_tag___python_leads",
+              "name": "name",
+              "value": "={{ $json.full_name || $json.name || $json.Name || $json['Full Name'] || $json['Candidate Name'] || $json['Student Name'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "email_tag___python_leads",
+              "name": "email",
+              "value": "={{ $json.email || $json.Email || $json['Email Address'] || $json['email_address'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "mobile_tag___python_leads",
+              "name": "mobile",
+              "value": "={{ $json.phone_number || $json.phone || $json.mobile || $json.Mobile || $json.Contact || $json['Phone Number'] || $json['Contact Number'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "city_tag___python_leads",
+              "name": "city",
+              "value": "={{ $json.city || $json.location || $json.City || $json.Location || $json.town || $json.Town || '' }}",
               "type": "string"
             }
           ]
         },
-        "includeOtherFields": true,
+        "includeOtherFields": false,
         "options": {}
       },
       "id": "97637410-8c33-44bc-8348-5a021236d241",
@@ -182,14 +254,38 @@
         "assignments": {
           "assignments": [
             {
-              "id": "campaign_tag_cyber",
+              "id": "camp_tag___cybersecurity_leads",
               "name": "campaign",
               "value": "CyberSecurity_Leads",
+              "type": "string"
+            },
+            {
+              "id": "name_tag___cybersecurity_leads",
+              "name": "name",
+              "value": "={{ $json.full_name || $json.name || $json.Name || $json['Full Name'] || $json['Candidate Name'] || $json['Student Name'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "email_tag___cybersecurity_leads",
+              "name": "email",
+              "value": "={{ $json.email || $json.Email || $json['Email Address'] || $json['email_address'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "mobile_tag___cybersecurity_leads",
+              "name": "mobile",
+              "value": "={{ $json.phone_number || $json.phone || $json.mobile || $json.Mobile || $json.Contact || $json['Phone Number'] || $json['Contact Number'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "city_tag___cybersecurity_leads",
+              "name": "city",
+              "value": "={{ $json.city || $json.location || $json.City || $json.Location || $json.town || $json.Town || '' }}",
               "type": "string"
             }
           ]
         },
-        "includeOtherFields": true,
+        "includeOtherFields": false,
         "options": {}
       },
       "id": "9735c10d-2c12-471c-896f-1e02f1825d9f",
@@ -228,14 +324,38 @@
         "assignments": {
           "assignments": [
             {
-              "id": "campaign_tag_cyber",
+              "id": "camp_website_leads",
               "name": "campaign",
               "value": "Website_Leads",
+              "type": "string"
+            },
+            {
+              "id": "name_website_leads",
+              "name": "name",
+              "value": "={{ $json.full_name || $json.name || $json.Name || $json['Full Name'] || $json['Candidate Name'] || $json['Student Name'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "email_website_leads",
+              "name": "email",
+              "value": "={{ $json.email || $json.Email || $json['Email Address'] || $json['email_address'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "mobile_website_leads",
+              "name": "mobile",
+              "value": "={{ $json.phone_number || $json.phone || $json.mobile || $json.Mobile || $json.Contact || $json['Phone Number'] || $json['Contact Number'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "city_website_leads",
+              "name": "city",
+              "value": "={{ $json.city || $json.location || $json.City || $json.Location || $json.town || $json.Town || '' }}",
               "type": "string"
             }
           ]
         },
-        "includeOtherFields": true,
+        "includeOtherFields": false,
         "options": {}
       },
       "id": "88fcc055-b1bf-48ca-8f29-772f9580d336",
@@ -274,14 +394,38 @@
         "assignments": {
           "assignments": [
             {
-              "id": "campaign_tag_cyber",
+              "id": "camp_practice_sheet",
               "name": "campaign",
               "value": "Practice Sheet",
+              "type": "string"
+            },
+            {
+              "id": "name_practice_sheet",
+              "name": "name",
+              "value": "={{ $json.full_name || $json.name || $json.Name || $json['Full Name'] || $json['Candidate Name'] || $json['Student Name'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "email_practice_sheet",
+              "name": "email",
+              "value": "={{ $json.email || $json.Email || $json['Email Address'] || $json['email_address'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "mobile_practice_sheet",
+              "name": "mobile",
+              "value": "={{ $json.phone_number || $json.phone || $json.mobile || $json.Mobile || $json.Contact || $json['Phone Number'] || $json['Contact Number'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "city_practice_sheet",
+              "name": "city",
+              "value": "={{ $json.city || $json.location || $json.City || $json.Location || $json.town || $json.Town || '' }}",
               "type": "string"
             }
           ]
         },
-        "includeOtherFields": true,
+        "includeOtherFields": false,
         "options": {}
       },
       "id": "767a28db-764e-4d02-ab66-b9c404e6fbef",
@@ -320,14 +464,38 @@
         "assignments": {
           "assignments": [
             {
-              "id": "campaign_tag_dm",
+              "id": "camp_dsapython_workshop1",
               "name": "campaign",
               "value": "DSAPython_workshop",
+              "type": "string"
+            },
+            {
+              "id": "name_dsapython_workshop1",
+              "name": "name",
+              "value": "={{ $json.full_name || $json.name || $json.Name || $json['Full Name'] || $json['Candidate Name'] || $json['Student Name'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "email_dsapython_workshop1",
+              "name": "email",
+              "value": "={{ $json.email || $json.Email || $json['Email Address'] || $json['email_address'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "mobile_dsapython_workshop1",
+              "name": "mobile",
+              "value": "={{ $json.phone_number || $json.phone || $json.mobile || $json.Mobile || $json.Contact || $json['Phone Number'] || $json['Contact Number'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "city_dsapython_workshop1",
+              "name": "city",
+              "value": "={{ $json.city || $json.location || $json.City || $json.Location || $json.town || $json.Town || '' }}",
               "type": "string"
             }
           ]
         },
-        "includeOtherFields": true,
+        "includeOtherFields": false,
         "options": {}
       },
       "id": "58946815-9aad-4a81-a636-445e7f6c2e1a",
@@ -366,14 +534,38 @@
         "assignments": {
           "assignments": [
             {
-              "id": "campaign_tag_cyber",
+              "id": "camp_cyber_security_workshop_oct_22_10",
               "name": "campaign",
               "value": "Cyber security workshop oct 22/10",
+              "type": "string"
+            },
+            {
+              "id": "name_cyber_security_workshop_oct_22_10",
+              "name": "name",
+              "value": "={{ $json.full_name || $json.name || $json.Name || $json['Full Name'] || $json['Candidate Name'] || $json['Student Name'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "email_cyber_security_workshop_oct_22_10",
+              "name": "email",
+              "value": "={{ $json.email || $json.Email || $json['Email Address'] || $json['email_address'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "mobile_cyber_security_workshop_oct_22_10",
+              "name": "mobile",
+              "value": "={{ $json.phone_number || $json.phone || $json.mobile || $json.Mobile || $json.Contact || $json['Phone Number'] || $json['Contact Number'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "city_cyber_security_workshop_oct_22_10",
+              "name": "city",
+              "value": "={{ $json.city || $json.location || $json.City || $json.Location || $json.town || $json.Town || '' }}",
               "type": "string"
             }
           ]
         },
-        "includeOtherFields": true,
+        "includeOtherFields": false,
         "options": {}
       },
       "id": "d829ec6e-1a4f-419c-8199-632b9641da30",
@@ -412,14 +604,38 @@
         "assignments": {
           "assignments": [
             {
-              "id": "campaign_tag_cyber",
+              "id": "camp_ui_ux_leads",
               "name": "campaign",
-              "value": "=UI/UX_Leads",
+              "value": "UI/UX_Leads",
+              "type": "string"
+            },
+            {
+              "id": "name_ui_ux_leads",
+              "name": "name",
+              "value": "={{ $json.full_name || $json.name || $json.Name || $json['Full Name'] || $json['Candidate Name'] || $json['Student Name'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "email_ui_ux_leads",
+              "name": "email",
+              "value": "={{ $json.email || $json.Email || $json['Email Address'] || $json['email_address'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "mobile_ui_ux_leads",
+              "name": "mobile",
+              "value": "={{ $json.phone_number || $json.phone || $json.mobile || $json.Mobile || $json.Contact || $json['Phone Number'] || $json['Contact Number'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "city_ui_ux_leads",
+              "name": "city",
+              "value": "={{ $json.city || $json.location || $json.City || $json.Location || $json.town || $json.Town || '' }}",
               "type": "string"
             }
           ]
         },
-        "includeOtherFields": true,
+        "includeOtherFields": false,
         "options": {}
       },
       "id": "991534b7-a9cc-40b6-8689-2bcc2c7c4b30",
@@ -458,14 +674,38 @@
         "assignments": {
           "assignments": [
             {
-              "id": "campaign_tag_cyber",
+              "id": "camp_data_careers_leads1",
               "name": "campaign",
-              "value": "=Data_Careers_Leads",
+              "value": "Data_Careers_Leads",
+              "type": "string"
+            },
+            {
+              "id": "name_data_careers_leads1",
+              "name": "name",
+              "value": "={{ $json.full_name || $json.name || $json.Name || $json['Full Name'] || $json['Candidate Name'] || $json['Student Name'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "email_data_careers_leads1",
+              "name": "email",
+              "value": "={{ $json.email || $json.Email || $json['Email Address'] || $json['email_address'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "mobile_data_careers_leads1",
+              "name": "mobile",
+              "value": "={{ $json.phone_number || $json.phone || $json.mobile || $json.Mobile || $json.Contact || $json['Phone Number'] || $json['Contact Number'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "city_data_careers_leads1",
+              "name": "city",
+              "value": "={{ $json.city || $json.location || $json.City || $json.Location || $json.town || $json.Town || '' }}",
               "type": "string"
             }
           ]
         },
-        "includeOtherFields": true,
+        "includeOtherFields": false,
         "options": {}
       },
       "id": "921bf1a3-bb2f-42aa-b309-b88e0fc65efe",
@@ -493,7 +733,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://telecommunication-l3oz.onrender.com/api/meta-leads",
+        "url": "https://api.academyoftechmasters.com/api/meta-leads",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -505,7 +745,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { campaign: $json.campaign, source: 'google_sheets_meta', rawData: $json } }}",
+        "jsonBody": "={{ { campaign: $json.campaign, source: 'google_sheets_meta', name: $json.name, email: $json.email, phone: $json.mobile, city: $json.city, rawData: { name: $json.name, email: $json.email, phone: $json.mobile, location: $json.city } } }}",
         "options": {
           "batching": {
             "batch": {

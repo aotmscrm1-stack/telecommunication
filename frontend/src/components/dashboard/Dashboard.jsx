@@ -870,7 +870,8 @@ function LiveLeadPanel() {
 
       const combined = [...(Array.isArray(directList) ? directList : []), ...formattedMeta];
       setLeads(combined);
-      setDbTotal(combined.length || 280);
+      const calculatedDbTotal = (Number(statsRes?.data?.total) || Number(leadsRes?.data?.total) || directList.length) + (Number(metaRes?.data?.total) || metaList.length);
+      setDbTotal(calculatedDbTotal || combined.length || 280);
       if (statsRes?.data) setDbStats(statsRes.data);
       setLastUpdated(Date.now());
     } catch (e) {
@@ -929,7 +930,7 @@ function LiveLeadPanel() {
 
   // Database Overview counts
   const statsOverview = useMemo(() => {
-    const total = leads.length || dbTotal || 280;
+    const total = dbTotal || leads.length || 280;
     const fresh = leads.filter(l => String(l.status || '').toLowerCase() === 'fresh').length;
     const won = leads.filter(l => String(l.status || '').toLowerCase().includes('won') || String(l.status || '').toLowerCase().includes('admitted')).length;
     const active = leads.filter(l => ['connected', 'call back later', 'demo scheduled', 'demo done'].includes(String(l.status || '').toLowerCase())).length;
@@ -938,7 +939,7 @@ function LiveLeadPanel() {
 
   // Dynamic Bento Data derived directly from Live CRM & Meta Database
   const bentoData = useMemo(() => {
-    const totalCount = leads.length || 280;
+    const totalCount = dbTotal || leads.length || 280;
     const freshCount = leads.filter(l => String(l.status || '').toLowerCase() === 'fresh').length;
     const activePipelineCount = leads.filter(l => ['connected', 'call back later', 'demo scheduled', 'demo done'].includes(String(l.status || '').toLowerCase())).length;
     const wonLeads = leads.filter(l => String(l.status || '').toLowerCase().includes('won') || String(l.status || '').toLowerCase().includes('admitted'));
