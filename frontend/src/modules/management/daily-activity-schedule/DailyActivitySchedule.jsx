@@ -51,7 +51,7 @@ export default function DailyActivitySchedule() {
               </h1>
               {canViewAll && (
                 <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200">
-                  {isMD ? (canEdit ? 'MD (Full Control)' : 'MD (View Only)') : 'HR Administration'}
+                  {canEdit ? 'Admin & Manager (Full Access)' : 'View Only'}
                 </span>
               )}
             </div>

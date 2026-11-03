@@ -38,30 +38,44 @@ function isHR(user) {
 
 function isAdmin(user) {
   if (!user) return false;
-  return user.role === 'admin' || user.role === 'superadmin';
+  const role = String(user.role || '').toLowerCase();
+  const d = String(user.designation || '').trim().toUpperCase();
+  const dept = String(user.department || '').trim().toUpperCase();
+  return (
+    role === 'admin' ||
+    role === 'superadmin' ||
+    isMD(user) ||
+    d === 'CEO' ||
+    d === 'MANAGING DIRECTOR' ||
+    d === 'MD' ||
+    dept === 'ADMIN' ||
+    dept === 'MANAGEMENT'
+  );
+}
+
+function isManager(user) {
+  if (!user) return false;
+  const role = String(user.role || '').toLowerCase();
+  const d = String(user.designation || '').trim().toUpperCase();
+  const dept = String(user.department || '').trim().toUpperCase();
+  return (
+    role === 'manager' ||
+    d.includes('MANAGER') ||
+    dept.includes('MANAGER') ||
+    dept.includes('MANAGEMENT')
+  );
 }
 
 function canManageSchedules(user) {
   if (!user) return false;
-
-  // Rule 2: MD has view-all permissions by default. Keep editing as a separate configurable permission.
-  if (isMD(user)) {
-    const hasConfigurableEdit = Boolean(
-      user.preferences?.allowMdEditDailyActivitySchedule ||
-      user.allowMdEditDailyActivitySchedule ||
-      user.permissionTemplate?.permissions?.dailyActivitySchedule?.edit
-    );
-    return hasConfigurableEdit;
-  }
-
-  if (isAdmin(user) || isHR(user)) return true;
-
-  return false;
+  // All access for Admin and Manager (including MD, CEO, HR Specialist)
+  return isAdmin(user) || isManager(user) || isHR(user);
 }
 
 function canViewAll(user) {
   if (!user) return false;
-  return isMD(user) || isHR(user) || isAdmin(user);
+  // All access for Admin and Manager (including MD, CEO, HR Specialist)
+  return isAdmin(user) || isManager(user) || isHR(user);
 }
 
 /**
@@ -448,9 +462,7 @@ router.post('/', protect, async (req, res) => {
     if (!canManageSchedules(req.user)) {
       return res.status(403).json({
         ok: false,
-        message: isMD(req.user)
-          ? 'MD has view-only permissions for Daily Activity Schedule by default. Enable editing permission to proceed.'
-          : 'Access denied. Only HR and authorized Administrators can create schedules.'
+        message: 'Access denied. Only Admin and Manager can create schedules.'
       });
     }
 
@@ -514,9 +526,7 @@ router.put('/:id', protect, async (req, res) => {
     if (!canManageSchedules(req.user)) {
       return res.status(403).json({
         ok: false,
-        message: isMD(req.user)
-          ? 'MD has view-only permissions for Daily Activity Schedule by default. Enable editing permission to proceed.'
-          : 'Access denied. Only HR and authorized Administrators can edit schedules.'
+        message: 'Access denied. Only Admin and Manager can edit schedules.'
       });
     }
 
@@ -703,12 +713,12 @@ router.get('/:id/audit-history', protect, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 12. DELETE /api/daily-activity-schedules/:id (Hard Delete - Admin Only)
+// 12. DELETE /api/daily-activity-schedules/:id (Hard Delete - Admin & Manager)
 // ─────────────────────────────────────────────────────────────────────────────
 router.delete('/:id', protect, async (req, res) => {
   try {
-    if (!isAdmin(req.user)) {
-      return res.status(403).json({ ok: false, message: 'Hard delete is restricted to Administrators. Please use Archive instead.' });
+    if (!isAdmin(req.user) && !isManager(req.user)) {
+      return res.status(403).json({ ok: false, message: 'Delete is restricted to Admin and Manager. Please use Archive instead.' });
     }
 
     const schedule = await EmployeeDailyActivitySchedule.findByIdAndDelete(req.params.id);

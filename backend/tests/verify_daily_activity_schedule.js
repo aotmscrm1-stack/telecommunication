@@ -71,23 +71,29 @@ async function runTests() {
     console.log(`Staged unconfirmed profiles count: ${hrStagingRes.body.staging?.length}`);
     if (hrStagingRes.status !== 200) throw new Error('HR staging failed');
 
-    console.log('\n--- TEST 2: MD View-All (Read-Only By Default) ---');
+    console.log('\n--- TEST 2: Admin & Manager Full Access ---');
     const mdListRes = await api('/api/daily-activity-schedules', {
       headers: { Authorization: `Bearer ${mdToken}` }
     });
-    console.log(`MD List Status: ${mdListRes.status} (Expected 200)`);
-    if (mdListRes.status !== 200) throw new Error('MD list failed');
+    console.log(`Admin/MD List Status: ${mdListRes.status} (Expected 200)`);
+    if (mdListRes.status !== 200) throw new Error('Admin list failed');
 
-    // Test MD trying to edit without configurable permission
+    // Admin/MD has full edit access
     const testSchedule = await EmployeeDailyActivitySchedule.findOne({ employee: devUser1._id });
     const mdEditRes = await api(`/api/daily-activity-schedules/${testSchedule._id}`, {
       method: 'PUT',
       headers: { Authorization: `Bearer ${mdToken}` },
-      body: JSON.stringify({ workingHours: { loginTime: '10:00 AM' } })
+      body: JSON.stringify({
+        workingHours: {
+          loginTime: '09:15 AM',
+          logoutTime: '06:15 PM',
+          note: '09:15 AM Login & Daily Planning; 06:15 PM Logout'
+        },
+        summary: 'Admin verified schedule'
+      })
     });
-    console.log(`MD Edit Status (Without allowMdEdit): ${mdEditRes.status} (Expected 403)`);
-    console.log(`MD Edit Rejection Message: "${mdEditRes.body.message}"`);
-    if (mdEditRes.status !== 403) throw new Error('MD should be blocked from editing by default');
+    console.log(`Admin/MD Edit Status: ${mdEditRes.status} (Expected 200)`);
+    if (mdEditRes.status !== 200) throw new Error('Admin/MD should have full edit access');
 
     console.log('\n--- TEST 3: Employee Read-Only Access To Own Schedule ---');
     const dev1OwnRes = await api('/api/daily-activity-schedules/me', {

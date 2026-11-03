@@ -510,16 +510,12 @@ export const canMarkCompleteTask = (currentUser) => {
  */
 export const canViewAllDailyActivitySchedules = (user) => {
   if (!user) return false;
-  return isManagingDirector(user) || isCEO(user) || user?.role === 'admin' || isHR(user);
+  return isExecutive(user) || isManager(user) || user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'manager' || isHR(user);
 };
 
 export const canEditDailyActivitySchedule = (user) => {
   if (!user) return false;
-  if (user?.role === 'admin' || isHR(user)) return true;
-  if (isManagingDirector(user)) {
-    return Boolean(user.preferences?.allowMdEditDailyActivitySchedule || user.allowMdEditDailyActivitySchedule);
-  }
-  return false;
+  return isExecutive(user) || isManager(user) || user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'manager' || isHR(user);
 };
 
 export const canManageDailyActivitySchedule = (user) => {
