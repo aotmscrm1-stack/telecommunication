@@ -175,45 +175,6 @@ export default function Landing() {
           }
         }
 
-        /* Full Viewport Background Video */
-        .nk-video-container {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          z-index: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          overflow: hidden;
-        }
-
-        .nk-video-wrapper {
-          position: relative;
-          width: 80%;
-          height: 80%;
-          border-radius: 24px;
-          overflow: hidden;
-          box-shadow: 0 20px 40px rgba(0,0,0,0.06);
-          transition: width 0.4s ease, height 0.4s ease, border-radius 0.4s ease;
-        }
-        @media (min-width: 768px) {
-          .nk-video-wrapper {
-            width: 100%;
-            height: 100%;
-            border-radius: 0;
-            box-shadow: none;
-          }
-        }
-
-        .nk-video-element {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          display: block;
-        }
-
         /* Footer Content pinned to bottom over gradient */
         .nk-footer-container {
           position: relative;
