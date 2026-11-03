@@ -8,3 +8,4 @@ export { default as AnimatedNumber } from './AnimatedNumber';
 export { default as GradientText } from './GradientText';
 export { default as TeamLanyardRail } from './team-lanyard-rail';
 export { default as TeamLanyardRailDemo } from './demo';
+export { default as HalftoneWordmarkFooter } from './halftone-wordmark-footer';
