@@ -58,6 +58,9 @@ router.use('/management/digital-calendar', apiLimiter, require('../modules/marke
 router.use('/admin/digital-calendar', apiLimiter, require('../modules/marketing/digital-calendar/digitalCalendar'));
 router.use('/digital-calendar', apiLimiter, require('../modules/marketing/digital-calendar/digitalCalendar'));
 
+// ── Daily Activity Schedule (Official Employee Profiles & Reference) ────────
+router.use('/daily-activity-schedules', apiLimiter, require('../modules/daily-activity-schedule/dailyActivitySchedule'));
+
 // ── Daily Activities & Telecaller Dashboard ──────────────────────────────────
 // router.use('/daily-activities', apiLimiter, require('../modules/daily-activities/dailyActivities'));
 

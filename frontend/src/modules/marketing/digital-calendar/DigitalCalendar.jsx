@@ -29,7 +29,7 @@ import {
   FaFacebook,
   FaYoutube,
   FaLinkedinIn,
-  FaXTwitter,
+  FaRetweet,
   FaRotate,
   FaEye,
   FaUserCheck,
@@ -722,7 +722,7 @@ export default function DigitalCalendar() {
           if (p === 'facebook') return s.facebook_status && s.facebook_status !== 'Not Required';
           if (p === 'youtube') return s.youtube_status && s.youtube_status !== 'Not Required';
           if (p === 'linkedin') return s.linkedin_status && s.linkedin_status !== 'Not Required';
-          if (p === 'x' || p === 'twitter') return s.x_status && s.x_status !== 'Not Required';
+          if (p === 'x' || p === 'twitter' || p === 'reshares') return s.x_status && s.x_status !== 'Not Required';
           return true;
         });
       });
@@ -950,8 +950,8 @@ export default function DigitalCalendar() {
       },
       {
         id: 'x',
-        label: 'X / Twitter',
-        icon: FaXTwitter,
+        label: 'Reshares',
+        icon: FaRetweet,
         color: 'text-slate-900',
         badgeBg: 'bg-slate-100/70',
         border: 'border-slate-300/80',
@@ -1602,7 +1602,7 @@ export default function DigitalCalendar() {
                   { id: 'facebook', label: 'Facebook', icon: FaFacebook, color: 'text-blue-700' },
                   { id: 'youtube', label: 'YouTube', icon: FaYoutube, color: 'text-red-600' },
                   { id: 'linkedin', label: 'LinkedIn', icon: FaLinkedinIn, color: 'text-blue-600' },
-                  { id: 'x', label: 'X / Twitter', icon: FaXTwitter, color: 'text-slate-900' }
+                  { id: 'x', label: 'Reshares', icon: FaRetweet, color: 'text-slate-900' }
                 ].map(p => {
                   const active = filterPlatform === p.id;
                   const Icon = p.icon;
@@ -1766,7 +1766,7 @@ export default function DigitalCalendar() {
                     { id: 'facebook', label: 'Facebook', count: postedPlatformCounts.facebook, icon: FaFacebook, color: 'text-blue-700' },
                     { id: 'youtube', label: 'YouTube', count: postedPlatformCounts.youtube, icon: FaYoutube, color: 'text-red-600' },
                     { id: 'linkedin', label: 'LinkedIn', count: postedPlatformCounts.linkedin, icon: FaLinkedinIn, color: 'text-blue-600' },
-                    { id: 'x', label: 'X', count: postedPlatformCounts.x, icon: FaXTwitter, color: 'text-slate-900' }
+                    { id: 'x', label: 'Reshares', count: postedPlatformCounts.x, icon: FaRetweet, color: 'text-slate-900' }
                   ].map(pf => {
                     const isSel = filterPlatform === pf.id;
                     const PfIcon = pf.icon;
@@ -2081,8 +2081,8 @@ export default function DigitalCalendar() {
                       iconBg: 'bg-blue-100/60'
                     },
                     {
-                      name: 'X / Twitter',
-                      icon: FaXTwitter,
+                      name: 'Reshares',
+                      icon: FaRetweet,
                       status: currentItem.x_status || 'Not Required',
                       time: currentItem.x_time,
                       color: 'text-slate-900',
@@ -2313,7 +2313,7 @@ export default function DigitalCalendar() {
                               const PfIcon = pf.icon;
                               const isOff = pf.status === 'Not Required' || !pf.status;
                               const pfSt = getStatusStyle(pf.status);
-                              const isLastOdd = pIdx === 4; // 5th item (X / Twitter) spans 2 columns to fill row
+                              const isLastOdd = pIdx === 4; // 5th item (Reshares) spans 2 columns to fill row
                               const pfDisplayTime = pf.time || (pf.status === 'Posted' && (currentItem?.updatedAt || item?.updatedAt) ? formatTime12h(currentItem?.updatedAt || item?.updatedAt) : '');
 
                               return (
@@ -2498,7 +2498,7 @@ export default function DigitalCalendar() {
                   <th className="py-3.5 px-3">Facebook</th>
                   <th className="py-3.5 px-3">YouTube</th>
                   <th className="py-3.5 px-3">LinkedIn</th>
-                  <th className="py-3.5 px-3">X (Twitter)</th>
+                  <th className="py-3.5 px-3">Reshares</th>
                   <th className="py-3.5 px-3">Overall Status</th>
                   <th className="py-3.5 px-4">Responsible</th>
                   <th className="py-3.5 px-3">Approval</th>
@@ -2625,7 +2625,7 @@ export default function DigitalCalendar() {
                         )}
                       </td>
 
-                      {/* X / Twitter */}
+                      {/* Reshares */}
                       <td className="py-3.5 px-3 whitespace-nowrap">
                         {sub.x_status && sub.x_status !== 'Not Required' ? (
                           <div>
@@ -3023,7 +3023,7 @@ function UpdateTimeModal({ modalData, isLoading, onClose, onOpenFullEdit, onConf
     { id: 'facebook', label: 'Facebook' },
     { id: 'youtube', label: 'YouTube' },
     { id: 'linkedin', label: 'LinkedIn' },
-    { id: 'x', label: 'X / Twitter' }
+    { id: 'x', label: 'Reshares' }
   ];
   const notRequiredPlatforms = allPlatforms.filter(
     p => !activePlatforms.some(ap => ap.id === p.id)
@@ -3377,8 +3377,8 @@ function ContentPreviewModal({ item, initialActiveIndex = 0, onClose }) {
     },
     {
       id: 'x',
-      name: 'X / Twitter',
-      icon: FaXTwitter,
+      name: 'Reshares',
+      icon: FaRetweet,
       status: currentSub?.x_status || 'Not Required',
       time: currentSub?.x_time,
       color: 'text-slate-900',
@@ -3579,7 +3579,7 @@ function ContentPreviewModal({ item, initialActiveIndex = 0, onClose }) {
               {platformList.map((pf, pIdx) => {
                 const PfIcon = pf.icon;
                 const isOff = pf.status === 'Not Required' || !pf.status;
-                const isLastOdd = pIdx === 4; // X spans 2 cols on tablet/desktop
+                const isLastOdd = pIdx === 4; // Reshares spans 2 cols on tablet/desktop
                 const fallbackTime = (pf.status === 'Posted' && (currentSub?.updatedAt || item?.updatedAt))
                   ? formatTime12h(currentSub?.updatedAt || item?.updatedAt)
                   : '';
@@ -4012,7 +4012,7 @@ function ContentFormModal({ isEdit, initialData, employees, canDeleteContent, ca
             facebook: 'Facebook',
             youtube: 'YouTube',
             linkedin: 'LinkedIn',
-            x: 'X / Twitter'
+            x: 'Reshares'
           };
           setActiveContentIndex(i);
           setError(`Content #${i + 1} is marked as Posted, but posting time is missing near social media status for: ${missing.map(m => pfNames[m] || m).join(', ')}. Please update time before saving.`);
@@ -4521,7 +4521,7 @@ function ContentFormModal({ isEdit, initialData, employees, canDeleteContent, ca
                           facebook: 'Facebook',
                           youtube: 'YouTube',
                           linkedin: 'LinkedIn',
-                          x: 'X / Twitter'
+                          x: 'Reshares'
                         };
                         setError(`Please update posting time near social media status for: ${missing.map(m => pfNames[m] || m).join(', ')} before marking as Posted.`);
                         return;
@@ -4691,11 +4691,11 @@ function ContentFormModal({ isEdit, initialData, employees, canDeleteContent, ca
                 </div>
               </div>
 
-              {/* X / Twitter */}
+              {/* Reshares */}
               <div className="p-3.5 bg-gradient-to-br from-slate-100/50 to-white rounded-2xl border border-slate-200 space-y-2.5 shadow-xs sm:col-span-2 sm:max-w-[calc(50%-0.45rem)]">
                 <div className="flex items-center gap-2 text-slate-900 font-semibold text-xs">
-                  <FaXTwitter className="w-4 h-4" />
-                  <span>X / Twitter</span>
+                  <FaRetweet className="w-4 h-4" />
+                  <span>Reshares</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>

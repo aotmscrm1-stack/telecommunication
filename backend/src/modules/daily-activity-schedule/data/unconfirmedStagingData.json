@@ -1,0 +1,318 @@
+[
+  {
+    "key": "bhavani",
+    "sourceName": "Bhavani",
+    "sourceDesignation": "Counsellor / HR Staff",
+    "sourceEmployeeId": "Not supplied",
+    "candidateUser": {
+      "id": "6ab6449b62b25645faae28ed",
+      "name": "Dasari Durga Bhavani",
+      "employeeId": "AOTMS-18",
+      "email": "bhavani@aotms.in",
+      "designation": "Counsellor",
+      "department": "HR"
+    },
+    "discrepancyNote": "Candidate legal name in DB is 'Dasari Durga Bhavani' (AOTMS-18). HR must confirm employee match before creating official schedule.",
+    "scheduleData": {
+      "workingHours": {
+        "loginTime": "09:00 AM",
+        "logoutTime": "05:45 PM",
+        "note": "Update Eswar Sir at 04:30 PM daily; post work updates in groups before logout"
+      },
+      "keyResponsibilities": [
+        "Follow up on staff and trainers' punctuality and late logins",
+        "Check trainers' breaks and scheduled classes",
+        "Collect student feedback for Jayveer",
+        "Check ESSL attendance report daily",
+        "Handle telecalling operations",
+        "Follow up on JustDial (JD) and Meta enquiries",
+        "Maintain college follow-ups in tracking sheet",
+        "Maintain monthly water-can count",
+        "Monitor Google, Instagram, and Facebook reviews",
+        "Post work updates in official groups before logout"
+      ],
+      "regularActivities": [
+        "Morning punctuality and attendance check",
+        "Trainers session and break monitoring",
+        "Mid-day student feedback collection",
+        "Daily 04:30 PM update to Eswar Sir",
+        "Evening group reporting before logout"
+      ],
+      "weeklyResponsibilities": [
+        "Coordinate weekly cross-department updates",
+        "Maintain college engagement and review logs"
+      ],
+      "recurringMeetings": [
+        {
+          "title": "Department Heads Meeting",
+          "days": ["Monday"],
+          "time": "10:30 AM",
+          "description": "Weekly coordination with department heads"
+        },
+        {
+          "title": "Digital Marketing Meeting",
+          "days": ["Tuesday"],
+          "time": "10:30 AM",
+          "description": "Review marketing campaigns and lead trends"
+        },
+        {
+          "title": "Development Team Meeting",
+          "days": ["Wednesday"],
+          "time": "10:30 AM",
+          "description": "Software project status sync"
+        },
+        {
+          "title": "Telecalling Meeting",
+          "days": ["Thursday"],
+          "time": "10:30 AM",
+          "description": "Weekly telecaller pipeline review"
+        },
+        {
+          "title": "Staff Employees Meeting",
+          "days": ["Friday"],
+          "time": "10:30 AM",
+          "description": "All staff weekly retrospective"
+        },
+        {
+          "title": "Thursday Review Meeting",
+          "days": ["Thursday"],
+          "time": "10:30 AM",
+          "description": "Separately listed Thursday meeting from source brief; confirm with HR if duplicate of Telecalling Meeting"
+        },
+        {
+          "title": "Trainers Review Meeting",
+          "days": ["Saturday"],
+          "time": "02:30 PM",
+          "description": "Meeting with Rabbani and all trainers"
+        },
+        {
+          "title": "Bi-Daily Telecalling Sync",
+          "days": ["Every 2 Days"],
+          "time": "05:30 PM",
+          "description": "Every two days telecalling operations check"
+        }
+      ],
+      "additionalInformation": "Preserve all supplied meeting details. Do not silently remove or merge potentially duplicate meeting entries without explicit HR verification."
+    }
+  },
+  {
+    "key": "rajasree",
+    "sourceName": "Rajasree Vanukuru",
+    "sourceDesignation": "Jr Telecaller",
+    "sourceEmployeeId": "13",
+    "candidateUser": {
+      "id": "6ad8ba8cf32fe447c4783eda",
+      "name": "Raja Sri",
+      "employeeId": "AOTMS-23",
+      "email": "rajasree@gmail.com",
+      "designation": "Counsellor",
+      "department": "HR"
+    },
+    "discrepancyNote": "Source indicated Employee ID 13 and 'Jr Telecaller'. Existing DB record is 'Raja Sri' with ID AOTMS-23 and designation 'Counsellor' (email rajasree@gmail.com). HR must verify ID and designation mapping.",
+    "scheduleData": {
+      "workingHours": {
+        "loginTime": "09:30 AM",
+        "logoutTime": "06:30 PM",
+        "note": "Standard day shift"
+      },
+      "keyResponsibilities": [
+        "Handle SAP calls and lead follow-ups",
+        "Handle old-data candidate calls and re-engagement",
+        "Post promotional posters and announcements in student groups",
+        "Create meeting links on Thursdays",
+        "Create demo links for SAP sessions"
+      ],
+      "regularActivities": [
+        "Daily telecalling on assigned lead lists",
+        "Follow up on pending callbacks",
+        "Circulate daily posters in student communication channels"
+      ],
+      "weeklyResponsibilities": [
+        "Thursday meeting link setup and circulation",
+        "Weekly SAP demo schedule preparation"
+      ],
+      "recurringMeetings": [],
+      "additionalInformation": "Store as the verified employee record's employeeId only after HR confirmation. Do not force ID 13 into the database."
+    }
+  },
+  {
+    "key": "venkat",
+    "sourceName": "Venkat",
+    "sourceDesignation": "Trainer",
+    "sourceEmployeeId": "Not supplied",
+    "candidateUser": {
+      "id": "6ab7af419b0606da1d050728",
+      "name": "Venkat Sai",
+      "employeeId": "AOTMS-09",
+      "email": "venkatasai@aotms.in",
+      "designation": "Lead Trainer",
+      "department": "Trainer"
+    },
+    "discrepancyNote": "Candidate DB name is 'Venkat Sai' (AOTMS-09). Source brief contains ambiguous logout time (07:45 PM note vs activity through 08:00 PM) and 'chiranjeevi' login reference. Retain class reference hours without creating a daily timetable planner.",
+    "scheduleData": {
+      "workingHours": {
+        "loginTime": "11:00 AM",
+        "logoutTime": "07:45 PM",
+        "note": "Online morning class from 08:00 AM - 09:15 AM (before office login). Source lists logout between 07:45 PM and 08:00 PM."
+      },
+      "keyResponsibilities": [
+        "Conduct Computer Science (CS) online and offline training sessions",
+        "Prepare student study notes, practical exercises, and documentation",
+        "Provide 1-on-1 and batch technical mentoring"
+      ],
+      "regularActivities": [
+        "Online class: 08:00 AM – 09:15 AM",
+        "CS online class (Priyanka): 11:15 AM – 12:30 PM",
+        "Notes & documentation preparation: 12:30 PM – 01:00 PM",
+        "Offline CS class (Yaswanth): 01:00 PM – 02:30 PM",
+        "Offline CS class (Surya): 03:00 PM – 04:30 PM",
+        "Offline CS class (Simrah): 05:00 PM – 06:30 PM",
+        "Offline class (Oneeka, Lasya, Ganesh, Balaji, Abhinaya, Tejaswini): 06:30 PM – 08:00 PM"
+      ],
+      "weeklyResponsibilities": [
+        "Weekly student syllabus tracking and completion reviews"
+      ],
+      "recurringMeetings": [],
+      "additionalInformation": "The source includes '11 am login time (chiranjeevi)' and '11:15 to 12:30 CS class online (priyanka)'. HR should verify exact working hours before publishing."
+    }
+  },
+  {
+    "key": "adilakshmi",
+    "sourceName": "Adilakshmi",
+    "sourceDesignation": "Trainer",
+    "sourceEmployeeId": "Not supplied",
+    "candidateUser": {
+      "id": "6aba63a7ffdd149e03195cb7",
+      "name": "Adilakshmi Vemala",
+      "employeeId": "AOTMS-05",
+      "email": "adilakshmi@aotms.in",
+      "designation": "Technical Trainer",
+      "department": "Trainer"
+    },
+    "discrepancyNote": "Candidate DB record has full name 'Adilakshmi Vemala' (AOTMS-05). Reference class timings are staged as recurring activities for HR verification rather than a rigid daily timetable.",
+    "scheduleData": {
+      "workingHours": {
+        "loginTime": "09:30 AM",
+        "logoutTime": "05:30 PM",
+        "note": "Class preparation from 09:30 AM – 10:00 AM"
+      },
+      "keyResponsibilities": [
+        "Prepare curriculum and lab exercises for Data Analytics (DA)",
+        "Conduct Data Analytics (DA) training sessions (morning & afternoon)",
+        "Handle video recordings and video editing for training archives"
+      ],
+      "regularActivities": [
+        "Class preparation: 09:30 AM – 10:00 AM",
+        "Data Analytics morning session: 10:00 AM – 11:30 AM",
+        "Data Analytics advanced lab: 11:30 AM – 01:00 PM",
+        "Lunch break: 01:00 PM – 01:30 PM",
+        "Data Analytics afternoon session: 01:30 PM – 03:00 PM",
+        "Video recordings and multimedia editing: 03:00 PM – 05:30 PM"
+      ],
+      "weeklyResponsibilities": [
+        "Weekly lab assignment evaluation and project feedback"
+      ],
+      "recurringMeetings": [],
+      "additionalInformation": "Keep class times as reference notes only. Do not invent an additional logout time."
+    }
+  },
+  {
+    "key": "moeen",
+    "sourceName": "Moeen Ahmad",
+    "sourceDesignation": "Jr. Marketing Executive",
+    "sourceEmployeeId": "11",
+    "candidateUser": {
+      "id": "6abe233b2605716ce38691a2",
+      "name": "Moeen Ahmad Mahammad",
+      "employeeId": "AOTMS-25",
+      "email": "moeen@aotms.in",
+      "designation": "Marketing Executive",
+      "department": "Marketing"
+    },
+    "discrepancyNote": "Source listed Employee ID 11 & Jr. Marketing Executive. Database holds ID AOTMS-25 and full legal name 'Moeen Ahmad Mahammad'. HR must verify ID mapping.",
+    "scheduleData": {
+      "workingHours": {
+        "loginTime": "09:30 AM",
+        "logoutTime": "06:30 PM",
+        "note": "Marketing shifts may include studio shoot sessions"
+      },
+      "keyResponsibilities": [
+        "Check and reply to META platform comments and audience questions",
+        "Create marketing posters and social carousels",
+        "Edit promotional and educational videos",
+        "Conduct photo and video studio shoots",
+        "Schedule daily reels, short videos, and feed announcements"
+      ],
+      "regularActivities": [
+        "Morning social media review and comment responses",
+        "Asset creation and graphic design in Canva/Photoshop",
+        "Video editing for reels and YouTube Shorts",
+        "Publishing and scheduling evening video releases"
+      ],
+      "weeklyResponsibilities": [
+        "Weekly creative asset plan coordination with Digital Marketing Lead"
+      ],
+      "recurringMeetings": [
+        {
+          "title": "Marketing Sync",
+          "days": ["Tuesday"],
+          "time": "10:30 AM",
+          "description": "Weekly creative strategy and campaign review"
+        }
+      ],
+      "additionalInformation": "Employee ID verified as AOTMS-25 in CRM database."
+    }
+  },
+  {
+    "key": "manasa",
+    "sourceName": "Manasa Chinthala",
+    "sourceDesignation": "Digital Marketing Executive",
+    "sourceEmployeeId": "12",
+    "candidateUser": {
+      "id": "6abe21442605716ce3869045",
+      "name": "Chinthala Manasa",
+      "employeeId": "AOTMS-24",
+      "email": "manasa@aotms.in",
+      "designation": "Marketing Executive",
+      "department": "Marketing"
+    },
+    "discrepancyNote": "Source listed Employee ID 12 & Digital Marketing Executive. Database holds ID AOTMS-24 and name 'Chinthala Manasa'. HR must verify ID mapping.",
+    "scheduleData": {
+      "workingHours": {
+        "loginTime": "09:15 AM",
+        "logoutTime": "06:15 PM",
+        "note": "Standard digital marketing shift"
+      },
+      "keyResponsibilities": [
+        "Generate weekly content themes and campaign ideas",
+        "Plan and manage the weekly digital marketing calendar",
+        "Create promotional posters, reels, and carousel graphics",
+        "Publish content across company social media channels",
+        "Cross-post content and reshares across brand handles",
+        "Run, monitor, and optimize Google Ads campaigns",
+        "Conduct keyword and competitive SEO research",
+        "Check LinkedIn comments, messages, and respond to potential enquiries",
+        "Review LinkedIn page reach, engagement, and follower growth analytics"
+      ],
+      "regularActivities": [
+        "Review weekly content pipeline and scheduled posts",
+        "Google Ads performance check and budget spend monitoring",
+        "LinkedIn engagement and professional network reply management",
+        "SEO optimization for target course landing pages"
+      ],
+      "weeklyResponsibilities": [
+        "Weekly digital calendar publishing and performance reporting"
+      ],
+      "recurringMeetings": [
+        {
+          "title": "Digital Marketing Strategy Meeting",
+          "days": ["Tuesday"],
+          "time": "10:30 AM",
+          "description": "Weekly review of campaigns, ads spend, and lead acquisition"
+        }
+      ],
+      "additionalInformation": "Employee ID verified as AOTMS-24 in CRM database."
+    }
+  }
+]
+

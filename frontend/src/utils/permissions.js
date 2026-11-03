@@ -508,6 +508,28 @@ export const canMarkCompleteTask = (currentUser) => {
  * Strictly visible ONLY to Admin and Manager.
  * Hidden for all other departments (Developers, Trainers, Marketing, HR, etc.).
  */
+export const canViewAllDailyActivitySchedules = (user) => {
+  if (!user) return false;
+  return isManagingDirector(user) || isCEO(user) || user?.role === 'admin' || isHR(user);
+};
+
+export const canEditDailyActivitySchedule = (user) => {
+  if (!user) return false;
+  if (user?.role === 'admin' || isHR(user)) return true;
+  if (isManagingDirector(user)) {
+    return Boolean(user.preferences?.allowMdEditDailyActivitySchedule || user.allowMdEditDailyActivitySchedule);
+  }
+  return false;
+};
+
+export const canManageDailyActivitySchedule = (user) => {
+  return canEditDailyActivitySchedule(user);
+};
+
+export const canViewOwnDailyActivitySchedule = (user) => {
+  return Boolean(user);
+};
+
 export const canViewCallFollowups = (user) => {
   if (!user) return false;
   return isExecutive(user) || isManager(user) || user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'manager';

@@ -613,7 +613,18 @@ export default function Navbar() {
     }
   ];
 
-  const topDropdownGroups = isCaller ? telecallerNavGroups : (!hasDashboard ? [
+  const telecallerNavWithSchedule = [
+    ...telecallerNavGroups,
+    {
+      title: 'Activity Schedule',
+      icon: FaCalendarCheck,
+      items: [
+        { label: 'Activity Schedule', path: user?._id ? `/${user._id}/activity-schedule` : '/activity-schedule', icon: FaCalendarCheck }
+      ]
+    }
+  ];
+
+  const topDropdownGroups = isCaller ? telecallerNavWithSchedule : (!hasDashboard ? [
     ...(!isMarketingStaff ? [{
       title: 'TODO List',
       icon: FaListCheck,
@@ -656,11 +667,20 @@ export default function Navbar() {
         { label: 'Attendance', path: user?._id ? `/${user._id}/attendance-records` : '/attendance-records', icon: FaCalendarCheck },
       ]
     }
+    ,
+    {
+      title: 'Activity Schedule',
+      icon: FaCalendarCheck,
+      items: [
+        { label: 'Activity Schedule', path: user?._id ? `/${user._id}/activity-schedule` : '/activity-schedule', icon: FaCalendarCheck },
+      ]
+    }
   ] : [
     { title: 'Info', icon: FaCircleInfo, items: [
       { label: 'Dashboard', path: '/dashboard', icon: FaHouse },
       ...(!isMarketingStaff ? [{ label: 'TODO List', path: '/todo', icon: FaListCheck }] : []),
       { label: 'Digital Calendar', path: '/digital-calendar', icon: FaCalendarDays },
+      { label: 'Activity Schedule', path: '/daily-activity-schedule', icon: FaCalendarCheck },
     ]},
     (user?.role === 'admin' || isCEO(user) || (String(user?.department || '').toUpperCase() === 'MARKETING' && user?.role === 'manager')) ? {
       title: 'Marketing',
@@ -731,6 +751,7 @@ export default function Navbar() {
     ]},
     { title: 'Management', icon: FaSitemap, items: [
       { label: 'Departments', path: '/admin/departments', icon: FaSitemap },
+      { label: 'Daily Activity Schedule', path: '/daily-activity-schedule', icon: FaCalendarCheck },
       { label: 'Attendance', path: user?._id ? `/${user._id}/attendance-records` : '/attendance-records', icon: FaCalendarCheck },
       ...(canViewCallRecordings(user) ? [{ label: 'Call Recordings', path: '/recordings', icon: FaClock }] : []),
       { label: 'Live Tracking', path: '/admin/employee-tracking', icon: FaLocationDot, adminOnly: !isHR(user) && !isCEO(user) },
@@ -757,6 +778,7 @@ export default function Navbar() {
       { label: 'Message Templates', icon: <FaFileLines className="w-3.5 h-3.5" />, onClick: () => { setShowProfile(false); navigate('/message-templates'); } },
       { label: 'Blocklist', icon: <FaBan className="w-3.5 h-3.5" />, onClick: () => { setShowProfile(false); navigate('/blocklist'); } },
     ] : []),
+    { label: 'My Activity Schedule', icon: <FaCalendarCheck className="w-3.5 h-3.5" />, onClick: () => { setShowProfile(false); navigate(user?._id ? `/${user._id}/activity-schedule` : '/activity-schedule'); } },
     { label: 'Logout', icon: <FaRightFromBracket className="w-3.5 h-3.5" />, onClick: () => { setShowProfile(false); logout(); }, danger: true },
   ];
 

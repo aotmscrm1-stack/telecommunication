@@ -49,6 +49,7 @@ import { FeeReceipt } from '../modules/finance/fee-receipts';
 import { Departments } from '../modules/management/departments';
 import { AttendanceRecords } from '../modules/management/attendance';
 import { LiveEmployeeTracking } from '../modules/management/live-tracking';
+import { DailyActivitySchedule } from '../modules/management/daily-activity-schedule';
 
 // Communication Modules
 import { CallRecordings } from '../modules/communication/call-recordings';
@@ -179,6 +180,13 @@ const DailyActivityRoute = ({ children }) => {
   return canAccessDailyActivity(user) ? children : <Navigate to={getDefaultHomeRoute(user)} replace />;
 };
 
+const DailyActivityScheduleRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  return children;
+};
+
 const RootRedirect = () => {
   const { user, loading } = useAuth();
   if (loading) return null;
@@ -274,6 +282,12 @@ export function AppRoutes() {
         <Route path=":userId/attendance-records" element={<AttendanceRecords />} />
         <Route path="management/digital-calendar" element={<DigitalCalendarRoute><DigitalCalendar /></DigitalCalendarRoute>} />
         <Route path="admin/digital-calendar" element={<DigitalCalendarRoute><DigitalCalendar /></DigitalCalendarRoute>} />
+
+        {/* Daily Activity Schedule Module Routes */}
+        <Route path="daily-activity-schedule" element={<DailyActivityScheduleRoute><DailyActivitySchedule /></DailyActivityScheduleRoute>} />
+        <Route path="activity-schedule" element={<DailyActivityScheduleRoute><DailyActivitySchedule /></DailyActivityScheduleRoute>} />
+        <Route path=":userId/activity-schedule" element={<DailyActivityScheduleRoute><DailyActivitySchedule /></DailyActivityScheduleRoute>} />
+        <Route path=":userId/daily-activity-schedule" element={<DailyActivityScheduleRoute><DailyActivitySchedule /></DailyActivityScheduleRoute>} />
 
         {/* Communication Module Routes */}
         <Route path="email" element={<EmailCRM />} />

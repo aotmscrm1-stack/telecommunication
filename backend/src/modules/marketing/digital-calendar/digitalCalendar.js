@@ -532,7 +532,7 @@ router.get('/', protect, async (req, res) => {
         query.youtube_status = { $ne: 'Not Required' };
       } else if (p === 'linkedin') {
         query.linkedin_status = { $ne: 'Not Required' };
-      } else if (p === 'x' || p === 'twitter') {
+      } else if (p === 'x' || p === 'twitter' || p === 'reshares') {
         query.x_status = { $ne: 'Not Required' };
       }
     }
@@ -1189,7 +1189,7 @@ router.patch('/:id/complete', protect, async (req, res) => {
       facebook: 'Facebook',
       youtube: 'YouTube',
       linkedin: 'LinkedIn',
-      x: 'X / Twitter'
+      x: 'Reshares'
     };
 
     // Verify that the content is approved before allowing completion

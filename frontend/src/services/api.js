@@ -589,4 +589,19 @@ export const dailyActivityAPI = {
   },
 };
 
+export const dailyActivityScheduleAPI = {
+  getAll: (params) => api.get('/daily-activity-schedules', { params }),
+  getMySchedule: () => api.get('/daily-activity-schedules/me'),
+  getStaging: () => api.get('/daily-activity-schedules/staging'),
+  confirmStaging: (key, data) => api.post(`/daily-activity-schedules/staging/${key}/confirm`, data),
+  getOne: (employeeId) => api.get(`/daily-activity-schedules/${employeeId}`),
+  create: (data) => api.post('/daily-activity-schedules', data),
+  update: (id, data) => api.put(`/daily-activity-schedules/${id}`, data),
+  archive: (id) => api.patch(`/daily-activity-schedules/${id}/archive`),
+  restore: (id) => api.patch(`/daily-activity-schedules/${id}/restore`),
+  publish: (id) => api.patch(`/daily-activity-schedules/${id}/publish`),
+  getAuditHistory: (id) => api.get(`/daily-activity-schedules/${id}/audit-history`),
+  delete: (id) => api.delete(`/daily-activity-schedules/${id}`)
+};
+
 export default api;
