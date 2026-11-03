@@ -516,6 +516,7 @@ export default function Navbar() {
   // 2. CEO & HR Management: Full navigation, Dashboard shown under Information.
   // 3. Remaining All: Dashboard is removed completely. Only Task/Daily Activity, Email CRM & Attendance.
   const hasDashboard = canViewDashboard(user);
+  const isMarketingStaff = isDigitalMarketing(user) || String(user?.department || '').trim().toLowerCase() === 'marketing';
   const isCaller = isTelecaller(user) ||
     user?._id === '6ab6449b62b25645faae28ed' ||
     user?.id === '6ab6449b62b25645faae28ed' ||
@@ -613,13 +614,13 @@ export default function Navbar() {
   ];
 
   const topDropdownGroups = isCaller ? telecallerNavGroups : (!hasDashboard ? [
-    {
+    ...(!isMarketingStaff ? [{
       title: 'TODO List',
       icon: FaListCheck,
       items: [
         { label: 'TODO List', path: '/todo', icon: FaListCheck },
       ]
-    },
+    }] : []),
     ...(canSeeMetaLeads ? [{
       title: 'Marketing',
       icon: FaBullhorn,
@@ -658,7 +659,7 @@ export default function Navbar() {
   ] : [
     { title: 'Info', icon: FaCircleInfo, items: [
       { label: 'Dashboard', path: '/dashboard', icon: FaHouse },
-      { label: 'TODO List', path: '/todo', icon: FaListCheck },
+      ...(!isMarketingStaff ? [{ label: 'TODO List', path: '/todo', icon: FaListCheck }] : []),
       { label: 'Digital Calendar', path: '/digital-calendar', icon: FaCalendarDays },
     ]},
     (user?.role === 'admin' || isCEO(user) || (String(user?.department || '').toUpperCase() === 'MARKETING' && user?.role === 'manager')) ? {
@@ -838,7 +839,9 @@ export default function Navbar() {
                   to={
                     hasDashboard
                       ? "/dashboard"
-                      : "/todo"
+                      : isMarketingStaff
+                        ? (canAccessDigitalCalendar(user) ? (user?._id ? `/${user._id}/digital-calendar` : "/digital-calendar") : "/meta-leads")
+                        : "/todo"
                   }
                   className="flex items-center gap-2 group"
                 >
