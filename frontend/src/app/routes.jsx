@@ -1,7 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { canViewDashboard, isLimitedStaff, canAccessEmailBlast, canViewCallRecordings, isCEO, isHR, isCounsellor, isTelecaller, canAccessDigitalCalendar, canAccessMarketingLeads, canAccessDailyActivity } from '../utils/permissions';
+import { canViewDashboard, isLimitedStaff, canAccessEmailBlast, canViewCallRecordings, isCEO, isHR, isCounsellor, isTelecaller, canAccessDigitalCalendar, canAccessMarketingLeads, canAccessDailyActivity, isDigitalMarketing } from '../utils/permissions';
 import { ProtectedRoute } from './guards';
 
 // Layouts
@@ -81,8 +81,25 @@ import ServerError from '../pages/errors/500/ServerError';
 const getDefaultHomeRoute = (user) => {
   if (!user) return '/login';
   if (canViewDashboard(user)) return '/dashboard';
-  if (canAccessDigitalCalendar(user)) return '/digital-calendar';
+  const isMarketingStaff = isDigitalMarketing(user) || String(user?.department || '').trim().toLowerCase() === 'marketing';
+  if (isMarketingStaff) {
+    if (canAccessDigitalCalendar(user)) return user?._id ? `/${user._id}/digital-calendar` : '/digital-calendar';
+    return '/meta-leads';
+  }
+  if (canAccessDigitalCalendar(user)) return user?._id ? `/${user._id}/digital-calendar` : '/digital-calendar';
   return '/todo';
+};
+
+// Guard Wrappers
+const TodoRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  const isMarketingStaff = isDigitalMarketing(user) || String(user?.department || '').trim().toLowerCase() === 'marketing';
+  if (isMarketingStaff) {
+    return <Navigate to={getDefaultHomeRoute(user)} replace />;
+  }
+  return children;
 };
 
 // Guard Wrappers
@@ -221,16 +238,16 @@ export function AppRoutes() {
         {/* Tasks & Todo */}
         <Route path="tasks" element={<Navigate to="/todo" replace />} />
         <Route path="task" element={<Navigate to="/todo" replace />} />
-        <Route path="todo" element={<Tasks />} />
-        <Route path="todos" element={<Tasks />} />
-        <Route path="follow-ups" element={<Tasks />} />
-        <Route path="followups" element={<Tasks />} />
+        <Route path="todo" element={<TodoRoute><Tasks /></TodoRoute>} />
+        <Route path="todos" element={<TodoRoute><Tasks /></TodoRoute>} />
+        <Route path="follow-ups" element={<TodoRoute><Tasks /></TodoRoute>} />
+        <Route path="followups" element={<TodoRoute><Tasks /></TodoRoute>} />
         <Route path=":userId/tasks" element={<Navigate to="/todo" replace />} />
         <Route path=":userId/task" element={<Navigate to="/todo" replace />} />
-        <Route path=":userId/todo" element={<Tasks />} />
-        <Route path=":userId/todos" element={<Tasks />} />
-        <Route path=":userId/follow-ups" element={<Tasks />} />
-        <Route path=":userId/followups" element={<Tasks />} />
+        <Route path=":userId/todo" element={<TodoRoute><Tasks /></TodoRoute>} />
+        <Route path=":userId/todos" element={<TodoRoute><Tasks /></TodoRoute>} />
+        <Route path=":userId/follow-ups" element={<TodoRoute><Tasks /></TodoRoute>} />
+        <Route path=":userId/followups" element={<TodoRoute><Tasks /></TodoRoute>} />
         <Route path="daily-activity" element={<Navigate to="/tasks" replace />} />
         <Route path="daily-activities" element={<Navigate to="/tasks" replace />} />
         <Route path=":userId/daily-activity" element={<Navigate to="/tasks" replace />} />
