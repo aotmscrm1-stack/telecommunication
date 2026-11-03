@@ -95,7 +95,19 @@ function isValidId(val) {
 router.get('/', protect, async (req, res) => {
   try {
     const { status, date, due: dueQuery, callerId, userId: queryUserId, type, forMe: forMeQuery, leadId, department } = req.query;
+
+    if (type === 'todo' && (
+      String(req.user.department || '').trim().toLowerCase() === 'marketing' ||
+      String(department || '').trim().toLowerCase() === 'marketing'
+    )) {
+      return res.json({ followups: [], total: 0 });
+    }
+
     const query = {};
+
+    if (type === 'todo') {
+      query.department = { $not: /^marketing$/i };
+    }
 
     if (isValidId(leadId)) {
       query.lead = leadId;
@@ -381,6 +393,21 @@ router.post('/', protect, async (req, res) => {
 
     const { recurrence, ...body } = req.body;
     const itemType = body.type || 'call_followup';
+    const dept = String(req.body.department || req.user.department || '').trim().toLowerCase();
+
+    // Department Marketing TODO is permanently disabled
+    if (itemType === 'todo') {
+      if (dept === 'marketing' || String(req.user.department || '').trim().toLowerCase() === 'marketing') {
+        return res.status(400).json({ message: 'TODO module is permanently disabled for the Marketing department.' });
+      }
+      if (req.body.assignedTo && isValidId(req.body.assignedTo)) {
+        const targetUser = await User.findById(req.body.assignedTo).select('department designation').lean();
+        if (targetUser && (targetUser.department?.toLowerCase() === 'marketing' || targetUser.designation?.toLowerCase().includes('marketing'))) {
+          return res.status(400).json({ message: 'Cannot assign TODO tasks to Marketing department staff.' });
+        }
+      }
+    }
+
     const ModelClass = getTargetModel(itemType);
 
     const frequency = recurrence?.frequency;
@@ -431,6 +458,20 @@ router.put('/:id', protect, async (req, res) => {
 
     const followup = await FollowUp.findById(req.params.id);
     if (!followup) return res.status(404).json({ message: 'Item not found' });
+
+    const effectiveType = req.body.type || followup.type;
+    if (effectiveType === 'todo') {
+      const dept = String(req.body.department || followup.department || '').trim().toLowerCase();
+      if (dept === 'marketing') {
+        return res.status(400).json({ message: 'TODO module is permanently disabled for the Marketing department.' });
+      }
+      if (req.body.assignedTo && isValidId(req.body.assignedTo)) {
+        const targetUser = await User.findById(req.body.assignedTo).select('department designation').lean();
+        if (targetUser && (targetUser.department?.toLowerCase() === 'marketing' || targetUser.designation?.toLowerCase().includes('marketing'))) {
+          return res.status(400).json({ message: 'Cannot assign TODO tasks to Marketing department staff.' });
+        }
+      }
+    }
 
     const isAdminOrMgr = req.user.role === 'admin' || req.user.role === 'superadmin' || req.user.role === 'manager' || isStrictAdmin(req.user) || isManager(req.user);
     if (!isAdminOrMgr) {

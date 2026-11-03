@@ -243,8 +243,16 @@ export const canAccessDailyActivity = (user) => {
  * Returns an array of user objects that the current user is allowed to assign tasks to.
  */
 export const getTaskAssigneeOptions = (currentUser, users = [], selectedDepartment = '') => {
-  const userList = Array.isArray(users) ? users : [];
+  const rawList = Array.isArray(users) ? users : [];
   if (!currentUser) return [];
+
+  // Exclude Marketing department users permanently from TODO/Task assignment
+  const userList = rawList.filter(u => {
+    if (!u) return false;
+    const uDept = String(u.department || '').toLowerCase().trim();
+    const uDesig = String(u.designation || '').toLowerCase().trim();
+    return !(uDept === 'marketing' || uDept.includes('market') || uDesig.includes('marketing') || isDigitalMarketing(u));
+  });
 
   const isSameUser = (u1, u2) => {
     if (!u1 || !u2) return false;
@@ -266,8 +274,7 @@ export const getTaskAssigneeOptions = (currentUser, users = [], selectedDepartme
   const userDept = currentUser.department || (
     isDeveloper(currentUser) ? 'Developer' :
     isHR(currentUser) ? 'HR' :
-    isTrainer(currentUser) ? 'Trainer' :
-    isDigitalMarketing(currentUser) ? 'Marketing' : ''
+    isTrainer(currentUser) ? 'Trainer' : ''
   );
 
   // If non-admin user, restrict effective department strictly to userDept unless selectedDepartment matches
@@ -287,7 +294,6 @@ export const getTaskAssigneeOptions = (currentUser, users = [], selectedDepartme
       if ((target === 'developer' || target === 'development') && (uDept.includes('dev') || uDesig.includes('dev') || isDeveloper(u))) return true;
       if (target === 'hr' && (uDept.includes('hr') || uDesig.includes('hr') || isHR(u))) return true;
       if ((target === 'trainer' || target === 'trainers') && (uDept.includes('trainer') || uDesig.includes('trainer') || isTrainer(u))) return true;
-      if ((target === 'marketing' || target === 'digital marketing') && (uDept.includes('market') || uDesig.includes('market') || isDigitalMarketing(u))) return true;
       if ((target === 'admin' || target === 'management') && (uDept.includes('admin') || uDept.includes('management') || isExecutive(u))) return true;
       return false;
     });
@@ -445,12 +451,20 @@ export const isTeamDropdownMember = (user) => {
 
 export const filterTeamDropdownUsers = (users = [], currentUser = null) => {
   if (!Array.isArray(users)) return [];
+  // Exclude Marketing department users permanently from Tasks / Todos
+  const nonMarketingUsers = users.filter(u => {
+    if (!u) return false;
+    const uDept = String(u.department || '').toLowerCase().trim();
+    const uDesig = String(u.designation || '').toLowerCase().trim();
+    return !(uDept === 'marketing' || uDept.includes('market') || uDesig.includes('marketing') || isDigitalMarketing(u));
+  });
+
   if (!currentUser || isExecutive(currentUser) || currentUser?.role === 'admin' || currentUser?.role === 'superadmin') {
-    return users;
+    return nonMarketingUsers;
   }
   const myDept = String(currentUser.department || '').toLowerCase().trim();
-  if (!myDept) return users;
-  return users.filter(u => {
+  if (!myDept) return nonMarketingUsers;
+  return nonMarketingUsers.filter(u => {
     const uDept = String(u.department || '').toLowerCase().trim();
     const uDesig = String(u.designation || '').toLowerCase().trim();
     return uDept === myDept || uDesig.includes(myDept) || isSameUser(u, currentUser);

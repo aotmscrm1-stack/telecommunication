@@ -2093,8 +2093,7 @@ function AddTaskModal({ type = 'todo', onClose, onCreated }) {
   const userDept = currentUser?.department || (
     isDeveloper(currentUser) ? 'Developer' :
     isHR(currentUser) ? 'HR' :
-    isTrainer(currentUser) ? 'Trainer' :
-    isDigitalMarketing(currentUser) ? 'Marketing' : ''
+    isTrainer(currentUser) ? 'Trainer' : ''
   );
 
   const [users, setUsers] = useState([]);
@@ -2127,7 +2126,13 @@ function AddTaskModal({ type = 'todo', onClose, onCreated }) {
       });
 
     departmentsAPI.getAll()
-      .then(res => setDepartments(res.data.departments || []))
+      .then(res => {
+        const raw = res.data.departments || [];
+        setDepartments(raw.filter(d => {
+          const dName = typeof d === 'string' ? d : (d?.name || d?.code || '');
+          return !dName.toLowerCase().includes('market');
+        }));
+      })
       .catch((err) => {
         console.error('Failed to load departments:', err);
         setDepartments([]);
@@ -2428,13 +2433,18 @@ function AddTaskModal({ type = 'todo', onClose, onCreated }) {
                 }}
               >
                 <option value="All">All Departments</option>
-                {departments.map(d => {
-                  const dName = typeof d === 'string' ? d : (d.name || d.code);
-                  return (
-                    <option key={d._id || dName} value={dName}>
-                      {dName} Department
-                    </option>
-                  );
+                {departments
+                  .filter(d => {
+                    const dName = typeof d === 'string' ? d : (d?.name || d?.code || '');
+                    return !dName.toLowerCase().includes('market');
+                  })
+                  .map(d => {
+                    const dName = typeof d === 'string' ? d : (d.name || d.code);
+                    return (
+                      <option key={d._id || dName} value={dName}>
+                        {dName} Department
+                      </option>
+                    );
                 })}
               </select>
             </div>
@@ -2709,8 +2719,7 @@ export default function Task() {
   const userDept = currentUser?.department || (
     isDeveloper(currentUser) ? 'Developer' :
     isHR(currentUser) ? 'HR' :
-    isTrainer(currentUser) ? 'Trainer' :
-    isDigitalMarketing(currentUser) ? 'Marketing' : ''
+    isTrainer(currentUser) ? 'Trainer' : ''
   );
 
   const checkCanDelete = (task) => canEditOrDeleteTask(task, currentUser);
@@ -2875,7 +2884,11 @@ export default function Task() {
 
   useEffect(() => {
     departmentsAPI.getAll().then(r => {
-      setDepartmentsList(r.data.departments || []);
+      const raw = r.data.departments || [];
+      setDepartmentsList(raw.filter(d => {
+        const dName = typeof d === 'string' ? d : (d?.name || d?.code || '');
+        return !dName.toLowerCase().includes('market');
+      }));
     }).catch(() => { });
   }, []);
 
@@ -2901,6 +2914,7 @@ export default function Task() {
     const map = new Map();
     teamUsers.forEach(u => {
       const deptName = getDepartmentForUser(u, departmentsList);
+      if (deptName.toLowerCase().includes('market')) return; // exclude Marketing
       if (!map.has(deptName)) {
         map.set(deptName, []);
       }
@@ -2909,6 +2923,7 @@ export default function Task() {
 
     const list = [];
     for (const [name, users] of map.entries()) {
+      if (name.toLowerCase().includes('market')) continue;
       if (users.length > 0) {
         list.push({
           name,
@@ -2918,7 +2933,7 @@ export default function Task() {
       }
     }
 
-    const deptOrder = ['Development', 'Trainer', 'Marketing', 'HR', 'Management', 'Telecalling'];
+    const deptOrder = ['Development', 'Trainer', 'HR', 'Management', 'Telecalling'];
     return list.sort((a, b) => {
       const idxA = deptOrder.indexOf(a.name);
       const idxB = deptOrder.indexOf(b.name);
