@@ -19,7 +19,6 @@ import GradientWaves from './GradientWaves';
 import useBreakpoint from '../../hooks/useBreakpoint';
 import TextType from '../../components/TextType';
 import crmImage from '../../assets/CRM.png';
-import PlushButton from '../../components/ui/button';
 
 const EASE = [0.22, 1, 0.36, 1];
 
@@ -522,23 +521,41 @@ export function HeroSection({
             alignItems: 'center',
           }}
         >
-          {/* PRIMARY 3D PLUSH BUTTON */}
-          <div style={{
-            position: 'relative',
-            width: isMobile ? 190 : 215,
-            height: isMobile ? 54 : 58,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0
-          }}>
-            <PlushButton
-              label={currentSlide.primaryBtnText || 'Get Started'}
-              onClick={() => navigate('/login')}
-              width="100%"
-              height="100%"
-            />
-          </div>
+          {/* PRIMARY GET STARTED BUTTON */}
+          <motion.button
+            onClick={() => navigate('/login')}
+            whileHover={{
+              y: -3,
+              scale: 1.02,
+              backgroundColor: '#1d4ed8',
+              boxShadow: '0 16px 36px rgba(37, 99, 235, 0.45)',
+            }}
+            whileTap={{ scale: 0.97 }}
+            transition={{ duration: 0.25, ease: EASE }}
+            style={{
+              padding: isMobile ? '12px 26px' : '14px 34px',
+              height: isMobile ? 54 : 58,
+              boxSizing: 'border-box',
+              borderRadius: 9999,
+              border: 'none',
+              backgroundColor: '#2563eb',
+              color: '#ffffff',
+              fontWeight: 700,
+              fontSize: isMobile ? 14 : 15,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 10,
+              letterSpacing: '-0.01em',
+              fontFamily: '"Inter", system-ui, sans-serif',
+              boxShadow: '0 8px 24px rgba(37, 99, 235, 0.35)',
+              flexShrink: 0,
+            }}
+          >
+            <span>{currentSlide.primaryBtnText || 'Get Started'}</span>
+            <ArrowUpRight size={18} strokeWidth={2.4} />
+          </motion.button>
 
           {/* SECONDARY BUTTON */}
           <motion.button

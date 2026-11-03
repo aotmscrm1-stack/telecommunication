@@ -175,45 +175,6 @@ export default function Landing() {
           }
         }
 
-        /* Full Viewport Background Video */
-        .nk-video-container {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          z-index: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          overflow: hidden;
-        }
-
-        .nk-video-wrapper {
-          position: relative;
-          width: 80%;
-          height: 80%;
-          border-radius: 24px;
-          overflow: hidden;
-          box-shadow: 0 20px 40px rgba(0,0,0,0.06);
-          transition: width 0.4s ease, height 0.4s ease, border-radius 0.4s ease;
-        }
-        @media (min-width: 768px) {
-          .nk-video-wrapper {
-            width: 100%;
-            height: 100%;
-            border-radius: 0;
-            box-shadow: none;
-          }
-        }
-
-        .nk-video-element {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          display: block;
-        }
-
         /* Footer Content pinned to bottom over gradient */
         .nk-footer-container {
           position: relative;
@@ -282,13 +243,13 @@ export default function Landing() {
         }
 
         .nk-btn-primary {
-          background-color: #000000;
+          background-color: #2563eb;
           color: #ffffff;
           font-size: 13px;
           font-weight: 500;
           padding: 12px 24px;
           border-radius: 9999px;
-          border: 1px solid #000000;
+          border: 1px solid #2563eb;
           cursor: pointer;
           transition: transform 0.2s ease, background-color 0.2s ease;
           text-decoration: none;
@@ -298,7 +259,7 @@ export default function Landing() {
         }
         .nk-btn-primary:hover {
           transform: scale(1.03);
-          background-color: #222222;
+          background-color: #1d4ed8;
         }
 
         .nk-btn-secondary {

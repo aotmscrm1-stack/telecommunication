@@ -14,7 +14,6 @@ import ShellLayout from '../components/Layout/Layout';
 
 // Public & Landing
 import Landing from '../pages/landing/Landing';
-import Logo from '../pages/landing/Logo';
 
 // Auth Pages
 import Login from '../pages/auth/login/Login';
@@ -198,8 +197,8 @@ export function AppRoutes() {
   return (
     <Routes>
       {/* Public Pages */}
-      <Route path="/" element={<Logo showLandingDirectly={true} />} />
-      <Route path="/logo" element={<Logo autoRedirect={true} />} />
+      <Route path="/" element={<Landing />} />
+      <Route path="/logo" element={<Navigate to="/" replace />} />
       <Route path="/landing" element={<Landing />} />
 
       {/* Auth Pages */}
