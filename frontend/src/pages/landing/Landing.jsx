@@ -282,13 +282,13 @@ export default function Landing() {
         }
 
         .nk-btn-primary {
-          background-color: #000000;
+          background-color: #2563eb;
           color: #ffffff;
           font-size: 13px;
           font-weight: 500;
           padding: 12px 24px;
           border-radius: 9999px;
-          border: 1px solid #000000;
+          border: 1px solid #2563eb;
           cursor: pointer;
           transition: transform 0.2s ease, background-color 0.2s ease;
           text-decoration: none;
@@ -298,7 +298,7 @@ export default function Landing() {
         }
         .nk-btn-primary:hover {
           transform: scale(1.03);
-          background-color: #222222;
+          background-color: #1d4ed8;
         }
 
         .nk-btn-secondary {
