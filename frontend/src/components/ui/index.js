@@ -6,3 +6,5 @@ export { default as SplitText } from './SplitText';
 export { default as SpotlightCard } from './SpotlightCard';
 export { default as AnimatedNumber } from './AnimatedNumber';
 export { default as GradientText } from './GradientText';
+export { default as TeamLanyardRail } from './team-lanyard-rail';
+export { default as TeamLanyardRailDemo } from './demo';

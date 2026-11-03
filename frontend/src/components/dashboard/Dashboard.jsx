@@ -12,6 +12,7 @@ import geoTracker from '../../services/geoTracker';
 import LiveMap from '../tracking/LiveMap';
 import StatusBadge from '../common/StatusBadge';
 import AnalyticsBento from '../ui/analytics-bento';
+import TeamLanyardRail from '../ui/team-lanyard-rail';
 import GradientWaves from './GradientWaves';
 import EmployeeProfileModal from './EmployeeProfileModal';
 import {
@@ -26,7 +27,7 @@ import {
   FaHeadset, FaBriefcase, FaHandshake, FaMicrophone, FaVideo,
   FaPause, FaLaptopCode, FaSatelliteDish, FaChevronDown, FaBoltLightning,
   FaInbox, FaPaperPlane, FaFilterCircleXmark, FaStar, FaListUl, FaTableList, FaTableCellsLarge,
-  FaEnvelope, FaUser, FaCopy, FaBookmark, FaEllipsis, FaTrash,
+  FaEnvelope, FaUser, FaCopy, FaBookmark, FaEllipsis, FaTrash, FaIdBadge,
 } from 'react-icons/fa6';
 import { canDelete, isCounsellor } from '../../utils/permissions';
 
@@ -193,6 +194,9 @@ function TeamMembersCard({
   const [rejectModalEmp, setRejectModalEmp] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
   const [deleteModalEmp, setDeleteModalEmp] = useState(null);
+  const [viewMode, setViewMode] = useState('lanyard'); // 'lanyard' | 'cards'
+  const [activeLanyardIndex, setActiveLanyardIndex] = useState(null);
+  const [flippedLanyardIndex, setFlippedLanyardIndex] = useState(null);
 
   const fallbackEmployees = [
     {
@@ -291,6 +295,46 @@ function TeamMembersCard({
   }, [fullList, filterTab]);
 
   const activeTotal = filteredList.length;
+
+  // Lanyard Rail members mapped from CRM staff
+  const lanyardMembers = useMemo(() => {
+    return filteredList.map((emp, idx) => {
+      const toneVal = (((idx % 5) + 1));
+      const empDept = emp.department || 'Operations';
+      const empRole = emp.designation || emp.role || 'Staff Member';
+      const isPending = emp.approvalStatus === 'pending';
+      const isRejected = emp.approvalStatus === 'rejected';
+      const statusLabel = isPending ? 'Pending Review' : isRejected ? 'Rejected' : 'Active Staff';
+
+      return {
+        id: String(emp._id || `emp-${idx}`),
+        name: emp.name || emp.displayName || 'Staff Member',
+        role: empRole,
+        team: `AOTMS · ${empDept} (${emp.employeeId || 'ID'})`,
+        image: (emp.avatar && typeof emp.avatar === 'string' && emp.avatar.trim() !== '')
+          ? emp.avatar
+          : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=320&auto=format&fit=crop&q=80',
+        bio: `${emp.name} is a staff member in ${empDept}. Status: ${statusLabel}. Employee ID: ${emp.employeeId || 'AOTMS'}.`,
+        tags: [
+          empDept,
+          emp.employeeId || 'AOTMS',
+          isPending ? '⏳ Pending' : isRejected ? '❌ Rejected' : '✓ Verified',
+        ],
+        links: [
+          ...(emp.email ? [{ label: 'Email', href: `mailto:${emp.email}` }] : []),
+          ...(emp.phone ? [{ label: 'Call', href: `tel:${emp.phone}` }] : []),
+        ],
+        tone: toneVal,
+        raw: emp,
+      };
+    });
+  }, [filteredList]);
+
+  const selectedLanyardMember = useMemo(() => {
+    const idx = (flippedLanyardIndex !== null ? flippedLanyardIndex : activeLanyardIndex);
+    if (idx === null || idx === undefined || idx < 0 || idx >= filteredList.length) return null;
+    return filteredList[idx];
+  }, [flippedLanyardIndex, activeLanyardIndex, filteredList]);
 
   // Carousel pagination
   const visibleCards = useMemo(() => {
@@ -421,6 +465,36 @@ function TeamMembersCard({
             </button>
           </div>
 
+          {/* View Mode Switcher: Lanyard 3D Rail vs Classic Cards */}
+          <div className="flex items-center p-1 bg-white/90 rounded-2xl border border-slate-200 shadow-xs">
+            <button
+              type="button"
+              onClick={() => setViewMode('lanyard')}
+              className={`px-3 py-1.5 rounded-xl text-[11.5px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                viewMode === 'lanyard'
+                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+              title="Interactive 3D Lanyard Badges Rail"
+            >
+              <FaIdBadge className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Lanyard Rail</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('cards')}
+              className={`px-3 py-1.5 rounded-xl text-[11.5px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                viewMode === 'cards'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+              title="Classic Cards Carousel"
+            >
+              <FaTableCellsLarge className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Card Grid</span>
+            </button>
+          </div>
+
           {/* Add Employee Button for Admins */}
           {isAdmin && onAddEmployee && (
             <motion.button
@@ -439,8 +513,8 @@ function TeamMembersCard({
             </motion.button>
           )}
 
-          {/* Carousel Arrows */}
-          {activeTotal > 4 && (
+          {/* Carousel Arrows (only in cards mode) */}
+          {viewMode === 'cards' && activeTotal > 4 && (
             <div className="flex items-center gap-1.5">
               <motion.button
                 whileHover={{ scale: 1.1 }}
@@ -482,8 +556,74 @@ function TeamMembersCard({
         </div>
       )}
 
-      {/* ── CARDS ROW (4 CARDS + ROUND PLUS BUTTON) ───── */}
-      {activeTotal > 0 && (
+      {/* ── TEAM CONTENT: Lanyard Rail (Default Style) or Cards Row ───── */}
+      {activeTotal > 0 && viewMode === 'lanyard' && (
+        <div className="mt-3 rounded-[24px] bg-white/80 border border-slate-200/70 shadow-xs overflow-hidden">
+          <TeamLanyardRail
+            items={lanyardMembers}
+            autoplay={false}
+            active={activeLanyardIndex}
+            onActiveChange={setActiveLanyardIndex}
+            flipped={flippedLanyardIndex}
+            onFlippedChange={setFlippedLanyardIndex}
+            eyebrow="Interactive Staff Badges"
+            heading="Team Lanyard Rail"
+            caption={
+              selectedLanyardMember
+                ? `${selectedLanyardMember.name} — ${selectedLanyardMember.role} (${selectedLanyardMember.department || 'AOTMS'})`
+                : "Brush along the rail to meet someone, pull a badge down, click to flip it."
+            }
+            action={
+              selectedLanyardMember && (
+                <div className="flex items-center gap-2 mt-1 flex-wrap justify-center">
+                  <button
+                    type="button"
+                    onClick={() => onSelectEmployee?.(selectedLanyardMember.raw || selectedLanyardMember)}
+                    className="inline-flex items-center gap-2 rounded-full bg-slate-900 hover:bg-orange-600 text-white px-4 py-2 text-xs font-bold shadow-sm transition-all cursor-pointer hover:shadow-md"
+                  >
+                    <FaEye className="w-3.5 h-3.5 text-orange-400" />
+                    <span>View Profile</span>
+                  </button>
+                  {isAdmin && onMapEmployee && (
+                    <button
+                      type="button"
+                      onClick={() => onMapEmployee?.(selectedLanyardMember.raw || selectedLanyardMember)}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 px-3.5 py-2 text-xs font-bold transition-all cursor-pointer"
+                    >
+                      <FaMapLocationDot className="w-3.5 h-3.5 text-sky-600" />
+                      <span>Locate</span>
+                    </button>
+                  )}
+                  {selectedLanyardMember.approvalStatus === 'pending' && isAdmin && (
+                    <button
+                      type="button"
+                      onClick={(e) => handleQuickAccept(selectedLanyardMember, e)}
+                      disabled={processingId === selectedLanyardMember._id}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 text-xs font-bold shadow-sm transition-all cursor-pointer"
+                    >
+                      <FaCircleCheck className="w-3.5 h-3.5" />
+                      <span>Approve Staff</span>
+                    </button>
+                  )}
+                  {selectedLanyardMember.approvalStatus === 'pending' && isAdmin && (
+                    <button
+                      type="button"
+                      onClick={(e) => handleOpenReject(selectedLanyardMember, e)}
+                      disabled={processingId === selectedLanyardMember._id}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-3.5 py-2 text-xs font-bold transition-all cursor-pointer"
+                    >
+                      <FaXmark className="w-3.5 h-3.5 text-rose-600" />
+                      <span>Reject</span>
+                    </button>
+                  )}
+                </div>
+              )
+            }
+          />
+        </div>
+      )}
+
+      {activeTotal > 0 && viewMode === 'cards' && (
         <div className="flex items-stretch gap-4 sm:gap-5 overflow-x-auto pt-10 pb-3 px-1 scrollbar-none">
           <AnimatePresence mode="popLayout" initial={false}>
             {visibleCards.map((emp) => {
