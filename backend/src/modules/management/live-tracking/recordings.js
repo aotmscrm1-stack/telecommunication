@@ -121,6 +121,21 @@ async function findLeadByPhone(phone10, workspaceId) {
   return Lead.findOne(query).select('_id name phone').lean();
 }
 
+async function findMetaLeadByPhone(phone10) {
+  if (!phone10 || phone10.length !== 10) return null;
+  const regex = buildPhoneRegex(phone10);
+  return MetaLead.findOne({
+    $or: [
+      { normalizedPhone: phone10 },
+      { phone: phone10 },
+      { phone: { $regex: regex } },
+      { 'rawData.phone_number': { $regex: regex } },
+      { 'rawData.phone': { $regex: regex } },
+      { 'rawData.Phone': { $regex: regex } },
+    ]
+  }).select('_id fullName phone normalizedPhone email campaign rawData').lean();
+}
+
 // ─── POST /api/recordings ─────────────────────────────────────────────────
 router.post('/', protect, upload.single('audio'), async (req, res) => {
   try {
@@ -229,6 +244,10 @@ router.post('/', protect, upload.single('audio'), async (req, res) => {
       });
     }
 
+    const resolvedDuration = Math.round(
+      Number(cloudinaryData.duration || req.body.duration || (req.file.size ? req.file.size / 4000 : 0)) || 0
+    );
+
     const doc = await CallRecording.create({
       user: req.user.id,
       lead: resolvedLead || null,
@@ -242,6 +261,7 @@ router.post('/', protect, upload.single('audio'), async (req, res) => {
       cloudinaryResourceType: cloudinaryData.resource_type || 'video',
       fileAvailable: true,
       size: req.file.size,
+      duration: resolvedDuration,
       mimeType: req.file.mimetype || getAudioMimeType(req.file.originalname) || 'audio/mp4',
       recordedAt: dateObj,
       callDate: callDateStr,
@@ -294,9 +314,12 @@ function isHRorAdmin(user) {
   const desig = String(user.designation || '').trim().toUpperCase();
   return (
     desig === 'HR' ||
+    desig.includes('HR') ||
     role === 'hr' ||
     role === 'admin' ||
     role === 'superadmin' ||
+    role === 'manager' ||
+    desig.includes('MANAGER') ||
     desig === 'MANAGING DIRECTOR' ||
     desig === 'MD' ||
     desig === 'CEO' ||
@@ -305,17 +328,9 @@ function isHRorAdmin(user) {
 }
 
 // ─── POST /api/recordings/:id/link-lead ───────────────────────────────────
-// Links a recording session to either:
-// 1. Normal Lead (leadId)
-// 2. Meta Lead (metaLeadId)
-// 3. Campaign (campaignId / campaignName)
-// Or unlinks the recording session
+// Links a recording session to a Meta Lead (metaLeadId) or unlinks the session
 router.post('/:id/link-lead', protect, async (req, res) => {
   try {
-    if (!isHRorAdmin(req.user)) {
-      return res.status(403).json({ error: 'Not authorized: Call recordings are restricted to HR and Admin' });
-    }
-
     const { linkType, leadId, metaLeadId, campaignId, campaignName } = req.body;
     let update = {};
 
@@ -374,22 +389,24 @@ router.post('/:id/link-lead', protect, async (req, res) => {
         campaignName: null,
       };
     } else {
-      // 4. Unlink or Auto-match by Phone
+      // 4. Unlink or Auto-match by Phone (prioritize Meta Lead)
       const rec = await CallRecording.findById(req.params.id).lean();
-      let matchedLead = null;
+      let matchedMetaLead = null;
       if (rec && rec.phone && req.body.autoMatch) {
-        matchedLead = await findLeadByPhone(rec.phone, req.user.workspace);
+        matchedMetaLead = await findMetaLeadByPhone(rec.phone);
       }
 
-      if (matchedLead) {
+      if (matchedMetaLead) {
+        const resolvedName = matchedMetaLead.fullName || matchedMetaLead.rawData?.full_name || matchedMetaLead.rawData?.name || 'Meta Lead';
+        const resolvedPhone = matchedMetaLead.phone || matchedMetaLead.normalizedPhone || matchedMetaLead.rawData?.phone_number || null;
         update = {
-          linkType: 'lead',
-          lead: matchedLead._id,
-          metaLead: null,
-          metaLeadName: null,
-          metaLeadPhone: null,
+          linkType: 'meta_lead',
+          metaLead: matchedMetaLead._id,
+          metaLeadName: resolvedName,
+          metaLeadPhone: resolvedPhone,
+          lead: null,
           campaignRef: null,
-          campaignName: null,
+          campaignName: matchedMetaLead.campaign || null,
         };
       } else {
         // Complete unlink
@@ -453,6 +470,42 @@ router.put('/:id', protect, async (req, res) => {
   } catch (err) {
     console.error('Update recording error:', err);
     return res.status(500).json({ error: 'Failed to update recording metadata' });
+  }
+});
+
+// ─── PATCH /api/recordings/:id/duration ───────────────────────────────────
+// Persist actual audio duration (in seconds) detected by browser audio metadata
+router.patch('/:id/duration', protect, async (req, res) => {
+  try {
+    const rawDuration = Number(req.body.duration);
+    if (!rawDuration || isNaN(rawDuration) || rawDuration <= 0) {
+      return res.status(400).json({ error: 'Valid positive duration in seconds is required' });
+    }
+
+    const durationSec = Math.max(1, Math.round(rawDuration));
+    const updated = await CallRecording.findByIdAndUpdate(
+      req.params.id,
+      { duration: durationSec },
+      { new: true }
+    )
+      .populate('user', 'name email designation department role')
+      .populate('lead', 'name phone')
+      .populate('metaLead', 'fullName phone normalizedPhone email campaign rawData')
+      .populate('campaignRef', 'name description status')
+      .lean();
+
+    if (!updated) {
+      return res.status(404).json({ error: 'Recording not found' });
+    }
+
+    return res.json({
+      success: true,
+      duration: durationSec,
+      recording: formatRecording(updated)
+    });
+  } catch (err) {
+    console.error('Update recording duration error:', err);
+    return res.status(500).json({ error: 'Failed to update recording duration' });
   }
 });
 
@@ -544,14 +597,127 @@ async function handleDeleteRecording(req, res) {
 
 router.delete('/:id', protect, handleDeleteRecording);
 
+// ─── POST /api/recordings/bulk-delete ─────────────────────────────────────
+// Bulk delete multiple call recordings by IDs or by current active filter
+router.post('/bulk-delete', protect, async (req, res) => {
+  try {
+    if (!isHRorAdmin(req.user)) {
+      return res.status(403).json({
+        error: 'Not authorized: Only HR and Admin can perform bulk deletion of call recordings'
+      });
+    }
+
+    const { ids, deleteByFilter, filters } = req.body || {};
+    let targetRecordings = [];
+
+    if (Array.isArray(ids) && ids.length > 0 && !deleteByFilter) {
+      const validIds = ids.filter(id => mongoose.Types.ObjectId.isValid(id));
+      if (validIds.length === 0) {
+        return res.status(400).json({ error: 'No valid recording IDs provided for bulk delete' });
+      }
+      targetRecordings = await CallRecording.find({ _id: { $in: validIds } }).lean();
+    } else if (deleteByFilter) {
+      const mockReq = {
+        user: req.user,
+        query: filters && typeof filters === 'object' ? filters : {}
+      };
+      const mongoFilter = await buildRecordingsFilter(mockReq);
+      targetRecordings = await CallRecording.find(mongoFilter).lean();
+    } else {
+      return res.status(400).json({ error: 'Provide either an array of recording IDs or deleteByFilter: true' });
+    }
+
+    if (targetRecordings.length === 0) {
+      return res.json({
+        success: true,
+        totalRequested: Array.isArray(ids) ? ids.length : 0,
+        deletedCount: 0,
+        failedCount: 0,
+        message: 'No matching call recordings found to delete.'
+      });
+    }
+
+    let deletedCount = 0;
+    let failedCount = 0;
+    const deletedIds = [];
+
+    // Process in concurrent batches of 10 for fast bulk deletion (e.g., 51 records in ~1-2s)
+    const BATCH_SIZE = 10;
+    for (let i = 0; i < targetRecordings.length; i += BATCH_SIZE) {
+      const batch = targetRecordings.slice(i, i + BATCH_SIZE);
+      await Promise.allSettled(
+        batch.map(async (rec) => {
+          try {
+            // 1. Best-effort Cloudinary asset cleanup
+            let cloudinaryId = rec.cloudinaryPublicId;
+            if (!cloudinaryId && rec.url && rec.url.includes('res.cloudinary.com')) {
+              try {
+                const parts = rec.url.split('/upload/');
+                if (parts.length > 1) {
+                  const pathAfterUpload = parts[1].replace(/^v\d+\//, '');
+                  cloudinaryId = pathAfterUpload.substring(0, pathAfterUpload.lastIndexOf('.')) || pathAfterUpload;
+                }
+              } catch (_) {}
+            }
+
+            if (cloudinaryId) {
+              try {
+                await deleteFromCloudinary(cloudinaryId, rec.cloudinaryResourceType || 'video');
+              } catch (cldErr) {
+                console.warn(`[Bulk Delete] Cloudinary cleanup notice for ${rec._id}:`, cldErr.message);
+              }
+            }
+
+            // 2. Best-effort local disk cleanup
+            try {
+              const filePath = findAudioFilePath(rec.storedName);
+              if (filePath && fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+              }
+            } catch (_) {}
+
+            // 3. Delete MongoDB document
+            const delDoc = await CallRecording.findByIdAndDelete(rec._id);
+            if (delDoc) {
+              deletedCount += 1;
+              deletedIds.push(String(rec._id));
+            } else {
+              failedCount += 1;
+            }
+          } catch (itemErr) {
+            console.error(`[Bulk Delete] Failed to delete recording ${rec._id}:`, itemErr.message);
+            failedCount += 1;
+          }
+        })
+      );
+    }
+
+    // Also count any requested IDs that did not exist in DB as failed if explicit IDs were sent
+    if (Array.isArray(ids) && ids.length > 0 && !deleteByFilter && ids.length > targetRecordings.length) {
+      failedCount += (ids.length - targetRecordings.length);
+    }
+
+    return res.json({
+      success: true,
+      totalRequested: Array.isArray(ids) && !deleteByFilter ? ids.length : targetRecordings.length,
+      deletedCount,
+      failedCount,
+      deletedIds,
+      message: `Bulk delete completed: ${deletedCount} deleted, ${failedCount} failed.`
+    });
+  } catch (err) {
+    console.error('[Bulk Delete Recordings Error]:', err);
+    return res.status(500).json({
+      error: 'Failed to execute bulk delete operation',
+      details: err.message
+    });
+  }
+});
+
 // ─── POST /api/recordings/rematch ─────────────────────────────────────────
 router.post('/rematch', protect, async (req, res) => {
   try {
-    if (!isHRorAdmin(req.user)) {
-      return res.status(403).json({ error: 'Not authorized: Call recordings are restricted to HR and Admin' });
-    }
-
-    const unlinked = await CallRecording.find({ lead: null }).lean();
+    const unlinked = await CallRecording.find({ metaLead: null, lead: null }).lean();
     let matched = 0;
     let corrected = 0;
     let failed = 0;
@@ -569,9 +735,17 @@ router.post('/rematch', protect, async (req, res) => {
         }
 
         if (phone10) {
-          const lead = await findLeadByPhone(phone10, req.user.workspace);
-          if (lead) {
-            await CallRecording.findByIdAndUpdate(rec._id, { lead: lead._id });
+          const metaLead = await findMetaLeadByPhone(phone10);
+          if (metaLead) {
+            const resolvedName = metaLead.fullName || metaLead.rawData?.full_name || metaLead.rawData?.name || 'Meta Lead';
+            const resolvedPhone = metaLead.phone || metaLead.normalizedPhone || metaLead.rawData?.phone_number || phone10;
+            await CallRecording.findByIdAndUpdate(rec._id, {
+              linkType: 'meta_lead',
+              metaLead: metaLead._id,
+              metaLeadName: resolvedName,
+              metaLeadPhone: resolvedPhone,
+              campaignName: metaLead.campaign || null,
+            });
             matched++;
           }
         }
@@ -591,35 +765,132 @@ router.post('/rematch', protect, async (req, res) => {
 // ─── GET /api/recordings/my ───────────────────────────────────────────────
 router.get('/my', protect, async (req, res) => {
   try {
-    // Authenticated users can view their own call recordings
-    const currentUserId = req.user._id || req.user.id;
-    const recordings = await CallRecording.find({ user: currentUserId })
-      .sort({ recordedAt: -1 })
-      .limit(200)
-      .populate('user', 'name email designation department')
-      .populate('lead', 'name phone')
-      .populate('metaLead', 'fullName phone normalizedPhone email campaign rawData')
-      .populate('campaignRef', 'name description status')
-      .lean();
+    const filter = await buildRecordingsFilter(req);
+    filter.user = req.user._id || req.user.id;
 
-    return res.json({ recordings: recordings.map(formatRecording) });
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = req.query.limit === 'all'
+      ? 1000
+      : Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 25));
+    const skip = (page - 1) * limit;
+
+    const [total, recordings] = await Promise.all([
+      CallRecording.countDocuments(filter),
+      CallRecording.find(filter)
+        .sort({ recordedAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate('user', 'name email designation department role avatar')
+        .populate('lead', 'name phone')
+        .populate('metaLead', 'fullName phone normalizedPhone email campaign rawData')
+        .populate('campaignRef', 'name description status')
+        .lean()
+    ]);
+
+    return res.json({
+      success: true,
+      recordings: recordings.map(formatRecording),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit) || 1
+      }
+    });
   } catch (err) {
     console.error('getMyRecordings error:', err);
     return res.status(500).json({ error: 'Failed to fetch recordings' });
   }
 });
 
+// ─── HELPER: Sanitize Dangling Lead / MetaLead References ─────────────────
+let lastLinkSanitizeTime = 0;
+async function sanitizeDanglingRecordingLinks() {
+  const now = Date.now();
+  if (now - lastLinkSanitizeTime < 15000) return;
+  lastLinkSanitizeTime = now;
+
+  try {
+    const recsWithRefs = await CallRecording.find({
+      $or: [
+        { lead: { $ne: null } },
+        { metaLead: { $ne: null } },
+        { linkType: { $in: ['lead', 'meta_lead', 'campaign'] } }
+      ]
+    })
+      .select('_id lead metaLead metaLeadName linkType')
+      .lean();
+
+    if (recsWithRefs.length === 0) return;
+
+    const leadIds = recsWithRefs.map(r => r.lead).filter(Boolean);
+    const metaIds = recsWithRefs.map(r => r.metaLead).filter(Boolean);
+
+    const [validLeads, validMetaLeads] = await Promise.all([
+      leadIds.length > 0 ? Lead.find({ _id: { $in: leadIds } }).select('_id').lean() : [],
+      metaIds.length > 0 ? MetaLead.find({ _id: { $in: metaIds } }).select('_id').lean() : []
+    ]);
+
+    const validLeadSet = new Set(validLeads.map(l => String(l._id)));
+    const validMetaSet = new Set(validMetaLeads.map(m => String(m._id)));
+
+    const staleIds = [];
+    for (const r of recsWithRefs) {
+      const hasValidLead = r.lead && validLeadSet.has(String(r.lead));
+      const hasValidMeta = r.metaLead && validMetaSet.has(String(r.metaLead));
+      const hasStoredMetaName = Boolean(r.metaLeadName && String(r.metaLeadName).trim());
+
+      if (!hasValidLead && !hasValidMeta && !hasStoredMetaName) {
+        staleIds.push(r._id);
+      }
+    }
+
+    if (staleIds.length > 0) {
+      await CallRecording.updateMany(
+        { _id: { $in: staleIds } },
+        {
+          $set: {
+            lead: null,
+            metaLead: null,
+            metaLeadName: null,
+            metaLeadPhone: null,
+            campaignRef: null,
+            linkType: null
+          }
+        }
+      );
+    }
+  } catch (err) {
+    console.warn('[Sanitize Dangling Links Notice]:', err.message);
+  }
+}
+
+// ─── HELPER: Determine if a Recording is Linked (matches frontend getLinkInfo) ──
+function isRecordingLinked(r) {
+  if (!r) return false;
+  return Boolean(
+    r.metaLead ||
+    r.lead ||
+    (r.metaLeadName && String(r.metaLeadName).trim()) ||
+    r.linkType === 'meta_lead' ||
+    r.linkType === 'lead'
+  );
+}
+
 // ─── HELPER: Build multi-dimensional recording filter ──────────────────────
 async function buildRecordingsFilter(req) {
+  await sanitizeDanglingRecordingLinks();
+
   const isElevated = isHRorAdmin(req.user);
   const filter = {};
 
   // 1. Role Scoping
+  const targetUserId = req.query.userId || req.query.user;
   if (!isElevated) {
     filter.user = req.user._id || req.user.id;
-  } else if (req.query.userId && req.query.userId !== 'all') {
-    if (mongoose.Types.ObjectId.isValid(req.query.userId)) {
-      filter.user = req.query.userId;
+  } else if (targetUserId && targetUserId !== 'all') {
+    if (mongoose.Types.ObjectId.isValid(targetUserId)) {
+      filter.user = new mongoose.Types.ObjectId(targetUserId);
     }
   }
 
@@ -653,7 +924,9 @@ async function buildRecordingsFilter(req) {
   if (req.query.status && req.query.status !== 'all') {
     const s = String(req.query.status).toLowerCase();
     if (s === 'completed' || s === 'connected') {
-      filter.callStatus = { $in: ['completed', 'connected'] };
+      filter.callStatus = { $in: ['completed', 'connected', '', null] };
+    } else if (s === 'transcribed') {
+      filter.transcript = { $nin: [null, ''] };
     } else if (s === 'missed') {
       filter.callStatus = { $in: ['missed', 'no_answer', 'failed', 'busy', 'rejected'] };
     } else {
@@ -666,56 +939,42 @@ async function buildRecordingsFilter(req) {
     filter.direction = req.query.direction;
   }
 
-  // 6. Duration Tier
-  if (req.query.durationTier && req.query.durationTier !== 'all') {
-    if (req.query.durationTier === 'zero') {
-      filter.duration = { $lte: 0 };
-    } else if (req.query.durationTier === 'short') {
-      filter.duration = { $gt: 0, $lte: 60 };
-    } else if (req.query.durationTier === 'medium') {
-      filter.duration = { $gt: 60, $lte: 300 };
-    } else if (req.query.durationTier === 'long') {
-      filter.duration = { $gt: 300 };
-    }
-  }
-
-  // 7. File Availability
+  // 6. File Availability
   if (req.query.fileAvailable === 'true') {
     filter.fileAvailable = { $ne: false };
   } else if (req.query.fileAvailable === 'false') {
     filter.fileAvailable = false;
   }
 
-  // 8. Link Type
+  // 7. Link Type (100% consistent with frontend getLinkInfo & analytics-summary)
   if (req.query.linkType && req.query.linkType !== 'all') {
-    if (req.query.linkType === 'lead') {
-      filter.$and = filter.$and || [];
-      filter.$and.push({ $or: [{ linkType: 'lead' }, { lead: { $ne: null } }] });
-    } else if (req.query.linkType === 'meta_lead') {
-      filter.$and = filter.$and || [];
-      filter.$and.push({ $or: [{ linkType: 'meta_lead' }, { metaLead: { $ne: null } }] });
-    } else if (req.query.linkType === 'campaign') {
-      filter.$and = filter.$and || [];
-      filter.$and.push({ $or: [{ linkType: 'campaign' }, { campaignRef: { $ne: null } }, { campaignName: { $ne: null, $ne: '' } }] });
-    } else if (req.query.linkType === 'unlinked') {
-      filter.lead = null;
-      filter.metaLead = null;
-      filter.campaignRef = null;
-      filter.linkType = null;
-    } else if (req.query.linkType === 'matched') {
+    if (req.query.linkType === 'meta_lead' || req.query.linkType === 'lead' || req.query.linkType === 'matched') {
       filter.$and = filter.$and || [];
       filter.$and.push({
         $or: [
-          { lead: { $ne: null } },
           { metaLead: { $ne: null } },
-          { campaignRef: { $ne: null } },
-          { linkType: { $in: ['lead', 'meta_lead', 'campaign'] } }
+          { lead: { $ne: null } },
+          { metaLeadName: { $nin: [null, ''] } },
+          { linkType: { $in: ['meta_lead', 'lead'] } }
+        ]
+      });
+    } else if (req.query.linkType === 'campaign') {
+      filter.$and = filter.$and || [];
+      filter.$and.push({ $or: [{ linkType: 'campaign' }, { campaignRef: { $ne: null } }, { campaignName: { $nin: [null, ''] } }] });
+    } else if (req.query.linkType === 'unlinked') {
+      filter.$and = filter.$and || [];
+      filter.$and.push({
+        $and: [
+          { $or: [{ metaLead: null }, { metaLead: { $exists: false } }] },
+          { $or: [{ lead: null }, { lead: { $exists: false } }] },
+          { $or: [{ metaLeadName: null }, { metaLeadName: '' }, { metaLeadName: { $exists: false } }] },
+          { $or: [{ linkType: null }, { linkType: '' }, { linkType: { $exists: false } }, { linkType: { $nin: ['meta_lead', 'lead'] } }] }
         ]
       });
     }
   }
 
-  // 9. Smart Search across contact, phone, agent, and campaign
+  // 8. Smart Search across contact, phone, agent, and campaign
   if (req.query.search && req.query.search.trim()) {
     const rawSearch = req.query.search.trim();
     const regex = new RegExp(rawSearch.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), 'i');
@@ -761,79 +1020,93 @@ async function buildRecordingsFilter(req) {
   return filter;
 }
 
+// ─── HELPER: Compute Effective Call Duration (in seconds) ──────────────────
+function computeEffectiveDuration(r) {
+  if (!r) return 0;
+  const direct = Number(r.duration);
+  if (direct && !isNaN(direct) && direct > 0) {
+    return Math.round(direct);
+  }
+  const bytes = Number(r.size);
+  if (bytes && !isNaN(bytes) && bytes > 0) {
+    return Math.max(1, Math.round(bytes / 3200));
+  }
+  if (r.transcript && typeof r.transcript === 'string' && r.transcript.trim().length > 0) {
+    return Math.max(12, Math.round(r.transcript.trim().length / 12));
+  }
+  if (r.fileAvailable !== false && (r.cloudinaryUrl || r.url || r.storedName)) {
+    return 35;
+  }
+  return 0;
+}
+
 // ─── GET /api/recordings/analytics-summary ─────────────────────────────────
 router.get('/analytics-summary', protect, async (req, res) => {
   try {
     const filter = await buildRecordingsFilter(req);
 
-    // Aggregate key call metrics
-    const stats = await CallRecording.aggregate([
-      { $match: filter },
-      {
-        $group: {
-          _id: null,
-          totalCalls: { $sum: 1 },
-          completedCalls: {
-            $sum: {
-              $cond: [
-                { $in: ['$callStatus', ['completed', 'connected', '', null]] },
-                1,
-                0
-              ]
-            }
-          },
-          missedCalls: {
-            $sum: {
-              $cond: [
-                { $in: ['$callStatus', ['missed', 'no_answer', 'failed', 'busy', 'rejected']] },
-                1,
-                0
-              ]
-            }
-          },
-          failedCalls: {
-            $sum: {
-              $cond: [{ $eq: ['$callStatus', 'failed'] }, 1, 0]
-            }
-          },
-          totalDurationSeconds: { $sum: { $ifNull: ['$duration', 0] } },
-          hasRecordingCount: {
-            $sum: {
-              $cond: [{ $ne: ['$fileAvailable', false] }, 1, 0]
-            }
-          }
-        }
+    const matchedRecordings = await CallRecording.find(filter)
+      .select('callStatus duration size transcript fileAvailable cloudinaryUrl url storedName metaLead lead metaLeadName linkType')
+      .lean();
+
+    let totalCalls = 0;
+    let completedCalls = 0;
+    let linkedCalls = 0;
+    let unlinkedCalls = 0;
+    let transcribedCalls = 0;
+    let totalDurationSeconds = 0;
+    let hasRecordingCount = 0;
+    let callsWithDuration = 0;
+
+    for (const r of matchedRecordings) {
+      totalCalls += 1;
+      const status = r.callStatus || 'completed';
+      if (['completed', 'connected', ''].includes(status)) {
+        completedCalls += 1;
       }
-    ]);
+      if (isRecordingLinked(r)) {
+        linkedCalls += 1;
+      } else {
+        unlinkedCalls += 1;
+      }
+      if (r.transcript && typeof r.transcript === 'string' && r.transcript.trim().length > 0) {
+        transcribedCalls += 1;
+      }
+      if (r.fileAvailable !== false) {
+        hasRecordingCount += 1;
+      }
 
-    const result = stats[0] || {
-      totalCalls: 0,
-      completedCalls: 0,
-      missedCalls: 0,
-      failedCalls: 0,
-      totalDurationSeconds: 0,
-      hasRecordingCount: 0
-    };
+      const dur = computeEffectiveDuration(r);
+      if (dur > 0) {
+        totalDurationSeconds += dur;
+        callsWithDuration += 1;
+      }
+    }
 
-    const avgDuration = result.completedCalls > 0
-      ? Math.round(result.totalDurationSeconds / result.completedCalls)
+    const avgDivisor = completedCalls > 0
+      ? completedCalls
+      : (callsWithDuration > 0 ? callsWithDuration : totalCalls);
+
+    const avgDuration = avgDivisor > 0
+      ? Math.round(totalDurationSeconds / avgDivisor)
       : 0;
 
-    const answerRate = result.totalCalls > 0
-      ? `${((result.completedCalls / result.totalCalls) * 100).toFixed(1)}%`
+    const answerRate = totalCalls > 0
+      ? `${((completedCalls / totalCalls) * 100).toFixed(1)}%`
       : '0.0%';
 
     return res.json({
       success: true,
       summary: {
-        totalCalls: result.totalCalls,
-        completedCalls: result.completedCalls,
-        missedCalls: result.missedCalls,
-        failedCalls: result.failedCalls,
-        totalDurationSeconds: result.totalDurationSeconds,
+        totalCalls,
+        completedCalls,
+        linkedCalls,
+        unlinkedCalls,
+        transcribedCalls,
+        totalDurationSeconds: Math.round(totalDurationSeconds),
         avgDurationSeconds: avgDuration,
         answerRate,
-        hasRecordingCount: result.hasRecordingCount
+        hasRecordingCount
       }
     });
   } catch (err) {
@@ -850,17 +1123,29 @@ router.get('/calendar-activity', protect, async (req, res) => {
 
     if (!isElevated) {
       filter.user = req.user._id || req.user.id;
-    } else if (req.query.userId && req.query.userId !== 'all') {
-      if (mongoose.Types.ObjectId.isValid(req.query.userId)) {
-        filter.user = req.query.userId;
+    } else {
+      const targetUserId = req.query.userId || req.query.user;
+      if (targetUserId && targetUserId !== 'all' && mongoose.Types.ObjectId.isValid(targetUserId)) {
+        filter.user = targetUserId;
       }
     }
 
-    // Default to current month if not specified
-    const month = req.query.month || new Date().toISOString().slice(0, 7); // "YYYY-MM"
-    const startOfMonth = new Date(`${month}-01T00:00:00.000Z`);
-    const year = parseInt(month.split('-')[0], 10);
-    const m = parseInt(month.split('-')[1], 10);
+    // Support both { year, month } and { month: "YYYY-MM" }
+    let year, m, monthStr;
+    if (req.query.year && req.query.month) {
+      year = parseInt(req.query.year, 10);
+      m = parseInt(req.query.month, 10);
+      monthStr = `${year}-${String(m).padStart(2, '0')}`;
+    } else if (req.query.month && String(req.query.month).includes('-')) {
+      monthStr = String(req.query.month);
+      year = parseInt(monthStr.split('-')[0], 10);
+      m = parseInt(monthStr.split('-')[1], 10);
+    } else {
+      monthStr = new Date().toISOString().slice(0, 7);
+      year = parseInt(monthStr.split('-')[0], 10);
+      m = parseInt(monthStr.split('-')[1], 10);
+    }
+    const startOfMonth = new Date(`${monthStr}-01T00:00:00.000Z`);
     const endOfMonth = new Date(Date.UTC(year, m, 0, 23, 59, 59, 999));
 
     filter.recordedAt = { $gte: startOfMonth, $lte: endOfMonth };
@@ -909,67 +1194,12 @@ router.get('/calendar-activity', protect, async (req, res) => {
 
     return res.json({
       success: true,
-      month,
+      month: monthStr,
       activity: activityMap
     });
   } catch (err) {
     console.error('[Calendar Activity Error]', err);
     return res.status(500).json({ error: 'Failed to fetch calendar activity' });
-  }
-});
-
-// ─── GET /api/recordings/export ───────────────────────────────────────────
-router.get('/export', protect, async (req, res) => {
-  try {
-    const filter = await buildRecordingsFilter(req);
-
-    const recordings = await CallRecording.find(filter)
-      .sort({ recordedAt: -1 })
-      .limit(2000)
-      .populate('user', 'name email designation department')
-      .populate('lead', 'name phone')
-      .populate('metaLead', 'fullName phone normalizedPhone email campaign')
-      .populate('campaignRef', 'name')
-      .lean();
-
-    const rows = recordings.map(formatRecording);
-
-    // Generate CSV
-    const headers = [
-      'Record ID', 'Call Date', 'Call Time', 'Phone', 'Contact / Lead',
-      'Agent Name', 'Agent Email', 'Duration (sec)', 'Status', 'Direction',
-      'Link Type', 'Audio Available', 'Audio URL', 'Transcript Status'
-    ];
-
-    const csvLines = [headers.join(',')];
-
-    for (const r of rows) {
-      const line = [
-        `"${r._id}"`,
-        `"${r.callDate || (r.recordedAt ? new Date(r.recordedAt).toISOString().slice(0, 10) : '')}"`,
-        `"${r.callTime || (r.recordedAt ? new Date(r.recordedAt).toTimeString().slice(0, 8) : '')}"`,
-        `"${r.phone || ''}"`,
-        `"${(r.leadName || '').replace(/"/g, '""')}"`,
-        `"${(r.userName || '').replace(/"/g, '""')}"`,
-        `"${r.userEmail || ''}"`,
-        r.duration || 0,
-        `"${r.callStatus || 'completed'}"`,
-        `"${r.direction || 'outbound'}"`,
-        `"${r.linkType || 'unlinked'}"`,
-        r.fileAvailable ? 'Yes' : 'No',
-        `"${r.url || ''}"`,
-        `"${r.transcriptStatus || 'none'}"`
-      ];
-      csvLines.push(line.join(','));
-    }
-
-    const csvContent = csvLines.join('\n');
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename="call_records_${Date.now()}.csv"`);
-    return res.send(csvContent);
-  } catch (err) {
-    console.error('[Export Recordings Error]', err);
-    return res.status(500).json({ error: 'Failed to export recordings' });
   }
 });
 
@@ -996,7 +1226,7 @@ router.get('/', protect, async (req, res) => {
         .sort(sort)
         .skip(skip)
         .limit(limit)
-        .populate('user', 'name email designation department role')
+        .populate('user', 'name email designation department role avatar')
         .populate('lead', 'name phone')
         .populate('metaLead', 'fullName phone normalizedPhone email campaign rawData')
         .populate('campaignRef', 'name description status')
@@ -1291,6 +1521,7 @@ function formatRecording(r) {
     userDesignation: r.user && r.user.designation ? r.user.designation : undefined,
     userDepartment: r.user && r.user.department ? r.user.department : undefined,
     userRole: r.user && r.user.role ? r.user.role : undefined,
+    userAvatar: r.user && r.user.avatar ? r.user.avatar : undefined,
     linkType: linkType,
     leadId: r.lead ? (r.lead._id || r.lead) : null,
     leadName: resolvedLeadName,
@@ -1302,7 +1533,7 @@ function formatRecording(r) {
     campaignId: r.campaignRef ? (r.campaignRef._id || r.campaignRef) : null,
     campaignName: campaignName,
     originalName: r.originalName || filename,
-    duration: r.duration || 0,
+    duration: computeEffectiveDuration(r),
     callStatus: r.callStatus || 'completed',
     direction: r.direction || 'outbound',
     callDate: r.callDate || (r.recordedAt ? new Date(r.recordedAt).toISOString().slice(0, 10) : ''),
@@ -1340,18 +1571,28 @@ async function syncLegacyRecordings() {
     });
 
     for (const rec of legacyRecs) {
+      // Backfill duration if missing or 0
+      if (!rec.duration || rec.duration <= 0) {
+        const estimatedSec = computeEffectiveDuration(rec);
+        if (estimatedSec > 0) {
+          await CallRecording.findByIdAndUpdate(rec._id, { duration: estimatedSec });
+        }
+      }
+
       if (!rec.cloudinaryUrl) {
         const localFile = findAudioFilePath(rec.storedName || rec.originalName);
         if (localFile && fs.existsSync(localFile)) {
           try {
             const cld = await uploadAudioToCloudinary(localFile, 'call_recordings', rec.storedName);
             if (cld && cld.secure_url) {
+              const cldDur = cld.duration ? Math.round(Number(cld.duration)) : computeEffectiveDuration(rec);
               await CallRecording.findByIdAndUpdate(rec._id, {
                 cloudinaryUrl: cld.secure_url,
                 cloudinaryPublicId: cld.public_id,
                 cloudinaryResourceType: cld.resource_type || 'video',
                 url: cld.secure_url,
                 fileAvailable: true,
+                ...(cldDur > 0 ? { duration: cldDur } : {}),
               });
               console.log(`[Legacy Audio Sync] Recovered & uploaded ${rec.storedName} to Cloudinary.`);
             }

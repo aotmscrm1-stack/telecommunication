@@ -5,9 +5,12 @@ const mongoose = require('mongoose');
 const FollowUp = require('../../database/models/FollowUp');
 const Todo = require('../../database/models/Todo');
 const Lead = require('../../database/models/Lead');
+const MetaLead = require('../../database/models/MetaLead');
+const MetaCampaignAssignment = require('../../database/models/MetaCampaignAssignment');
 const User = require('../../database/models/User');
 const { protect, authorize } = require('../../core/middleware/auth');
 const { notifyAdminsTaskCreated, notifyAdminsTaskEdited } = require('../../modules/notifications/notificationService');
+const { broadcastWebSocketEvent } = require('../../app/websocket');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -116,7 +119,8 @@ router.get('/', protect, async (req, res) => {
     }
 
     if (isValidId(leadId)) {
-      query.lead = leadId;
+      query.$and = query.$and || [];
+      query.$and.push({ $or: [{ lead: leadId }, { metaLeadId: leadId }] });
     }
 
     const isAdmin = isStrictAdmin(req.user);
@@ -455,9 +459,36 @@ router.post('/', protect, async (req, res) => {
     const assignedToVal = isValidId(req.body.assignedTo) ? req.body.assignedTo : req.user._id;
     const assignedByVal = isValidId(req.body.assignedBy) ? req.body.assignedBy : req.user._id;
 
+    let resolvedLeadName = req.body.leadName || '';
+    let resolvedLeadPhone = req.body.leadPhone || '';
+    let resolvedCampaign = req.body.campaign || '';
+    let resolvedMetaLeadId = isValidId(req.body.metaLeadId) ? req.body.metaLeadId : null;
+
+    if (!resolvedMetaLeadId && isValidId(body.lead)) {
+      const maybeMeta = await MetaLead.findById(body.lead).lean().catch(() => null);
+      if (maybeMeta) {
+        resolvedMetaLeadId = maybeMeta._id;
+        resolvedLeadName = resolvedLeadName || maybeMeta.fullName || maybeMeta.rawData?.full_name || maybeMeta.rawData?.Name || '';
+        resolvedLeadPhone = resolvedLeadPhone || maybeMeta.phone || maybeMeta.normalizedPhone || '';
+        resolvedCampaign = resolvedCampaign || maybeMeta.campaign || '';
+      }
+    } else if (resolvedMetaLeadId) {
+      const maybeMeta = await MetaLead.findById(resolvedMetaLeadId).lean().catch(() => null);
+      if (maybeMeta) {
+        resolvedLeadName = resolvedLeadName || maybeMeta.fullName || maybeMeta.rawData?.full_name || maybeMeta.rawData?.Name || '';
+        resolvedLeadPhone = resolvedLeadPhone || maybeMeta.phone || maybeMeta.normalizedPhone || '';
+        resolvedCampaign = resolvedCampaign || maybeMeta.campaign || '';
+      }
+    }
+
     const baseDoc = {
       ...body,
       type: itemType,
+      metaLeadId: resolvedMetaLeadId || undefined,
+      leadName: resolvedLeadName,
+      leadPhone: resolvedLeadPhone,
+      campaign: resolvedCampaign,
+      filledByName: req.user.name || req.body.filledByName || 'Agent',
       assignedTo: assignedToVal,
       assignedBy: assignedByVal,
       createdBy: req.user._id,
@@ -473,15 +504,51 @@ router.post('/', protect, async (req, res) => {
 
     await followup.populate('lead', 'name phone status');
     await followup.populate('assignedTo', 'name email');
+    await followup.populate('createdBy', 'name email');
     if (baseDoc.assignedBy && mongoose.Types.ObjectId.isValid(baseDoc.assignedBy)) {
       await followup.populate('assignedBy', 'name email');
     } else if (baseDoc.assignedBy === 'all' || baseDoc.assignedBy === 'All') {
       followup.assignedBy = { _id: 'all', name: 'All' };
     }
 
+    if (resolvedMetaLeadId && itemType === 'call_followup') {
+      await MetaLead.findByIdAndUpdate(resolvedMetaLeadId, {
+        $set: { followUpDate: followup.scheduledAt }
+      }).catch(() => {});
+    }
+
+    let callbackToastPayload = null;
+    if (itemType === 'call_followup') {
+      let campaignAssignedUserIds = [];
+      if (resolvedCampaign) {
+        const campAssign = await MetaCampaignAssignment.findOne({ campaign: resolvedCampaign }).select('assignedUsers').lean().catch(() => null);
+        if (campAssign && Array.isArray(campAssign.assignedUsers)) {
+          campaignAssignedUserIds = campAssign.assignedUsers.map(id => String(id));
+        }
+      }
+      callbackToastPayload = {
+        followupId: String(followup._id),
+        leadId: String(followup.lead?._id || followup.lead || resolvedMetaLeadId || ''),
+        metaLeadId: resolvedMetaLeadId ? String(resolvedMetaLeadId) : '',
+        leadName: resolvedLeadName || followup.lead?.name || 'Lead',
+        leadPhone: resolvedLeadPhone || followup.lead?.phone || '',
+        campaign: resolvedCampaign || '',
+        filledById: String(req.user._id),
+        filledByName: req.user.name || baseDoc.filledByName || 'Agent',
+        assignedToId: String(assignedToVal),
+        assignedToName: followup.assignedTo?.name || req.user.name || 'Agent',
+        campaignAssignedUserIds,
+        scheduledAt: followup.scheduledAt,
+        note: followup.note || ''
+      };
+      try {
+        broadcastWebSocketEvent('callback:scheduled', callbackToastPayload);
+      } catch (_) {}
+    }
+
     fireAndForget(() => notifyAdminsTaskCreated({ followup, performedByUser: req.user }));
 
-    return res.status(201).json({ followup });
+    return res.status(201).json({ followup, callbackToastPayload });
   } catch (err) {
     console.error('[POST /followups]', err);
     res.status(500).json({ message: err.message });

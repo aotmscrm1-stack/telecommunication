@@ -4,34 +4,22 @@ import {
   FiX, FiSearch, FiCheck, FiUsers, FiAlertTriangle, FiCheckCircle, FiLoader
 } from 'react-icons/fi';
 
-// Color Palette
-const T = {
-  white: '#ffffff',
-  bg: '#f8fafc',
-  border: '#e2e8f0',
-  borderSoft: '#f1f5f9',
-  text: '#1e293b',
-  textSecondary: '#475569',
-  muted: '#64748b',
-  subtle: '#94a3b8',
-  blue: '#2563eb',
-  blueHover: '#1d4ed8',
-  blueLight: '#eff6ff',
-  blueBorder: '#bfdbfe',
-  emerald: '#10b981',
-  emeraldLight: '#ecfdf5',
-  rose: '#f43f5e',
-  roseLight: '#fff1f2',
-};
+// "Create Todo Item" Palette
+const TODO_DEEP_BLUE = '#023047';
+const TODO_BLUE_GREEN = '#219ebc';
+const TODO_SKY_SURFACE = '#e8f4fa';
+const TODO_BORDER = '#bbdff0';
+const TODO_INPUT_BORDER = '#d8e2eb';
+const TODO_ORANGE = '#fb8500';
+const TODO_MUTED = '#5b7082';
 
-// Avatar color palettes based on string hash
 const AVATAR_COLORS = [
-  { bg: '#dbeafe', text: '#1d4ed8' }, // blue
-  { bg: '#fef3c7', text: '#b45309' }, // amber
-  { bg: '#dcfce7', text: '#15803d' }, // green
-  { bg: '#f3e8ff', text: '#7e22ce' }, // purple
-  { bg: '#ffe4e6', text: '#be123c' }, // rose
-  { bg: '#e0e7ff', text: '#4338ca' }, // indigo
+  { bg: '#e8f4fa', text: '#023047' },
+  { bg: '#fef3c7', text: '#b45309' },
+  { bg: '#dcfce7', text: '#15803d' },
+  { bg: '#e0f2fe', text: '#0369a1' },
+  { bg: '#ffe4e6', text: '#be123c' },
+  { bg: '#e0e7ff', text: '#4338ca' },
 ];
 
 function getAvatarStyle(name = '') {
@@ -63,9 +51,8 @@ export default function AssignMembersModal({
   const [search, setSearch] = useState('');
   const [filterChip, setFilterChip] = useState('all'); // 'all' | 'assigned' | 'telecaller' | 'marketing'
   const [saving, setSaving] = useState(false);
-  const [feedback, setFeedback] = useState(null); // { type: 'success' | 'error', message: string }
+  const [feedback, setFeedback] = useState(null);
 
-  // Sync selectedIds whenever the modal opens or campaign/currentAssignedUserIds changes
   useEffect(() => {
     if (isOpen) {
       setSelectedIds(new Set((currentAssignedUserIds || []).map(id => String(id?._id || id))));
@@ -75,7 +62,6 @@ export default function AssignMembersModal({
     }
   }, [isOpen, campaign, currentAssignedUserIds]);
 
-  // Toggle selection for a user
   const toggleUser = (userId) => {
     const idStr = String(userId);
     setSelectedIds((prev) => {
@@ -89,7 +75,6 @@ export default function AssignMembersModal({
     });
   };
 
-  // Direct remove / deselect function
   const removeMember = (userId, e) => {
     if (e && e.stopPropagation) e.stopPropagation();
     const idStr = String(userId);
@@ -100,24 +85,21 @@ export default function AssignMembersModal({
     });
   };
 
-  // Deselect All / Clear All assigned members
   const clearAllSelected = () => {
     setSelectedIds(new Set());
   };
 
-  // Filtered employees based on search & filter chip
   const filteredEmployees = useMemo(() => {
     const s = search.toLowerCase().trim();
     return employees.filter((emp) => {
       const empIdStr = String(emp._id || emp.id);
 
-      // 1. Filter Chip
       if (filterChip === 'assigned') {
         if (!selectedIds.has(empIdStr)) return false;
       } else if (filterChip === 'telecaller') {
         const desig = (emp.designation || '').toLowerCase();
         const dept = (emp.department || '').toLowerCase();
-        const isTele = desig.includes('tele') || desig.includes('call') || desig.includes('sales') || dept.includes('sales');
+        const isTele = desig.includes('tele') || desig.includes('call') || desig.includes('sales') || dept.includes('sales') || desig.includes('counsellor');
         if (!isTele) return false;
       } else if (filterChip === 'marketing') {
         const desig = (emp.designation || '').toLowerCase();
@@ -126,7 +108,6 @@ export default function AssignMembersModal({
         if (!isMkt) return false;
       }
 
-      // 2. Search query
       if (!s) return true;
       const name = (emp.name || '').toLowerCase();
       const email = (emp.email || '').toLowerCase();
@@ -136,12 +117,10 @@ export default function AssignMembersModal({
     });
   }, [employees, search, filterChip, selectedIds]);
 
-  // List of currently selected employee objects for the top assigned chips
   const selectedEmployeeObjects = useMemo(() => {
     return employees.filter(emp => selectedIds.has(String(emp._id || emp.id)));
   }, [employees, selectedIds]);
 
-  // Handle Confirm Submission
   const handleConfirm = async () => {
     setSaving(true);
     setFeedback(null);
@@ -165,191 +144,237 @@ export default function AssignMembersModal({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
-        {/* Backdrop */}
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(2, 48, 71, 0.45)',
+          backdropFilter: 'blur(2px)',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 16
+        }}
+        onClick={!saving ? onClose : undefined}
+      >
+        {/* Modal Window — "Create Todo Item" Style */}
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={!saving ? onClose : undefined}
-          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"
-        />
-
-        {/* Modal Window */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.96, y: 12 }}
+          initial={{ opacity: 0, scale: 0.96, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.96, y: 12 }}
-          transition={{ duration: 0.2 }}
-          className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]"
+          exit={{ opacity: 0, scale: 0.96, y: 10 }}
+          transition={{ duration: 0.18 }}
+          onClick={e => e.stopPropagation()}
+          style={{
+            background: '#fff',
+            borderRadius: 14,
+            width: '100%',
+            maxWidth: 520,
+            padding: 24,
+            boxShadow: '0 12px 36px rgba(2, 48, 71, 0.16)',
+            border: `1px solid ${TODO_BORDER}`,
+            maxHeight: '90vh',
+            display: 'flex',
+            flexDirection: 'column',
+            boxSizing: 'border-box'
+          }}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4.5 border-b border-slate-100 bg-white">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-semibold">
-                <FiUsers className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <h3 className="text-base font-semibold text-slate-800 flex items-center gap-2">
-                  Assign Campaign Access
-                </h3>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-xs text-slate-500 font-normal">Campaign:</span>
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
-                    {campaign}
-                  </span>
-                </div>
-              </div>
-            </div>
-
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <h3 style={{ fontSize: 18, fontWeight: 500, color: TODO_DEEP_BLUE, margin: 0 }}>
+              Assign Campaign Access
+            </h3>
             <button
+              type="button"
               onClick={onClose}
               disabled={saving}
-              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-              title="Close"
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: 22,
+                color: TODO_MUTED,
+                lineHeight: 1,
+                padding: 0
+              }}
             >
-              <FiX className="w-5 h-5" />
+              ×
             </button>
           </div>
 
-          {/* Search & Filter Toolbar */}
-          <div className="px-6 pt-4 pb-3 border-b border-slate-100 bg-slate-50/50 flex flex-col gap-3">
-            {/* Search Input */}
-            <div className="relative">
-              <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by name, email, or designation..."
-                className="w-full pl-10 pr-4 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-800 placeholder-slate-400 transition-all shadow-sm"
-              />
-              {search && (
-                <button
-                  onClick={() => setSearch('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                >
-                  <FiX className="w-4 h-4" />
-                </button>
-              )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, flex: 1, minHeight: 0 }}>
+            {/* Campaign Info Box */}
+            <div
+              style={{
+                background: TODO_SKY_SURFACE,
+                border: `1px solid ${TODO_BORDER}`,
+                borderRadius: 8,
+                padding: '10px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 10
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 11.5, fontWeight: 600, color: TODO_BLUE_GREEN, textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                  Target Meta Campaign
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: TODO_DEEP_BLUE, marginTop: 2 }}>
+                  {campaign}
+                </div>
+              </div>
+              <span
+                style={{
+                  padding: '2px 8px',
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  borderRadius: 4,
+                  border: `1px solid ${TODO_BORDER}`,
+                  background: '#fff',
+                  color: TODO_BLUE_GREEN
+                }}
+              >
+                {selectedIds.size} Selected
+              </span>
             </div>
 
-            {/* Filter Chips & Clear Action */}
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => setFilterChip('all')}
-                  className={`px-3 py-1 text-xs font-medium rounded-lg transition-all ${
-                    filterChip === 'all'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-                  }`}
-                >
-                  All ({employees.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFilterChip('assigned')}
-                  className={`px-3 py-1 text-xs font-medium rounded-lg transition-all ${
-                    filterChip === 'assigned'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-                  }`}
-                >
-                  Assigned ({selectedIds.size})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFilterChip('telecaller')}
-                  className={`px-3 py-1 text-xs font-medium rounded-lg transition-all ${
-                    filterChip === 'telecaller'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-                  }`}
-                >
-                  Tele-callers
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFilterChip('marketing')}
-                  className={`px-3 py-1 text-xs font-medium rounded-lg transition-all ${
-                    filterChip === 'marketing'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-                  }`}
-                >
-                  Marketing
-                </button>
+            {/* Search & Filter Toolbar */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ position: 'relative' }}>
+                <FiSearch style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: TODO_MUTED, width: 15, height: 15 }} />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search team members by name, email, or role..."
+                  style={{
+                    width: '100%',
+                    padding: '9px 32px 9px 34px',
+                    fontSize: 13,
+                    borderRadius: 8,
+                    border: `1px solid ${TODO_INPUT_BORDER}`,
+                    background: '#f8fbfd',
+                    color: TODO_DEEP_BLUE,
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch('')}
+                    style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: TODO_MUTED, cursor: 'pointer' }}
+                  >
+                    <FiX size={14} />
+                  </button>
+                )}
               </div>
 
-              {selectedIds.size > 0 && (
-                <button
-                  type="button"
-                  onClick={clearAllSelected}
-                  className="text-xs font-medium text-rose-600 hover:text-rose-700 hover:underline px-1 py-0.5"
-                >
-                  Deselect All ({selectedIds.size})
-                </button>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {[
+                    { key: 'all', label: `All (${employees.length})` },
+                    { key: 'assigned', label: `Assigned (${selectedIds.size})` },
+                    { key: 'telecaller', label: 'Tele-callers' },
+                    { key: 'marketing', label: 'Marketing' },
+                  ].map(chip => {
+                    const active = filterChip === chip.key;
+                    return (
+                      <button
+                        key={chip.key}
+                        type="button"
+                        onClick={() => setFilterChip(chip.key)}
+                        style={{
+                          padding: '5px 10px',
+                          fontSize: 12,
+                          fontWeight: 500,
+                          borderRadius: 6,
+                          border: `1px solid ${active ? TODO_BLUE_GREEN : TODO_INPUT_BORDER}`,
+                          background: active ? TODO_SKY_SURFACE : '#fff',
+                          color: active ? TODO_DEEP_BLUE : TODO_MUTED,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {chip.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {selectedIds.size > 0 && (
+                  <button
+                    type="button"
+                    onClick={clearAllSelected}
+                    className="text-xs font-medium text-rose-600 hover:text-rose-700 hover:underline px-1 py-0.5"
+                  >
+                    Deselect All ({selectedIds.size})
+                  </button>
+                )}
+              </div>
+
+              {selectedEmployeeObjects.length > 0 && (
+                <div className="flex items-center gap-1.5 overflow-x-auto py-1 border-t border-slate-100 pt-2">
+                  <span style={{ fontSize: 11, fontWeight: 600, color: TODO_MUTED }} className="uppercase tracking-wide shrink-0">
+                    Assigned:
+                  </span>
+                  {selectedEmployeeObjects.map((emp) => (
+                    <span
+                      key={emp._id || emp.id}
+                      style={{
+                        background: TODO_SKY_SURFACE,
+                        color: TODO_DEEP_BLUE,
+                        border: `1px solid ${TODO_BORDER}`
+                      }}
+                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium shrink-0"
+                    >
+                      <span>{emp.name || emp.email}</span>
+                      <button
+                        type="button"
+                        onClick={(e) => removeMember(emp._id || emp.id, e)}
+                        title="Remove / Deselect"
+                        className="w-3.5 h-3.5 rounded-full bg-sky-200 hover:bg-rose-500 hover:text-white flex items-center justify-center transition-colors text-sky-900"
+                      >
+                        <FiX className="w-2.5 h-2.5" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
               )}
             </div>
 
-            {/* Currently Assigned Removable Pills (Instant Deselect / Remove) */}
-            {selectedEmployeeObjects.length > 0 && (
-              <div className="flex items-center gap-1.5 overflow-x-auto py-1 border-t border-slate-200/60 pt-2">
-                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide shrink-0">
-                  Assigned:
-                </span>
-                {selectedEmployeeObjects.map((emp) => (
-                  <span
-                    key={emp._id || emp.id}
-                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100/80 text-blue-800 border border-blue-200 shrink-0"
-                  >
-                    <span>{emp.name || emp.email}</span>
-                    <button
-                      type="button"
-                      onClick={(e) => removeMember(emp._id || emp.id, e)}
-                      title="Remove / Deselect"
-                      className="w-3.5 h-3.5 rounded-full bg-blue-200 hover:bg-rose-500 hover:text-white flex items-center justify-center transition-colors text-blue-700"
-                    >
-                      <FiX className="w-2.5 h-2.5" />
-                    </button>
-                  </span>
-                ))}
+            {feedback && (
+              <div
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 500,
+                  background: feedback.type === 'success' ? '#ecfdf5' : '#fef2f2',
+                  border: `1px solid ${feedback.type === 'success' ? '#a7f3d0' : '#fecaca'}`,
+                  color: feedback.type === 'success' ? '#065f46' : '#dc2626',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6
+                }}
+              >
+                {feedback.type === 'success' ? <FiCheckCircle size={14} /> : <FiAlertTriangle size={14} />}
+                <span>{feedback.message}</span>
               </div>
             )}
-          </div>
 
-          {/* Feedback Alert if any */}
-          {feedback && (
-            <div
-              className={`px-6 py-2.5 flex items-center gap-2 text-xs font-medium ${
-                feedback.type === 'success'
-                  ? 'bg-emerald-50 text-emerald-700 border-b border-emerald-100'
-                  : 'bg-rose-50 text-rose-700 border-b border-rose-100'
-              }`}
-            >
-              {feedback.type === 'success' ? (
-                <FiCheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+            {/* Employee List */}
+            <div style={{ overflowY: 'auto', maxHeight: 280, border: `1px solid ${TODO_INPUT_BORDER}`, borderRadius: 8, background: '#f8fbfd', padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {filteredEmployees.length === 0 ? (
+                <div className="text-center py-8">
+                  <FiUsers className="w-7 h-7 text-slate-300 mx-auto mb-1.5" />
+                  <p style={{ fontSize: 13, fontWeight: 500, color: TODO_DEEP_BLUE }}>No employees found</p>
+                  <p style={{ fontSize: 11.5, color: TODO_MUTED }}>Try adjusting your search or filter</p>
+                </div>
               ) : (
-                <FiAlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
-              )}
-              <span>{feedback.message}</span>
-            </div>
-          )}
-
-          {/* Employee Profile Cards Grid */}
-          <div className="p-6 overflow-y-auto max-h-[380px] bg-slate-50/30">
-            {filteredEmployees.length === 0 ? (
-              <div className="text-center py-10">
-                <FiUsers className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                <p className="text-sm font-medium text-slate-700">No employees found</p>
-                <p className="text-xs text-slate-400 mt-1">Try adjusting your search or filter</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {filteredEmployees.map((emp) => {
-                  const isSelected = selectedIds.has(emp._id);
+                filteredEmployees.map((emp) => {
+                  const empIdStr = String(emp._id || emp.id);
+                  const isSelected = selectedIds.has(empIdStr);
                   const avatarColor = getAvatarStyle(emp.name || emp.email || '');
                   const initials = getInitials(emp.name || emp.email || 'EM');
                   const designationText = emp.designation || 'Staff';
@@ -357,93 +382,102 @@ export default function AssignMembersModal({
 
                   return (
                     <div
-                      key={emp._id}
-                      onClick={() => toggleUser(emp._id)}
-                      className={`relative flex items-start gap-3 p-3.5 rounded-xl border transition-all cursor-pointer select-none ${
-                        isSelected
-                          ? 'border-blue-500 bg-blue-50/50 shadow-sm ring-1 ring-blue-500/20'
-                          : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
-                      }`}
+                      key={empIdStr}
+                      onClick={() => toggleUser(empIdStr)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 10,
+                        padding: '8px 10px',
+                        borderRadius: 8,
+                        border: `1px solid ${isSelected ? TODO_BLUE_GREEN : TODO_INPUT_BORDER}`,
+                        background: isSelected ? TODO_SKY_SURFACE : '#fff',
+                        cursor: 'pointer'
+                      }}
                     >
-                      {/* Avatar */}
-                      <div className="relative shrink-0">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
                         {emp.avatar ? (
                           <img
                             src={emp.avatar}
                             alt={emp.name}
-                            className="w-10 h-10 rounded-full object-cover border border-slate-200"
+                            className="w-9 h-9 rounded-full object-cover border border-slate-200 flex-shrink-0"
                           />
                         ) : (
                           <div
                             style={{ backgroundColor: avatarColor.bg, color: avatarColor.text }}
-                            className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shadow-inner"
+                            className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0"
                           >
                             {initials}
                           </div>
                         )}
-                        {/* Active Status Dot */}
-                        <span
-                          className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white"
-                          title="Active"
-                        />
-                      </div>
-
-                      {/* Info */}
-                      <div className="flex-1 min-w-0 pr-6">
-                        <div className="flex items-center gap-1.5">
-                          <p className="text-sm font-semibold text-slate-900 truncate">
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: TODO_DEEP_BLUE }} className="truncate">
                             {emp.name || 'Unknown'}
-                          </p>
+                          </div>
+                          <div style={{ fontSize: 11.5, color: TODO_MUTED }} className="truncate">
+                            {designationText}{departmentText}
+                          </div>
                         </div>
-                        <p className="text-xs text-slate-500 truncate mt-0.5">
-                          {designationText}{departmentText}
-                        </p>
-                        <p className="text-[11px] text-slate-400 truncate mt-0.5 font-mono">
-                          {emp.email}
-                        </p>
                       </div>
 
-                      {/* Action Status Badge & Checkbox */}
-                      <div className="absolute right-3 top-3 flex items-center gap-1.5">
+                      <div className="flex items-center gap-2 flex-shrink-0">
                         <span
-                          className={`text-[11px] font-semibold px-2 py-0.5 rounded-md transition-colors ${
-                            isSelected
-                              ? 'bg-rose-100 text-rose-700 hover:bg-rose-200'
-                              : 'bg-blue-50 text-blue-700'
-                          }`}
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 600,
+                            padding: '2px 8px',
+                            borderRadius: 4,
+                            background: isSelected ? '#ffe4e6' : TODO_SKY_SURFACE,
+                            color: isSelected ? '#be123c' : TODO_BLUE_GREEN
+                          }}
                         >
                           {isSelected ? 'Remove' : '+ Add'}
                         </span>
                         <div
-                          className={`w-5 h-5 rounded-md flex items-center justify-center transition-all ${
-                            isSelected
-                              ? 'bg-blue-600 border border-blue-600 text-white shadow-sm'
-                              : 'border border-slate-300 bg-white hover:border-slate-400'
-                          }`}
+                          style={{
+                            width: 18,
+                            height: 18,
+                            borderRadius: 4,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: isSelected ? TODO_BLUE_GREEN : '#fff',
+                            border: `1px solid ${isSelected ? TODO_BLUE_GREEN : TODO_INPUT_BORDER}`,
+                            color: '#fff'
+                          }}
                         >
-                          {isSelected && <FiCheck className="w-3.5 h-3.5 stroke-[3]" />}
+                          {isSelected && <FiCheck size={12} />}
                         </div>
                       </div>
                     </div>
                   );
-                })}
-              </div>
-            )}
+                })
+              )}
+            </div>
           </div>
 
-          {/* Footer */}
-          <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-white">
-            <div className="text-xs text-slate-600">
-              <span className="font-semibold text-slate-900">{selectedIds.size}</span>{' '}
-              {selectedIds.size === 1 ? 'member' : 'members'} selected
+          {/* Footer — Identical to "Create Todo Item" */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 20 }}>
+            <div style={{ fontSize: 12.5, color: TODO_MUTED }}>
+              <strong style={{ color: TODO_DEEP_BLUE }}>{selectedIds.size}</strong> {selectedIds.size === 1 ? 'member' : 'members'} selected
             </div>
 
-            <div className="flex items-center gap-2.5">
+            <div style={{ display: 'flex', gap: 10 }}>
               <button
                 type="button"
                 onClick={onClose}
                 disabled={saving}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors disabled:opacity-50"
+                style={{
+                  padding: '9px 18px',
+                  fontSize: 13.5,
+                  fontWeight: 500,
+                  borderRadius: 8,
+                  border: `1px solid ${TODO_INPUT_BORDER}`,
+                  background: '#fff',
+                  color: TODO_MUTED,
+                  cursor: 'pointer'
+                }}
               >
                 Cancel
               </button>
@@ -451,7 +485,19 @@ export default function AssignMembersModal({
                 type="button"
                 onClick={handleConfirm}
                 disabled={saving}
-                className="flex items-center gap-2 px-5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-all shadow-sm shadow-blue-500/20 disabled:opacity-50"
+                style={{
+                  padding: '9px 20px',
+                  fontSize: 13.5,
+                  fontWeight: 500,
+                  borderRadius: 8,
+                  border: 'none',
+                  background: saving ? '#f8c284' : TODO_ORANGE,
+                  color: '#fff',
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6
+                }}
               >
                 {saving ? (
                   <>
@@ -459,10 +505,7 @@ export default function AssignMembersModal({
                     <span>Saving...</span>
                   </>
                 ) : (
-                  <>
-                    <FiCheck className="w-3.5 h-3.5" />
-                    <span>Confirm Assignment</span>
-                  </>
+                  <span>Confirm Assignment</span>
                 )}
               </button>
             </div>

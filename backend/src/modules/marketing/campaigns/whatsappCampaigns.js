@@ -560,7 +560,7 @@ router.post('/:id/send', protect, async (req, res) => {
                 direction: 'outbound',
                 metaMessageId: sendResult?.messages?.[0]?.id || '',
               });
-              lead.waStatus = 'intervened';
+              lead.waStatus = 'active';
               lead.lastWaMessageAt = new Date();
               lead.lastWaMessagePreview = messageText;
               await lead.save();

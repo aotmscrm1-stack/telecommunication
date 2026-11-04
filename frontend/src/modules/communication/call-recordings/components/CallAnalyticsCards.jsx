@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { PhoneCall, PhoneIncoming, PhoneOff, Clock, Activity, CheckCircle2 } from 'lucide-react';
+import { PhoneCall, PhoneIncoming, Unlink, Clock, Activity, CheckCircle2 } from 'lucide-react';
 
 function formatDuration(totalSeconds) {
   if (!totalSeconds || isNaN(totalSeconds) || totalSeconds <= 0) return '0s';
@@ -16,9 +16,10 @@ function formatDuration(totalSeconds) {
   return `${secs}s`;
 }
 
-const CallAnalyticsCards = memo(function CallAnalyticsCards({ summary, loading }) {
+const CallAnalyticsCards = memo(function CallAnalyticsCards({ summary, loading, onCardClick }) {
   const cards = [
     {
+      id: 'all',
       title: 'Total Calls',
       value: summary?.totalCalls ?? 0,
       subtext: summary?.hasRecordingCount ? `${summary.hasRecordingCount} with audio` : 'All logged calls',
@@ -28,24 +29,27 @@ const CallAnalyticsCards = memo(function CallAnalyticsCards({ summary, loading }
       borderColor: '#c2e7ff'
     },
     {
+      id: 'completed',
       title: 'Connected Calls',
       value: summary?.completedCalls ?? 0,
-      subtext: summary?.totalCalls ? `${summary.answerRate || '0%'} answer rate` : 'Answered calls',
+      subtext: summary?.linkedCalls !== undefined ? `${summary.linkedCalls} linked Meta Leads` : 'Answered calls',
       icon: CheckCircle2,
       color: '#16a34a',
       bgColor: '#f0fdf4',
       borderColor: '#bbf7d0'
     },
     {
-      title: 'Missed & Unanswered',
-      value: summary?.missedCalls ?? 0,
-      subtext: summary?.failedCalls ? `${summary.failedCalls} failed attempts` : 'No answer / busy',
-      icon: PhoneOff,
+      id: 'unlinked',
+      title: 'Unlinked Sessions',
+      value: summary?.unlinkedCalls ?? 0,
+      subtext: `${summary?.linkedCalls ?? 0} linked to Meta Leads`,
+      icon: Unlink,
       color: '#ea580c',
       bgColor: '#fff7ed',
       borderColor: '#fed7aa'
     },
     {
+      id: 'talk_time',
       title: 'Total Talk Time',
       value: formatDuration(summary?.totalDurationSeconds),
       subtext: 'Cumulative call duration',
@@ -55,6 +59,7 @@ const CallAnalyticsCards = memo(function CallAnalyticsCards({ summary, loading }
       borderColor: '#ddd6fe'
     },
     {
+      id: 'avg_duration',
       title: 'Avg Call Duration',
       value: formatDuration(summary?.avgDurationSeconds),
       subtext: 'Per connected call',
@@ -64,6 +69,7 @@ const CallAnalyticsCards = memo(function CallAnalyticsCards({ summary, loading }
       borderColor: '#a5f3fc'
     },
     {
+      id: 'answer_rate',
       title: 'Answer Rate',
       value: summary?.answerRate || '0.0%',
       subtext: 'Completed vs total calls',
@@ -83,9 +89,12 @@ const CallAnalyticsCards = memo(function CallAnalyticsCards({ summary, loading }
     }}>
       {cards.map((card) => {
         const Icon = card.icon;
+        const isInteractive = Boolean(onCardClick && ['all', 'completed', 'unlinked'].includes(card.id));
         return (
           <div
             key={card.title}
+            onClick={isInteractive ? () => onCardClick(card.id) : undefined}
+            title={isInteractive ? `Click to filter by ${card.title}` : undefined}
             style={{
               background: '#ffffff',
               padding: '16px 18px',
@@ -97,7 +106,8 @@ const CallAnalyticsCards = memo(function CallAnalyticsCards({ summary, loading }
               justifyContent: 'space-between',
               transition: 'transform 0.15s, box-shadow 0.15s',
               position: 'relative',
-              overflow: 'hidden'
+              overflow: 'hidden',
+              cursor: isInteractive ? 'pointer' : 'default'
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>

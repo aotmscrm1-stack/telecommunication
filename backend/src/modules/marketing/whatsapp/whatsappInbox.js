@@ -1,5 +1,6 @@
 const express = require('express');
 const Lead = require('../../../database/models/Lead');
+const MetaLead = require('../../../database/models/MetaLead');
 const Contact = require('../../../database/models/Contact');
 const Integration = require('../../../database/models/Integration');
 const whatsappService = require('../../../integrations/whatsapp/whatsapp');
@@ -13,13 +14,13 @@ const router = express.Router();
 function baseWhatsappQuery() {
   return {
     $or: [
-      { waStatus: { $in: ['pending', 'intervened'] } },
+      { waStatus: 'pending' },
       { 'activities.type': 'whatsapp' },
     ],
   };
 }
 
-// ── HELPER: Find or Create Unified Lead for Contact / ID / Phone ────────────
+// ── HELPER: Find or Create Unified Lead for Contact / MetaLead / ID / Phone ──
 async function findOrCreateLeadForIdOrPhone(idOrPhone) {
   if (!idOrPhone) return null;
 
@@ -29,7 +30,7 @@ async function findOrCreateLeadForIdOrPhone(idOrPhone) {
     if (lead) return lead;
   }
 
-  // 2. Try finding Contact directly by ObjectId if idOrPhone is Contact ID
+  // 2. Try finding Contact or MetaLead directly by ObjectId
   let targetPhone = idOrPhone;
   let targetName = 'WhatsApp Contact';
   let targetIdentity = 'General';
@@ -40,6 +41,13 @@ async function findOrCreateLeadForIdOrPhone(idOrPhone) {
       targetPhone = contact.phone;
       targetName = contact.name || targetName;
       targetIdentity = contact.identity || targetIdentity;
+    } else {
+      const metaLead = await MetaLead.findById(idOrPhone).lean().catch(() => null);
+      if (metaLead) {
+        targetPhone = metaLead.phone || metaLead.normalizedPhone;
+        targetName = metaLead.fullName || metaLead.rawData?.full_name || metaLead.rawData?.Name || targetName;
+        targetIdentity = metaLead.campaign || 'Meta Lead';
+      }
     }
   }
 
@@ -57,11 +65,25 @@ async function findOrCreateLeadForIdOrPhone(idOrPhone) {
   });
 
   if (!lead) {
+    // Check MetaLead by phone so we use the real student name
+    const metaByPhone = await MetaLead.findOne({
+      $or: [
+        { normalizedPhone: clean10 },
+        { phone: clean10 },
+        { phone: `91${clean10}` },
+        { phone: `+91${clean10}` }
+      ]
+    }).lean().catch(() => null);
+    if (metaByPhone && targetName === 'WhatsApp Contact') {
+      targetName = metaByPhone.fullName || metaByPhone.rawData?.full_name || metaByPhone.rawData?.Name || targetName;
+      targetIdentity = metaByPhone.campaign || 'Meta Lead';
+    }
+
     lead = await Lead.create({
       name: targetName,
       phone: clean10,
       status: 'Contact',
-      leadSource: 'Whatsapp Inbox',
+      leadSource: metaByPhone ? 'Meta Lead' : 'Whatsapp Inbox',
       customFields: { identity: targetIdentity },
     });
   }
@@ -76,7 +98,6 @@ router.get('/', protect, async (req, res) => {
 
     const query = baseWhatsappQuery();
     if (tab === 'pending') query.waStatus = 'pending';
-    if (tab === 'intervened') query.waStatus = 'intervened';
 
     if (search) {
       query.$and = [{ $or: [
@@ -86,7 +107,7 @@ router.get('/', protect, async (req, res) => {
     }
 
     const skip = (Number(page) - 1) * Number(limit);
-    const [rawLeads, total, allCount, pendingCount, intervenedCount] = await Promise.all([
+    const [rawLeads, total, allCount, pendingCount] = await Promise.all([
       Lead.find(query)
         .select('name phone status waStatus lastWaMessageAt lastWaMessagePreview rating customFields activities')
         .sort({ lastWaMessageAt: -1, updatedAt: -1 })
@@ -95,7 +116,6 @@ router.get('/', protect, async (req, res) => {
       Lead.countDocuments(query),
       Lead.countDocuments(baseWhatsappQuery()),
       Lead.countDocuments({ ...baseWhatsappQuery(), waStatus: 'pending' }),
-      Lead.countDocuments({ ...baseWhatsappQuery(), waStatus: 'intervened' }),
     ]);
 
     // Enrich leads with identity from Contact collection by matching phone number
@@ -169,7 +189,7 @@ router.get('/', protect, async (req, res) => {
       total: leads.length,
       page: Number(page),
       limit: Number(limit),
-      counts: { all: allCount + (leads.length - rawLeads.length), pending: pendingCount, intervened: intervenedCount },
+      counts: { all: allCount + (leads.length - rawLeads.length), pending: pendingCount },
       existingIdentities,
     });
   } catch (err) {
@@ -183,10 +203,14 @@ router.get('/:leadId', protect, async (req, res) => {
     const lead = await findOrCreateLeadForIdOrPhone(req.params.leadId);
     if (!lead) return res.status(404).json({ message: 'Lead or Contact not found' });
 
-    // Automatically transition lead from Pending -> Intervened when agent reads thread
+    // Mark as read when agent opens thread
     if (lead.waStatus === 'pending') {
-      lead.waStatus = 'intervened';
+      lead.waStatus = 'active';
       await lead.save();
+    }
+
+    if (lead.populate) {
+      await lead.populate({ path: 'activities.performedBy', select: 'name email avatar' }).catch(() => {});
     }
 
     const thread = (lead.activities || [])
@@ -255,10 +279,11 @@ router.post('/:leadId/reply', protect, async (req, res) => {
       metaMessageId: sendResult?.messages?.[0]?.id || '',
       deliveryStatus: 'sent',
       performedBy: req.user._id,
+      performedByName: req.user.name || 'Agent',
+      userName: req.user.name || 'Agent',
       createdAt: new Date(),
     });
-    // THIS IS THE KEY TRANSITION: an agent reply moves the lead to "Intervened".
-    lead.waStatus = 'intervened';
+    lead.waStatus = 'active';
     lead.lastWaMessageAt = new Date();
     lead.lastWaMessagePreview = description;
     await lead.save();

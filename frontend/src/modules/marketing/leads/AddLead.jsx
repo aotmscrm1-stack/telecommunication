@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Loader2, Check, User, Briefcase, Calendar, Users as UsersIcon, ChevronRight, ChevronLeft, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { leadsAPI, campaignsAPI, usersAPI, coursesAPI, leadStagesAPI } from '../../../services/api';
+import api, { leadsAPI, campaignsAPI, usersAPI, coursesAPI, leadStagesAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 
 /* ─────────────────────────────────────────────────────────
@@ -127,16 +127,29 @@ export default function AddLead() {
     });
 
     useEffect(() => {
-        coursesAPI.getAll().then(cr => setCourses(cr.data.courses || [])).catch(console.error);
-        campaignsAPI.getAll().then(c => setCampaigns(c.data.campaigns || [])).catch(() => { });
+        coursesAPI.getAll().then(cr => setCourses(cr.data.courses || [])).catch(() => {});
+        
+        // Fetch both CRM Campaigns and Meta Leads campaigns so they are fully reachable
+        Promise.all([
+            campaignsAPI.getAll().catch(() => ({ data: { campaigns: [] } })),
+            api.get('/meta-leads/campaigns').catch(() => ({ data: { campaigns: [] } })),
+            usersAPI.getAll().catch(() => ({ data: { users: [] } })),
+        ]).then(([cRes, metaRes, uRes]) => {
+            const stdCamps = cRes.data?.campaigns || [];
+            const metaCamps = (metaRes.data?.campaigns || []).map(mc => {
+                const name = typeof mc === 'string' ? mc : mc.name || mc.campaign || '';
+                return { _id: mc._id || mc.id || name, name, isMeta: true };
+            }).filter(c => c.name);
+            setCampaigns([...stdCamps, ...metaCamps]);
+            setUsers(uRes.data?.users || []);
+        });
+
         leadStagesAPI.get().then(res => {
             const active = (res.data.config?.statuses || [])
                 .filter(s => !s.archived).sort((a, b) => a.order - b.order).map(s => s.name);
             if (active.length) setStatuses(active);
         }).catch(() => { });
-        if (user?.role === 'manager' || user?.role === 'admin') {
-            usersAPI.getAll().then(u => setUsers(u.data.users || [])).catch(() => { });
-        }
+
         if (isEdit) {
             setLoading(true);
             leadsAPI.getOne(id).then(res => {
@@ -151,7 +164,7 @@ export default function AddLead() {
                     nextFollowupDate: l.nextFollowupDate?.slice(0, 16) || '',
                     demoScheduledDate: l.demoScheduledDate?.slice(0, 16) || '',
                     demoDoneDate: l.demoDoneDate?.slice(0, 16) || '',
-                    assignedTo: l.assignedTo?._id || '', campaign: l.campaign?._id || '',
+                    assignedTo: l.assignedTo?._id || l.assignedTo || '', campaign: l.campaign?._id || l.campaign || '',
                 });
             }).finally(() => setLoading(false));
         }
@@ -172,8 +185,9 @@ export default function AddLead() {
         if (s === 1) {
             if (!form.name.trim()) e.name = 'Full name is required';
             if (!form.phone.trim()) e.phone = 'Phone number is required';
-            if (!form.email.trim()) e.email = 'Email is required';
-            if (!form.location.trim()) e.location = 'Location is required';
+            if (form.email && form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+                e.email = 'Please enter a valid email address';
+            }
         }
         if (s === 2) {
             if (!form.status) e.status = 'Status is required';
@@ -183,7 +197,6 @@ export default function AddLead() {
             if (!form.courseInterest) e.courseInterest = 'Interested course is required';
             if (!form.mode) e.mode = 'Study mode is required';
             if (!form.budget) e.budget = 'Budget is required';
-            if (!form.lastQualification.trim()) e.lastQualification = 'Last qualification is required';
         }
         /* Step 3: Scheduling — all OPTIONAL */
         /* Step 4: Campaign & Review — all OPTIONAL */
@@ -209,7 +222,14 @@ export default function AddLead() {
         }
         setSaving(true);
         try {
-            const data = { ...form, budget: form.budget ? +form.budget : 0 };
+            const data = {
+                ...form,
+                email: form.email ? form.email.trim().toLowerCase() : '',
+                phone: form.phone ? form.phone.replace(/\D/g, '').slice(-10) : '',
+                budget: form.budget ? +form.budget : 0,
+                campaign: form.campaign || undefined,
+                assignedTo: form.assignedTo || undefined,
+            };
             if (isEdit) await leadsAPI.update(id, data);
             else await leadsAPI.create(data);
             navigate('/leads');
@@ -279,11 +299,11 @@ export default function AddLead() {
                                     <motion.button
                                         key={s.id}
                                         type="button"
-                                        onClick={() => step > s.id && setStep(s.id)}
-                                        whileHover={step > s.id ? { scale: 1.06 } : {}}
-                                        whileTap={step > s.id ? { scale: 0.94 } : {}}
-                                        className="flex flex-col items-center"
-                                        style={{ cursor: step > s.id ? 'pointer' : 'default', width: '22%' }}
+                                        onClick={() => setStep(s.id)}
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        className="flex flex-col items-center cursor-pointer"
+                                        style={{ width: '22%' }}
                                     >
                                         <motion.div
                                             className="w-11 h-11 rounded-full flex items-center justify-center relative z-10"
@@ -360,7 +380,7 @@ export default function AddLead() {
                                                 value={form.name} onChange={e => set('name', e.target.value)}
                                                 placeholder="Enter full name" />
                                         </Field>
-                                        <Field label="Email" required error={errors.email}>
+                                        <Field label="Email" optional hint="Optional student email" error={errors.email}>
                                             <input type="email" className={inputCls} style={inputStyle(errors.email)}
                                                 value={form.email} onChange={e => set('email', e.target.value)}
                                                 placeholder="abc@xyz.com" />
@@ -398,7 +418,7 @@ export default function AddLead() {
                                         </Field>
                                     </div>
 
-                                    <Field label="Location" required error={errors.location}>
+                                    <Field label="Location" optional hint="City, State">
                                         <input className={inputCls} style={inputStyle(errors.location)}
                                             value={form.location} onChange={e => set('location', e.target.value)}
                                             placeholder="City, State" />
@@ -577,13 +597,30 @@ export default function AddLead() {
                                         </div>
                                     </div>
 
-                                    <div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         {/* Campaign — optional */}
-                                        <Field label="Campaign" optional hint="Leave empty if no campaign">
+                                        <Field label="Assign Campaign" optional hint="Link to a CRM or Meta Leads campaign">
                                             <select className={inputCls} style={inputStyle(false)}
                                                 value={form.campaign} onChange={e => set('campaign', e.target.value)}>
-                                                <option value="">No Campaign</option>
-                                                {campaigns.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                                                <option value="">No Campaign (Default)</option>
+                                                {campaigns.map(c => (
+                                                    <option key={c._id} value={c._id}>
+                                                        {c.name} {c.isMeta ? '(Meta Campaign)' : ''}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </Field>
+
+                                        {/* Assign To — Caller / Employee */}
+                                        <Field label="Assign Caller / Employee" optional hint="Assign lead to a team member">
+                                            <select className={inputCls} style={inputStyle(false)}
+                                                value={form.assignedTo} onChange={e => set('assignedTo', e.target.value)}>
+                                                <option value="">Assign to Me ({user?.name || 'Current User'})</option>
+                                                {users.map(u => (
+                                                    <option key={u._id} value={u._id}>
+                                                        {u.name} ({u.designation || u.role || 'Staff'})
+                                                    </option>
+                                                ))}
                                             </select>
                                         </Field>
                                     </div>
@@ -601,6 +638,14 @@ export default function AddLead() {
                                             <div className="font-bold" style={{ color: T.ink }}>{form.phone ? `+91 ${form.phone}` : '—'}</div>
                                             <div style={{ color: T.muted }}>Email</div>
                                             <div className="font-bold truncate" style={{ color: T.ink }}>{form.email || '—'}</div>
+                                            <div style={{ color: T.muted }}>Campaign</div>
+                                            <div className="font-bold truncate" style={{ color: T.blueDark }}>
+                                                {campaigns.find(c => c._id === form.campaign)?.name || 'None'}
+                                            </div>
+                                            <div style={{ color: T.muted }}>Assigned To</div>
+                                            <div className="font-bold truncate" style={{ color: T.blueDark }}>
+                                                {users.find(u => u._id === form.assignedTo)?.name || (user?.name ? `${user.name} (Me)` : 'Me')}
+                                            </div>
                                             <div style={{ color: T.muted }}>Source</div>
                                             <div className="font-bold" style={{ color: T.ink }}>{form.leadSource}</div>
                                             <div style={{ color: T.muted }}>Status</div>

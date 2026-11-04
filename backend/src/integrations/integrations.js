@@ -402,7 +402,7 @@ router.get('/:id/whatsapp/templates', protect, async (req, res) => {
 // ── Send a template message directly to a lead/phone (Global / .env fallback) ──
 router.post('/whatsapp/send-template-direct', protect, async (req, res) => {
   try {
-    const { leadId, to, templateName, languageCode, components, messageText, headerImageUrl } = req.body;
+    const { leadId, metaLeadId, leadName, to, templateName, languageCode, components, messageText, headerImageUrl } = req.body;
     let integration = await Integration.findOne({ type: 'whatsapp_cloud', status: 'active' });
     if (!integration) integration = await Integration.findOne({ type: 'whatsapp_cloud' });
 
@@ -413,16 +413,64 @@ router.post('/whatsapp/send-template-direct', protect, async (req, res) => {
       return res.status(400).json({ message: 'WhatsApp Cloud API credentials (phone number ID / access token) missing.' });
     }
 
-    const recipient = toIndiaE164(to);
-    if (!recipient) return res.status(400).json({ message: 'Valid phone number is required.' });
-
-    const MessageTemplate = require('../database/models/MessageTemplate');
     const Lead = require('../database/models/Lead');
-const MetaLead = require('../database/models/MetaLead');
+    const MetaLead = require('../database/models/MetaLead');
 
     let leadObj = null;
     if (leadId) {
-      leadObj = await Lead.findById(leadId);
+      leadObj = await Lead.findById(leadId).catch(() => null);
+    }
+
+    let metaLeadObj = null;
+    const candidateMetaId = metaLeadId || (!leadObj ? leadId : null);
+    if (candidateMetaId) {
+      metaLeadObj = await MetaLead.findById(candidateMetaId).catch(() => null);
+    }
+
+    const rawPhone = to || leadObj?.phone || metaLeadObj?.phone || metaLeadObj?.normalizedPhone || '';
+    const recipient = toIndiaE164(rawPhone);
+    if (!recipient) return res.status(400).json({ message: 'Valid phone number is required.' });
+
+    const clean10 = String(rawPhone || recipient).replace(/\D/g, '').slice(-10);
+
+    if (!metaLeadObj && clean10.length === 10) {
+      metaLeadObj = await MetaLead.findOne({
+        $or: [
+          { normalizedPhone: clean10 },
+          { phone: clean10 },
+          { phone: `91${clean10}` },
+          { phone: `+91${clean10}` }
+        ]
+      }).catch(() => null);
+    }
+
+    if (!leadObj && clean10.length === 10) {
+      leadObj = await Lead.findOne({
+        $or: [
+          { phone: clean10 },
+          { phone: `91${clean10}` },
+          { phone: `+91${clean10}` },
+          { phone: { $regex: `${clean10}$` } }
+        ]
+      }).catch(() => null);
+
+      if (!leadObj) {
+        const resolvedName = leadName || metaLeadObj?.fullName || metaLeadObj?.rawData?.full_name || metaLeadObj?.rawData?.Name || 'Meta Lead';
+        leadObj = await Lead.create({
+          name: resolvedName,
+          phone: clean10,
+          email: metaLeadObj?.email || metaLeadObj?.rawData?.email || '',
+          location: metaLeadObj?.city || metaLeadObj?.rawData?.city || '',
+          status: 'Connected',
+          leadSource: metaLeadObj ? 'Meta Lead' : 'WhatsApp',
+          waStatus: 'active',
+          assignedTo: metaLeadObj?.assignedTo || req.user._id,
+          customFields: {
+            identity: metaLeadObj?.campaign || 'Meta Lead',
+            metaLeadId: metaLeadObj?._id ? String(metaLeadObj._id) : undefined
+          }
+        }).catch(() => null);
+      }
     }
 
     const dbWabaId = integration?.config?.wabaId;
@@ -430,20 +478,37 @@ const MetaLead = require('../database/models/MetaLead');
 
     const template = await whatsapp.findOrFetchTemplate(templateName, wabaId, accessToken);
     const metaTemplateName = template?.metaTemplateName || String(templateName).trim().toLowerCase().replace(/[^a-z0-9_]+/g, '_');
-    const sendComponents = await whatsapp.buildTemplateComponents(template, leadObj || { phone: recipient }, components, headerImageUrl, phoneId, accessToken);
+    const resolvedNameForTemplate = leadObj?.name || leadName || metaLeadObj?.fullName || 'Student';
+    const sendComponents = await whatsapp.buildTemplateComponents(
+      template,
+      leadObj || { name: resolvedNameForTemplate, phone: recipient },
+      components,
+      headerImageUrl,
+      phoneId,
+      accessToken
+    );
 
-    const result = await whatsapp.sendTemplateMessage(phoneId, accessToken, recipient, metaTemplateName, languageCode || template?.language || 'en_US', sendComponents);
+    const result = await whatsapp.sendTemplateMessage(
+      phoneId,
+      accessToken,
+      recipient,
+      metaTemplateName,
+      languageCode || template?.language || 'en_US',
+      sendComponents
+    );
 
-    if (leadId) {
-      const Lead = require('../database/models/Lead');
-const MetaLead = require('../database/models/MetaLead');
-      await Lead.findByIdAndUpdate(leadId, {
+    const activityDesc = messageText || `Sent WhatsApp template: ${templateName}`;
+
+    if (leadObj?._id) {
+      await Lead.findByIdAndUpdate(leadObj._id, {
         $push: {
           activities: {
             type: 'whatsapp',
-            description: messageText || `Sent WhatsApp template: ${templateName}`,
+            description: activityDesc,
             direction: 'outbound',
             performedBy: req.user._id,
+            performedByName: req.user.name || 'Agent',
+            userName: req.user.name || 'Agent',
             metaMessageId: result?.messages?.[0]?.id || '',
             isTemplate: true,
             templateId: template?._id,
@@ -454,11 +519,39 @@ const MetaLead = require('../database/models/MetaLead');
         $set: {
           lastWaMessageAt: new Date(),
           lastWaMessagePreview: messageText || `Sent template: ${templateName}`,
+          waStatus: (!leadObj.waStatus || leadObj.waStatus === 'none') ? 'active' : leadObj.waStatus,
         },
       });
     }
 
-    res.json({ success: true, result });
+    let updatedMetaLead = null;
+    if (metaLeadObj?._id) {
+      updatedMetaLead = await MetaLead.findByIdAndUpdate(
+        metaLeadObj._id,
+        {
+          $push: {
+            callNotes: {
+              note: activityDesc,
+              outcome: 'WhatsApp Sent',
+              userId: req.user._id,
+              userName: req.user.name || 'Agent',
+              date: new Date(),
+            },
+          },
+          $set: {
+            lastCallAt: new Date(),
+          },
+        },
+        { new: true }
+      ).lean().catch(() => null);
+    }
+
+    res.json({
+      success: true,
+      result,
+      crmLeadId: leadObj?._id || null,
+      metaLead: updatedMetaLead
+    });
   } catch (err) {
     console.error('send-template-direct error:', err.response?.data || err.message);
     const metaError = err.response?.data?.error;

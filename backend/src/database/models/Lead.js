@@ -125,7 +125,7 @@ const leadSchema = new mongoose.Schema({
   // 'none'        -> no inbound WhatsApp reply yet (may still show under "All" if broadcasted)
   // 'pending'     -> lead has sent an inbound WhatsApp message and no agent has replied since
   // 'intervened'  -> an agent has replied to the lead's WhatsApp message
-  waStatus: { type: String, enum: ['none', 'pending', 'intervened'], default: 'none' },
+  waStatus: { type: String, default: 'none' },
   lastWaMessageAt: { type: Date },
   lastWaMessagePreview: { type: String, default: '' },
   // =================================================================================

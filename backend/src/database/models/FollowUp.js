@@ -6,6 +6,11 @@ const followUpSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'Lead'
   },
+  metaLeadId: { type: mongoose.Schema.Types.ObjectId, ref: 'MetaLead' },
+  leadName: { type: String, default: '' },
+  leadPhone: { type: String, default: '' },
+  campaign: { type: String, default: '' },
+  filledByName: { type: String, default: '' },
   assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   // Who created / delegated this task (defaults to the creator, but can be overridden by admins)

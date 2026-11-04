@@ -368,6 +368,17 @@ router.post('/', protect, async (req, res) => {
     if (!body.courseInterest || body.courseInterest === '') body.courseInterest = undefined;
     if (!body.campaign || body.campaign === '') body.campaign = undefined;
     if (!body.assignedTo || body.assignedTo === '') body.assignedTo = undefined;
+    if (body.email) body.email = String(body.email).trim().toLowerCase();
+    if (body.campaign && typeof body.campaign === 'string' && !mongoose.Types.ObjectId.isValid(body.campaign)) {
+      body.customFields = body.customFields || {};
+      body.customFields.campaign = body.campaign;
+      const cDoc = await Campaign.findOne({ name: new RegExp('^' + body.campaign.trim() + '$', 'i') });
+      if (cDoc) {
+        body.campaign = cDoc._id;
+      } else {
+        body.campaign = undefined;
+      }
+    }
     if (Array.isArray(body.courseInterest)) body.courseInterest = body.courseInterest[0] || undefined;
     if (body.courseInterest && typeof body.courseInterest === 'string' && !mongoose.Types.ObjectId.isValid(body.courseInterest)) {
       let course = await Course.findOne({ name: new RegExp('^' + body.courseInterest.trim() + '$', 'i') });
@@ -1125,7 +1136,7 @@ router.post('/whatsapp-blast', async (req, res) => {
           performedBy: req.user?._id,
           createdAt: new Date(),
         });
-        targetLead.waStatus = 'intervened';
+        targetLead.waStatus = 'active';
         targetLead.lastWaMessageAt = new Date();
         targetLead.lastWaMessagePreview = descriptionText;
         await targetLead.save();
@@ -1159,7 +1170,7 @@ router.post('/whatsapp-blast', async (req, res) => {
               deliveryStatus: 'sent',
               createdAt: new Date(),
             });
-            targetLead.waStatus = 'intervened';
+            targetLead.waStatus = 'active';
             targetLead.lastWaMessageAt = new Date();
             targetLead.lastWaMessagePreview = fallbackText;
             await targetLead.save();

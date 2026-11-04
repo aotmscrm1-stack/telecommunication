@@ -422,7 +422,8 @@ export const recordingsAPI = {
   },
   getAnalyticsSummary: (params = {}) => api.get('/recordings/analytics-summary', { params }),
   getCalendarActivity: (params = {}) => api.get('/recordings/calendar-activity', { params }),
-  exportCsv: (params = {}) => api.get('/recordings/export', { params, responseType: 'blob' }),
+  updateDuration: (id, duration) => api.patch(`/recordings/${id}/duration`, { duration }),
+  bulkDelete: (payload) => api.post('/recordings/bulk-delete', payload),
   upload: (formData) => api.post('/recordings', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   update: (id, data) => api.put(`/recordings/${id}`, data),
   delete: (id) => api.delete(`/recordings/${id}`),
@@ -442,15 +443,6 @@ export const billingAPI = {
   getTransactions: (params) => api.get('/billing/transactions', { params }),
   getLicenses: () => api.get('/billing/licenses'),
   buyLicense: (data) => api.post('/billing/buy', data),
-};
-
-// ── WhatsApp Broadcasts ─────────────────────────────────────────────────────
-export const broadcastsAPI = {
-  getAll: (params) => api.get('/broadcasts', { params }),
-  getOne: (id) => api.get(`/broadcasts/${id}`),
-  preview: (filters) => api.post('/broadcasts/preview', { filters }),
-  create: (data) => api.post('/broadcasts', data),
-  update: (id, data) => api.put(`/broadcasts/${id}`, data),
 };
 
 export const payslipsAPI = {

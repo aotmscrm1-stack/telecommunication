@@ -479,11 +479,8 @@ export default function CallFilterPanel({
                   outline: 'none'
                 }}
               >
-                <option value="all">All Categories</option>
-                <option value="matched">Linked Only (Any)</option>
-                <option value="lead">Normal Leads</option>
-                <option value="meta_lead">Meta Leads</option>
-                <option value="campaign">Marketing Campaigns</option>
+                <option value="all">All Sessions</option>
+                <option value="meta_lead">Linked Meta Leads</option>
                 <option value="unlinked">Unlinked Sessions</option>
               </select>
             </div>

@@ -247,53 +247,165 @@ function CallTimer({ onStop }) {
   );
 }
 
-function AddNoteModal({ onClose, onSubmit }) {
+// ── "Create Todo Item" Palette Constants ────────────────────────────────────
+const TODO_DEEP_BLUE = '#023047';
+const TODO_BLUE_GREEN = '#219ebc';
+const TODO_SKY_SURFACE = '#e8f4fa';
+const TODO_BORDER = '#bbdff0';
+const TODO_INPUT_BORDER = '#d8e2eb';
+const TODO_ORANGE = '#fb8500';
+const TODO_MUTED = '#5b7082';
+
+function AddNoteModal({ lead, onClose, onSubmit }) {
   const [note, setNote] = useState('');
-  const [type, setType] = useState('note');
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(2, 48, 71, 0.45)',
+        backdropFilter: 'blur(2px)',
+        zIndex: 1000,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16
+      }}
+      onClick={onClose}
+    >
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        initial={{ opacity: 0, scale: 0.96, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 10 }}
-        transition={{ duration: 0.2, ease: "easeOut" }}
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 border border-[#a8dadc]"
+        exit={{ opacity: 0, scale: 0.96, y: 10 }}
+        transition={{ duration: 0.18 }}
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: '#fff',
+          borderRadius: 14,
+          width: '100%',
+          maxWidth: 460,
+          padding: 24,
+          boxShadow: '0 12px 36px rgba(2, 48, 71, 0.16)',
+          border: `1px solid ${TODO_BORDER}`,
+          boxSizing: 'border-box'
+        }}
       >
-        <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#f1faee] flex items-center justify-center text-[#457b9d]">
-              <Plus className="w-4 h-4" />
-            </div>
-            <h3 className="font-bold text-[#1d3557] text-base">Add Note / Activity</h3>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-[#f1faee] flex items-center justify-center text-gray-400 hover:text-[#1d3557] transition-colors"><X className="w-4 h-4" /></button>
-        </div>
-        <div className="flex gap-2 mb-4">
-          {['note', 'whatsapp'].map(t => (
-            <button
-              key={t}
-              onClick={() => setType(t)}
-              className={`text-xs px-3.5 py-1.5 rounded-xl capitalize font-bold transition-all ${type === t ? 'bg-[#1d3557] text-white shadow-xs' : 'bg-[#f1faee] text-[#457b9d] hover:bg-[#a8dadc]/40'}`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-        <textarea
-          className="input-field resize-none w-full border border-[#a8dadc] rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#457b9d] text-sm bg-gray-50/50 focus:bg-white transition-all"
-          rows={4}
-          placeholder="Write activity notes..."
-          value={note}
-          onChange={e => setNote(e.target.value)}
-        />
-        <div className="flex gap-2.5 mt-5">
-          <button onClick={onClose} className="flex-1 rounded-xl py-2.5 font-bold text-sm border border-[#a8dadc] text-[#1d3557] hover:bg-[#f1faee] transition-all">Cancel</button>
+        {/* Header — Identical to "Create Todo Item" */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+          <h3 style={{ fontSize: 18, fontWeight: 500, color: TODO_DEEP_BLUE, margin: 0 }}>
+            Add Note
+          </h3>
           <button
-            onClick={() => onSubmit(note, type)}
-            className="flex-1 rounded-xl py-2.5 font-bold text-sm bg-[#457b9d] hover:bg-[#1d3557] text-white transition-all shadow-xs flex items-center justify-center"
-            disabled={!note.trim()}
+            type="button"
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: 22,
+              color: TODO_MUTED,
+              lineHeight: 1,
+              padding: 0
+            }}
           >
-            Save Activity
+            ×
+          </button>
+        </div>
+
+        {/* Form Body — Clean vertical fields matching "Create Todo Item" */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
+          {lead?.name && (
+            <div
+              style={{
+                background: TODO_SKY_SURFACE,
+                border: `1px solid ${TODO_BORDER}`,
+                borderRadius: 8,
+                padding: '10px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 10
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 13.5, fontWeight: 500, color: TODO_DEEP_BLUE }}>{lead.name}</div>
+                {lead.phone && <div style={{ fontSize: 12, color: TODO_MUTED, marginTop: 2 }}>📞 {lead.phone}</div>}
+              </div>
+              <span
+                style={{
+                  padding: '2px 8px',
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  borderRadius: 4,
+                  border: `1px solid ${TODO_BORDER}`,
+                  background: '#fff',
+                  color: TODO_BLUE_GREEN
+                }}
+              >
+                Note
+              </span>
+            </div>
+          )}
+
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 500, color: TODO_DEEP_BLUE, display: 'block', marginBottom: 6 }}>
+              Note Details *
+            </label>
+            <textarea
+              rows={4}
+              placeholder="Write activity note..."
+              value={note}
+              onChange={e => setNote(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                fontSize: 13.5,
+                borderRadius: 8,
+                border: `1px solid ${TODO_INPUT_BORDER}`,
+                background: '#f8fbfd',
+                color: TODO_DEEP_BLUE,
+                outline: 'none',
+                resize: 'none',
+                boxSizing: 'border-box'
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Footer — Identical to "Create Todo Item" */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 22 }}>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              padding: '9px 18px',
+              fontSize: 13.5,
+              fontWeight: 500,
+              borderRadius: 8,
+              border: `1px solid ${TODO_INPUT_BORDER}`,
+              background: '#fff',
+              color: TODO_MUTED,
+              cursor: 'pointer'
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => onSubmit(note, 'note')}
+            disabled={!note.trim()}
+            style={{
+              padding: '9px 20px',
+              fontSize: 13.5,
+              fontWeight: 500,
+              borderRadius: 8,
+              border: 'none',
+              background: !note.trim() ? '#f8c284' : TODO_ORANGE,
+              color: '#fff',
+              cursor: !note.trim() ? 'not-allowed' : 'pointer'
+            }}
+          >
+            Save Note
           </button>
         </div>
       </motion.div>
@@ -301,69 +413,7 @@ function AddNoteModal({ onClose, onSubmit }) {
   );
 }
 
-function LogCallModal({ lead, onClose, onSubmit }) {
-  const [form, setForm] = useState({ callStatus: 'connected', duration: 0, note: '', transcript: '' });
-
-  const handleSubmit = () => {
-    const combinedNote = form.transcript.trim()
-      ? `${form.note}${form.note ? '\n\n' : ''}Transcript:\n${form.transcript.trim()}`
-      : form.note;
-    onSubmit({ callStatus: form.callStatus, duration: form.duration, note: combinedNote });
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 10 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 10 }}
-        transition={{ duration: 0.2, ease: "easeOut" }}
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 border border-[#a8dadc]"
-      >
-        <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#f1faee] flex items-center justify-center text-[#457b9d]">
-              <Phone className="w-4 h-4" />
-            </div>
-            <h3 className="font-bold text-[#1d3557] text-base">Log Call — {lead.name}</h3>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-[#f1faee] flex items-center justify-center text-gray-400 hover:text-[#1d3557] transition-colors"><X className="w-4 h-4" /></button>
-        </div>
-        <div className="space-y-4">
-          <div>
-            <label className="text-xs font-bold text-[#457b9d] uppercase tracking-wide mb-1 block">Call Status</label>
-            <select className="input-field w-full border border-[#a8dadc] rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#457b9d] bg-white font-semibold text-[#1d3557]" value={form.callStatus} onChange={e => setForm({ ...form, callStatus: e.target.value })}>
-              <option value="connected">Connected</option>
-              <option value="no_answer">No Answer</option>
-              <option value="busy">Busy</option>
-              <option value="failed">Failed</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-bold text-[#457b9d] uppercase tracking-wide mb-1 block">Duration (seconds)</label>
-            <input type="number" className="input-field w-full border border-[#a8dadc] rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#457b9d]" value={form.duration} onChange={e => setForm({ ...form, duration: +e.target.value })} min={0} />
-          </div>
-          <div>
-            <label className="text-xs font-bold text-[#457b9d] uppercase tracking-wide mb-1 block">Call Summary Note</label>
-            <textarea className="input-field w-full border border-[#a8dadc] rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#457b9d] resize-none" rows={3} value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} placeholder="Write call feedback notes..." />
-          </div>
-          <div>
-            <label className="text-xs font-bold text-[#457b9d] uppercase tracking-wide mb-1 block">
-              Transcript <span className="text-gray-400 font-normal">(optional — enables Call IQ audit)</span>
-            </label>
-            <textarea className="input-field w-full border border-[#a8dadc] rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#457b9d] resize-none" rows={3} value={form.transcript} onChange={e => setForm({ ...form, transcript: e.target.value })} placeholder={"Paste call transcript here..."} />
-          </div>
-        </div>
-        <div className="flex gap-2.5 mt-5">
-          <button onClick={onClose} className="flex-1 rounded-xl py-2.5 font-bold text-sm border border-[#a8dadc] text-[#1d3557] hover:bg-[#f1faee]">Cancel</button>
-          <button onClick={handleSubmit} className="flex-1 rounded-xl py-2.5 font-bold text-sm bg-[#457b9d] hover:bg-[#1d3557] text-white shadow-xs justify-center flex items-center">Save Call Log</button>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
-
-// ── Initiate Call Modal ───────────────────────────────────────────────────────
+// ── Initiate Call Modal ("Create Todo Item" Style) ───────────────────────────
 function InitiateCallModal({ lead, callers, currentUser, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -390,49 +440,102 @@ function InitiateCallModal({ lead, callers, currentUser, onClose, onSuccess }) {
   const callersList = callers.filter(c => c.role === 'employee' || c.role === 'caller');
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-gray-100">
-        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.41 2 2 0 0 1 3.58 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
-                <path d="M16 5.3a5 5 0 0 1 0 6.4" stroke="#16a34a" strokeOpacity="0.6"/>
-                <path d="M19 3a9 9 0 0 1 0 11" stroke="#16a34a" strokeOpacity="0.35"/>
-              </svg>
-            </div>
-            <div>
-              <h3 className="font-bold text-gray-900 text-base">📲 Initiate Call</h3>
-              <p className="text-xs text-gray-500">Send notification to caller's mobile app</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(2, 48, 71, 0.45)',
+        backdropFilter: 'blur(2px)',
+        zIndex: 1000,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16
+      }}
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 10 }}
+        transition={{ duration: 0.18 }}
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: '#fff',
+          borderRadius: 14,
+          width: '100%',
+          maxWidth: 460,
+          padding: 24,
+          boxShadow: '0 12px 36px rgba(2, 48, 71, 0.16)',
+          border: `1px solid ${TODO_BORDER}`,
+          boxSizing: 'border-box'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+          <h3 style={{ fontSize: 18, fontWeight: 500, color: TODO_DEEP_BLUE, margin: 0 }}>
+            Initiate Call Session
+          </h3>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: TODO_MUTED, lineHeight: 1, padding: 0 }}
+          >
+            ×
+          </button>
         </div>
 
-        <div className="p-6 space-y-4">
-          <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Lead</p>
-            <p className="font-bold text-gray-800 text-lg">{lead?.name}</p>
-            <p className="text-gray-500 font-mono text-sm">{lead?.phone}</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
+          <div
+            style={{
+              background: TODO_SKY_SURFACE,
+              border: `1px solid ${TODO_BORDER}`,
+              borderRadius: 8,
+              padding: '12px 14px'
+            }}
+          >
+            <div style={{ fontSize: 11.5, fontWeight: 600, color: TODO_BLUE_GREEN, textTransform: 'uppercase', letterSpacing: 0.4 }}>
+              Selected Lead
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: TODO_DEEP_BLUE, marginTop: 3 }}>
+              {lead?.name}
+            </div>
+            <div style={{ fontSize: 12.5, color: TODO_MUTED, fontFamily: 'monospace', marginTop: 2 }}>
+              📞 {lead?.phone}
+            </div>
             {lead?.assignedTo?.name && (
-              <p className="text-xs text-indigo-600 font-semibold mt-1">Assigned to: {lead.assignedTo.name}</p>
+              <div style={{ fontSize: 12, color: TODO_BLUE_GREEN, fontWeight: 500, marginTop: 4 }}>
+                Assigned to: {lead.assignedTo.name}
+              </div>
             )}
           </div>
 
           {isCaller ? (
-            <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3">
-              <p className="text-indigo-700 text-sm font-semibold">
-                📱 Sending to your mobile: <span className="font-bold">{currentUser?.name}</span>
-              </p>
-              <p className="text-indigo-500 text-xs mt-1">The notification will appear on your phone</p>
+            <div style={{ background: '#f8fbfd', border: `1px solid ${TODO_INPUT_BORDER}`, borderRadius: 8, padding: '10px 12px' }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: TODO_DEEP_BLUE }}>
+                📱 Sending to your mobile: <strong>{currentUser?.name}</strong>
+              </div>
+              <div style={{ fontSize: 12, color: TODO_MUTED, marginTop: 2 }}>
+                The notification will appear on your phone to dial immediately.
+              </div>
             </div>
           ) : callersList.length > 0 && (
             <div>
-              <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Send notification to</label>
+              <label style={{ fontSize: 13, fontWeight: 500, color: TODO_DEEP_BLUE, display: 'block', marginBottom: 6 }}>
+                Send Notification To
+              </label>
               <select
                 value={selectedCaller}
                 onChange={e => setSelectedCaller(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  fontSize: 13.5,
+                  borderRadius: 8,
+                  border: `1px solid ${TODO_INPUT_BORDER}`,
+                  background: '#f8fbfd',
+                  color: TODO_DEEP_BLUE,
+                  outline: 'none'
+                }}
               >
                 <option value="">-- Assigned Caller ({lead?.assignedTo?.name || 'None'}) --</option>
                 {callersList.map(c => (
@@ -442,46 +545,67 @@ function InitiateCallModal({ lead, callers, currentUser, onClose, onSuccess }) {
             </div>
           )}
 
-          <div className="bg-blue-50 border border-blue-100 rounded-xl p-3">
-            <p className="text-blue-700 text-xs leading-relaxed">
-              💡 The caller will receive a push notification on their mobile app showing this lead's name and phone number. They can tap it to call directly.
-            </p>
-          </div>
-
           {result && (
-            <div className={`rounded-xl p-4 border ${result.success ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-              <p className={`text-sm font-semibold ${result.success ? 'text-green-700' : 'text-red-700'}`}>
-                {result.success ? '✅ ' : '❌ '}{result.message}
-              </p>
+            <div
+              style={{
+                borderRadius: 8,
+                padding: '10px 12px',
+                fontSize: 12.5,
+                fontWeight: 500,
+                background: result.success ? '#ecfdf5' : '#fef2f2',
+                border: `1px solid ${result.success ? '#a7f3d0' : '#fecaca'}`,
+                color: result.success ? '#065f46' : '#dc2626'
+              }}
+            >
+              {result.success ? '✓ ' : '⚠️ '}{result.message}
             </div>
           )}
         </div>
 
-        <div className="p-6 border-t border-gray-100 flex gap-3">
-          <button onClick={onClose} className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 font-semibold text-sm">
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 22 }}>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              padding: '9px 18px',
+              fontSize: 13.5,
+              fontWeight: 500,
+              borderRadius: 8,
+              border: `1px solid ${TODO_INPUT_BORDER}`,
+              background: '#fff',
+              color: TODO_MUTED,
+              cursor: 'pointer'
+            }}
+          >
             {result?.success ? 'Close' : 'Cancel'}
           </button>
           {!result?.success && (
             <button
+              type="button"
               onClick={handleSend}
               disabled={loading}
-              className="flex-1 px-4 py-2.5 bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2"
+              style={{
+                padding: '9px 20px',
+                fontSize: 13.5,
+                fontWeight: 500,
+                borderRadius: 8,
+                border: 'none',
+                background: loading ? '#f8c284' : TODO_ORANGE,
+                color: '#fff',
+                cursor: loading ? 'not-allowed' : 'pointer'
+              }}
             >
-              {loading ? (
-                <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Sending...</>
-              ) : (
-                <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.41 2 2 0 0 1 3.58 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/><path d="M16 5.3a5 5 0 0 1 0 6.4" strokeOpacity="0.6"/><path d="M19 3a9 9 0 0 1 0 11" strokeOpacity="0.4"/></svg>Send Notification</>
-              )}
+              {loading ? 'Sending...' : 'Send Call Notification'}
             </button>
           )}
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
 
-// ── Callback Time Picker Modal ────────────────────────────────────────────────
-function CallbackTimeModal({ lead, currentUser, onClose, onScheduled }) {
+// ── Callback Time Picker Modal ("Create Todo Item" Style) ────────────────────
+function CallbackTimeModal({ lead, metaLeadId, campaign, currentUser, onClose, onScheduled }) {
   const PRESETS = [
     { label: '5 min', minutes: 5 },
     { label: '10 min', minutes: 10 },
@@ -512,14 +636,38 @@ function CallbackTimeModal({ lead, currentUser, onClose, onScheduled }) {
     setSaving(true);
     setError('');
     try {
+      const filledByName = currentUser?.name || 'Agent';
+      const personName = lead.name || 'Lead';
       const res = await followupsAPI.create({
         lead: lead._id,
+        metaLeadId: metaLeadId || undefined,
+        leadName: personName,
+        leadPhone: lead.phone || '',
+        campaign: campaign || '',
+        filledByName,
         assignedTo: lead.assignedTo?._id || currentUser?._id,
         scheduledAt: scheduledAt.toISOString(),
         type: 'call_followup',
         status: 'upcoming',
-        note: note || ('Callback scheduled for ' + lead.name),
+        note: note || ('Callback scheduled for ' + personName),
       });
+
+      const toastPayload = res.data?.callbackToastPayload || {
+        followupId: res.data?.followup?._id || String(Date.now()),
+        leadId: String(lead._id || metaLeadId || ''),
+        metaLeadId: metaLeadId ? String(metaLeadId) : '',
+        leadName: personName,
+        leadPhone: lead.phone || '',
+        campaign: campaign || '',
+        filledById: String(currentUser?._id || ''),
+        filledByName,
+        assignedToId: String(lead.assignedTo?._id || currentUser?._id || ''),
+        assignedToName: lead.assignedTo?.name || filledByName,
+        scheduledAt: scheduledAt.toISOString(),
+        note: note || ('Callback scheduled for ' + personName),
+      };
+      leadNoteReminderService.triggerCallbackToast(toastPayload, { isImmediate: true });
+
       onScheduled(res.data.followup, scheduledAt);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to schedule callback');
@@ -531,65 +679,224 @@ function CallbackTimeModal({ lead, currentUser, onClose, onScheduled }) {
   const scheduledAt = getScheduledAt();
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 border border-gray-100">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-orange-100 flex items-center justify-center">
-              <Clock className="w-4 h-4 text-orange-600" />
-            </div>
-            <h3 className="font-bold text-gray-900 text-base">Schedule Callback</h3>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
-        </div>
-        <p className="text-xs text-gray-500 mb-4">
-          For <strong>{lead.name}</strong> ({lead.phone}) — pick a time to be reminded to call back.
-        </p>
-        <div className="grid grid-cols-3 gap-2 mb-4">
-          {PRESETS.map(p => (
-            <button
-              key={p.label}
-              onClick={() => { setSelected(p.minutes); setManualDate(''); setManualTime(''); }}
-              className={`py-2 rounded-xl text-xs font-bold border transition-all ${selected === p.minutes ? 'bg-orange-500 text-white border-orange-500' : 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100'}`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-        <div className="mb-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Or set manually</p>
-          <div className="flex gap-2">
-            <input type="date" value={manualDate} min={new Date().toISOString().split('T')[0]}
-              onChange={e => { setManualDate(e.target.value); setSelected(null); }}
-              className="flex-1 border border-gray-200 rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400" />
-            <input type="time" value={manualTime}
-              onChange={e => { setManualTime(e.target.value); setSelected(null); }}
-              className="flex-1 border border-gray-200 rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400" />
-          </div>
-        </div>
-        <textarea
-          className="w-full border border-gray-200 rounded-xl p-3 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-orange-400 mb-4"
-          rows={2} placeholder="Add a note (optional)..." value={note} onChange={e => setNote(e.target.value)}
-        />
-        {scheduledAt && !isNaN(scheduledAt.getTime()) && (
-          <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 mb-4 text-xs text-orange-700 font-semibold">
-            Callback at: {scheduledAt.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
-          </div>
-        )}
-        {error && <p className="text-xs text-red-600 mb-3">{error}</p>}
-        <div className="flex gap-2.5">
-          <button onClick={onClose} className="btn-secondary flex-1 rounded-xl py-2.5 font-semibold text-sm">Cancel</button>
-          <button onClick={handleSave} disabled={saving || !scheduledAt || isNaN(scheduledAt?.getTime())}
-            className="flex-1 py-2.5 rounded-xl font-bold text-sm bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-            {saving ? 'Saving...' : 'Schedule'}
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(2, 48, 71, 0.45)',
+        backdropFilter: 'blur(2px)',
+        zIndex: 1000,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16
+      }}
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 10 }}
+        transition={{ duration: 0.18 }}
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: '#fff',
+          borderRadius: 14,
+          width: '100%',
+          maxWidth: 460,
+          padding: 24,
+          boxShadow: '0 12px 36px rgba(2, 48, 71, 0.16)',
+          border: `1px solid ${TODO_BORDER}`,
+          boxSizing: 'border-box'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+          <h3 style={{ fontSize: 18, fontWeight: 500, color: TODO_DEEP_BLUE, margin: 0 }}>
+            Call Back Later
+          </h3>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: TODO_MUTED, lineHeight: 1, padding: 0 }}
+          >
+            ×
           </button>
         </div>
-      </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
+          <div
+            style={{
+              background: TODO_SKY_SURFACE,
+              border: `1px solid ${TODO_BORDER}`,
+              borderRadius: 8,
+              padding: '10px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10
+            }}
+          >
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: TODO_BLUE_GREEN, textTransform: 'uppercase' }}>Person Name (Lead)</div>
+              <div style={{ fontSize: 13.5, fontWeight: 600, color: TODO_DEEP_BLUE, marginTop: 1 }}>{lead.name}</div>
+              {lead.phone && <div style={{ fontSize: 12, color: TODO_MUTED, marginTop: 2 }}>📞 {lead.phone}</div>}
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: TODO_MUTED, textTransform: 'uppercase' }}>Form Fill By</div>
+              <div style={{ fontSize: 12.5, fontWeight: 600, color: TODO_DEEP_BLUE, marginTop: 1 }}>{currentUser?.name || 'Agent'}</div>
+            </div>
+          </div>
+
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 500, color: TODO_DEEP_BLUE, display: 'block', marginBottom: 6 }}>
+              Quick Presets
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+              {PRESETS.map(p => {
+                const active = selected === p.minutes;
+                return (
+                  <button
+                    key={p.label}
+                    type="button"
+                    onClick={() => { setSelected(p.minutes); setManualDate(''); setManualTime(''); }}
+                    style={{
+                      padding: '8px 10px',
+                      borderRadius: 8,
+                      fontSize: 12.5,
+                      fontWeight: 500,
+                      border: `1px solid ${active ? TODO_BLUE_GREEN : TODO_INPUT_BORDER}`,
+                      background: active ? TODO_SKY_SURFACE : '#f8fbfd',
+                      color: active ? TODO_DEEP_BLUE : TODO_MUTED,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 500, color: TODO_DEEP_BLUE, display: 'block', marginBottom: 6 }}>
+                Callback Date
+              </label>
+              <input
+                type="date"
+                value={manualDate}
+                min={new Date().toISOString().split('T')[0]}
+                onChange={e => { setManualDate(e.target.value); setSelected(null); }}
+                style={{
+                  width: '100%',
+                  padding: '9px 10px',
+                  fontSize: 13,
+                  borderRadius: 8,
+                  border: `1px solid ${TODO_INPUT_BORDER}`,
+                  background: '#f8fbfd',
+                  color: TODO_DEEP_BLUE,
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 500, color: TODO_DEEP_BLUE, display: 'block', marginBottom: 6 }}>
+                Callback Time
+              </label>
+              <input
+                type="time"
+                value={manualTime}
+                onChange={e => { setManualTime(e.target.value); setSelected(null); }}
+                style={{
+                  width: '100%',
+                  padding: '9px 10px',
+                  fontSize: 13,
+                  borderRadius: 8,
+                  border: `1px solid ${TODO_INPUT_BORDER}`,
+                  background: '#f8fbfd',
+                  color: TODO_DEEP_BLUE,
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 500, color: TODO_DEEP_BLUE, display: 'block', marginBottom: 6 }}>
+              Callback Note
+            </label>
+            <textarea
+              rows={2}
+              placeholder="Add a reminder note (optional)..."
+              value={note}
+              onChange={e => setNote(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '9px 12px',
+                fontSize: 13,
+                borderRadius: 8,
+                border: `1px solid ${TODO_INPUT_BORDER}`,
+                background: '#f8fbfd',
+                color: TODO_DEEP_BLUE,
+                outline: 'none',
+                resize: 'none',
+                boxSizing: 'border-box'
+              }}
+            />
+          </div>
+
+          {scheduledAt && !isNaN(scheduledAt.getTime()) && (
+            <div style={{ background: TODO_SKY_SURFACE, border: `1px solid ${TODO_BORDER}`, borderRadius: 8, padding: '8px 12px', fontSize: 12.5, color: TODO_DEEP_BLUE, fontWeight: 500 }}>
+              ⏰ Callback at: <strong>{scheduledAt.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</strong>
+            </div>
+          )}
+
+          {error && <div style={{ fontSize: 12, color: '#dc2626', fontWeight: 500 }}>{error}</div>}
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 22 }}>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              padding: '9px 18px',
+              fontSize: 13.5,
+              fontWeight: 500,
+              borderRadius: 8,
+              border: `1px solid ${TODO_INPUT_BORDER}`,
+              background: '#fff',
+              color: TODO_MUTED,
+              cursor: 'pointer'
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving || !scheduledAt || isNaN(scheduledAt?.getTime())}
+            style={{
+              padding: '9px 20px',
+              fontSize: 13.5,
+              fontWeight: 500,
+              borderRadius: 8,
+              border: 'none',
+              background: (saving || !scheduledAt || isNaN(scheduledAt?.getTime())) ? '#f8c284' : TODO_ORANGE,
+              color: '#fff',
+              cursor: (saving || !scheduledAt || isNaN(scheduledAt?.getTime())) ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {saving ? 'Saving...' : 'Schedule Callback'}
+          </button>
+        </div>
+      </motion.div>
     </div>
   );
 }
 
-// ── Schedule Demo Date Modal ──────────────────────────────────────────────────
+// ── Schedule Demo Date Modal ("Create Todo Item" Style) ──────────────────────
 function ScheduleDemoModal({ lead, onClose, onSave }) {
   const now = new Date();
   const pad = (n) => String(n).padStart(2, '0');
@@ -614,41 +921,146 @@ function ScheduleDemoModal({ lead, onClose, onSave }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 border border-gray-100">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-purple-100 flex items-center justify-center">
-              <Calendar className="w-4 h-4 text-purple-600" />
-            </div>
-            <h3 className="font-bold text-gray-900 text-base">Schedule Demo</h3>
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(2, 48, 71, 0.45)',
+        backdropFilter: 'blur(2px)',
+        zIndex: 1000,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16
+      }}
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 10 }}
+        transition={{ duration: 0.18 }}
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: '#fff',
+          borderRadius: 14,
+          width: '100%',
+          maxWidth: 440,
+          padding: 24,
+          boxShadow: '0 12px 36px rgba(2, 48, 71, 0.16)',
+          border: `1px solid ${TODO_BORDER}`,
+          boxSizing: 'border-box'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+          <h3 style={{ fontSize: 18, fontWeight: 500, color: TODO_DEEP_BLUE, margin: 0 }}>
+            Schedule Demo
+          </h3>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: TODO_MUTED, lineHeight: 1, padding: 0 }}
+          >
+            ×
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
+          <div style={{ background: TODO_SKY_SURFACE, border: `1px solid ${TODO_BORDER}`, borderRadius: 8, padding: '10px 12px' }}>
+            <div style={{ fontSize: 13.5, fontWeight: 500, color: TODO_DEEP_BLUE }}>{lead.name}</div>
+            <div style={{ fontSize: 12, color: TODO_MUTED, marginTop: 2 }}>📞 {lead.phone}</div>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 500, color: TODO_DEEP_BLUE, display: 'block', marginBottom: 6 }}>
+                Demo Date
+              </label>
+              <input
+                type="date"
+                value={date}
+                onChange={e => setDate(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '9px 10px',
+                  fontSize: 13,
+                  borderRadius: 8,
+                  border: `1px solid ${TODO_INPUT_BORDER}`,
+                  background: '#f8fbfd',
+                  color: TODO_DEEP_BLUE,
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 500, color: TODO_DEEP_BLUE, display: 'block', marginBottom: 6 }}>
+                Demo Time
+              </label>
+              <input
+                type="time"
+                value={time}
+                onChange={e => setTime(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '9px 10px',
+                  fontSize: 13,
+                  borderRadius: 8,
+                  border: `1px solid ${TODO_INPUT_BORDER}`,
+                  background: '#f8fbfd',
+                  color: TODO_DEEP_BLUE,
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+          </div>
+
+          {error && <div style={{ fontSize: 12, color: '#dc2626' }}>{error}</div>}
         </div>
-        <p className="text-xs text-gray-500 mb-4">
-          For <strong>{lead.name}</strong> ({lead.phone}) — pick when the demo will happen.
-        </p>
-        <div className="flex gap-2 mb-4">
-          <input type="date" value={date} onChange={e => setDate(e.target.value)}
-            className="flex-1 border border-gray-200 rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-purple-400" />
-          <input type="time" value={time} onChange={e => setTime(e.target.value)}
-            className="flex-1 border border-gray-200 rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-purple-400" />
-        </div>
-        {error && <p className="text-xs text-red-600 mb-3">{error}</p>}
-        <div className="flex gap-2.5">
-          <button onClick={onClose} className="btn-secondary flex-1 rounded-xl py-2.5 font-semibold text-sm">Cancel</button>
-          <button onClick={handleSave} disabled={saving}
-            className="flex-1 py-2.5 rounded-xl font-bold text-sm bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 22 }}>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              padding: '9px 18px',
+              fontSize: 13.5,
+              fontWeight: 500,
+              borderRadius: 8,
+              border: `1px solid ${TODO_INPUT_BORDER}`,
+              background: '#fff',
+              color: TODO_MUTED,
+              cursor: 'pointer'
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            style={{
+              padding: '9px 20px',
+              fontSize: 13.5,
+              fontWeight: 500,
+              borderRadius: 8,
+              border: 'none',
+              background: saving ? '#f8c284' : TODO_ORANGE,
+              color: '#fff',
+              cursor: saving ? 'not-allowed' : 'pointer'
+            }}
+          >
             {saving ? 'Saving...' : 'Schedule Demo'}
           </button>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
 
-// ── Send WhatsApp Template Modal ─────────────────────────────────────────────
-function SendWhatsAppTemplateModal({ lead, onClose, onSuccess }) {
+// ── Send WhatsApp Template Modal ("Create Todo Item" Style) ──────────────────
+function SendWhatsAppTemplateModal({ lead, metaLeadId, onClose, onSuccess }) {
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
@@ -687,8 +1099,10 @@ function SendWhatsAppTemplateModal({ lead, onClose, onSuccess }) {
 
       const headerImageUrl = selectedTemplate.mediaUrl || selectedTemplate.imageUrl || null;
 
-      await api.post('/integrations/whatsapp/send-template-direct', {
+      const res = await api.post('/integrations/whatsapp/send-template-direct', {
         leadId: lead._id,
+        metaLeadId: metaLeadId || undefined,
+        leadName: lead.name,
         to: lead.phone,
         templateName,
         languageCode,
@@ -697,7 +1111,7 @@ function SendWhatsAppTemplateModal({ lead, onClose, onSuccess }) {
       });
 
       setSuccessMsg(`Successfully sent WhatsApp template "${selectedTemplate.name || selectedTemplate.shortcut}" to ${lead.name}!`);
-      if (onSuccess) onSuccess();
+      if (onSuccess) onSuccess(res.data);
       setTimeout(() => onClose(), 1800);
     } catch (err) {
       const serverErrorMsg = err.response?.data?.message || err.message || 'Failed to send template message';
@@ -715,43 +1129,92 @@ function SendWhatsAppTemplateModal({ lead, onClose, onSuccess }) {
   });
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-gray-100 flex flex-col max-h-[90vh]">
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(2, 48, 71, 0.45)',
+        backdropFilter: 'blur(2px)',
+        zIndex: 1000,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16
+      }}
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 10 }}
+        transition={{ duration: 0.18 }}
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: '#fff',
+          borderRadius: 14,
+          width: '100%',
+          maxWidth: 490,
+          padding: 24,
+          boxShadow: '0 12px 36px rgba(2, 48, 71, 0.16)',
+          border: `1px solid ${TODO_BORDER}`,
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
+          boxSizing: 'border-box'
+        }}
+      >
         {/* Header */}
-        <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-emerald-50/50">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center shadow-xs">
-              <MessageCircle className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-bold text-gray-900 text-base">Send WhatsApp Template</h3>
-              <p className="text-xs text-emerald-700">To: <span className="font-semibold">{lead.name}</span> ({lead.phone})</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-200/60 flex items-center justify-center text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <h3 style={{ fontSize: 18, fontWeight: 500, color: TODO_DEEP_BLUE, margin: 0 }}>
+            Send WhatsApp Template
+          </h3>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: TODO_MUTED, lineHeight: 1, padding: 0 }}
+          >
+            ×
+          </button>
         </div>
 
         {/* Content */}
-        <div className="p-5 space-y-4 overflow-y-auto flex-1">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', flex: 1 }}>
+          <div style={{ background: TODO_SKY_SURFACE, border: `1px solid ${TODO_BORDER}`, borderRadius: 8, padding: '10px 12px' }}>
+            <div style={{ fontSize: 13.5, fontWeight: 500, color: TODO_DEEP_BLUE }}>To: {lead.name}</div>
+            <div style={{ fontSize: 12, color: TODO_MUTED, marginTop: 2 }}>📞 {lead.phone}</div>
+          </div>
+
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-3.5 text-xs text-red-700 font-semibold">
+            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 12px', fontSize: 12, color: '#dc2626', fontWeight: 500 }}>
               ⚠️ {error}
             </div>
           )}
           {successMsg && (
-            <div className="bg-green-50 border border-green-200 rounded-xl p-3.5 text-xs text-green-700 font-semibold">
+            <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 8, padding: '10px 12px', fontSize: 12, color: '#065f46', fontWeight: 500 }}>
               ✅ {successMsg}
             </div>
           )}
 
           <div>
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Search Template</label>
+            <label style={{ fontSize: 13, fontWeight: 500, color: TODO_DEEP_BLUE, display: 'block', marginBottom: 6 }}>
+              Search Template
+            </label>
             <input
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search by template name or content..."
-              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              style={{
+                width: '100%',
+                padding: '9px 12px',
+                fontSize: 13,
+                borderRadius: 8,
+                border: `1px solid ${TODO_INPUT_BORDER}`,
+                background: '#f8fbfd',
+                color: TODO_DEEP_BLUE,
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
             />
           </div>
 
@@ -767,7 +1230,7 @@ function SendWhatsAppTemplateModal({ lead, onClose, onSuccess }) {
               <p className="text-[11px] text-gray-400 mt-0.5">Create templates in Message Templates module.</p>
             </div>
           ) : (
-            <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
               {filteredTemplates.map(t => {
                 const isSelected = (selectedTemplate?._id && selectedTemplate?._id === t._id) || (selectedTemplate?.shortcut && selectedTemplate?.shortcut === t.shortcut);
                 const isMediaHeader = t.headerType === 'Media' || t.components?.some(c => c.type === 'HEADER' && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(c.format));
@@ -776,37 +1239,34 @@ function SendWhatsAppTemplateModal({ lead, onClose, onSuccess }) {
                   <div
                     key={t._id || t.name}
                     onClick={() => setSelectedTemplate(t)}
-                    className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
-                      isSelected
-                        ? 'bg-emerald-50/60 border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs'
-                        : 'bg-white border-gray-200 hover:border-emerald-300'
-                    }`}
+                    style={{
+                      padding: '10px 12px',
+                      borderRadius: 8,
+                      border: `1px solid ${isSelected ? TODO_BLUE_GREEN : TODO_INPUT_BORDER}`,
+                      background: isSelected ? TODO_SKY_SURFACE : '#fff',
+                      cursor: 'pointer'
+                    }}
                   >
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="font-bold text-xs text-gray-900 flex items-center gap-1.5">
+                    <div className="flex items-center justify-between mb-1">
+                      <span style={{ fontWeight: 600, fontSize: 12.5, color: TODO_DEEP_BLUE }}>
                         {t.name || t.shortcut}
-                        {t.status && (
-                          <span className={`text-[10px] px-2 py-0.2 rounded-full font-extrabold uppercase ${
-                            t.status === 'APPROVED' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                          }`}>
-                            {t.status}
-                          </span>
-                        )}
                       </span>
-                      <span className="text-[10px] font-semibold text-gray-400 uppercase">{t.category || t.language || 'Utility'}</span>
+                      <span style={{ fontSize: 10.5, fontWeight: 600, color: TODO_BLUE_GREEN, textTransform: 'uppercase' }}>
+                        {t.category || t.language || 'Utility'}
+                      </span>
                     </div>
 
                     {isMediaHeader && (
-                      <div className="mb-2 rounded-lg overflow-hidden border border-emerald-200 bg-gray-900 max-h-28 flex items-center justify-center">
+                      <div className="mb-2 rounded-lg overflow-hidden border border-sky-200 bg-gray-900 max-h-24 flex items-center justify-center">
                         {imageUrl ? (
-                          <img src={imageUrl} alt="Header" className="w-full object-cover h-24" />
+                          <img src={imageUrl} alt="Header" className="w-full object-cover h-20" />
                         ) : (
-                          <div className="text-[10px] text-white/70 py-3">📷 Media Header Attached</div>
+                          <div className="text-[10px] text-white/70 py-2">📷 Media Header Attached</div>
                         )}
                       </div>
                     )}
 
-                    <p className="text-xs text-gray-600 line-clamp-2 leading-relaxed bg-gray-50/70 p-2 rounded-lg border border-gray-100">
+                    <p style={{ fontSize: 12, color: TODO_MUTED, margin: 0 }} className="line-clamp-2">
                       {t.message || t.content || 'Template message content'}
                     </p>
                   </div>
@@ -817,23 +1277,42 @@ function SendWhatsAppTemplateModal({ lead, onClose, onSuccess }) {
         </div>
 
         {/* Footer */}
-        <div className="p-5 border-t border-gray-100 flex gap-3 bg-gray-50/50">
-          <button onClick={onClose} className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-100 font-semibold text-xs">
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              padding: '9px 18px',
+              fontSize: 13.5,
+              fontWeight: 500,
+              borderRadius: 8,
+              border: `1px solid ${TODO_INPUT_BORDER}`,
+              background: '#fff',
+              color: TODO_MUTED,
+              cursor: 'pointer'
+            }}
+          >
             Cancel
           </button>
           <button
+            type="button"
             onClick={handleSend}
             disabled={sending || !selectedTemplate}
-            className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors"
+            style={{
+              padding: '9px 20px',
+              fontSize: 13.5,
+              fontWeight: 500,
+              borderRadius: 8,
+              border: 'none',
+              background: (sending || !selectedTemplate) ? '#f8c284' : TODO_ORANGE,
+              color: '#fff',
+              cursor: (sending || !selectedTemplate) ? 'not-allowed' : 'pointer'
+            }}
           >
-            {sending ? (
-              <><div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />Sending...</>
-            ) : (
-              <><MessageCircle className="w-4 h-4" />Send Template Now</>
-            )}
+            {sending ? 'Sending...' : 'Send Template Now'}
           </button>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -889,8 +1368,7 @@ function AIStateBanner({ lead }) {
   );
 }
 
-// ── Shared Lead Details Component ─────────────────────────────────────────────
-// ── Call Summary Detail Modal (Popup Module for Calling & Activity Records) ───
+// ── Call Summary Detail Modal ("Create Todo Item" Style) ─────────────────────
 function CallSummaryDetailModal({ activity, lead, onClose, onInitiateCall, onScheduleCallback }) {
   const [copied, setCopied] = useState(false);
   if (!activity) return null;
@@ -920,71 +1398,103 @@ function CallSummaryDetailModal({ activity, lead, onClose, onInitiateCall, onSch
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-150 flex flex-col max-h-[90vh]">
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(2, 48, 71, 0.45)',
+        backdropFilter: 'blur(2px)',
+        zIndex: 1000,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16
+      }}
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 10 }}
+        transition={{ duration: 0.18 }}
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: '#fff',
+          borderRadius: 14,
+          width: '100%',
+          maxWidth: 490,
+          padding: 24,
+          boxShadow: '0 12px 36px rgba(2, 48, 71, 0.16)',
+          border: `1px solid ${TODO_BORDER}`,
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
+          boxSizing: 'border-box'
+        }}
+      >
         {/* Header */}
-        <div className="px-5 py-3.5 border-b border-slate-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50/60 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center border border-sky-200 shadow-2xs">
-              {isRecording ? <Volume2 className="w-4.5 h-4.5 text-sky-600" /> : isFollowup ? <Clock className="w-4.5 h-4.5 text-amber-600" /> : isCall ? <Phone className="w-4.5 h-4.5 text-emerald-600" /> : <MessageCircle className="w-4.5 h-4.5 text-blue-600" />}
-            </div>
-            <div>
-              <h3 className="font-bold text-slate-900 text-sm sm:text-base leading-tight">
-                {title}
-              </h3>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">
-                {lead?.name} ({lead?.phone})
-              </p>
-            </div>
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <h3 style={{ fontSize: 18, fontWeight: 500, color: TODO_DEEP_BLUE, margin: 0 }}>
+            {title}
+          </h3>
           <button
+            type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: TODO_MUTED, lineHeight: 1, padding: 0 }}
           >
-            <X className="w-4 h-4" />
+            ×
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="p-5 overflow-y-auto space-y-4">
-          {/* Metadata Badges Bar */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
-              Type: {isRecording ? 'Voice Call' : isFollowup ? 'Callback' : isCall ? 'Logged Call' : 'Activity Note'}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', flex: 1 }}>
+          <div
+            style={{
+              background: TODO_SKY_SURFACE,
+              border: `1px solid ${TODO_BORDER}`,
+              borderRadius: 8,
+              padding: '10px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10
+            }}
+          >
+            <div>
+              <div style={{ fontSize: 13.5, fontWeight: 500, color: TODO_DEEP_BLUE }}>{lead?.name}</div>
+              {lead?.phone && <div style={{ fontSize: 12, color: TODO_MUTED, marginTop: 2 }}>📞 {lead?.phone}</div>}
+            </div>
+            <span
+              style={{
+                padding: '2px 8px',
+                fontSize: 11.5,
+                fontWeight: 600,
+                borderRadius: 4,
+                border: `1px solid ${TODO_BORDER}`,
+                background: '#fff',
+                color: TODO_BLUE_GREEN
+              }}
+            >
+              {isRecording ? 'Voice Call' : isFollowup ? 'Callback' : isCall ? 'Logged Call' : 'Activity Note'}
             </span>
-            {activity.callStatus && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase">
-                Status: {activity.callStatus}
-              </span>
-            )}
-            {activity.callDuration ? (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                Duration: {fmtDuration(activity.callDuration)}
-              </span>
-            ) : null}
-            {isFollowup && activity.status && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                {activity.status === 'upcoming' ? '⏳ Scheduled' : '✅ Completed'}
-              </span>
-            )}
           </div>
 
           {/* Timing & Agent Details */}
-          <div className="bg-slate-50/80 rounded-xl p-3 border border-slate-200/80 grid grid-cols-2 gap-3 text-xs">
+          <div style={{ background: '#f8fbfd', border: `1px solid ${TODO_INPUT_BORDER}`, borderRadius: 8, padding: '10px 12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 12 }}>
             <div>
-              <span className="text-slate-400 block text-[11px] font-medium">Logged By</span>
-              <span className="font-semibold text-slate-800">
+              <span style={{ color: TODO_MUTED, display: 'block', fontSize: 11, fontWeight: 500 }}>Logged By</span>
+              <span style={{ fontWeight: 600, color: TODO_DEEP_BLUE }}>
                 {activity.performedBy?.name || activity.rec?.user?.name || 'Agent'}
               </span>
             </div>
             <div>
-              <span className="text-slate-400 block text-[11px] font-medium">Date & Time</span>
-              <span className="font-semibold text-slate-800">
+              <span style={{ color: TODO_MUTED, display: 'block', fontSize: 11, fontWeight: 500 }}>Date & Time</span>
+              <span style={{ fontWeight: 600, color: TODO_DEEP_BLUE }}>
                 {activity.createdAt ? format(new Date(activity.createdAt), 'dd MMM yyyy, hh:mm a') : 'Recent'}
               </span>
             </div>
             {isFollowup && activity.scheduledAt && (
-              <div className="col-span-2 bg-amber-50/80 p-2.5 rounded-lg border border-amber-200 text-amber-900 font-medium">
+              <div className="col-span-2" style={{ background: TODO_SKY_SURFACE, padding: '8px 10px', borderRadius: 6, border: `1px solid ${TODO_BORDER}`, color: TODO_DEEP_BLUE, fontWeight: 500 }}>
                 ⏰ Reminder scheduled for: <strong>{format(new Date(activity.scheduledAt), 'dd MMM yyyy, hh:mm a')}</strong>
               </div>
             )}
@@ -992,9 +1502,9 @@ function CallSummaryDetailModal({ activity, lead, onClose, onInitiateCall, onSch
 
           {/* Audio Player if recording */}
           {isRecording && (activity.rec?.streamUrl || activity.rec?.url) && (
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-              <span className="text-xs font-bold text-slate-700 block mb-1.5 flex items-center gap-1.5">
-                <Volume2 className="w-3.5 h-3.5 text-blue-600" /> Call Audio Recording
+            <div style={{ background: '#f8fbfd', border: `1px solid ${TODO_INPUT_BORDER}`, borderRadius: 8, padding: '10px 12px' }}>
+              <span style={{ fontSize: 12.5, fontWeight: 500, color: TODO_DEEP_BLUE, display: 'block', marginBottom: 6 }}>
+                Call Audio Recording
               </span>
               <audio
                 controls
@@ -1008,53 +1518,80 @@ function CallSummaryDetailModal({ activity, lead, onClose, onInitiateCall, onSch
           )}
 
           {/* Full Call Summary / Discussion Box */}
-          <div className="bg-white rounded-xl border border-slate-200 p-3.5">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5 text-blue-600" /> Call Summary & Discussion
-              </span>
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label style={{ fontSize: 13, fontWeight: 500, color: TODO_DEEP_BLUE }}>
+                Summary & Discussion
+              </label>
               <button
                 type="button"
                 onClick={handleCopy}
-                className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                style={{ fontSize: 11.5, fontWeight: 600, color: TODO_BLUE_GREEN, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
               >
-                {copied ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                 {copied ? 'Copied!' : 'Copy'}
               </button>
             </div>
-            <div className="text-xs text-slate-800 leading-relaxed whitespace-pre-wrap bg-slate-50/70 p-3 rounded-lg border border-slate-100 font-normal">
+            <div style={{ fontSize: 13, color: TODO_DEEP_BLUE, lineHeight: 1.5, whiteSpace: 'pre-wrap', background: '#f8fbfd', padding: '10px 12px', borderRadius: 8, border: `1px solid ${TODO_INPUT_BORDER}` }}>
               {summaryText}
             </div>
           </div>
         </div>
 
         {/* Footer Actions */}
-        <div className="px-5 py-3 border-t border-slate-100 bg-slate-50/80 flex items-center justify-between gap-2.5">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 20 }}>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={onInitiateCall}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 flex items-center gap-1.5 transition-colors"
+              style={{
+                padding: '8px 14px',
+                fontSize: 12.5,
+                fontWeight: 500,
+                borderRadius: 8,
+                border: `1px solid ${TODO_BORDER}`,
+                background: TODO_SKY_SURFACE,
+                color: TODO_DEEP_BLUE,
+                cursor: 'pointer'
+              }}
             >
-              <Phone className="w-3.5 h-3.5" /> Call Again
+              📞 Call Again
             </button>
             <button
               type="button"
               onClick={onScheduleCallback}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 flex items-center gap-1.5 transition-colors"
+              style={{
+                padding: '8px 14px',
+                fontSize: 12.5,
+                fontWeight: 500,
+                borderRadius: 8,
+                border: `1px solid ${TODO_INPUT_BORDER}`,
+                background: '#f8fbfd',
+                color: TODO_DEEP_BLUE,
+                cursor: 'pointer'
+              }}
             >
-              <Clock className="w-3.5 h-3.5" /> Schedule Callback
+              ⏰ Schedule Callback
             </button>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 rounded-lg text-xs font-bold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 transition-colors"
+            style={{
+              padding: '9px 18px',
+              fontSize: 13,
+              fontWeight: 500,
+              borderRadius: 8,
+              border: 'none',
+              background: TODO_ORANGE,
+              color: '#fff',
+              cursor: 'pointer'
+            }}
           >
             Close
           </button>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -1244,12 +1781,18 @@ export default function LeadDetailsPage({
   }, [id]);
 
   useEffect(() => {
-    if (!lead?.phone) return;
-    blocklistAPI.check(lead.phone).then(res => {
-      setIsBlocked(res.data.blocked);
+    const phoneToCheck = (leadPhone && leadPhone !== '—') ? leadPhone : lead?.phone;
+    if (!phoneToCheck || phoneToCheck === '—') {
+      setIsBlocked(lead?.status === 'Blocked' || metaLeadData?.status === 'Blocked');
+      return;
+    }
+    blocklistAPI.check(phoneToCheck).then(res => {
+      setIsBlocked(Boolean(res.data.blocked || lead?.status === 'Blocked' || metaLeadData?.status === 'Blocked'));
       setBlockEntryId(res.data.entry?._id || null);
-    }).catch(() => {});
-  }, [lead?.phone]);
+    }).catch(() => {
+      setIsBlocked(Boolean(lead?.status === 'Blocked' || metaLeadData?.status === 'Blocked'));
+    });
+  }, [lead?.phone, leadPhone, lead?.status, metaLeadData?.status]);
 
   // Open Add Note Modal if triggered from Sonner reminder toast or custom event
   useEffect(() => {
@@ -1285,20 +1828,44 @@ export default function LeadDetailsPage({
 
   const handleBlockToggle = async () => {
     setBlockingAction(true);
+    const targetPhone = (leadPhone && leadPhone !== '—') ? leadPhone : lead?.phone;
+    const targetName = (leadName && leadName !== '—') ? leadName : lead?.name;
+    const targetMetaId = metaLeadId || (isMetaLead ? id : null);
     try {
       if (isBlocked) {
-        if (blockEntryId) await blocklistAPI.remove(blockEntryId);
-        else await blocklistAPI.removeByPhone(lead.phone);
-        if (lead.status === 'Blocked') {
-          await leadsAPI.updateStatus(lead._id, { status: 'Fresh' });
-          setLead(prev => prev ? { ...prev, status: 'Fresh' } : prev);
+        if (blockEntryId) {
+          await blocklistAPI.remove(blockEntryId).catch(() => {});
         }
+        if (targetPhone && targetPhone !== '—') {
+          await blocklistAPI.removeByPhone(targetPhone).catch(() => {});
+        }
+        if (targetMetaId) {
+          await metaLeadsAPI.update(targetMetaId, { status: 'New' }).catch(() => {});
+        }
+        if (lead?._id && lead.status === 'Blocked') {
+          await leadsAPI.updateStatus(lead._id, { status: 'Fresh' }).catch(() => {});
+        }
+        const restoredStatus = isMeta ? 'New' : 'Fresh';
+        setLead(prev => prev ? { ...prev, status: prev.status === 'Blocked' ? restoredStatus : prev.status } : prev);
         setIsBlocked(false);
         setBlockEntryId(null);
+        onChange?.({ ...(lead || {}), _id: targetMetaId || lead?._id, status: restoredStatus, isBlocked: false });
+        window.dispatchEvent(new CustomEvent('meta-lead-blocklist-changed', { detail: { phone: targetPhone, blocked: false } }));
       } else {
-        const res = await blocklistAPI.add({ phone: lead.phone, name: lead.name, reason: 'Blocked from lead profile' });
+        if (targetPhone && targetPhone !== '—') {
+          const res = await blocklistAPI.add({ phone: targetPhone, name: targetName, reason: 'Blocked from Meta Leads Campaign' });
+          setBlockEntryId(res.data.entry?._id || null);
+        }
+        if (targetMetaId) {
+          await metaLeadsAPI.update(targetMetaId, { status: 'Blocked' }).catch(() => {});
+        }
+        if (lead?._id && !isMeta) {
+          await leadsAPI.updateStatus(lead._id, { status: 'Blocked' }).catch(() => {});
+        }
+        setLead(prev => prev ? { ...prev, status: 'Blocked' } : prev);
         setIsBlocked(true);
-        setBlockEntryId(res.data.entry?._id || null);
+        onChange?.({ ...(lead || {}), _id: targetMetaId || lead?._id, status: 'Blocked', isBlocked: true });
+        window.dispatchEvent(new CustomEvent('meta-lead-blocklist-changed', { detail: { phone: targetPhone, blocked: true } }));
       }
     } catch (err) {
       const msg = err.response?.data?.message || err.message;
@@ -1308,8 +1875,9 @@ export default function LeadDetailsPage({
       } else {
         alert(isBlocked ? 'Failed to unblock: ' + msg : 'Failed to block: ' + msg);
       }
+    } finally {
+      setBlockingAction(false);
     }
-    setBlockingAction(false);
   };
 
   const copyToClipboard = (text) => {
@@ -1402,16 +1970,6 @@ export default function LeadDetailsPage({
     finally { setSavingInfo(false); }
   };
 
-  const handleLogManualCall = async (form) => {
-    setSavingInfo(true);
-    try {
-      await leadsAPI.logCall(lead._id, form);
-      setShowLogCallModal(false);
-      await fetchLeadDetails();
-    } catch (err) { console.error(err); }
-    finally { setSavingInfo(false); }
-  };
-
   const handleCallbackScheduled = async (followup, scheduledAt) => {
     setShowCallbackModal(false);
     try {
@@ -1422,18 +1980,24 @@ export default function LeadDetailsPage({
     } catch (err) { console.error(err); }
   };
 
-  const handleAddNote = async (note, type) => {
+  const handleAddNote = async (note, type = 'note') => {
     setSavingInfo(true);
     try {
       const targetMetaId = metaLeadId || (isMetaLead ? id : null);
       if (lead?._id) {
-        await leadsAPI.addNote(lead._id, { note, type }).catch(() => {});
+        await leadsAPI.addNote(lead._id, { note, type: 'note' }).catch(() => {});
       }
+      let updatedMetaLead = null;
       if (targetMetaId) {
-        await metaLeadsAPI.update(targetMetaId, { note }).catch(() => {});
+        const metaRes = await metaLeadsAPI.update(targetMetaId, { note }).catch(() => null);
+        updatedMetaLead = metaRes?.data?.lead || null;
       }
       setShowNoteModal(false);
       await fetchLeadDetails();
+      if (updatedMetaLead) {
+        setLead(prev => prev ? { ...prev, callNotes: updatedMetaLead.callNotes || prev.callNotes } : prev);
+        onChange?.(updatedMetaLead);
+      }
 
       // Successfully added note -> cancel 5-minute reminder
       const currentId = lead?._id || targetMetaId || id;
@@ -1518,87 +2082,28 @@ export default function LeadDetailsPage({
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-sm sm:text-base font-semibold text-slate-800 truncate tracking-tight">{leadName || lead.name}</h2>
-                <motion.button
-                  whileHover={{ scale: 1.2, rotate: 15 }}
-                  whileTap={{ scale: 0.85 }}
-                  onClick={handleToggleStar}
-                  className="text-amber-400 focus:outline-none"
-                >
-                  <Star className={`w-4 h-4 ${lead.isStarred ? 'fill-amber-400' : 'text-slate-300'}`} />
-                </motion.button>
 
                 {/* Status Badge: only show for Meta leads if an actual Positive/Negative status is set (no default Fresh/New) */}
                 {(!isMeta ? Boolean(lead.status) : (isLeadPositive(lead) || isLeadNegative(lead))) && (
                   <StatusBadge status={lead.status} />
                 )}
-
-                {/* ── AI state badges ── */}
-                {isAILocked && (
-                  <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full text-[11px] font-medium border border-emerald-200 animate-pulse">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-                    AI Calling
-                  </span>
-                )}
-                {isAIQueued && (
-                  <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full text-[11px] font-medium border border-blue-200">
-                    <Clock className="w-3 h-3 text-blue-500" />
-                    AI Queued
-                  </span>
-                )}
               </div>
-              <p className="text-[11px] text-slate-400 font-mono font-normal mt-0.5">ID: {lead._id || metaLeadData?._id}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap justify-end flex-shrink-0">
-            {/* Initiate Call Button */}
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setShowInitiateCallModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-medium transition-all shadow-xs"
-              title="Send call notification to mobile app"
-            >
-              <Phone className="w-3.5 h-3.5" />
-              <span>Call</span>
-            </motion.button>
-
-            {/* Send WhatsApp Template Button */}
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setShowSendTemplateModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition-all shadow-xs"
-              title="Send WhatsApp Template to student"
-            >
-              <MessageCircle className="w-3.5 h-3.5" />
-              <span>WhatsApp</span>
-            </motion.button>
-
             {/* Status Selector: Positive / Negative with Image Sub-statuses */}
             <MetaLeadStatusPicker
               status={lead.status}
               onStatusChange={handleStatusChange}
             />
-
-            {canDelete(user) && (
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleDeleteLead}
-                className="w-8 h-8 rounded-lg border border-rose-200 bg-rose-50/50 hover:bg-rose-50 text-rose-600 flex items-center justify-center transition-all"
-                title="Delete Lead"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </motion.button>
-            )}
           </div>
         </div>
       </div>
 
       <div className={`mx-auto ${embedded ? 'w-full px-2 sm:px-4 py-3 space-y-3.5' : 'max-w-5xl px-3 sm:px-6 py-4 space-y-3.5'}`}>
         {isCalling && <CallTimer onStop={handleCallEnded} />}
-        <AIStateBanner lead={lead} />
+        {!isMeta && <AIStateBanner lead={lead} />}
 
         {/* ─── 1. Basic Information (Full Container Width, Decreased Height, Responsive Multi-Col Grid) ─── */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
@@ -1757,7 +2262,7 @@ export default function LeadDetailsPage({
                 )
               ) : (
                 isMeta ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
+                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
                     {/* 1. Name */}
                     <div className="p-2 sm:p-2.5 rounded-lg bg-slate-50/80 border border-slate-100 hover:border-blue-200 transition-colors min-w-0">
                       <div className="flex items-center gap-1.5 text-blue-600 mb-1">
@@ -1817,25 +2322,6 @@ export default function LeadDetailsPage({
                       </div>
                       <div className="flex items-center justify-between gap-1">
                         <span className="text-xs font-medium text-slate-800 truncate" title={leadCity}>{leadCity}</span>
-                      </div>
-                    </div>
-
-                    {/* 5. Rating */}
-                    <div className="p-2 sm:p-2.5 rounded-lg bg-slate-50/80 border border-slate-100 flex flex-col justify-center min-w-0">
-                      <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-1">Rating</span>
-                      <div className="flex items-center gap-0.5">
-                        {[1, 2, 3, 4, 5].map(r => (
-                          <motion.button
-                            whileHover={{ scale: 1.2 }}
-                            whileTap={{ scale: 0.9 }}
-                            type="button"
-                            key={r}
-                            onClick={() => handleRatingChange(r)}
-                            className="focus:outline-none"
-                          >
-                            <Star className={`w-3.5 h-3.5 ${r <= (lead?.rating || metaLeadData?.rating || 0) ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}`} />
-                          </motion.button>
-                        ))}
                       </div>
                     </div>
                   </div>
@@ -1978,10 +2464,22 @@ export default function LeadDetailsPage({
         {/* ─── Down: Quick Action Center (Compact Size · Light Sky Blue & Light Green Theme) ─── */}
         <div className="w-full bg-white rounded-xl border border-slate-200 shadow-xs p-2.5 sm:p-3 relative overflow-hidden">
           {isBlocked && (
-            <div className="absolute inset-0 bg-rose-50/95 z-10 flex flex-col items-center justify-center gap-1.5 rounded-xl p-3 text-center">
-              <ShieldAlert className="w-6 h-6 text-rose-600" />
-              <span className="text-xs font-semibold text-rose-700">Phone Number Blocked — Actions Disabled</span>
-              <span className="text-[11px] text-rose-600">Unblock this lead to re-enable communication actions.</span>
+            <div className="mb-2.5 bg-rose-50 border border-rose-200 flex flex-col sm:flex-row items-center justify-between gap-2 rounded-xl p-3">
+              <div className="flex items-center gap-2.5">
+                <ShieldAlert className="w-5 h-5 text-rose-600 flex-shrink-0" />
+                <div>
+                  <div className="text-xs font-bold text-rose-700">Contact Blocked — Communication Actions Disabled</div>
+                  <div className="text-[11px] text-rose-600">Click Unblock Contact to restore calling, WhatsApp, and notes for this lead.</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleBlockToggle}
+                disabled={blockingAction}
+                className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all cursor-pointer flex-shrink-0"
+              >
+                {blockingAction ? 'Unblocking...' : '✓ Unblock Contact'}
+              </button>
             </div>
           )}
           <div className="flex items-center justify-between mb-2">
@@ -1989,13 +2487,14 @@ export default function LeadDetailsPage({
               <Zap className="w-3.5 h-3.5 text-sky-600" /> Quick Action Center
             </h3>
             <button
+              type="button"
               onClick={handleBlockToggle}
               disabled={blockingAction}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
-                isBlocked ? 'bg-emerald-50 text-emerald-700 border border-emerald-300' : 'bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100'
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                isBlocked ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs' : 'bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100'
               }`}
             >
-              {isBlocked ? 'Unblock Phone' : 'Block Phone'}
+              {blockingAction ? 'Updating...' : isBlocked ? '✓ Unblock Contact' : 'Block Contact'}
             </button>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
@@ -2018,15 +2517,6 @@ export default function LeadDetailsPage({
               </motion.button>
             ))}
           </div>
-          <div className="mt-2 flex justify-center">
-            <button
-              disabled={isBlocked}
-              onClick={() => setShowLogCallModal(true)}
-              className="text-[11px] font-semibold text-sky-700 hover:text-sky-900 hover:underline transition-colors disabled:opacity-40"
-            >
-              + Log call records manually
-            </button>
-          </div>
         </div>
 
         {/* ─── Down: Activity & Calling History ─── */}
@@ -2045,7 +2535,17 @@ export default function LeadDetailsPage({
               { key: 'note', label: 'Notes' },
             ].map(tab => {
               let count = 0;
-              const nonStatusActivities = (lead.activities || []).filter(a => !String(a.description || a.note || '').toLowerCase().startsWith('status changed'));
+              const metaCallNotes = (lead.callNotes || metaLeadData?.callNotes || []).map((cn, idx) => ({
+                _id: cn._id || `meta-note-${idx}`,
+                type: (cn.outcome && cn.outcome !== 'Note Added') ? 'call' : 'note',
+                description: cn.note || cn.outcome || 'Activity logged',
+                createdAt: cn.date,
+                performedBy: { name: cn.userName || 'Agent' },
+              }));
+              const nonStatusActivities = [
+                ...(lead.activities || []).filter(a => !String(a.description || a.note || '').toLowerCase().startsWith('status changed')),
+                ...metaCallNotes,
+              ];
               if (tab.key === 'all') count = nonStatusActivities.length + leadFollowups.length + recordings.length;
               else if (tab.key === 'followup') count = leadFollowups.length;
               else if (tab.key === 'recordings') count = recordings.length;
@@ -2073,12 +2573,30 @@ export default function LeadDetailsPage({
             })}
           </div>
 
-          {/* 4-COLUMN CARD GRID DISPLAY */}
+          {/* 3-COLUMN CARD GRID DISPLAY (Redesigned Clean CRM Card Style) */}
           <div>
             {(() => {
-              const nonStatusActivities = (lead.activities || []).filter(a => !String(a.description || a.note || '').toLowerCase().startsWith('status changed'));
+              const metaCallNotes = (lead.callNotes || metaLeadData?.callNotes || []).map((cn, idx) => ({
+                _id: cn._id || `meta-note-${idx}`,
+                type: cn.outcome === 'WhatsApp Sent'
+                  ? 'whatsapp'
+                  : (cn.outcome && cn.outcome !== 'Note Added')
+                  ? 'call'
+                  : 'note',
+                description: cn.note || cn.outcome || 'Activity logged',
+                createdAt: cn.date,
+                performedBy: { name: cn.userName || 'Agent' },
+              }));
+              const nonStatusActivities = [
+                ...(lead.activities || []).filter(a => !String(a.description || a.note || '').toLowerCase().startsWith('status changed')),
+                ...metaCallNotes,
+              ];
               const activityItems = (activityFilter === 'all' || activityFilter === 'call' || activityFilter === 'note')
-                ? nonStatusActivities.filter(a => activityFilter === 'all' ? true : a.type === activityFilter)
+                ? nonStatusActivities.filter(a => {
+                    if (activityFilter === 'all') return true;
+                    if (activityFilter === 'note') return a.type === 'note' || a.type === 'whatsapp';
+                    return a.type === activityFilter;
+                  })
                 : [];
 
               const followupItems = (activityFilter === 'all' || activityFilter === 'followup')
@@ -2090,7 +2608,9 @@ export default function LeadDetailsPage({
                     createdAt: f.createdAt,
                     scheduledAt: f.scheduledAt,
                     status: f.status,
-                    performedBy: f.assignedTo,
+                    leadName: f.leadName || f.lead?.name || leadName || lead?.name,
+                    filledByName: f.filledByName || f.createdBy?.name || f.assignedBy?.name || f.assignedTo?.name || 'Agent',
+                    performedBy: f.assignedTo || f.createdBy,
                   }))
                 : [];
 
@@ -2119,23 +2639,48 @@ export default function LeadDetailsPage({
               }
 
               return (
-                <div className={embedded ? "grid grid-cols-1 sm:grid-cols-2 gap-3" : "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
                   {allItems.map((a, i) => {
                     // 1. AUDIO RECORDING CARD
                     if (a._recording) {
                       return (
                         <motion.div
-                          initial={{ opacity: 0, y: 10 }}
+                          initial={{ opacity: 0, y: 8 }}
                           animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.2, delay: i * 0.03 }}
+                          transition={{ duration: 0.18, delay: i * 0.02 }}
                           key={a._id || i}
                           onClick={() => setSelectedCallSummaryActivity(a)}
-                          className="bg-white border border-blue-200/90 rounded-2xl p-4 shadow-xs hover:shadow-md hover:border-blue-400 hover:ring-2 hover:ring-blue-100 transition-all flex flex-col justify-between cursor-pointer group"
+                          style={{
+                            background: '#ffffff',
+                            border: `1px solid ${TODO_BORDER}`,
+                            borderTop: `3px solid ${TODO_SKY_BLUE}`,
+                            borderRadius: 12,
+                            padding: 14,
+                            boxShadow: '0 2px 8px rgba(2, 48, 71, 0.05)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            cursor: 'pointer'
+                          }}
+                          className="hover:shadow-md transition-all"
                         >
                           <div>
                             <div className="flex items-center justify-between gap-2 mb-2.5">
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                                <Volume2 className="w-3 h-3 text-blue-600" /> Audio Recording
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 5,
+                                  padding: '3px 9px',
+                                  borderRadius: 6,
+                                  fontSize: 10.5,
+                                  fontWeight: 700,
+                                  background: TODO_SKY_SURFACE,
+                                  color: TODO_DEEP_BLUE,
+                                  border: `1px solid ${TODO_BORDER}`
+                                }}
+                              >
+                                <Volume2 className="w-3 h-3" style={{ color: TODO_BLUE_GREEN }} /> Audio Recording
                               </span>
                               <a
                                 href={a.rec.streamUrl || a.rec.url}
@@ -2144,28 +2689,28 @@ export default function LeadDetailsPage({
                                 rel="noopener noreferrer"
                                 title="Download Audio"
                                 onClick={e => e.stopPropagation()}
-                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-200"
+                                className="p-1 text-slate-400 hover:text-sky-700 hover:bg-sky-50 rounded-md transition-colors"
                               >
                                 <Download className="w-3.5 h-3.5" />
                               </a>
                             </div>
 
-                            <h4 className="font-bold text-xs text-slate-800 truncate mb-1" title={a.rec.originalName}>
+                            <h4 style={{ fontSize: 12.5, fontWeight: 600, color: TODO_DEEP_BLUE, marginBottom: 4 }} className="truncate" title={a.rec.originalName}>
                               {a.rec.originalName || 'Call Recording'}
                             </h4>
 
-                            <div className="text-[11px] text-slate-500 font-medium mb-2.5 flex items-center gap-1.5">
+                            <div style={{ fontSize: 11, color: TODO_MUTED, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
                               <Phone className="w-3 h-3 text-emerald-600 flex-shrink-0" />
-                              <span className="truncate">{a.rec.phone || lead.phone}</span>
+                              <span className="truncate">{a.rec.phone || leadPhone}</span>
                             </div>
 
                             {/* Audio Player Container */}
-                            <div className="bg-slate-50 border border-slate-200 rounded-xl p-2 mb-2.5">
+                            <div style={{ background: '#f8fbfd', border: `1px solid ${TODO_INPUT_BORDER}`, borderRadius: 8, padding: 6, marginBottom: 8 }}>
                               <audio
                                 onClick={e => e.stopPropagation()}
                                 controls
                                 preload="metadata"
-                                className="w-full h-8 rounded-lg"
+                                className="w-full h-7 rounded"
                                 src={a.rec.streamUrl || a.rec.url}
                               >
                                 Audio not supported
@@ -2174,30 +2719,33 @@ export default function LeadDetailsPage({
 
                             {/* AI Transcript if available */}
                             {a.rec.transcript && (
-                              <div className="bg-blue-50/60 border border-blue-100 rounded-xl p-2.5 text-[10px] text-slate-700 mb-2">
+                              <div style={{ background: TODO_SKY_SURFACE, border: `1px solid ${TODO_BORDER}`, borderRadius: 8, padding: '7px 9px', fontSize: 10.5, color: TODO_DEEP_BLUE, marginBottom: 8 }}>
                                 <div className="flex items-center justify-between mb-1">
-                                  <span className="font-bold text-blue-700 flex items-center gap-1">
-                                    <Sparkles className="w-3 h-3" /> AI Whisper Transcript:
+                                  <span style={{ fontWeight: 700, color: TODO_BLUE_GREEN, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                    <Sparkles className="w-3 h-3" /> Whisper Transcript
                                   </span>
                                   <button
-                                    onClick={() => setActiveConversationRecording({
-                                      ...a.rec,
-                                      leadName: lead?.name,
-                                      phone: lead?.phone || a.rec?.phone,
-                                    })}
-                                    title="Open Fullscreen Chat Conversation View"
-                                    className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-1.5 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveConversationRecording({
+                                        ...a.rec,
+                                        leadName: leadName !== '—' ? leadName : lead?.name,
+                                        phone: leadPhone !== '—' ? leadPhone : a.rec?.phone,
+                                      });
+                                    }}
+                                    title="Open Chat Conversation View"
+                                    style={{ background: '#fff', color: TODO_DEEP_BLUE, border: `1px solid ${TODO_BORDER}`, padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3 }}
                                   >
-                                    <Maximize2 className="w-2.5 h-2.5" /> Chat View
+                                    <Maximize2 className="w-2.5 h-2.5" /> Chat
                                   </button>
                                 </div>
-                                <p className="line-clamp-3 italic text-slate-600">{a.rec.transcript}</p>
+                                <p className="line-clamp-2 italic" style={{ color: '#334155', margin: 0 }}>{a.rec.transcript}</p>
                               </div>
                             )}
                           </div>
 
-                          <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-medium">
-                            <span className="truncate max-w-[120px]">By: {a.rec.user?.name || 'Mobile Agent'}</span>
+                          <div style={{ paddingTop: 8, borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10.5, color: TODO_MUTED, fontWeight: 500 }}>
+                            <span className="truncate max-w-[130px]">By: <strong style={{ color: TODO_DEEP_BLUE }}>{a.rec.user?.name || 'Agent'}</strong></span>
                             <span>{a.createdAt ? format(new Date(a.createdAt), 'dd MMM, hh:mm a') : ''}</span>
                           </div>
                         </motion.div>
@@ -2208,116 +2756,199 @@ export default function LeadDetailsPage({
                     if (a._followup) {
                       return (
                         <motion.div
-                          initial={{ opacity: 0, y: 10 }}
+                          initial={{ opacity: 0, y: 8 }}
                           animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.2, delay: i * 0.03 }}
+                          transition={{ duration: 0.18, delay: i * 0.02 }}
                           key={a._id || i}
                           onClick={() => setSelectedCallSummaryActivity(a)}
-                          className="bg-white border border-amber-200/90 rounded-2xl p-4 shadow-xs hover:shadow-md hover:border-amber-400 hover:ring-2 hover:ring-amber-100 transition-all flex flex-col justify-between cursor-pointer group"
+                          style={{
+                            background: '#ffffff',
+                            border: '1px solid #fde68a',
+                            borderTop: `3px solid ${TODO_ORANGE}`,
+                            borderRadius: 12,
+                            padding: 14,
+                            boxShadow: '0 2px 8px rgba(2, 48, 71, 0.05)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            cursor: 'pointer'
+                          }}
+                          className="hover:shadow-md transition-all"
                         >
                           <div>
                             <div className="flex items-center justify-between gap-2 mb-2.5">
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                <Clock className="w-3 h-3 text-amber-600" /> Callback
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 5,
+                                  padding: '3px 9px',
+                                  borderRadius: 6,
+                                  fontSize: 10.5,
+                                  fontWeight: 700,
+                                  background: '#fffbeb',
+                                  color: '#b45309',
+                                  border: '1px solid #fde68a'
+                                }}
+                              >
+                                <Clock className="w-3 h-3 text-amber-600" /> Call Back Later
                               </span>
-                              <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
-                                a.status === 'upcoming' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
-                              }`}>
+                              <span
+                                style={{
+                                  fontSize: 10,
+                                  fontWeight: 700,
+                                  padding: '2px 8px',
+                                  borderRadius: 12,
+                                  background: a.status === 'upcoming' ? '#fef3c7' : '#d1fae5',
+                                  color: a.status === 'upcoming' ? '#92400e' : '#065f46'
+                                }}
+                              >
                                 {a.status === 'upcoming' ? '⏳ Upcoming' : '✅ Done'}
                               </span>
                             </div>
 
+                            <div style={{ fontSize: 11.5, color: TODO_DEEP_BLUE, fontWeight: 600, marginBottom: 6 }}>
+                              👤 Person: {a.leadName || leadName || lead?.name}
+                            </div>
+
                             {a.scheduledAt && (
-                              <div className="text-xs font-bold text-amber-800 bg-amber-50/80 p-2.5 rounded-xl border border-amber-200 mb-2">
+                              <div style={{ fontSize: 11.5, fontWeight: 700, color: '#92400e', background: '#fffbeb', padding: '7px 10px', borderRadius: 8, border: '1px solid #fde68a', marginBottom: 8 }}>
                                 ⏰ {format(new Date(a.scheduledAt), 'dd MMM yyyy, hh:mm a')}
                               </div>
                             )}
 
                             {a.description && (
-                              <p className="text-xs text-slate-600 italic bg-slate-50 p-2.5 rounded-xl border border-slate-100 line-clamp-3 mb-2">
-                                "{a.description}"
+                              <p style={{ fontSize: 11.5, color: '#334155', background: '#f8fbfd', padding: '8px 10px', borderRadius: 8, border: `1px solid ${TODO_INPUT_BORDER}`, margin: '0 0 8px 0' }} className="line-clamp-2">
+                                {a.description}
                               </p>
                             )}
                           </div>
 
-                          <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-medium">
-                            <span className="truncate max-w-[120px]">Assigned: {a.performedBy?.name || 'Unassigned'}</span>
+                          <div style={{ paddingTop: 8, borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10.5, color: TODO_MUTED, fontWeight: 500 }}>
+                            <span className="truncate max-w-[140px]">Filled By: <strong style={{ color: TODO_DEEP_BLUE }}>{a.filledByName || a.performedBy?.name || 'Agent'}</strong></span>
                             <span>{a.createdAt ? format(new Date(a.createdAt), 'dd MMM, hh:mm a') : ''}</span>
                           </div>
                         </motion.div>
                       );
                     }
 
-                    // 3. PURE CALL LOG CARD (NO AUDIO PLAYER)
+                    // 3. PURE CALL LOG CARD
                     if (a.type === 'call') {
                       return (
                         <motion.div
-                          initial={{ opacity: 0, y: 10 }}
+                          initial={{ opacity: 0, y: 8 }}
                           animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.2, delay: i * 0.03 }}
+                          transition={{ duration: 0.18, delay: i * 0.02 }}
                           key={a._id || i}
                           onClick={() => setSelectedCallSummaryActivity(a)}
-                          className="bg-white border border-emerald-200/90 rounded-2xl p-4 shadow-xs hover:shadow-md hover:border-emerald-400 hover:ring-2 hover:ring-emerald-100 transition-all flex flex-col justify-between cursor-pointer group"
+                          style={{
+                            background: '#ffffff',
+                            border: '1px solid #a7f3d0',
+                            borderTop: '3px solid #10b981',
+                            borderRadius: 12,
+                            padding: 14,
+                            boxShadow: '0 2px 8px rgba(2, 48, 71, 0.05)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            cursor: 'pointer'
+                          }}
+                          className="hover:shadow-md transition-all"
                         >
                           <div>
                             <div className="flex items-center justify-between gap-2 mb-2.5">
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 5,
+                                  padding: '3px 9px',
+                                  borderRadius: 6,
+                                  fontSize: 10.5,
+                                  fontWeight: 700,
+                                  background: '#ecfdf5',
+                                  color: '#065f46',
+                                  border: '1px solid #a7f3d0'
+                                }}
+                              >
                                 <Phone className="w-3 h-3 text-emerald-600" /> Logged Call
                               </span>
-                              <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                              <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 12, background: '#d1fae5', color: '#065f46' }}>
                                 {a.callStatus?.toUpperCase() || 'CONNECTED'}
                               </span>
                             </div>
 
-                            <div className="mb-2">
-                              <div className="text-xs font-bold text-slate-800 mb-1.5 flex items-center gap-1.5">
+                            {a.callDuration > 0 && (
+                              <div style={{ fontSize: 11.5, fontWeight: 600, color: TODO_DEEP_BLUE, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
                                 <Clock className="w-3.5 h-3.5 text-slate-400" />
                                 <span>Duration: {fmtDuration(a.callDuration)}</span>
                               </div>
-                              {a.description ? (
-                                <p className="text-xs text-slate-600 italic bg-slate-50 p-2.5 rounded-xl border border-slate-100 line-clamp-3">
-                                  "{a.description}"
-                                </p>
-                              ) : (
-                                <p className="text-[11px] text-slate-400 italic bg-slate-50/50 p-2 rounded-lg border border-slate-100">
-                                  No call notes recorded.
-                                </p>
-                              )}
-                            </div>
+                            )}
+
+                            <p style={{ fontSize: 11.5, color: '#334155', background: '#f8fbfd', padding: '8px 10px', borderRadius: 8, border: `1px solid ${TODO_INPUT_BORDER}`, margin: '0 0 8px 0' }} className="line-clamp-3">
+                              {a.description || 'Call activity logged.'}
+                            </p>
                           </div>
 
-                          <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-medium">
-                            <span className="truncate max-w-[120px]">By: {a.performedBy?.name || 'Agent'}</span>
+                          <div style={{ paddingTop: 8, borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10.5, color: TODO_MUTED, fontWeight: 500 }}>
+                            <span className="truncate max-w-[130px]">By: <strong style={{ color: TODO_DEEP_BLUE }}>{a.performedBy?.name || 'Agent'}</strong></span>
                             <span>{a.createdAt ? format(new Date(a.createdAt), 'dd MMM, hh:mm a') : ''}</span>
                           </div>
                         </motion.div>
                       );
                     }
 
-                    // 4. NOTES / OTHER ACTIVITIES CARD
+                    // 4. WHATSAPP / NOTES / OTHER ACTIVITIES CARD
+                    const isWa = a.type === 'whatsapp';
                     return (
                       <motion.div
-                        initial={{ opacity: 0, y: 10 }}
+                        initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.2, delay: i * 0.03 }}
+                        transition={{ duration: 0.18, delay: i * 0.02 }}
                         key={a._id || i}
                         onClick={() => setSelectedCallSummaryActivity(a)}
-                        className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs hover:shadow-md hover:border-slate-300 hover:ring-2 hover:ring-slate-100 transition-all flex flex-col justify-between cursor-pointer group"
+                        style={{
+                          background: '#ffffff',
+                          border: `1px solid ${isWa ? '#bbf7d0' : TODO_BORDER}`,
+                          borderTop: `3px solid ${isWa ? '#16a34a' : TODO_BLUE_GREEN}`,
+                          borderRadius: 12,
+                          padding: 14,
+                          boxShadow: '0 2px 8px rgba(2, 48, 71, 0.05)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          cursor: 'pointer'
+                        }}
+                        className="hover:shadow-md transition-all"
                       >
                         <div>
                           <div className="flex items-center justify-between gap-2 mb-2.5">
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                              <MessageCircle className="w-3 h-3 text-slate-600" /> {a.type ? a.type.toUpperCase() : 'NOTE'}
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 5,
+                                padding: '3px 9px',
+                                borderRadius: 6,
+                                fontSize: 10.5,
+                                fontWeight: 700,
+                                background: isWa ? '#f0fdf4' : TODO_SKY_SURFACE,
+                                color: isWa ? '#166534' : TODO_DEEP_BLUE,
+                                border: `1px solid ${isWa ? '#bbf7d0' : TODO_BORDER}`
+                              }}
+                            >
+                              <MessageCircle className="w-3 h-3" style={{ color: isWa ? '#16a34a' : TODO_BLUE_GREEN }} />
+                              {isWa ? 'WHATSAPP' : (a.type ? a.type.toUpperCase() : 'NOTE')}
                             </span>
                           </div>
 
-                          <p className="text-xs text-slate-700 bg-slate-50/80 p-2.5 rounded-xl border border-slate-100 mb-2 line-clamp-3">
+                          <p style={{ fontSize: 11.5, color: '#334155', background: '#f8fbfd', padding: '8px 10px', borderRadius: 8, border: `1px solid ${TODO_INPUT_BORDER}`, margin: '0 0 8px 0' }} className="line-clamp-3">
                             {a.description || 'Activity logged'}
                           </p>
                         </div>
 
-                        <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-medium">
-                          <span className="truncate max-w-[120px]">By: {a.performedBy?.name || 'System'}</span>
+                        <div style={{ paddingTop: 8, borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10.5, color: TODO_MUTED, fontWeight: 500 }}>
+                          <span className="truncate max-w-[130px]">By: <strong style={{ color: TODO_DEEP_BLUE }}>{a.performedBy?.name || 'Agent'}</strong></span>
                           <span>{a.createdAt ? format(new Date(a.createdAt), 'dd MMM, hh:mm a') : ''}</span>
                         </div>
                       </motion.div>
@@ -2332,13 +2963,21 @@ export default function LeadDetailsPage({
 
       {/* Modals with AnimatePresence */}
       <AnimatePresence>
-        {showNoteModal && <AddNoteModal onClose={() => setShowNoteModal(false)} onSubmit={handleAddNote} />}
-        {showLogCallModal && <LogCallModal lead={lead} onClose={() => setShowLogCallModal(false)} onSubmit={handleLogManualCall} />}
-        {showCallbackModal && lead && <CallbackTimeModal lead={lead} currentUser={user} onClose={() => setShowCallbackModal(false)} onScheduled={handleCallbackScheduled} />}
+        {showNoteModal && <AddNoteModal lead={{ name: leadName !== '—' ? leadName : lead?.name, phone: leadPhone !== '—' ? leadPhone : lead?.phone }} onClose={() => setShowNoteModal(false)} onSubmit={handleAddNote} />}
+        {showCallbackModal && lead && (
+          <CallbackTimeModal
+            lead={{ ...lead, name: leadName !== '—' ? leadName : lead?.name, phone: leadPhone !== '—' ? leadPhone : lead?.phone }}
+            metaLeadId={metaLeadId || (isMeta ? id : null)}
+            campaign={metaLeadData?.campaign || lead?.campaign?.name || ''}
+            currentUser={user}
+            onClose={() => setShowCallbackModal(false)}
+            onScheduled={handleCallbackScheduled}
+          />
+        )}
         {showDemoModal && lead && <ScheduleDemoModal lead={lead} onClose={() => setShowDemoModal(false)} onSave={handleScheduleDemo} />}
         {showInitiateCallModal && (
           <InitiateCallModal
-            lead={lead}
+            lead={{ ...lead, name: leadName !== '—' ? leadName : lead?.name, phone: leadPhone !== '—' ? leadPhone : lead?.phone }}
             callers={callers}
             currentUser={user}
             onClose={() => setShowInitiateCallModal(false)}
@@ -2347,9 +2986,16 @@ export default function LeadDetailsPage({
         )}
         {showSendTemplateModal && (
           <SendWhatsAppTemplateModal
-            lead={lead}
+            lead={{ ...lead, _id: lead?._id || metaLeadId || id, name: leadName !== '—' ? leadName : lead?.name, phone: leadPhone !== '—' ? leadPhone : lead?.phone }}
+            metaLeadId={metaLeadId || (isMeta ? id : null)}
             onClose={() => setShowSendTemplateModal(false)}
-            onSuccess={fetchLeadDetails}
+            onSuccess={(data) => {
+              if (data?.metaLead) {
+                setLead(prev => prev ? { ...prev, callNotes: data.metaLead.callNotes || prev.callNotes } : prev);
+                onChange?.(data.metaLead);
+              }
+              fetchLeadDetails();
+            }}
           />
         )}
         {activeConversationRecording && (

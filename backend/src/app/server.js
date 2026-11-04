@@ -7,6 +7,23 @@ const env = require('../config/env');
 const PORT = env.PORT || 5000;
 const server = http.createServer(app);
 
+// Handle port conflicts gracefully during nodemon hot-restarts
+server.on('error', (err) => {
+  if (err && err.code === 'EADDRINUSE') {
+    logger.warn(`Port ${PORT} is temporarily in use, retrying in 1.5s...`);
+    setTimeout(() => {
+      try {
+        server.close();
+        server.listen(PORT);
+      } catch (retryErr) {
+        logger.error('Server retry listen failed:', retryErr);
+      }
+    }, 1500);
+  } else {
+    logger.error('HTTP Server error:', err);
+  }
+});
+
 // Initialize DB, Sockets, and Background Workers
 initProviders(server).then(() => {
   server.listen(PORT, () => {

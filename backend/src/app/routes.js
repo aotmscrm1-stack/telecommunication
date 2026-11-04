@@ -42,7 +42,6 @@ router.use('/blocklist', apiLimiter, require('../modules/marketing/contacts/bloc
 
 // WhatsApp Blast
 router.use('/whatsapp-lists', apiLimiter, require('../modules/marketing/whatsapp-blast/whatsappLists'));
-router.use('/broadcasts', apiLimiter, require('../modules/marketing/whatsapp-blast/broadcasts'));
 
 // WhatsApp & Inbox
 router.use('/whatsapp-inbox', apiLimiter, require('../modules/marketing/whatsapp/whatsappInbox'));

@@ -3,6 +3,7 @@ const router = express.Router();
 const axios = require('axios');
 const MetaLead = require('../../../database/models/MetaLead');
 const Lead = require('../../../database/models/Lead');
+const Blocklist = require('../../../database/models/Blocklist');
 const MetaCampaignAssignment = require('../../../database/models/MetaCampaignAssignment');
 const MetaSyncState = require('../../../database/models/MetaSyncState');
 const User = require('../../../database/models/User');
@@ -53,53 +54,31 @@ const ALL_NEGATIVE_STATUSES = [
   ...NEGATIVE_SUB_STATUSES
 ];
 
-// Helper to determine if user has full administrative / management access
+// Helper to determine if user has Admin or Manager access (Admin & Manager Only)
 function isExecutiveOrAdminUser(user) {
   if (!user) return false;
   const role = String(user.role || '').trim().toLowerCase();
   const d = String(user.designation || '').trim().toUpperCase();
-  const dept = String(user.department || '').trim().toUpperCase();
   const dn = String(user.displayName || '').trim().toUpperCase();
 
-  // Explicit system administrators
-  if (role === 'admin' || role === 'superadmin') return true;
+  // Explicit Admin / Superadmin / Manager role
+  if (role === 'admin' || role === 'superadmin' || role === 'manager') return true;
 
-  // C-suite / Executive Directors
+  // Explicit Admin / Manager / MD designation
   if (
+    d === 'ADMIN' ||
+    d === 'ADMINISTRATOR' ||
+    d === 'MANAGER' ||
+    d.includes('MANAGER') ||
     d === 'MD' ||
     d.includes('MANAGING DIRECTOR') ||
     d === 'CEO' ||
     d === 'CTO' ||
+    dn === 'ADMIN' ||
+    dn === 'MANAGER' ||
+    dn.includes('MANAGER') ||
     dn.includes('MANAGING DIRECTOR')
   ) {
-    return true;
-  }
-
-  // Any counsellor, telecaller, caller, staff employee, or marketing rep is restricted
-  const isRestrictedStaff = 
-    role === 'employee' ||
-    role === 'caller' ||
-    d.includes('COUNSELLOR') || 
-    d.includes('COUNSELOR') || 
-    dn.includes('COUNSELLOR') || 
-    dn.includes('COUNSELOR') || 
-    d.includes('CALLER') || 
-    d.includes('TELE') || 
-    dn.includes('CALLER') || 
-    dn.includes('TELE') || 
-    dept.includes('TELE') ||
-    dept.includes('CALL') ||
-    d.includes('MARKETING') || 
-    d.includes('SALES') ||
-    d.includes('JR') || 
-    d.includes('JUNIOR');
-
-  if (isRestrictedStaff) {
-    return false;
-  }
-
-  // General managers not assigned to counselling / telecalling
-  if (role === 'manager' && dept !== 'HR' && !d.includes('HR')) {
     return true;
   }
 
@@ -750,9 +729,6 @@ router.get('/campaigns', protect, async (req, res) => {
           newCount: {
             $sum: { $cond: [{ $eq: ['$status', 'New'] }, 1, 0] }
           },
-          convertedCount: {
-            $sum: { $cond: [{ $eq: ['$status', 'Converted'] }, 1, 0] }
-          },
           positiveCount: {
             $sum: { $cond: [{ $in: ['$status', ALL_POSITIVE_STATUSES] }, 1, 0] }
           },
@@ -786,7 +762,6 @@ router.get('/campaigns', protect, async (req, res) => {
         count: s.count,
         lastSynced: s.lastSynced,
         newCount: s.newCount,
-        convertedCount: s.convertedCount,
         positiveCount: pos,
         negativeCount: neg,
         pendingCount: pending,
@@ -807,7 +782,6 @@ router.get('/campaigns', protect, async (req, res) => {
             count: 0,
             lastSynced: null,
             newCount: 0,
-            convertedCount: 0,
             positiveCount: 0,
             negativeCount: 0,
             pendingCount: 0,
@@ -826,7 +800,6 @@ router.get('/campaigns', protect, async (req, res) => {
             count: 0,
             lastSynced: null,
             newCount: 0,
-            convertedCount: 0,
             positiveCount: 0,
             negativeCount: 0,
             pendingCount: 0,
@@ -1036,11 +1009,12 @@ router.get('/call-dates', protect, async (req, res) => {
 router.get('/', protect, async (req, res) => {
   try {
     const isAdmin = isExecutiveOrAdminUser(req.user);
-    const { campaign, department, search, status, calledDate, tzOffset, page = 1, limit = 25 } = req.query;
+    const { campaign, department, search, status, calledDate, tzOffset, forLinking, all, page = 1, limit = 25 } = req.query;
+    const isGlobalLinkView = forLinking === 'true' || all === 'true';
     const query = {};
 
     let allowedCampaigns = null;
-    if (!isAdmin) {
+    if (!isAdmin && !isGlobalLinkView) {
       const userAssignments = await MetaCampaignAssignment.find({
         assignedUsers: req.user._id
       }).select('campaign').lean();
@@ -1128,8 +1102,34 @@ router.get('/', protect, async (req, res) => {
         query.status = { $in: ALL_NEGATIVE_STATUSES };
       } else if (status === 'Pending') {
         query.status = { $nin: [...ALL_POSITIVE_STATUSES, ...ALL_NEGATIVE_STATUSES] };
+      } else if (status === 'Blocked') {
+        const blockedEntries = await Blocklist.find({}).select('phone').lean();
+        const blockedPhoneSet = new Set();
+        blockedEntries.forEach(entry => {
+          const clean = String(entry.phone || '').replace(/\D/g, '');
+          if (clean) {
+            blockedPhoneSet.add(clean);
+            if (clean.length >= 10) {
+              const last10 = clean.slice(-10);
+              blockedPhoneSet.add(last10);
+              blockedPhoneSet.add(`91${last10}`);
+              blockedPhoneSet.add(`+91${last10}`);
+            }
+          }
+        });
+        const blockedPhoneList = Array.from(blockedPhoneSet);
+        const blockedOr = [{ status: 'Blocked' }];
+        if (blockedPhoneList.length > 0) {
+          blockedOr.push(
+            { phone: { $in: blockedPhoneList } },
+            { normalizedPhone: { $in: blockedPhoneList } }
+          );
+        }
+        query.$and = query.$and || [];
+        query.$and.push({ $or: blockedOr });
       } else {
-        query.status = status;
+        const escaped = String(status).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        query.status = new RegExp(`^\\s*${escaped}\\s*$`, 'i');
       }
     }
 
@@ -1185,16 +1185,18 @@ router.get('/', protect, async (req, res) => {
     }
 
     const pageNum = Math.max(1, parseInt(page, 10));
-    const limitNum = Math.max(1, Math.min(200, parseInt(limit, 10)));
+    const maxAllowedLimit = isGlobalLinkView ? 5000 : 1000;
+    const limitNum = Math.max(1, Math.min(maxAllowedLimit, parseInt(limit, 10)));
     const skip = (pageNum - 1) * limitNum;
 
-    const [leads, total] = await Promise.all([
+    const [leads, total, distinctCampaigns] = await Promise.all([
       MetaLead.find(query)
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limitNum)
         .lean(),
-      MetaLead.countDocuments(query)
+      MetaLead.countDocuments(query),
+      isGlobalLinkView ? MetaLead.distinct('campaign') : Promise.resolve(null)
     ]);
 
     // Inspect unique dynamic headers available in these leads
@@ -1231,9 +1233,10 @@ router.get('/', protect, async (req, res) => {
     res.json({
       success: true,
       isAdmin,
-      isRestricted: !isAdmin,
+      isRestricted: !isAdmin && !isGlobalLinkView,
       leads,
       total,
+      allCampaigns: Array.isArray(distinctCampaigns) ? distinctCampaigns.filter(Boolean).sort() : undefined,
       sentiment,
       page: pageNum,
       pages: Math.ceil(total / limitNum) || 1,
@@ -1246,18 +1249,21 @@ router.get('/', protect, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PATCH /api/meta-leads/:id (Update lead status, followUpDate, notes, department)
+// PATCH /api/meta-leads/:id (Update lead status, rating, followUpDate, notes, department)
 // ─────────────────────────────────────────────────────────────────────────────
 router.patch('/:id', protect, async (req, res) => {
   try {
-    const { status, note, callOutcome, followUpDate, department, incrementCall } = req.body;
+    const { status, rating, assignedTo, note, notes, callOutcome, followUpDate, department, incrementCall } = req.body;
     const metaLead = await MetaLead.findById(req.params.id);
     if (!metaLead) {
       return res.status(404).json({ success: false, message: 'Meta lead not found' });
     }
 
-    if (status) metaLead.status = status;
-    if (department) metaLead.department = department;
+    if (status !== undefined) metaLead.status = status;
+    if (rating !== undefined) metaLead.rating = rating;
+    if (assignedTo !== undefined) metaLead.assignedTo = assignedTo;
+    if (notes !== undefined) metaLead.notes = notes;
+    if (department !== undefined) metaLead.department = department;
     if (followUpDate) metaLead.followUpDate = new Date(followUpDate);
     if (incrementCall) {
       metaLead.callCount = (metaLead.callCount || 0) + 1;
@@ -1268,7 +1274,7 @@ router.patch('/:id', protect, async (req, res) => {
       if (!Array.isArray(metaLead.callNotes)) metaLead.callNotes = [];
       metaLead.callNotes.push({
         note: note || '',
-        outcome: callOutcome || status || 'Call Made',
+        outcome: callOutcome || status || 'Note Added',
         date: new Date(),
         user: req.user._id,
         userName: req.user.displayName || req.user.name || 'Agent'
@@ -1276,6 +1282,10 @@ router.patch('/:id', protect, async (req, res) => {
     }
 
     await metaLead.save();
+
+    if (metaLead.crmLeadId && status) {
+      await Lead.findByIdAndUpdate(metaLead.crmLeadId, { status }).catch(() => {});
+    }
 
     res.json({
       success: true,
@@ -1420,35 +1430,6 @@ router.get('/sync-status', async (req, res) => {
     return res.json({ success: true, ...state });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PATCH /api/meta-leads/:id (Update Meta Lead status, rating, assigned user)
-// ─────────────────────────────────────────────────────────────────────────────
-router.patch('/:id', protect, async (req, res) => {
-  try {
-    const { status, rating, assignedTo, notes } = req.body;
-    const update = {};
-    if (status !== undefined) update.status = status;
-    if (rating !== undefined) update.rating = rating;
-    if (assignedTo !== undefined) update.assignedTo = assignedTo;
-    if (notes !== undefined) update.notes = notes;
-
-    const lead = await MetaLead.findByIdAndUpdate(req.params.id, update, { new: true });
-    if (!lead) {
-      return res.status(404).json({ success: false, message: 'Meta lead not found' });
-    }
-
-    // Also update connected CRM lead if one exists
-    if (lead.crmLeadId && status) {
-      await Lead.findByIdAndUpdate(lead.crmLeadId, { status }).catch(() => {});
-    }
-
-    res.json({ success: true, lead });
-  } catch (err) {
-    console.error('Error updating meta lead:', err);
-    res.status(500).json({ success: false, message: 'Failed to update lead', error: err.message });
   }
 });
 

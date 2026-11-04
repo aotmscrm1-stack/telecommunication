@@ -1,494 +1,150 @@
-import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import { AnimatePresence, motion } from 'framer-motion';
+import {
+  Send,
+  Sparkles,
+  Phone,
+  MessageSquare,
+  ExternalLink,
+  ChevronDown,
+  RotateCcw,
+  Plus,
+  RefreshCw,
+  Search,
+  Check,
+  CheckCheck,
+  AlertCircle,
+  FileText,
+  Clock,
+  Trash2,
+  X,
+  UploadCloud,
+  CheckCircle2
+} from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
+import { cn } from '@/lib/utils';
 
 // Axios instance with auth token
-const api = axios.create({ baseURL: import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/$/, '') + '/api' : '/api' });
-api.interceptors.request.use(cfg => {
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL
+    ? import.meta.env.VITE_API_URL.replace(/\/$/, '') + '/api'
+    : '/api',
+});
+api.interceptors.request.use((cfg) => {
   const token = localStorage.getItem('aotms_token');
   if (token) cfg.headers.Authorization = `Bearer ${token}`;
   return cfg;
 });
 
-const BLUE        = '#2563eb';
-const DARK_BLUE   = '#1d4ed8';
-const LIGHT_BLUE  = '#eff6ff';
-const ORANGE      = '#f97316';
-const DARK_ORANGE = '#ea580c';
-const LIGHT_ORANGE= '#fff7ed';
-const TEXT_MAIN   = '#0f172a';
-const TEXT_MUTED  = '#64748b';
-const BORDER      = '#e2e8f0';
-const BG          = '#f8fafc';
-
-// Compatibility aliases mapped to White, Orange & Blue theme
-const GREEN       = BLUE;
-const DARK_GREEN  = DARK_BLUE;
-const PURPLE      = BLUE;
-
 const NAV_ITEMS = [
-  { key: 'inbox', label: 'Inbox',
-    icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> },
-  { key: 'broadcasts', label: 'Broadcasts',
-    icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 8.5c0 2.5-1.5 4.5-3.5 5.5L22 21H16l-1.5-3h-5L8 21H2l3.5-7C3.5 13 2 11 2 8.5 2 5.5 4.5 3 8 3h8c3.5 0 6 2.5 6 5.5z"/></svg> },
-  { key: 'templates',  label: 'Templates',
-    icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg> },
+  {
+    key: 'inbox',
+    label: 'Inbox',
+    icon: <MessageSquare className="w-4 h-4" />,
+  },
+  {
+    key: 'templates',
+    label: 'Templates',
+    icon: <FileText className="w-4 h-4" />,
+  },
 ];
 
-// ── Hamburger Menu (TeleCRM-style dropdown) ───────────────────────────────────
+// ── Hamburger Menu ─────────────────────────────────────────────────────────────
 function HamburgerMenu({ activeTab, onSelect }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
+
   useEffect(() => {
-    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
+    const handleClickOutside = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   return (
-    <div ref={ref} style={{ position: 'relative' }}>
+    <div ref={ref} className="relative">
       <button
-        onClick={() => setOpen(p => !p)}
-        title="Menu"
-        style={{
-          width: 34, height: 34, display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center', gap: 4,
-          background: open ? LIGHT_BLUE : '#fff',
-          border: `1.5px solid ${open ? BLUE : BORDER}`,
-          borderRadius: 8, cursor: 'pointer', padding: 0, transition: 'all 0.15s',
-        }}
+        onClick={() => setOpen((prev) => !prev)}
+        title="Navigation Menu"
+        className={cn(
+          'w-9 h-9 flex flex-col items-center justify-center gap-1 rounded-lg border transition-all duration-150',
+          open
+            ? 'bg-blue-50 border-blue-600 text-blue-600'
+            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+        )}
       >
-        {[0,1,2].map(i => (
-          <span key={i} style={{ display: 'block', width: 15, height: 2, background: open ? BLUE : '#64748b', borderRadius: 2 }} />
-        ))}
+        <span className="block w-4 h-0.5 bg-current rounded-full" />
+        <span className="block w-4 h-0.5 bg-current rounded-full" />
+        <span className="block w-4 h-0.5 bg-current rounded-full" />
       </button>
 
       {open && (
-        <div style={{
-          position: 'absolute', top: 40, left: 0,
-          background: '#fff', border: `1px solid ${BORDER}`,
-          borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
-          zIndex: 400, minWidth: 200, overflow: 'hidden',
-          animation: 'fadeDown 0.12s ease',
-        }}>
-          <style>{`@keyframes fadeDown{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}`}</style>
-          {NAV_ITEMS.map((item, idx) => (
-            <button key={item.key}
-              onClick={() => { onSelect(item.key); setOpen(false); }}
-              style={{
-                width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-                padding: '11px 16px',
-                background: activeTab === item.key ? LIGHT_BLUE : '#fff',
-                color: activeTab === item.key ? DARK_BLUE : TEXT_MAIN,
-                border: 'none',
-                borderBottom: idx < NAV_ITEMS.length - 1 ? `1px solid #f1f5f9` : 'none',
-                cursor: 'pointer', fontSize: 13,
-                fontWeight: activeTab === item.key ? 600 : 400,
-                textAlign: 'left', transition: 'background 0.1s',
-              }}
-              onMouseEnter={e => { if (activeTab !== item.key) e.currentTarget.style.background = BG; }}
-              onMouseLeave={e => { if (activeTab !== item.key) e.currentTarget.style.background = '#fff'; }}
-            >
-              <span style={{ color: activeTab === item.key ? BLUE : '#94a3b8', flexShrink: 0, display: 'flex' }}>{item.icon}</span>
-              {item.label}
-              {activeTab === item.key && <span style={{ marginLeft: 'auto', width: 7, height: 7, borderRadius: '50%', background: ORANGE }} />}
-            </button>
-          ))}
+        <div className="absolute top-11 left-0 bg-white border border-slate-200 rounded-xl shadow-xl z-50 min-w-[210px] overflow-hidden py-1 animate-in fade-in slide-in-from-top-2 duration-150">
+          {NAV_ITEMS.map((item) => {
+            const isActive = activeTab === item.key;
+            return (
+              <button
+                key={item.key}
+                onClick={() => {
+                  onSelect(item.key);
+                  setOpen(false);
+                }}
+                className={cn(
+                  'w-full flex items-center gap-3 px-4 py-2.5 text-xs font-semibold text-left transition-colors',
+                  isActive
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'text-slate-700 hover:bg-slate-50'
+                )}
+              >
+                <span className={isActive ? 'text-blue-600' : 'text-slate-400'}>
+                  {item.icon}
+                </span>
+                <span>{item.label}</span>
+                {isActive && (
+                  <span className="ml-auto w-2 h-2 rounded-full bg-blue-600" />
+                )}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
 
-// ── Add Template Form ─────────────────────────────────────────────────────────
-function AddTemplateForm({ onCancel, onSave, integrationId }) {
-  const [name, setName]           = useState('');
-  const [type, setType]           = useState('Marketing');
-  const [language, setLanguage]   = useState('English');
-  const [headerType, setHeaderType] = useState('Text');
-  const [headerText, setHeaderText] = useState('');
-  const [mediaFile, setMediaFile]   = useState(null);
-  const [mediaPreview, setMediaPreview] = useState(null);
-  const [message, setMessage]     = useState('');
-  const [footer, setFooter]       = useState('');
-  const [buttons, setButtons]     = useState([]);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState('');
-  const [submitSuccess, setSubmitSuccess] = useState('');
-  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
-  const fileRef = useRef(null);
-
-  const hasUnsavedChanges = Boolean(
-    name.trim() || headerText.trim() || mediaFile || message.trim() || footer.trim() || buttons.length > 0
-  );
-
-  const handleCancelClick = () => {
-    if (hasUnsavedChanges) {
-      setShowDiscardConfirm(true);
-    } else {
-      onCancel();
-    }
-  };
-
-  const addVariable = (setter) => setter(p => p + ' {{' + (p.match(/\{\{(\d+)\}\}/g)?.length + 1 || 1) + '}}');
-
-  const addButton = (btnType) => {
-    if (buttons.length >= 3) return;
-    setButtons(p => [...p, { type: btnType, text: '', value: '' }]);
-  };
-  const removeButton = (i) => setButtons(p => p.filter((_, idx) => idx !== i));
-  const updateButton = (i, field, val) => setButtons(p => p.map((b, idx) => idx === i ? { ...b, [field]: val } : b));
-
-  const handleMedia = (e) => {
-    const f = e.target.files[0];
-    if (!f) return;
-    setMediaFile(f);
-    const reader = new FileReader();
-    reader.onload = ev => setMediaPreview(ev.target.result);
-    reader.readAsDataURL(f);
-  };
-
-  // Live preview text
-  const previewBody = message.replace(/\{\{(\d+)\}\}/g, (_, n) => `[Variable ${n}]`);
-  const previewHeader = headerType === 'Text' ? headerText : null;
-
-  return (
-    <div style={{ display: 'flex', gap: 0, flex: 1, minHeight: 0 }}>
-      {/* Form */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '28px 32px' }}>
-        <div style={{ fontSize: 20, fontWeight: 800, color: TEXT_MAIN, marginBottom: 24 }}>Add Template</div>
-
-        {/* Name + Type + Language row */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px 160px', gap: 16, marginBottom: 20 }}>
-          <div>
-            <label style={labelStyle}>Template Name <span style={{ color: '#e53e3e' }}>*</span></label>
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="Enter template name"
-              style={inputStyle} />
-          </div>
-          <div>
-            <label style={labelStyle}>Type</label>
-            <select value={type} onChange={e => setType(e.target.value)} style={inputStyle}>
-              <option>Marketing</option><option>Utility</option><option>Authentication</option>
-            </select>
-          </div>
-          <div>
-            <label style={labelStyle}>Language</label>
-            <select value={language} onChange={e => setLanguage(e.target.value)} style={inputStyle}>
-              <option>English</option><option>Hindi</option><option>Telugu</option><option>Tamil</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Header Type */}
-        <div style={{ marginBottom: 20 }}>
-          <label style={labelStyle}>Header Type</label>
-          <select value={headerType} onChange={e => { setHeaderType(e.target.value); setMediaFile(null); setMediaPreview(null); }} style={{ ...inputStyle, maxWidth: 320 }}>
-            <option value="Text">Text</option>
-            <option value="Media">Media (Image / Video / Document)</option>
-            <option value="None">None</option>
-          </select>
-        </div>
-
-        {/* Header content */}
-        {headerType === 'Text' && (
-          <div style={{ marginBottom: 20 }}>
-            <label style={labelStyle}>Header Text <span style={{ color: '#e53e3e' }}>*</span></label>
-            <input value={headerText} onChange={e => setHeaderText(e.target.value)} placeholder="Enter header text"
-              style={inputStyle} maxLength={60} />
-            <div style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 3 }}>{headerText.length}/60</div>
-          </div>
-        )}
-
-        {headerType === 'Media' && (
-          <div style={{ marginBottom: 20 }}>
-            <label style={labelStyle}>Upload Media <span style={{ color: '#e53e3e' }}>*</span></label>
-            <div
-              onClick={() => fileRef.current.click()}
-              style={{
-                border: `2px dashed ${mediaFile ? GREEN : BORDER}`,
-                borderRadius: 10, padding: '22px 16px', textAlign: 'center',
-                cursor: 'pointer', background: mediaFile ? '#f0fdf4' : '#fafafa',
-                transition: 'all 0.15s',
-              }}
-              onMouseEnter={e => { if (!mediaFile) e.currentTarget.style.borderColor = PURPLE; }}
-              onMouseLeave={e => { if (!mediaFile) e.currentTarget.style.borderColor = BORDER; }}
-            >
-              {mediaPreview ? (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-                  {mediaFile?.type?.startsWith('image') ? (
-                    <img src={mediaPreview} alt="preview" style={{ height: 80, maxWidth: 160, objectFit: 'cover', borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
-                  ) : (
-                    <div style={{ fontSize: 40 }}>📎</div>
-                  )}
-                  <div style={{ textAlign: 'left' }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: TEXT_MAIN }}>{mediaFile.name}</div>
-                    <div style={{ fontSize: 11, color: TEXT_MUTED }}>{(mediaFile.size / 1024).toFixed(1)} KB</div>
-                    <button onClick={e => { e.stopPropagation(); setMediaFile(null); setMediaPreview(null); }}
-                      style={{ marginTop: 6, fontSize: 11, color: '#e53e3e', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                      ✕ Remove
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={TEXT_MUTED} strokeWidth="1.5" style={{ marginBottom: 8 }}>
-                    <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
-                  </svg>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: TEXT_MAIN, marginBottom: 3 }}>Click to upload image, video or document</div>
-                  <div style={{ fontSize: 11, color: TEXT_MUTED }}>JPG, PNG, MP4, PDF · Max 16 MB</div>
-                </>
-              )}
-            </div>
-            <input ref={fileRef} type="file" accept="image/*,video/*,.pdf,.doc,.docx" style={{ display: 'none' }} onChange={handleMedia} />
-          </div>
-        )}
-
-        {/* Message */}
-        <div style={{ marginBottom: 20 }}>
-          <label style={labelStyle}>Message <span style={{ color: '#e53e3e' }}>*</span></label>
-          <textarea value={message} onChange={e => setMessage(e.target.value)}
-            placeholder="Enter body text" rows={5}
-            style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.6 }} />
-          <div style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 3 }}>{message.length}/1024</div>
-        </div>
-
-        {/* Footer */}
-        <div style={{ marginBottom: 20 }}>
-          <label style={labelStyle}>Footer</label>
-          <input value={footer} onChange={e => setFooter(e.target.value)} placeholder="Enter footer text (optional)"
-            style={inputStyle} maxLength={60} />
-        </div>
-
-        {/* Buttons */}
-        <div style={{ marginBottom: 28 }}>
-          <label style={labelStyle}>Button(s)</label>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 12, color: TEXT_MUTED, alignSelf: 'center', marginRight: 4 }}>Add:</span>
-            {[
-              { type: 'Quick Reply',  icon: '🔘' },
-              { type: 'Phone Number', icon: '📞' },
-              { type: 'URL',         icon: '🔗' },
-              { type: 'Coupon Code', icon: '🏷️' },
-            ].map(b => (
-              <button key={b.type} onClick={() => addButton(b.type)}
-                disabled={buttons.length >= 3}
-                style={{
-                  padding: '6px 14px', borderRadius: 20, border: `1.5px solid ${PURPLE}`,
-                  background: '#f0ecff', color: PURPLE, fontSize: 12, fontWeight: 600,
-                  cursor: buttons.length >= 3 ? 'not-allowed' : 'pointer',
-                  opacity: buttons.length >= 3 ? 0.5 : 1,
-                  display: 'flex', alignItems: 'center', gap: 5,
-                }}>
-                {b.icon} {b.type}
-              </button>
-            ))}
-          </div>
-          {buttons.map((btn, i) => (
-            <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 8, background: BG, borderRadius: 8, padding: '10px 12px' }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: PURPLE, minWidth: 90, flexShrink: 0 }}>{btn.type}</span>
-              <input placeholder="Button text" value={btn.text} onChange={e => updateButton(i, 'text', e.target.value)}
-                style={{ ...inputStyle, flex: 1, marginBottom: 0, padding: '7px 10px', fontSize: 12 }} />
-              {(btn.type === 'URL' || btn.type === 'Phone Number') && (
-                <input placeholder={btn.type === 'URL' ? 'https://...' : '+91...'}
-                  value={btn.value} onChange={e => updateButton(i, 'value', e.target.value)}
-                  style={{ ...inputStyle, flex: 1, marginBottom: 0, padding: '7px 10px', fontSize: 12 }} />
-              )}
-              <button onClick={() => removeButton(i)} style={{ background: 'none', border: 'none', color: '#e53e3e', cursor: 'pointer', fontSize: 16, padding: '0 4px' }}>×</button>
-            </div>
-          ))}
-        </div>
-
-        {/* Error / Success feedback */}
-        {submitError && (
-          <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 12, color: '#e53e3e' }}>
-            ⚠️ {submitError}
-          </div>
-        )}
-        {submitSuccess && (
-          <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 12, color: '#16a34a' }}>
-            ✅ {submitSuccess}
-          </div>
-        )}
-
-        {/* Actions */}
-        <div style={{ display: 'flex', gap: 12 }}>
-          <button onClick={handleCancelClick}
-            style={{ padding: '10px 28px', background: '#fff', color: TEXT_MUTED, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-            Cancel
-          </button>
-          <button
-            disabled={submitting}
-            onClick={async () => {
-              if (!name.trim()) return setSubmitError('Template name is required.');
-              if (!message.trim()) return setSubmitError('Message body is required.');
-              setSubmitError('');
-              setSubmitSuccess('');
-              setSubmitting(true);
-              try {
-                const endpoint = integrationId ? `/integrations/${integrationId}/whatsapp/templates` : '/integrations/whatsapp/templates';
-                const res = await api.post(endpoint, {
-                  name, category: type, language, headerType, headerText,
-                  mediaBase64: mediaPreview, mediaMimeType: mediaFile?.type || 'image/png',
-                  message, footer, buttons,
-                });
-                setSubmitSuccess(`Template submitted to Meta Account! Status: ${res.data.status || 'PENDING'}. Meta will review within a few minutes.`);
-                onSave({ name, type, language, headerType, headerText, mediaFile, message, footer, buttons, metaId: res.data.metaTemplateId, status: res.data.status || 'PENDING' });
-              } catch (err) {
-                const msg = err.response?.data?.message || err.message || 'Submission failed';
-                setSubmitError(msg);
-              } finally {
-                setSubmitting(false);
-              }
-            }}
-            style={{ padding: '10px 28px', background: submitting ? '#a78bfa' : PURPLE, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: submitting ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
-            {submitting && <span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />}
-            {submitting ? 'Submitting...' : 'Submit for review'}
-          </button>
-        </div>
-        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-      </div>
-
-      {/* Preview panel — Decreased width (250px) with separate scroll */}
-      <div className="whatsapp-chat-scroll" style={{ width: 250, flexShrink: 0, borderLeft: `1px solid ${BORDER}`, background: '#f8fafc', padding: '16px 14px', overflowY: 'auto' }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: TEXT_MAIN, marginBottom: 16 }}>Preview</div>
-        <div style={{ background: '#e5ddd5', borderRadius: 12, padding: 12, minHeight: 200, backgroundImage: 'url("data:image/svg+xml,%3Csvg...")', position: 'relative' }}>
-          {(headerText || mediaPreview || message || footer || buttons.length > 0) ? (
-            <div style={{ background: '#fff', borderRadius: 10, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.12)' }}>
-              {/* Header */}
-              {headerType === 'Media' && mediaPreview && mediaFile?.type?.startsWith('image') && (
-                <img src={mediaPreview} alt="" style={{ width: '100%', maxHeight: 140, objectFit: 'cover' }} />
-              )}
-              {headerType === 'Media' && mediaPreview && !mediaFile?.type?.startsWith('image') && (
-                <div style={{ background: '#f0f0f0', padding: '14px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 22 }}>📎</span>
-                  <span style={{ fontSize: 12, color: TEXT_MUTED }}>{mediaFile?.name}</span>
-                </div>
-              )}
-              {headerType === 'Text' && previewHeader && (
-                <div style={{ padding: '10px 12px 4px', fontSize: 13, fontWeight: 700, color: '#111' }}>{previewHeader}</div>
-              )}
-              {/* Body */}
-              {previewBody && (
-                <div style={{ padding: '8px 12px', fontSize: 12, color: '#333', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{previewBody}</div>
-              )}
-              {/* Footer */}
-              {footer && (
-                <div style={{ padding: '2px 12px 8px', fontSize: 11, color: TEXT_MUTED }}>{footer}</div>
-              )}
-              {/* Timestamp */}
-              <div style={{ padding: '0 10px 6px', textAlign: 'right', fontSize: 10, color: TEXT_MUTED }}>
-                {new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })} ✓✓
-              </div>
-              {/* Buttons */}
-              {buttons.length > 0 && (
-                <div style={{ borderTop: '1px solid #f0f0f0' }}>
-                  {buttons.map((b, i) => (
-                    <div key={i} style={{ padding: '9px 12px', textAlign: 'center', fontSize: 12, color: '#0a8dff', fontWeight: 600, borderBottom: i < buttons.length - 1 ? '1px solid #f0f0f0' : 'none' }}>
-                      {b.text || b.type}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 180, color: TEXT_MUTED, fontSize: 12, textAlign: 'center' }}>
-              Start filling the form<br/>to see a preview
-            </div>
-          )}
-        </div>
-      </div>
-      {showDiscardConfirm && (
-        <div
-          onClick={() => setShowDiscardConfirm(false)}
-          style={{
-            position: 'fixed', inset: 0, background: 'rgba(15,15,25,0.45)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-          }}
-        >
-          <div
-            onClick={e => e.stopPropagation()}
-            style={{
-              background: '#fff', borderRadius: 16, padding: '32px 36px', width: 400,
-              maxWidth: '90vw', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
-            }}
-          >
-            <div style={{
-              width: 56, height: 56, borderRadius: '50%', background: '#fee2e2',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px',
-            }}>
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-              </svg>
-            </div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: TEXT_MAIN, marginBottom: 8 }}>Discard your changes?</div>
-            <div style={{ fontSize: 13, color: TEXT_MUTED, marginBottom: 24, lineHeight: 1.5 }}>
-              Your changes haven't been saved, so you'll lose them if you navigate away.
-            </div>
-            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-              <button
-                onClick={() => setShowDiscardConfirm(false)}
-                style={{ padding: '10px 24px', background: '#fff', color: TEXT_MAIN, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                Cancel
-              </button>
-              <button
-                onClick={() => { setShowDiscardConfirm(false); onCancel(); }}
-                style={{ padding: '10px 24px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                Discard changes
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-const labelStyle = { fontSize: 12, fontWeight: 600, color: TEXT_MAIN, display: 'block', marginBottom: 6 };
-const inputStyle = { width: '100%', padding: '9px 12px', border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, outline: 'none', boxSizing: 'border-box', background: '#fff', color: TEXT_MAIN };
-const varBtnStyle = { fontSize: 11, color: PURPLE, background: '#f0ecff', border: `1px solid #d6ccff`, borderRadius: 5, padding: '3px 10px', cursor: 'pointer', fontWeight: 600 };
-
-// ── Live Delivery Ticks (Single Tick / Double Gray Tick / Double Blue Tick) ────
+// ── Delivery Ticks ─────────────────────────────────────────────────────────────
 function MessageTicks({ status }) {
   if (status === 'read') {
     return (
-      <span title="Read (Double Blue Tick)" style={{ color: '#3b82f6', marginLeft: 4, display: 'inline-flex', alignItems: 'center' }}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="18 6 7 17 2 12"/>
-          <polyline points="22 10 13 19 11 17"/>
-        </svg>
+      <span title="Read (Double Blue Tick)" className="inline-flex items-center text-sky-400 ml-1">
+        <CheckCheck className="w-3.5 h-3.5 stroke-[2.5]" />
       </span>
     );
   }
   if (status === 'delivered') {
     return (
-      <span title="Delivered (Double Gray Tick)" style={{ color: '#888', marginLeft: 4, display: 'inline-flex', alignItems: 'center' }}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="18 6 7 17 2 12"/>
-          <polyline points="22 10 13 19 11 17"/>
-        </svg>
+      <span title="Delivered (Double Gray Tick)" className="inline-flex items-center text-slate-300 ml-1">
+        <CheckCheck className="w-3.5 h-3.5 stroke-[2.5]" />
       </span>
     );
   }
   if (status === 'failed') {
     return (
-      <span title="Delivery Failed" style={{ color: '#ef4444', marginLeft: 4, fontSize: 11, fontWeight: 700 }}>
-        ⚠️
+      <span title="Delivery Failed" className="inline-flex items-center text-red-300 ml-1 text-xs">
+        <AlertCircle className="w-3.5 h-3.5" />
       </span>
     );
   }
-  // Default 'sent' or unknown -> Single gray tick
   return (
-    <span title="Sent (Single Tick)" style={{ color: '#888', marginLeft: 4, display: 'inline-flex', alignItems: 'center' }}>
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="20 6 9 17 4 12"/>
-      </svg>
+    <span title="Sent (Single Tick)" className="inline-flex items-center text-slate-300 ml-1">
+      <Check className="w-3 h-3 stroke-[2.5]" />
     </span>
   );
 }
 
-// ── Date Grouping Label ("Today", "Yesterday", "11 Sep 2026") ─────────────────
+// ── Date Grouping Label ────────────────────────────────────────────────────────
 function getDateLabel(dateInput) {
   if (!dateInput) return '';
   const d = new Date(dateInput);
@@ -499,11 +155,14 @@ function getDateLabel(dateInput) {
   yesterday.setDate(yesterday.getDate() - 1);
 
   const targetDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-
   if (targetDate.getTime() === today.getTime()) return 'Today';
   if (targetDate.getTime() === yesterday.getTime()) return 'Yesterday';
 
-  return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
 }
 
 function playWhatsAppRingtone() {
@@ -526,19 +185,20 @@ function playWhatsAppRingtone() {
 function parseTemplateDoc(t) {
   if (!t) return null;
   const comps = Array.isArray(t.components) ? t.components : [];
-  const header = comps.find(c => String(c.type).toUpperCase() === 'HEADER');
-  const body = comps.find(c => String(c.type).toUpperCase() === 'BODY');
-  const footerComp = comps.find(c => String(c.type).toUpperCase() === 'FOOTER');
-  const buttonsComp = comps.find(c => String(c.type).toUpperCase() === 'BUTTONS');
+  const header = comps.find((c) => String(c.type).toUpperCase() === 'HEADER');
+  const body = comps.find((c) => String(c.type).toUpperCase() === 'BODY');
+  const footerComp = comps.find((c) => String(c.type).toUpperCase() === 'FOOTER');
+  const buttonsComp = comps.find((c) => String(c.type).toUpperCase() === 'BUTTONS');
 
-  const headerImg = header?.example?.header_handle?.[0] ||
-                    header?.example?.header_url?.[0] ||
-                    t.header_image_url ||
-                    t.headerImage ||
-                    t.mediaUrl ||
-                    t.imageUrl ||
-                    t.mediaBase64 ||
-                    '';
+  const headerImg =
+    header?.example?.header_handle?.[0] ||
+    header?.example?.header_url?.[0] ||
+    t.header_image_url ||
+    t.headerImage ||
+    t.mediaUrl ||
+    t.imageUrl ||
+    t.mediaBase64 ||
+    '';
 
   return {
     id: String(t._id || t.id || t.name),
@@ -560,19 +220,18 @@ function parseTemplateDoc(t) {
   };
 }
 
-// ── Rich Template Message Card Component ──────────────────────────────────────
+// ── Rich Template Message Card Component ───────────────────────────────────────
 function RichTemplateMessageCard({ message, templates = [], leadName = '' }) {
   const text = message.description || message.text || '';
-  
-  const extractedTemplateName = text.match(/\[(?:Template|Campaign):\s*([^\]]+)\]/i)?.[1]?.trim() ||
-                                (text.startsWith('@') ? text.slice(1).trim() : '');
-  
+  const extractedTemplateName =
+    text.match(/\[(?:Template|Campaign):\s*([^\]]+)\]/i)?.[1]?.trim() ||
+    (text.startsWith('@') ? text.slice(1).trim() : '');
+
   const cleanText = text.toLowerCase().trim();
   const cleanNorm = cleanText.replace(/[\s_]+/g, '');
   const cleanExtractedNorm = extractedTemplateName.toLowerCase().replace(/[\s_]+/g, '');
 
-  // Find matched template by ID / shortcut / name / metaTemplateName / normalized string
-  const matchedTemplate = (templates || []).find(t => {
+  const matchedTemplate = (templates || []).find((t) => {
     if (!t) return false;
     const tId = String(t.id || t._id || '');
     const mId = String(message.templateId || '');
@@ -591,32 +250,33 @@ function RichTemplateMessageCard({ message, templates = [], leadName = '' }) {
     if (tShortcutNorm && cleanNorm.includes(tShortcutNorm)) return true;
     if (tNameNorm && cleanNorm.includes(tNameNorm)) return true;
 
-    // Match body text snippet (ignoring variable placeholders {{1}}, {{2}})
     const tBody = (t.body || t.message || '').toLowerCase().trim().replace(/\{\{\d+\}\}/g, '').trim();
     const tBodyNorm = tBody.replace(/[\s_]+/g, '');
-    if (tBodyNorm && tBodyNorm.length >= 8 && (cleanNorm.includes(tBodyNorm.slice(0, 15)) || tBodyNorm.includes(cleanNorm.slice(0, 15)))) return true;
+    if (tBodyNorm && tBodyNorm.length >= 8 && (cleanNorm.includes(tBodyNorm.slice(0, 15)) || tBodyNorm.includes(cleanNorm.slice(0, 15)))) {
+      return true;
+    }
     return false;
   });
 
   const category = matchedTemplate?.category || (text.toLowerCase().includes('marketing') ? 'MARKETING' : 'UTILITY');
 
-  // Header Image extraction
   let imageUrl = matchedTemplate?.headerImage || matchedTemplate?.mediaUrl || matchedTemplate?.imageUrl || message.mediaUrl || message.headerImageUrl;
   if (!imageUrl && matchedTemplate?.components) {
-    const headerComp = matchedTemplate.components.find(c => String(c.type).toUpperCase() === 'HEADER');
+    const headerComp = matchedTemplate.components.find((c) => String(c.type).toUpperCase() === 'HEADER');
     if (headerComp && (headerComp.format === 'IMAGE' || headerComp.example?.header_handle?.length || headerComp.example?.header_url?.length)) {
       imageUrl = headerComp.example?.header_handle?.[0] || headerComp.example?.header_url?.[0];
     }
   }
 
-  const isImageHeader = (matchedTemplate?.headerFormat || matchedTemplate?.headerType || '').toUpperCase() === 'IMAGE' ||
-                        (matchedTemplate?.headerFormat || matchedTemplate?.headerType || '').toUpperCase() === 'MEDIA';
+  const isImageHeader =
+    (matchedTemplate?.headerFormat || matchedTemplate?.headerType || '').toUpperCase() === 'IMAGE' ||
+    (matchedTemplate?.headerFormat || matchedTemplate?.headerType || '').toUpperCase() === 'MEDIA';
   if (!imageUrl && isImageHeader) {
     imageUrl = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80';
   }
 
   const headerText = matchedTemplate?.headerText || message.headerText;
-  
+
   let bodyDisplay = text;
   if (matchedTemplate?.body) {
     let b = matchedTemplate.body;
@@ -625,9 +285,7 @@ function RichTemplateMessageCard({ message, templates = [], leadName = '' }) {
     bodyDisplay = b;
   } else {
     const cleaned = text.replace(/^\[(?:Template|Campaign):\s*[^\]]+\]\s*/i, '').trim();
-    if (cleaned) {
-      bodyDisplay = cleaned;
-    }
+    if (cleaned) bodyDisplay = cleaned;
   }
 
   const footerText = matchedTemplate?.footer || message.footer;
@@ -635,24 +293,30 @@ function RichTemplateMessageCard({ message, templates = [], leadName = '' }) {
   if (!Array.isArray(buttons)) buttons = [];
 
   return (
-    <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #d1fae5', background: '#ffffff', boxShadow: '0 2px 6px rgba(0,0,0,0.06)', minWidth: 240 }}>
-      {/* Category / Template Badge */}
-      <div style={{ background: category === 'MARKETING' ? '#ecfdf5' : '#f0f9ff', padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #e5e7eb' }}>
-        <span style={{ fontSize: 10, fontWeight: 800, color: category === 'MARKETING' ? '#047857' : '#0369a1', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-          {category === 'MARKETING' ? '📢 MARKETING TEMPLATE' : '⚙️ UTILITY TEMPLATE'}
+    <div className="rounded-xl overflow-hidden border border-slate-200 bg-white shadow-sm min-w-[240px] text-left">
+      <div className={cn(
+        'px-3 py-1.5 flex items-center justify-between border-b',
+        category === 'MARKETING' ? 'bg-emerald-50/70 border-emerald-100' : 'bg-sky-50/70 border-sky-100'
+      )}>
+        <span className={cn(
+          'text-[10px] font-extrabold uppercase tracking-wider',
+          category === 'MARKETING' ? 'text-emerald-700' : 'text-sky-700'
+        )}>
+          {category === 'MARKETING' ? '📢 Marketing Template' : '⚙️ Utility Template'}
         </span>
         {(matchedTemplate?.shortcut || matchedTemplate?.name) && (
-          <span style={{ fontSize: 10, fontWeight: 700, color: '#6b7280' }}>@{matchedTemplate.shortcut || matchedTemplate.name}</span>
+          <span className="text-[10px] font-semibold text-slate-500">
+            @{matchedTemplate.shortcut || matchedTemplate.name}
+          </span>
         )}
       </div>
 
-      {/* Header Image */}
       {imageUrl && (
-        <div style={{ maxHeight: 180, overflow: 'hidden', background: '#111827', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="max-h-40 overflow-hidden bg-slate-900 flex items-center justify-center">
           <img
             src={imageUrl}
             alt="Template Header"
-            style={{ width: '100%', height: 160, objectFit: 'cover' }}
+            className="w-full h-36 object-cover"
             onError={(e) => {
               e.target.onerror = null;
               e.target.src = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80';
@@ -661,30 +325,26 @@ function RichTemplateMessageCard({ message, templates = [], leadName = '' }) {
         </div>
       )}
 
-      {/* Header Text */}
       {headerText && (
-        <div style={{ padding: '8px 12px 2px', fontSize: 13, fontWeight: 700, color: '#111827' }}>
+        <div className="px-3 pt-2 text-xs font-bold text-slate-900">
           {headerText}
         </div>
       )}
 
-      {/* Body Message */}
-      <div style={{ padding: '8px 12px', fontSize: 12.5, color: '#1f2937', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+      <div className="px-3 py-2 text-xs text-slate-700 leading-relaxed whitespace-pre-wrap">
         {bodyDisplay}
       </div>
 
-      {/* Footer */}
       {footerText && (
-        <div style={{ padding: '0 12px 6px', fontSize: 11, color: '#9ca3af', fontStyle: 'italic' }}>
+        <div className="px-3 pb-2 text-[10px] text-slate-400 italic">
           {footerText}
         </div>
       )}
 
-      {/* Action Buttons */}
       {buttons.length > 0 && (
-        <div style={{ borderTop: '1px solid #f3f4f6', background: '#fafafa', display: 'flex', flexDirection: 'column' }}>
+        <div className="border-t border-slate-100 bg-slate-50 flex flex-col">
           {buttons.map((btn, bIdx) => {
-            const btnText = typeof btn === 'string' ? btn : (btn.text || btn.value || 'Action Button');
+            const btnText = typeof btn === 'string' ? btn : btn.text || btn.value || 'Action Button';
             const btnType = typeof btn === 'object' ? (btn.type || '').toUpperCase() : 'QUICK_REPLY';
             const btnUrl = btn.url || btn.value;
             const btnPhone = btn.phone_number || btn.value;
@@ -699,14 +359,10 @@ function RichTemplateMessageCard({ message, templates = [], leadName = '' }) {
                     window.location.href = `tel:${btnPhone}`;
                   }
                 }}
-                style={{
-                  padding: '9px 12px', border: 'none', borderTop: bIdx > 0 ? '1px solid #f3f4f6' : 'none',
-                  background: 'transparent', textAlign: 'center', fontSize: 12, fontWeight: 700,
-                  color: '#059669', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  transition: 'background 0.15s'
-                }}
-                onMouseEnter={e => e.currentTarget.style.background = '#f0fdf4'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                className={cn(
+                  'px-3 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-50 transition-colors flex items-center justify-center gap-1.5',
+                  bIdx > 0 && 'border-t border-slate-100'
+                )}
               >
                 {btnType.includes('URL') ? '🔗 ' : btnType.includes('PHONE') ? '📞 ' : '🔘 '}
                 {btnText}
@@ -727,27 +383,25 @@ function InboxTab({ onSendTemplate }) {
   const TABS = [
     { key: 'all', label: 'All' },
     { key: 'pending', label: 'Pending' },
-    { key: 'intervened', label: 'Intervened' },
   ];
 
   const [tab, setTab] = useState('all');
   const [search, setSearch] = useState('');
   const [leads, setLeads] = useState([]);
-  const [counts, setCounts] = useState({ all: 0, pending: 0, intervened: 0 });
+  const [counts, setCounts] = useState({ all: 0, pending: 0 });
   const [loadingList, setLoadingList] = useState(false);
   const [contacts, setContacts] = useState([]);
   const [selectedIdentity, setSelectedIdentity] = useState('ALL');
   const [backendIdentities, setBackendIdentities] = useState([]);
 
   const [selectedId, setSelectedId] = useState(null);
-  const [thread, setThread] = useState(null); // { lead, thread, withinWindow }
+  const [thread, setThread] = useState(null);
   const [loadingThread, setLoadingThread] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [sending, setSending] = useState(false);
   const scrollRef = useRef(null);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
   const [templates, setTemplates] = useState([]);
-  const [showContactPreview, setShowContactPreview] = useState(true);
   const [showSendTemplateModal, setShowSendTemplateModal] = useState(false);
   const [sendingTemplate, setSendingTemplate] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState(null);
@@ -757,49 +411,45 @@ function InboxTab({ onSendTemplate }) {
     const el = e.target;
     if (!el) return;
     const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    setShowScrollBottom(distanceToBottom > 100);
+    setShowScrollBottom(distanceToBottom > 120);
   };
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+      scrollRef.current.scrollTo({
+        top: scrollRef.current.scrollHeight,
+        behavior: 'smooth',
+      });
     }
-  };
+  }, []);
 
-  // Fetch Unified Templates (Meta WABA + MessageTemplates) for Rich Cards & Real Sending
+  // Fetch Unified Templates
   useEffect(() => {
     api.get('/integrations/whatsapp/templates')
-      .then(res => {
+      .then((res) => {
         const raw = res.data?.templates || [];
         if (Array.isArray(raw) && raw.length > 0) return raw;
         return api.get('/message-templates', { params: { type: 'whatsapp' } })
-          .then(mRes => mRes.data?.templates || mRes.data || []);
+          .then((mRes) => mRes.data?.templates || mRes.data || []);
       })
       .catch(() => {
         return api.get('/message-templates', { params: { type: 'whatsapp' } })
-          .then(mRes => mRes.data?.templates || mRes.data || [])
+          .then((mRes) => mRes.data?.templates || mRes.data || [])
           .catch(() => []);
       })
-      .then(raw => {
+      .then((raw) => {
         if (Array.isArray(raw)) {
-          setTemplates(raw.map(t => parseTemplateDoc(t)).filter(Boolean));
+          setTemplates(raw.map((t) => parseTemplateDoc(t)).filter(Boolean));
         }
       });
   }, []);
 
-  // Fetch Contacts for identity mapping & matching
   const fetchContacts = async () => {
     try {
       const res = await api.get('/contacts');
       setContacts(res.data?.contacts || []);
-    } catch {
-      // swallow
-    }
+    } catch {}
   };
-
-  useEffect(() => {
-    fetchContacts();
-  }, []);
 
   const fetchLeads = async () => {
     setLoadingList(true);
@@ -807,25 +457,26 @@ function InboxTab({ onSendTemplate }) {
       const res = await api.get('/whatsapp-inbox', { params: { tab, search } });
       const fetchedLeads = res.data.leads || [];
       setLeads(fetchedLeads);
-      setCounts(res.data.counts || { all: 0, pending: 0, intervened: 0 });
+      setCounts(res.data.counts || { all: 0, pending: 0 });
       if (Array.isArray(res.data.existingIdentities)) {
         setBackendIdentities(res.data.existingIdentities);
       }
 
-      // Restore active conversation thread from localStorage or auto-select top lead
       const savedLeadId = localStorage.getItem(activeThreadStorageKey);
-      const activeMatch = savedLeadId && fetchedLeads.find(l => String(l._id) === String(savedLeadId));
-      const targetId = activeMatch ? activeMatch._id : (fetchedLeads[0] ? fetchedLeads[0]._id : null);
+      const activeMatch = savedLeadId && fetchedLeads.find((l) => String(l._id) === String(savedLeadId));
+      const targetId = activeMatch ? activeMatch._id : fetchedLeads[0] ? fetchedLeads[0]._id : null;
 
-      if (targetId) {
+      if (targetId && !selectedId) {
         openThread(targetId, false);
       }
-    } catch {
-      // swallow — keep prior list on transient errors
-    } finally {
+    } catch {} finally {
       setLoadingList(false);
     }
   };
+
+  useEffect(() => {
+    fetchContacts();
+  }, []);
 
   useEffect(() => {
     fetchLeads();
@@ -834,18 +485,13 @@ function InboxTab({ onSendTemplate }) {
       fetchContacts();
     };
     window.addEventListener('wa_data_synced', handleSync);
-    return () => {
-      window.removeEventListener('wa_data_synced', handleSync);
-    };
+    return () => window.removeEventListener('wa_data_synced', handleSync);
   }, [tab, search]);
 
-  // Extract ONLY existing identities from contacts and leads
   const existingIdentities = (() => {
     const seen = new Set();
     const list = [];
-
-    // 1. From backend
-    (backendIdentities || []).forEach(tag => {
+    (backendIdentities || []).forEach((tag) => {
       const val = String(tag || '').trim();
       const norm = val.toLowerCase();
       if (val && norm !== 'all' && norm !== 'general' && !seen.has(norm)) {
@@ -853,9 +499,7 @@ function InboxTab({ onSendTemplate }) {
         list.push(val);
       }
     });
-
-    // 2. From contacts
-    (contacts || []).forEach(c => {
+    (contacts || []).forEach((c) => {
       const val = String(c.identity || '').trim();
       const norm = val.toLowerCase();
       if (val && norm !== 'all' && norm !== 'general' && !seen.has(norm)) {
@@ -863,9 +507,7 @@ function InboxTab({ onSendTemplate }) {
         list.push(val);
       }
     });
-
-    // 3. From leads
-    (leads || []).forEach(l => {
+    (leads || []).forEach((l) => {
       const val = String(l.identity || l.customFields?.identity || l.customFields?.Identity || '').trim();
       const norm = val.toLowerCase();
       if (val && norm !== 'all' && norm !== 'general' && !seen.has(norm)) {
@@ -873,7 +515,6 @@ function InboxTab({ onSendTemplate }) {
         list.push(val);
       }
     });
-
     return list;
   })();
 
@@ -881,15 +522,14 @@ function InboxTab({ onSendTemplate }) {
     if (!lead) return '';
     if (lead.identity && String(lead.identity).toLowerCase() !== 'general') return lead.identity;
     const p10 = String(lead.phone || '').slice(-10);
-    const matched = contacts.find(c => String(c.phone || '').slice(-10) === p10);
+    const matched = contacts.find((c) => String(c.phone || '').slice(-10) === p10);
     if (matched?.identity && String(matched.identity).toLowerCase() !== 'general') return matched.identity;
     if (lead.customFields?.identity) return lead.customFields.identity;
     if (lead.customFields?.Identity) return lead.customFields.Identity;
     return lead.identity || '';
   };
 
-  // Filter displayed leads based on selectedIdentity and search
-  const displayedLeads = leads.filter(lead => {
+  const displayedLeads = leads.filter((lead) => {
     if (selectedIdentity === 'ALL') return true;
     const idTag = getLeadIdentity(lead);
     return idTag.toLowerCase() === selectedIdentity.toLowerCase();
@@ -906,7 +546,6 @@ function InboxTab({ onSendTemplate }) {
       const res = await api.get(`/whatsapp-inbox/${leadId}`);
       setThread(res.data);
       if (refreshList) {
-        // Immediately refresh lead list & pending counts as pending status was cleared on read!
         fetchLeads();
       }
     } catch {
@@ -916,20 +555,16 @@ function InboxTab({ onSendTemplate }) {
     }
   };
 
-  // Smooth scroll animation when thread changes or new message arrives
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-    }
-  }, [thread]);
+    scrollToBottom();
+  }, [thread, scrollToBottom]);
 
-  // WebSocket Live Integration & Browser Notifications
+  // Real-time WebSockets
   useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
-
-    const wsProtocol = (import.meta.env.VITE_API_URL?.startsWith('https') || window.location.protocol === 'https:') ? 'wss:' : 'ws:';
+    const wsProtocol =
+      import.meta.env.VITE_API_URL?.startsWith('https') || window.location.protocol === 'https:'
+        ? 'wss:'
+        : 'ws:';
     let wsHost = window.location.host;
     if (import.meta.env.VITE_API_URL) {
       try {
@@ -938,24 +573,24 @@ function InboxTab({ onSendTemplate }) {
       } catch (e) {}
     }
     const wsUrl = `${wsProtocol}//${wsHost}/ws`;
-    
+
     let socket;
     try {
       socket = new WebSocket(wsUrl);
-
       socket.onmessage = (event) => {
         try {
           const raw = JSON.parse(event.data);
           const eventName = raw.event || raw.type;
           const payloadData = raw.payload || raw.data || {};
 
-          // 1. Delivery Ticks Realtime Status Update (sent -> delivered -> read / failed)
           if (eventName === 'whatsapp:status_update') {
             const { leadId, messageId, status } = payloadData;
-            setThread(prev => {
+            setThread((prev) => {
               if (!prev || !prev.thread) return prev;
-              if (leadId && String(prev.lead?.id || prev.lead?._id || selectedId) !== String(leadId)) return prev;
-              const updatedThread = prev.thread.map(m => {
+              if (leadId && String(prev.lead?.id || prev.lead?._id || selectedId) !== String(leadId)) {
+                return prev;
+              }
+              const updatedThread = prev.thread.map((m) => {
                 if (m.metaMessageId === messageId || m._id === messageId) {
                   return { ...m, deliveryStatus: status, status };
                 }
@@ -965,25 +600,14 @@ function InboxTab({ onSendTemplate }) {
             });
           }
 
-          // 2. Incoming WhatsApp Customer Message Realtime Update
           if (eventName === 'whatsapp:incoming_message') {
             const { leadId, name, phone, text, messageId, timestamp } = payloadData;
-            
-            // Play WhatsApp ringtone pop sound!
             playWhatsAppRingtone();
-
-            // Trigger Desktop Notification
             if ('Notification' in window && Notification.permission === 'granted') {
-              new Notification(`WhatsApp from ${name || phone}`, {
-                body: text,
-              });
+              new Notification(`WhatsApp from ${name || phone}`, { body: text });
             }
-
-            // Refresh leads list & pending counter
             fetchLeads();
-
-            // Append live to current open chat thread if matches open lead
-            setThread(prev => {
+            setThread((prev) => {
               if (!prev) return prev;
               const activeId = String(prev.lead?.id || prev.lead?._id || selectedId);
               if (activeId !== String(leadId)) return prev;
@@ -994,40 +618,32 @@ function InboxTab({ onSendTemplate }) {
                 direction: 'inbound',
                 description: text,
                 metaMessageId: messageId,
-                createdAt: timestamp || new Date().toISOString()
+                createdAt: timestamp || new Date().toISOString(),
               };
               return {
                 ...prev,
                 withinWindow: true,
-                thread: [...(prev.thread || []), newMsg]
+                thread: [...(prev.thread || []), newMsg],
               };
             });
           }
-        } catch (err) {
-          console.error('WS parse error:', err);
-        }
+        } catch (err) {}
       };
-    } catch (err) {
-      console.warn('WS socket init error:', err);
-    }
+    } catch (err) {}
 
     return () => {
       if (socket) socket.close();
     };
   }, [selectedId]);
 
-  useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [thread]);
-
   const sendReply = async () => {
-    if (!replyText.trim() || !selectedId) return;
+    if (!replyText.trim() || !selectedId || sending) return;
     setSending(true);
     try {
       await api.post(`/whatsapp-inbox/${selectedId}/reply`, { text: replyText.trim() });
       setReplyText('');
-      await openThread(selectedId);   // refresh thread
-      await fetchLeads();             // lead may have moved from Pending -> Intervened
+      await openThread(selectedId);
+      await fetchLeads();
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to send reply');
     } finally {
@@ -1036,15 +652,15 @@ function InboxTab({ onSendTemplate }) {
   };
 
   const handleSendRealTemplate = async () => {
-    if (!selectedTemplateId || !selectedId) return;
-    const tmpl = templates.find(t => t.id === selectedTemplateId);
+    if (!selectedTemplateId || !selectedId || sendingTemplate) return;
+    const tmpl = templates.find((t) => t.id === selectedTemplateId);
     if (!tmpl) return;
 
     setSendingTemplate(true);
     try {
       await api.post(`/whatsapp-inbox/${selectedId}/reply`, {
         templateName: tmpl.shortcut || tmpl.metaTemplateName || tmpl.name,
-        languageCode: tmpl.language || 'en_US'
+        languageCode: tmpl.language || 'en_US',
       });
       setShowSendTemplateModal(false);
       setSelectedTemplateId(null);
@@ -1057,103 +673,74 @@ function InboxTab({ onSendTemplate }) {
     }
   };
 
-  const waStatusDot = (s) => s === 'pending' ? ORANGE : s === 'intervened' ? BLUE : '#cbd5e1';
-
-  // Helper variable for tracking date headers across rendered messages
-  let lastDateLabel = '';
-
   return (
-    <div style={{ display: 'flex', flex: 1, minHeight: 0, position: 'relative' }}>
-      <style>{`
-        .whatsapp-chat-scroll {
-          scrollbar-width: thin;
-          scrollbar-color: rgba(37, 99, 235, 0.3) transparent;
-        }
-        .whatsapp-chat-scroll::-webkit-scrollbar {
-          width: 5px;
-          height: 5px;
-        }
-        .whatsapp-chat-scroll::-webkit-scrollbar-track {
-          background: rgba(0, 0, 0, 0.02);
-        }
-        .whatsapp-chat-scroll::-webkit-scrollbar-thumb {
-          background: rgba(0, 0, 0, 0.2);
-          border-radius: 6px;
-        }
-        .whatsapp-chat-scroll::-webkit-scrollbar-thumb:hover {
-          background: rgba(37, 99, 235, 0.5);
-        }
-      `}</style>
-
-      {/* Left: tabs + search + lead list */}
-      <div style={{ width: 330, borderRight: `1px solid ${BORDER}`, background: '#fff', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
-        {/* Tabs: All / Pending / Intervened */}
-        <div style={{ display: 'flex', borderBottom: `1px solid ${BORDER}` }}>
-          {TABS.map(t => (
-            <button key={t.key} onClick={() => { setTab(t.key); setSelectedId(null); setThread(null); }}
-              style={{
-                flex: 1, padding: '12px 6px', border: 'none', background: 'none', cursor: 'pointer',
-                fontSize: 13, fontWeight: tab === t.key ? 600 : 400,
-                color: tab === t.key ? BLUE : TEXT_MUTED,
-                borderBottom: `2px solid ${tab === t.key ? BLUE : 'transparent'}`,
-                marginBottom: -1, transition: 'all 0.15s',
-              }}>
-              {t.label} ({counts[t.key] ?? 0})
-            </button>
-          ))}
+    <div className="flex flex-1 min-h-0 w-full bg-white relative">
+      {/* ── Left Sidebar: Leads List ────────────────────────────────────────── */}
+      <div className="w-80 md:w-84 flex-shrink-0 border-r border-slate-200 bg-white flex flex-col h-full">
+        {/* Tabs */}
+        <div className="flex border-b border-slate-200 bg-slate-50/50">
+          {TABS.map((t) => {
+            const isActive = tab === t.key;
+            return (
+              <button
+                key={t.key}
+                onClick={() => {
+                  setTab(t.key);
+                  setSelectedId(null);
+                  setThread(null);
+                }}
+                className={cn(
+                  'flex-1 py-3 px-2 text-xs font-semibold text-center border-b-2 transition-all',
+                  isActive
+                    ? 'border-blue-600 text-blue-600 bg-white'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                )}
+              >
+                {t.label} ({counts[t.key] ?? 0})
+              </button>
+            );
+          })}
         </div>
 
-        {/* Search bar & Small Identity Filter Buttons */}
-        <div style={{ padding: '12px 14px 10px', borderBottom: `1px solid ${BORDER}`, display: 'flex', flexDirection: 'column', gap: 9, background: '#fff' }}>
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search lead or contact..."
-            style={{ ...inputStyle, marginBottom: 0, fontSize: 13, padding: '8px 12px', borderRadius: 8, background: '#f8fafc', border: `1px solid ${BORDER}` }}
-          />
+        {/* Search & Identity Filter */}
+        <div className="p-3 border-b border-slate-200 flex flex-col gap-2.5 bg-white">
+          <div className="relative flex items-center">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search leads..."
+              className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-800 outline-none focus:border-blue-500 focus:bg-white transition-all"
+            />
+          </div>
 
-          {/* Small Buttons: Contact Identity Filter */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none' }}>
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, flexShrink: 0, marginRight: 2 }}>
-              Identity:
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-[11px]">
+            <span className="text-slate-400 font-semibold uppercase text-[10px] tracking-wider shrink-0 mr-1">
+              Tag:
             </span>
             <button
-              type="button"
               onClick={() => setSelectedIdentity('ALL')}
-              style={{
-                padding: '3px 10px',
-                borderRadius: 6,
-                fontSize: 11.5,
-                fontWeight: selectedIdentity === 'ALL' ? 600 : 400,
-                background: selectedIdentity === 'ALL' ? BLUE : '#f1f5f9',
-                color: selectedIdentity === 'ALL' ? '#ffffff' : '#475569',
-                border: selectedIdentity === 'ALL' ? `1px solid ${BLUE}` : '1px solid #e2e8f0',
-                cursor: 'pointer',
-                flexShrink: 0,
-                transition: 'all 0.15s',
-              }}
+              className={cn(
+                'px-2.5 py-1 rounded-md shrink-0 font-medium transition-colors',
+                selectedIdentity === 'ALL'
+                  ? 'bg-blue-600 text-white font-semibold'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              )}
             >
               All
             </button>
-            {existingIdentities.map(idName => {
+            {existingIdentities.map((idName) => {
               const isSelected = selectedIdentity.toLowerCase() === idName.toLowerCase();
               return (
                 <button
                   key={idName}
-                  type="button"
                   onClick={() => setSelectedIdentity(idName)}
-                  style={{
-                    padding: '3px 10px',
-                    borderRadius: 6,
-                    fontSize: 11.5,
-                    fontWeight: isSelected ? 600 : 400,
-                    background: isSelected ? BLUE : '#f1f5f9',
-                    color: isSelected ? '#ffffff' : '#475569',
-                    border: isSelected ? `1px solid ${BLUE}` : '1px solid #e2e8f0',
-                    cursor: 'pointer',
-                    flexShrink: 0,
-                    transition: 'all 0.15s',
-                  }}
+                  className={cn(
+                    'px-2.5 py-1 rounded-md shrink-0 font-medium transition-colors',
+                    isSelected
+                      ? 'bg-blue-600 text-white font-semibold'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  )}
                 >
                   {idName}
                 </button>
@@ -1162,956 +749,442 @@ function InboxTab({ onSendTemplate }) {
           </div>
         </div>
 
-        {/* Contacts & Leads list with custom smooth scroll */}
-        <div className="whatsapp-chat-scroll" style={{ flex: 1, overflowY: 'auto' }}>
-          {loadingList && <div style={{ padding: 24, textAlign: 'center', color: TEXT_MUTED, fontSize: 13 }}>Loading…</div>}
+        {/* Leads Scroll Area */}
+        <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
+          {loadingList && (
+            <div className="p-8 text-center text-xs text-slate-400">Loading leads...</div>
+          )}
           {!loadingList && displayedLeads.length === 0 && (
-            <div style={{ padding: '40px 20px', textAlign: 'center', color: TEXT_MUTED, fontSize: 13 }}>
+            <div className="p-8 text-center text-xs text-slate-400">
               {selectedIdentity !== 'ALL'
-                ? `No users found for "${selectedIdentity}".`
-                : 'No leads in this tab yet.'}
+                ? `No leads found for "${selectedIdentity}".`
+                : 'No conversations found.'}
             </div>
           )}
-          {!loadingList && displayedLeads.map(lead => {
-            const leadIdentity = getLeadIdentity(lead);
-            const isSelected = selectedId === lead._id;
-            return (
-              <div key={lead._id} onClick={() => openThread(lead._id)}
-                style={{
-                  padding: '12px 14px', cursor: 'pointer',
-                  background: isSelected ? LIGHT_BLUE : '#fff',
-                  borderBottom: '1px solid #f1f5f9',
-                  borderLeft: `3px solid ${isSelected ? BLUE : 'transparent'}`,
-                  transition: 'background 0.1s ease',
-                }}
-                onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = '#f8fafc'; }}
-                onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = '#fff'; }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3, gap: 6 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, overflow: 'hidden' }}>
-                    <span style={{ fontSize: 13.5, fontWeight: 600, color: TEXT_MAIN, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {lead.name || lead.phone}
-                    </span>
-                    {leadIdentity && (
-                      <span style={{
-                        fontSize: 11,
-                        fontWeight: 500,
-                        padding: '1px 6px',
-                        borderRadius: 4,
-                        background: LIGHT_BLUE,
-                        color: DARK_BLUE,
-                        border: '1px solid #bfdbfe',
-                        whiteSpace: 'nowrap',
-                        flexShrink: 0
-                      }}>
-                        {leadIdentity}
-                      </span>
-                    )}
+          {!loadingList &&
+            displayedLeads.map((lead) => {
+              const isSelected = selectedId === lead._id;
+              const identity = getLeadIdentity(lead);
+              const initials = (lead.name || lead.phone || 'L').charAt(0).toUpperCase();
+
+              return (
+                <div
+                  key={lead._id}
+                  onClick={() => openThread(lead._id)}
+                  className={cn(
+                    'p-3 cursor-pointer transition-all flex items-start gap-3 border-l-4',
+                    isSelected
+                      ? 'bg-blue-50/70 border-blue-600'
+                      : 'border-transparent hover:bg-slate-50'
+                  )}
+                >
+                  <div className="w-9 h-9 rounded-full bg-slate-100 border border-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center shrink-0">
+                    {initials}
                   </div>
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: waStatusDot(lead.waStatus), flexShrink: 0 }} />
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-1 mb-0.5">
+                      <span className="text-xs font-semibold text-slate-900 truncate">
+                        {lead.name || lead.phone}
+                      </span>
+                      <span
+                        className={cn(
+                          'w-2 h-2 rounded-full shrink-0',
+                          lead.waStatus === 'pending'
+                            ? 'bg-amber-500'
+                            : 'bg-emerald-500'
+                        )}
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-1.5 mb-1">
+                      {identity && (
+                        <span className="text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-200/60 rounded px-1.5 py-0.2 shrink-0">
+                          {identity}
+                        </span>
+                      )}
+                      <span className="text-[11px] text-slate-400 font-mono truncate">
+                        {lead.phone}
+                      </span>
+                    </div>
+
+                    <div className="text-[11px] text-slate-500 truncate">
+                      {lead.lastWaMessagePreview || 'No messages yet'}
+                    </div>
+                  </div>
                 </div>
-                <div style={{ fontSize: 12, color: TEXT_MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {lead.lastWaMessagePreview || 'No messages yet'}
-                </div>
-                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
-                  {lead.lastWaMessageAt ? new Date(lead.lastWaMessageAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
         </div>
       </div>
 
-      {/* Right: chat thread & Preview mode with Authentic WhatsApp Theme Background */}
-      <div style={{
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'row',
-        minWidth: 0,
-        position: 'relative',
-        backgroundColor: '#efeae2',
-        backgroundImage: 'radial-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 0)',
-        backgroundSize: '18px 18px',
-        overflow: 'hidden'
-      }}>
+      {/* ── Right: Clean White Chatting Session ───────────────────────────── */}
+      <div className="flex-1 flex flex-col h-full bg-white relative min-w-0 overflow-hidden">
         {!selectedId && (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: TEXT_MUTED, fontSize: 13.5, gap: 12, padding: 20 }}>
-            <div style={{
-              width: 58, height: 58, borderRadius: '50%', background: '#fff', border: `1px solid ${BORDER}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', color: BLUE, boxShadow: '0 4px 14px rgba(0,0,0,0.08)',
-              animation: 'pulse 2s infinite ease-in-out'
-            }}>
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-white">
+            <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 mb-3 shadow-xs">
+              <MessageSquare className="w-6 h-6" />
             </div>
-            <div style={{ maxWidth: 320, textAlign: 'center', background: '#ffffff', padding: '16px 20px', borderRadius: 12, border: `1px solid ${BORDER}`, boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: TEXT_MAIN, marginBottom: 4 }}>WhatsApp Inbox Preview</div>
-              <div style={{ fontSize: 12, color: TEXT_MUTED, lineHeight: 1.5 }}>Select a conversation from the left panel to start live chatting & inspect contact profile details.</div>
-            </div>
+            <h3 className="text-sm font-bold text-slate-800 mb-1">No Conversation Selected</h3>
+            <p className="text-xs text-slate-400 max-w-xs">
+              Choose a contact from the left list to start live chatting and dispatch WhatsApp templates.
+            </p>
           </div>
         )}
 
         {selectedId && loadingThread && (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: TEXT_MUTED, fontSize: 13.5 }}>
-            Loading conversation…
+          <div className="flex-1 flex items-center justify-center text-xs text-slate-400 bg-white">
+            Loading messages...
           </div>
         )}
 
         {selectedId && !loadingThread && thread && (
-          <>
-            {/* Center: Main Active Chat Thread Area */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, height: '100%', position: 'relative' }}>
-              
-              {/* Top Chat Header */}
-              <div style={{ background: '#fff', borderBottom: `1px solid ${BORDER}`, padding: '10px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 10 }}>
+          <div className="flex-1 flex flex-col h-full min-w-0 bg-white">
+            {/* Header */}
+            <div className="px-5 py-3 border-b border-slate-200/90 flex items-center justify-between bg-white z-10 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-bold text-xs flex items-center justify-center shadow-xs">
+                  {(thread.lead.name || thread.lead.phone || 'L').charAt(0).toUpperCase()}
+                </div>
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ fontSize: 15, fontWeight: 600, color: TEXT_MAIN }}>{thread.lead.name || thread.lead.phone}</div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-slate-900 leading-none">
+                      {thread.lead.name || thread.lead.phone}
+                    </span>
                     {getLeadIdentity(thread.lead) && (
-                      <span style={{ fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 4, background: LIGHT_BLUE, color: DARK_BLUE, border: '1px solid #bfdbfe' }}>
+                      <span className="text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded px-1.5 py-0.5 leading-none">
                         {getLeadIdentity(thread.lead)}
                       </span>
                     )}
                   </div>
-                  <div style={{ fontSize: 12, color: TEXT_MUTED, marginTop: 1 }}>{thread.lead.phone}</div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  {thread.lead.waStatus === 'pending' && (
-                    <span style={{ fontSize: 11.5, fontWeight: 500, background: LIGHT_ORANGE, color: DARK_ORANGE, borderRadius: 12, padding: '3px 10px', border: '1px solid #fed7aa' }}>
-                      ⏳ Pending Agent Reply
-                    </span>
-                  )}
-                  {/* Right Side Preview Mode Toggle Button */}
-                  <button
-                    type="button"
-                    onClick={() => setShowContactPreview(p => !p)}
-                    title={showContactPreview ? "Hide Right Side Preview Panel" : "Show Right Side Contact Preview Mode"}
-                    style={{
-                      padding: '5px 10px',
-                      borderRadius: 6,
-                      border: `1px solid ${showContactPreview ? BLUE : BORDER}`,
-                      background: showContactPreview ? LIGHT_BLUE : '#ffffff',
-                      color: showContactPreview ? DARK_BLUE : TEXT_MUTED,
-                      fontSize: 12,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 5,
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                    {showContactPreview ? 'Hide Preview' : 'Show Preview'}
-                  </button>
+                  <div className="text-[11px] text-slate-500 font-mono mt-0.5">
+                    {thread.lead.phone}
+                  </div>
                 </div>
               </div>
 
-              {/* Scrollable Message History Area */}
-              <div
-                ref={scrollRef}
-                onScroll={handleChatScroll}
-                className="whatsapp-chat-scroll"
-                style={{
-                  flex: 1,
-                  overflowY: 'auto',
-                  scrollBehavior: 'smooth',
-                  padding: '18px 24px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 10,
-                }}
-              >
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    'text-[11px] font-medium px-2 py-0.5 rounded-full border hidden sm:inline-flex items-center gap-1',
+                    thread.withinWindow
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : 'bg-amber-50 text-amber-700 border-amber-200'
+                  )}
+                >
+                  <span className={cn('w-1.5 h-1.5 rounded-full', thread.withinWindow ? 'bg-emerald-500' : 'bg-amber-500')} />
+                  {thread.withinWindow ? '24h Active' : 'Window Expired'}
+                </span>
+
+                <a
+                  href={`tel:${thread.lead.phone}`}
+                  title="Direct Call"
+                  className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-blue-600 transition-colors"
+                >
+                  <Phone className="w-3.5 h-3.5" />
+                </a>
+
+                <a
+                  href={`https://wa.me/${String(thread.lead.phone).replace(/\D/g, '')}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Open WhatsApp Web"
+                  className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-emerald-600 transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+
+                <button
+                  type="button"
+                  onClick={() => setShowSendTemplateModal(true)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors flex items-center gap-1"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Template</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Scrollable Message History Area — Bounded Decreased Width & White Background */}
+            <div
+              ref={scrollRef}
+              onScroll={handleChatScroll}
+              className="flex-1 overflow-y-auto bg-white p-4 scroll-smooth"
+            >
+              <div className="w-full max-w-2xl mx-auto flex flex-col gap-3">
                 {thread.thread.length === 0 && (
-                  <div style={{ textAlign: 'center', color: TEXT_MUTED, fontSize: 13, marginTop: 40, background: '#fff', padding: '12px 20px', borderRadius: 10, maxWidth: 300, margin: '40px auto 0', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                    No messages yet. Send a greeting or template!
+                  <div className="text-center py-12">
+                    <p className="text-xs text-slate-400">
+                      No messages in this chat yet. Send a greeting or template below.
+                    </p>
                   </div>
                 )}
+
                 {(() => {
-                  let lastDateLabel = null;
+                  let lastDate = null;
                   return (thread.thread || []).map((m, i) => {
                     const isInbound = m.direction === 'inbound';
                     const currentDateLabel = getDateLabel(m.createdAt);
-                    const showDateHeader = currentDateLabel && currentDateLabel !== lastDateLabel;
+                    const showDateHeader = currentDateLabel && currentDateLabel !== lastDate;
                     if (showDateHeader) {
-                      lastDateLabel = currentDateLabel;
+                      lastDate = currentDateLabel;
                     }
 
-                    const matchedTmpl = (templates || []).find(t => {
-                      if (!t || !m.description) return false;
-                      const cleanText = m.description.toLowerCase().trim();
-                      const cleanNorm = cleanText.replace(/[\s_]+/g, '');
-                      const tShortcut = (t.shortcut || '').toLowerCase().trim();
-                      const tShortcutNorm = tShortcut.replace(/[\s_]+/g, '');
-                      const tName = (t.metaTemplateName || t.name || '').toLowerCase().trim();
-                      const tNameNorm = tName.replace(/[\s_]+/g, '');
-
-                      if (m.templateId && String(t.id) === String(m.templateId)) return true;
-                      if (m.templateName) {
-                        const mNameNorm = String(m.templateName).toLowerCase().replace(/[\s_]+/g, '');
-                        if (tShortcutNorm === mNameNorm || tNameNorm === mNameNorm) return true;
-                      }
-                      const extracted = m.description.match(/\[Template:\s*([^\]]+)\]/i)?.[1]?.trim() || (m.description.startsWith('@') ? m.description.slice(1).trim() : '');
-                      if (extracted) {
-                        const extNorm = extracted.toLowerCase().replace(/[\s_]+/g, '');
-                        if (tShortcutNorm === extNorm || tNameNorm === extNorm) return true;
-                      }
-                      return false;
-                    });
-
-                    const isTemplate = !!matchedTmpl || m.description?.startsWith('[Template:') || m.description?.startsWith('@') || m.isTemplate || m.type === 'template' || !!m.templateName || !!m.templateId || (m.direction && (m.direction.includes('broadcast') || m.direction.includes('campaign')));
+                    const isTemplate =
+                      m.description?.startsWith('[Template:') ||
+                      m.description?.startsWith('@') ||
+                      m.isTemplate ||
+                      m.type === 'template' ||
+                      Boolean(m.templateName) ||
+                      Boolean(m.templateId);
 
                     return (
-                      <div key={i} style={{ display: 'flex', flexDirection: 'column' }}>
-                        {/* Date Header */}
+                      <React.Fragment key={m._id || i}>
                         {showDateHeader && (
-                          <div style={{ display: 'flex', justifyContent: 'center', margin: '14px 0 6px' }}>
-                            <span style={{
-                              fontSize: 11.5, fontWeight: 500, color: '#475569', background: '#ffffff',
-                              border: '1px solid #e2e8f0', padding: '3px 14px', borderRadius: 14,
-                              boxShadow: '0 1px 3px rgba(0,0,0,0.06)', letterSpacing: '0.2px'
-                            }}>
+                          <div className="flex justify-center my-3">
+                            <span className="text-[11px] font-medium text-slate-500 bg-slate-100 border border-slate-200/60 px-3 py-0.5 rounded-full shadow-2xs">
                               {currentDateLabel}
                             </span>
                           </div>
                         )}
 
-                        <div style={{ display: 'flex', justifyContent: isInbound ? 'flex-start' : 'flex-end', margin: '2px 0' }}>
-                          <div style={{
-                            maxWidth: '72%', padding: '9px 13px',
-                            borderRadius: isInbound ? '10px 10px 10px 2px' : '10px 10px 2px 10px',
-                            background: isInbound ? '#ffffff' : '#e0f2fe',
-                            border: isInbound ? '1px solid rgba(0,0,0,0.06)' : '1px solid #bae6fd',
-                            boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
-                            fontSize: 13.5, color: TEXT_MAIN, lineHeight: 1.55, fontWeight: 400
-                          }}>
-                            {/* Rich Template Card or Plain Message */}
-                            {isTemplate ? (
-                              <RichTemplateMessageCard message={m} templates={templates || []} />
-                            ) : (
-                              <div style={{ wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{m.description}</div>
+                        <motion.div
+                          initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          transition={{ duration: 0.2 }}
+                          className={cn('flex w-full', isInbound ? 'justify-start' : 'justify-end')}
+                        >
+                          <div className={cn('flex items-end gap-2 max-w-[80%]', !isInbound && 'flex-row-reverse')}>
+                            {isInbound && (
+                              <div className="w-7 h-7 rounded-full bg-slate-100 border border-slate-200 text-slate-700 font-bold text-[10px] flex items-center justify-center shrink-0 shadow-2xs">
+                                {(thread.lead.name || 'C').charAt(0).toUpperCase()}
+                              </div>
                             )}
 
-                            {/* Timestamp + Live Delivery Tick Status */}
-                            <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 4, textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 3 }}>
-                              <span>{new Date(m.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
-                              {m.direction === 'outbound_broadcast' && <span style={{ marginLeft: 3 }}>· broadcast</span>}
-                              {m.direction === 'outbound_agent' && <span style={{ marginLeft: 3 }}>· agent</span>}
-                              {!isInbound && (
-                                <MessageTicks status={m.deliveryStatus || m.status || 'sent'} />
+                            <div className="flex flex-col">
+                              {/* Employee who sent the message/template */}
+                              {!isInbound && (m.performedByName || m.performedBy?.name || m.userName || user?.name) && (
+                                <div className="text-[10px] font-semibold text-slate-400 mb-0.5 text-right flex items-center justify-end gap-1">
+                                  <span>Sent by:</span>
+                                  <span className="text-slate-600 font-bold">{m.performedByName || m.performedBy?.name || m.userName || user?.name}</span>
+                                </div>
                               )}
+
+                              <div
+                                className={cn(
+                                  'text-xs leading-relaxed transition-all',
+                                  isTemplate
+                                    ? 'bg-transparent border-0 shadow-none p-0'
+                                    : isInbound
+                                    ? 'rounded-2xl rounded-tl-sm border border-slate-200 bg-slate-50 text-slate-900 px-3.5 py-2 shadow-xs'
+                                    : 'rounded-2xl rounded-tr-sm bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-3.5 py-2 shadow-xs'
+                                )}
+                              >
+                                {isTemplate ? (
+                                  <RichTemplateMessageCard message={m} templates={templates} leadName={thread.lead.name} />
+                                ) : (
+                                  <div className="whitespace-pre-wrap break-words">{m.description}</div>
+                                )}
+
+                                <div
+                                  className={cn(
+                                    'text-[10px] mt-1 flex items-center justify-end gap-1',
+                                    isTemplate || isInbound ? 'text-slate-400' : 'text-blue-100'
+                                  )}
+                                >
+                                  <span>
+                                    {new Date(m.createdAt).toLocaleTimeString('en-IN', {
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })}
+                                  </span>
+                                  {!isInbound && (
+                                    <MessageTicks status={m.deliveryStatus || m.status || 'sent'} />
+                                  )}
+                                </div>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </div>
+                        </motion.div>
+                      </React.Fragment>
                     );
                   });
                 })()}
               </div>
+            </div>
 
-              {/* Floating Scroll to Bottom Button */}
-              {showScrollBottom && (
-                <button
-                  type="button"
-                  onClick={scrollToBottom}
-                  title="Scroll to bottom"
-                  style={{
-                    position: 'absolute',
-                    right: 24,
-                    bottom: 74,
-                    width: 38,
-                    height: 38,
-                    borderRadius: '50%',
-                    background: '#ffffff',
-                    color: BLUE,
-                    boxShadow: '0 4px 14px rgba(0,0,0,0.18)',
-                    border: '1px solid #e2e8f0',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    zIndex: 25,
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="6 9 12 15 18 9"></polyline>
-                  </svg>
-                </button>
-              )}
+            {/* Floating Scroll to Bottom */}
+            {showScrollBottom && (
+              <button
+                type="button"
+                onClick={scrollToBottom}
+                className="absolute right-6 bottom-20 w-9 h-9 rounded-full bg-white text-blue-600 border border-slate-200 shadow-lg flex items-center justify-center hover:bg-slate-50 transition-all z-20"
+                title="Scroll to bottom"
+              >
+                <ChevronDown className="w-4 h-4" />
+              </button>
+            )}
 
-              {/* Bottom Chat Reply Input Area */}
-              <div style={{ background: '#fff', borderTop: `1px solid ${BORDER}`, padding: '12px 20px', zIndex: 10 }}>
+            {/* Input Area — Modeled directly on ChatMessages */}
+            <div className="border-t border-slate-200 p-3 bg-white z-10 shrink-0">
+              <div className="w-full max-w-2xl mx-auto">
                 {thread.withinWindow ? (
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-100 transition-all">
                     <button
                       type="button"
                       onClick={() => setShowSendTemplateModal(true)}
-                      title="Send Real Meta WhatsApp Template Message"
-                      style={{
-                        padding: '9px 12px',
-                        background: LIGHT_BLUE,
-                        color: DARK_BLUE,
-                        border: '1px solid #bfdbfe',
-                        borderRadius: 8,
-                        fontSize: 12.5,
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 5
-                      }}
+                      className="px-2 py-1 rounded-lg text-xs font-semibold text-blue-600 hover:bg-blue-50 transition-colors shrink-0 flex items-center gap-1"
+                      title="Select Meta Template"
                     >
-                      📋 Template
+                      <FileText className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Template</span>
                     </button>
+
                     <input
+                      type="text"
                       value={replyText}
-                      onChange={e => setReplyText(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter' && !sending) sendReply(); }}
-                      placeholder="Type a message…"
-                      style={{ ...inputStyle, marginBottom: 0, flex: 1, fontSize: 13.5, padding: '9px 14px', borderRadius: 8, border: `1px solid #cbd5e1` }}
+                      onChange={(e) => setReplyText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          sendReply();
+                        }
+                      }}
+                      placeholder="Type a message..."
+                      className="flex-1 bg-transparent text-xs text-slate-900 outline-none placeholder:text-slate-400"
                     />
-                    <button onClick={sendReply} disabled={sending || !replyText.trim()}
-                      style={{
-                        padding: '10px 22px',
-                        background: sending || !replyText.trim() ? '#cbd5e1' : BLUE,
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: 8,
-                        fontSize: 13.5,
-                        fontWeight: 600,
-                        cursor: sending || !replyText.trim() ? 'not-allowed' : 'pointer',
-                        transition: 'background 0.15s ease'
-                      }}>
-                      {sending ? 'Sending…' : 'Send'}
-                    </button>
+
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={sendReply}
+                      disabled={sending || !replyText.trim()}
+                      className={cn(
+                        'w-8 h-8 rounded-lg flex items-center justify-center transition-colors shrink-0',
+                        sending || !replyText.trim()
+                          ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                          : 'bg-blue-600 text-white hover:bg-blue-700 shadow-xs'
+                      )}
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                    </motion.button>
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, background: LIGHT_ORANGE, border: '1px solid #fed7aa', borderRadius: 8, padding: '10px 16px' }}>
-                    <span style={{ fontSize: 13, color: '#9a3412', fontWeight: 500 }}>
-                      You can send template messages directly to recipient's phone via Meta WhatsApp API
-                    </span>
-                    <button onClick={() => setShowSendTemplateModal(true)}
-                      style={{ padding: '8px 18px', background: BLUE, color: '#fff', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                      📋 Select Meta Template
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+                    <div>
+                      <div className="text-xs font-bold text-amber-900">24-Hour Session Closed</div>
+                      <div className="text-[11px] text-amber-700">
+                        To message this customer, send a pre-approved Meta WhatsApp template.
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowSendTemplateModal(true)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 transition-colors shrink-0 flex items-center gap-1.5 shadow-xs"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      <span>Select Template</span>
                     </button>
                   </div>
                 )}
               </div>
             </div>
+          </div>
+        )}
+      </div>
 
-            {/* In-Chat Real Meta WhatsApp Template Modal */}
-            {showSendTemplateModal && (
-              <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999, padding: 16 }}>
-                <div style={{ background: '#ffffff', borderRadius: 16, width: 500, maxWidth: '95vw', maxHeight: '88vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.25)', border: `1px solid ${BORDER}` }}>
-                  <div style={{ padding: '16px 20px', borderBottom: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8fafc' }}>
-                    <div>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: TEXT_MAIN }}>Select Meta WhatsApp Template</div>
-                      <div style={{ fontSize: 11.5, color: TEXT_MUTED, marginTop: 2 }}>Real WhatsApp API message to +91 {thread.lead.phone}</div>
-                    </div>
-                    <button onClick={() => { setShowSendTemplateModal(false); setSelectedTemplateId(null); setTemplateSearchText(''); }} style={{ border: 'none', background: 'none', fontSize: 18, color: TEXT_MUTED, cursor: 'pointer', padding: 4 }}>✕</button>
-                  </div>
-
-                  <div style={{ padding: '10px 16px 6px', borderBottom: `1px solid ${BORDER}`, background: '#ffffff' }}>
-                    <input
-                      value={templateSearchText}
-                      onChange={e => setTemplateSearchText(e.target.value)}
-                      placeholder="🔍 Search templates by name or text..."
-                      style={{ ...inputStyle, marginBottom: 0, fontSize: 12.5, padding: '8px 12px' }}
-                    />
-                  </div>
-
-                  <div className="whatsapp-chat-scroll" style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {templates.filter(t => (t.name || t.shortcut || '').toLowerCase().includes((templateSearchText || '').toLowerCase()) || (t.body || '').toLowerCase().includes((templateSearchText || '').toLowerCase())).length === 0 ? (
-                      <div style={{ textAlign: 'center', padding: 24, color: TEXT_MUTED, fontSize: 13 }}>
-                        {templateSearchText ? `No templates found matching "${templateSearchText}".` : 'No Meta templates found. Create or sync Meta templates first.'}
-                      </div>
-                    ) : (
-                      templates.filter(t => (t.name || t.shortcut || '').toLowerCase().includes((templateSearchText || '').toLowerCase()) || (t.body || '').toLowerCase().includes((templateSearchText || '').toLowerCase())).map(tmpl => {
-                        const isSelected = selectedTemplateId === tmpl.id;
-                        return (
-                          <div
-                            key={tmpl.id}
-                            onClick={() => setSelectedTemplateId(tmpl.id)}
-                            style={{
-                              padding: 12, borderRadius: 10, border: `1.5px solid ${isSelected ? BLUE : BORDER}`,
-                              background: isSelected ? LIGHT_BLUE : '#ffffff', cursor: 'pointer', transition: 'all 0.15s ease'
-                            }}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                              <span style={{ fontSize: 13.5, fontWeight: 700, color: isSelected ? DARK_BLUE : TEXT_MAIN }}>{tmpl.shortcut || tmpl.name}</span>
-                              <span style={{ fontSize: 10.5, fontWeight: 600, padding: '2px 7px', borderRadius: 4, background: tmpl.status === 'APPROVED' ? '#f0fdf4' : '#fffbeb', color: tmpl.status === 'APPROVED' ? '#16a34a' : '#d97706' }}>
-                                {tmpl.status}
-                              </span>
-                            </div>
-                            <div style={{ fontSize: 12, color: TEXT_MUTED, lineHeight: 1.4, wordBreak: 'break-word' }}>
-                              {tmpl.body}
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-
-                  {/* Selected Template Live Preview Card */}
-                  {selectedTemplateId && (
-                    <div style={{ borderTop: `1px solid ${BORDER}`, background: '#f8fafc', padding: 14, maxHeight: 220, overflowY: 'auto' }} className="whatsapp-chat-scroll">
-                      <div style={{ fontSize: 10.5, fontWeight: 700, color: TEXT_MUTED, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                        Selected Template Card Preview
-                      </div>
-                      <RichTemplateMessageCard
-                        message={{
-                          description: `[Template: ${templates.find(t => t.id === selectedTemplateId)?.shortcut || templates.find(t => t.id === selectedTemplateId)?.name || ''}]`,
-                          templateId: selectedTemplateId
-                        }}
-                        templates={templates}
-                        leadName={thread.lead.name || thread.lead.phone}
-                      />
-                    </div>
-                  )}
-
-                  <div style={{ padding: '14px 20px', borderTop: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, background: '#ffffff' }}>
-                    <button onClick={() => { setShowSendTemplateModal(false); setSelectedTemplateId(null); setTemplateSearchText(''); }} style={{ padding: '9px 18px', background: '#ffffff', border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, fontWeight: 600, color: TEXT_MUTED, cursor: 'pointer' }}>
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleSendRealTemplate}
-                      disabled={!selectedTemplateId || sendingTemplate}
-                      style={{
-                        padding: '9px 20px', background: !selectedTemplateId || sendingTemplate ? '#cbd5e1' : BLUE,
-                        border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, color: '#ffffff',
-                        cursor: !selectedTemplateId || sendingTemplate ? 'not-allowed' : 'pointer',
-                        display: 'flex', alignItems: 'center', gap: 6
-                      }}
-                    >
-                      {sendingTemplate ? 'Sending via Meta API...' : '⚡ Send Real Meta Message'}
-                    </button>
-                  </div>
-                </div>
+      {/* ── Meta WhatsApp Template Selection Modal ───────────────────────── */}
+      {showSendTemplateModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/70">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Select Meta Template</h3>
+                <p className="text-[11px] text-slate-500">
+                  Sends directly to +91 {thread?.lead?.phone} via official WhatsApp API
+                </p>
               </div>
-            )}
-
-            {/* Right: Contact Profile Preview Mode Panel (Decreased 250px Width & Independent Separate Scroll) */}
-            {showContactPreview && (
-              <div
-                className="whatsapp-chat-scroll"
-                style={{
-                  width: 250,
-                  flexShrink: 0,
-                  borderLeft: `1px solid ${BORDER}`,
-                  background: '#ffffff',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  overflowY: 'auto',
-                  height: '100%',
-                  padding: '16px 14px',
-                  gap: 14,
-                  boxSizing: 'border-box'
+              <button
+                onClick={() => {
+                  setShowSendTemplateModal(false);
+                  setSelectedTemplateId(null);
+                  setTemplateSearchText('');
                 }}
+                className="p-1 rounded-lg hover:bg-slate-200 text-slate-500 transition-colors"
               >
-                {/* Contact Profile Header */}
-                <div style={{ textAlign: 'center', paddingBottom: 12, borderBottom: `1px solid ${BORDER}` }}>
-                  <div style={{
-                    width: 52, height: 52, borderRadius: '50%', margin: '0 auto 8px',
-                    background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
-                    color: '#ffffff', fontSize: 19, fontWeight: 700,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    boxShadow: '0 4px 12px rgba(37,99,235,0.22)'
-                  }}>
-                    {(thread.lead.name || thread.lead.phone || 'C').charAt(0).toUpperCase()}
-                  </div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: TEXT_MAIN, wordBreak: 'break-word', lineHeight: 1.3 }}>
-                    {thread.lead.name || thread.lead.phone}
-                  </div>
-                  <div style={{ fontSize: 11.5, color: TEXT_MUTED, marginTop: 2, fontFamily: 'monospace' }}>
-                    {thread.lead.phone}
-                  </div>
-                  {getLeadIdentity(thread.lead) && (
-                    <span style={{
-                      display: 'inline-block', marginTop: 6, fontSize: 10.5, fontWeight: 600,
-                      padding: '2px 8px', borderRadius: 10, background: LIGHT_BLUE, color: DARK_BLUE,
-                      border: '1px solid #bfdbfe'
-                    }}>
-                      🏷️ {getLeadIdentity(thread.lead)}
-                    </span>
-                  )}
-                </div>
-
-                {/* Quick Contact Action Shortcuts */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                  <a
-                    href={`https://wa.me/${String(thread.lead.phone).replace(/\D/g, '')}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{
-                      padding: '7px 8px', borderRadius: 7, background: '#f0fdf4', border: '1px solid #bbf7d0',
-                      color: '#15803d', fontSize: 11, fontWeight: 600, textDecoration: 'none', textAlign: 'center',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4
-                    }}
-                  >
-                    💬 WhatsApp
-                  </a>
-                  <a
-                    href={`tel:${thread.lead.phone}`}
-                    style={{
-                      padding: '7px 8px', borderRadius: 7, background: '#eff6ff', border: '1px solid #bfdbfe',
-                      color: '#1d4ed8', fontSize: 11, fontWeight: 600, textDecoration: 'none', textAlign: 'center',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4
-                    }}
-                  >
-                    📞 Direct Call
-                  </a>
-                </div>
-
-                {/* Lead Information Card */}
-                <div style={{ background: '#f8fafc', borderRadius: 9, padding: '10px 12px', border: `1px solid ${BORDER}`, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ fontSize: 10.5, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                    Contact Details
-                  </div>
-                  <div style={{ fontSize: 12, color: TEXT_MAIN }}>
-                    <span style={{ color: TEXT_MUTED }}>Email: </span>
-                    <span style={{ fontWeight: 500, wordBreak: 'break-all' }}>{thread.lead.email || 'Not specified'}</span>
-                  </div>
-                  <div style={{ fontSize: 12, color: TEXT_MAIN }}>
-                    <span style={{ color: TEXT_MUTED }}>Status: </span>
-                    <span style={{
-                      fontWeight: 600, fontSize: 11, padding: '1px 6px', borderRadius: 4,
-                      background: thread.lead.waStatus === 'pending' ? '#fff7ed' : '#f0fdf4',
-                      color: thread.lead.waStatus === 'pending' ? '#c2410c' : '#15803d'
-                    }}>
-                      {thread.lead.waStatus || 'Active'}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 12, color: TEXT_MAIN }}>
-                    <span style={{ color: TEXT_MUTED }}>Session: </span>
-                    <span style={{ fontWeight: 600, color: thread.withinWindow ? '#15803d' : '#c2410c' }}>
-                      {thread.withinWindow ? '🟢 24h Window Active' : '🔴 24h Window Expired'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Quick Action: Send Template */}
-                <button
-                  type="button"
-                  onClick={() => onSendTemplate && onSendTemplate(thread.lead)}
-                  style={{
-                    padding: '9px 12px', borderRadius: 8, background: BLUE, color: '#ffffff',
-                    border: 'none', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                    boxShadow: '0 2px 6px rgba(37,99,235,0.2)'
-                  }}
-                >
-                  <span>📋 Send Template</span>
-                </button>
-
-                {/* Separate Scroll Activity Log Section */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div style={{ fontSize: 10.5, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                    Recent Log Preview
-                  </div>
-                  <div style={{ fontSize: 11.5, color: TEXT_MUTED, background: '#f8fafc', padding: 8, borderRadius: 7, border: `1px solid ${BORDER}`, lineHeight: 1.4 }}>
-                    {thread.thread?.length ? `📜 ${thread.thread.length} messages in conversation history.` : 'No past activity logged.'}
-                  </div>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── Templates Tab ──────────────────────────────────────────────────────────────
-function TemplatesTab() {
-  const [search, setSearch] = useState('');
-  const [creating, setCreating] = useState(false);
-  const [integrationId, setIntegrationId] = useState(null);
-  const [templates, setTemplates] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
-  const [expandedId, setExpandedId] = useState(null);
-  const [previewId, setPreviewId] = useState(null);
-  const [broadcastStats, setBroadcastStats] = useState({});
-
-  useEffect(() => {
-    api.get('/broadcasts', { params: { limit: 200 } }).then(res => {
-      const list = res.data?.broadcasts || [];
-      const stats = {};
-      list.forEach(b => {
-        const tid = b.template?._id || b.template;
-        if (!tid) return;
-        stats[tid] = (stats[tid] || 0) + (b.sentCount || 0);
-      });
-      setBroadcastStats(stats);
-    }).catch(() => {});
-  }, []);
-
-  const loadTemplates = () => {
-    setLoading(true);
-    // Fetch unified templates: attempts /integrations/whatsapp/templates first, falls back to /message-templates
-    api.get('/integrations/whatsapp/templates')
-      .then(res => {
-        const raw = res.data?.templates || [];
-        if (Array.isArray(raw) && raw.length > 0) return raw;
-        return api.get('/message-templates', { params: { type: 'whatsapp' } })
-          .then(mRes => mRes.data?.templates || mRes.data || []);
-      })
-      .catch(() => {
-        return api.get('/message-templates', { params: { type: 'whatsapp' } })
-          .then(mRes => mRes.data?.templates || mRes.data || [])
-          .catch(() => []);
-      })
-      .then(raw => {
-        const mapped = (raw || []).map(t => parseTemplateDoc(t)).filter(Boolean);
-        setTemplates(mapped);
-        if (mapped.length > 0) {
-          setPreviewId(prev => (prev && mapped.some(m => m.id === prev)) ? prev : mapped[0].id);
-        }
-      })
-      .finally(() => setLoading(false));
-  };
-
-  // Fetch the active WhatsApp Cloud integration ID on mount, then load templates
-  useEffect(() => {
-    api.get('/integrations').then(res => {
-      const integrations = res.data?.integrations || [];
-      const wa = integrations.find(i => i.type === 'whatsapp_cloud' && i.status === 'active');
-      if (wa) setIntegrationId(wa._id);
-    }).catch(() => {});
-    loadTemplates();
-  }, []);
-
-  const syncWithMeta = async () => {
-    setSyncing(true);
-    try {
-      const endpoint = integrationId ? `/integrations/${integrationId}/whatsapp/templates/sync` : '/integrations/whatsapp/templates/sync';
-      await api.post(endpoint);
-      loadTemplates();
-    } catch {
-      // non-fatal — statuses will still update via the approval webhook
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const filtered = templates.filter(t =>
-    (t.name || '').toLowerCase().includes(search.toLowerCase()) ||
-    (t.category || '').toLowerCase().includes(search.toLowerCase())
-  );
-
-  const statusColor = (s) => s === 'APPROVED' ? '#16a34a' : s === 'PENDING' ? '#d97706' : s === 'LOCAL' ? TEXT_MUTED : '#e53e3e';
-  const statusBg   = (s) => s === 'APPROVED' ? '#f0fdf4'  : s === 'PENDING' ? '#fffbeb'  : s === 'LOCAL' ? BG : '#fef2f2';
-
-  if (creating) {
-    return (
-      <div style={{ display: 'flex', height: '100%', minHeight: 0 }}>
-        {/* Left: template list */}
-        <div style={{ width: 280, borderRight: `1px solid ${BORDER}`, background: '#fff', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
-          <div style={{ padding: '16px 14px 10px', borderBottom: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: TEXT_MAIN }}>{templates.length} Templates</div>
-            <button onClick={() => setCreating(true)}
-              style={{ fontSize: 12, color: PURPLE, background: '#f0ecff', border: 'none', borderRadius: 6, padding: '5px 10px', cursor: 'pointer', fontWeight: 600 }}>
-              + Create Template
-            </button>
-          </div>
-          <div style={{ padding: '10px 10px 6px' }}>
-            <input placeholder="Search template(s) by name or description" value={search} onChange={e => setSearch(e.target.value)}
-              style={{ ...inputStyle, fontSize: 12, padding: '7px 10px' }} />
-          </div>
-          <div style={{ flex: 1, overflowY: 'auto' }}>
-            {filtered.map(t => {
-              const isExpanded = expandedId === t.id;
-              return (
-                <div key={t.id} style={{ borderBottom: `1px solid #f5f5f5` }}>
-                  <div
-                    style={{ padding: '12px 14px', cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: 8 }}
-                    onMouseEnter={e => e.currentTarget.style.background = BG}
-                    onMouseLeave={e => e.currentTarget.style.background = '#fff'}
-                    onClick={() => setExpandedId(isExpanded ? null : t.id)}
-                  >
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                        <div style={{ width: 28, height: 28, borderRadius: 6, background: BG, border: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={PURPLE} strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-                        </div>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: TEXT_MAIN }}>{t.name}</span>
-                      </div>
-                      <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, background: statusBg(t.status), color: statusColor(t.status), borderRadius: 4, padding: '1px 6px' }}>{t.category}</span>
-                      </div>
-                      <div style={{ fontSize: 11, color: TEXT_MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.body}</div>
-                    </div>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={TEXT_MUTED} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                      style={{ flexShrink: 0, marginTop: 8, transform: isExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>
-                      <polyline points="9 18 15 12 9 6"/>
-                    </svg>
-                  </div>
-                  {isExpanded && (
-                    <div style={{ padding: '0 14px 14px 50px', fontSize: 11.5, color: TEXT_MAIN }}>
-                      {t.headerText && (
-                        <div style={{ marginBottom: 6 }}><strong>Header:</strong> {t.headerText}</div>
-                      )}
-                      <div style={{ marginBottom: 6, whiteSpace: 'pre-wrap', color: TEXT_MUTED }}>{t.body}</div>
-                      {t.footer && (
-                        <div style={{ marginBottom: 6, color: TEXT_MUTED }}><strong>Footer:</strong> {t.footer}</div>
-                      )}
-                      {t.buttons?.length > 0 && (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                          {t.buttons.map((b, i) => (
-                            <span key={i} style={{ fontSize: 10.5, background: '#f0ecff', color: PURPLE, borderRadius: 5, padding: '2px 8px', fontWeight: 600 }}>{b.text || b.type}</span>
-                          ))}
-                        </div>
-                      )}
-                      <div style={{ marginTop: 6, fontSize: 10.5, color: TEXT_MUTED }}>Language: {t.language}</div>
-                      {t.status === 'REJECTED' && t.rejectedReason && (
-                        <div style={{ marginTop: 6, color: '#e53e3e' }}>Rejected: {t.rejectedReason}</div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-        {/* Right: Add Template form */}
-        <AddTemplateForm
-          integrationId={integrationId}
-          onCancel={() => setCreating(false)}
-          onSave={() => {
-            setCreating(false);
-            loadTemplates(); // refetch so the real Meta-assigned status (PENDING) shows up
-          }}
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ display: 'flex', height: '100%', minHeight: 0 }}>
-      {/* Left: template list */}
-      <div style={{ width: 300, borderRight: `1px solid ${BORDER}`, background: '#fff', display: 'flex', flexDirection: 'column', flexShrink: 0, overflowY: 'auto' }}>
-        <div style={{ padding: '20px 20px 12px' }}>
-          <div style={{ fontSize: 17, fontWeight: 700, color: TEXT_MAIN }}>Message Templates</div>
-          <div style={{ fontSize: 12, color: TEXT_MUTED, marginTop: 2 }}>Pre-approved WhatsApp Business templates</div>
-        </div>
-        <div style={{ padding: '0 16px 12px', display: 'flex', gap: 8 }}>
-          <button onClick={syncWithMeta} disabled={syncing}
-            style={{ flex: 1, padding: '8px 10px', background: '#fff', color: PURPLE, border: `1.5px solid ${PURPLE}`, borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: syncing ? 'not-allowed' : 'pointer' }}>
-            {syncing ? 'Syncing…' : '↻ Sync Meta'}
-          </button>
-          <button onClick={() => setCreating(true)}
-            style={{ flex: 1, padding: '8px 10px', background: GREEN, color: '#fff', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-            + Create
-          </button>
-        </div>
-        <div style={{ padding: '0 16px 12px' }}>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search template(s) by name or description"
-            style={{ ...inputStyle, fontSize: 12, padding: '8px 10px' }} />
-        </div>
-        {loading && <div style={{ textAlign: 'center', padding: 30, color: TEXT_MUTED, fontSize: 13 }}>Loading…</div>}
-        {!loading && filtered.length === 0 && (
-          <div style={{ textAlign: 'center', padding: 30, color: TEXT_MUTED, fontSize: 13 }}>No templates yet. Create your first one.</div>
-        )}
-        <div style={{ flex: 1 }}>
-          {!loading && filtered.map(t => {
-            const isSelected = previewId === t.id;
-            return (
-              <div
-                key={t.id}
-                onClick={() => setPreviewId(t.id)}
-                style={{
-                  padding: '12px 16px', cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: 8,
-                  borderBottom: `1px solid #f5f5f5`, background: isSelected ? BG : '#fff',
-                  borderLeft: isSelected ? `3px solid ${PURPLE}` : '3px solid transparent',
-                }}
-                onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = '#fafafa'; }}
-                onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = '#fff'; }}
-              >
-                <div style={{ width: 28, height: 28, borderRadius: 6, background: BG, border: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={PURPLE} strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 600, color: TEXT_MAIN, marginBottom: 3 }}>{t.name}</div>
-                  <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, background: statusBg(t.status), color: statusColor(t.status), borderRadius: 4, padding: '1px 6px' }}>{t.status === 'LOCAL' ? t.category : t.status}</span>
-                  </div>
-                  <div style={{ fontSize: 11, color: TEXT_MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.body}</div>
-                </div>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={isSelected ? PURPLE : TEXT_MUTED} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 8 }}>
-                  <polyline points="9 18 15 12 9 6"/>
-                </svg>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Right: preview panel */}
-      <div style={{ flex: 1, overflowY: 'auto', background: BG }}>
-        {!previewId ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: TEXT_MUTED, fontSize: 13 }}>
-            Select a template on the left to preview it
-          </div>
-        ) : (
-          <TemplatePreviewPanel
-            template={templates.find(t => t.id === previewId)}
-            sentCount={broadcastStats[previewId] || 0}
-            onDelete={(deletedId) => {
-              setPreviewId(null);
-              loadTemplates();
-            }}
-          />
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── Template preview panel (right-hand side, matches the reference detail view) ──
-function TemplatePreviewPanel({ template, sentCount, onDelete }) {
-  const [deleting, setDeleting] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  if (!template) return null;
-  const t = template;
-
-  const handleDelete = async () => {
-    setDeleting(true);
-    try {
-      await api.delete(`/message-templates/${t.id}`);
-      setShowConfirm(false);
-      if (onDelete) onDelete(t.id);
-    } catch (err) {
-      alert(err.response?.data?.message || err.message || 'Failed to delete template');
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  return (
-    <div style={{ padding: 28 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 8, background: '#fff', border: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={PURPLE} strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-          </div>
-          <div>
-            <div style={{ fontSize: 17, fontWeight: 600, color: TEXT_MAIN, display: 'flex', alignItems: 'center', gap: 10 }}>
-              {t.name}
-              <span style={{ fontSize: 11, fontWeight: 600, borderRadius: 5, padding: '2px 8px', background: t.status === 'APPROVED' ? '#f0fdf4' : t.status === 'PENDING' ? '#fffbeb' : '#fef2f2', color: t.status === 'APPROVED' ? '#16a34a' : t.status === 'PENDING' ? '#d97706' : '#e53e3e' }}>
-                {t.status}
-              </span>
+                <X className="w-4 h-4" />
+              </button>
             </div>
-            <span style={{ fontSize: 10.5, background: LIGHT_BLUE, color: BLUE, borderRadius: 5, padding: '2px 8px', fontWeight: 600, marginTop: 4, display: 'inline-block' }}>
-              {t.category} ({t.language?.split('_')[0] || 'en'})
-            </span>
-          </div>
-        </div>
 
-        <button
-          onClick={() => setShowConfirm(true)}
-          style={{ padding: '7px 14px', background: '#fef2f2', color: '#ef4444', border: '1px solid #fecaca', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-          Delete Template
-        </button>
-      </div>
-
-      <div style={{ display: 'flex', gap: 24, marginTop: 24, alignItems: 'flex-start' }}>
-        {/* WhatsApp bubble render */}
-        <div style={{ width: 340, flexShrink: 0, background: '#ece5dd', borderRadius: 16, padding: 20 }}>
-          <div style={{ background: '#fff', borderRadius: 10, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.12)' }}>
-            {(t.headerFormat === 'IMAGE' || t.headerImage || (t.components || []).some(c => c.type === 'HEADER' && (c.format === 'IMAGE' || c.example?.header_handle?.length))) && (
-              <div style={{ width: '100%', height: 160, background: '#e0e0e0', overflow: 'hidden', borderBottom: '1px solid #f0f0f0' }}>
-                <img
-                  src={t.headerImage || (t.components || []).find(c => c.type === 'HEADER')?.example?.header_handle?.[0] || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80'}
-                  alt="Header Banner"
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80';
-                  }}
+            <div className="p-3 border-b border-slate-100 bg-white">
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+                <input
+                  value={templateSearchText}
+                  onChange={(e) => setTemplateSearchText(e.target.value)}
+                  placeholder="Search template name or text..."
+                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-800 outline-none focus:border-blue-500 focus:bg-white"
                 />
               </div>
-            )}
-            {t.headerText && (
-              <div style={{ padding: '10px 12px 4px', fontSize: 13, fontWeight: 700, color: '#111' }}>{t.headerText}</div>
-            )}
-            <div style={{ padding: '8px 12px', fontSize: 12.5, color: '#333', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{t.body}</div>
-            {t.footer && (
-              <div style={{ padding: '2px 12px 8px', fontSize: 11, color: TEXT_MUTED }}>{t.footer}</div>
-            )}
-            <div style={{ padding: '0 10px 6px', textAlign: 'right', fontSize: 10, color: TEXT_MUTED }}>
-              {new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })} ✓✓
             </div>
-            {t.buttons?.length > 0 && (
-              <div style={{ borderTop: '1px solid #f0f0f0' }}>
-                {t.buttons.map((b, i) => {
-                  const btnText = typeof b === 'string' ? b : (b.text || b.value || b.type || 'Button');
+
+            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2.5">
+              {templates
+                .filter(
+                  (t) =>
+                    (t.name || t.shortcut || '').toLowerCase().includes(templateSearchText.toLowerCase()) ||
+                    (t.body || '').toLowerCase().includes(templateSearchText.toLowerCase())
+                )
+                .map((tmpl) => {
+                  const isSelected = selectedTemplateId === tmpl.id;
                   return (
-                    <div key={i} style={{ padding: '10px 12px', textAlign: 'center', fontSize: 13, color: '#0a8dff', fontWeight: 600, borderBottom: i < t.buttons.length - 1 ? '1px solid #f0f0f0' : 'none' }}>
-                      {btnText}
+                    <div
+                      key={tmpl.id}
+                      onClick={() => setSelectedTemplateId(tmpl.id)}
+                      className={cn(
+                        'p-3 rounded-xl border cursor-pointer transition-all',
+                        isSelected
+                          ? 'border-blue-600 bg-blue-50/60 shadow-xs'
+                          : 'border-slate-200 hover:border-slate-300 bg-white'
+                      )}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-bold text-slate-900">{tmpl.shortcut || tmpl.name}</span>
+                        <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded px-1.5 py-0.2">
+                          {tmpl.status}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 line-clamp-2 leading-relaxed">
+                        {tmpl.body}
+                      </p>
                     </div>
                   );
                 })}
-              </div>
-            )}
-          </div>
-          {t.status === 'REJECTED' && t.rejectedReason && (
-            <div style={{ marginTop: 10, fontSize: 12, color: '#e53e3e', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '8px 10px' }}>
-              Rejected: {t.rejectedReason}
             </div>
-          )}
-        </div>
 
-        {/* Performance & Details */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: TEXT_MAIN, marginBottom: 14 }}>Performance</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 12, marginBottom: 16 }}>
-            <div style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 10, padding: '16px 14px', textAlign: 'center' }}>
-              <div style={{ fontSize: 22, fontWeight: 800, color: TEXT_MAIN }}>{sentCount}</div>
-              <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 4, fontWeight: 600 }}>SENT</div>
-            </div>
-            <div style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 10, padding: '16px 14px', textAlign: 'center' }}>
-              <div style={{ fontSize: 22, fontWeight: 800, color: TEXT_MUTED }}>—</div>
-              <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 4, fontWeight: 600 }}>DELIVERED</div>
-            </div>
-            <div style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 10, padding: '16px 14px', textAlign: 'center' }}>
-              <div style={{ fontSize: 22, fontWeight: 800, color: TEXT_MUTED }}>—</div>
-              <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 4, fontWeight: 600 }}>READ</div>
-            </div>
-            <div style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 10, padding: '16px 14px', textAlign: 'center' }}>
-              <div style={{ fontSize: 22, fontWeight: 800, color: TEXT_MUTED }}>—</div>
-              <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 4, fontWeight: 600 }}>REPLIED</div>
-            </div>
-          </div>
-          <div style={{ fontSize: 11.5, color: TEXT_MUTED, marginBottom: 20 }}>
-            Sent count is totaled from broadcasts using this template.
-          </div>
-          {t.headerText && (
-            <div style={{ marginBottom: 10, fontSize: 12.5 }}><strong style={{ color: TEXT_MAIN }}>Header:</strong> <span style={{ color: TEXT_MUTED }}>{t.headerText}</span></div>
-          )}
-          {t.footer && (
-            <div style={{ marginBottom: 10, fontSize: 12.5 }}><strong style={{ color: TEXT_MAIN }}>Footer:</strong> <span style={{ color: TEXT_MUTED }}>{t.footer}</span></div>
-          )}
-          <div style={{ fontSize: 12.5, color: TEXT_MUTED, marginBottom: 6 }}>Language: {t.language}</div>
-          {t.id && (
-            <div style={{ fontSize: 11, color: '#aaa', fontFamily: 'monospace' }}>ID: {t.id}</div>
-          )}
-        </div>
-      </div>
-
-      {showConfirm && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,15,25,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', borderRadius: 16, padding: '28px 32px', width: 400, maxWidth: '90vw', textAlign: 'center' }}>
-            <div style={{ fontSize: 17, fontWeight: 800, color: TEXT_MAIN, marginBottom: 8 }}>Delete Template "{t.name}"?</div>
-            <div style={{ fontSize: 13, color: TEXT_MUTED, marginBottom: 20 }}>
-              This will remove the template from your CRM and delete it from your Meta WhatsApp Account. This action cannot be undone.
-            </div>
-            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-              <button onClick={() => setShowConfirm(false)} style={{ padding: '9px 20px', background: '#fff', color: TEXT_MAIN, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
-              <button onClick={handleDelete} disabled={deleting} style={{ padding: '9px 20px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: deleting ? 'not-allowed' : 'pointer' }}>
-                {deleting ? 'Deleting...' : 'Delete'}
+            <div className="p-3 border-t border-slate-200 flex items-center justify-end gap-2 bg-slate-50/50">
+              <button
+                onClick={() => {
+                  setShowSendTemplateModal(false);
+                  setSelectedTemplateId(null);
+                  setTemplateSearchText('');
+                }}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSendRealTemplate}
+                disabled={!selectedTemplateId || sendingTemplate}
+                className={cn(
+                  'px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5',
+                  !selectedTemplateId || sendingTemplate
+                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700 shadow-xs'
+                )}
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>{sendingTemplate ? 'Sending...' : 'Send Message'}</span>
               </button>
             </div>
           </div>
@@ -2121,187 +1194,500 @@ function TemplatePreviewPanel({ template, sentCount, onDelete }) {
   );
 }
 
-// ── Broadcasts Tab ─────────────────────────────────────────────────────────────
-function BroadcastsTab() {
-  const [subTab, setSubTab] = useState('new');
-  const [broadcastName, setBroadcastName] = useState('');
-  const [template, setTemplate] = useState('');
-  const [leadStatus, setLeadStatus] = useState('');
-  const [campaign, setCampaign] = useState('');
-  const [leadSource, setLeadSource] = useState('');
-  const [history, setHistory] = useState([]);
-  const [templates, setTemplates] = useState([]);
-  const [campaigns, setCampaigns] = useState([]);
-  const [preview, setPreview] = useState(null);
-  const [sending, setSending] = useState(false);
-  const [sendError, setSendError] = useState('');
-  const [sendSuccess, setSendSuccess] = useState('');
+// ── Add Template Form ──────────────────────────────────────────────────────────
+function AddTemplateForm({ onCancel, onSave, integrationId }) {
+  const [name, setName] = useState('');
+  const [type, setType] = useState('Marketing');
+  const [language, setLanguage] = useState('English');
+  const [headerType, setHeaderType] = useState('Text');
+  const [headerText, setHeaderText] = useState('');
+  const [mediaFile, setMediaFile] = useState(null);
+  const [mediaPreview, setMediaPreview] = useState(null);
+  const [message, setMessage] = useState('');
+  const [footer, setFooter] = useState('');
+  const [buttons, setButtons] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const [submitSuccess, setSubmitSuccess] = useState('');
+  const fileRef = useRef(null);
 
-  useEffect(() => {
-    api.get('/message-templates', { params: { type: 'whatsapp' } })
-      .then(res => setTemplates(res.data?.templates || res.data || []))
-      .catch(() => {});
-    api.get('/campaigns')
-      .then(res => setCampaigns(res.data?.campaigns || res.data || []))
-      .catch(() => {});
-  }, []);
-
-  const fetchHistory = () => {
-    api.get('/broadcasts').then(res => setHistory(res.data?.broadcasts || [])).catch(() => {});
+  const addButton = (btnType) => {
+    if (buttons.length >= 3) return;
+    setButtons((p) => [...p, { type: btnType, text: '', value: '' }]);
   };
-  useEffect(() => { if (subTab === 'history') fetchHistory(); }, [subTab]);
+  const removeButton = (i) => setButtons((p) => p.filter((_, idx) => idx !== i));
+  const updateButton = (i, field, val) =>
+    setButtons((p) => p.map((b, idx) => (idx === i ? { ...b, [field]: val } : b)));
 
-  const filters = () => ({
-    status: leadStatus || undefined,
-    campaign: campaign || undefined,
-    leadSource: leadSource || undefined,
-  });
-
-  const previewAudience = async () => {
-    try {
-      const res = await api.post('/broadcasts/preview', { filters: filters() });
-      setPreview(res.data);
-    } catch (err) {
-      setSendError(err.response?.data?.message || 'Failed to preview audience');
-    }
+  const handleMedia = (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    setMediaFile(f);
+    const reader = new FileReader();
+    reader.onload = (ev) => setMediaPreview(ev.target.result);
+    reader.readAsDataURL(f);
   };
 
-  const sendBroadcast = async () => {
-    setSendError(''); setSendSuccess(''); setSending(true);
+  const handleSubmit = async () => {
+    if (!name.trim()) return setSubmitError('Template name is required.');
+    if (!message.trim()) return setSubmitError('Message body is required.');
+    setSubmitError('');
+    setSubmitSuccess('');
+    setSubmitting(true);
     try {
-      await api.post('/broadcasts', { name: broadcastName, templateId: template, filters: filters() });
-      setSendSuccess('Broadcast sent! Recipients now appear in the WhatsApp Inbox under "All".');
-      setBroadcastName(''); setTemplate(''); setPreview(null);
+      const endpoint = integrationId
+        ? `/integrations/${integrationId}/whatsapp/templates`
+        : '/integrations/whatsapp/templates';
+      const res = await api.post(endpoint, {
+        name,
+        category: type,
+        language,
+        headerType,
+        headerText,
+        mediaBase64: mediaPreview,
+        mediaMimeType: mediaFile?.type || 'image/png',
+        message,
+        footer,
+        buttons,
+      });
+      setSubmitSuccess(`Template submitted to Meta! Status: ${res.data.status || 'PENDING'}`);
+      onSave();
     } catch (err) {
-      setSendError(err.response?.data?.message || 'Failed to send broadcast');
+      setSubmitError(err.response?.data?.message || err.message || 'Submission failed');
     } finally {
-      setSending(false);
+      setSubmitting(false);
     }
   };
 
   return (
-    <div style={{ padding: 28 }}>
-      <div style={{ marginBottom: 4 }}>
-        <div style={{ fontSize: 17, fontWeight: 700, color: TEXT_MAIN }}>Broadcasts</div>
-        <div style={{ fontSize: 12, color: TEXT_MUTED, marginTop: 2 }}>Send bulk WhatsApp messages to your lead lists</div>
+    <div className="flex-1 overflow-y-auto p-6 max-w-2xl mx-auto">
+      <div className="mb-6">
+        <h2 className="text-lg font-bold text-slate-900">Create Meta WhatsApp Template</h2>
+        <p className="text-xs text-slate-500">
+          Templates are submitted to Meta for verification and pre-approval.
+        </p>
       </div>
 
-      {/* Sub tabs */}
-      <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${BORDER}`, marginBottom: 24, marginTop: 16 }}>
-        {[{ key: 'new', label: 'New Broadcast' }, { key: 'history', label: 'Broadcast History' }].map(t => (
-          <button key={t.key} onClick={() => setSubTab(t.key)}
-            style={{
-              padding: '10px 20px', border: 'none', background: 'none', cursor: 'pointer',
-              fontSize: 13, fontWeight: subTab === t.key ? 700 : 500,
-              color: subTab === t.key ? DARK_GREEN : TEXT_MUTED,
-              borderBottom: `2px solid ${subTab === t.key ? GREEN : 'transparent'}`,
-              marginBottom: -1, transition: 'all 0.15s',
-            }}>
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {subTab === 'new' && (
-        <div style={{ maxWidth: '100%' }}>
-          <div style={{ marginBottom: 16 }}>
-            <label style={labelStyle}>Broadcast Name</label>
-            <input value={broadcastName} onChange={e => setBroadcastName(e.target.value)}
-              placeholder="e.g. July Enrollment Reminder" style={inputStyle} />
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="sm:col-span-1">
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Template Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. welcome_offer"
+              className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg outline-none focus:border-blue-500"
+            />
           </div>
-          <div style={{ marginBottom: 16 }}>
-            <label style={labelStyle}>WhatsApp Template</label>
-            <select value={template} onChange={e => setTemplate(e.target.value)} style={inputStyle}>
-              <option value="">Select a template...</option>
-              {templates.map(t => <option key={t._id} value={t._id}>{t.shortcut} {t.waStatus && t.waStatus !== 'LOCAL' ? `(${t.waStatus})` : ''}</option>)}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Category</label>
+            <select
+              value={type}
+              onChange={(e) => setType(e.target.value)}
+              className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg outline-none focus:border-blue-500"
+            >
+              <option>Marketing</option>
+              <option>Utility</option>
+              <option>Authentication</option>
             </select>
           </div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_MUTED, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 12 }}>AUDIENCE FILTERS</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
-            <div>
-              <label style={labelStyle}>Lead Status</label>
-              <select value={leadStatus} onChange={e => setLeadStatus(e.target.value)} style={inputStyle}>
-                <option value="">Any status</option>
-                <option>Interested</option><option>Not Interested</option><option>Not Answered</option><option>Call Back</option><option>Call Back Later</option><option>Call Not Responding</option><option>Enrolled</option>
-              </select>
-            </div>
-            <div>
-              <label style={labelStyle}>Campaign</label>
-              <select value={campaign} onChange={e => setCampaign(e.target.value)} style={inputStyle}>
-                <option value="">Any campaign</option>
-                {campaigns.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
-              </select>
-            </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Language</label>
+            <select
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg outline-none focus:border-blue-500"
+            >
+              <option>English</option>
+              <option>Hindi</option>
+              <option>Telugu</option>
+              <option>Tamil</option>
+            </select>
           </div>
-          <div style={{ marginBottom: 20 }}>
-            <label style={labelStyle}>Lead Source</label>
-            <input value={leadSource} onChange={e => setLeadSource(e.target.value)} placeholder="e.g. Facebook" style={inputStyle} />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 mb-1">Header Type</label>
+          <select
+            value={headerType}
+            onChange={(e) => {
+              setHeaderType(e.target.value);
+              setMediaFile(null);
+              setMediaPreview(null);
+            }}
+            className="w-full sm:w-64 px-3 py-1.5 text-xs border border-slate-200 rounded-lg outline-none focus:border-blue-500"
+          >
+            <option value="Text">Text</option>
+            <option value="Media">Media (Image/Video)</option>
+            <option value="None">None</option>
+          </select>
+        </div>
+
+        {headerType === 'Text' && (
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Header Text</label>
+            <input
+              value={headerText}
+              onChange={(e) => setHeaderText(e.target.value)}
+              maxLength={60}
+              placeholder="Short catchy header"
+              className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg outline-none focus:border-blue-500"
+            />
           </div>
-          {preview && (
-            <div style={{ background: BG, border: `1px solid ${BORDER}`, borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 12.5, color: TEXT_MAIN }}>
-              <strong>{preview.count}</strong> leads match this audience.
-              {preview.sample?.length > 0 && (
-                <div style={{ color: TEXT_MUTED, marginTop: 4 }}>
-                  e.g. {preview.sample.map(s => s.name).join(', ')}
+        )}
+
+        {headerType === 'Media' && (
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Upload Media</label>
+            <div
+              onClick={() => fileRef.current?.click()}
+              className="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center cursor-pointer hover:bg-slate-50 transition-colors"
+            >
+              {mediaPreview ? (
+                <div className="flex items-center justify-center gap-3">
+                  <img src={mediaPreview} alt="preview" className="h-16 w-24 object-cover rounded-md" />
+                  <span className="text-xs text-slate-600">{mediaFile?.name}</span>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-1 text-slate-500">
+                  <UploadCloud className="w-6 h-6 text-slate-400" />
+                  <span className="text-xs font-medium">Click to upload media</span>
                 </div>
               )}
             </div>
-          )}
-          {sendError && (
-            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 12, color: '#e53e3e' }}>⚠️ {sendError}</div>
-          )}
-          {sendSuccess && (
-            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 12, color: '#16a34a' }}>✅ {sendSuccess}</div>
-          )}
-          <div style={{ display: 'flex', gap: 12 }}>
-            <button onClick={previewAudience} style={{ padding: '10px 20px', background: '#fff', color: PURPLE, border: `1.5px solid ${PURPLE}`, borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-              Preview Audience
-            </button>
-            <button onClick={sendBroadcast} disabled={!template || !broadcastName || sending}
-              style={{ padding: '10px 20px', background: template && broadcastName && !sending ? GREEN : '#ccc', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: template && broadcastName && !sending ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: 7 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-              {sending ? 'Sending…' : 'Send Broadcast'}
-            </button>
+            <input ref={fileRef} type="file" accept="image/*,video/*" className="hidden" onChange={handleMedia} />
           </div>
-        </div>
-      )}
+        )}
 
-      {subTab === 'history' && (
-        history.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '60px 0', color: TEXT_MUTED }}>
-            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="1.5" style={{ marginBottom: 12 }}>
-              <path d="M22 8.5c0 2.5-1.5 4.5-3.5 5.5L22 21H16l-1.5-3h-5L8 21H2l3.5-7C3.5 13 2 11 2 8.5 2 5.5 4.5 3 8 3h8c3.5 0 6 2.5 6 5.5z"/>
-            </svg>
-            <div style={{ fontSize: 14, fontWeight: 600, color: TEXT_MAIN }}>No broadcasts sent yet</div>
-            <div style={{ fontSize: 12, color: TEXT_MUTED, marginTop: 4 }}>Your sent broadcasts will appear here.</div>
-          </div>
-        ) : (
-          <div style={{ display: 'grid', gap: 10 }}>
-            {history.map(b => (
-              <div key={b._id} style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 10, padding: '14px 18px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontSize: 13.5, fontWeight: 600, color: TEXT_MAIN }}>{b.name}</span>
-                  <span style={{ fontSize: 10.5, fontWeight: 600, borderRadius: 5, padding: '2px 8px', background: b.status === 'completed' ? '#f0fdf4' : b.status === 'failed' ? '#fef2f2' : '#fffbeb', color: b.status === 'completed' ? '#16a34a' : b.status === 'failed' ? '#e53e3e' : '#d97706' }}>{b.status}</span>
-                </div>
-                <div style={{ fontSize: 11.5, color: TEXT_MUTED }}>
-                  {b.sentCount}/{b.recipientCount} sent · {b.failedCount} failed · {new Date(b.createdAt).toLocaleString('en-IN')}
-                </div>
-              </div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 mb-1">
+            Message Body <span className="text-red-500">*</span>
+          </label>
+          <textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            rows={4}
+            placeholder="Hi {{1}}, welcome to our platform!"
+            className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg outline-none focus:border-blue-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 mb-1">Footer Text</label>
+          <input
+            value={footer}
+            onChange={(e) => setFooter(e.target.value)}
+            maxLength={60}
+            placeholder="Optional footer text"
+            className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg outline-none focus:border-blue-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 mb-1">Buttons</label>
+          <div className="flex gap-2 mb-2">
+            {['Quick Reply', 'Phone Number', 'URL'].map((b) => (
+              <button
+                key={b}
+                type="button"
+                disabled={buttons.length >= 3}
+                onClick={() => addButton(b)}
+                className="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-50"
+              >
+                + {b}
+              </button>
             ))}
           </div>
-        )
-      )}
+
+          {buttons.map((btn, i) => (
+            <div key={i} className="flex gap-2 items-center mb-2 bg-slate-50 p-2 rounded-lg">
+              <span className="text-[11px] font-bold text-slate-600 min-w-20">{btn.type}</span>
+              <input
+                placeholder="Button Label"
+                value={btn.text}
+                onChange={(e) => updateButton(i, 'text', e.target.value)}
+                className="flex-1 px-2 py-1 text-xs border border-slate-200 rounded bg-white"
+              />
+              {btn.type !== 'Quick Reply' && (
+                <input
+                  placeholder={btn.type === 'URL' ? 'https://...' : '+91...'}
+                  value={btn.value}
+                  onChange={(e) => updateButton(i, 'value', e.target.value)}
+                  className="flex-1 px-2 py-1 text-xs border border-slate-200 rounded bg-white"
+                />
+              )}
+              <button
+                type="button"
+                onClick={() => removeButton(i)}
+                className="text-red-500 hover:text-red-700 px-1 text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {submitError && (
+          <div className="p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-xs">
+            {submitError}
+          </div>
+        )}
+        {submitSuccess && (
+          <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg text-xs">
+            {submitSuccess}
+          </div>
+        )}
+
+        <div className="flex gap-2 pt-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-4 py-2 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={handleSubmit}
+            className="px-5 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 disabled:opacity-50"
+          >
+            {submitting ? 'Submitting...' : 'Submit to Meta'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
 
-// ── Main Page ──────────────────────────────────────────────────────────────────
+// ── Templates Tab ─────────────────────────────────────────────────────────────
+function TemplatesTab() {
+  const [search, setSearch] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [templates, setTemplates] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [previewId, setPreviewId] = useState(null);
+  const [integrationId, setIntegrationId] = useState(null);
+
+  const loadTemplates = useCallback(() => {
+    setLoading(true);
+    api.get('/integrations/whatsapp/templates')
+      .then((res) => {
+        const raw = res.data?.templates || [];
+        if (Array.isArray(raw) && raw.length > 0) return raw;
+        return api.get('/message-templates', { params: { type: 'whatsapp' } })
+          .then((mRes) => mRes.data?.templates || mRes.data || []);
+      })
+      .catch(() => {
+        return api.get('/message-templates', { params: { type: 'whatsapp' } })
+          .then((mRes) => mRes.data?.templates || mRes.data || [])
+          .catch(() => []);
+      })
+      .then((raw) => {
+        const mapped = (raw || []).map((t) => parseTemplateDoc(t)).filter(Boolean);
+        setTemplates(mapped);
+        if (mapped.length > 0) {
+          setPreviewId((prev) => (prev && mapped.some((m) => m.id === prev) ? prev : mapped[0].id));
+        }
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    api.get('/integrations')
+      .then((res) => {
+        const integrations = res.data?.integrations || [];
+        const wa = integrations.find((i) => i.type === 'whatsapp_cloud' && i.status === 'active');
+        if (wa) setIntegrationId(wa._id);
+      })
+      .catch(() => {});
+    loadTemplates();
+  }, [loadTemplates]);
+
+  const syncWithMeta = async () => {
+    setSyncing(true);
+    try {
+      const endpoint = integrationId
+        ? `/integrations/${integrationId}/whatsapp/templates/sync`
+        : '/integrations/whatsapp/templates/sync';
+      await api.post(endpoint);
+      loadTemplates();
+    } catch {} finally {
+      setSyncing(false);
+    }
+  };
+
+  const filtered = templates.filter(
+    (t) =>
+      (t.name || '').toLowerCase().includes(search.toLowerCase()) ||
+      (t.category || '').toLowerCase().includes(search.toLowerCase())
+  );
+
+  const selectedTemplate = templates.find((t) => t.id === previewId);
+
+  if (creating) {
+    return (
+      <AddTemplateForm
+        integrationId={integrationId}
+        onCancel={() => setCreating(false)}
+        onSave={() => {
+          setCreating(false);
+          loadTemplates();
+        }}
+      />
+    );
+  }
+
+  return (
+    <div className="flex flex-1 min-h-0 h-full bg-white">
+      {/* Templates List */}
+      <div className="w-80 md:w-88 border-r border-slate-200 flex flex-col h-full bg-white shrink-0">
+        <div className="p-4 border-b border-slate-200">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-bold text-slate-900">{templates.length} Templates</h2>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={syncWithMeta}
+                disabled={syncing}
+                className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-semibold"
+                title="Sync from Meta"
+              >
+                <RefreshCw className={cn('w-3.5 h-3.5', syncing && 'animate-spin')} />
+              </button>
+              <button
+                onClick={() => setCreating(true)}
+                className="px-2.5 py-1 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 flex items-center gap-1"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Create</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search templates..."
+              className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-800 outline-none focus:border-blue-500"
+            />
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
+          {loading && <div className="p-8 text-center text-xs text-slate-400">Loading templates...</div>}
+          {!loading && filtered.length === 0 && (
+            <div className="p-8 text-center text-xs text-slate-400">No templates found.</div>
+          )}
+          {!loading &&
+            filtered.map((t) => {
+              const isSelected = previewId === t.id;
+              return (
+                <div
+                  key={t.id}
+                  onClick={() => setPreviewId(t.id)}
+                  className={cn(
+                    'p-3 cursor-pointer transition-all border-l-4',
+                    isSelected
+                      ? 'bg-blue-50/70 border-blue-600'
+                      : 'border-transparent hover:bg-slate-50'
+                  )}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-bold text-slate-900 truncate">{t.name}</span>
+                    <span
+                      className={cn(
+                        'text-[10px] font-semibold px-1.5 py-0.2 rounded',
+                        t.status === 'APPROVED'
+                          ? 'bg-emerald-50 text-emerald-700'
+                          : t.status === 'PENDING'
+                          ? 'bg-amber-50 text-amber-700'
+                          : 'bg-red-50 text-red-700'
+                      )}
+                    >
+                      {t.status}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-500 line-clamp-1">{t.body}</div>
+                </div>
+              );
+            })}
+        </div>
+      </div>
+
+      {/* Template Detail View */}
+      <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
+        {selectedTemplate ? (
+          <div className="max-w-2xl mx-auto space-y-4">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">{selectedTemplate.name}</h3>
+                <div className="flex items-center gap-2 mt-1 text-xs text-slate-500">
+                  <span className="font-semibold text-blue-600 uppercase text-[10px]">
+                    {selectedTemplate.category}
+                  </span>
+                  <span>•</span>
+                  <span>Language: {selectedTemplate.language}</span>
+                  <span>•</span>
+                  <span className="font-medium text-emerald-600">{selectedTemplate.status}</span>
+                </div>
+              </div>
+
+              <button
+                onClick={async () => {
+                  if (window.confirm(`Delete template "${selectedTemplate.name}"?`)) {
+                    try {
+                      await api.delete(`/message-templates/${selectedTemplate.id}`);
+                      loadTemplates();
+                    } catch (err) {
+                      alert('Failed to delete template');
+                    }
+                  }
+                }}
+                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                title="Delete Template"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Template Card Render */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+                Message Preview
+              </h4>
+              <div className="max-w-md mx-auto">
+                <RichTemplateMessageCard
+                  message={{
+                    description: `[Template: ${selectedTemplate.name}]`,
+                    templateId: selectedTemplate.id,
+                  }}
+                  templates={[selectedTemplate]}
+                  leadName="Customer Name"
+                />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="h-full flex items-center justify-center text-xs text-slate-400">
+            Select a template from the list to preview details.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Main WhatsApp CRM Shell ────────────────────────────────────────────────────
 export default function WhatsApp() {
   const [activeTab, setActiveTab] = useState('inbox');
   const [syncingData, setSyncingData] = useState(false);
   const [syncSuccess, setSyncSuccess] = useState(false);
-  const activeItem = NAV_ITEMS.find(n => n.key === activeTab);
+  const activeItem = NAV_ITEMS.find((n) => n.key === activeTab) || NAV_ITEMS[0];
 
   const handleSyncData = async () => {
     setSyncingData(true);
@@ -2310,134 +1696,68 @@ export default function WhatsApp() {
       await api.post('/integrations/whatsapp/templates/sync').catch(() => {});
       await api.get('/contacts').catch(() => {});
       await api.get('/whatsapp-inbox').catch(() => {});
-
       setSyncSuccess(true);
-      setTimeout(() => setSyncSuccess(false), 4000);
+      setTimeout(() => setSyncSuccess(false), 3000);
       window.dispatchEvent(new CustomEvent('wa_data_synced'));
     } catch (err) {
-      console.error('Data sync failed:', err);
     } finally {
       setSyncingData(false);
     }
   };
 
-  const renderTab = () => {
-    switch (activeTab) {
-      case 'inbox':       return <InboxTab onSendTemplate={() => setActiveTab('templates')} />;
-      case 'broadcasts':  return <BroadcastsTab />;
-      case 'templates':   return <TemplatesTab />;
-      default:            return <InboxTab onSendTemplate={() => setActiveTab('templates')} />;
-    }
-  };
-
   return (
-    <div className="wa-shell" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 84px)', maxHeight: 'calc(100vh - 84px)', background: BG, maxWidth: '100%', overflow: 'hidden' }}>
-      <style>{`
-        .whatsapp-chat-scroll {
-          scrollbar-width: thin;
-          scrollbar-color: rgba(37, 99, 235, 0.3) transparent;
-        }
-        .whatsapp-chat-scroll::-webkit-scrollbar {
-          width: 5px;
-          height: 5px;
-        }
-        .whatsapp-chat-scroll::-webkit-scrollbar-track {
-          background: rgba(0, 0, 0, 0.02);
-        }
-        .whatsapp-chat-scroll::-webkit-scrollbar-thumb {
-          background: rgba(0, 0, 0, 0.2);
-          border-radius: 6px;
-        }
-        .whatsapp-chat-scroll::-webkit-scrollbar-thumb:hover {
-          background: rgba(37, 99, 235, 0.55);
-        }
-        @media (max-width: 640px) {
-          .wa-shell [style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
-          .wa-shell div[style*="display: flex"] { flex-wrap: wrap; row-gap: 6px; }
-          .wa-shell div[style*="display: flex"] > * { min-width: 0; }
-          .wa-brand-text { display: none; }
-          .wa-top-header { padding: 0 12px !important; gap: 8px !important; }
-          .wa-body-container { padding: 4px 6px !important; }
-        }
-      `}</style>
-
-      {/* Top header */}
-      <div className="wa-top-header" style={{ background: '#fff', borderBottom: `1px solid ${BORDER}`, padding: '0 24px', minHeight: 52, maxHeight: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexShrink: 0, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          {/* Brand */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-            <div style={{ width: 32, height: 32, background: LIGHT_BLUE, border: '1.5px solid #bfdbfe', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={BLUE} strokeWidth="2" strokeLinecap="round">
-                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
-              </svg>
+    <div className="flex flex-col h-[calc(100vh-84px)] max-h-[calc(100vh-84px)] bg-slate-50 w-full overflow-hidden">
+      {/* Top Bar */}
+      <header className="bg-white border-b border-slate-200 px-4 sm:px-6 h-13 flex items-center justify-between shrink-0 z-20">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-xs">
+              <MessageSquare className="w-4 h-4" />
             </div>
-            <div className="wa-brand-text">
-              <div style={{ fontSize: 13, fontWeight: 600, color: TEXT_MAIN, lineHeight: 1.2 }}>WhatsApp CRM</div>
-              <div style={{ fontSize: 10, color: ORANGE, fontWeight: 600 }}>Business Suite</div>
+            <div>
+              <div className="text-xs font-bold text-slate-900 leading-none">WhatsApp CRM</div>
+              <div className="text-[10px] text-blue-600 font-semibold leading-none mt-0.5">
+                Business Suite
+              </div>
             </div>
           </div>
 
-          {/* Hamburger — shows dropdown on click */}
+          <div className="h-4 w-px bg-slate-200 mx-1" />
+
           <HamburgerMenu activeTab={activeTab} onSelect={setActiveTab} />
 
-          <div style={{ width: 1, height: 20, background: BORDER }} />
-
-          {/* Active section breadcrumb */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ color: BLUE, display: 'flex' }}>{activeItem?.icon}</span>
-            <span style={{ fontSize: 13.5, fontWeight: 600, color: TEXT_MAIN }}>{activeItem?.label}</span>
+          <div className="hidden sm:flex items-center gap-2 ml-1 text-xs font-semibold text-slate-700">
+            <span className="text-blue-600">{activeItem.icon}</span>
+            <span>{activeItem.label}</span>
           </div>
         </div>
 
-        {/* Top Right Corner: Data Sync Button */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
+        <div className="flex items-center gap-2">
           <button
             onClick={handleSyncData}
             disabled={syncingData}
-            title="Sync Meta WhatsApp Templates, Contacts & Inbox Data"
-            style={{
-              padding: '6px 14px',
-              borderRadius: 8,
-              border: `1.5px solid ${syncSuccess ? '#bbf7d0' : syncingData ? '#bfdbfe' : BLUE}`,
-              background: syncSuccess ? '#f0fdf4' : syncingData ? LIGHT_BLUE : '#ffffff',
-              color: syncSuccess ? '#15803d' : syncingData ? DARK_BLUE : BLUE,
-              fontSize: 12.5,
-              fontWeight: 600,
-              cursor: syncingData ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-              transition: 'all 0.15s ease'
-            }}
+            className={cn(
+              'px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-all shadow-2xs',
+              syncSuccess
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : syncingData
+                ? 'bg-blue-50 text-blue-700 border-blue-200 cursor-not-allowed'
+                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+            )}
           >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              style={{
-                animation: syncingData ? 'spin 1s linear infinite' : 'none'
-              }}
-            >
-              <path d="M21.5 2v6h-6M2.5 22v-6h6"/>
-              <path d="M2 11.5a10 10 0 0 1 18.8-4.3L21.5 8M22 12.5a10 10 0 0 1-18.8 4.2L2.5 16"/>
-            </svg>
-            <span>{syncingData ? 'Syncing Data...' : syncSuccess ? '✓ Data Synced!' : 'Sync Data'}</span>
+            <RefreshCw className={cn('w-3.5 h-3.5', syncingData && 'animate-spin')} />
+            <span>{syncingData ? 'Syncing...' : syncSuccess ? 'Synced' : 'Sync'}</span>
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* Content wrapper with compact height fit */}
-      <div className="wa-body-container" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', width: '100%', maxWidth: 1440, margin: '0 auto', padding: '6px 10px 8px', boxSizing: 'border-box', overflow: 'hidden' }}>
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: activeTab === 'inbox' ? 'hidden' : 'auto', background: '#fff', borderRadius: 12, border: `1px solid ${BORDER}`, boxShadow: '0 1px 4px rgba(0,0,0,0.03)' }}>
-          {renderTab()}
+      {/* Main Body — Responsive Decreased Width */}
+      <main className="flex-1 min-h-0 w-full max-w-7xl mx-auto p-2 sm:p-4 flex flex-col overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
+          {activeTab === 'inbox' && <InboxTab onSendTemplate={() => setActiveTab('templates')} />}
+          {activeTab === 'templates' && <TemplatesTab />}
         </div>
-      </div>
+      </main>
     </div>
   );
 }

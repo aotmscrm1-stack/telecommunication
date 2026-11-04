@@ -52,36 +52,36 @@ function WhatsAppBlastIcon({ className, style }) {
    ───────────────────────────────────────────────────────── */
 const C = {
   /* Background — Crisp White Glass */
-  bg:           'rgba(255, 255, 255, 0.95)',   // white glass
-  bgSolid:      '#ffffff',                     // solid pure white
-  bgSoft:       '#f8fafc',                     // cool calm soft surface (slate-50)
-  bgHover:      'rgba(249, 115, 22, 0.10)',    // Orange hover bg
+  bg: 'rgba(255, 255, 255, 0.95)',   // white glass
+  bgSolid: '#ffffff',                     // solid pure white
+  bgSoft: '#f8fafc',                     // cool calm soft surface (slate-50)
+  bgHover: 'rgba(249, 115, 22, 0.10)',    // Orange hover bg
 
   /* Blue (Primary for Icons & Brand) */
-  blue:         '#0284c7',                     // Vibrant Sky/Royal Blue for icons
-  blueLt:       '#38bdf8',                     // Light Blue
-  blueDk:       '#0369a1',                     // Deep Blue
-  blueGlow:     'rgba(2, 132, 199, 0.35)',     // Blue glow
-  blueSoft:     'rgba(2, 132, 199, 0.10)',     // Subtle blue bg
+  blue: '#0284c7',                     // Vibrant Sky/Royal Blue for icons
+  blueLt: '#38bdf8',                     // Light Blue
+  blueDk: '#0369a1',                     // Deep Blue
+  blueGlow: 'rgba(2, 132, 199, 0.35)',     // Blue glow
+  blueSoft: 'rgba(2, 132, 199, 0.10)',     // Subtle blue bg
 
   /* Orange (Hover, Dropdown highlight, Active, Badges) */
-  orange:       '#f97316',                     // Vibrant Orange
-  orangeLt:     '#fb923c',                     // Light Orange
-  orangeDk:     '#ea580c',                     // Deep Orange
-  orangeGlow:   'rgba(249, 115, 22, 0.35)',    // Orange glow
-  orangeSoft:   'rgba(249, 115, 22, 0.10)',    // Orange soft surface
+  orange: '#f97316',                     // Vibrant Orange
+  orangeLt: '#fb923c',                     // Light Orange
+  orangeDk: '#ea580c',                     // Deep Orange
+  orangeGlow: 'rgba(249, 115, 22, 0.35)',    // Orange glow
+  orangeSoft: 'rgba(249, 115, 22, 0.10)',    // Orange soft surface
 
   /* Text — Dark, crisp, cool and calm */
-  text:         '#0f172a',                     // Slate-900 (crisp readable on white)
-  textSoft:     '#475569',                     // Slate-600
-  textMuted:    '#94a3b8',                     // Slate-400
+  text: '#0f172a',                     // Slate-900 (crisp readable on white)
+  textSoft: '#475569',                     // Slate-600
+  textMuted: '#94a3b8',                     // Slate-400
 
   /* Borders — Clean subtle with Orange / Blue accents */
-  border:       '#e2e8f0',                     // Clean slate border
-  borderSoft:   '#f1f5f9',                     // Subtle border
-  borderHover:  '#f97316',                     // Orange border on hover
+  border: '#e2e8f0',                     // Clean slate border
+  borderSoft: '#f1f5f9',                     // Subtle border
+  borderHover: '#f97316',                     // Orange border on hover
   borderOrange: 'rgba(249, 115, 22, 0.45)',    // Orange border accent
-  borderBlue:   'rgba(2, 132, 199, 0.45)',     // Blue border accent
+  borderBlue: 'rgba(2, 132, 199, 0.45)',     // Blue border accent
 };
 
 // Module-level helper
@@ -232,9 +232,9 @@ function ChangePasswordModal({ onClose }) {
   const [success, setSuccess] = useState(false);
 
   const eyeIcon = (visible) => visible ? (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
   ) : (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.6 21.6 0 0 1 5.06-6.06M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a21.6 21.6 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.6 21.6 0 0 1 5.06-6.06M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a21.6 21.6 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
   );
 
   const handleSubmit = async (e) => {
@@ -266,7 +266,7 @@ function ChangePasswordModal({ onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md"
-         style={{ background: 'rgba(15, 23, 42, 0.65)' }}>
+      style={{ background: 'rgba(15, 23, 42, 0.65)' }}>
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -280,20 +280,20 @@ function ChangePasswordModal({ onClose }) {
         }}
       >
         <div className="flex items-center justify-between mb-4 pb-3"
-             style={{ borderBottom: `1px solid ${C.border}` }}>
+          style={{ borderBottom: `1px solid ${C.border}` }}>
           <h3 className="font-semibold text-base nav-glow-accent-text">Change Password</h3>
           <button onClick={onClose}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
-                  style={{ color: C.textSoft }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = C.bgHover; e.currentTarget.style.color = C.orange; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = C.textSoft; }}>
+            className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
+            style={{ color: C.textSoft }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = C.bgHover; e.currentTarget.style.color = C.orange; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = C.textSoft; }}>
             <FaXmark className="w-4 h-4" />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="text-xs font-semibold uppercase tracking-wider mb-1 block"
-                   style={{ color: C.textSoft }}>
+              style={{ color: C.textSoft }}>
               Current Password
             </label>
             <div className="relative">
@@ -305,15 +305,15 @@ function ChangePasswordModal({ onClose }) {
                 onBlur={(e) => { e.target.style.borderColor = C.border; e.target.style.boxShadow = 'none'; }}
                 placeholder="••••••••" autoComplete="current-password" />
               <button type="button" onClick={() => setShowCurrent(p => !p)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2"
-                      style={{ color: C.blue }}>
+                className="absolute right-3 top-1/2 -translate-y-1/2"
+                style={{ color: C.blue }}>
                 {eyeIcon(showCurrent)}
               </button>
             </div>
           </div>
           <div>
             <label className="text-xs font-semibold uppercase tracking-wider mb-1 block"
-                   style={{ color: C.textSoft }}>
+              style={{ color: C.textSoft }}>
               New Password
             </label>
             <div className="relative">
@@ -325,15 +325,15 @@ function ChangePasswordModal({ onClose }) {
                 onBlur={(e) => { e.target.style.borderColor = C.border; e.target.style.boxShadow = 'none'; }}
                 placeholder="At least 6 characters" autoComplete="new-password" />
               <button type="button" onClick={() => setShowNew(p => !p)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2"
-                      style={{ color: C.blue }}>
+                className="absolute right-3 top-1/2 -translate-y-1/2"
+                style={{ color: C.blue }}>
                 {eyeIcon(showNew)}
               </button>
             </div>
           </div>
           <div>
             <label className="text-xs font-semibold uppercase tracking-wider mb-1 block"
-                   style={{ color: C.textSoft }}>
+              style={{ color: C.textSoft }}>
               Confirm New Password
             </label>
             <input type={showNew ? 'text' : 'password'} value={confirmPassword}
@@ -426,7 +426,7 @@ export default function Navbar() {
       }));
       setNotifications(dbNotifs);
       setUnreadCount(res.data.unreadCount || 0);
-    } catch (e) {}
+    } catch (e) { }
   }, [user]);
 
   const pollDueCallbacks = useCallback(async () => {
@@ -451,7 +451,7 @@ export default function Navbar() {
         setNotifications(prev => [...newNotifs, ...prev.filter(n => !n.ephemeral || alertedIds.current.has(n.followupId))]);
         setUnreadCount(prev => prev + newNotifs.length);
       }
-    } catch (e) {}
+    } catch (e) { }
   }, [user]);
 
   useEffect(() => {
@@ -480,7 +480,7 @@ export default function Navbar() {
   }, []);
 
   const markAllRead = async () => {
-    try { await notificationsAPI.markAllRead(); } catch (e) {}
+    try { await notificationsAPI.markAllRead(); } catch (e) { }
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     setUnreadCount(0);
   };
@@ -491,7 +491,7 @@ export default function Navbar() {
       setUnreadCount(prev => Math.max(0, prev - 1));
       return;
     }
-    try { await notificationsAPI.markRead(id); } catch (e) {}
+    try { await notificationsAPI.markRead(id); } catch (e) { }
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
     setUnreadCount(prev => Math.max(0, prev - 1));
   };
@@ -686,12 +686,14 @@ export default function Navbar() {
       ]
     }
   ] : [
-    { title: 'Info', icon: FaCircleInfo, items: [
-      { label: 'Dashboard', path: '/dashboard', icon: FaHouse },
-      ...(!isMarketingStaff ? [{ label: 'TODO List', path: '/todo', icon: FaListCheck }] : []),
-      { label: 'Digital Calendar', path: '/digital-calendar', icon: FaCalendarDays },
-      { label: 'Activity Schedule', path: '/daily-activity-schedule', icon: FaCalendarCheck },
-    ]},
+    {
+      title: 'Info', icon: FaCircleInfo, items: [
+        { label: 'Dashboard', path: '/dashboard', icon: FaHouse },
+        ...(!isMarketingStaff ? [{ label: 'TODO List', path: '/todo', icon: FaListCheck }] : []),
+        { label: 'Digital Calendar', path: '/digital-calendar', icon: FaCalendarDays },
+        { label: 'Activity Schedule', path: '/daily-activity-schedule', icon: FaCalendarCheck },
+      ]
+    },
     (user?.role === 'admin' || isCEO(user) || (String(user?.department || '').toUpperCase() === 'MARKETING' && user?.role === 'manager')) ? {
       title: 'Marketing',
       icon: FaBullhorn,
@@ -762,26 +764,32 @@ export default function Navbar() {
         { label: 'AI Calling', path: '/ai-calling', icon: FaPhoneVolume, badge: 'AI' }
       ]
     },
-    { title: 'Finance', icon: FaCoins, items: [
-      { label: 'Offer letter', path: '/offer-letter', icon: FaFileInvoiceDollar },
-      { label: 'Payslip', path: '/payslips', icon: FaReceipt },
-      { label: 'Quotation', path: '/quotation', icon: FaFileInvoiceDollar },
-      { label: 'Invoice', path: '/invoice', icon: FaReceipt },
-      { label: 'Fee Receipt', path: '/fee-receipt', icon: FaReceipt },
-    ]},
-    { title: 'Management', icon: FaSitemap, items: [
-      { label: 'Departments', path: '/admin/departments', icon: FaSitemap },
-      { label: 'Daily Activity Schedule', path: '/daily-activity-schedule', icon: FaCalendarCheck },
-      { label: 'Attendance', path: user?._id ? `/${user._id}/attendance-records` : '/attendance-records', icon: FaCalendarCheck },
-      ...(canViewCallRecordings(user) ? [{ label: 'Call Recordings', path: '/recordings', icon: FaClock }] : []),
-      { label: 'Live Tracking', path: '/admin/employee-tracking', icon: FaLocationDot, adminOnly: !isHR(user) && !isCEO(user) },
-      { label: 'Email CRM', path: user?._id ? `/${user._id}/email` : '/email', icon: FaEnvelopeOpenText },
-    ]},
-    { title: 'Developer', icon: FaCode, items: [
-      { label: 'Access Tokens', path: '/access-tokens', icon: FaKey },
-      { label: 'Integrations', path: '/integrations', icon: FaPlug },
-      { label: 'Download APK', path: `${(import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000/api' : '/api')).replace(/\/api\/?$/, '')}/download-apk`, icon: FaDownload, isExternal: true },
-    ]},
+    {
+      title: 'Finance', icon: FaCoins, items: [
+        { label: 'Offer letter', path: '/offer-letter', icon: FaFileInvoiceDollar },
+        { label: 'Payslip', path: '/payslips', icon: FaReceipt },
+        { label: 'Quotation', path: '/quotation', icon: FaFileInvoiceDollar },
+        { label: 'Invoice', path: '/invoice', icon: FaReceipt },
+        { label: 'Fee Receipt', path: '/fee-receipt', icon: FaReceipt },
+      ]
+    },
+    {
+      title: 'Management', icon: FaSitemap, items: [
+        { label: 'Departments', path: '/admin/departments', icon: FaSitemap },
+        { label: 'Daily Activity Schedule', path: '/daily-activity-schedule', icon: FaCalendarCheck },
+        { label: 'Attendance', path: user?._id ? `/${user._id}/attendance-records` : '/attendance-records', icon: FaCalendarCheck },
+        ...(canViewCallRecordings(user) ? [{ label: 'Call Recordings', path: '/recordings', icon: FaClock }] : []),
+        { label: 'Live Tracking', path: '/admin/employee-tracking', icon: FaLocationDot, adminOnly: !isHR(user) && !isCEO(user) },
+        { label: 'Email CRM', path: user?._id ? `/${user._id}/email` : '/email', icon: FaEnvelopeOpenText },
+      ]
+    },
+    {
+      title: 'Developer', icon: FaCode, items: [
+        { label: 'Access Tokens', path: '/access-tokens', icon: FaKey },
+        { label: 'Integrations', path: '/integrations', icon: FaPlug },
+        { label: 'Download APK', path: `${(import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000/api' : '/api')).replace(/\/api\/?$/, '')}/download-apk`, icon: FaDownload, isExternal: true },
+      ]
+    },
   ]);
 
   const handleDownloadApk = () => {
@@ -807,18 +815,18 @@ export default function Navbar() {
       <style>{navbarGlowStyles}</style>
 
       <header className="fixed top-0 inset-x-0 z-50 h-20 flex px-0 select-none"
-              style={{
-                filter: 'drop-shadow(0 6px 20px rgba(15, 23, 42, 0.08)) drop-shadow(0 1px 4px rgba(249, 115, 22, 0.12))',
-              }}>
+        style={{
+          filter: 'drop-shadow(0 6px 20px rgba(15, 23, 42, 0.08)) drop-shadow(0 1px 4px rgba(249, 115, 22, 0.12))',
+        }}>
 
         {/* Left Extension Bar */}
         <div className="flex-1 h-12 z-20 relative min-w-0"
-             style={{
-               background: C.bg,
-               backdropFilter: 'blur(20px)',
-               WebkitBackdropFilter: 'blur(20px)',
-               borderBottom: `1px solid ${C.border}`,
-             }}>
+          style={{
+            background: C.bg,
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            borderBottom: `1px solid ${C.border}`,
+          }}>
           <svg className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none">
             <line x1="0" y1="47.5" x2="100%" y2="47.5" stroke={C.orange} strokeOpacity={0.7} strokeWidth={1} />
             <line x1="0" y1="44.5" x2="100%" y2="44.5" stroke={C.blue} strokeOpacity={0.4} strokeWidth={0.5} />
@@ -831,12 +839,12 @@ export default function Navbar() {
           {/* Left Slice */}
           <div className="w-[55px] h-full relative shrink-0">
             <div className="absolute inset-0"
-                 style={{
-                   background: C.bg,
-                   backdropFilter: 'blur(20px)',
-                   WebkitBackdropFilter: 'blur(20px)',
-                   clipPath: "path('M0 0 H55 V80 C28 80 28 48 0 48 Z')",
-                 }} />
+              style={{
+                background: C.bg,
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                clipPath: "path('M0 0 H55 V80 C28 80 28 48 0 48 Z')",
+              }} />
             <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 55 80">
               <path d="M0 47.5 C28 47.5 28 79.5 55 79.5" fill="none" stroke={C.orange} strokeOpacity={0.7} strokeWidth={1} />
               <path d="M0 44.5 C28 44.5 28 76.5 55 76.5" fill="none" stroke={C.blue} strokeOpacity={0.4} strokeWidth={0.5} />
@@ -846,11 +854,11 @@ export default function Navbar() {
           {/* Center Content */}
           <div className="flex-1 h-full relative min-w-0 -ml-px">
             <div className="absolute inset-0"
-                 style={{
-                   background: C.bg,
-                   backdropFilter: 'blur(20px)',
-                   WebkitBackdropFilter: 'blur(20px)',
-                 }}>
+              style={{
+                background: C.bg,
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+              }}>
               <svg className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none">
                 <line x1="0" y1="79.5" x2="100%" y2="79.5" stroke={C.orange} strokeOpacity={0.7} strokeWidth={1} />
                 <line x1="0" y1="76.5" x2="100%" y2="76.5" stroke={C.blue} strokeOpacity={0.4} strokeWidth={0.5} />
@@ -1109,9 +1117,8 @@ export default function Navbar() {
                                           navigate(item.path);
                                         }
                                       }}
-                                      className={`flex items-center gap-3 px-4 py-2.5 text-xs font-medium cursor-pointer transition-all nav-dropdown-item-glow mx-1 rounded-xl ${
-                                        active ? 'border-l-4' : ''
-                                      }`}
+                                      className={`flex items-center gap-3 px-4 py-2.5 text-xs font-medium cursor-pointer transition-all nav-dropdown-item-glow mx-1 rounded-xl ${active ? 'border-l-4' : ''
+                                        }`}
                                       style={{
                                         color: C.blue,
                                         border: `1px solid ${active ? C.orange : 'transparent'}`,
@@ -1241,20 +1248,20 @@ export default function Navbar() {
                       >
                         <div className="h-0.5 w-full" style={{ background: `linear-gradient(90deg, ${C.orange}, ${C.orangeLt}, ${C.blue})` }} />
                         <div className="p-3 flex items-center justify-between"
-                             style={{ background: C.bgSoft, borderBottom: `1px solid ${C.border}` }}>
+                          style={{ background: C.bgSoft, borderBottom: `1px solid ${C.border}` }}>
                           <div className="flex items-center gap-2">
                             <span className="font-semibold text-xs" style={{ color: C.blue }}>Notifications</span>
                             {unreadCount > 0 && (
                               <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full"
-                                    style={{ background: C.orange, color: '#ffffff', boxShadow: `0 0 10px ${C.orangeGlow}` }}>
+                                style={{ background: C.orange, color: '#ffffff', boxShadow: `0 0 10px ${C.orangeGlow}` }}>
                                 {unreadCount}
                               </span>
                             )}
                           </div>
                           {unreadCount > 0 && (
                             <button onClick={markAllRead}
-                                    className="text-[11px] font-semibold hover:underline"
-                                    style={{ color: C.blue }}>
+                              className="text-[11px] font-semibold hover:underline"
+                              style={{ color: C.blue }}>
                               Mark all read
                             </button>
                           )}
@@ -1283,10 +1290,10 @@ export default function Navbar() {
                                 }}
                               >
                                 <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
-                                     style={{
-                                       background: 'rgba(2, 132, 199, 0.10)',
-                                       border: `1px solid rgba(2, 132, 199, 0.25)`,
-                                     }}>
+                                  style={{
+                                    background: 'rgba(2, 132, 199, 0.10)',
+                                    border: `1px solid rgba(2, 132, 199, 0.25)`,
+                                  }}>
                                   <FaBell className="w-3.5 h-3.5 transition-colors" style={{ color: C.blue }} />
                                 </div>
                                 <div className="flex-1 min-w-0">
@@ -1318,11 +1325,11 @@ export default function Navbar() {
                     }}
                   >
                     <div className="w-8 h-8 rounded-xl font-semibold text-xs flex items-center justify-center overflow-hidden shrink-0"
-                         style={{
-                           background: `linear-gradient(135deg, ${C.blue}, ${C.blueDk}, ${C.orange})`,
-                           boxShadow: `0 0 12px ${C.blueGlow}`,
-                           color: '#ffffff',
-                         }}>
+                      style={{
+                        background: `linear-gradient(135deg, ${C.blue}, ${C.blueDk}, ${C.orange})`,
+                        boxShadow: `0 0 12px ${C.blueGlow}`,
+                        color: '#ffffff',
+                      }}>
                       {user?.avatar ? (
                         <img
                           src={user.avatar}
@@ -1360,13 +1367,13 @@ export default function Navbar() {
                       >
                         <div className="h-0.5 w-full -mt-3 mb-2.5 -mx-3 px-3" style={{ background: `linear-gradient(90deg, ${C.orange}, ${C.orangeLt}, ${C.blue})` }} />
                         <div className="p-3 rounded-xl mb-2 flex items-center gap-3"
-                             style={{ background: C.bgSoft, border: `1px solid ${C.border}` }}>
+                          style={{ background: C.bgSoft, border: `1px solid ${C.border}` }}>
                           <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 flex items-center justify-center font-bold text-xs"
-                               style={{
-                                 background: `linear-gradient(135deg, ${C.blue}, ${C.blueDk}, ${C.orange})`,
-                                 boxShadow: `0 0 12px ${C.blueGlow}`,
-                                 color: '#ffffff',
-                               }}>
+                            style={{
+                              background: `linear-gradient(135deg, ${C.blue}, ${C.blueDk}, ${C.orange})`,
+                              boxShadow: `0 0 12px ${C.blueGlow}`,
+                              color: '#ffffff',
+                            }}>
                             {user?.avatar ? (
                               <img
                                 src={user.avatar}
@@ -1382,7 +1389,7 @@ export default function Navbar() {
                             <div className="flex items-center justify-between mb-0.5">
                               <span className="font-semibold text-sm truncate" style={{ color: C.blue }}>{user?.name || 'User'}</span>
                               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                                    style={{ background: C.orangeSoft, color: C.orange, border: `1px solid ${C.orange}` }}>
+                                style={{ background: C.orangeSoft, color: C.orange, border: `1px solid ${C.orange}` }}>
                                 PRO
                               </span>
                             </div>
@@ -1423,12 +1430,12 @@ export default function Navbar() {
           {/* Right Slice */}
           <div className="w-[55px] h-full relative shrink-0 -ml-px">
             <div className="absolute inset-0"
-                 style={{
-                   background: C.bg,
-                   backdropFilter: 'blur(20px)',
-                   WebkitBackdropFilter: 'blur(20px)',
-                   clipPath: "path('M0 0 H55 V48 C28 48 28 80 0 80 Z')",
-                 }} />
+              style={{
+                background: C.bg,
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                clipPath: "path('M0 0 H55 V48 C28 48 28 80 0 80 Z')",
+              }} />
             <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 55 80">
               <path d="M0 79.5 C28 79.5 28 47.5 55 47.5" fill="none" stroke={C.orange} strokeOpacity={0.7} strokeWidth={1} />
               <path d="M0 44.5 C28 44.5 28 76.5 55 76.5" fill="none" stroke={C.blue} strokeOpacity={0.4} strokeWidth={0.5} />
@@ -1439,12 +1446,12 @@ export default function Navbar() {
 
         {/* Right Extension Bar */}
         <div className="flex-1 h-12 z-20 relative min-w-0 -ml-px"
-             style={{
-               background: C.bg,
-               backdropFilter: 'blur(20px)',
-               WebkitBackdropFilter: 'blur(20px)',
-               borderBottom: `1px solid ${C.border}`,
-             }}>
+          style={{
+            background: C.bg,
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            borderBottom: `1px solid ${C.border}`,
+          }}>
           <svg className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none">
             <line x1="0" y1="47.5" x2="100%" y2="47.5" stroke={C.orange} strokeOpacity={0.7} strokeWidth={1} />
             <line x1="0" y1="44.5" x2="100%" y2="44.5" stroke={C.blue} strokeOpacity={0.4} strokeWidth={0.5} />
@@ -1468,9 +1475,9 @@ export default function Navbar() {
                 const GroupIcon = group.icon;
                 return (
                   <div key={group.title} className="p-3 rounded-2xl"
-                       style={{ background: C.bgSoft, border: `1px solid ${C.border}` }}>
+                    style={{ background: C.bgSoft, border: `1px solid ${C.border}` }}>
                     <div className="flex items-center gap-2 text-xs font-bold uppercase mb-2"
-                         style={{ color: C.blue }}>
+                      style={{ color: C.blue }}>
                       <GroupIcon className="w-4 h-4" style={{ color: C.blue }} />
                       <span>{group.title}</span>
                     </div>

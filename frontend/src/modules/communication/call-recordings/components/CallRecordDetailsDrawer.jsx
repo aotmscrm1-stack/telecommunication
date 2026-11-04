@@ -322,14 +322,16 @@ export default function CallRecordDetailsDrawer({
             </div>
 
             <div style={{ fontSize: '12px', color: '#334155' }}>
-              {recording.linkType === 'lead' ? (
-                <span>Linked to Normal Lead: <span style={{ fontWeight: 600 }}>{recording.leadName}</span></span>
-              ) : recording.linkType === 'meta_lead' ? (
-                <span>Linked to Meta Lead: <span style={{ fontWeight: 600 }}>{recording.metaLeadName || recording.leadName}</span></span>
-              ) : recording.linkType === 'campaign' ? (
-                <span>Linked to Campaign: <span style={{ fontWeight: 600 }}>{recording.campaignName || 'Campaign'}</span></span>
+              {recording.linkType === 'meta_lead' || recording.metaLeadId || recording.leadName ? (
+                <span>
+                  Linked to Meta Lead:{' '}
+                  <span style={{ fontWeight: 600, color: '#6d28d9' }}>
+                    {recording.metaLeadName || recording.leadName}
+                  </span>
+                  {recording.campaignName ? ` (${recording.campaignName})` : ''}
+                </span>
               ) : (
-                <span style={{ color: '#ea580c', fontWeight: 600 }}>Unlinked session (auto-match available)</span>
+                <span style={{ color: '#ea580c', fontWeight: 600 }}>Unlinked session (Link to Meta Lead)</span>
               )}
             </div>
           </div>

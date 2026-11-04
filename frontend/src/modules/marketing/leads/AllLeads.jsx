@@ -7,13 +7,9 @@ import StatusBadge from '../../../components/common/StatusBadge';
 import { format } from 'date-fns';
 import { useAuth } from '../../../context/AuthContext';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell
-} from 'recharts';
-import {
-  Search, Plus, RefreshCw, Download, Star, Trash2, Ban,
-  BarChart2, ChevronLeft, ChevronRight, Users, CheckCircle,
-  Phone, PhoneCall, Mail, MapPin, Sparkles, Filter, Eye, ArrowUpDown, ChevronDown
+  Search, Plus, RefreshCw, Star, Trash2, Ban,
+  ChevronLeft, ChevronRight, Users, CheckCircle,
+  Phone, Mail, MapPin, Sparkles, Filter, Eye, ArrowUpDown, ChevronDown
 } from 'lucide-react';
 import { FiUserPlus, FiLink, FiChevronRight } from 'react-icons/fi';
 import { RiFileExcel2Line } from 'react-icons/ri';
@@ -124,11 +120,10 @@ function CustomDropdown({ value, onChange, options, placeholder = 'Select...', g
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className={`flex items-center justify-between gap-2 px-3 py-1.5 text-xs font-semibold rounded-xl border transition-all duration-150 cursor-pointer ${
-          open
+        className={`flex items-center justify-between gap-2 px-3 py-1.5 text-xs font-semibold rounded-xl border transition-all duration-150 cursor-pointer ${open
             ? 'border-blue-500 ring-2 ring-blue-500/15 bg-white text-blue-700 shadow-xs'
             : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50/80 shadow-xs'
-        }`}
+          }`}
       >
         <div className="flex items-center gap-1.5 truncate max-w-[140px]">
           {currentDot ? (
@@ -142,9 +137,8 @@ function CustomDropdown({ value, onChange, options, placeholder = 'Select...', g
           <span className="truncate">{selectedLabel}</span>
         </div>
         <ChevronDown
-          className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform duration-200 ${
-            open ? 'rotate-180 text-blue-600' : ''
-          }`}
+          className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform duration-200 ${open ? 'rotate-180 text-blue-600' : ''
+            }`}
         />
       </button>
 
@@ -176,11 +170,10 @@ function CustomDropdown({ value, onChange, options, placeholder = 'Select...', g
                       onChange(optVal);
                       setOpen(false);
                     }}
-                    className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-xs font-medium text-left transition-colors cursor-pointer ${
-                      isSelected
+                    className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-xs font-medium text-left transition-colors cursor-pointer ${isSelected
                         ? 'bg-blue-50 text-blue-700 font-semibold'
                         : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center gap-2 truncate">
                       {dotColor ? (
@@ -229,11 +222,10 @@ function RatingStars({ lead, onRate }) {
             title={`Set rating to ${star} star${star > 1 ? 's' : ''}`}
           >
             <Star
-              className={`w-3.5 h-3.5 transition-all duration-150 ${
-                isFilled
+              className={`w-3.5 h-3.5 transition-all duration-150 ${isFilled
                   ? 'text-amber-400 fill-amber-400 drop-shadow-2xs'
                   : 'text-slate-200 hover:text-amber-200'
-              }`}
+                }`}
             />
           </button>
         );
@@ -272,9 +264,6 @@ export default function AllLeads() {
   const [filter, setFilter] = useState(isAdmin ? 'all' : 'mine');
   const [selected, setSelected] = useState([]);
   const [callers, setCallers] = useState([]);
-  const [showCharts, setShowCharts] = useState(false);
-  const [statusStats, setStatusStats] = useState([]);
-  const [statsLoading, setStatsLoading] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [statuses, setStatuses] = useState(FALLBACK_STATUSES);
   const [ratingToast, setRatingToast] = useState('');
@@ -300,20 +289,6 @@ export default function AllLeads() {
       if (active.length) setStatuses(['All', ...active, 'Blocked']);
     }).catch(() => { });
   }, []);
-
-  const fetchStats = useCallback(async () => {
-    setStatsLoading(true);
-    try {
-      const res = await leadsAPI.getStats();
-      const counts = res.data.statusCounts || [];
-      setStatusStats(counts.map(s => ({ name: s._id, value: s.count })));
-    } catch (e) { console.error(e); }
-    finally { setStatsLoading(false); }
-  }, []);
-
-  useEffect(() => {
-    if (showCharts) fetchStats();
-  }, [showCharts, fetchStats]);
 
   const fetchLeads = useCallback(async () => {
     setLoading(true);
@@ -341,10 +316,9 @@ export default function AllLeads() {
   useEffect(() => {
     const unsubscribe = onCrmSync(CRM_EVENTS.LEADS_CHANGED, () => {
       fetchLeads();
-      if (showCharts) fetchStats();
     });
     return unsubscribe;
-  }, [fetchLeads, showCharts, fetchStats]);
+  }, [fetchLeads]);
 
   useEffect(() => { setPage(1); }, [search, status, source, filter, limit]);
 
@@ -391,18 +365,6 @@ export default function AllLeads() {
     } catch (err) { alert('Error: ' + (err.response?.data?.message || err.message)); }
   };
 
-  const handleExport = async () => {
-    try {
-      const params = { filter };
-      if (status !== 'All') params.status = status;
-      const res = await leadsAPI.exportCSV(params);
-      const url = URL.createObjectURL(res.data);
-      const a = document.createElement('a');
-      a.href = url; a.download = `leads-${Date.now()}.csv`; a.click();
-      URL.revokeObjectURL(url);
-    } catch (e) { alert('Export failed'); }
-  };
-
   const pages = Math.ceil(total / limit) || 1;
 
   return (
@@ -437,26 +399,6 @@ export default function AllLeads() {
 
           {/* Top Header Buttons */}
           <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={() => setShowCharts(v => !v)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-all shadow-xs ${
-                showCharts
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              <BarChart2 className="w-3.5 h-3.5" />
-              <span>{showCharts ? 'Hide Charts' : 'Charts & Analytics'}</span>
-            </button>
-
-            <button
-              onClick={handleExport}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 shadow-xs transition-colors"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Export CSV</span>
-            </button>
-
             {canAccessEmailBlast(user) && (
               <button
                 onClick={() => navigate('/email-blast')}
@@ -541,86 +483,6 @@ export default function AllLeads() {
           </div>
         </div>
 
-        {/* Analytics Charts Panel */}
-        {showCharts && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="grid grid-cols-1 lg:grid-cols-2 gap-3.5 flex-shrink-0"
-          >
-            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-xs sm:text-sm text-slate-800">Lead Status Distribution</h3>
-                <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                  Bar Chart
-                </span>
-              </div>
-              {statsLoading ? (
-                <div className="flex justify-center items-center h-44">
-                  <div className="w-6 h-6 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
-                </div>
-              ) : statusStats.length === 0 ? (
-                <div className="flex items-center justify-center h-44 text-slate-400 text-xs font-normal">No chart metrics available</div>
-              ) : (
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={statusStats} margin={{ top: 5, right: 5, left: -20, bottom: 50 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#64748b' }} angle={-25} textAnchor="end" interval={0} />
-                    <YAxis tick={{ fontSize: 10, fill: '#64748b' }} />
-                    <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: 11, color: '#1e293b' }} />
-                    <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                      {statusStats.map((_, i) => <Cell key={i} fill={PALETTE_COLORS[i % PALETTE_COLORS.length]} />)}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-
-            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-xs sm:text-sm text-slate-800">Pipeline Ratio Breakdown</h3>
-                <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-200">
-                  Ratio
-                </span>
-              </div>
-              {statsLoading ? (
-                <div className="flex justify-center items-center h-44">
-                  <div className="w-6 h-6 rounded-full border-2 border-orange-500 border-t-transparent animate-spin" />
-                </div>
-              ) : statusStats.length === 0 ? (
-                <div className="flex items-center justify-center h-44 text-slate-400 text-xs font-normal">No chart metrics available</div>
-              ) : (
-                <>
-                  <ResponsiveContainer width="100%" height={140}>
-                    <PieChart>
-                      <Pie
-                        data={statusStats}
-                        cx="50%" cy="50%"
-                        outerRadius={58} innerRadius={30}
-                        paddingAngle={2}
-                        dataKey="value"
-                      >
-                        {statusStats.map((_, i) => <Cell key={i} fill={PALETTE_COLORS[i % PALETTE_COLORS.length]} />)}
-                      </Pie>
-                      <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: 11 }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2 max-h-20 overflow-y-auto pr-1">
-                    {statusStats.map((s, i) => (
-                      <div key={s.name} className="flex items-center gap-1.5 text-xs">
-                        <div className="w-2 h-2 rounded-xs flex-shrink-0" style={{ background: PALETTE_COLORS[i % PALETTE_COLORS.length] }} />
-                        <span className="truncate text-slate-600 font-normal">{s.name}</span>
-                        <span className="font-medium text-slate-800 ml-auto">{s.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          </motion.div>
-        )}
-
         {/* Main Content Area (Sidebar + Table) */}
         <div className="flex flex-col md:flex-row items-stretch gap-3.5 flex-1 min-h-0">
           {/* Responsive Filter View Sidebar (Horizontal on Mobile, Vertical on Desktop) */}
@@ -632,11 +494,10 @@ export default function AllLeads() {
               <button
                 key={opt.key}
                 onClick={() => setFilter(opt.key)}
-                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-left whitespace-nowrap flex-shrink-0 md:flex-shrink ${
-                  filter === opt.key
+                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-left whitespace-nowrap flex-shrink-0 md:flex-shrink ${filter === opt.key
                     ? 'bg-blue-600 text-white shadow-xs'
                     : 'text-slate-600 hover:bg-slate-50'
-                }`}
+                  }`}
               >
                 <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${filter === opt.key ? 'bg-white' : 'bg-slate-300'}`} />
                 {opt.label}
@@ -654,11 +515,10 @@ export default function AllLeads() {
                     <button
                       key={c._id}
                       onClick={() => setFilter(c._id)}
-                      className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium transition-all text-left whitespace-nowrap flex-shrink-0 md:flex-shrink ${
-                        filter === c._id
+                      className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium transition-all text-left whitespace-nowrap flex-shrink-0 md:flex-shrink ${filter === c._id
                           ? 'bg-orange-50 text-orange-700 border border-orange-200'
                           : 'text-slate-600 hover:bg-slate-50'
-                      }`}
+                        }`}
                     >
                       <div className="w-4.5 h-4.5 rounded-full text-white flex items-center justify-center text-[9px] font-medium bg-orange-500 flex-shrink-0">
                         {c.name[0]?.toUpperCase()}
@@ -830,38 +690,24 @@ export default function AllLeads() {
                         {(isAdmin || isCaller) && (
                           <td className="px-3.5 py-2.5 whitespace-nowrap" onClick={e => e.stopPropagation()}>
                             <div className="flex items-center gap-1.5">
-                              {/* Dedicated Call Action Button with Call Symbol & Click to Activate */}
-                              {lead.phone && (
-                                <a
-                                  href={`tel:${String(lead.phone).replace(/\D/g, '')}`}
-                                  onClick={e => e.stopPropagation()}
-                                  title={`📞 Click to Call ${lead.name || 'Lead'} (${lead.phone})`}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-all shadow-xs"
+                              {isAdmin && (
+                                <button
+                                  onClick={e => handleBlock(lead, e)}
+                                  className="p-1 rounded-md text-slate-400 hover:bg-amber-50 hover:text-amber-600 transition-colors"
+                                  title="Block Lead"
                                 >
-                                  <PhoneCall className="w-3.5 h-3.5 text-emerald-600" />
-                                  <span>Call</span>
-                                </a>
+                                  <Ban className="w-3.5 h-3.5" />
+                                </button>
                               )}
-                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                {isAdmin && (
-                                  <button
-                                    onClick={e => handleBlock(lead, e)}
-                                    className="p-1 rounded-md text-slate-400 hover:bg-amber-50 hover:text-amber-600 transition-colors"
-                                    title="Block Lead"
-                                  >
-                                    <Ban className="w-3.5 h-3.5" />
-                                  </button>
-                                )}
-                                {canDelete(user) && (
-                                  <button
-                                    onClick={e => handleDelete(lead._id, e)}
-                                    className="p-1 rounded-md text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
-                                    title="Delete Lead"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                )}
-                              </div>
+                              {canDelete(user) && (
+                                <button
+                                  onClick={e => handleDelete(lead._id, e)}
+                                  className="p-1 rounded-md text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                                  title="Delete Lead"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                             </div>
                           </td>
                         )}
@@ -910,11 +756,10 @@ export default function AllLeads() {
                     <button
                       key={p}
                       onClick={() => setPage(p)}
-                      className={`w-6 h-6 rounded-md text-xs font-medium transition-all ${
-                        p === page
+                      className={`w-6 h-6 rounded-md text-xs font-medium transition-all ${p === page
                           ? 'bg-blue-600 text-white border border-blue-600'
                           : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
-                      }`}
+                        }`}
                     >
                       {p}
                     </button>

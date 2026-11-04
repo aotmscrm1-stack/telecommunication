@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { metaLeadsAPI, usersAPI } from '../../../services/api';
+import { metaLeadsAPI, usersAPI, blocklistAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import AssignMembersModal from './AssignMembersModal';
 import LeadDetailsPage, { cleanLeadName } from '../../../components/LeadDetails/LeadDetailsPage';
-import leadNoteReminderService, { isStatusRequiringNote, leadHasNote } from '../../../services/leadNoteReminderService';
+import leadNoteReminderService, { isStatusRequiringNote, leadHasNote, isAdminOrManager } from '../../../services/leadNoteReminderService';
 import AutoScrollText from '../../../components/common/AutoScrollText';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -172,40 +172,6 @@ function StatCard({ label, value, color = TEXT, bg = '#fff', borderColor = BORDE
   );
 }
 
-// Circular progress indicator (Matching Campaigns.jsx)
-function ProgressCircle({ value = 0 }) {
-  const r = 16;
-  const circ = 2 * Math.PI * r;
-  const pct = Math.min(100, Math.max(0, value));
-  const dash = (pct / 100) * circ;
-
-  const color = pct === 100 ? '#10b981' : pct >= 70 ? BLUE : pct >= 40 ? ORANGE : '#ef4444';
-  const trackColor = '#f1f5f9';
-
-  return (
-    <div className="flex items-center gap-2">
-      <svg width="38" height="38" viewBox="0 0 38 38" className="flex-shrink-0">
-        <circle cx="19" cy="19" r={r} fill="none" stroke={trackColor} strokeWidth="3" />
-        <circle
-          cx="19"
-          cy="19"
-          r={r}
-          fill="none"
-          stroke={color}
-          strokeWidth="3"
-          strokeDasharray={`${dash} ${circ - dash}`}
-          strokeLinecap="round"
-          transform="rotate(-90 19 19)"
-          style={{ transition: 'stroke-dasharray 0.5s ease' }}
-        />
-        <text x="19" y="22" textAnchor="middle" fontSize="9" fill={color} fontWeight="600">
-          {pct}%
-        </text>
-      </svg>
-    </div>
-  );
-}
-
 // Stacked Assignee Avatars (Matching Campaigns.jsx)
 function AssigneeAvatars({ callers }) {
   const avatarColors = [
@@ -353,194 +319,393 @@ function FilterDropdown({ label, options, value, onChange, icon }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// AI Calling Panel for Meta Campaigns
+// Interactive Left-Side "All Leads" Filter Dropdown with Expandable > Arrows
 // ─────────────────────────────────────────────────────────────────────────────
-function MetaAICallingPanel({ campaign, onStatusChange }) {
-  const [aiStatus, setAiStatus] = useState(null);
-  const [aiConcurrency, setAiConcurrency] = useState(5);
-  const [loading, setLoading] = useState(false);
-  const [expanded, setExpanded] = useState(true);
-
-  const refreshStatus = useCallback(async () => {
-    if (!campaign) return;
-    try {
-      const res = await metaLeadsAPI.aiStatus(campaign);
-      if (res.data?.success) {
-        setAiStatus(res.data);
-        if (res.data.aiConcurrencyLimit) {
-          setAiConcurrency(res.data.aiConcurrencyLimit);
-        }
-      }
-    } catch (err) {
-      // silently ignore if endpoint not available yet
-    }
-  }, [campaign]);
+function CampaignLeadsFilterDropdown({
+  value,
+  onChange,
+  totalCount = 0,
+  pendingCount = 0,
+  positiveCount = 0,
+  negativeCount = 0
+}) {
+  const [open, setOpen] = useState(false);
+  const [expandedGroup, setExpandedGroup] = useState(null); // 'positive' | 'negative' | null
+  const ref = useRef(null);
 
   useEffect(() => {
-    if (!campaign) return;
-    refreshStatus();
-    const interval = setInterval(refreshStatus, 5000);
-    return () => clearInterval(interval);
-  }, [campaign, refreshStatus]);
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
-  const handleStart = async () => {
-    setLoading(true);
-    try {
-      await metaLeadsAPI.aiStart(campaign, { aiConcurrencyLimit: aiConcurrency });
-      await refreshStatus();
-      if (onStatusChange) onStatusChange();
-    } catch (err) {
-      alert(err.response?.data?.message || 'Failed to start AI calling');
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (value === 'Positive' || POSITIVE_STATUSES.includes(value)) {
+      setExpandedGroup('positive');
+    } else if (value === 'Negative' || NEGATIVE_STATUSES.includes(value)) {
+      setExpandedGroup('negative');
     }
-  };
+  }, [value]);
 
-  const handlePause = async () => {
-    setLoading(true);
-    try {
-      await metaLeadsAPI.aiPause(campaign);
-      await refreshStatus();
-      if (onStatusChange) onStatusChange();
-    } catch (err) {
-      alert(err.response?.data?.message || 'Failed to pause AI calling');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const isPos = value === 'Positive' || POSITIVE_STATUSES.includes(value);
+  const isNeg = value === 'Negative' || NEGATIVE_STATUSES.includes(value);
+  const isPending = value === 'Pending';
+  const isBlocked = value === 'Blocked';
 
-  const isEnabled = aiStatus?.aiCallingEnabled;
+  const displayLabel = !value
+    ? 'All Leads'
+    : value === 'Positive'
+    ? 'Positive Leads'
+    : value === 'Negative'
+    ? 'Negative Leads'
+    : value === 'Pending'
+    ? 'Pending Leads'
+    : value === 'Blocked'
+    ? 'Blocked Contacts'
+    : value;
+
+  const dotColor = isPos
+    ? '#10b981'
+    : isNeg
+    ? '#ef4444'
+    : isPending
+    ? '#f59e0b'
+    : isBlocked
+    ? '#e11d48'
+    : '#64748b';
 
   return (
-    <div style={{
-      background: isEnabled ? '#f0fdf4' : '#ffffff',
-      border: `1px solid ${isEnabled ? '#86efac' : BORDER}`,
-      borderRadius: 10,
-      overflow: 'hidden',
-      transition: 'border-color 0.2s, background 0.2s',
-      boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
-    }}>
-      {/* Header row */}
-      <div
-        style={{ padding: '9px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
-        onClick={() => setExpanded(e => !e)}
+    <div ref={ref} style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 6,
+          padding: '6px 10px',
+          borderRadius: 7,
+          fontSize: 11.5,
+          fontWeight: 600,
+          cursor: 'pointer',
+          border: `1px solid ${isPos ? '#a7f3d0' : isNeg ? '#fecdd3' : isBlocked ? '#fecdd3' : isPending ? '#fde68a' : BORDER}`,
+          background: isPos ? '#ecfdf5' : isNeg ? '#fff1f2' : isBlocked ? '#fff1f2' : isPending ? '#fffbeb' : '#ffffff',
+          color: isPos ? '#059669' : isNeg ? '#dc2626' : isBlocked ? '#be123c' : isPending ? '#b45309' : TEXT,
+          transition: 'all 0.15s ease'
+        }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-          {/* Animated dot */}
-          <div style={{
-            width: 7, height: 7, borderRadius: '50%',
-            background: isEnabled ? '#16a34a' : '#94a3b8',
-            boxShadow: isEnabled ? '0 0 0 3px #bbf7d0' : 'none',
-            animation: isEnabled ? 'aipulse 1.5s infinite' : 'none',
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
+          <span style={{ width: 7, height: 7, borderRadius: '50%', background: dotColor, flexShrink: 0 }} />
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }}>
+            {displayLabel}
+          </span>
+        </div>
+        <FiChevronDown
+          size={13}
+          style={{
             flexShrink: 0,
-          }} />
-          <style>{`@keyframes aipulse{0%,100%{box-shadow:0 0 0 0 #bbf7d0}50%{box-shadow:0 0 0 4px #bbf7d000}}`}</style>
-          <span style={{ fontSize: 11.5, fontWeight: 700, color: isEnabled ? '#15803d' : TEXT }}>
-            AI Calling {isEnabled ? '— Active' : '— Paused'}
-          </span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 10.5, color: MUTED, fontVariantNumeric: 'tabular-nums', fontWeight: 500 }}>
-            {aiStatus?.inProgress ?? 0} active · {aiStatus?.queued ?? 0} queued
-          </span>
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2"
-            style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </div>
-      </div>
+            transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform 0.15s ease'
+          }}
+        />
+      </button>
 
-      {/* Expanded body */}
-      {expanded && (
-        <div style={{ padding: '0 12px 12px', borderTop: `1px solid ${isEnabled ? '#bbf7d0' : BORDER}` }}>
-          {/* Stats row */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5, margin: '8px 0' }}>
-            {[
-              { label: 'In Progress', value: aiStatus?.inProgress ?? 0, color: '#16a34a' },
-              { label: 'Queued', value: aiStatus?.queued ?? 0, color: '#f59e0b' },
-              { label: 'Done Today', value: aiStatus?.completedToday ?? 0, color: BLUE },
-            ].map(({ label, value, color }) => (
-              <div key={label} style={{ background: '#f8fafc', border: `1px solid ${BORDER}`, borderRadius: 7, padding: '6px 4px', textAlign: 'center' }}>
-                <div style={{ fontSize: 9.5, color: MUTED, marginBottom: 2, fontWeight: 500 }}>{label}</div>
-                <div style={{ fontSize: 15, fontWeight: 700, color }}>{value}</div>
-              </div>
-            ))}
+      {open && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 5px)',
+            left: 0,
+            right: 0,
+            minWidth: 270,
+            background: '#ffffff',
+            borderRadius: 10,
+            border: `1px solid ${BORDER}`,
+            boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.15), 0 4px 10px -4px rgba(15, 23, 42, 0.08)',
+            zIndex: 50,
+            padding: 5,
+            maxHeight: 370,
+            overflowY: 'auto'
+          }}
+        >
+          {/* 1. All Leads */}
+          <div
+            onClick={() => {
+              onChange('');
+              setOpen(false);
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '7px 10px',
+              borderRadius: 7,
+              cursor: 'pointer',
+              fontSize: 11.5,
+              fontWeight: !value ? 700 : 500,
+              color: !value ? BLUE : TEXT,
+              background: !value ? BLUE_LIGHT : 'transparent'
+            }}
+            className="hover:bg-slate-50"
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#64748b' }} />
+              <span>All Leads</span>
+            </div>
+            <span style={{ fontSize: 10.5, fontWeight: 700, color: !value ? BLUE : MUTED }}>{totalCount}</span>
           </div>
 
-          {/* Concurrency input (only when not active) */}
-          {!isEnabled && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 10, background: '#f8fafc', padding: '6px 10px', borderRadius: 7, border: `1px solid ${BORDER}` }}>
-              <label style={{ fontSize: 11, color: TEXT, fontWeight: 600, whiteSpace: 'nowrap' }}>Concurrent calls:</label>
-              <input
-                type="number"
-                min={1}
-                max={20}
-                value={aiConcurrency}
-                onChange={e => setAiConcurrency(Math.max(1, Math.min(20, Number(e.target.value))))}
+          {/* 2. Pending Leads */}
+          <div
+            onClick={() => {
+              onChange('Pending');
+              setOpen(false);
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '7px 10px',
+              borderRadius: 7,
+              cursor: 'pointer',
+              fontSize: 11.5,
+              fontWeight: isPending ? 700 : 500,
+              color: isPending ? '#b45309' : TEXT,
+              background: isPending ? '#fffbeb' : 'transparent'
+            }}
+            className="hover:bg-slate-50"
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#f59e0b' }} />
+              <span>Pending Leads</span>
+            </div>
+            <span style={{ fontSize: 10.5, fontWeight: 700, color: isPending ? '#b45309' : MUTED }}>{pendingCount}</span>
+          </div>
+
+          {/* 3. Positive Section with > Arrow */}
+          <div style={{ marginTop: 2 }}>
+            <div
+              onClick={() => {
+                const nextExpand = expandedGroup === 'positive' ? null : 'positive';
+                setExpandedGroup(nextExpand);
+                onChange('Positive');
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '7px 10px',
+                borderRadius: 7,
+                cursor: 'pointer',
+                fontSize: 11.5,
+                fontWeight: isPos ? 700 : 600,
+                color: isPos ? '#059669' : TEXT,
+                background: isPos ? '#ecfdf5' : 'transparent'
+              }}
+              className="hover:bg-emerald-50/60"
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981' }} />
+                <span>Positive</span>
+                <span style={{ fontSize: 10, fontWeight: 700, padding: '0 5px', borderRadius: 8, background: '#d1fae5', color: '#065f46' }}>
+                  {positiveCount}
+                </span>
+              </div>
+              <FiChevronRight
+                size={14}
                 style={{
-                  width: 50, padding: '4px 6px', borderRadius: 6,
-                  border: `1px solid ${BORDER}`, fontSize: 12, color: TEXT,
-                  fontWeight: 700, outline: 'none', textAlign: 'center', background: '#fff'
+                  color: '#059669',
+                  transform: expandedGroup === 'positive' ? 'rotate(90deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.15s ease'
                 }}
               />
             </div>
-          )}
 
-          {/* Action button */}
-          {isEnabled ? (
-            <button
-              onClick={handlePause}
-              disabled={loading}
-              style={{
-                width: '100%', padding: '8px', borderRadius: 8,
-                background: loading ? '#fef9c3' : '#fef08a',
-                border: '1px solid #fde047', color: '#854d0e',
-                fontSize: 12, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            {expandedGroup === 'positive' && (
+              <div style={{ marginLeft: 10, paddingLeft: 8, borderLeft: '2px solid #a7f3d0', marginTop: 3, marginBottom: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <div
+                  onClick={() => {
+                    onChange('Positive');
+                    setOpen(false);
+                  }}
+                  style={{
+                    padding: '5px 8px',
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: value === 'Positive' ? 700 : 600,
+                    color: value === 'Positive' ? '#065f46' : '#059669',
+                    background: value === 'Positive' ? '#d1fae5' : 'transparent',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}
+                  className="hover:bg-emerald-50"
+                >
+                  <span>All Positive Leads</span>
+                  {value === 'Positive' && <FiCheck size={12} />}
+                </div>
+                {POSITIVE_STATUSES.map(sub => {
+                  const selected = value === sub;
+                  return (
+                    <div
+                      key={sub}
+                      onClick={() => {
+                        onChange(sub);
+                        setOpen(false);
+                      }}
+                      style={{
+                        padding: '5px 8px',
+                        borderRadius: 6,
+                        fontSize: 11,
+                        fontWeight: selected ? 700 : 500,
+                        color: selected ? '#065f46' : '#334155',
+                        background: selected ? '#ecfdf5' : 'transparent',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 6
+                      }}
+                      className="hover:bg-emerald-50/70"
+                    >
+                      <span style={{ lineHeight: 1.3 }}>{sub}</span>
+                      {selected && <FiCheck size={12} style={{ color: '#059669', flexShrink: 0 }} />}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* 4. Negative Section with > Arrow */}
+          <div style={{ marginTop: 2 }}>
+            <div
+              onClick={() => {
+                const nextExpand = expandedGroup === 'negative' ? null : 'negative';
+                setExpandedGroup(nextExpand);
+                onChange('Negative');
               }}
-            >
-              {loading ? (
-                <>
-                  <div className="spinner-gradient" style={{ width: 12, height: 12 }} />
-                  Pausing…
-                </>
-              ) : (
-                <>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" />
-                  </svg>
-                  Pause AI Calling
-                </>
-              )}
-            </button>
-          ) : (
-            <button
-              onClick={handleStart}
-              disabled={loading}
               style={{
-                width: '100%', padding: '8px', borderRadius: 8,
-                background: loading ? '#93c5fd' : BLUE,
-                border: 'none', color: '#fff',
-                fontSize: 12, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                boxShadow: '0 2px 4px rgba(37, 99, 235, 0.25)'
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '7px 10px',
+                borderRadius: 7,
+                cursor: 'pointer',
+                fontSize: 11.5,
+                fontWeight: isNeg ? 700 : 600,
+                color: isNeg ? '#dc2626' : TEXT,
+                background: isNeg ? '#fff1f2' : 'transparent'
               }}
+              className="hover:bg-rose-50/60"
             >
-              {loading ? (
-                <>
-                  <div className="spinner-gradient" style={{ width: 12, height: 12 }} />
-                  Starting…
-                </>
-              ) : (
-                <>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                    <polygon points="5 3 19 12 5 21 5 3" />
-                  </svg>
-                  Start AI Calling
-                </>
-              )}
-            </button>
-          )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#ef4444' }} />
+                <span>Negative</span>
+                <span style={{ fontSize: 10, fontWeight: 700, padding: '0 5px', borderRadius: 8, background: '#ffe4e6', color: '#9f1239' }}>
+                  {negativeCount}
+                </span>
+              </div>
+              <FiChevronRight
+                size={14}
+                style={{
+                  color: '#dc2626',
+                  transform: expandedGroup === 'negative' ? 'rotate(90deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.15s ease'
+                }}
+              />
+            </div>
+
+            {expandedGroup === 'negative' && (
+              <div style={{ marginLeft: 10, paddingLeft: 8, borderLeft: '2px solid #fecdd3', marginTop: 3, marginBottom: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <div
+                  onClick={() => {
+                    onChange('Negative');
+                    setOpen(false);
+                  }}
+                  style={{
+                    padding: '5px 8px',
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: value === 'Negative' ? 700 : 600,
+                    color: value === 'Negative' ? '#9f1239' : '#dc2626',
+                    background: value === 'Negative' ? '#ffe4e6' : 'transparent',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}
+                  className="hover:bg-rose-50"
+                >
+                  <span>All Negative Leads</span>
+                  {value === 'Negative' && <FiCheck size={12} />}
+                </div>
+                {NEGATIVE_STATUSES.map(sub => {
+                  const selected = value === sub;
+                  return (
+                    <div
+                      key={sub}
+                      onClick={() => {
+                        onChange(sub);
+                        setOpen(false);
+                      }}
+                      style={{
+                        padding: '5px 8px',
+                        borderRadius: 6,
+                        fontSize: 11,
+                        fontWeight: selected ? 700 : 500,
+                        color: selected ? '#9f1239' : '#334155',
+                        background: selected ? '#fff1f2' : 'transparent',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 6
+                      }}
+                      className="hover:bg-rose-50/70"
+                    >
+                      <span style={{ lineHeight: 1.3 }}>{sub}</span>
+                      {selected && <FiCheck size={12} style={{ color: '#dc2626', flexShrink: 0 }} />}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* 5. Blocked Contacts */}
+          <div
+            onClick={() => {
+              onChange('Blocked');
+              setOpen(false);
+            }}
+            style={{
+              marginTop: 2,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '7px 10px',
+              borderRadius: 7,
+              cursor: 'pointer',
+              fontSize: 11.5,
+              fontWeight: isBlocked ? 700 : 500,
+              color: isBlocked ? '#be123c' : TEXT,
+              background: isBlocked ? '#fff1f2' : 'transparent'
+            }}
+            className="hover:bg-rose-50/50"
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#e11d48' }} />
+              <span>Blocked Contacts</span>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -865,6 +1030,8 @@ function RealTimeCallCalendar({ campaign, selectedDate, onSelectDate, callDates 
 export default function MetaLeads() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const pendingTargetLeadIdRef = useRef(null);
 
   // Overview Data
   const [campaignStats, setCampaignStats] = useState([]);
@@ -903,9 +1070,13 @@ export default function MetaLeads() {
   const [sortField, setSortField] = useState('count');
   const [sortDir, setSortDir] = useState('desc');
 
-  // Permissions & Employees
-  const [isAdmin, setIsAdmin] = useState(true);
+  // Permissions & Employees (Admin & Manager Only)
+  const [isAdmin, setIsAdmin] = useState(() => isAdminOrManager(user));
   const [isRestricted, setIsRestricted] = useState(false);
+
+  useEffect(() => {
+    setIsAdmin(isAdminOrManager(user));
+  }, [user]);
   const [employees, setEmployees] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -1042,7 +1213,7 @@ export default function MetaLeads() {
       const res = await metaLeadsAPI.getCampaigns();
       const payload = res.data || {};
       const rawCampaigns = payload.campaigns || [];
-      const adminRole = payload.isAdmin !== undefined ? payload.isAdmin : true;
+      const adminRole = isAdminOrManager(user) && (payload.isAdmin !== undefined ? payload.isAdmin : true);
       const restricted = payload.isRestricted || false;
 
       setIsAdmin(adminRole);
@@ -1078,10 +1249,70 @@ export default function MetaLeads() {
     }
   };
 
+  const [blockedPhones, setBlockedPhones] = useState(() => new Set());
+  const [unblockingId, setUnblockingId] = useState(null);
+
+  const fetchBlockedPhones = useCallback(async () => {
+    try {
+      const res = await blocklistAPI.getAll();
+      const list = res.data?.blocklist || [];
+      const set = new Set();
+      list.forEach(entry => {
+        const clean = String(entry.phone || '').replace(/\D/g, '');
+        if (clean) {
+          set.add(clean);
+          if (clean.length >= 10) set.add(clean.slice(-10));
+        }
+      });
+      setBlockedPhones(set);
+    } catch (_) {}
+  }, []);
+
+  const isLeadBlocked = useCallback((lead) => {
+    if (!lead) return false;
+    if (lead.status === 'Blocked' || lead.isBlocked) return true;
+    const { phone } = getLeadIdentifiers(lead);
+    const clean = String(phone || '').replace(/\D/g, '');
+    if (!clean) return false;
+    return blockedPhones.has(clean) || (clean.length >= 10 && blockedPhones.has(clean.slice(-10)));
+  }, [blockedPhones]);
+
+  const handleUnblockLead = async (lead, e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    const { name, phone } = getLeadIdentifiers(lead);
+    setUnblockingId(lead._id);
+    try {
+      if (phone) {
+        await blocklistAPI.removeByPhone(phone).catch(() => {});
+      }
+      await metaLeadsAPI.update(lead._id, { status: 'New' }).catch(() => {});
+      setCampaignLeads(prev => prev.map(l => l._id === lead._id ? { ...l, status: l.status === 'Blocked' ? 'New' : l.status, isBlocked: false } : l));
+      if (selectedLead?._id === lead._id) {
+        setSelectedLead(prev => prev ? { ...prev, status: prev.status === 'Blocked' ? 'New' : prev.status, isBlocked: false } : prev);
+      }
+      await fetchBlockedPhones();
+      setStatusMessage(`✅ Unblocked ${name} (${phone || 'contact'}) successfully!`);
+      setTimeout(() => setStatusMessage(''), 3500);
+    } catch (err) {
+      console.error('Failed to unblock lead:', err);
+    } finally {
+      setUnblockingId(null);
+    }
+  };
+
   useEffect(() => {
     fetchCampaigns();
     fetchEmployeesAndAssignments();
-  }, []);
+    fetchBlockedPhones();
+  }, [fetchBlockedPhones]);
+
+  useEffect(() => {
+    const onBlocklistChanged = () => {
+      fetchBlockedPhones();
+    };
+    window.addEventListener('meta-lead-blocklist-changed', onBlocklistChanged);
+    return () => window.removeEventListener('meta-lead-blocklist-changed', onBlocklistChanged);
+  }, [fetchBlockedPhones]);
 
   // Fetch Call Dates for Selected Campaign
   const fetchCallDates = useCallback(async (campaignName) => {
@@ -1128,7 +1359,19 @@ export default function MetaLeads() {
       }
 
       if (fetched.length > 0) {
-        setSelectedLead(prev => (prev && fetched.some(l => l._id === prev._id) ? prev : fetched[0]));
+        const targetId = pendingTargetLeadIdRef.current;
+        if (targetId) {
+          const matched = fetched.find(l => String(l._id) === String(targetId) || String(l.crmLeadId) === String(targetId));
+          if (matched) {
+            setSelectedLead(matched);
+            setActiveMobileTab('profile');
+            pendingTargetLeadIdRef.current = null;
+          } else {
+            setSelectedLead(prev => (prev && fetched.some(l => l._id === prev._id) ? prev : fetched[0]));
+          }
+        } else {
+          setSelectedLead(prev => (prev && fetched.some(l => l._id === prev._id) ? prev : fetched[0]));
+        }
       } else {
         setSelectedLead(null);
       }
@@ -1151,7 +1394,37 @@ export default function MetaLeads() {
     }
   }, [selectedCampaign, fetchCampaignLeads]);
 
-  // Listen to open-lead-note-modal event dispatched from Sonner toast action button
+  // Listen to open-lead-note-modal & select-meta-campaign-lead events dispatched from Sonner toast action buttons
+  useEffect(() => {
+    const urlCampaign = searchParams.get('campaign');
+    const urlLeadId = searchParams.get('leadId');
+    if (urlCampaign) {
+      if (urlLeadId) pendingTargetLeadIdRef.current = urlLeadId;
+      setSelectedCampaign(urlCampaign);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    const handleSelectCallbackLead = (e) => {
+      const targetCamp = e.detail?.campaign;
+      const targetId = e.detail?.leadId;
+      if (targetId) pendingTargetLeadIdRef.current = targetId;
+      if (targetCamp && targetCamp !== selectedCampaign) {
+        setSelectedCampaign(targetCamp);
+      } else if (targetId) {
+        const found = campaignLeads.find(l => String(l._id) === String(targetId) || String(l.crmLeadId) === String(targetId));
+        if (found) {
+          setSelectedLead(found);
+          setActiveMobileTab('profile');
+          pendingTargetLeadIdRef.current = null;
+        }
+      }
+    };
+    window.addEventListener('select-meta-campaign-lead', handleSelectCallbackLead);
+    return () => window.removeEventListener('select-meta-campaign-lead', handleSelectCallbackLead);
+  }, [campaignLeads, selectedCampaign]);
+
   useEffect(() => {
     const handleOpenNote = (e) => {
       const targetId = e.detail?.leadId;
@@ -1266,10 +1539,9 @@ export default function MetaLeads() {
         csvContent += `"${name}","${phone}","${city}","${email}","${lead.campaign || selectedCampaign}","${lead.status || 'New'}","${lead.syncedAt || ''}"\n`;
       });
     } else {
-      csvContent += 'Campaign Name,Total Leads,New Leads,Converted Leads,Completion Rate,Last Synced\n';
+      csvContent += 'Campaign Name,Total Leads,New Leads,Positive Leads,Negative Leads,Last Synced\n';
       campaignStats.forEach(c => {
-        const rate = c.count ? Math.round(((c.convertedCount || 0) / c.count) * 100) : 0;
-        csvContent += `"${c.campaign}",${c.count || 0},${c.newCount || 0},${c.convertedCount || 0},"${rate}%","${c.lastSynced || ''}"\n`;
+        csvContent += `"${c.campaign}",${c.count || 0},${c.newCount || 0},${c.positiveCount || 0},${c.negativeCount || 0},"${c.lastSynced || ''}"\n`;
       });
     }
 
@@ -1299,7 +1571,7 @@ export default function MetaLeads() {
       const assigneeMatch = !assigneeFilter || (c.assignedUsers || []).some(u => (u._id || u) === assigneeFilter);
       let statusMatch = true;
       if (statusFilter === 'active') statusMatch = (c.count || 0) > 0;
-      if (statusFilter === 'completed') statusMatch = (c.convertedCount || 0) > 0 && c.convertedCount === c.count;
+      if (statusFilter === 'completed') statusMatch = (c.positiveCount || 0) + (c.negativeCount || 0) > 0 && (c.positiveCount || 0) + (c.negativeCount || 0) === c.count;
       if (statusFilter === 'pending') statusMatch = (c.count || 0) === 0;
 
       let dateMatch = true;
@@ -1342,7 +1614,6 @@ export default function MetaLeads() {
       campaign: selectedCampaign || '',
       count: leadsTotal,
       newCount: 0,
-      convertedCount: 0,
       assignedUsers: []
     };
   }, [campaignStats, selectedCampaign, leadsTotal]);
@@ -1390,15 +1661,15 @@ export default function MetaLeads() {
   // Metrics
   const totalCampaignsCount = campaignStats.length;
   const activeDrives = campaignStats.filter(c => (c.count || 0) > 0).length;
-  const totalConverted = campaignStats.reduce((acc, c) => acc + (c.convertedCount || 0), 0);
-  const avgCompletion = totalLeadsAll > 0 ? Math.round((totalConverted / totalLeadsAll) * 100) : 0;
+  const totalReviewed = campaignStats.reduce((acc, c) => acc + (c.positiveCount || 0) + (c.negativeCount || 0), 0);
+  const avgCompletion = totalLeadsAll > 0 ? Math.round((totalReviewed / totalLeadsAll) * 100) : 0;
 
   // ═══════════════════════════════════════════════════════════════════════════
   // RENDER: VIEW 2 - 3-PANEL CAMPAIGN DETAIL (Exact Match to CampaignDetail.jsx)
   // ═══════════════════════════════════════════════════════════════════════════
   if (selectedCampaign) {
     return (
-      <div className="max-w-7xl mx-auto w-full px-2 sm:px-4 py-3 h-[calc(100vh-64px)] flex flex-col box-border font-sans">
+      <div className="w-full max-w-full mx-auto px-2 sm:px-3 py-2.5 h-[calc(100vh-64px)] flex flex-col box-border font-sans">
         
         {/* Mobile-Only Tab Navigation */}
         <div className="flex md:hidden items-center justify-between mb-2.5 p-1 bg-white border border-slate-200 rounded-xl shadow-xs">
@@ -1431,8 +1702,8 @@ export default function MetaLeads() {
         {/* Main Responsive 3-Panel Card Shell */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row flex-1 overflow-hidden min-h-0">
 
-          {/* ─── LEFT PANEL: Student List ───────────────────────────────────── */}
-          <div className={`w-full md:w-72 xl:w-80 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col overflow-hidden min-h-0 ${
+          {/* ─── LEFT PANEL: Student List (Increased Width) ──────────────────── */}
+          <div className={`w-full md:w-[340px] lg:w-[380px] xl:w-[420px] flex-shrink-0 bg-white border-r border-slate-200 flex flex-col overflow-hidden min-h-0 ${
             activeMobileTab === 'students' ? 'flex' : 'hidden md:flex'
           }`}>
             {/* Back + Campaign Summary Card */}
@@ -1487,45 +1758,25 @@ export default function MetaLeads() {
                 />
               </div>
 
-              {/* ONLY Positive / Negative Dropdown Filter */}
+              {/* Custom Interactive "All Leads" Dropdown Filter with > Arrows */}
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <select
+                <CampaignLeadsFilterDropdown
                   value={leadsStatusFilter}
-                  onChange={e => { setLeadsStatusFilter(e.target.value); setLeadsPage(1); }}
-                  style={{
-                    flex: 1,
-                    fontSize: 11.5,
-                    padding: '5px 8px',
-                    border: `1px solid ${isLeadPositive({ status: leadsStatusFilter }) ? '#a7f3d0' : isLeadNegative({ status: leadsStatusFilter }) ? '#fecdd3' : BORDER}`,
-                    borderRadius: 6,
-                    color: isLeadPositive({ status: leadsStatusFilter }) ? '#059669' : isLeadNegative({ status: leadsStatusFilter }) ? '#dc2626' : TEXT,
-                    background: isLeadPositive({ status: leadsStatusFilter }) ? '#ecfdf5' : isLeadNegative({ status: leadsStatusFilter }) ? '#fff1f2' : '#fff',
-                    outline: 'none',
-                    fontWeight: 600,
-                    cursor: 'pointer'
+                  onChange={(val) => {
+                    setLeadsStatusFilter(val);
+                    setLeadsPage(1);
                   }}
-                >
-                  <option value="">All Leads</option>
-                  <option value="Pending">🟡 Pending Leads ({pendingCount})</option>
-                  <optgroup label="🟢 Positive">
-                    <option value="Positive">All Positive</option>
-                    {POSITIVE_STATUSES.map(s => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="🔴 Negative">
-                    <option value="Negative">All Negative</option>
-                    {NEGATIVE_STATUSES.map(s => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </optgroup>
-                </select>
+                  totalCount={totalCampaignStudents}
+                  pendingCount={pendingCount}
+                  positiveCount={positiveCount}
+                  negativeCount={negativeCount}
+                />
 
                 {isAdmin && (
                   <button
                     onClick={() => handleOpenAssignModal(selectedCampaign)}
                     title="Assign Members"
-                    style={{ background: ORANGE, color: '#fff', border: 'none', borderRadius: 6, padding: '5px 9px', fontSize: 11, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 3 }}
+                    style={{ background: ORANGE, color: '#fff', border: 'none', borderRadius: 6, padding: '6px 9px', fontSize: 11, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 3 }}
                   >
                     <FiUserPlus size={12} />
                     Assign
@@ -1650,6 +1901,7 @@ export default function MetaLeads() {
                   const isSelected = selectedLead?._id === lead._id;
                   const isPos = isLeadPositive(lead);
                   const isNeg = isLeadNegative(lead);
+                  const blocked = isLeadBlocked(lead);
 
                   return (
                     <div
@@ -1664,13 +1916,13 @@ export default function MetaLeads() {
                         padding: '9px 12px',
                         borderBottom: `1px solid #f1f5f9`,
                         cursor: 'pointer',
-                        background: isSelected ? ORANGE_LIGHT : '#fff',
-                        borderLeft: isSelected ? `3px solid ${ORANGE}` : '3px solid transparent',
+                        background: isSelected ? ORANGE_LIGHT : blocked ? '#fff1f2' : '#fff',
+                        borderLeft: isSelected ? `3px solid ${ORANGE}` : blocked ? '3px solid #f43f5e' : '3px solid transparent',
                         transition: 'background 0.1s',
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                        <Avatar name={name} size={28} bg={isSelected ? '#fed7aa' : (isPos ? '#ecfdf5' : isNeg ? '#fff1f2' : ORANGE_LIGHT)} color={isPos ? '#059669' : isNeg ? '#dc2626' : ORANGE} />
+                        <Avatar name={name} size={28} bg={isSelected ? '#fed7aa' : blocked ? '#ffe4e6' : (isPos ? '#ecfdf5' : isNeg ? '#fff1f2' : ORANGE_LIGHT)} color={blocked ? '#e11d48' : isPos ? '#059669' : isNeg ? '#dc2626' : ORANGE} />
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
                             <div style={{ fontSize: 12, fontWeight: 600, color: TEXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -1685,9 +1937,33 @@ export default function MetaLeads() {
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><polyline points="9 18 15 12 9 6" /></svg>
                       </div>
 
-                      {/* Status Badge & Call Date Badge */}
+                      {/* Status Badge / Unblock Action & Call Date Badge */}
                       <div style={{ marginTop: 5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
-                        {(isPos || isNeg) ? (
+                        {blocked ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                            <span style={{ fontSize: 9.5, fontWeight: 700, color: '#be123c', background: '#ffe4e6', border: '1px solid #fecdd3', padding: '1px 6px', borderRadius: 4 }}>
+                              🚫 Blocked
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => handleUnblockLead(lead, e)}
+                              disabled={unblockingId === lead._id}
+                              style={{
+                                fontSize: 9.5,
+                                fontWeight: 700,
+                                color: '#fff',
+                                background: '#059669',
+                                border: 'none',
+                                padding: '2px 7px',
+                                borderRadius: 4,
+                                cursor: unblockingId === lead._id ? 'not-allowed' : 'pointer'
+                              }}
+                              title="Unblock this contact"
+                            >
+                              {unblockingId === lead._id ? 'Unblocking...' : '✓ Unblock'}
+                            </button>
+                          </div>
+                        ) : (isPos || isNeg) ? (
                           <MiniStatus status={lead.status} />
                         ) : <div />}
                         {lead.lastCallAt ? (
@@ -1736,8 +2012,8 @@ export default function MetaLeads() {
             )}
           </div>
 
-          {/* ─── MIDDLE PANEL: Real-Time Calendar, Lead Sentiment & AI Calling ─── */}
-          <div className={`w-full md:w-64 xl:w-72 flex-shrink-0 bg-slate-50/70 border-r border-slate-200 overflow-y-auto p-3 flex flex-col gap-3 min-h-0 ${
+          {/* ─── MIDDLE PANEL: Real-Time Calendar & Lead Sentiment (Increased Width) ─── */}
+          <div className={`w-full md:w-[300px] lg:w-[340px] xl:w-[370px] flex-shrink-0 bg-slate-50/70 border-r border-slate-200 overflow-y-auto p-3 flex flex-col gap-3 min-h-0 ${
             activeMobileTab === 'analytics' ? 'flex' : 'hidden md:flex'
           }`}>
             {/* 1. Real-Time Calendar (Comfortable Height) */}
@@ -1817,12 +2093,6 @@ export default function MetaLeads() {
                 <div style={{ textAlign: 'center', color: MUTED, fontSize: 11, padding: '16px 0', fontWeight: 400 }}>No sentiment data yet</div>
               )}
             </div>
-
-            {/* 3. AI Calling Concept (Placed right below Lead Sentiment) */}
-            <MetaAICallingPanel
-              campaign={selectedCampaign}
-              onStatusChange={() => fetchCampaignLeads(selectedCampaign, leadsPage)}
-            />
 
             {/* Assigned Callers */}
             {activeAssignees.length > 0 && (
@@ -1954,14 +2224,6 @@ export default function MetaLeads() {
               <FiUserPlus className="w-3.5 h-3.5" /> Assign Members
             </button>
           )}
-
-          <button
-            onClick={handleExportCSV}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 shadow-xs transition-colors"
-            style={{ borderColor: BORDER }}
-          >
-            <FiDownload className="w-3.5 h-3.5" /> Export CSV
-          </button>
 
           <button
             onClick={handleSync}
@@ -2182,7 +2444,6 @@ export default function MetaLeads() {
                     { label: 'Status', field: null },
                     { label: 'Team Assignees', field: null },
                     { label: 'Total Leads', field: 'count' },
-                    { label: 'Outreach Progress', field: null },
                     { label: 'Last Synced', field: 'lastSynced' },
                     { label: 'Actions', field: null },
                   ].map((col, idx) => (
@@ -2207,7 +2468,6 @@ export default function MetaLeads() {
                 {filteredCampaigns.map((c) => {
                   const initial = (c.campaign || 'C').charAt(0).toUpperCase();
                   const cleanTitle = c.campaign.replace(/_/g, ' ');
-                  const progressPct = c.count > 0 ? Math.round(((c.convertedCount || 0) / c.count) * 100) : 0;
 
                   return (
                     <tr
@@ -2268,39 +2528,6 @@ export default function MetaLeads() {
                         <div className="flex items-center gap-1.5">
                           <span className="text-xs font-semibold">{c.count || 0}</span>
                           <span className="text-[11px] text-slate-400 font-normal">leads</span>
-                        </div>
-                      </td>
-
-                      {/* Outreach Progress (Live Progress UI) */}
-                      <td className="py-3.5 px-4 whitespace-nowrap min-w-[195px]">
-                        <div className="flex flex-col gap-1.5">
-                          <div className="flex items-center justify-between text-xs">
-                            <div className="flex items-center gap-1.5 font-semibold text-slate-700">
-                              <span className="relative flex h-2 w-2">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                              </span>
-                              <span className="text-[11px] text-slate-600 font-medium">
-                                <strong className="text-slate-900">{c.convertedCount || 0}</strong> / {c.count || 0} Reached
-                              </span>
-                            </div>
-                            <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-sky-50 text-sky-700 border border-sky-200/80">
-                              {progressPct}%
-                            </span>
-                          </div>
-                          <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden p-0.5 border border-slate-200/60">
-                            <div
-                              className="h-full rounded-full transition-all duration-500 ease-out bg-gradient-to-r from-sky-500 via-blue-600 to-emerald-500"
-                              style={{ width: `${Math.min(100, Math.max(progressPct > 0 ? 6 : 0, progressPct))}%` }}
-                            />
-                          </div>
-                          <div className="flex items-center justify-between text-[10px] text-slate-400">
-                            <span className="flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                              <span>Live Outreach</span>
-                            </span>
-                            <span>{Math.max(0, (c.count || 0) - (c.convertedCount || 0))} Pending</span>
-                          </div>
                         </div>
                       </td>
 

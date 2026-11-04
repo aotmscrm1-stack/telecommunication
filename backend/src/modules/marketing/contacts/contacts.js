@@ -246,7 +246,7 @@ router.post('/whatsapp-blast', async (req, res) => {
           performedBy: req.user?._id,
           createdAt: new Date(),
         });
-        targetLead.waStatus = 'intervened';
+        targetLead.waStatus = 'active';
         targetLead.lastWaMessageAt = new Date();
         targetLead.lastWaMessagePreview = descriptionText;
         await targetLead.save();
@@ -280,7 +280,7 @@ router.post('/whatsapp-blast', async (req, res) => {
               deliveryStatus: 'sent',
               createdAt: new Date(),
             });
-            targetLead.waStatus = 'intervened';
+            targetLead.waStatus = 'active';
             targetLead.lastWaMessageAt = new Date();
             targetLead.lastWaMessagePreview = fallbackText;
             await targetLead.save();
@@ -369,7 +369,7 @@ router.post('/send-single-whatsapp', async (req, res) => {
       templateName: template_name,
       createdAt: new Date(),
     });
-    targetLead.waStatus = 'intervened';
+    targetLead.waStatus = 'active';
     targetLead.lastWaMessageAt = new Date();
     targetLead.lastWaMessagePreview = descriptionText;
     await targetLead.save();
