@@ -7,6 +7,7 @@ const MetaCampaignAssignment = require('../../../database/models/MetaCampaignAss
 const MetaSyncState = require('../../../database/models/MetaSyncState');
 const User = require('../../../database/models/User');
 const Department = require('../../../database/models/Department');
+const Integration = require('../../../database/models/Integration');
 const { protect } = require('../../../core/middleware/auth');
 const env = require('../../../config/env');
 const { broadcastWebSocketEvent } = require('../../../app/websocket');
