@@ -33,6 +33,24 @@ function getLocalDateKey(dateStr) {
   return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 }
 
+// Authoritative date key for completed todos (strictly completion date first)
+export function getCompletedTodoDateKey(t) {
+  if (!t) return '';
+  if (t.completedAt) {
+    const k = getLocalDateKey(t.completedAt);
+    if (k) return k;
+  }
+  if (t.initialScheduledAt) {
+    const k = getLocalDateKey(t.initialScheduledAt);
+    if (k) return k;
+  }
+  if (t.createdAt) {
+    const k = getLocalDateKey(t.createdAt);
+    if (k) return k;
+  }
+  return getLocalDateKey(t.scheduledAt || t.dueDate);
+}
+
 // Helper for IST Date formatting
 function formatISTDate(dateStr) {
   if (!dateStr) return '';
@@ -598,12 +616,23 @@ export default function TodoList({
   markingId = null,
   deletingId = null,
   priorityFilter: parentPriorityFilter,
-  setPriorityFilter: parentSetPriorityFilter
+  setPriorityFilter: parentSetPriorityFilter,
+  resetTrigger = 0
 }) {
   const { user: currentUser } = useAuth();
   
   // Real-world Calendar selected date state (YYYY-MM-DD or null, defaults strictly to today in IST)
   const [selectedDate, setSelectedDate] = useState(() => getLocalDateKey(new Date()));
+
+  // Whenever switching to active Todo List & Actions mode, or when resetTrigger fires,
+  // ALWAYS reset the calendar selection to Today so today's todos are visible by default.
+  useEffect(() => {
+    if (!historyMode) {
+      setSelectedDate(getLocalDateKey(new Date()));
+    } else {
+      setSelectedDate(null);
+    }
+  }, [historyMode, resetTrigger]);
 
   // Pagination: strictly 3 cards per row * 2 rows = 6 cards per page
   const ITEMS_PER_PAGE = 6;
@@ -646,7 +675,7 @@ export default function TodoList({
         return;
       }
       const k = historyMode 
-        ? (getLocalDateKey(t.completedAt) || getLocalDateKey(t.scheduledAt))
+        ? getCompletedTodoDateKey(t)
         : getLocalDateKey(t.scheduledAt || t.dueDate || t.createdAt);
       if (k) {
         map[k] = (map[k] || 0) + 1;
@@ -722,9 +751,8 @@ export default function TodoList({
     // Previous days' uncompleted todos are NOT carried forward to other days.
     if (selectedDate) {
       if (historyMode) {
-        const completedDateKey = getLocalDateKey(t.completedAt);
-        const scheduledDateKey = getLocalDateKey(t.scheduledAt || t.dueDate || t.createdAt);
-        if (completedDateKey !== selectedDate && scheduledDateKey !== selectedDate) {
+        const completedDateKey = getCompletedTodoDateKey(t);
+        if (completedDateKey !== selectedDate) {
           return false;
         }
       } else {
@@ -743,6 +771,19 @@ export default function TodoList({
     }
 
     return true;
+  });
+
+  // Sort filtered todos: in history mode, newest completed first; in active mode, earliest due first
+  filteredTodos.sort((a, b) => {
+    if (historyMode) {
+      const timeA = new Date(a.completedAt || a.updatedAt || a.createdAt || 0).getTime();
+      const timeB = new Date(b.completedAt || b.updatedAt || b.createdAt || 0).getTime();
+      return timeB - timeA;
+    } else {
+      const timeA = new Date(a.scheduledAt || a.dueDate || a.createdAt || 0).getTime();
+      const timeB = new Date(b.scheduledAt || b.dueDate || b.createdAt || 0).getTime();
+      return timeA - timeB;
+    }
   });
 
   // Total count matching current mode (active vs history)

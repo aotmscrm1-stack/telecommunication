@@ -2668,6 +2668,8 @@ export default function Task() {
     'Call Followups': false,
   });
 
+  const [todoResetTrigger, setTodoResetTrigger] = useState(0);
+
   const historyMode = !!historyModeMap[activeTab];
 
   const setHistoryMode = (valOrFn) => {
@@ -2682,6 +2684,8 @@ export default function Task() {
     setActiveTab(tab);
     const idPrefix = activeUserId ? `/${activeUserId}` : currentUser?._id ? `/${currentUser._id}` : '';
     if (tab === 'Todo') {
+      setHistoryModeMap(prev => ({ ...prev, Todo: false }));
+      setTodoResetTrigger(prev => prev + 1);
       navigate(`${idPrefix}/todo`);
     } else {
       navigate(`${idPrefix}/tasks`);
@@ -3312,7 +3316,10 @@ export default function Task() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <button
               type="button"
-              onClick={() => setHistoryMode(false)}
+              onClick={() => {
+                setHistoryMode(false);
+                setTodoResetTrigger(prev => prev + 1);
+              }}
               style={{
                 padding: '11px 22px',
                 fontSize: 15,
@@ -3928,6 +3935,7 @@ export default function Task() {
           deletingId={deletingTaskId}
           priorityFilter={priorityFilter}
           setPriorityFilter={setPriorityFilter}
+          resetTrigger={todoResetTrigger}
         />
       </div>
     </div>
