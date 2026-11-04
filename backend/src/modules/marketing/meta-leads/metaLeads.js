@@ -287,20 +287,67 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Request body is empty' });
     }
 
-    // Support both single item and array of items
-    const items = Array.isArray(payload) ? payload : [payload];
-    if (items.length === 0) {
-      return res.status(400).json({ success: false, message: 'No lead items provided' });
+    // Support explicit delete action
+    if (payload.action === 'delete') {
+      const campaign = payload.campaign || payload.campaign_name || payload.tab;
+      const { metaLeadId, phone, normalizedPhone, email } = extractCoreIdentifiers(payload.rawData || payload);
+      const filter = {};
+      if (campaign) filter.campaign = campaign;
+      const orConditions = [];
+      if (payload.leadId) orConditions.push({ _id: payload.leadId });
+      if (metaLeadId) orConditions.push({ metaLeadId });
+      if (normalizedPhone) orConditions.push({ normalizedPhone }, { phone });
+      if (email) orConditions.push({ email });
+      if (orConditions.length > 0) {
+        filter.$or = orConditions;
+        const delRes = await MetaLead.deleteMany(filter);
+        const deletedCount = delRes.deletedCount || 0;
+        try {
+          broadcastWebSocketEvent('meta_leads:changed', {
+            deletedCount,
+            campaign: campaign || 'Meta Campaign',
+            timestamp: Date.now()
+          });
+        } catch (_) {}
+        return res.status(200).json({
+          success: true,
+          message: `Deleted ${deletedCount} lead(s) successfully`,
+          deletedCount
+        });
+      }
+    }
+
+    // Support single item, raw array, or structured batch ({ campaign, isFullTabSync, leads: [...] })
+    let items = [];
+    let isFullTabSync = false;
+    let campaignScope = null;
+
+    if (Array.isArray(payload)) {
+      items = payload;
+    } else if (payload && Array.isArray(payload.leads)) {
+      items = payload.leads;
+      isFullTabSync = Boolean(payload.isFullTabSync);
+      campaignScope = payload.campaign || (items[0] && items[0].campaign);
+    } else if (payload && Array.isArray(payload.data)) {
+      items = payload.data;
+      isFullTabSync = Boolean(payload.isFullTabSync);
+      campaignScope = payload.campaign || (items[0] && items[0].campaign);
+    } else if (payload && typeof payload === 'object') {
+      items = [payload];
+      isFullTabSync = Boolean(payload.isFullTabSync);
+      campaignScope = payload.campaign;
     }
 
     let insertedCount = 0;
     let updatedCount = 0;
     let skippedCount = 0;
+    let deletedCount = 0;
+    const activeLeadIds = [];
     const results = [];
 
     for (const item of items) {
-      const campaign = item.campaign || item.campaign_name || item.tab || 'General_Meta_Leads';
-      const source = item.source || 'google_sheets_meta';
+      const campaign = item.campaign || item.campaign_name || item.tab || campaignScope || 'General_Meta_Leads';
+      const source = item.source || 'google_sheets_apps_script';
       const rawData = item.rawData || item;
 
       // Extract structured identifiers
@@ -407,6 +454,24 @@ router.post('/', async (req, res) => {
       }
     }
 
+    // Full Tab Sync: Erase any leads from this campaign in DB that were deleted from Google Sheet
+    if (isFullTabSync && campaignScope) {
+      if (activeLeadIds.length > 0) {
+        const delRes = await MetaLead.deleteMany({
+          campaign: campaignScope,
+          _id: { $nin: activeLeadIds }
+        });
+        deletedCount = delRes.deletedCount || 0;
+        if (deletedCount > 0) {
+          console.log(`[MetaLeads Apps Script Sync] Erased ${deletedCount} deleted lead(s) from campaign "${campaignScope}" that were removed from Google Sheet.`);
+        }
+      } else if (items.length === 0) {
+        // Sheet tab has 0 leads left -> delete all leads in that campaign
+        const delRes = await MetaLead.deleteMany({ campaign: campaignScope });
+        deletedCount = delRes.deletedCount || 0;
+      }
+    }
+
     // Update MetaSyncState tracking
     try {
       await MetaSyncState.findOneAndUpdate(
@@ -420,7 +485,7 @@ router.post('/', async (req, res) => {
           },
           $set: {
             lastFinishedAt: new Date(),
-            message: `Ingested ${items.length} leads (${insertedCount} new, ${updatedCount} updated, ${skippedCount} skipped)`
+            message: `Ingested ${items.length} leads (${insertedCount} new, ${updatedCount} updated, ${deletedCount} deleted, ${skippedCount} skipped)`
           }
         },
         { upsert: true }
@@ -432,24 +497,28 @@ router.post('/', async (req, res) => {
       broadcastWebSocketEvent('meta_leads:changed', {
         insertedCount,
         updatedCount,
+        deletedCount,
         skippedCount,
         totalProcessed: items.length,
-        campaign: items[0]?.campaign || 'Meta Campaign',
+        campaign: campaignScope || items[0]?.campaign || 'Meta Campaign',
         timestamp: Date.now()
       });
-      broadcastWebSocketEvent('lead:created', {
-        source: 'meta_leads',
-        insertedCount,
-        timestamp: Date.now()
-      });
+      if (insertedCount > 0) {
+        broadcastWebSocketEvent('lead:created', {
+          source: 'meta_leads',
+          insertedCount,
+          timestamp: Date.now()
+        });
+      }
     } catch (_) {}
 
     res.status(201).json({
       success: true,
-      message: `Processed ${items.length} lead(s). (${insertedCount} new, ${updatedCount} synced/updated, ${skippedCount} skipped)`,
+      message: `Processed ${items.length} lead(s). (${insertedCount} new, ${updatedCount} synced/updated, ${deletedCount} deleted, ${skippedCount} skipped)`,
       totalProcessed: items.length,
       insertedCount,
       updatedCount,
+      deletedCount,
       skippedCount
     });
   } catch (err) {
