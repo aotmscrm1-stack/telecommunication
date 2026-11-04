@@ -10,7 +10,7 @@ const Department = require('../../../database/models/Department');
 const { protect } = require('../../../core/middleware/auth');
 const env = require('../../../config/env');
 const { broadcastWebSocketEvent } = require('../../../app/websocket');
-const { syncAllMetaSheets } = require('./googleSheetsSyncService');
+const { syncAllMetaSheets, parseTabName } = require('./googleSheetsSyncService');
 
 const POSITIVE_SUB_STATUSES = [
   "Agreed to Office visit's but no luck",
@@ -723,6 +723,29 @@ router.get('/campaigns', protect, async (req, res) => {
         assignedUsers: assignmentMap[s._id] || []
       };
     });
+
+    // Merge all sheet sources from Google Sheets integration so newly added or 0-lead sheets are immediately visible in Meta Leads!
+    const googleIntegration = await Integration.findOne({ type: 'google_sheets' }).lean();
+    const sheetSources = googleIntegration?.config?.sheetSources || [];
+    for (const src of sheetSources) {
+      const tabName = parseTabName(src.sheetRange, src.name);
+      const campName = src.campaign || src.name || tabName;
+      if (campName && !campaigns.some(c => c.campaign === campName)) {
+        if (!allowedCampaigns || allowedCampaigns.includes(campName)) {
+          campaigns.push({
+            campaign: campName,
+            count: 0,
+            lastSynced: null,
+            newCount: 0,
+            convertedCount: 0,
+            positiveCount: 0,
+            negativeCount: 0,
+            pendingCount: 0,
+            assignedUsers: assignmentMap[campName] || []
+          });
+        }
+      }
+    }
 
     // If an assigned campaign doesn't have leads in MetaLead yet, include it so the tele-caller can see the tab
     if (allowedCampaigns) {

@@ -249,12 +249,13 @@ function extractCoreIdentifiers(rawData) {
 }
 
 function parseTabName(range, name) {
-  if (name && name.trim()) return name.trim();
-  if (!range) return 'Sheet1';
-  // If range is like "'Digital Marketing_Leads'!A:ZZ" or "SAP_Leads!A1:Z"
-  const match = range.match(/^'?([^'!]+)'?!/);
-  if (match) return match[1].trim();
-  return range.split('!')[0].replace(/^'|'$/g, '').trim();
+  if (range && typeof range === 'string') {
+    const match = range.match(/^'?([^'!]+)'?!/);
+    if (match && match[1]) return match[1].trim();
+    if (range.includes('!')) return range.split('!')[0].replace(/^'|'$/g, '').trim();
+  }
+  if (name && typeof name === 'string' && name.trim()) return name.trim();
+  return 'Sheet1';
 }
 
 /**
@@ -486,10 +487,6 @@ async function ingestRowsIntoMetaLeads(rows, campaignName, sourceLabel) {
 async function ensureGoogleSheetsIntegration() {
   try {
     let integration = await Integration.findOne({ type: 'google_sheets' });
-    if (integration) {
-      integration.config.sheetSources = DEFAULT_META_SHEET_SOURCES;
-      await integration.save();
-    }
     if (!integration) {
       integration = await Integration.create({
         name: 'Google Sheets',
@@ -510,9 +507,9 @@ async function ensureGoogleSheetsIntegration() {
         }
       });
     } else {
-      // Check if sheetSources is empty or missing sources
+      // Check if sheetSources is completely empty; only initialize defaults if empty
       const existingSources = integration.config?.sheetSources || [];
-      if (existingSources.length < DEFAULT_META_SHEET_SOURCES.length) {
+      if (existingSources.length === 0) {
         integration.config = {
           ...(integration.config || {}),
           sheetSources: DEFAULT_META_SHEET_SOURCES,
@@ -648,6 +645,16 @@ async function syncAllMetaSheets() {
     }).catch(() => {});
   }
 
+  try {
+    const { broadcastWebSocketEvent } = require('../../../app/websocket');
+    broadcastWebSocketEvent('meta_leads:changed', {
+      totalProcessed,
+      insertedCount,
+      updatedCount,
+      timestamp: Date.now()
+    });
+  } catch (_) {}
+
   console.log(`[MetaLeads Native Sync] ${completionMessage}`);
   return {
     success: true,
@@ -668,6 +675,7 @@ module.exports = {
   getSheetHeaders,
   ingestRowsIntoMetaLeads,
   ensureGoogleSheetsIntegration,
-  syncAllMetaSheets
+  syncAllMetaSheets,
+  parseTabName
 };
 
