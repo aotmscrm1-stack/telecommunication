@@ -12,7 +12,7 @@ import {
   FaBan, FaUserGear, FaKey, FaPlug, FaCircleInfo, FaCoins, FaSitemap,
   FaCode, FaBell, FaChevronDown, FaBars, FaXmark, FaRightFromBracket,
   FaUser, FaLock, FaUserCheck, FaBook, FaCalendarDays,
-  FaChartLine, FaMobileScreen, FaDownload
+  FaChartLine, FaMobileScreen, FaDownload, FaPhoneVolume
 } from 'react-icons/fa6';
 import { SiGooglesheets } from 'react-icons/si';
 import { isCEO, isHR, isManager, isLimitedStaff, canViewDashboard, canViewCallRecordings, isDigitalMarketing, canAccessDigitalCalendar, normalizeDesignation, canViewCallFollowups, canAccessMarketingLeads, canAccessDailyActivity, isTelecaller } from '../../../utils/permissions';
@@ -576,6 +576,14 @@ export default function Navbar() {
           badge: 'Google Sheets'
         },
         {
+          id: 'ai-calling',
+          title: 'AI Calling',
+          icon: FaPhoneVolume,
+          path: '/ai-calling',
+          isDirect: true,
+          badge: 'AI'
+        },
+        {
           id: 'performance',
           title: 'Performance',
           icon: FaChartLine,
@@ -593,6 +601,7 @@ export default function Navbar() {
         { label: 'WhatsApp Blast', path: '/whatsapp-blast', icon: WhatsAppBlastIcon },
         { label: 'WhatsApp', path: '/whatsapp', icon: FaWhatsapp },
         { label: 'Meta Leads', path: '/meta-leads', icon: GoogleSheetsIcon },
+        { label: 'AI Calling', path: '/ai-calling', icon: FaPhoneVolume, badge: 'AI' },
         { label: 'Leaderboard', path: '/leaderboard', icon: FaTrophy },
         { label: 'Report', path: '/reports', icon: FaChartPie },
       ]
@@ -637,6 +646,7 @@ export default function Navbar() {
       icon: FaBullhorn,
       items: [
         { label: 'Meta Leads', path: '/meta-leads', icon: GoogleSheetsIcon },
+        { label: 'AI Calling', path: '/ai-calling', icon: FaPhoneVolume, badge: 'AI' },
       ]
     }] : []),
     ...(canAccessDigitalCalendar(user) ? [{
@@ -715,6 +725,14 @@ export default function Navbar() {
           badge: 'Google Sheets'
         },
         {
+          id: 'ai-calling',
+          title: 'AI Calling',
+          icon: FaPhoneVolume,
+          path: '/ai-calling',
+          isDirect: true,
+          badge: 'AI'
+        },
+        {
           id: 'performance',
           title: 'Performance',
           icon: FaChartLine,
@@ -732,6 +750,7 @@ export default function Navbar() {
         { label: 'WhatsApp Blast', path: '/whatsapp-blast', icon: WhatsAppBlastIcon },
         { label: 'WhatsApp', path: '/whatsapp', icon: FaWhatsapp },
         { label: 'Meta Leads', path: '/meta-leads', icon: GoogleSheetsIcon },
+        { label: 'AI Calling', path: '/ai-calling', icon: FaPhoneVolume, badge: 'AI' },
         { label: 'Leaderboard', path: '/leaderboard', icon: FaTrophy },
         { label: 'Report', path: '/reports', icon: FaChartPie },
       ]
@@ -739,7 +758,8 @@ export default function Navbar() {
       title: 'Marketing',
       icon: FaBullhorn,
       items: [
-        { label: 'Meta Leads', path: '/meta-leads', icon: GoogleSheetsIcon, badge: 'Assigned Leads' }
+        { label: 'Meta Leads', path: '/meta-leads', icon: GoogleSheetsIcon, badge: 'Assigned Leads' },
+        { label: 'AI Calling', path: '/ai-calling', icon: FaPhoneVolume, badge: 'AI' }
       ]
     },
     { title: 'Finance', icon: FaCoins, items: [
