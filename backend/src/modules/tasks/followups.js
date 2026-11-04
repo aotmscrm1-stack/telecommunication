@@ -49,6 +49,7 @@ function fireAndForget(fn) {
 }
 
 function getTargetModel(type) {
+  if (type === 'todo') return Todo;
   return FollowUp;
 }
 
@@ -234,6 +235,43 @@ router.get('/', protect, async (req, res) => {
       }
     }
 
+    if (type === 'todo') {
+      const todoResults = await Todo.find(query)
+        .populate('lead', 'name phone status')
+        .populate('assignedTo', 'name avatar department designation')
+        .populate('assignedBy', 'name avatar department designation')
+        .populate('completedBy', 'name avatar')
+        .populate('createdBy', 'name avatar department designation')
+        .sort({ scheduledAt: 1, createdAt: -1 });
+
+      const sanitized = todoResults.map(f => {
+        const doc = f.toObject ? f.toObject() : { ...f };
+        doc.type = 'todo';
+        doc.scheduledAt = doc.scheduledAt || doc.dueDate || doc.startDate || doc.createdAt;
+        doc.dueDate = doc.dueDate || doc.scheduledAt;
+        doc.note = doc.note || doc.description || doc.title || '';
+        doc.title = doc.title || doc.note || doc.description || '';
+        doc.description = doc.description || doc.note || doc.title || '';
+        if (doc.status === 'completed' || doc.status === 'done' || doc.completedAt) doc.status = 'done';
+        else if (doc.status === 'pending' || doc.status === 'in_progress') doc.status = 'upcoming';
+
+        if (!doc.assignedBy) {
+          if (doc.createdBy && typeof doc.createdBy === 'object') {
+            doc.assignedBy = doc.createdBy;
+          } else if (f.get && (f.get('assignedBy') === 'all' || f.get('assignedBy') === 'All')) {
+            doc.assignedBy = { _id: 'all', name: 'All' };
+          } else {
+            doc.assignedBy = doc.assignedTo || { _id: 'all', name: 'All' };
+          }
+        } else if (doc.assignedBy === 'all' || doc.assignedBy === 'All') {
+          doc.assignedBy = { _id: 'all', name: 'All' };
+        }
+        return doc;
+      });
+
+      return res.json({ followups: sanitized, total: sanitized.length });
+    }
+
     const ModelClass = getTargetModel(type);
     let reqQueryFind = ModelClass.find(query)
       .populate('lead', 'name phone status')
@@ -244,25 +282,6 @@ router.get('/', protect, async (req, res) => {
     const results = await reqQueryFind.sort({ scheduledAt: 1, createdAt: -1 });
 
     let allDocs = [...results];
-    if (type === 'todo') {
-      try {
-        const todoResults = await Todo.find(query)
-          .populate('lead', 'name phone status')
-          .populate('assignedTo', 'name avatar department designation')
-          .populate('assignedBy', 'name avatar department designation')
-          .populate('completedBy', 'name avatar')
-          .populate('createdBy', 'name avatar department designation')
-          .sort({ scheduledAt: 1, createdAt: -1 });
-        const existingIds = new Set(results.map(r => String(r._id)));
-        for (const tr of todoResults) {
-          if (!existingIds.has(String(tr._id))) {
-            allDocs.push(tr);
-          }
-        }
-      } catch (e) {
-        // silent fallback
-      }
-    }
 
     const sanitized = allDocs.map(f => {
       const doc = f.toObject ? f.toObject() : { ...f };
