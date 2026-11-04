@@ -154,6 +154,15 @@ router.put('/:id', protect, authorize('manager', 'admin'), async (req, res) => {
       .populate('defaultCampaign', 'name')
       .populate('defaultAssignedTo', 'name role');
     if (!integration) return res.status(404).json({ message: 'Integration not found' });
+    if (integration.type === 'google_sheets') {
+      try {
+        const { broadcastWebSocketEvent } = require('../app/websocket');
+        broadcastWebSocketEvent('meta_leads:changed', {
+          action: 'sheets_updated',
+          timestamp: Date.now()
+        });
+      } catch (_) {}
+    }
     res.json(integration);
   } catch (err) {
     res.status(500).json({ message: err.message });

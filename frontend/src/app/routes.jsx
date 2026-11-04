@@ -231,6 +231,7 @@ export function AppRoutes() {
         <Route path="campaigns/:id" element={<StaffRestrictedRoute><CampaignDetail /></StaffRestrictedRoute>} />
         <Route path="meta-leads" element={<MetaLeadsRoute><MetaLeads /></MetaLeadsRoute>} />
         <Route path="marketing/meta-leads" element={<MetaLeadsRoute><MetaLeads /></MetaLeadsRoute>} />
+        <Route path="ai-calling" element={<MetaLeadsRoute><MetaLeads /></MetaLeadsRoute>} />
         <Route path="leaderboard" element={<StaffRestrictedRoute><Leaderboard /></StaffRestrictedRoute>} />
         <Route path="reports" element={<StaffRestrictedRoute><Reports /></StaffRestrictedRoute>} />
         <Route path="contacts" element={<StaffRestrictedRoute><Contacts /></StaffRestrictedRoute>} />

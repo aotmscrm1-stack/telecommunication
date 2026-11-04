@@ -103,7 +103,7 @@ export function MetaLeadStatusPicker({ status, onStatusChange }) {
 
   const isPos = status === 'Positive' || POSITIVE_SUB_STATUSES.includes(status);
   const isNeg = status === 'Negative' || NEGATIVE_SUB_STATUSES.includes(status);
-  const displayStatus = (status && status !== 'Fresh' && status !== 'New') ? status : 'Call Summary';
+  const displayStatus = (isPos || isNeg) ? status : 'Call Summary';
 
   return (
     <div className="relative inline-block text-left" ref={containerRef}>
@@ -1415,7 +1415,9 @@ export default function LeadDetailsPage({
   const handleCallbackScheduled = async (followup, scheduledAt) => {
     setShowCallbackModal(false);
     try {
-      await leadsAPI.updateStatus(lead._id, { status: 'Call Back Later' });
+      if (!isMeta) {
+        await leadsAPI.updateStatus(lead._id, { status: 'Call Back Later' });
+      }
       await fetchLeadDetails();
     } catch (err) { console.error(err); }
   };

@@ -300,7 +300,11 @@ export default function IntegrationDetail() {
       if (type === 'google_sheets') {
         const cleanSources = sheetSources
           .filter(src => src.sheetId)
-          .map(({ columns, columnsLoading, columnsError, availableTabs, showNewCampaign, newCampaignName, creatingCampaign, ...rest }) => rest);
+          .map(({ columns, columnsLoading, columnsError, availableTabs, showNewCampaign, newCampaignName, creatingCampaign, ...rest }, idx) => ({
+            ...rest,
+            name: rest.name || `Sheet ${idx + 1}`,
+            campaign: rest.campaign || rest.name || `Sheet ${idx + 1}`
+          }));
         payloadConfig = { ...config, sheetSources: cleanSources, sheetId: cleanSources[0]?.sheetId || '', sheetRange: cleanSources[0]?.sheetRange || '' };
         payloadMapping = cleanSources[0]?.fieldMapping || fieldMapping;
       }
@@ -411,7 +415,25 @@ export default function IntegrationDetail() {
     updateSheetSource(idx, { columnsLoading: true, columnsError: '' });
     try {
       const res = await integrationsAPI.getSheetColumns(id, src.sheetId, src.sheetRange);
-      updateSheetSource(idx, { columns: res.data.columns || [], columnsLoading: false });
+      const cols = res.data.columns || [];
+      updateSheetSource(idx, { columns: cols, columnsLoading: false });
+      // Auto-save the sheet sources immediately so newly added sheets are never lost when navigating to Meta Leads
+      setTimeout(async () => {
+        try {
+          const currentSources = sheetSources.map((s, i) => i === idx ? { ...s, columns: cols } : s);
+          const cleanSources = currentSources
+            .filter(s => s.sheetId)
+            .map(({ columns, columnsLoading, columnsError, availableTabs, showNewCampaign, newCampaignName, creatingCampaign, ...rest }, sIdx) => ({
+              ...rest,
+              name: rest.name || `Sheet ${sIdx + 1}`,
+              campaign: rest.campaign || rest.name || `Sheet ${sIdx + 1}`
+            }));
+          await integrationsAPI.update(id, {
+            config: { ...config, sheetSources: cleanSources, sheetId: cleanSources[0]?.sheetId || '', sheetRange: cleanSources[0]?.sheetRange || '' },
+            fieldMapping: cleanSources[0]?.fieldMapping || fieldMapping
+          });
+        } catch (_) {}
+      }, 50);
     } catch (err) {
       updateSheetSource(idx, {
         columnsLoading: false,
@@ -697,7 +719,9 @@ export default function IntegrationDetail() {
                             </div>
                           )}
                           {src.columns.length > 0 && (
-                            <div style={{ fontSize: 12, color: '#059669' }}>✓ {src.columns.length} columns loaded — map them in Step 2</div>
+                            <div style={{ fontSize: 12, color: '#059669', fontWeight: 600 }}>
+                              ✓ {src.columns.length} columns loaded — Sheet & Campaign saved and visible in Meta Leads!
+                            </div>
                           )}
                         </div>
                       </div>
