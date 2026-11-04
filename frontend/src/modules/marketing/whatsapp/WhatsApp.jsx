@@ -1707,52 +1707,76 @@ export default function WhatsApp() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-84px)] max-h-[calc(100vh-84px)] bg-slate-50 w-full overflow-hidden">
-      {/* Top Bar */}
-      <header className="bg-white border-b border-slate-200 px-4 sm:px-6 h-13 flex items-center justify-between shrink-0 z-20">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-xs">
-              <MessageSquare className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="text-xs font-bold text-slate-900 leading-none">WhatsApp CRM</div>
-              <div className="text-[10px] text-blue-600 font-semibold leading-none mt-0.5">
-                Business Suite
+      {/* Sub-Navbar Moved Down & Fully Responsive */}
+      <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 pt-2.5 sm:pt-3 pb-1 shrink-0 z-20">
+        <header className="bg-white border border-slate-200/90 rounded-2xl px-3 sm:px-5 py-2 sm:py-2.5 flex items-center justify-between shadow-xs gap-2 flex-wrap sm:flex-nowrap">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs shrink-0">
+                <MessageSquare className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs sm:text-sm font-bold text-slate-900 leading-tight truncate">WhatsApp CRM</div>
+                <div className="text-[10px] text-blue-600 font-semibold leading-tight mt-0.5 truncate">
+                  Business Suite
+                </div>
               </div>
             </div>
+
+            <div className="h-4 w-px bg-slate-200 mx-0.5 sm:mx-1 shrink-0" />
+
+            <HamburgerMenu activeTab={activeTab} onSelect={setActiveTab} />
+
+            <div className="hidden md:flex items-center gap-1.5 ml-1 text-xs font-semibold text-slate-700">
+              <span className="text-blue-600">{activeItem.icon}</span>
+              <span>{activeItem.label}</span>
+            </div>
           </div>
 
-          <div className="h-4 w-px bg-slate-200 mx-1" />
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Responsive Quick Tab Toggle Buttons */}
+            <div className="flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-200/80">
+              {NAV_ITEMS.map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => setActiveTab(item.key)}
+                  className={cn(
+                    'px-2.5 sm:px-3 py-1 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5',
+                    activeTab === item.key
+                      ? 'bg-white text-blue-700 shadow-2xs font-bold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  )}
+                >
+                  <span className={activeTab === item.key ? 'text-blue-600' : 'text-slate-400'}>
+                    {item.icon}
+                  </span>
+                  <span>{item.label}</span>
+                </button>
+              ))}
+            </div>
 
-          <HamburgerMenu activeTab={activeTab} onSelect={setActiveTab} />
-
-          <div className="hidden sm:flex items-center gap-2 ml-1 text-xs font-semibold text-slate-700">
-            <span className="text-blue-600">{activeItem.icon}</span>
-            <span>{activeItem.label}</span>
+            <button
+              onClick={handleSyncData}
+              disabled={syncingData}
+              className={cn(
+                'px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all shadow-2xs',
+                syncSuccess
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : syncingData
+                  ? 'bg-blue-50 text-blue-700 border-blue-200 cursor-not-allowed'
+                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+              )}
+            >
+              <RefreshCw className={cn('w-3.5 h-3.5', syncingData && 'animate-spin')} />
+              <span className="hidden sm:inline">{syncingData ? 'Syncing...' : syncSuccess ? 'Synced' : 'Sync'}</span>
+            </button>
           </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleSyncData}
-            disabled={syncingData}
-            className={cn(
-              'px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-all shadow-2xs',
-              syncSuccess
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                : syncingData
-                ? 'bg-blue-50 text-blue-700 border-blue-200 cursor-not-allowed'
-                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-            )}
-          >
-            <RefreshCw className={cn('w-3.5 h-3.5', syncingData && 'animate-spin')} />
-            <span>{syncingData ? 'Syncing...' : syncSuccess ? 'Synced' : 'Sync'}</span>
-          </button>
-        </div>
-      </header>
+        </header>
+      </div>
 
       {/* Main Body — Responsive Decreased Width */}
-      <main className="flex-1 min-h-0 w-full max-w-7xl mx-auto p-2 sm:p-4 flex flex-col overflow-hidden">
+      <main className="flex-1 min-h-0 w-full max-w-7xl mx-auto p-2 sm:p-4 pt-1 sm:pt-2 flex flex-col overflow-hidden">
         <div className="flex-1 min-h-0 flex flex-col bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
           {activeTab === 'inbox' && <InboxTab onSendTemplate={() => setActiveTab('templates')} />}
           {activeTab === 'templates' && <TemplatesTab />}

@@ -1,3 +1,4 @@
+import React from 'react';
 import { toast } from 'sonner';
 
 const STORAGE_KEY = 'aotms_note_reminders_pending';
@@ -310,7 +311,7 @@ class LeadNoteReminderService {
    * Tracks a lead when their status is set to "office visit's" or "Demo attended".
    * If they don't have a note, shows an immediate toast and sets up recurring 5-minute reminders.
    */
-  trackLead({ id, name, status, hasExistingNote = false }) {
+  trackLead({ id, name, status, createdBy, hasExistingNote = false }) {
     if (!id || !isStatusRequiringNote(status)) {
       if (id && status && !isStatusRequiringNote(status)) {
         // If status changed away from office visit/demo attended, stop reminders
@@ -332,6 +333,7 @@ class LeadNoteReminderService {
       id,
       name: name || 'Student',
       status,
+      createdBy: createdBy || existing?.createdBy || 'Caller / Staff',
       registeredAt: existing?.registeredAt || now,
       lastRemindedAt: now,
     };
@@ -365,27 +367,122 @@ class LeadNoteReminderService {
   }
 
   /**
-   * Displays the Sonner toast notification in the right corner with an "Add Note" button.
+   * Displays the styled custom Sonner toast notification with 5-second countdown timeline progress bar and creator name.
    */
   showToast(entry) {
     if (!entry || !entry.id) return;
+    const creator = entry.createdBy || 'Staff';
 
-    toast.warning(`📝 Note Required: ${entry.name}`, {
-      id: `note-reminder-${entry.id}`,
-      description: `Status is "${entry.status}". Please add a counsellor note for this student.`,
-      duration: 15000, // 15 seconds display
-      action: {
-        label: 'Add Note',
-        onClick: () => {
-          // Dispatch custom event to open the note modal
-          window.dispatchEvent(
-            new CustomEvent('open-lead-note-modal', {
-              detail: { leadId: entry.id, leadName: entry.name, status: entry.status },
+    toast.custom(
+      (t) =>
+        React.createElement(
+          'div',
+          {
+            className:
+              'relative overflow-hidden w-full max-w-sm sm:max-w-md bg-white border border-amber-200/90 rounded-2xl shadow-2xl p-4 text-slate-800 flex flex-col gap-2.5 transition-all select-none',
+            style: {
+              minWidth: '320px',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+            },
+          },
+          // Top Row: Icon + Title + Creator Badge + Close Button
+          React.createElement(
+            'div',
+            { className: 'flex items-start justify-between gap-2.5' },
+            React.createElement(
+              'div',
+              { className: 'flex items-start gap-2.5' },
+              React.createElement(
+                'div',
+                {
+                  className:
+                    'w-8 h-8 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center flex-shrink-0 text-base shadow-xs border border-amber-200/60',
+                },
+                '📝'
+              ),
+              React.createElement(
+                'div',
+                null,
+                React.createElement(
+                  'h4',
+                  { className: 'text-xs font-bold text-slate-900 leading-tight' },
+                  `Note Required: ${entry.name}`
+                ),
+                React.createElement(
+                  'div',
+                  {
+                    className:
+                      'inline-flex items-center gap-1.5 mt-1 px-2 py-0.5 rounded-md text-[10.5px] font-medium bg-amber-50 text-amber-800 border border-amber-200/70',
+                  },
+                  React.createElement('span', { className: 'text-amber-600' }, '👤 Created by:'),
+                  React.createElement('span', { className: 'font-semibold text-slate-900' }, creator)
+                )
+              )
+            ),
+            React.createElement(
+              'button',
+              {
+                onClick: () => toast.dismiss(t),
+                className:
+                  'w-6 h-6 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors text-xs cursor-pointer',
+                title: 'Close',
+              },
+              '✕'
+            )
+          ),
+          // Middle Row: Description & Status
+          React.createElement(
+            'p',
+            { className: 'text-xs text-slate-600 leading-relaxed pl-10' },
+            'Status is ',
+            React.createElement(
+              'span',
+              {
+                className:
+                  'font-semibold text-amber-800 bg-amber-50/80 px-1.5 py-0.5 rounded border border-amber-200/60',
+              },
+              `"${entry.status}"`
+            ),
+            '. Please add a counsellor note for this student.'
+          ),
+          // Action Row: "Add Note" Button
+          React.createElement(
+            'div',
+            { className: 'flex items-center justify-end gap-2 pt-1 pl-10' },
+            React.createElement(
+              'button',
+              {
+                onClick: () => {
+                  toast.dismiss(t);
+                  window.dispatchEvent(
+                    new CustomEvent('open-lead-note-modal', {
+                      detail: { leadId: entry.id, leadName: entry.name, status: entry.status },
+                    })
+                  );
+                },
+                className:
+                  'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-slate-900 hover:bg-black active:scale-95 transition-all shadow-xs cursor-pointer',
+              },
+              'Add Note'
+            )
+          ),
+          // Bottom 5-second Progress Bar Timeline
+          React.createElement(
+            'div',
+            {
+              className: 'absolute bottom-0 left-0 right-0 h-1 bg-amber-100/70 overflow-hidden',
+            },
+            React.createElement('div', {
+              className: 'h-full bg-amber-500 rounded-full animate-toast-progress-5s',
+              style: { width: '100%' },
             })
-          );
-        },
-      },
-    });
+          )
+        ),
+      {
+        id: `note-reminder-${entry.id}`,
+        duration: 5000, // 5 seconds display with auto close
+      }
+    );
   }
 
   /**

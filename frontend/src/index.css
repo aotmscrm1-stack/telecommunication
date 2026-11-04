@@ -484,4 +484,19 @@ input, select, textarea { font-size: 16px; }
 .custom-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: #94a3b8 #f1f5f9;
-}
+}
+
+/* ================= 5-SECOND TOAST TIMELINE PROGRESS BAR ================= */
+@keyframes toastProgress5s {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
+.animate-toast-progress-5s {
+  animation: toastProgress5s 5s linear forwards;
+}
+

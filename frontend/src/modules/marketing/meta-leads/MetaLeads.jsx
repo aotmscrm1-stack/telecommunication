@@ -4,11 +4,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { metaLeadsAPI, usersAPI, blocklistAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import AssignMembersModal from './AssignMembersModal';
+import DeleteCampaignModal from './DeleteCampaignModal';
 import LeadDetailsPage, { cleanLeadName } from '../../../components/LeadDetails/LeadDetailsPage';
 import leadNoteReminderService, { isStatusRequiringNote, leadHasNote, isAdminOrManager } from '../../../services/leadNoteReminderService';
 import AutoScrollText from '../../../components/common/AutoScrollText';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
-
 
 import {
   FiPlus, FiRefreshCw, FiSearch, FiLayers, FiUsers, FiCalendar,
@@ -1081,46 +1081,8 @@ export default function MetaLeads() {
   const [assignments, setAssignments] = useState([]);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assignModalCampaign, setAssignModalCampaign] = useState('');
-
-  // ── Clean zero-width, mojibake, or unformatted lead names ────────────────
-  const cleanLeadName = (rawName) => {
-    if (!rawName || typeof rawName !== 'string') return '';
-    let str = rawName;
-
-    // 1. Remove mojibake sequences of ZWNJ / ZWJ / BOM that got decoded as Windows-1252
-    str = str.replace(/â€Œ/g, '')
-             .replace(/â€‹/g, '')
-             .replace(/â€/g, '')
-             .replace(/ï»¿/g, '');
-
-    // 2. Remove leading/trailing or repeated â characters if they are artifacts of zero-width mojibake
-    str = str.replace(/^[\sâ\u00e2\uFFFD\u200B-\u200F\u202A-\u202E\uFEFF\u00A0]+/, '');
-    str = str.replace(/[\sâ\u00e2\uFFFD\u200B-\u200F\u202A-\u202E\uFEFF\u00A0]+$/, '');
-
-    // 3. Remove zero-width characters (\u200B = zero width space, \uFEFF = BOM, \u200E / \u200F = directional marks)
-    str = str.replace(/[\u200B\uFEFF\u200E\u200F\u2060]/g, '');
-
-    // Remove zero-width non-joiners (\u200C) or joiners (\u200D) unless between Indic virama and Indic character
-    str = str.replace(/[\u200C\u200D]+/g, (match, offset, full) => {
-      const prevChar = offset > 0 ? full[offset - 1] : '';
-      const nextChar = offset + match.length < full.length ? full[offset + match.length] : '';
-      const isIndic = (c) => c && c.charCodeAt(0) >= 0x0900 && c.charCodeAt(0) <= 0x0D7F;
-      if (isIndic(prevChar) && isIndic(nextChar)) {
-        return match;
-      }
-      return '';
-    });
-
-    // 4. Normalize multiple spaces
-    str = str.replace(/\s+/g, ' ').trim();
-
-    // 5. If word is lowercase Latin (like "shyam"), capitalize properly ("Shyam")
-    if (/^[a-z]+(\s+[a-z]+)*$/.test(str)) {
-      str = str.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-    }
-
-    return str;
-  };
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteModalCampaign, setDeleteModalCampaign] = useState({ name: '', count: 0 });
 
   // ── Robust Name, Phone & Email Extraction (Resolves "Unknown Lead") ────────
   const getLeadIdentifiers = (lead) => {
@@ -1456,11 +1418,13 @@ export default function MetaLeads() {
 
       // Track 5-minute note reminder for office visit's or Demo attended
       const studentName = cleanLeadName(lead.fullName || lead.rawData?.full_name || lead.rawData?.Name || lead.name || 'Student');
+      const creatorName = user?.name || user?.fullName || user?.email || 'Caller';
       if (isStatusRequiringNote(newStatus)) {
         leadNoteReminderService.trackLead({
           id: lead._id,
           name: studentName,
           status: newStatus,
+          createdBy: creatorName,
           hasExistingNote: leadHasNote(lead),
         });
       } else {
@@ -1472,11 +1436,41 @@ export default function MetaLeads() {
   };
 
 
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // ── Refresh Campaign Tab Data Only (No Entire Website Reload) ───────────────
+  const handleRefreshCampaignData = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    setStatusMessage('Refreshing campaign data...');
+    try {
+      if (selectedCampaign) {
+        await Promise.all([
+          fetchCampaigns(),
+          fetchCampaignLeads(selectedCampaign, leadsPage),
+          fetchEmployeesAndAssignments()
+        ]);
+      } else {
+        await Promise.all([
+          fetchCampaigns(),
+          fetchEmployeesAndAssignments()
+        ]);
+      }
+      setStatusMessage('✅ Campaign data refreshed!');
+    } catch (err) {
+      console.error('Failed to refresh campaign data:', err);
+      setStatusMessage('Failed to refresh campaign data.');
+    } finally {
+      setIsRefreshing(false);
+      setTimeout(() => setStatusMessage(''), 2500);
+    }
+  };
+
   // ── Sync Handler ────────────────────────────────────────────────────────────
   const handleSync = async () => {
     if (syncing) return;
     setSyncing(true);
-    setStatusMessage('Syncing Google Sheets tabs (Fetching Name, Email, Mobile, City)...');
+    setStatusMessage('Syncing & Reloading Data...');
 
     // Background poller to monitor execution status every 2.5s
     const pollId = setInterval(async () => {
@@ -1497,7 +1491,7 @@ export default function MetaLeads() {
       const res = await metaLeadsAPI.triggerSync();
       clearInterval(pollId);
       setSyncing(false);
-      setStatusMessage(res.data?.message || '✅ Google Sheets sync completed successfully!');
+      setStatusMessage(res.data?.message || '✅ Data sync & reload completed successfully!');
       await fetchCampaigns();
       if (selectedCampaign) {
         await fetchCampaignLeads(selectedCampaign, 1);
@@ -1524,6 +1518,24 @@ export default function MetaLeads() {
     setStatusMessage(`Updated assignments for ${campaignName}!`);
     await Promise.all([fetchCampaigns(), fetchEmployeesAndAssignments()]);
     setTimeout(() => setStatusMessage(''), 3000);
+  };
+
+  // ── Delete Campaign Handlers (Admin & Manager Only) ───────────────────────
+  const handleOpenDeleteCampaignModal = (campaignName, count = 0) => {
+    setDeleteModalCampaign({ name: campaignName, count });
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDeleteCampaign = async (campaignName) => {
+    const res = await metaLeadsAPI.deleteCampaign(campaignName);
+    setStatusMessage(res.data?.message || `Campaign "${campaignName}" deleted successfully.`);
+    setShowDeleteModal(false);
+    if (selectedCampaign === campaignName) {
+      setSelectedCampaign(null);
+      setSelectedLead(null);
+    }
+    await Promise.all([fetchCampaigns(), fetchEmployeesAndAssignments()]);
+    setTimeout(() => setStatusMessage(''), 4000);
   };
 
   // ── Export CSV Handler ──────────────────────────────────────────────────────
@@ -1725,16 +1737,49 @@ export default function MetaLeads() {
                   <span style={{ fontSize: 12.5, fontWeight: 600, color: ORANGE, background: ORANGE_LIGHT, padding: '2px 8px', borderRadius: 8, border: `1px solid ${ORANGE_BORDER}` }}>
                     @{selectedCampaign.replace(/_/g, ' ')}
                   </span>
-                  <button
-                    onClick={() => {
-                      fetchCampaigns();
-                      fetchCampaignLeads(selectedCampaign, leadsPage);
-                    }}
-                    title="Refresh Campaign"
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: BLUE, padding: 2 }}
-                  >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 .49-5" /></svg>
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <button
+                      onClick={handleRefreshCampaignData}
+                      disabled={isRefreshing}
+                      title="Refresh Campaign Data"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: BLUE, padding: 2 }}
+                    >
+                      <svg
+                        width="13"
+                        height="13"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        className={isRefreshing ? 'animate-spin' : ''}
+                      >
+                        <polyline points="1 4 1 10 7 10" />
+                        <path d="M3.51 15a9 9 0 1 0 .49-5" />
+                      </svg>
+                    </button>
+                    {isAdmin && (
+                      <button
+                        onClick={() => handleOpenDeleteCampaignModal(selectedCampaign, totalCampaignStudents)}
+                        title="Delete Campaign (Admin/Manager)"
+                        style={{
+                          background: '#fef2f2',
+                          color: '#dc2626',
+                          border: '1px solid #fecaca',
+                          borderRadius: 6,
+                          padding: '3px 7px',
+                          fontSize: 10.5,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 3
+                        }}
+                      >
+                        <FiTrash2 size={11} />
+                        Delete
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 5 }}>
                   <StatCard label="Total" value={totalCampaignStudents} color={BLUE} bg={BLUE_LIGHT} borderColor={BLUE_BORDER} />
@@ -1780,6 +1825,17 @@ export default function MetaLeads() {
                   >
                     <FiUserPlus size={12} />
                     Assign
+                  </button>
+                )}
+
+                {isAdmin && (
+                  <button
+                    onClick={() => handleOpenDeleteCampaignModal(selectedCampaign, totalCampaignStudents)}
+                    title="Delete Campaign (Admin/Manager)"
+                    style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', borderRadius: 6, padding: '6px 9px', fontSize: 11, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 3 }}
+                  >
+                    <FiTrash2 size={12} />
+                    Delete
                   </button>
                 )}
               </div>
@@ -2181,6 +2237,17 @@ export default function MetaLeads() {
             onConfirm={handleConfirmAssignment}
           />
         )}
+
+        {/* Delete Campaign Modal (Admin & Manager Only) */}
+        {isAdmin && (
+          <DeleteCampaignModal
+            isOpen={showDeleteModal}
+            onClose={() => setShowDeleteModal(false)}
+            campaign={deleteModalCampaign.name}
+            leadCount={deleteModalCampaign.count}
+            onConfirm={handleConfirmDeleteCampaign}
+          />
+        )}
       </div>
     );
   }
@@ -2197,17 +2264,10 @@ export default function MetaLeads() {
           <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
             <RiMegaphoneLine className="w-3.5 h-3.5" /> Meta Leads Outreach
           </div>
-          <div className="flex items-center gap-2.5 mt-1.5">
+          <div className="mt-1.5">
             <h1 className="text-xl md:text-2xl font-semibold text-slate-800">
               Meta Leads Campaigns
             </h1>
-            <button
-              onClick={fetchCampaigns}
-              title="Refresh Campaigns"
-              className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors"
-            >
-              <FiRefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            </button>
           </div>
           <p className="text-xs text-slate-500 font-normal mt-0.5">
             Organize Meta Google Sheet campaigns, assign callers, and track calling progress across target batches.
@@ -2226,12 +2286,13 @@ export default function MetaLeads() {
           )}
 
           <button
-            onClick={handleSync}
-            disabled={syncing}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition-all active:scale-[0.98] disabled:opacity-60"
+            onClick={handleRefreshCampaignData}
+            disabled={isRefreshing}
+            title="Refresh Campaign Data"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition-all active:scale-[0.98] cursor-pointer disabled:opacity-75"
           >
-            <FiRefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? 'Syncing...' : 'Sync Leads Now'}
+            <FiRefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span>{isRefreshing ? 'Refreshing...' : 'Sync Data'}</span>
           </button>
         </div>
       </div>
@@ -2426,12 +2487,13 @@ export default function MetaLeads() {
                 : 'Sync your live Google Sheets (Fetching Name, Email, Mobile, City) directly into the CRM.'}
             </p>
             <button
-              onClick={handleSync}
-              disabled={syncing}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-xs"
+              onClick={handleRefreshCampaignData}
+              disabled={isRefreshing}
+              title="Refresh Campaign Data"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-xs cursor-pointer disabled:opacity-75"
             >
-              <FiRefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
-              Sync Leads Now
+              <FiRefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span>{isRefreshing ? 'Refreshing...' : 'Sync Data'}</span>
             </button>
           </div>
         ) : (
@@ -2560,6 +2622,15 @@ export default function MetaLeads() {
                               <FiUserPlus className="w-3.5 h-3.5" />
                             </button>
                           )}
+                          {isAdmin && (
+                            <button
+                              onClick={() => handleOpenDeleteCampaignModal(c.campaign, c.count || 0)}
+                              title="Delete Campaign (Admin/Manager)"
+                              className="p-1.5 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 transition-colors"
+                            >
+                              <FiTrash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -2586,6 +2657,17 @@ export default function MetaLeads() {
             ).map(u => (u?._id ? u._id : u))
           }
           onConfirm={handleConfirmAssignment}
+        />
+      )}
+
+      {/* Delete Campaign Modal (Admin & Manager Only) */}
+      {isAdmin && (
+        <DeleteCampaignModal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          campaign={deleteModalCampaign.name}
+          leadCount={deleteModalCampaign.count}
+          onConfirm={handleConfirmDeleteCampaign}
         />
       )}
     </div>

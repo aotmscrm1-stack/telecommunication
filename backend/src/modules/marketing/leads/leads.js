@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const Lead = require('../../../database/models/Lead');
 const User = require('../../../database/models/User');
 const Course = require('../../../database/models/Course');
+const Campaign = require('../../../database/models/Campaign');
 const FollowUp = require('../../../database/models/FollowUp');
 const Attendance = require('../../../database/models/Attendance');
 const { protect, authorize } = require('../../../core/middleware/auth');
@@ -368,16 +369,28 @@ router.post('/', protect, async (req, res) => {
     if (!body.courseInterest || body.courseInterest === '') body.courseInterest = undefined;
     if (!body.campaign || body.campaign === '') body.campaign = undefined;
     if (!body.assignedTo || body.assignedTo === '') body.assignedTo = undefined;
-    if (body.email) body.email = String(body.email).trim().toLowerCase();
-    if (body.campaign && typeof body.campaign === 'string' && !mongoose.Types.ObjectId.isValid(body.campaign)) {
+    body.email = String(body.email || '').trim().toLowerCase();
+    if (!body.email) return res.status(400).json({ message: 'Email is required' });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)) return res.status(400).json({ message: 'Please enter a valid email address' });
+
+    // Resolve campaign: CRM Campaign (ObjectId or name) OR Meta Leads campaign (sheet name)
+    let metaCampaignName = null;
+    const isObjectIdHex = (v) => typeof v === 'string' && /^[a-f\d]{24}$/i.test(v);
+    if (body.campaign && typeof body.campaign === 'string' && !isObjectIdHex(body.campaign)) {
+      const campName = body.campaign.trim();
       body.customFields = body.customFields || {};
-      body.customFields.campaign = body.campaign;
-      const cDoc = await Campaign.findOne({ name: new RegExp('^' + body.campaign.trim() + '$', 'i') });
+      body.customFields.campaign = campName;
+      const escaped = campName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const cDoc = await Campaign.findOne({ name: new RegExp('^' + escaped + '$', 'i') });
       if (cDoc) {
         body.campaign = cDoc._id;
       } else {
+        metaCampaignName = campName;
         body.campaign = undefined;
       }
+    } else if (body.campaign) {
+      const exists = await Campaign.exists({ _id: body.campaign });
+      if (!exists) return res.status(400).json({ message: 'Selected campaign was not found' });
     }
     if (Array.isArray(body.courseInterest)) body.courseInterest = body.courseInterest[0] || undefined;
     if (body.courseInterest && typeof body.courseInterest === 'string' && !mongoose.Types.ObjectId.isValid(body.courseInterest)) {
@@ -393,13 +406,55 @@ router.post('/', protect, async (req, res) => {
     }
     const assignedToId = body.assignedTo || req.user._id;
     const lead = await Lead.create({ ...body, assignedTo: assignedToId });
+
+    // Meta Leads campaign selected → automatically show this lead inside that campaign
+    if (metaCampaignName) {
+      try {
+        const MetaLead = require('../../../database/models/MetaLead');
+        const normalizedPhone = String(lead.phone || '').replace(/\D/g, '').slice(-10);
+        let metaLead = normalizedPhone
+          ? await MetaLead.findOne({ campaign: metaCampaignName, normalizedPhone })
+          : null;
+        if (metaLead) {
+          metaLead.crmLeadId = lead._id;
+          if (!metaLead.email && lead.email) metaLead.email = lead.email;
+          if (!metaLead.assignedTo) metaLead.assignedTo = assignedToId;
+          await metaLead.save();
+        } else {
+          await MetaLead.create({
+            campaign: metaCampaignName,
+            source: 'crm_manual',
+            phone: lead.phone,
+            normalizedPhone: normalizedPhone || undefined,
+            email: lead.email || undefined,
+            fullName: lead.name,
+            city: lead.location || '',
+            status: 'New',
+            assignedTo: assignedToId,
+            addedBy: req.user._id,
+            crmLeadId: lead._id,
+            syncedAt: new Date(),
+            rawData: {
+              full_name: lead.name,
+              phone: lead.phone,
+              email: lead.email || '',
+              city: lead.location || '',
+              source: 'CRM Manual Entry',
+            },
+          });
+        }
+      } catch (metaErr) {
+        console.error('[leads] Failed to link lead to Meta campaign:', metaErr.message);
+      }
+    }
+
     await lead.populate([
       { path: 'assignedTo', select: 'name email avatar' },
       { path: 'campaign', select: 'name' },
       { path: 'courseInterest' }
     ]);
     notifyNewLeadCreated({ lead, assignedToId, performedByUser: req.user }).catch(() => {});
-    res.status(201).json({ lead });
+    res.status(201).json({ lead, metaCampaign: metaCampaignName || undefined });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -874,6 +929,24 @@ router.put('/:id/status', protect, async (req, res) => {
       notifyLeadStatusChanged({ lead, prevStatus, newStatus: status, assignedToId: lead.assignedTo._id, performedByUser: req.user }).catch(() => {});
     }
     res.json({ lead });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// DELETE /api/leads/clear-all — Empty all leads (Admin & Manager Only)
+router.delete('/clear-all', protect, authorize('admin', 'manager'), async (req, res) => {
+  try {
+    const leadDel = await Lead.deleteMany({});
+    const followupDel = await FollowUp.deleteMany({});
+    emitCrmSync(CRM_EVENTS.LEADS_CHANGED, { action: 'clearAll' });
+    emitCrmSync(CRM_EVENTS.KPIS_CHANGED);
+    res.json({
+      success: true,
+      message: `Cleared all ${leadDel.deletedCount} leads from the database.`,
+      deletedCount: leadDel.deletedCount,
+      followupsDeleted: followupDel.deletedCount
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

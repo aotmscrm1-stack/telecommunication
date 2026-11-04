@@ -19,7 +19,8 @@ import {
   ChevronRight,
   CalendarDays,
   X,
-  CalendarCheck2
+  CalendarCheck2,
+  BarChart3
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { isExecutive, isHR, canEditTask, canDeleteTask, canEditOrDeleteTask, canMarkCompleteTask } from '../../../utils/permissions';
@@ -329,8 +330,17 @@ function TodoChecklist({ text, task, onUpdated }) {
   );
 }
 
-// Real-world Interactive Calendar Widget for Left Sidebar
-function RealWorldCalendar({ selectedDate, onSelectDate, taskCountByDate = {}, totalTasksCount = 0 }) {
+// Real-world Digital Calendar Left Sidebar Widget (Digital Calendar Architecture & Look)
+function RealWorldCalendar({ 
+  selectedDate, 
+  onSelectDate, 
+  taskCountByDate = {}, 
+  totalTasksCount = 0,
+  tasks = [],
+  historyMode = false,
+  priorityFilter = 'all',
+  onSelectPriority
+}) {
   const [viewDate, setViewDate] = useState(() => {
     if (selectedDate) {
       const d = new Date(selectedDate);
@@ -347,7 +357,7 @@ function RealWorldCalendar({ selectedDate, onSelectDate, taskCountByDate = {}, t
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
-  const weekDayNames = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+  const miniCalDays = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
 
   const prevMonth = () => {
     setViewDate(new Date(year, month - 1, 1));
@@ -369,7 +379,7 @@ function RealWorldCalendar({ selectedDate, onSelectDate, taskCountByDate = {}, t
     onSelectDate(todayKey);
   };
 
-  // Compute days in month and calendar cells (42 cells: 6 rows of 7 days)
+  // Compute days in month and calendar cells (35 or 42 cells)
   const firstDayOfWeek = new Date(year, month, 1).getDay(); // 0 is Sun
   const daysInCurrentMonth = new Date(year, month + 1, 0).getDate();
   const daysInPrevMonth = new Date(year, month, 0).getDate();
@@ -423,182 +433,310 @@ function RealWorldCalendar({ selectedDate, onSelectDate, taskCountByDate = {}, t
     return count;
   }, [cells, taskCountByDate]);
 
-  return (
-    <div className="w-full lg:w-80 shrink-0 bg-white border border-slate-200/90 rounded-2xl p-4.5 shadow-xs flex flex-col gap-4 lg:sticky lg:top-4">
-      {/* Calendar Header with Navigation */}
-      <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-2xs">
-            <Calendar size={16} />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-slate-800 leading-tight">
-              {monthNames[month]} {year}
-            </h3>
-            <p className="text-[11px] font-medium text-slate-400">
-              {currentMonthTaskCount} {currentMonthTaskCount === 1 ? 'todo' : 'todos'} this month
-            </p>
-          </div>
-        </div>
+  // Overall Task Statistics for Progress Card
+  const { highCount, mediumCount, lowCount, doneCount, activeCount, completionPct } = useMemo(() => {
+    let high = 0;
+    let med = 0;
+    let low = 0;
+    let done = 0;
+    let act = 0;
 
-        <div className="flex items-center gap-1">
+    tasks.forEach(t => {
+      const isDone = t.status === 'done' || t.status === 'completed' || !!t.completedAt;
+      if (isDone) {
+        done++;
+      } else {
+        act++;
+      }
+
+      const matchMode = historyMode ? isDone : !isDone;
+      if (matchMode) {
+        const p = (t.priority || 'medium').toLowerCase();
+        if (p === 'high') high++;
+        else if (p === 'low') low++;
+        else med++;
+      }
+    });
+
+    const total = done + act;
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+    return {
+      highCount: high,
+      mediumCount: med,
+      lowCount: low,
+      doneCount: done,
+      activeCount: act,
+      completionPct: pct
+    };
+  }, [tasks, historyMode]);
+
+  return (
+    <div className="w-full lg:w-[310px] shrink-0 flex flex-col gap-4 lg:sticky lg:top-4">
+      {/* ── 1. Digital Calendar Mini Calendar Widget ── */}
+      <div 
+        className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/90 shadow-sm relative overflow-hidden"
+        style={{
+          boxShadow: '0 8px 24px -4px rgba(2, 132, 199, 0.08)'
+        }}
+      >
+        {/* Month Jump Header */}
+        <div className="flex items-center justify-between mb-3.5">
           <button
             type="button"
             onClick={prevMonth}
-            className="w-7 h-7 rounded-lg border border-slate-200 hover:border-indigo-300 hover:bg-slate-50 flex items-center justify-center text-slate-600 hover:text-indigo-600 transition-all cursor-pointer"
+            className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition cursor-pointer"
             title="Previous Month"
           >
-            <ChevronLeft size={14} />
+            <ChevronLeft className="w-3.5 h-3.5" />
           </button>
-
-          <button
-            type="button"
-            onClick={handleJumpToday}
-            className={`px-2 py-1 rounded-lg border text-[11px] font-bold transition-all cursor-pointer ${
-              selectedDate === todayKey 
-                ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs' 
-                : 'border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700'
-            }`}
-            title="Jump to Today"
-          >
-            Today
-          </button>
+          
+          <div className="flex flex-col items-center">
+            <span className="text-xs font-bold text-slate-900 tracking-wide uppercase">
+              {monthNames[month]} {year}
+            </span>
+            <span className="text-[10px] font-medium text-slate-400">
+              {currentMonthTaskCount} {currentMonthTaskCount === 1 ? 'task' : 'tasks'} this month
+            </span>
+          </div>
 
           <button
             type="button"
             onClick={nextMonth}
-            className="w-7 h-7 rounded-lg border border-slate-200 hover:border-indigo-300 hover:bg-slate-50 flex items-center justify-center text-slate-600 hover:text-indigo-600 transition-all cursor-pointer"
+            className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition cursor-pointer"
             title="Next Month"
           >
-            <ChevronRight size={14} />
+            <ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>
-      </div>
 
-      {/* Quick Filter Buttons */}
-      <div className="grid grid-cols-3 gap-1.5">
-        <button
-          type="button"
-          onClick={() => onSelectDate(null)}
-          className={`py-1.5 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center border cursor-pointer ${
-            !selectedDate 
-              ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs' 
-              : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300'
-          }`}
-        >
-          <span>All Todos</span>
-          <span className={`text-[10px] font-semibold ${!selectedDate ? 'text-indigo-100' : 'text-slate-400'}`}>
-            {totalTasksCount} total
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => onSelectDate(todayKey)}
-          className={`py-1.5 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center border cursor-pointer ${
-            selectedDate === todayKey 
-              ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs' 
-              : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300'
-          }`}
-        >
-          <span>Today</span>
-          <span className={`text-[10px] font-semibold ${selectedDate === todayKey ? 'text-indigo-100' : 'text-slate-400'}`}>
-            {taskCountByDate[todayKey] || 0} todos
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => onSelectDate(tomorrowKey)}
-          className={`py-1.5 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center border cursor-pointer ${
-            selectedDate === tomorrowKey 
-              ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs' 
-              : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300'
-          }`}
-        >
-          <span>Tomorrow</span>
-          <span className={`text-[10px] font-semibold ${selectedDate === tomorrowKey ? 'text-indigo-100' : 'text-slate-400'}`}>
-            {taskCountByDate[tomorrowKey] || 0} todos
-          </span>
-        </button>
-      </div>
-
-      {/* Days of Week Header */}
-      <div className="grid grid-cols-7 gap-1 text-center">
-        {weekDayNames.map(d => (
-          <div key={d} className="text-[11px] font-bold text-slate-400 py-1">
-            {d}
-          </div>
-        ))}
-      </div>
-
-      {/* Calendar Grid Days */}
-      <div className="grid grid-cols-7 gap-1">
-        {cells.map((cell, idx) => {
-          const isSelected = selectedDate === cell.dateKey;
-          const isToday = cell.dateKey === todayKey;
-          const count = taskCountByDate[cell.dateKey] || 0;
-
-          return (
-            <button
-              key={`${cell.dateKey}-${idx}`}
-              type="button"
-              onClick={() => {
-                onSelectDate(cell.dateKey);
-                if (!cell.isCurrentMonth) {
-                  setViewDate(new Date(cell.dateObj));
-                }
-              }}
-              className={`relative h-9 rounded-xl flex flex-col items-center justify-center transition-all cursor-pointer ${
-                isSelected
-                  ? 'bg-indigo-600 text-white font-bold shadow-xs scale-105 z-10'
-                  : isToday
-                    ? 'border-2 border-indigo-500 bg-indigo-50/60 font-bold text-indigo-900'
-                    : cell.isCurrentMonth
-                      ? 'text-slate-700 hover:bg-slate-100 font-medium'
-                      : 'text-slate-300 hover:bg-slate-50 font-normal'
-              }`}
-              title={`${cell.dateKey} (${count} todos)`}
-            >
-              <span className="text-xs leading-none">
-                {cell.dayNum}
-              </span>
-
-              {/* Dot / Badge indicator */}
-              {count > 0 && (
-                <span className={`absolute bottom-1 w-1.5 h-1.5 rounded-full ${
-                  isSelected 
-                    ? 'bg-white' 
-                    : count > 3 
-                      ? 'bg-red-500 ring-1 ring-white' 
-                      : 'bg-orange-500'
-                }`} />
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Selected Date Summary & Clear Button */}
-      {selectedDate ? (
-        <div className="mt-1 bg-gradient-to-r from-indigo-50 to-sky-50 border border-indigo-200/80 rounded-xl p-2.5 flex items-center justify-between text-xs">
-          <div className="flex flex-col min-w-0">
-            <span className="text-[10px] uppercase tracking-wider font-extrabold text-indigo-700">Active Date Filter</span>
-            <span className="font-bold text-slate-800 truncate">{formatISTDate(selectedDate)}</span>
-          </div>
+        {/* Quick Filter Pills (All / Today / Tomorrow) */}
+        <div className="grid grid-cols-3 gap-1 mb-3">
           <button
             type="button"
             onClick={() => onSelectDate(null)}
-            className="text-[11px] font-bold text-indigo-600 hover:text-indigo-900 hover:bg-indigo-100 px-2 py-1 rounded-lg transition-all flex items-center gap-1 cursor-pointer shrink-0"
+            className={`py-1 px-1.5 rounded-lg text-[10px] font-semibold transition cursor-pointer border ${
+              !selectedDate
+                ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+            }`}
           >
-            <X size={12} /> Clear
+            All ({totalTasksCount})
+          </button>
+          <button
+            type="button"
+            onClick={handleJumpToday}
+            className={`py-1 px-1.5 rounded-lg text-[10px] font-semibold transition cursor-pointer border ${
+              selectedDate === todayKey
+                ? 'bg-sky-600 text-white border-sky-600 shadow-xs'
+                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+            }`}
+          >
+            Today ({taskCountByDate[todayKey] || 0})
+          </button>
+          <button
+            type="button"
+            onClick={() => onSelectDate(tomorrowKey)}
+            className={`py-1 px-1.5 rounded-lg text-[10px] font-semibold transition cursor-pointer border ${
+              selectedDate === tomorrowKey
+                ? 'bg-sky-600 text-white border-sky-600 shadow-xs'
+                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+            }`}
+          >
+            Tomorrow ({taskCountByDate[tomorrowKey] || 0})
           </button>
         </div>
-      ) : (
-        <div className="mt-1 bg-slate-50 border border-slate-200/70 rounded-xl p-2 text-center text-[11px] text-slate-400 font-medium">
-          💡 Click any date above to filter todos
+
+        {/* Weekday Row */}
+        <div className="grid grid-cols-7 gap-1 text-center mb-1 select-none">
+          {miniCalDays.map(day => (
+            <span key={day} className="text-[10px] font-semibold text-slate-400 py-1">
+              {day}
+            </span>
+          ))}
         </div>
-      )}
+
+        {/* Date Matrix */}
+        <div className="grid grid-cols-7 gap-1 text-center">
+          {cells.map((cell, idx) => {
+            const isSelected = selectedDate === cell.dateKey;
+            const isToday = cell.dateKey === todayKey;
+            const count = taskCountByDate[cell.dateKey] || 0;
+            const hasTasks = count > 0;
+
+            return (
+              <button
+                key={`${cell.dateKey}-${idx}`}
+                type="button"
+                onClick={() => {
+                  if (isSelected) {
+                    onSelectDate(null);
+                  } else {
+                    onSelectDate(cell.dateKey);
+                    if (!cell.isCurrentMonth) {
+                      setViewDate(new Date(cell.dateObj));
+                    }
+                  }
+                }}
+                className={`mini-day-cell h-8 w-8 mx-auto rounded-full flex flex-col items-center justify-center text-xs font-medium relative transition cursor-pointer ${
+                  isSelected
+                    ? 'bg-slate-900 text-white shadow-md ring-2 ring-sky-500 scale-105 font-bold z-10'
+                    : isToday
+                    ? 'bg-sky-50 text-sky-700 font-bold ring-2 ring-sky-500'
+                    : cell.isCurrentMonth
+                    ? 'text-slate-700 hover:bg-slate-100 font-medium'
+                    : 'text-slate-300 hover:bg-slate-50'
+                }`}
+                title={`${cell.dateKey} (${count} todos)`}
+              >
+                <span className="text-[11px]">{cell.dayNum}</span>
+
+                {/* Digital Calendar Indicator Dot */}
+                {hasTasks && (
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full absolute bottom-0.5 ${
+                      isSelected
+                        ? 'bg-sky-300 ring-1 ring-white'
+                        : count > 3
+                        ? 'bg-rose-500 ring-1 ring-white'
+                        : 'bg-sky-500'
+                    }`}
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Mini Calendar Indicator Legend */}
+        <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500 font-medium px-1 select-none">
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
+            <span>Scheduled Todos</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+            <span>Heavy (4+)</span>
+          </div>
+        </div>
+
+        {/* Selected Date Summary & Clear Button */}
+        {selectedDate && (
+          <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
+            <div className="truncate pr-2">
+              <span className="text-[11px] font-semibold text-sky-700 truncate block">
+                Selected: {formatISTDate(selectedDate)}
+              </span>
+              <span className="text-[10px] text-slate-500 truncate block">
+                {taskCountByDate[selectedDate] || 0} todos on this day
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => onSelectDate(null)}
+              className="text-[11px] font-bold text-rose-600 hover:underline cursor-pointer shrink-0"
+            >
+              Clear
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ── 2. Priority & Category Filters (Digital Calendar Style) ── */}
+      <div className="bg-white rounded-3xl p-4 border border-slate-200/90 shadow-sm space-y-2">
+        <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
+          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+            Priority Filters
+          </span>
+          {priorityFilter && priorityFilter !== 'all' && onSelectPriority && (
+            <button
+              type="button"
+              onClick={() => onSelectPriority('all')}
+              className="text-[10px] text-sky-600 font-semibold hover:underline cursor-pointer"
+            >
+              Reset
+            </button>
+          )}
+        </div>
+
+        <div className="space-y-1">
+          {[
+            { id: 'all', label: 'All Priorities', icon: ListTodo, color: 'text-slate-600', count: totalTasksCount },
+            { id: 'high', label: 'High Priority', icon: Flame, color: 'text-red-500', count: highCount },
+            { id: 'medium', label: 'Medium Priority', icon: Zap, color: 'text-amber-500', count: mediumCount },
+            { id: 'low', label: 'Low Priority', icon: Leaf, color: 'text-emerald-500', count: lowCount }
+          ].map(p => {
+            const active = (priorityFilter || 'all') === p.id;
+            const Icon = p.icon;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => onSelectPriority && onSelectPriority(p.id)}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition cursor-pointer ${
+                  active
+                    ? 'bg-sky-50 text-sky-800 border border-sky-200 shadow-2xs font-bold'
+                    : 'text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Icon className={`w-3.5 h-3.5 ${p.color}`} />
+                  <span>{p.label}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                    active ? 'bg-sky-200/70 text-sky-800' : 'bg-slate-100 text-slate-500'
+                  }`}>
+                    {p.count}
+                  </span>
+                  {active && <Check className="w-3 h-3 text-sky-600" />}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── 3. Performance & Progress Overview Card ── */}
+      <div className="bg-white rounded-3xl p-4 border border-slate-200/90 shadow-sm space-y-3">
+        <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
+          <div className="flex items-center gap-1.5">
+            <BarChart3 className="w-3.5 h-3.5 text-sky-600" />
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+              Todo Progress
+            </span>
+          </div>
+          <span className="text-[10px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full border border-sky-100">
+            {completionPct}% Done
+          </span>
+        </div>
+
+        {/* Progress bar */}
+        <div className="space-y-1">
+          <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+            <div 
+              className="bg-gradient-to-r from-sky-500 to-indigo-600 h-full rounded-full transition-all duration-300"
+              style={{ width: `${completionPct}%` }}
+            />
+          </div>
+        </div>
+
+        {/* 3 Stats Overview Pills */}
+        <div className="grid grid-cols-3 gap-1.5 pt-1 text-center">
+          <div className="bg-slate-50 p-2 rounded-xl border border-slate-100">
+            <div className="text-[10px] text-slate-400 font-medium">Active</div>
+            <div className="text-xs font-bold text-slate-700 mt-0.5">{activeCount}</div>
+          </div>
+          <div className="bg-emerald-50/60 p-2 rounded-xl border border-emerald-100">
+            <div className="text-[10px] text-emerald-600 font-medium">Done</div>
+            <div className="text-xs font-bold text-emerald-700 mt-0.5">{doneCount}</div>
+          </div>
+          <div className="bg-rose-50/60 p-2 rounded-xl border border-rose-100">
+            <div className="text-[10px] text-rose-600 font-medium">Urgent</div>
+            <div className="text-xs font-bold text-rose-700 mt-0.5">{highCount}</div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -805,12 +943,16 @@ export default function TodoList({
     <div className="w-full flex flex-col gap-6 font-sans">
       {/* 2-Column Main Layout: Left Calendar + Right Todo Content */}
       <div className="w-full flex flex-col lg:flex-row gap-6 items-start">
-        {/* Left Side: Real-World Calendar Widget */}
+        {/* Left Side: Digital Calendar Widget (Mini Calendar + Priority Filters + Progress Card) */}
         <RealWorldCalendar 
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
           taskCountByDate={taskCountByDate}
           totalTasksCount={activeModeTasks.length}
+          tasks={tasks}
+          historyMode={historyMode}
+          priorityFilter={priorityFilter}
+          onSelectPriority={setPriorityFilter}
         />
 
         {/* Right Side: Quick Add Todo Bar + Todo Cards (3 per row, 2 rows max) + Pagination */}

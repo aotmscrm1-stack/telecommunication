@@ -21,14 +21,8 @@ const initProviders = async (server) => {
   startTaskReminderChecker(5 * 60 * 1000);
   logger.info('Task background checkers started');
 
-  // 4. Async DB migrations
-  setTimeout(() => {
-    try {
-      require('../../scripts/migrate_campaigns').run().catch(() => {});
-    } catch (e) {
-      logger.warn('Migrate campaigns task failed:', e.message);
-    }
-  }, 3000);
+  // 4. Async DB migrations (One-time migration completed)
+  // require('../../scripts/migrate_campaigns').run().catch(() => {});
 };
 
 module.exports = { initProviders };

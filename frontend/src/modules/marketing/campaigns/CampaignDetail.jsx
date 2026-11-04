@@ -5,6 +5,24 @@ import * as XLSX from 'xlsx';
 import StatusBadge from '../../../components/common/StatusBadge';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import LeadDetailsPage from '../../../components/LeadDetails/LeadDetailsPage';
+import {
+  User,
+  Phone,
+  Mail,
+  BookOpen,
+  MapPin,
+  X,
+  Check,
+  Plus,
+  Tag,
+  FileText,
+  Loader2,
+  Sparkles,
+  UploadCloud,
+  Users,
+  FileSpreadsheet,
+  FolderPlus
+} from 'lucide-react';
 
 // ─── White, Orange, Blue Design Tokens ────────────────────────────────────────
 const ORANGE = '#ea580c';
@@ -295,7 +313,7 @@ function AICallingPanel({ campaignId, campaign, onStatusChange }) {
 function IdentityBadge({ identity }) {
   const label = identity && identity !== 'General' ? identity : 'Client';
   const norm = label.toLowerCase();
-  
+
   let bg = '#f0f9ff';
   let color = '#0284c7';
   let border = '#bae6fd';
@@ -343,7 +361,7 @@ function IdentityBadge({ identity }) {
 }
 
 // ─── Add Contacts & Leads Modal (With Identities, Identity Filters & Excel Upload) ───
-function AddLeadsModal({ campaignId, onClose, onSuccess }) {
+function AddLeadsModal({ campaignId, onClose, onSuccess, onOpenAddStudent }) {
   const [activeTab, setActiveTab] = useState('contacts'); // 'contacts' | 'excel' | 'create'
   const [allContacts, setAllContacts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -359,15 +377,7 @@ function AddLeadsModal({ campaignId, onClose, onSuccess }) {
   const [saveToContactsDb, setSaveToContactsDb] = useState(true);
   const fileInputRef = useRef(null);
 
-  // New Contact Form state
-  const [newName, setNewName] = useState('');
-  const [newPhone, setNewPhone] = useState('');
-  const [newEmail, setNewEmail] = useState('');
-  const [newIdentity, setNewIdentity] = useState('SAP FICO');
-  const [customIdentity, setCustomIdentity] = useState('');
-  const [newLocation, setNewLocation] = useState('');
-  const [newStatus, setNewStatus] = useState('Fresh');
-  const [createError, setCreateError] = useState('');
+
 
   // Fetch all contacts from Marketing -> Contacts AND Leads
   useEffect(() => {
@@ -653,42 +663,7 @@ function AddLeadsModal({ campaignId, onClose, onSuccess }) {
     }
   };
 
-  // Create single contact
-  const handleCreateStudent = async (e) => {
-    e.preventDefault();
-    const finalName = newName.trim();
-    const rawPhone = newPhone.replace(/\D/g, '');
-    const cleanPhone = (rawPhone.startsWith('91') && rawPhone.length > 10 ? rawPhone.slice(2) : rawPhone).slice(-10);
 
-    if (!finalName || cleanPhone.length !== 10) {
-      setCreateError('Name and a valid 10-digit Phone number are required');
-      return;
-    }
-
-    const finalIdentity = newIdentity === 'CUSTOM' ? (customIdentity.trim() || 'Client') : newIdentity;
-
-    setCreateError('');
-    setSaving(true);
-    try {
-      await campaignsAPI.addLeads(campaignId, {
-        contacts: [{
-          name: finalName,
-          phone: cleanPhone,
-          email: newEmail.trim(),
-          identity: finalIdentity,
-          location: newLocation.trim(),
-          status: newStatus
-        }],
-        saveToContacts: true
-      });
-      onSuccess();
-      onClose();
-    } catch (err) {
-      setCreateError(err.response?.data?.message || 'Failed to create contact');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   return (
     <div style={{
@@ -726,10 +701,11 @@ function AddLeadsModal({ campaignId, onClose, onSuccess }) {
         }}>
           <div>
             <div style={{ fontSize: 16, fontWeight: 700, color: TEXT, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <FolderPlus size={18} color={ORANGE} />
               <span>Add Contacts to Campaign</span>
             </div>
             <div style={{ fontSize: 12, color: MUTED, marginTop: 2, fontWeight: 400 }}>
-              Select existing contacts from Marketing, upload an Excel file, or create a new contact
+              Select existing contacts from Marketing or upload an Excel spreadsheet
             </div>
           </div>
           <button
@@ -752,32 +728,34 @@ function AddLeadsModal({ campaignId, onClose, onSuccess }) {
           </button>
         </div>
 
-        {/* Navigation Tabs */}
+        {/* Navigation Tabs (Only Marketing Contacts & Upload Excel) */}
         <div style={{ display: 'flex', borderBottom: `1px solid ${BORDER}`, background: '#f8fafc' }}>
           <button
             onClick={() => setActiveTab('contacts')}
             style={{
               flex: 1,
-              padding: '11px 8px',
+              padding: '12px 14px',
               border: 'none',
               background: 'none',
               cursor: 'pointer',
-              fontSize: 12.5,
+              fontSize: 13,
               fontWeight: activeTab === 'contacts' ? 600 : 500,
               color: activeTab === 'contacts' ? ORANGE : MUTED,
               borderBottom: `2.5px solid ${activeTab === 'contacts' ? ORANGE : 'transparent'}`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 6
+              gap: 8,
+              transition: 'all 0.15s ease'
             }}
           >
+            <Users size={15} color={activeTab === 'contacts' ? ORANGE : MUTED} />
             <span>Marketing Contacts</span>
             <span style={{
               fontSize: 11,
               background: activeTab === 'contacts' ? ORANGE_LIGHT : '#e2e8f0',
               color: activeTab === 'contacts' ? ORANGE : '#475569',
-              padding: '1px 7px',
+              padding: '1px 8px',
               borderRadius: 12,
               fontWeight: 600
             }}>
@@ -789,54 +767,35 @@ function AddLeadsModal({ campaignId, onClose, onSuccess }) {
             onClick={() => setActiveTab('excel')}
             style={{
               flex: 1,
-              padding: '11px 8px',
+              padding: '12px 14px',
               border: 'none',
               background: 'none',
               cursor: 'pointer',
-              fontSize: 12.5,
+              fontSize: 13,
               fontWeight: activeTab === 'excel' ? 600 : 500,
               color: activeTab === 'excel' ? BLUE : MUTED,
               borderBottom: `2.5px solid ${activeTab === 'excel' ? BLUE : 'transparent'}`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 6
+              gap: 8,
+              transition: 'all 0.15s ease'
             }}
           >
-            <span>📊 Upload Excel / CSV</span>
+            <FileSpreadsheet size={15} color={activeTab === 'excel' ? BLUE : MUTED} />
+            <span>Upload Excel</span>
             {excelRows.length > 0 && (
               <span style={{
                 fontSize: 11,
                 background: BLUE_LIGHT,
                 color: BLUE,
-                padding: '1px 7px',
+                padding: '1px 8px',
                 borderRadius: 12,
                 fontWeight: 600
               }}>
                 {excelRows.length}
               </span>
             )}
-          </button>
-
-          <button
-            onClick={() => setActiveTab('create')}
-            style={{
-              flex: 1,
-              padding: '11px 8px',
-              border: 'none',
-              background: 'none',
-              cursor: 'pointer',
-              fontSize: 12.5,
-              fontWeight: activeTab === 'create' ? 600 : 500,
-              color: activeTab === 'create' ? '#16a34a' : MUTED,
-              borderBottom: `2.5px solid ${activeTab === 'create' ? '#16a34a' : 'transparent'}`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 4
-            }}
-          >
-            <span>+ Create Contact</span>
           </button>
         </div>
 
@@ -1240,128 +1199,415 @@ function AddLeadsModal({ campaignId, onClose, onSuccess }) {
           </div>
         )}
 
-        {/* ══════════════════════════════════════════════════════════════════
-            TAB 3: CREATE NEW CONTACT
-            ══════════════════════════════════════════════════════════════════ */}
-        {activeTab === 'create' && (
-          <form onSubmit={handleCreateStudent} style={{ padding: 20, overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column' }}>
-            {createError && (
-              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '8px 12px', marginBottom: 12, fontSize: 12, color: '#dc2626' }}>
-                ⚠️ {createError}
-              </div>
+
+      </div>
+    </div>
+  );
+}
+
+
+// ─── "Create Todo Item" UI Palette Constants ─────────────────────────────────
+const TODO_DEEP_BLUE = '#023047';
+const TODO_BLUE_GREEN = '#219ebc';
+const TODO_SKY_SURFACE = '#e8f4fa';
+const TODO_BORDER = '#bbdff0';
+const TODO_INPUT_BORDER = '#d8e2eb';
+const TODO_ORANGE = '#fb8500';
+const TODO_MUTED = '#5b7082';
+
+function AddStudentModal({ campaignId, campaignName, onClose, onSuccess, onOpenBulkImport }) {
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [identity, setIdentity] = useState('SAP FICO');
+  const [customIdentity, setCustomIdentity] = useState('');
+  const [location, setLocation] = useState('');
+  const [status, setStatus] = useState('Fresh');
+  const [remarks, setRemarks] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const finalName = name.trim();
+    const rawPhone = phone.replace(/\D/g, '');
+    const cleanPhone = (rawPhone.startsWith('91') && rawPhone.length > 10 ? rawPhone.slice(2) : rawPhone).slice(-10);
+
+    if (!finalName) {
+      setError('Student name is required');
+      return;
+    }
+    if (cleanPhone.length !== 10) {
+      setError('A valid 10-digit Phone number is required');
+      return;
+    }
+
+    const finalIdentity = identity === 'CUSTOM' ? (customIdentity.trim() || 'Student') : identity;
+
+    setError('');
+    setSaving(true);
+    try {
+      await campaignsAPI.addLeads(campaignId, {
+        contacts: [{
+          name: finalName,
+          phone: cleanPhone,
+          email: email.trim(),
+          identity: finalIdentity,
+          location: location.trim(),
+          status: status,
+          notes: remarks.trim() ? [{ text: remarks.trim(), date: new Date().toISOString() }] : []
+        }],
+        saveToContacts: true
+      });
+      if (onSuccess) onSuccess();
+      onClose();
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Failed to add student to campaign');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(2, 48, 71, 0.45)',
+        backdropFilter: 'blur(2px)',
+        zIndex: 1000,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16
+      }}
+      onClick={onClose}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: '#fff',
+          borderRadius: 14,
+          width: '100%',
+          maxWidth: 480,
+          padding: 24,
+          boxShadow: '0 12px 36px rgba(2, 48, 71, 0.16)',
+          border: `1px solid ${TODO_BORDER}`,
+          boxSizing: 'border-box',
+          maxHeight: '92vh',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden'
+        }}
+      >
+        {/* Header — Identical to "Create Todo Item" */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <h3 style={{ fontSize: 18, fontWeight: 600, color: TODO_DEEP_BLUE, margin: 0, display: 'flex', alignItems: 'center', gap: 7 }}>
+              <User size={18} style={{ color: TODO_BLUE_GREEN }} />
+              Add Students
+            </h3>
+            {campaignName && (
+              <span style={{
+                background: TODO_SKY_SURFACE,
+                border: `1px solid ${TODO_BORDER}`,
+                color: TODO_BLUE_GREEN,
+                fontSize: 11,
+                fontWeight: 600,
+                padding: '2px 8px',
+                borderRadius: 6
+              }}>
+                {campaignName}
+              </span>
             )}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: TODO_MUTED,
+              padding: 4,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: 6
+            }}
+          >
+            <X size={20} />
+          </button>
+        </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: TEXT, display: 'block', marginBottom: 4 }}>
-                  Contact Name <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-                <input
-                  value={newName}
-                  onChange={e => setNewName(e.target.value)}
-                  placeholder="e.g. Rahul Sharma"
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 12.5, outline: 'none', boxSizing: 'border-box' }}
-                />
-              </div>
+        {error && (
+          <div style={{
+            background: '#fef2f2',
+            border: '1px solid #fecaca',
+            color: '#dc2626',
+            fontSize: 12,
+            padding: '8px 12px',
+            borderRadius: 8,
+            marginBottom: 12,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6
+          }}>
+            <span>⚠️ {error}</span>
+          </div>
+        )}
 
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: TEXT, display: 'block', marginBottom: 4 }}>
-                  Phone Number (10 digits) <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-                <input
-                  value={newPhone}
-                  onChange={e => setNewPhone(e.target.value)}
-                  placeholder="e.g. 9876543210"
-                  maxLength={13}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 12.5, outline: 'none', boxSizing: 'border-box' }}
-                />
-              </div>
+        {/* Form Body — Clean vertical fields matching "Create Todo Item" */}
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 13, overflowY: 'auto', flex: 1, paddingRight: 2 }}>
+          {/* Student Name */}
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 500, color: TODO_DEEP_BLUE, display: 'flex', alignItems: 'center', gap: 5, marginBottom: 5 }}>
+              <User size={13} style={{ color: TODO_BLUE_GREEN }} />
+              Student Full Name <span style={{ color: '#ef4444' }}>*</span>
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="e.g. Rahul Sharma"
+              required
+              style={{
+                width: '100%',
+                padding: '9px 12px',
+                fontSize: 13.5,
+                borderRadius: 8,
+                border: `1px solid ${TODO_INPUT_BORDER}`,
+                background: '#f8fbfd',
+                color: TODO_DEEP_BLUE,
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
+            />
+          </div>
+
+          {/* Phone & Email Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 500, color: TODO_DEEP_BLUE, display: 'flex', alignItems: 'center', gap: 5, marginBottom: 5 }}>
+                <Phone size={13} style={{ color: TODO_BLUE_GREEN }} />
+                Phone Number <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                placeholder="10 digit mobile"
+                maxLength={13}
+                required
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  fontSize: 13.5,
+                  borderRadius: 8,
+                  border: `1px solid ${TODO_INPUT_BORDER}`,
+                  background: '#f8fbfd',
+                  color: TODO_DEEP_BLUE,
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+              />
             </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: TEXT, display: 'block', marginBottom: 4 }}>
-                  Email Address
-                </label>
-                <input
-                  value={newEmail}
-                  onChange={e => setNewEmail(e.target.value)}
-                  placeholder="rahul@example.com"
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 12.5, outline: 'none', boxSizing: 'border-box' }}
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: TEXT, display: 'block', marginBottom: 4 }}>
-                  Identity / Course Category
-                </label>
-                <select
-                  value={newIdentity}
-                  onChange={e => setNewIdentity(e.target.value)}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 12.5, outline: 'none', background: '#fff' }}
-                >
-                  <option value="SAP FICO">SAP FICO</option>
-                  <option value="Python Full Stack">Python Full Stack</option>
-                  <option value="Digital Marketing">Digital Marketing</option>
-                  <option value="Client">Client</option>
-                  <option value="VIP">VIP</option>
-                  <option value="Lead">Lead</option>
-                  <option value="CUSTOM">+ Enter Custom Identity...</option>
-                </select>
-              </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 500, color: TODO_DEEP_BLUE, display: 'flex', alignItems: 'center', gap: 5, marginBottom: 5 }}>
+                <Mail size={13} style={{ color: TODO_BLUE_GREEN }} />
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="student@example.com"
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  fontSize: 13.5,
+                  borderRadius: 8,
+                  border: `1px solid ${TODO_INPUT_BORDER}`,
+                  background: '#f8fbfd',
+                  color: TODO_DEEP_BLUE,
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+              />
             </div>
+          </div>
 
-            {newIdentity === 'CUSTOM' && (
-              <div style={{ marginBottom: 12 }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: TEXT, display: 'block', marginBottom: 4 }}>
-                  Custom Identity Name
-                </label>
-                <input
-                  value={customIdentity}
-                  onChange={e => setCustomIdentity(e.target.value)}
-                  placeholder="e.g. Data Science, AWS Cloud"
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 12.5, outline: 'none', boxSizing: 'border-box' }}
-                />
-              </div>
-            )}
+          {/* Identity / Course Category */}
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 500, color: TODO_DEEP_BLUE, display: 'flex', alignItems: 'center', gap: 5, marginBottom: 5 }}>
+              <BookOpen size={13} style={{ color: TODO_BLUE_GREEN }} />
+              Course / Identity Category
+            </label>
+            <select
+              value={identity}
+              onChange={e => setIdentity(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '9px 12px',
+                fontSize: 13.5,
+                borderRadius: 8,
+                border: `1px solid ${TODO_INPUT_BORDER}`,
+                background: '#f8fbfd',
+                color: TODO_DEEP_BLUE,
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
+            >
+              <option value="SAP FICO">SAP FICO</option>
+              <option value="Python Full Stack">Python Full Stack</option>
+              <option value="Digital Marketing">Digital Marketing</option>
+              <option value="Client">Client</option>
+              <option value="VIP">VIP</option>
+              <option value="Lead">Lead</option>
+              <option value="CUSTOM">+ Enter Custom Course / Identity...</option>
+            </select>
+          </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: TEXT, display: 'block', marginBottom: 4 }}>
-                  Location / City
-                </label>
-                <input
-                  value={newLocation}
-                  onChange={e => setNewLocation(e.target.value)}
-                  placeholder="Hyderabad"
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 12.5, outline: 'none', boxSizing: 'border-box' }}
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: TEXT, display: 'block', marginBottom: 4 }}>
-                  Initial Status
-                </label>
-                <select
-                  value={newStatus}
-                  onChange={e => setNewStatus(e.target.value)}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 12.5, outline: 'none', background: '#fff' }}
-                >
-                  <option value="Fresh">Fresh</option>
-                  <option value="Interested">Interested</option>
-                  <option value="Connected">Connected</option>
-                  <option value="Not Answered">Not Answered</option>
-                  <option value="Call Back">Call Back</option>
-                  <option value="Demo Scheduled">Demo Scheduled</option>
-                </select>
-              </div>
+          {identity === 'CUSTOM' && (
+            <div>
+              <label style={{ fontSize: 12.5, fontWeight: 500, color: TODO_DEEP_BLUE, display: 'block', marginBottom: 5 }}>
+                Custom Course / Identity Name
+              </label>
+              <input
+                type="text"
+                value={customIdentity}
+                onChange={e => setCustomIdentity(e.target.value)}
+                placeholder="e.g. Data Science, AWS Cloud"
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  fontSize: 13.5,
+                  borderRadius: 8,
+                  border: `1px solid ${TODO_INPUT_BORDER}`,
+                  background: '#f8fbfd',
+                  color: TODO_DEEP_BLUE,
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+              />
             </div>
+          )}
 
-            <div style={{ marginTop: 'auto', display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 14, borderTop: `1px solid ${BORDER}` }}>
+          {/* Location & Status Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 500, color: TODO_DEEP_BLUE, display: 'flex', alignItems: 'center', gap: 5, marginBottom: 5 }}>
+                <MapPin size={13} style={{ color: TODO_BLUE_GREEN }} />
+                Location / City
+              </label>
+              <input
+                type="text"
+                value={location}
+                onChange={e => setLocation(e.target.value)}
+                placeholder="Hyderabad"
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  fontSize: 13.5,
+                  borderRadius: 8,
+                  border: `1px solid ${TODO_INPUT_BORDER}`,
+                  background: '#f8fbfd',
+                  color: TODO_DEEP_BLUE,
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 500, color: TODO_DEEP_BLUE, display: 'flex', alignItems: 'center', gap: 5, marginBottom: 5 }}>
+                <Tag size={13} style={{ color: TODO_BLUE_GREEN }} />
+                Initial Status
+              </label>
+              <select
+                value={status}
+                onChange={e => setStatus(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  fontSize: 13.5,
+                  borderRadius: 8,
+                  border: `1px solid ${TODO_INPUT_BORDER}`,
+                  background: '#f8fbfd',
+                  color: TODO_DEEP_BLUE,
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+              >
+                <option value="Fresh">Fresh</option>
+                <option value="Interested">Interested</option>
+                <option value="Connected">Connected</option>
+                <option value="Demo Scheduled">Demo Scheduled</option>
+                <option value="Call Back">Call Back</option>
+                <option value="Enrolled">Enrolled</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Remarks / Notes textarea */}
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 500, color: TODO_DEEP_BLUE, display: 'flex', alignItems: 'center', gap: 5, marginBottom: 5 }}>
+              <FileText size={13} style={{ color: TODO_BLUE_GREEN }} />
+              Student Notes / Remarks (Optional)
+            </label>
+            <textarea
+              rows={3}
+              value={remarks}
+              onChange={e => setRemarks(e.target.value)}
+              placeholder="Enter student background, qualification, or inquiry details..."
+              style={{
+                width: '100%',
+                padding: '9px 12px',
+                fontSize: 13,
+                borderRadius: 8,
+                border: `1px solid ${TODO_INPUT_BORDER}`,
+                background: '#f8fbfd',
+                color: TODO_DEEP_BLUE,
+                outline: 'none',
+                resize: 'none',
+                boxSizing: 'border-box'
+              }}
+            />
+          </div>
+
+          {/* Footer — Identical to "Create Todo Item" */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, paddingTop: 12, borderTop: `1px solid ${TODO_BORDER}` }}>
+            {onOpenBulkImport ? (
+              <button
+                type="button"
+                onClick={() => { onClose(); onOpenBulkImport(); }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: 12,
+                  color: TODO_BLUE_GREEN,
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  textDecoration: 'underline'
+                }}
+              >
+                Import Contacts / Excel
+              </button>
+            ) : <span />}
+
+            <div style={{ display: 'flex', gap: 10 }}>
               <button
                 type="button"
                 onClick={onClose}
-                style={{ padding: '8px 16px', border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12.5, cursor: 'pointer', background: '#fff', color: TEXT, fontWeight: 500 }}
+                style={{
+                  padding: '9px 18px',
+                  fontSize: 13.5,
+                  fontWeight: 500,
+                  borderRadius: 8,
+                  border: `1px solid ${TODO_INPUT_BORDER}`,
+                  background: '#fff',
+                  color: TODO_MUTED,
+                  cursor: 'pointer'
+                }}
               >
                 Cancel
               </button>
@@ -1369,25 +1615,39 @@ function AddLeadsModal({ campaignId, onClose, onSuccess }) {
                 type="submit"
                 disabled={saving}
                 style={{
-                  padding: '8px 20px',
-                  border: 'none',
-                  borderRadius: 8,
-                  fontSize: 12.5,
+                  padding: '9px 20px',
+                  fontSize: 13.5,
                   fontWeight: 600,
+                  borderRadius: 8,
+                  border: 'none',
+                  background: `linear-gradient(135deg, ${TODO_BLUE_GREEN}, ${TODO_DEEP_BLUE})`,
+                  color: '#fff',
                   cursor: saving ? 'not-allowed' : 'pointer',
-                  background: ORANGE,
-                  color: '#fff'
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6
                 }}
               >
-                {saving ? 'Creating...' : 'Create & Add to Campaign'}
+                {saving ? (
+                  <>
+                    <Loader2 size={15} className="animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  <>
+                    <Check size={16} />
+                    Add Student
+                  </>
+                )}
               </button>
             </div>
-          </form>
-        )}
+          </div>
+        </form>
       </div>
     </div>
   );
 }
+
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function CampaignDetail() {
@@ -1400,6 +1660,7 @@ export default function CampaignDetail() {
   const [loading, setLoading] = useState(true);
   const [leadsLoading, setLeadsLoading] = useState(false);
   const [showAddLeads, setShowAddLeads] = useState(false);
+  const [showAddStudent, setShowAddStudent] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(1);
@@ -1464,30 +1725,27 @@ export default function CampaignDetail() {
 
   return (
     <div className="max-w-7xl mx-auto w-full px-2 sm:px-4 py-3 h-[calc(100vh-64px)] flex flex-col box-border font-sans">
-      
+
       {/* Mobile-Only Tab Navigation (< md screens) */}
       <div className="flex md:hidden items-center justify-between mb-2.5 p-1 bg-white border border-slate-200 rounded-xl shadow-xs">
         <button
           onClick={() => setActiveMobileTab('students')}
-          className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium transition-all ${
-            activeMobileTab === 'students' ? 'bg-orange-50 text-orange-700 border border-orange-200 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-          }`}
+          className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium transition-all ${activeMobileTab === 'students' ? 'bg-orange-50 text-orange-700 border border-orange-200 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+            }`}
         >
           Students ({leads.length})
         </button>
         <button
           onClick={() => setActiveMobileTab('analytics')}
-          className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium transition-all ${
-            activeMobileTab === 'analytics' ? 'bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-          }`}
+          className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium transition-all ${activeMobileTab === 'analytics' ? 'bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+            }`}
         >
           Analytics & AI
         </button>
         <button
           onClick={() => setActiveMobileTab('profile')}
-          className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium transition-all ${
-            activeMobileTab === 'profile' ? 'bg-orange-50 text-orange-700 border border-orange-200 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-          }`}
+          className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium transition-all ${activeMobileTab === 'profile' ? 'bg-orange-50 text-orange-700 border border-orange-200 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+            }`}
         >
           Student Profile
         </button>
@@ -1497,9 +1755,8 @@ export default function CampaignDetail() {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row flex-1 overflow-hidden min-h-0">
 
         {/* ─── LEFT PANEL: Student List ─────────────────────────────────────────── */}
-        <div className={`w-full md:w-72 xl:w-80 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col overflow-hidden min-h-0 ${
-          activeMobileTab === 'students' ? 'flex' : 'hidden md:flex'
-        }`}>
+        <div className={`w-full md:w-72 xl:w-80 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col overflow-hidden min-h-0 ${activeMobileTab === 'students' ? 'flex' : 'hidden md:flex'
+          }`}>
           {/* Back + campaign summary card */}
           <div style={{ padding: '12px 14px 10px', borderBottom: `1px solid ${BORDER}` }}>
             <button onClick={() => navigate('/campaigns')}
@@ -1549,10 +1806,11 @@ export default function CampaignDetail() {
                 <option value="">All Statuses</option>
                 {allStatuses.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
-              <button onClick={() => { setShowAddLeads(true); }}
-                style={{ background: ORANGE, color: '#fff', border: 'none', borderRadius: 6, padding: '5px 9px', fontSize: 11, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 3 }}>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-                Add
+              <button onClick={() => setShowAddLeads(true)}
+                title="Add Contacts to Campaign"
+                style={{ background: ORANGE, color: '#fff', border: 'none', borderRadius: 6, padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5, boxShadow: '0 1px 3px rgba(234, 88, 12, 0.25)' }}>
+                <Plus size={13} strokeWidth={2.5} />
+                Add Students
               </button>
             </div>
             <div style={{ fontSize: 10.5, color: MUTED, fontWeight: 400 }}>{totalCount} student{totalCount !== 1 ? 's' : ''} in this campaign</div>
@@ -1565,8 +1823,9 @@ export default function CampaignDetail() {
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" style={{ marginBottom: 6, margin: '0 auto' }}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>
                 <div style={{ fontSize: 11.5, fontWeight: 400 }}>No students found</div>
                 <button onClick={() => setShowAddLeads(true)}
-                  style={{ marginTop: 8, background: ORANGE, color: '#fff', border: 'none', borderRadius: 6, padding: '5px 12px', fontSize: 11.5, fontWeight: 500, cursor: 'pointer' }}>
-                  + Add Students
+                  style={{ marginTop: 8, background: ORANGE, color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', fontSize: 12, fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  <Plus size={13} strokeWidth={2.5} />
+                  Add Students
                 </button>
               </div>
             ) : leads.map(lead => {
@@ -1620,9 +1879,8 @@ export default function CampaignDetail() {
         </div>
 
         {/* ─── MIDDLE PANEL: Analytics (White, Orange, Blue) ───────────────────── */}
-        <div className={`w-full md:w-60 xl:w-64 flex-shrink-0 bg-slate-50/70 border-r border-slate-200 overflow-y-auto p-3 flex flex-col gap-3 min-h-0 ${
-          activeMobileTab === 'analytics' ? 'flex' : 'hidden md:flex'
-        }`}>
+        <div className={`w-full md:w-60 xl:w-64 flex-shrink-0 bg-slate-50/70 border-r border-slate-200 overflow-y-auto p-3 flex flex-col gap-3 min-h-0 ${activeMobileTab === 'analytics' ? 'flex' : 'hidden md:flex'
+          }`}>
 
           {/* Lead Status Distribution (Pie) */}
           <div style={{ background: '#fff', borderRadius: 10, padding: '12px 10px', border: `1px solid ${BORDER}`, boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
@@ -1718,9 +1976,8 @@ export default function CampaignDetail() {
         </div>
 
         {/* ─── RIGHT PANEL: Lead Detail ─────────────────────────────────────────── */}
-        <div className={`flex-1 min-w-0 bg-white overflow-y-auto min-h-0 ${
-          activeMobileTab === 'profile' ? 'flex flex-col' : 'hidden md:flex flex-col'
-        }`}>
+        <div className={`flex-1 min-w-0 bg-white overflow-y-auto min-h-0 ${activeMobileTab === 'profile' ? 'flex flex-col' : 'hidden md:flex flex-col'
+          }`}>
           {selectedLead ? (
             <LeadDetailsPage
               key={selectedLead._id}
@@ -1739,12 +1996,24 @@ export default function CampaignDetail() {
 
       </div>
 
-      {/* ─── Add Leads Modal ──────────────────────────────────────────────────── */}
+      {/* ─── Add Student Modal ("Create Todo Item" UI Style) ────────────────── */}
+      {showAddStudent && (
+        <AddStudentModal
+          campaignId={id}
+          campaignName={campaign?.name}
+          onClose={() => setShowAddStudent(false)}
+          onSuccess={() => { fetchAll(); }}
+          onOpenBulkImport={() => { setShowAddStudent(false); setShowAddLeads(true); }}
+        />
+      )}
+
+      {/* ─── Bulk Import Leads Modal (Contacts & Excel) ────────────────────────── */}
       {showAddLeads && (
         <AddLeadsModal
           campaignId={id}
           onClose={() => setShowAddLeads(false)}
           onSuccess={() => { fetchAll(); }}
+          onOpenAddStudent={() => { setShowAddLeads(false); setShowAddStudent(true); }}
         />
       )}
     </div>

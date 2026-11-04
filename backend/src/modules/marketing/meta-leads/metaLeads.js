@@ -12,7 +12,7 @@ const Integration = require('../../../database/models/Integration');
 const { protect } = require('../../../core/middleware/auth');
 const env = require('../../../config/env');
 const { broadcastWebSocketEvent } = require('../../../app/websocket');
-const { syncAllMetaSheets, parseTabName } = require('./googleSheetsSyncService');
+const { syncAllMetaSheets, parseTabName, deriveStatusFromRow } = require('./googleSheetsSyncService');
 
 const POSITIVE_SUB_STATUSES = [
   "Agreed to Office visit's but no luck",
@@ -393,9 +393,20 @@ router.post('/', async (req, res) => {
         location: city || ''
       };
 
+      const derived = deriveStatusFromRow(rawData);
+
       if (existing) {
-        // PRESERVE CRM-MANAGED FIELDS:
-        // status, crmLeadId, assignedEmployees, notes must NEVER be overwritten back to 'New'!
+        // PRESERVE CRM-MANAGED FIELDS; if currently 'New', assign derived sheet status
+        if ((!existing.status || existing.status === 'New') && derived.status !== 'New') {
+          existing.status = derived.status;
+        }
+        if (derived.text) {
+          existing.notes = existing.notes || [];
+          const alreadyHasNote = existing.notes.some(n => n.text && n.text.includes(derived.text));
+          if (!alreadyHasNote) {
+            existing.notes.push({ text: `Sheet Update: ${derived.text}`, createdAt: new Date() });
+          }
+        }
         existing.metaLeadId = metaLeadId || existing.metaLeadId || undefined;
         existing.phone = phone || existing.phone || undefined;
         existing.normalizedPhone = normalizedPhone || existing.normalizedPhone || undefined;
@@ -413,7 +424,7 @@ router.post('/', async (req, res) => {
         activeLeadIds.push(existing._id);
         updatedCount++;
       } else {
-        // Safe insert new lead with structured fields
+        const initialNotes = derived.text ? [{ text: `Sheet Update: ${derived.text}`, createdAt: new Date() }] : [];
         const created = await MetaLead.create({
           campaign,
           source,
@@ -424,7 +435,8 @@ router.post('/', async (req, res) => {
           city: city || undefined,
           fullName: fullName || 'Unknown Lead',
           rawData: allowedRawData,
-          status: 'New',
+          status: derived.status || 'New',
+          notes: initialNotes,
           syncedAt: new Date()
         });
         results.push(created);
@@ -1576,21 +1588,42 @@ router.delete('/:id', protect, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DELETE /api/meta-leads/campaign/:campaign (Delete campaign leads - Admin Only)
+// DELETE /api/meta-leads/campaign/:campaign (Delete campaign leads & config - Admin & Manager Only)
 // ─────────────────────────────────────────────────────────────────────────────
 router.delete('/campaign/:campaign', protect, async (req, res) => {
   try {
     if (!isExecutiveOrAdminUser(req.user)) {
-      return res.status(403).json({ success: false, message: 'Forbidden. Admin access required.' });
+      return res.status(403).json({ success: false, message: 'Forbidden. Admin or Manager access required.' });
     }
     const { campaign } = req.params;
     const result = await MetaLead.deleteMany({ campaign });
+    await MetaCampaignAssignment.deleteMany({ campaign });
+
+    // Also remove from Google Sheets integration sheetSources if configured so it doesn't reappear
+    try {
+      const gIntegration = await Integration.findOne({ type: 'google_sheets' });
+      if (gIntegration && gIntegration.config?.sheetSources?.length) {
+        const initialLen = gIntegration.config.sheetSources.length;
+        gIntegration.config.sheetSources = gIntegration.config.sheetSources.filter(src => {
+          const tabName = parseTabName(src.sheetRange, src.name);
+          const campName = src.campaign || src.name || tabName;
+          return campName !== campaign;
+        });
+        if (gIntegration.config.sheetSources.length !== initialLen) {
+          gIntegration.markModified('config');
+          await gIntegration.save();
+        }
+      }
+    } catch (e) {
+      console.warn('[meta-leads] Failed to remove campaign from sheetSources:', e.message);
+    }
+
     res.json({
       success: true,
-      message: `Deleted ${result.deletedCount} leads from campaign "${campaign}"`
+      message: `Deleted campaign "${campaign}" and ${result.deletedCount} lead(s) successfully`
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to clear campaign leads', error: err.message });
+    res.status(500).json({ success: false, message: 'Failed to delete campaign', error: err.message });
   }
 });
 

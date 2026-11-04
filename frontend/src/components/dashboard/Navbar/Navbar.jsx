@@ -691,7 +691,6 @@ export default function Navbar() {
         { label: 'Dashboard', path: '/dashboard', icon: FaHouse },
         ...(!isMarketingStaff ? [{ label: 'TODO List', path: '/todo', icon: FaListCheck }] : []),
         { label: 'Digital Calendar', path: '/digital-calendar', icon: FaCalendarDays },
-        { label: 'Activity Schedule', path: '/daily-activity-schedule', icon: FaCalendarCheck },
       ]
     },
     (user?.role === 'admin' || isCEO(user) || (String(user?.department || '').toUpperCase() === 'MARKETING' && user?.role === 'manager')) ? {

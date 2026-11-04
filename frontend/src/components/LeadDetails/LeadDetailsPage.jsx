@@ -251,6 +251,7 @@ function CallTimer({ onStop }) {
 const TODO_DEEP_BLUE = '#023047';
 const TODO_BLUE_GREEN = '#219ebc';
 const TODO_SKY_SURFACE = '#e8f4fa';
+const TODO_SKY_BLUE = '#219ebc';
 const TODO_BORDER = '#bbdff0';
 const TODO_INPUT_BORDER = '#d8e2eb';
 const TODO_ORANGE = '#fb8500';
@@ -1818,6 +1819,7 @@ export default function LeadDetailsPage({
           id: currentId,
           name: leadName || lead.name,
           status: lead.status,
+          createdBy: user?.name || user?.fullName || lead?.assignedTo?.name || lead?.callerName || 'Staff',
           hasExistingNote: false,
         });
       }
@@ -1925,6 +1927,7 @@ export default function LeadDetailsPage({
           id: currentId,
           name: leadName || updated.name,
           status: newStatus,
+          createdBy: user?.name || user?.fullName || lead?.assignedTo?.name || lead?.callerName || 'Staff',
           hasExistingNote: leadHasNote(updated),
         });
       } else {
@@ -2653,7 +2656,7 @@ export default function LeadDetailsPage({
                           style={{
                             background: '#ffffff',
                             border: `1px solid ${TODO_BORDER}`,
-                            borderTop: `3px solid ${TODO_SKY_BLUE}`,
+                            borderTop: `3px solid ${TODO_BLUE_GREEN}`,
                             borderRadius: 12,
                             padding: 14,
                             boxShadow: '0 2px 8px rgba(2, 48, 71, 0.05)',

@@ -185,7 +185,10 @@ export default function AddLead() {
         if (s === 1) {
             if (!form.name.trim()) e.name = 'Full name is required';
             if (!form.phone.trim()) e.phone = 'Phone number is required';
-            if (form.email && form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+            else if (form.phone.replace(/\D/g, '').length !== 10) e.phone = 'Enter a valid 10-digit phone number';
+            if (!form.email || !form.email.trim()) {
+                e.email = 'Email is required';
+            } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
                 e.email = 'Please enter a valid email address';
             }
         }
@@ -211,7 +214,8 @@ export default function AddLead() {
     const prevStep = () => step > 1 && setStep(step - 1);
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
+        e?.preventDefault?.();
+        if (saving) return;
         let allErrors = {};
         [1, 2, 3, 4].forEach(s => { allErrors = { ...allErrors, ...validateStep(s) }; });
         if (Object.keys(allErrors).length) {
@@ -222,16 +226,20 @@ export default function AddLead() {
         }
         setSaving(true);
         try {
+            const selectedCampaign = campaigns.find(c => c._id === form.campaign);
             const data = {
                 ...form,
-                email: form.email ? form.email.trim().toLowerCase() : '',
+                email: form.email.trim().toLowerCase(),
                 phone: form.phone ? form.phone.replace(/\D/g, '').slice(-10) : '',
                 budget: form.budget ? +form.budget : 0,
-                campaign: form.campaign || undefined,
+                campaign: selectedCampaign ? (selectedCampaign.isMeta ? selectedCampaign.name : selectedCampaign._id) : undefined,
                 assignedTo: form.assignedTo || undefined,
             };
             if (isEdit) await leadsAPI.update(id, data);
             else await leadsAPI.create(data);
+            if (!isEdit && selectedCampaign) {
+                alert(`Lead added and linked to campaign "${selectedCampaign.name}".`);
+            }
             navigate('/leads');
         } catch (err) {
             alert(err.response?.data?.message || 'Failed to save lead');
@@ -347,8 +355,8 @@ export default function AddLead() {
                     </div>
                 </div>
 
-                {/* FORM */}
-                <form onSubmit={handleSubmit}>
+                {/* FORM — Enter key never auto-saves; it only advances steps */}
+                <form onSubmit={(e) => { e.preventDefault(); if (step < 4) nextStep(); }} noValidate>
                     <div className="bg-white rounded-2xl overflow-hidden shadow-sm"
                         style={{ border: `1px solid ${T.line}` }}>
                         <AnimatePresence mode="wait">
@@ -380,7 +388,7 @@ export default function AddLead() {
                                                 value={form.name} onChange={e => set('name', e.target.value)}
                                                 placeholder="Enter full name" />
                                         </Field>
-                                        <Field label="Email" optional hint="Optional student email" error={errors.email}>
+                                        <Field label="Email" required error={errors.email}>
                                             <input type="email" className={inputCls} style={inputStyle(errors.email)}
                                                 value={form.email} onChange={e => set('email', e.target.value)}
                                                 placeholder="abc@xyz.com" />
@@ -669,7 +677,7 @@ export default function AddLead() {
                         )}
                         <div className="flex-1" />
                         {step < 4 ? (
-                            <motion.button type="button" onClick={nextStep}
+                            <motion.button key="btn-continue" type="button" onClick={nextStep}
                                 whileHover={{ y: -2, boxShadow: `0 12px 24px rgba(37,99,235,0.3)` }}
                                 whileTap={{ scale: 0.97 }}
                                 className="flex items-center gap-1.5 px-6 py-2.5 rounded-xl text-sm font-bold text-white transition-all shadow-sm"
@@ -677,7 +685,7 @@ export default function AddLead() {
                                 Continue <ChevronRight className="w-4 h-4" />
                             </motion.button>
                         ) : (
-                            <motion.button type="submit" disabled={saving}
+                            <motion.button key="btn-save" type="button" onClick={handleSubmit} disabled={saving}
                                 whileHover={!saving ? { y: -2, boxShadow: `0 12px 24px rgba(249,115,22,0.4)` } : {}}
                                 whileTap={!saving ? { scale: 0.97 } : {}}
                                 className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-70 shadow-sm"

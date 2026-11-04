@@ -358,6 +358,81 @@ async function getSheetHeaders(sheetId, range) {
   }
 }
 
+
+function deriveStatusFromRow(rawData) {
+  let updateText = '';
+  for (const [k, v] of Object.entries(rawData)) {
+    if (/^final/i.test(k) && typeof v === 'string' && v.trim()) {
+      updateText = v.trim();
+      break;
+    }
+  }
+  if (!updateText) {
+    for (const [k, v] of Object.entries(rawData)) {
+      if (/^first/i.test(k) && typeof v === 'string' && v.trim()) {
+        updateText = v.trim();
+        break;
+      }
+    }
+  }
+  if (!updateText) {
+    for (const [k, v] of Object.entries(rawData)) {
+      if (/^update|remark|outcome/i.test(k) && typeof v === 'string' && v.trim()) {
+        updateText = v.trim();
+        break;
+      }
+    }
+  }
+  if (!updateText) {
+    for (const [k, v] of Object.entries(rawData)) {
+      if (/status/i.test(k) && typeof v === 'string' && v.trim() && !/synced|crm/i.test(v)) {
+        updateText = v.trim();
+        break;
+      }
+    }
+  }
+
+  if (!updateText) return { status: 'New', text: '' };
+
+  const lower = updateText.toLowerCase();
+
+  // Negative Sub-statuses
+  if (/joined\s*(in\s*)?other|joined\s*another|joined\s*somewhere/i.test(lower)) {
+    return { status: 'joined another institute/jobs', text: updateText };
+  }
+  if (/wrong\s*number|wrong\s*mumber|switch\s*off|blocked|bloked|out\s*of\s*service|out\s*of\s*netwo?rk/i.test(lower)) {
+    return { status: 'WN-SO-ON', text: updateText };
+  }
+  if (/not\s*inter[es]*ted|dont\s*have\s*time|no\s*time|not\s*interested\s*in\s*course/i.test(lower)) {
+    return { status: 'Not interested/Time pass', text: updateText };
+  }
+
+  // Positive Sub-statuses
+  if (/office\s*visit|visit\s*ofc|visited/i.test(lower)) {
+    return { status: "office visit's", text: updateText };
+  }
+  if (/\bjoined\b/i.test(lower) && !/other|another|somewhere|not\s*joined/i.test(lower)) {
+    return { status: 'Converted', text: updateText };
+  }
+  if (/demo\s*schedule|demo\s*attended|need\s*demo|send\s*demo/i.test(lower)) {
+    return { status: 'Demo attended', text: updateText };
+  }
+  if (/parents\s*approval|need\s*time|next\s*month|after\s*1\s*month|join\s*two\s*months|plan\s*of\s*joining|in\s*dec/i.test(lower)) {
+    return { status: 'Interested/Need time(After few months) waiting for parents approval', text: updateText };
+  }
+  if (/fee\s*issue|money\s*issue|server\s*purchase/i.test(lower)) {
+    return { status: 'time issues/Fee issues', text: updateText };
+  }
+  if (/call\s*back|we\s*will\s*call|confirm|interested|will\s*update/i.test(lower)) {
+    return { status: 'Call back/We will Call', text: updateText };
+  }
+  if (/not\s*answering|did\s*not\s*answer|busy\s*tone|disconnect/i.test(lower)) {
+    return { status: 'Not answering-call back/whats app text', text: updateText };
+  }
+
+  return { status: 'New', text: updateText };
+}
+
 /**
  * Ingests rows into MetaLead model with deduplication
  */
@@ -425,8 +500,20 @@ async function ingestRowsIntoMetaLeads(rows, campaignName, sourceLabel) {
       location: city || ''
     };
 
+    const derived = deriveStatusFromRow(rawData);
+
     if (existing) {
-      // PRESERVE existing CRM status and employee assignments
+      // PRESERVE existing caller-assigned status; if currently 'New', assign derived sheet status
+      if ((!existing.status || existing.status === 'New') && derived.status !== 'New') {
+        existing.status = derived.status;
+      }
+      if (derived.text) {
+        existing.notes = existing.notes || [];
+        const alreadyHasNote = existing.notes.some(n => n.text && n.text.includes(derived.text));
+        if (!alreadyHasNote) {
+          existing.notes.push({ text: `Sheet Update: ${derived.text}`, createdAt: new Date() });
+        }
+      }
       existing.metaLeadId = metaLeadId || existing.metaLeadId || undefined;
       existing.phone = phone || existing.phone || undefined;
       existing.normalizedPhone = normalizedPhone || existing.normalizedPhone || undefined;
@@ -442,6 +529,7 @@ async function ingestRowsIntoMetaLeads(rows, campaignName, sourceLabel) {
       activeLeadIds.push(existing._id);
       updatedCount++;
     } else {
+      const initialNotes = derived.text ? [{ text: `Sheet Update: ${derived.text}`, createdAt: new Date() }] : [];
       const created = await MetaLead.create({
         campaign: campaignName,
         source: sourceLabel || 'google_sheets_meta',
@@ -452,7 +540,8 @@ async function ingestRowsIntoMetaLeads(rows, campaignName, sourceLabel) {
         city: city || undefined,
         fullName: fullName || 'Unknown Lead',
         rawData: allowedRawData,
-        status: 'New',
+        status: derived.status || 'New',
+        notes: initialNotes,
         syncedAt: new Date()
       });
       activeLeadIds.push(created._id);
@@ -671,6 +760,7 @@ module.exports = {
   DEFAULT_META_SHEET_SOURCES,
   normalize10DigitPhone,
   extractCoreIdentifiers,
+  deriveStatusFromRow,
   fetchSheetRows,
   getSheetHeaders,
   ingestRowsIntoMetaLeads,
