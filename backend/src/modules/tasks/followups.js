@@ -68,8 +68,10 @@ function isStrictAdmin(user) {
     desig === 'CTO' ||
     desig === 'ADMIN' ||
     desig === 'SUPERADMIN' ||
+    desig.includes('DEVELOPER') ||
     dept === 'ADMIN' ||
-    dept === 'MANAGEMENT'
+    dept === 'MANAGEMENT' ||
+    dept === 'DEVELOPMENT'
   );
 }
 
@@ -100,7 +102,12 @@ router.get('/', protect, async (req, res) => {
   try {
     const { status, date, due: dueQuery, callerId, userId: queryUserId, type, forMe: forMeQuery, leadId, department } = req.query;
 
-    if (type === 'todo' && (
+    const isAdmin = isStrictAdmin(req.user);
+    const isMgr = isManager(req.user);
+    const forMe = forMeQuery === 'true';
+
+    // Only non-admin marketing staff are restricted from the todo module
+    if (!isAdmin && type === 'todo' && (
       String(req.user.department || '').trim().toLowerCase() === 'marketing' ||
       String(department || '').trim().toLowerCase() === 'marketing'
     )) {
@@ -110,7 +117,9 @@ router.get('/', protect, async (req, res) => {
     const query = {};
 
     if (type === 'todo') {
-      query.department = { $not: /^marketing$/i };
+      if (!isAdmin && !isMgr) {
+        query.department = { $not: /^marketing$/i };
+      }
       query.type = 'todo';
     } else if (type === 'call_followup') {
       query.type = 'call_followup';
@@ -122,10 +131,6 @@ router.get('/', protect, async (req, res) => {
       query.$and = query.$and || [];
       query.$and.push({ $or: [{ lead: leadId }, { metaLeadId: leadId }] });
     }
-
-    const isAdmin = isStrictAdmin(req.user);
-    const isMgr = isManager(req.user);
-    const forMe = forMeQuery === 'true';
 
     // Role-based visibility scoping
     if (queryUserId) {

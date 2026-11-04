@@ -120,14 +120,6 @@ export const followupsAPI = {
   import: (formData) => api.post('/followups/import', formData),
 };
 
-export const tasksAPI = {
-  getAll: (params) => api.get('/tasks', { params }),
-  getByUser: (userId, params) => api.get(`/tasks/user/${userId}`, { params }),
-  create: (data) => api.post('/tasks', data),
-  update: (id, data) => api.put(`/tasks/${id}`, data),
-  delete: (id) => api.delete(`/tasks/${id}`),
-};
-
 export const todosAPI = {
   getAll: (params) => api.get('/todos', { params }),
   getByUser: (userId, params) => api.get(`/todos/user/${userId}`, { params }),

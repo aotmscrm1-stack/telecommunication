@@ -346,8 +346,29 @@ function RealWorldCalendar({
       const d = new Date(selectedDate);
       if (!isNaN(d.getTime())) return d;
     }
+    if (tasks && tasks.length > 0) {
+      const tWithDate = tasks.find(t => t.scheduledAt || t.dueDate || t.createdAt);
+      if (tWithDate) {
+        const d = new Date(tWithDate.scheduledAt || tWithDate.dueDate || tWithDate.createdAt);
+        if (!isNaN(d.getTime())) return d;
+      }
+    }
     return new Date();
   });
+
+  // Keep viewDate synced when tasks load or when selectedDate changes
+  useEffect(() => {
+    if (selectedDate) {
+      const d = new Date(selectedDate);
+      if (!isNaN(d.getTime())) setViewDate(d);
+    } else if (tasks && tasks.length > 0) {
+      const tWithDate = tasks.find(t => t.scheduledAt || t.dueDate || t.createdAt);
+      if (tWithDate) {
+        const d = new Date(tWithDate.scheduledAt || tWithDate.dueDate || tWithDate.createdAt);
+        if (!isNaN(d.getTime())) setViewDate(d);
+      }
+    }
+  }, [selectedDate, tasks.length]);
 
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
@@ -759,18 +780,14 @@ export default function TodoList({
 }) {
   const { user: currentUser } = useAuth();
   
-  // Real-world Calendar selected date state (YYYY-MM-DD or null, defaults strictly to today in IST)
-  const [selectedDate, setSelectedDate] = useState(() => getLocalDateKey(new Date()));
+  // Default to null (All Todos) so all todos across all dates are immediately visible
+  const [selectedDate, setSelectedDate] = useState(null);
 
-  // Whenever switching to active Todo List & Actions mode, or when resetTrigger fires,
-  // ALWAYS reset the calendar selection to Today so today's todos are visible by default.
   useEffect(() => {
-    if (!historyMode) {
-      setSelectedDate(getLocalDateKey(new Date()));
-    } else {
+    if (resetTrigger) {
       setSelectedDate(null);
     }
-  }, [historyMode, resetTrigger]);
+  }, [resetTrigger]);
 
   // Pagination: strictly 3 cards per row * 2 rows = 6 cards per page
   const ITEMS_PER_PAGE = 6;

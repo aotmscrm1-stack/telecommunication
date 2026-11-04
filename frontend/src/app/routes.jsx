@@ -243,23 +243,23 @@ export function AppRoutes() {
         <Route path="bulk-import" element={<StaffRestrictedRoute><BulkImport /></StaffRestrictedRoute>} />
         <Route path="add-lead" element={<StaffRestrictedRoute><AddLead /></StaffRestrictedRoute>} />
 
-        {/* Tasks & Todo */}
+        {/* Todo List (Tasks & Followups replaced with Todo) */}
         <Route path="tasks" element={<Navigate to="/todo" replace />} />
         <Route path="task" element={<Navigate to="/todo" replace />} />
         <Route path="todo" element={<TodoRoute><Tasks /></TodoRoute>} />
         <Route path="todos" element={<TodoRoute><Tasks /></TodoRoute>} />
-        <Route path="follow-ups" element={<TodoRoute><Tasks /></TodoRoute>} />
-        <Route path="followups" element={<TodoRoute><Tasks /></TodoRoute>} />
+        <Route path="follow-ups" element={<Navigate to="/todo" replace />} />
+        <Route path="followups" element={<Navigate to="/todo" replace />} />
         <Route path=":userId/tasks" element={<Navigate to="/todo" replace />} />
         <Route path=":userId/task" element={<Navigate to="/todo" replace />} />
         <Route path=":userId/todo" element={<TodoRoute><Tasks /></TodoRoute>} />
         <Route path=":userId/todos" element={<TodoRoute><Tasks /></TodoRoute>} />
-        <Route path=":userId/follow-ups" element={<TodoRoute><Tasks /></TodoRoute>} />
-        <Route path=":userId/followups" element={<TodoRoute><Tasks /></TodoRoute>} />
-        <Route path="daily-activity" element={<Navigate to="/tasks" replace />} />
-        <Route path="daily-activities" element={<Navigate to="/tasks" replace />} />
-        <Route path=":userId/daily-activity" element={<Navigate to="/tasks" replace />} />
-        <Route path=":userId/daily-activities" element={<Navigate to="/tasks" replace />} />
+        <Route path=":userId/follow-ups" element={<Navigate to="/todo" replace />} />
+        <Route path=":userId/followups" element={<Navigate to="/todo" replace />} />
+        <Route path="daily-activity" element={<Navigate to="/todo" replace />} />
+        <Route path="daily-activities" element={<Navigate to="/todo" replace />} />
+        <Route path=":userId/daily-activity" element={<Navigate to="/todo" replace />} />
+        <Route path=":userId/daily-activities" element={<Navigate to="/todo" replace />} />
 
         {/* Finance Module Routes */}
         <Route path="offer-letter" element={<AdminRoute><OfferLetter /></AdminRoute>} />

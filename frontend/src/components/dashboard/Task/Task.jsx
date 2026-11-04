@@ -2089,7 +2089,7 @@ function AddTaskModal({ type = 'todo', onClose, onCreated }) {
   const [repeatFrequency, setRepeatFrequency] = useState('none');
   const [repeatEndDate, setRepeatEndDate] = useState('');
 
-  const isAdminOrExecutive = isExecutive(currentUser) || currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
+  const isAdminOrExecutive = isExecutive(currentUser) || isDeveloper(currentUser) || currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
   const userDept = currentUser?.department || (
     isDeveloper(currentUser) ? 'Developer' :
     isHR(currentUser) ? 'HR' :
@@ -2657,10 +2657,9 @@ export default function Task() {
   // Sync route URL to format: /:userId/todo or /:userId/tasks
   useEffect(() => {
     if (currentUser?._id && !routeUserId) {
-      const slug = activeTab === 'Todo' ? 'todo' : activeTab === 'Call Followups' ? 'follow-ups' : 'tasks';
-      navigate(`/${currentUser._id}/${slug}`, { replace: true });
+      navigate(`/${currentUser._id}/todo`, { replace: true });
     }
-  }, [currentUser, routeUserId, activeTab, navigate]);
+  }, [currentUser, routeUserId, navigate]);
 
   const [historyModeMap, setHistoryModeMap] = useState({
     Tasks: false,
@@ -2693,7 +2692,7 @@ export default function Task() {
   };
 
   const [forFilter, setForFilter] = useState(() => {
-    return (currentUser?.role === 'admin' || currentUser?.role === 'manager') ? 'Team' : 'Me';
+    return (currentUser?.role === 'admin' || currentUser?.role === 'manager' || isDeveloper(currentUser) || isExecutive(currentUser)) ? 'Team' : 'Me';
   });
 
   const [dueFilter, setDueFilter] = useState(null);
@@ -2719,7 +2718,7 @@ export default function Task() {
   const hoverTimeoutRef = useRef(null);
   const [showTeamDrop, setShowTeamDrop] = useState(false);
   const teamDropRef = useRef(null);
-  const isAdminOrExecutive = isExecutive(currentUser) || currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
+  const isAdminOrExecutive = isExecutive(currentUser) || isDeveloper(currentUser) || currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
   const userDept = currentUser?.department || (
     isDeveloper(currentUser) ? 'Developer' :
     isHR(currentUser) ? 'HR' :
@@ -2746,7 +2745,7 @@ export default function Task() {
 
       if (historyMode) {
         const res = await followupsAPI.getAll({
-          userId: activeUserId,
+          userId: forFilter === 'Me' ? activeUserId : undefined,
           forMe: forFilter === 'Me',
           due: dueFilter ? dueFilter.toLowerCase().replace(' ', '_') : undefined,
           status: 'done',
@@ -2754,10 +2753,8 @@ export default function Task() {
           ...(teamMemberFilter ? { callerId: teamMemberFilter } : {}),
           ...(teamDepartmentFilter && !teamMemberFilter ? { department: teamDepartmentFilter } : {}),
         });
-        let items = res.data.followups || res.data.tasks || [];
-        if (activeTab === 'Todo') items = items.filter(t => (t.status === 'done' || t.status === 'completed' || t.completedAt) && t.type === 'todo');
-        else if (activeTab === 'Call Followups') items = items.filter(t => (t.status === 'done' || t.status === 'completed' || t.completedAt) && t.type === 'call_followup');
-        else items = items.filter(t => (t.status === 'done' || t.status === 'completed' || t.completedAt) && (t.type === 'task' || (t.type !== 'todo' && t.type !== 'call_followup')));
+        let items = res.data.followups || res.data.todos || [];
+        items = items.filter(t => (t.status === 'done' || t.status === 'completed' || t.completedAt));
         if (priorityFilter) items = items.filter(t => t.priority === priorityFilter);
 
         if (teamMemberFilter) {
@@ -2791,7 +2788,7 @@ export default function Task() {
       if (wantsCancelled) dbStatuses.push('cancelled');
 
       const res = await followupsAPI.getAll({
-        userId: activeUserId,
+        userId: forFilter === 'Me' ? activeUserId : undefined,
         forMe: forFilter === 'Me',
         due: dueFilter ? dueFilter.toLowerCase().replace(' ', '_') : undefined,
         status: dbStatuses.join(','),
@@ -2799,10 +2796,8 @@ export default function Task() {
         ...(teamMemberFilter ? { callerId: teamMemberFilter } : {}),
         ...(teamDepartmentFilter && !teamMemberFilter ? { department: teamDepartmentFilter } : {}),
       });
-      let items = res.data.followups || res.data.tasks || [];
-      if (activeTab === 'Todo') items = items.filter(t => t.status !== 'done' && t.status !== 'completed' && !t.completedAt && t.type === 'todo');
-      else if (activeTab === 'Call Followups') items = items.filter(t => t.status !== 'done' && t.status !== 'completed' && !t.completedAt && t.type === 'call_followup');
-      else items = items.filter(t => t.status !== 'done' && t.status !== 'completed' && !t.completedAt && (t.type === 'task' || (t.type !== 'todo' && t.type !== 'call_followup')));
+      let items = res.data.followups || res.data.todos || [];
+      items = items.filter(t => t.status !== 'done' && t.status !== 'completed' && !t.completedAt);
 
       if (!isAll) {
         const startOfToday = new Date();
@@ -3171,7 +3166,7 @@ export default function Task() {
 
         {showAddModal && (
           <AddTaskModal
-            type={activeTab === 'Call Followups' ? 'call_followup' : activeTab === 'Todo' ? 'todo' : 'task'}
+            type="todo"
             onClose={() => setShowAddModal(false)}
             onCreated={() => {
               fetchTasksRef.current();
@@ -3370,7 +3365,7 @@ export default function Task() {
               <circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" />
             </svg>
             <span>
-              Completed {activeTab === 'Todo' ? 'Todo' : activeTab === 'Call Followups' ? 'Follow-up' : 'Task'} History
+              Completed Todo History
             </span>
             {historyMode && (
               <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded-md bg-amber-600 text-white">
@@ -3383,14 +3378,14 @@ export default function Task() {
         {historyMode && (
           <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 10, padding: '11px 16px', marginBottom: 16, fontSize: 13, color: '#065f46', fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-emerald-800">📜 Completed {activeTab === 'Todo' ? 'Todos' : activeTab === 'Call Followups' ? 'Call Follow-ups' : 'Tasks'} History Mode:</span>
-              <span className="text-emerald-700 font-normal">Showing completed items for {activeTab === 'Todo' ? 'Todos' : activeTab === 'Call Followups' ? 'Call Follow-ups' : 'Tasks'}.</span>
+              <span className="font-semibold text-emerald-800">📜 Completed Todos History Mode:</span>
+              <span className="text-emerald-700 font-normal">Showing completed items for Todos.</span>
             </div>
             <button
               onClick={() => setHistoryMode(false)}
               className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white transition-all shadow-xs shrink-0"
             >
-              Show Active {activeTab === 'Todo' ? 'Todos' : activeTab === 'Call Followups' ? 'Call Follow-ups' : 'Tasks'}
+              Show Active Todos
             </button>
           </div>
         )}

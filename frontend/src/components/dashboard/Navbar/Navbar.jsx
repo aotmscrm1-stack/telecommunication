@@ -498,8 +498,8 @@ export default function Navbar() {
 
   const notifTarget = (n) => {
     const taskTypes = ['task_created', 'task_assigned', 'task_edited', 'task_overdue', 'task_reminder'];
-    if (taskTypes.includes(n.type)) return n.leadId ? `/leads/${n.leadId}` : '/daily-activity';
-    if (n.type === 'callback_due') return n.leadId ? `/leads/${n.leadId}` : '/daily-activity';
+    if (taskTypes.includes(n.type)) return n.leadId ? `/leads/${n.leadId}` : '/todo';
+    if (n.type === 'callback_due') return n.leadId ? `/leads/${n.leadId}` : '/todo';
     if (n.leadId) return `/leads/${n.leadId}`;
     return null;
   };
@@ -1175,19 +1175,7 @@ export default function Navbar() {
                   </div>
                 )}
 
-                {/* Call Followups (Only for Admin & Manager) */}
-                {canViewCallFollowups(user) && (
-                  <motion.button
-                    whileHover={{ scale: 1.08 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => navigate('/daily-activity')}
-                    title="View Call Followups"
-                    className="w-9 h-9 rounded-full flex items-center justify-center transition-all hidden sm:flex nav-glow-icon-btn"
-                    style={{ background: C.bgSoft, border: `1px solid ${C.border}` }}
-                  >
-                    <FaClock className="w-4 h-4 transition-colors" style={{ color: C.blue }} />
-                  </motion.button>
-                )}
+
 
                 {/* Download Mobile APK */}
                 <motion.button
