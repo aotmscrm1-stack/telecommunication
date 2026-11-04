@@ -22,18 +22,15 @@ import {
   CalendarCheck2
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
-import { isExecutive, isHR, canEditOrDeleteTask, canMarkCompleteTask } from '../../../utils/permissions';
+import { isExecutive, isHR, canEditTask, canDeleteTask, canEditOrDeleteTask, canMarkCompleteTask } from '../../../utils/permissions';
 import { followupsAPI, todosAPI } from '../../../services/api';
 
-// Helper to get YYYY-MM-DD in local time
+// Helper to get YYYY-MM-DD in local IST time
 function getLocalDateKey(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return '';
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+  return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 }
 
 // Helper for IST Date formatting
@@ -479,7 +476,7 @@ function RealWorldCalendar({ selectedDate, onSelectDate, taskCountByDate = {}, t
 
         <button
           type="button"
-          onClick={() => onSelectDate(selectedDate === todayKey ? null : todayKey)}
+          onClick={() => onSelectDate(todayKey)}
           className={`py-1.5 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center border cursor-pointer ${
             selectedDate === todayKey 
               ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs' 
@@ -494,7 +491,7 @@ function RealWorldCalendar({ selectedDate, onSelectDate, taskCountByDate = {}, t
 
         <button
           type="button"
-          onClick={() => onSelectDate(selectedDate === tomorrowKey ? null : tomorrowKey)}
+          onClick={() => onSelectDate(tomorrowKey)}
           className={`py-1.5 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center border cursor-pointer ${
             selectedDate === tomorrowKey 
               ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs' 
@@ -529,13 +526,9 @@ function RealWorldCalendar({ selectedDate, onSelectDate, taskCountByDate = {}, t
               key={`${cell.dateKey}-${idx}`}
               type="button"
               onClick={() => {
-                if (isSelected) {
-                  onSelectDate(null);
-                } else {
-                  onSelectDate(cell.dateKey);
-                  if (!cell.isCurrentMonth) {
-                    setViewDate(new Date(cell.dateObj));
-                  }
+                onSelectDate(cell.dateKey);
+                if (!cell.isCurrentMonth) {
+                  setViewDate(new Date(cell.dateObj));
                 }
               }}
               className={`relative h-9 rounded-xl flex flex-col items-center justify-center transition-all cursor-pointer ${
@@ -609,8 +602,8 @@ export default function TodoList({
 }) {
   const { user: currentUser } = useAuth();
   
-  // Real-world Calendar selected date state (YYYY-MM-DD or null)
-  const [selectedDate, setSelectedDate] = useState(null);
+  // Real-world Calendar selected date state (YYYY-MM-DD or null, defaults strictly to today in IST)
+  const [selectedDate, setSelectedDate] = useState(() => getLocalDateKey(new Date()));
 
   // Pagination: strictly 3 cards per row * 2 rows = 6 cards per page
   const ITEMS_PER_PAGE = 6;
@@ -637,20 +630,30 @@ export default function TodoList({
 
   // Edit, Delete & Complete Permission Helpers based on MongoDB Auth
   const canComplete = canMarkCompleteTask(currentUser);
-  const checkCanEdit = (todo) => canEditOrDeleteTask(todo, currentUser);
-  const checkCanDelete = (todo) => canEditOrDeleteTask(todo, currentUser);
+  const checkCanEdit = (todo) => canEditTask(todo, currentUser);
+  const checkCanDelete = (todo) => canDeleteTask(todo, currentUser);
 
   // Map of date string -> count of scheduled tasks
   const taskCountByDate = useMemo(() => {
     const map = {};
     tasks.forEach(t => {
-      const k = getLocalDateKey(t.scheduledAt);
+      // In active mode, do not count completed tasks
+      if (!historyMode && (t.status === 'done' || t.status === 'completed' || t.completedAt)) {
+        return;
+      }
+      // In history mode, do not count uncompleted tasks
+      if (historyMode && t.status !== 'done' && t.status !== 'completed' && !t.completedAt) {
+        return;
+      }
+      const k = historyMode 
+        ? (getLocalDateKey(t.completedAt) || getLocalDateKey(t.scheduledAt))
+        : getLocalDateKey(t.scheduledAt || t.dueDate || t.createdAt);
       if (k) {
         map[k] = (map[k] || 0) + 1;
       }
     });
     return map;
-  }, [tasks]);
+  }, [tasks, historyMode]);
 
   // 1-Click Quick Add Handler
   const handleQuickAdd = async (e) => {
@@ -701,10 +704,35 @@ export default function TodoList({
   const filteredTodos = tasks.filter(t => {
     if (priorityFilter !== 'all' && priorityFilter !== '' && t.priority !== priorityFilter) return false;
 
-    // Date filter from real-world calendar
+    // Strict Mode Separation:
+    // In Active Mode: NEVER show completed tasks (tasks with done, completed, or completedAt)
+    if (!historyMode) {
+      if (t.status === 'done' || t.status === 'completed' || t.completedAt) {
+        return false;
+      }
+    }
+    // In History Mode: ONLY show completed tasks
+    if (historyMode) {
+      if (t.status !== 'done' && t.status !== 'completed' && !t.completedAt) {
+        return false;
+      }
+    }
+
+    // Date filter: for a particular date, strictly that particular date's tasks are visible.
+    // Previous days' uncompleted todos are NOT carried forward to other days.
     if (selectedDate) {
-      const taskDateKey = getLocalDateKey(t.scheduledAt);
-      if (taskDateKey !== selectedDate) return false;
+      if (historyMode) {
+        const completedDateKey = getLocalDateKey(t.completedAt);
+        const scheduledDateKey = getLocalDateKey(t.scheduledAt || t.dueDate || t.createdAt);
+        if (completedDateKey !== selectedDate && scheduledDateKey !== selectedDate) {
+          return false;
+        }
+      } else {
+        const taskDateKey = getLocalDateKey(t.scheduledAt || t.dueDate || t.createdAt);
+        if (taskDateKey !== selectedDate) {
+          return false;
+        }
+      }
     }
 
     if (searchQuery.trim()) {
@@ -716,6 +744,14 @@ export default function TodoList({
 
     return true;
   });
+
+  // Total count matching current mode (active vs history)
+  const activeModeTasks = useMemo(() => {
+    return tasks.filter(t => historyMode 
+      ? (t.status === 'done' || t.status === 'completed' || t.completedAt)
+      : (t.status !== 'done' && t.status !== 'completed' && !t.completedAt)
+    );
+  }, [tasks, historyMode]);
 
   // Pagination calculations: exactly 6 items per page (3 per row * 2 rows)
   const totalPages = Math.max(1, Math.ceil(filteredTodos.length / ITEMS_PER_PAGE));
@@ -733,7 +769,7 @@ export default function TodoList({
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
           taskCountByDate={taskCountByDate}
-          totalTasksCount={tasks.length}
+          totalTasksCount={activeModeTasks.length}
         />
 
         {/* Right Side: Quick Add Todo Bar + Todo Cards (3 per row, 2 rows max) + Pagination */}
@@ -776,7 +812,7 @@ export default function TodoList({
             <div className="bg-indigo-50/90 border border-indigo-200/90 rounded-2xl p-3 px-4 flex items-center justify-between gap-3 text-xs shadow-xs">
               <div className="flex items-center gap-2 text-indigo-900 font-semibold">
                 <CalendarCheck2 size={16} className="text-indigo-600" />
-                <span>Showing todos for <strong>{formatISTDate(selectedDate)}</strong> ({filteredTodos.length} {filteredTodos.length === 1 ? 'item' : 'items'})</span>
+                <span>Showing {historyMode ? 'completed todos' : 'todos'} for <strong>{formatISTDate(selectedDate)}</strong> ({filteredTodos.length} {filteredTodos.length === 1 ? 'item' : 'items'})</span>
               </div>
               <button
                 type="button"
@@ -792,11 +828,17 @@ export default function TodoList({
           {filteredTodos.length === 0 ? (
             <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-12 text-center">
               <ListTodo size={40} className="mx-auto text-slate-300 mb-3" />
-              <h4 className="text-base font-semibold text-slate-700">No Todo Items Found</h4>
+              <h4 className="text-base font-semibold text-slate-700">
+                {historyMode ? 'No Completed Todos Found' : 'No Todo Items Found'}
+              </h4>
               <p className="text-xs text-slate-400 mt-1">
                 {selectedDate 
-                  ? `There are no active todos scheduled for ${formatISTDate(selectedDate)}.`
-                  : "There are no active todos matching your current criteria."}
+                  ? (historyMode 
+                      ? `There are no completed todos recorded for ${formatISTDate(selectedDate)}.` 
+                      : `There are no active todos scheduled for ${formatISTDate(selectedDate)}.`)
+                  : (historyMode 
+                      ? "There are no completed todos matching your current criteria." 
+                      : "There are no active todos matching your current criteria.")}
               </p>
               {selectedDate && (
                 <button
@@ -833,7 +875,7 @@ export default function TodoList({
                     <div className="flex flex-col min-w-0 overflow-hidden flex-1">
                       <AutoScrollName name={assigneeName} className="text-xs font-bold text-slate-900" maxPx={130} />
                       {assignedByName && (
-                        <AutoScrollName prefix="Assigned by:" name={assignedByName} className="text-[11px] font-medium text-slate-500" maxPx={130} />
+                        <AutoScrollName prefix="Reporting to:" name={assignedByName} className="text-[11px] font-medium text-slate-500" maxPx={130} />
                       )}
                     </div>
                   </div>
@@ -868,7 +910,7 @@ export default function TodoList({
                 </div>
 
                 {/* Completion Audit Log Badge for Completed History */}
-                {(t.completedAt || t.status === 'done' || t.status === 'completed') && (
+                {(historyMode || t.status === 'done' || t.status === 'completed') && (
                   <div className="bg-emerald-50 border border-emerald-200/70 rounded-xl p-2.5 flex items-center gap-2 text-xs font-medium text-emerald-800">
                     <CheckCircle2 size={14} className="text-emerald-600 flex-shrink-0" />
                     <span>Completed {t.completedAt ? formatIST(t.completedAt) : 'Recently'}</span>

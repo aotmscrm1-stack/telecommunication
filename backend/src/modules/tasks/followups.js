@@ -3,6 +3,7 @@ const multer = require('multer');
 const xlsx = require('xlsx');
 const mongoose = require('mongoose');
 const FollowUp = require('../../database/models/FollowUp');
+const Todo = require('../../database/models/Todo');
 const Lead = require('../../database/models/Lead');
 const User = require('../../database/models/User');
 const { protect, authorize } = require('../../core/middleware/auth');
@@ -107,6 +108,11 @@ router.get('/', protect, async (req, res) => {
 
     if (type === 'todo') {
       query.department = { $not: /^marketing$/i };
+      query.type = 'todo';
+    } else if (type === 'call_followup') {
+      query.type = 'call_followup';
+    } else if (type === 'task') {
+      query.type = { $in: ['task', null] };
     }
 
     if (isValidId(leadId)) {
@@ -160,8 +166,7 @@ router.get('/', protect, async (req, res) => {
           query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { createdBy: req.user._id }];
         }
       } else {
-        // Developer, Trainer, Digital Marketing, Employee Panels:
-        // ONLY see their own assigned, created, or assignedBy items!
+        // Non-managers (including Jr Marketing Executives): strictly ONLY see own assigned, created, or assignedBy items!
         query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { createdBy: req.user._id }];
       }
     } else {
@@ -192,7 +197,19 @@ router.get('/', protect, async (req, res) => {
         if (trimmed === 'done' || trimmed === 'completed') return ['done', 'completed'];
         return [trimmed];
       }).flat();
-      query.status = { $in: Array.from(new Set(statuses)) };
+      const uniqueStatuses = Array.from(new Set(statuses));
+      if (uniqueStatuses.includes('done') || uniqueStatuses.includes('completed')) {
+        query.$and = query.$and || [];
+        query.$and.push({
+          $or: [
+            { status: { $in: uniqueStatuses } },
+            { completedAt: { $exists: true, $ne: null } }
+          ]
+        });
+      } else {
+        query.status = { $in: uniqueStatuses };
+        query.completedAt = null;
+      }
     }
 
     const due = dueQuery || date;
@@ -213,10 +230,32 @@ router.get('/', protect, async (req, res) => {
       .populate('lead', 'name phone status')
       .populate('assignedTo', 'name avatar department designation')
       .populate('assignedBy', 'name avatar department designation')
-      .populate('completedBy', 'name avatar');
+      .populate('completedBy', 'name avatar')
+      .populate('createdBy', 'name avatar department designation');
     const results = await reqQueryFind.sort({ scheduledAt: 1, createdAt: -1 });
 
-    const sanitized = results.map(f => {
+    let allDocs = [...results];
+    if (type === 'todo') {
+      try {
+        const todoResults = await Todo.find(query)
+          .populate('lead', 'name phone status')
+          .populate('assignedTo', 'name avatar department designation')
+          .populate('assignedBy', 'name avatar department designation')
+          .populate('completedBy', 'name avatar')
+          .populate('createdBy', 'name avatar department designation')
+          .sort({ scheduledAt: 1, createdAt: -1 });
+        const existingIds = new Set(results.map(r => String(r._id)));
+        for (const tr of todoResults) {
+          if (!existingIds.has(String(tr._id))) {
+            allDocs.push(tr);
+          }
+        }
+      } catch (e) {
+        // silent fallback
+      }
+    }
+
+    const sanitized = allDocs.map(f => {
       const doc = f.toObject ? f.toObject() : { ...f };
       doc.type = type || 'call_followup';
       doc.scheduledAt = doc.scheduledAt || doc.dueDate || doc.startDate || doc.createdAt;
@@ -224,7 +263,7 @@ router.get('/', protect, async (req, res) => {
       doc.note = doc.note || doc.description || doc.title || '';
       doc.title = doc.title || doc.note || doc.description || '';
       doc.description = doc.description || doc.note || doc.title || '';
-      if (doc.status === 'completed') doc.status = 'done';
+      if (doc.status === 'completed' || doc.status === 'done' || doc.completedAt) doc.status = 'done';
       else if (doc.status === 'pending' || doc.status === 'in_progress') doc.status = 'upcoming';
 
       if (!doc.assignedBy) {
@@ -292,7 +331,7 @@ router.get('/user/:userId', protect, async (req, res) => {
       doc.note = doc.note || doc.description || doc.title || '';
       doc.title = doc.title || doc.note || doc.description || '';
       doc.description = doc.description || doc.note || doc.title || '';
-      if (doc.status === 'completed') doc.status = 'done';
+      if (doc.status === 'completed' || doc.status === 'done' || doc.completedAt) doc.status = 'done';
       else if (doc.status === 'pending' || doc.status === 'in_progress') doc.status = 'upcoming';
 
       if (!doc.assignedBy) {
@@ -456,7 +495,12 @@ router.put('/:id', protect, async (req, res) => {
       return res.status(403).json({ message: 'You are not allowed to assign tasks to this user' });
     }
 
-    const followup = await FollowUp.findById(req.params.id);
+    let followup = await FollowUp.findById(req.params.id);
+    let ModelClass = FollowUp;
+    if (!followup) {
+      followup = await Todo.findById(req.params.id);
+      ModelClass = Todo;
+    }
     if (!followup) return res.status(404).json({ message: 'Item not found' });
 
     const effectiveType = req.body.type || followup.type;
@@ -495,11 +539,18 @@ router.put('/:id', protect, async (req, res) => {
       if (!update.completedAt) update.completedAt = new Date();
       update.completedBy = req.user._id;
     }
-    const updatedFollowup = await FollowUp.findByIdAndUpdate(req.params.id, update, { new: true })
+    const updatedFollowup = await ModelClass.findByIdAndUpdate(req.params.id, update, { new: true })
       .populate('lead', 'name phone status')
       .populate('assignedTo', 'name email avatar')
       .populate('assignedBy', 'name email avatar')
-      .populate('completedBy', 'name email avatar');
+      .populate('completedBy', 'name email avatar')
+      .populate('createdBy', 'name email avatar');
+
+    if (ModelClass === FollowUp) {
+      Todo.findByIdAndUpdate(req.params.id, update).catch(() => {});
+    } else {
+      FollowUp.findByIdAndUpdate(req.params.id, update).catch(() => {});
+    }
 
     if (!updatedFollowup) return res.status(404).json({ message: 'Item not found' });
 
@@ -516,20 +567,36 @@ router.put('/:id', protect, async (req, res) => {
 router.patch('/:id/status', protect, async (req, res) => {
   try {
     const { status } = req.body;
-    const existing = await FollowUp.findById(req.params.id);
+    let existing = await FollowUp.findById(req.params.id);
+    let ModelClass = FollowUp;
+    if (!existing) {
+      existing = await Todo.findById(req.params.id);
+      ModelClass = Todo;
+    }
     if (!existing) return res.status(404).json({ message: 'Item not found' });
 
     const update = { status: (status === 'completed' || status === 'done') ? 'done' : status };
     if (update.status === 'done') {
+      const isAdminUser = req.user.role === 'admin' || req.user.role === 'superadmin' || isStrictAdmin(req.user) || isManager(req.user);
+      if (!isAdminUser) {
+        return res.status(403).json({ message: 'Only Admin has permission to confirm and mark tasks as completed' });
+      }
       update.completedAt = new Date();
       update.completedBy = req.user._id;
     }
 
-    const followup = await FollowUp.findByIdAndUpdate(req.params.id, update, { new: true })
+    const followup = await ModelClass.findByIdAndUpdate(req.params.id, update, { new: true })
       .populate('lead', 'name phone status')
       .populate('assignedTo', 'name email avatar')
       .populate('assignedBy', 'name email avatar')
-      .populate('completedBy', 'name email avatar');
+      .populate('completedBy', 'name email avatar')
+      .populate('createdBy', 'name email avatar');
+
+    if (ModelClass === FollowUp) {
+      Todo.findByIdAndUpdate(req.params.id, update).catch(() => {});
+    } else {
+      FollowUp.findByIdAndUpdate(req.params.id, update).catch(() => {});
+    }
 
     res.json({ followup });
   } catch (err) {
@@ -541,21 +608,37 @@ router.patch('/:id/status', protect, async (req, res) => {
 // PATCH /api/followups/:id
 router.patch('/:id', protect, async (req, res) => {
   try {
-    const existing = await FollowUp.findById(req.params.id);
+    let existing = await FollowUp.findById(req.params.id);
+    let ModelClass = FollowUp;
+    if (!existing) {
+      existing = await Todo.findById(req.params.id);
+      ModelClass = Todo;
+    }
     if (!existing) return res.status(404).json({ message: 'Item not found' });
 
     const update = { ...req.body };
     if (update.status === 'done' || update.status === 'completed') {
+      const isAdminUser = req.user.role === 'admin' || req.user.role === 'superadmin' || isStrictAdmin(req.user) || isManager(req.user);
+      if (!isAdminUser) {
+        return res.status(403).json({ message: 'Only Admin has permission to confirm and mark tasks as completed' });
+      }
       update.status = 'done';
       update.completedAt = update.completedAt || new Date();
       update.completedBy = req.user._id;
     }
 
-    const followup = await FollowUp.findByIdAndUpdate(req.params.id, update, { new: true })
+    const followup = await ModelClass.findByIdAndUpdate(req.params.id, update, { new: true })
       .populate('lead', 'name phone status')
       .populate('assignedTo', 'name email avatar')
       .populate('assignedBy', 'name email avatar')
-      .populate('completedBy', 'name email avatar');
+      .populate('completedBy', 'name email avatar')
+      .populate('createdBy', 'name email avatar');
+
+    if (ModelClass === FollowUp) {
+      Todo.findByIdAndUpdate(req.params.id, update).catch(() => {});
+    } else {
+      FollowUp.findByIdAndUpdate(req.params.id, update).catch(() => {});
+    }
 
     res.json({ followup });
   } catch (err) {
@@ -567,7 +650,12 @@ router.patch('/:id', protect, async (req, res) => {
 // DELETE /api/followups/:id
 router.delete('/:id', protect, async (req, res) => {
   try {
-    const target = await FollowUp.findById(req.params.id);
+    let target = await FollowUp.findById(req.params.id);
+    let ModelClass = FollowUp;
+    if (!target) {
+      target = await Todo.findById(req.params.id);
+      ModelClass = Todo;
+    }
     if (!target) return res.status(404).json({ message: 'Item not found' });
 
     const isAdmin = isStrictAdmin(req.user) || isManager(req.user) || req.user.role === 'admin' || req.user.role === 'superadmin';
@@ -576,9 +664,11 @@ router.delete('/:id', protect, async (req, res) => {
     }
 
     if (target.recurringGroupId) {
-      await FollowUp.deleteMany({ recurringGroupId: target.recurringGroupId });
+      await ModelClass.deleteMany({ recurringGroupId: target.recurringGroupId });
+      await (ModelClass === FollowUp ? Todo : FollowUp).deleteMany({ recurringGroupId: target.recurringGroupId }).catch(() => {});
     } else {
-      await FollowUp.findByIdAndDelete(target._id);
+      await ModelClass.findByIdAndDelete(target._id);
+      await (ModelClass === FollowUp ? Todo : FollowUp).findByIdAndDelete(target._id).catch(() => {});
     }
 
     res.json({ message: 'Deleted' });

@@ -62,6 +62,36 @@ function isStrictAdminOrCEO(user) {
   );
 }
 
+function isSeniorOrAdmin(user) {
+  if (!user) return false;
+  const role = String(user.role || '').trim().toLowerCase();
+  if (role === 'admin' || role === 'superadmin' || role === 'manager') return true;
+
+  const desig = String(user.designation || user.displayName || '').trim().toUpperCase();
+  const dept = String(user.department || '').trim().toUpperCase();
+
+  if (
+    desig.includes('MD') ||
+    desig.includes('MANAGING DIRECTOR') ||
+    desig.includes('CEO') ||
+    desig.includes('CTO') ||
+    dept.includes('ADMIN') ||
+    dept.includes('MANAGEMENT')
+  ) {
+    return true;
+  }
+
+  return (
+    desig.includes('LEAD') ||
+    desig.includes('HEAD') ||
+    desig.includes('MANAGER') ||
+    desig.includes('SUPERVISOR') ||
+    desig.includes('SR.') ||
+    desig.includes('SENIOR')
+  );
+}
+
+
 function formatTime12hBackend(dateOrStr) {
   if (!dateOrStr) return '';
   if (typeof dateOrStr === 'string') {
@@ -496,15 +526,38 @@ router.get('/', protect, async (req, res) => {
       query.content_date = { $gte: start, $lte: end };
     }
 
-    // Responsible filter
-    if (responsible && responsible !== 'all') {
-      if (mongoose.Types.ObjectId.isValid(responsible)) {
-        query.$or = [
-          { responsible_employee: responsible },
-          { responsible_employee_name: { $regex: responsible, $options: 'i' } }
-        ];
-      } else {
-        query.responsible_employee_name = { $regex: responsible, $options: 'i' };
+    // Role-based visibility scoping:
+    // "junior cant see the senior task, only senior can see their department tasks"
+    const isSenior = isSeniorOrAdmin(req.user);
+
+    if (!isSenior) {
+      // Junior Marketing Executive: strictly limited to their own tasks!
+      // Junior CANNOT see senior tasks or other team members' tasks.
+      const userObjId = req.user._id;
+      const userNameRegex = req.user.name ? new RegExp(req.user.name, 'i') : null;
+      query.$or = [
+        { responsible_employee: userObjId },
+        { 'contents.responsible_employee': userObjId },
+        ...(userNameRegex ? [{ responsible_employee_name: userNameRegex }] : []),
+        ...(userNameRegex ? [{ 'contents.responsible_employee_name': userNameRegex }] : [])
+      ];
+    } else {
+      // Senior Marketing Lead / Admin / Manager: can view all department tasks, and can filter by employee
+      if (responsible && responsible !== 'all') {
+        if (mongoose.Types.ObjectId.isValid(responsible)) {
+          const respObjId = new mongoose.Types.ObjectId(responsible);
+          query.$or = [
+            { responsible_employee: respObjId },
+            { 'contents.responsible_employee': respObjId },
+            { createdBy: respObjId },
+            { responsible_employee_name: { $regex: responsible, $options: 'i' } }
+          ];
+        } else {
+          query.$or = [
+            { responsible_employee_name: { $regex: responsible, $options: 'i' } },
+            { 'contents.responsible_employee_name': { $regex: responsible, $options: 'i' } }
+          ];
+        }
       }
     }
 
@@ -587,6 +640,18 @@ router.get('/stats', protect, async (req, res) => {
       const start = new Date(Date.UTC(y, m, 1, 0, 0, 0));
       const end = new Date(Date.UTC(y, m + 1, 0, 23, 59, 59, 999));
       query.content_date = { $gte: start, $lte: end };
+    }
+
+    const isSenior = isSeniorOrAdmin(req.user);
+    if (!isSenior) {
+      const userObjId = req.user._id;
+      const userNameRegex = req.user.name ? new RegExp(req.user.name, 'i') : null;
+      query.$or = [
+        { responsible_employee: userObjId },
+        { 'contents.responsible_employee': userObjId },
+        ...(userNameRegex ? [{ responsible_employee_name: userNameRegex }] : []),
+        ...(userNameRegex ? [{ 'contents.responsible_employee_name': userNameRegex }] : [])
+      ];
     }
 
     const allItems = await DigitalCalendar.find(query);

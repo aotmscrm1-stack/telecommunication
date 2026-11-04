@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate, useLocation, useParams } from 'react-router-dom';
-import { followupsAPI, leadsAPI, usersAPI, departmentsAPI } from '../../../services/api';
+import { followupsAPI, todosAPI, leadsAPI, usersAPI, departmentsAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import { formatISTDateTime, formatISTDate } from '../../../utils/dateFormat';
-import { isExecutive, isHR, isTrainer, isDigitalMarketing, isLimitedStaff, isDeveloper, canAccessDigitalCalendar, getTaskAssigneeOptions, getTaskAssignorOptions, filterTeamDropdownUsers, canEditOrDeleteTask, canMarkCompleteTask, canViewCallFollowups } from '../../../utils/permissions';
+import { isExecutive, isHR, isTrainer, isDigitalMarketing, isLimitedStaff, isDeveloper, canAccessDigitalCalendar, getTaskAssigneeOptions, getTaskAssignorOptions, filterTeamDropdownUsers, canEditTask, canDeleteTask, canEditOrDeleteTask, canMarkCompleteTask, canViewCallFollowups } from '../../../utils/permissions';
 import TodoList from './TodoList';
 
 // Theme Palette Constants
@@ -696,9 +696,9 @@ function QuickTodoInputBar({ onCreated, currentUser }) {
 // ── Task & Todo Summary KPI Widget (Reactbits Inspired 5 KPI Cards) ───────────
 function TaskSummaryWidget({ tasks, activeTab, priorityFilter, setPriorityFilter }) {
   const total = tasks.length;
-  const completed = tasks.filter(t => t.status === 'done' || t.status === 'completed').length;
-  const pending = tasks.filter(t => t.status === 'upcoming' || t.status === 'pending').length;
-  const overdue = tasks.filter(t => t.status === 'upcoming' && new Date(t.scheduledAt) < new Date()).length;
+  const completed = tasks.filter(t => t.status === 'done' || t.status === 'completed' || t.completedAt).length;
+  const pending = tasks.filter(t => (t.status === 'upcoming' || t.status === 'pending') && !t.completedAt).length;
+  const overdue = tasks.filter(t => (t.status === 'upcoming' || t.status === 'pending') && !t.completedAt && new Date(t.scheduledAt) < new Date()).length;
   const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
 
   const highCount = tasks.filter(t => t.priority === 'high').length;
@@ -1048,7 +1048,7 @@ function TodoCard({ task, onEdit, onComplete, onDelete, canComplete, canEdit, ca
           <div style={{ minWidth: 0, overflow: 'hidden', flex: 1 }}>
             <AutoScrollName name={assigneeName} style={{ fontSize: 14, color: COLOR_DEEP_BLUE }} maxPx={135} />
             {assignedByName && (
-              <AutoScrollName prefix="Assigned by:" name={assignedByName} style={{ fontSize: 11.5, color: COLOR_MUTED }} maxPx={135} />
+              <AutoScrollName prefix="Reporting to:" name={assignedByName} style={{ fontSize: 11.5, color: COLOR_MUTED }} maxPx={135} />
             )}
           </div>
         </div>
@@ -2464,7 +2464,7 @@ function AddTaskModal({ type = 'todo', onClose, onCreated }) {
                 />
               </div>
               <div>
-                <label style={{ fontSize: 13, fontWeight: 500, color: COLOR_DEEP_BLUE, display: 'block', marginBottom: 6 }}>Assigned By</label>
+                <label style={{ fontSize: 13, fontWeight: 500, color: COLOR_DEEP_BLUE, display: 'block', marginBottom: 6 }}>Reporting To</label>
                 <select
                   value={assignedBy}
                   onChange={e => setAssignedBy(e.target.value)}
@@ -2504,7 +2504,7 @@ function AddTaskModal({ type = 'todo', onClose, onCreated }) {
 
 // ── Download Helper ───────────────────────────────────────────────────────────
 function downloadCSV(tasks, tab) {
-  const headers = ['Type', 'Lead Name', 'Phone', 'Description / Note', 'Assignee', 'Assigned By', 'Status', 'Due Date (IST)', 'Priority'];
+  const headers = ['Type', 'Lead Name', 'Phone', 'Description / Note', 'Assignee', 'Reporting To', 'Status', 'Due Date (IST)', 'Priority'];
   const rows = tasks.map(t => [
     t.type === 'todo' ? 'Todo' : 'Call Follow-up',
     t.lead?.name || '',
@@ -2722,8 +2722,8 @@ export default function Task() {
     isTrainer(currentUser) ? 'Trainer' : ''
   );
 
-  const checkCanDelete = (task) => canEditOrDeleteTask(task, currentUser);
-  const canEditTask = (task) => canEditOrDeleteTask(task, currentUser);
+  const checkCanDelete = (task) => canDeleteTask(task, currentUser);
+  const canEditTaskCheck = (task) => canEditTask(task, currentUser);
   const [markingCompleteId, setMarkingCompleteId] = useState(null);
 
   // Pagination states
@@ -2751,9 +2751,9 @@ export default function Task() {
           ...(teamDepartmentFilter && !teamMemberFilter ? { department: teamDepartmentFilter } : {}),
         });
         let items = res.data.followups || res.data.tasks || [];
-        if (activeTab === 'Todo') items = items.filter(t => t.status === 'done' && t.type === 'todo');
-        else if (activeTab === 'Call Followups') items = items.filter(t => t.status === 'done' && t.type === 'call_followup');
-        else items = items.filter(t => t.status === 'done' && (t.type === 'task' || (t.type !== 'todo' && t.type !== 'call_followup')));
+        if (activeTab === 'Todo') items = items.filter(t => (t.status === 'done' || t.status === 'completed' || t.completedAt) && t.type === 'todo');
+        else if (activeTab === 'Call Followups') items = items.filter(t => (t.status === 'done' || t.status === 'completed' || t.completedAt) && t.type === 'call_followup');
+        else items = items.filter(t => (t.status === 'done' || t.status === 'completed' || t.completedAt) && (t.type === 'task' || (t.type !== 'todo' && t.type !== 'call_followup')));
         if (priorityFilter) items = items.filter(t => t.priority === priorityFilter);
 
         if (teamMemberFilter) {
@@ -2796,9 +2796,9 @@ export default function Task() {
         ...(teamDepartmentFilter && !teamMemberFilter ? { department: teamDepartmentFilter } : {}),
       });
       let items = res.data.followups || res.data.tasks || [];
-      if (activeTab === 'Todo') items = items.filter(t => t.status !== 'done' && t.type === 'todo');
-      else if (activeTab === 'Call Followups') items = items.filter(t => t.status !== 'done' && t.type === 'call_followup');
-      else items = items.filter(t => t.status !== 'done' && (t.type === 'task' || (t.type !== 'todo' && t.type !== 'call_followup')));
+      if (activeTab === 'Todo') items = items.filter(t => t.status !== 'done' && t.status !== 'completed' && !t.completedAt && t.type === 'todo');
+      else if (activeTab === 'Call Followups') items = items.filter(t => t.status !== 'done' && t.status !== 'completed' && !t.completedAt && t.type === 'call_followup');
+      else items = items.filter(t => t.status !== 'done' && t.status !== 'completed' && !t.completedAt && (t.type === 'task' || (t.type !== 'todo' && t.type !== 'call_followup')));
 
       if (!isAll) {
         const startOfToday = new Date();
@@ -3006,39 +3006,14 @@ export default function Task() {
     if (!canMarkCompleteTask(currentUser)) return;
     setMarkingCompleteId(taskId);
     try {
-      const task = tasks.find(t => t._id === taskId);
-      const isRecurring = !!(task?.recurrence?.frequency || task?.recurrenceFrequency || (task?.recurrence && task?.recurrence?.frequency !== 'none'));
-
-      if (isRecurring && task) {
-        const currentCount = task.completedCount || 0;
-        const newCount = currentCount + 1;
-        const current = new Date(task.scheduledAt || Date.now());
-        const freq = (task.recurrence?.frequency || task.recurrenceFrequency || 'daily').toLowerCase();
-
-        if (freq === 'weekly') current.setDate(current.getDate() + 7);
-        else if (freq === 'monthly') current.setMonth(current.getMonth() + 1);
-        else current.setDate(current.getDate() + 1);
-
-        const repeatEndDate = task.recurrence?.endDate;
-        const maxDate = repeatEndDate ? new Date(repeatEndDate) : null;
-        const isReachedEnd = maxDate ? (current.getTime() > maxDate.getTime() + 86400000 - 1000) : false;
-
-        if (!isReachedEnd) {
-          const newIsoDate = current.toISOString();
-          await followupsAPI.update(taskId, {
-            scheduledAt: newIsoDate,
-            completedCount: newCount
-          });
-          setTasks(prev => prev.map(t => t._id === taskId ? { ...t, scheduledAt: newIsoDate, completedCount: newCount } : t));
-          return;
-        }
-      }
-
       const completedTime = new Date().toISOString();
-      await followupsAPI.update(taskId, { status: 'done', completedAt: completedTime });
+      await Promise.all([
+        followupsAPI.update(taskId, { status: 'done', completedAt: completedTime }),
+        todosAPI.update(taskId, { status: 'done', completedAt: completedTime }).catch(() => {})
+      ]);
 
       if (historyMode) {
-        setTasks(prev => prev.map(t => t._id === taskId ? { ...t, status: 'done', completedAt: completedTime } : t));
+        setTasks(prev => prev.map(t => t._id === taskId ? { ...t, status: 'done', completedAt: completedTime, completedBy: currentUser } : t));
       } else {
         setTasks(prev => prev.filter(t => t._id !== taskId));
       }
@@ -3178,7 +3153,7 @@ export default function Task() {
             task={editingTask}
             onClose={() => setEditingTask(null)}
             onSaved={handleEditSaved}
-            readOnly={!canEditTask(editingTask)}
+            readOnly={!canEditTaskCheck(editingTask)}
           />
         )}
 
@@ -3335,36 +3310,38 @@ export default function Task() {
         {/* Tabs bar */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${COLOR_BORDER}`, marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <div
+            <button
+              type="button"
+              onClick={() => setHistoryMode(false)}
               style={{
                 padding: '11px 22px',
                 fontSize: 15,
                 fontWeight: 600,
-                color: COLOR_DEEP_BLUE,
-                borderBottom: `3px solid ${COLOR_ORANGE}`,
+                color: !historyMode ? COLOR_DEEP_BLUE : COLOR_MUTED,
+                background: !historyMode ? '#ffffff' : 'transparent',
+                border: 'none',
+                borderBottom: !historyMode ? `3px solid ${COLOR_ORANGE}` : '3px solid transparent',
                 marginBottom: -1,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 8,
                 borderRadius: '8px 8px 0 0',
-                boxShadow: '0 4px 14px rgba(251, 133, 0, 0.12)'
+                cursor: 'pointer',
+                boxShadow: !historyMode ? '0 4px 14px rgba(251, 133, 0, 0.12)' : 'none',
+                transition: 'all 0.15s ease'
               }}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={COLOR_ORANGE} strokeWidth="2.2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={!historyMode ? COLOR_ORANGE : 'currentColor'} strokeWidth="2.2">
                 <polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
               </svg>
               <span>Todo List & Actions</span>
-              {historyMode && (
-                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                  History
-                </span>
-              )}
-            </div>
+            </button>
           </div>
 
           {/* Section-Specific History Button */}
           <button
-            onClick={() => setHistoryMode(p => !p)}
+            type="button"
+            onClick={() => setHistoryMode(true)}
             style={{
               display: 'flex',
               alignItems: 'center',

@@ -484,13 +484,44 @@ export const getTeamDropdownUsersWithFallback = (users = []) => {
 };
 
 /**
- * Check if the current authenticated MongoDB user can edit or delete a task/todo.
- * - Admin / Superadmin / Executive: Full CRUD permissions across all tasks and departments.
- * - Non-admin employees: Edit and Delete options are NEVER replicated or shown, even in their own Auth Todo list.
+ * Check if the user has permission to edit a task/todo.
+ * - Admin / Superadmin / Executive: Full edit permissions across all tasks and departments.
+ * - Non-admin employees: If an employee adds a todo, they have the edit option for their own task.
  */
-export const canEditOrDeleteTask = (task, currentUser) => {
+export const canEditTask = (task, currentUser) => {
+  if (!currentUser) return false;
+  if (isExecutive(currentUser) || currentUser?.role === 'admin' || currentUser?.role === 'superadmin') {
+    return true;
+  }
+  if (!task) return false;
+  const currentId = String(currentUser?._id || currentUser?.id || '');
+  if (!currentId) return false;
+
+  const createdById = String(task.createdBy?._id || task.createdBy?.id || task.createdBy || '');
+  const assignedById = String(task.assignedBy?._id || task.assignedBy?.id || task.assignedBy || '');
+  const assignedToId = String(task.assignedTo?._id || task.assignedTo?.id || task.assignedTo || '');
+
+  // Employee can edit if they created/added the todo or are the assignee/assignor
+  return (createdById && createdById === currentId) ||
+         (assignedById && assignedById === currentId) ||
+         (assignedToId && assignedToId === currentId);
+};
+
+/**
+ * Check if the user has permission to delete a task/todo.
+ * - Strictly Admin / Superadmin / Executive only.
+ * - Non-admin employees NEVER have delete permission.
+ */
+export const canDeleteTask = (task, currentUser) => {
   if (!currentUser) return false;
   return isExecutive(currentUser) || currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
+};
+
+/**
+ * Backwards compatibility helper for task permissions.
+ */
+export const canEditOrDeleteTask = (task, currentUser) => {
+  return canDeleteTask(task, currentUser);
 };
 
 /**

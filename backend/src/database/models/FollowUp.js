@@ -7,6 +7,7 @@ const followUpSchema = new mongoose.Schema({
     ref: 'Lead'
   },
   assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   // Who created / delegated this task (defaults to the creator, but can be overridden by admins)
   assignedBy: { type: mongoose.Schema.Types.Mixed, ref: 'User' },
   scheduledAt: { type: Date, required: true },

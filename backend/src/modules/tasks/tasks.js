@@ -91,7 +91,7 @@ router.get('/', protect, async (req, res) => {
           query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { createdBy: req.user._id }];
         }
       } else {
-        // Developer, Trainer, Digital Marketing, Employee Panels: ONLY see own tasks!
+        // Non-managers (including Jr Marketing Executives): strictly ONLY see own tasks!
         query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { createdBy: req.user._id }];
       }
     } else {

@@ -45,7 +45,8 @@ import {
   FaCalendarCheck,
   FaShareNodes,
   FaSliders,
-  FaBorderAll
+  FaBorderAll,
+  FaStar
 } from 'react-icons/fa6';
 
 // ── Content Types & Option Constants ──────────────────────────────────────────
@@ -441,7 +442,7 @@ export default function DigitalCalendar() {
       const params = {
         year: currentYear,
         month: currentMonth + 1,
-        responsible: filterEmployee !== 'all' ? filterEmployee : undefined,
+        responsible: isUserSeniorOrAdmin && filterEmployee !== 'all' ? filterEmployee : (!isUserSeniorOrAdmin && user?._id ? user._id : undefined),
         type: filterType !== 'all' ? filterType : undefined,
         platform: filterPlatform !== 'all' ? filterPlatform : undefined,
         search: searchQuery.trim() || undefined
@@ -657,6 +658,46 @@ export default function DigitalCalendar() {
     return counts;
   }, [items]);
 
+  // Check if current logged-in user is a Senior (Lead / Manager / Admin)
+  // "junior cant see the senior task, only senior can see their department tasks"
+  const isUserSeniorOrAdmin = useMemo(() => {
+    if (!user) return false;
+    const role = String(user.role || '').trim().toLowerCase();
+    if (role === 'admin' || role === 'superadmin' || role === 'manager') return true;
+
+    const desig = String(user.designation || user.displayName || '').trim().toUpperCase();
+    const dept = String(user.department || '').trim().toUpperCase();
+
+    if (
+      desig.includes('MD') ||
+      desig.includes('MANAGING DIRECTOR') ||
+      desig.includes('CEO') ||
+      desig.includes('CTO') ||
+      dept.includes('ADMIN') ||
+      dept.includes('MANAGEMENT')
+    ) {
+      return true;
+    }
+
+    return (
+      desig.includes('LEAD') ||
+      desig.includes('HEAD') ||
+      desig.includes('MANAGER') ||
+      desig.includes('SUPERVISOR') ||
+      desig.includes('SR.') ||
+      desig.includes('SENIOR')
+    );
+  }, [user]);
+
+  const leadEmployeeIds = useMemo(() => {
+    return (marketingEmployees || [])
+      .filter(emp => {
+        const desig = String(emp.designation || emp.displayName || '').toUpperCase();
+        return desig.includes('LEAD') || desig.includes('HEAD') || desig.includes('MANAGER') || desig.includes('DIRECTOR');
+      })
+      .map(emp => String(emp._id));
+  }, [marketingEmployees]);
+
   // Filtered Cards to display in Middle Area
   const filteredItems = useMemo(() => {
     let list = [...items];
@@ -728,15 +769,31 @@ export default function DigitalCalendar() {
       });
     }
 
-    // Responsible Employee filter
-    if (filterEmployee !== 'all') {
+    // Role-based visibility scoping:
+    // "junior cant see the senior task, only senior can see their department tasks"
+    if (!isUserSeniorOrAdmin) {
+      // Junior Marketing Executive: strictly sees only their own assigned tasks
+      const myId = String(user?._id || '');
       list = list.filter(it => {
         const subItems = (it.contents && it.contents.length > 0) ? it.contents : [it];
         return subItems.some(s => {
           const empId = s.responsible_employee?._id || s.responsible_employee;
-          return String(empId) === String(filterEmployee);
+          return String(empId) === myId;
         });
       });
+    } else {
+      // Senior Marketing Lead / Admin / Manager: can view all department tasks, and can filter by employee
+      if (filterEmployee !== 'all') {
+        list = list.filter(it => {
+          const subItems = (it.contents && it.contents.length > 0) ? it.contents : [it];
+          const isAssigned = subItems.some(s => {
+            const empId = s.responsible_employee?._id || s.responsible_employee;
+            return String(empId) === String(filterEmployee);
+          });
+          const isCreated = String(it.createdBy?._id || it.createdBy) === String(filterEmployee);
+          return isAssigned || isCreated;
+        });
+      }
     }
 
     // Client search fallback (supports searching across all sub-contents)
@@ -758,7 +815,7 @@ export default function DigitalCalendar() {
 
     // Sort by content_date ascending
     return list.sort((a, b) => new Date(a.content_date) - new Date(b.content_date));
-  }, [items, viewMode, selectedDateFilter, filterStatus, filterType, filterPlatform, filterEmployee, searchQuery]);
+  }, [items, viewMode, selectedDateFilter, filterStatus, filterType, filterPlatform, filterEmployee, searchQuery, isUserSeniorOrAdmin, user]);
 
   // Reset pagination when any filter, mode, or date changes
   useEffect(() => {
@@ -1677,13 +1734,13 @@ export default function DigitalCalendar() {
               </div>
             </div>
 
-            {/* 4. Marketing Team Members (Reference Avatar Group) */}
+            {/* 4. Marketing Team Members (Reference Avatar Group for Senior) / My Schedule (for Junior) */}
             <div className="bg-white rounded-3xl p-4 border border-slate-200/90 shadow-sm space-y-2">
               <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
                 <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                  Marketing Team
+                  {isUserSeniorOrAdmin ? 'Marketing Team' : 'My Schedule'}
                 </span>
-                {filterEmployee !== 'all' && (
+                {isUserSeniorOrAdmin && filterEmployee !== 'all' && (
                   <button
                     onClick={() => setFilterEmployee('all')}
                     className="text-[10px] text-sky-600 font-medium hover:underline cursor-pointer"
@@ -1693,52 +1750,93 @@ export default function DigitalCalendar() {
                 )}
               </div>
 
-              <div className="space-y-1.5 pt-1">
-                {marketingEmployees.slice(0, 8).map(emp => {
-                  const active = filterEmployee === emp._id;
-                  const personName = emp.actualName || emp.name || 'Marketing Member';
-                  const personDisplayName = emp.displayName || emp.designation || 'Marketing';
+              {isUserSeniorOrAdmin ? (
+                <div className="space-y-1.5 pt-1">
+                  {marketingEmployees.slice(0, 8).map(emp => {
+                    const active = filterEmployee === emp._id;
+                    const personName = emp.actualName || emp.name || 'Marketing Member';
+                    const personDisplayName = emp.displayName || emp.designation || 'Marketing';
+                    const isLead = leadEmployeeIds.includes(String(emp._id));
 
-                  return (
-                    <button
-                      key={emp._id}
-                      type="button"
-                      onClick={() => setFilterEmployee(active ? 'all' : emp._id)}
-                      className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition cursor-pointer border ${
-                        active
-                          ? 'bg-sky-50 text-sky-900 border-sky-300 shadow-2xs'
-                          : 'hover:bg-slate-50 border-transparent'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        {emp.avatar ? (
-                          <img
-                            src={emp.avatar}
-                            alt={personName}
-                            className="w-7 h-7 rounded-lg object-cover shrink-0 border border-slate-200"
-                          />
-                        ) : (
-                          <div
-                            className="w-7 h-7 rounded-lg text-white font-semibold text-xs flex items-center justify-center shrink-0 shadow-2xs"
-                            style={{ background: 'linear-gradient(135deg, #0284c7 0%, #f97316 100%)' }}
-                          >
-                            {(personName || 'M').charAt(0).toUpperCase()}
+                    return (
+                      <button
+                        key={emp._id}
+                        type="button"
+                        onClick={() => setFilterEmployee(active ? 'all' : emp._id)}
+                        className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition cursor-pointer border ${
+                          active
+                            ? 'bg-sky-50 text-sky-900 border-sky-300 shadow-2xs'
+                            : 'hover:bg-slate-50 border-transparent'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          {emp.avatar ? (
+                            <img
+                              src={emp.avatar}
+                              alt={personName}
+                              className="w-7 h-7 rounded-lg object-cover shrink-0 border border-slate-200"
+                            />
+                          ) : (
+                            <div
+                              className="w-7 h-7 rounded-lg text-white font-semibold text-xs flex items-center justify-center shrink-0 shadow-2xs"
+                              style={{ background: isLead ? 'linear-gradient(135deg, #d97706 0%, #f59e0b 100%)' : 'linear-gradient(135deg, #0284c7 0%, #f97316 100%)' }}
+                            >
+                              {(personName || 'M').charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          <div className="truncate flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="text-xs font-medium text-slate-800 truncate">
+                                {personName}
+                              </span>
+                              {isLead && (
+                                <span className="px-1.5 py-0.2 rounded-md text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-200 shrink-0">
+                                  Sr. Lead
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-slate-500 font-medium block truncate">
+                              {personDisplayName}
+                            </span>
                           </div>
-                        )}
-                        <div className="truncate">
-                          <span className="text-xs font-medium text-slate-800 block truncate">
-                            {personName}
-                          </span>
-                          <span className="text-[10px] text-slate-500 font-medium block truncate">
-                            {personDisplayName}
-                          </span>
                         </div>
+                        {active && <FaCheck className="w-3 h-3 text-sky-600 shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="pt-1 space-y-2">
+                  <div className="p-2.5 rounded-2xl bg-sky-50/70 border border-sky-200/80 flex items-center gap-2.5">
+                    {user?.avatar ? (
+                      <img
+                        src={user.avatar}
+                        alt={user.name || 'User'}
+                        className="w-8 h-8 rounded-xl object-cover border border-sky-300 shrink-0"
+                      />
+                    ) : (
+                      <div
+                        className="w-8 h-8 rounded-xl text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs"
+                        style={{ background: 'linear-gradient(135deg, #0284c7 0%, #f97316 100%)' }}
+                      >
+                        {(user?.name || 'M').charAt(0).toUpperCase()}
                       </div>
-                      {active && <FaCheck className="w-3 h-3 text-sky-600 shrink-0" />}
-                    </button>
-                  );
-                })}
-              </div>
+                    )}
+                    <div className="truncate min-w-0 flex-1">
+                      <span className="text-xs font-semibold text-sky-950 block truncate">
+                        {user?.name || user?.displayName || 'My Profile'}
+                      </span>
+                      <span className="text-[10px] font-medium text-sky-700 block truncate">
+                        {user?.designation || 'Jr. Marketing Executive'}
+                      </span>
+                    </div>
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" title="Active Account" />
+                  </div>
+                  <p className="text-[10px] text-slate-500 px-1 leading-relaxed">
+                    Viewing your individual tasks & activities. Full department activities are managed by the Senior Marketing Lead.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -2128,6 +2226,8 @@ export default function DigitalCalendar() {
                               <span className="text-slate-400 font-normal">•</span>
                               <span className="text-slate-500">{item.day || new Date(item.content_date).toLocaleDateString('en-US', { weekday: 'short' })}</span>
                             </span>
+
+
                           </div>
 
                           {/* Top Right Action Icons */}

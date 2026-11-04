@@ -255,7 +255,8 @@ router.put('/:id', protect, async (req, res) => {
     const todo = await Todo.findByIdAndUpdate(req.params.id, update, { new: true })
       .populate('assignedTo', 'name email avatar')
       .populate('assignedBy', 'name email avatar')
-      .populate('completedBy', 'name email avatar');
+      .populate('completedBy', 'name email avatar')
+      .populate('createdBy', 'name email avatar');
     if (!todo) return res.status(404).json({ message: 'Todo not found' });
 
     res.json({ followup: todo, todo });
@@ -281,7 +282,8 @@ router.patch('/:id/status', protect, async (req, res) => {
     const todo = await Todo.findByIdAndUpdate(req.params.id, update, { new: true })
       .populate('assignedTo', 'name email avatar')
       .populate('assignedBy', 'name email avatar')
-      .populate('completedBy', 'name email avatar');
+      .populate('completedBy', 'name email avatar')
+      .populate('createdBy', 'name email avatar');
     if (!todo) return res.status(404).json({ message: 'Todo not found' });
 
     res.json({ followup: todo, todo });
@@ -307,7 +309,8 @@ router.patch('/:id', protect, async (req, res) => {
     const todo = await Todo.findByIdAndUpdate(req.params.id, update, { new: true })
       .populate('assignedTo', 'name email avatar')
       .populate('assignedBy', 'name email avatar')
-      .populate('completedBy', 'name email avatar');
+      .populate('completedBy', 'name email avatar')
+      .populate('createdBy', 'name email avatar');
     if (!todo) return res.status(404).json({ message: 'Todo not found' });
 
     res.json({ followup: todo, todo });
