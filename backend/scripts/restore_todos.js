@@ -14,7 +14,7 @@ async function restoreTodos() {
   await mongoose.connect(uri);
   const db = mongoose.connection.db;
 
-  const backupFile = path.join(__dirname, '../backups/restored_oct21_nov04_todos.json');
+  const backupFile = path.join(__dirname, '../backups/master_all_todos_backup.json');
   if (!fs.existsSync(backupFile)) {
     console.error('Backup file not found:', backupFile);
     process.exit(1);

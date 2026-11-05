@@ -1689,7 +1689,7 @@ export default function LeadDetailsPage({
     try {
       const isRandom = id === 'random';
       const [res, followupsRes] = await Promise.all([
-        isRandom ? leadsAPI.getRandom() : leadsAPI.getOne(id).catch(err => {
+        isRandom ? leadsAPI.getRandom() : leadsAPI.getOne(id).catch(async (err) => {
           if (metaLeadData || isMeta) {
             return {
               data: {
@@ -1710,7 +1710,13 @@ export default function LeadDetailsPage({
               }
             };
           }
-          throw err;
+          try {
+            const metaRes = await metaLeadsAPI.getOne(id);
+            if (metaRes?.data?.lead) {
+              return { data: { lead: metaRes.data.lead, recordings: [] } };
+            }
+          } catch (_) {}
+          return { data: { lead: null, recordings: [] } };
         }),
         isRandom ? Promise.resolve({ data: { followups: [] } }) : followupsAPI.getAll({ leadId: id }).catch(() => ({ data: { followups: [] } })),
       ]);

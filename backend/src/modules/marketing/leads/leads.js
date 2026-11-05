@@ -972,6 +972,10 @@ router.delete('/:id', protect, authorize('employee', 'caller', 'manager', 'admin
       return res.status(403).json({ message: 'You can only delete leads assigned to you' });
     }
     await Lead.findByIdAndDelete(req.params.id);
+    try {
+      const Notification = require('../../../database/models/Notification');
+      await Notification.deleteMany({ lead: req.params.id });
+    } catch (_) {}
     res.json({ message: 'Lead deleted' });
   } catch (err) {
     res.status(500).json({ message: err.message });
