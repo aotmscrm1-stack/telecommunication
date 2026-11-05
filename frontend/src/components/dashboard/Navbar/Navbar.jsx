@@ -2,20 +2,20 @@ import { useAuth } from '../../../context/AuthContext';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { followupsAPI, notificationsAPI, authAPI } from '../../../services/api';
+import { followupsAPI, notificationsAPI } from '../../../services/api';
 import logoImg from '../../../assets/aotms-global-logo.png';
 import useBreakpoint from '../../../hooks/useBreakpoint';
 import {
-  FaHouse, FaListCheck, FaUserPlus, FaUsers, FaBullhorn, FaFileLines,
+  FaHouse, FaListCheck, FaUserPlus, FaUsers, FaBullhorn,
   FaWhatsapp, FaEnvelopeOpenText, FaTrophy, FaChartPie, FaFileInvoiceDollar,
   FaReceipt, FaCalendarCheck, FaLocationDot, FaPeopleGroup, FaClock,
-  FaBan, FaUserGear, FaKey, FaPlug, FaCircleInfo, FaCoins, FaSitemap,
+  FaUserGear, FaKey, FaPlug, FaCircleInfo, FaCoins, FaSitemap,
   FaCode, FaBell, FaChevronDown, FaBars, FaXmark, FaRightFromBracket,
-  FaUser, FaLock, FaUserCheck, FaBook, FaCalendarDays,
+  FaUser, FaUserCheck, FaBook, FaCalendarDays,
   FaChartLine, FaMobileScreen, FaDownload, FaPhoneVolume
 } from 'react-icons/fa6';
 import { SiGooglesheets } from 'react-icons/si';
-import { isCEO, isHR, isManager, isLimitedStaff, canViewDashboard, canViewCallRecordings, isDigitalMarketing, canAccessDigitalCalendar, normalizeDesignation, canViewCallFollowups, canAccessMarketingLeads, canAccessDailyActivity, isTelecaller } from '../../../utils/permissions';
+import { isCEO, isHR, isManager, canViewDashboard, canViewCallRecordings, isDigitalMarketing, canAccessDigitalCalendar, normalizeDesignation, canViewCallFollowups, canAccessMarketingLeads, canAccessDailyActivity, isTelecaller } from '../../../utils/permissions';
 
 function GoogleSheetsIcon({ className, style }) {
   return (
@@ -218,160 +218,6 @@ const navbarGlowStyles = `
   }
 `;
 
-/* ─────────────────────────────────────────────────────────
-   Change Password Modal (obsidian emerald & electric lime)
-   ───────────────────────────────────────────────────────── */
-function ChangePasswordModal({ onClose }) {
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showCurrent, setShowCurrent] = useState(false);
-  const [showNew, setShowNew] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
-
-  const eyeIcon = (visible) => visible ? (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
-  ) : (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.6 21.6 0 0 1 5.06-6.06M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a21.6 21.6 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
-  );
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      setError('Please fill in all fields');
-      return;
-    }
-    if (newPassword.length < 6) {
-      setError('New password must be at least 6 characters');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setError('New password and confirmation do not match');
-      return;
-    }
-    setSaving(true);
-    try {
-      await authAPI.changePassword({ currentPassword, newPassword });
-      setSuccess(true);
-      setTimeout(() => onClose(), 1200);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to change password');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md"
-      style={{ background: 'rgba(15, 23, 42, 0.65)' }}>
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 10 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 10 }}
-        className="w-full max-w-md p-6 rounded-2xl"
-        style={{
-          background: C.bgSolid,
-          border: `1.5px solid ${C.orange}`,
-          boxShadow: `0 30px 80px rgba(15, 23, 42, 0.25), 0 0 30px ${C.orangeGlow}`,
-          color: C.text,
-        }}
-      >
-        <div className="flex items-center justify-between mb-4 pb-3"
-          style={{ borderBottom: `1px solid ${C.border}` }}>
-          <h3 className="font-semibold text-base nav-glow-accent-text">Change Password</h3>
-          <button onClick={onClose}
-            className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
-            style={{ color: C.textSoft }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = C.bgHover; e.currentTarget.style.color = C.orange; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = C.textSoft; }}>
-            <FaXmark className="w-4 h-4" />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="text-xs font-semibold uppercase tracking-wider mb-1 block"
-              style={{ color: C.textSoft }}>
-              Current Password
-            </label>
-            <div className="relative">
-              <input type={showCurrent ? 'text' : 'password'} value={currentPassword}
-                onChange={e => setCurrentPassword(e.target.value)}
-                className="w-full rounded-xl p-2.5 pr-10 text-sm transition-all outline-none"
-                style={{ background: C.bgSoft, border: `1px solid ${C.border}`, color: C.text }}
-                onFocus={(e) => { e.target.style.borderColor = C.orange; e.target.style.boxShadow = `0 0 0 3px ${C.orangeGlow}`; }}
-                onBlur={(e) => { e.target.style.borderColor = C.border; e.target.style.boxShadow = 'none'; }}
-                placeholder="••••••••" autoComplete="current-password" />
-              <button type="button" onClick={() => setShowCurrent(p => !p)}
-                className="absolute right-3 top-1/2 -translate-y-1/2"
-                style={{ color: C.blue }}>
-                {eyeIcon(showCurrent)}
-              </button>
-            </div>
-          </div>
-          <div>
-            <label className="text-xs font-semibold uppercase tracking-wider mb-1 block"
-              style={{ color: C.textSoft }}>
-              New Password
-            </label>
-            <div className="relative">
-              <input type={showNew ? 'text' : 'password'} value={newPassword}
-                onChange={e => setNewPassword(e.target.value)}
-                className="w-full rounded-xl p-2.5 pr-10 text-sm transition-all outline-none"
-                style={{ background: C.bgSoft, border: `1px solid ${C.border}`, color: C.text }}
-                onFocus={(e) => { e.target.style.borderColor = C.orange; e.target.style.boxShadow = `0 0 0 3px ${C.orangeGlow}`; }}
-                onBlur={(e) => { e.target.style.borderColor = C.border; e.target.style.boxShadow = 'none'; }}
-                placeholder="At least 6 characters" autoComplete="new-password" />
-              <button type="button" onClick={() => setShowNew(p => !p)}
-                className="absolute right-3 top-1/2 -translate-y-1/2"
-                style={{ color: C.blue }}>
-                {eyeIcon(showNew)}
-              </button>
-            </div>
-          </div>
-          <div>
-            <label className="text-xs font-semibold uppercase tracking-wider mb-1 block"
-              style={{ color: C.textSoft }}>
-              Confirm New Password
-            </label>
-            <input type={showNew ? 'text' : 'password'} value={confirmPassword}
-              onChange={e => setConfirmPassword(e.target.value)}
-              className="w-full rounded-xl p-2.5 text-sm transition-all outline-none"
-              style={{ background: C.bgSoft, border: `1px solid ${C.border}`, color: C.text }}
-              onFocus={(e) => { e.target.style.borderColor = C.orange; e.target.style.boxShadow = `0 0 0 3px ${C.orangeGlow}`; }}
-              onBlur={(e) => { e.target.style.borderColor = C.border; e.target.style.boxShadow = 'none'; }}
-              placeholder="Re-enter new password" autoComplete="new-password" />
-          </div>
-
-          {error && <p className="text-xs font-medium" style={{ color: '#ef4444' }}>{error}</p>}
-          {success && <p className="text-xs font-medium nav-glow-accent-text">✓ Password changed successfully!</p>}
-
-          <div className="flex gap-2.5 mt-5">
-            <button type="button" onClick={onClose}
-              className="flex-1 rounded-xl py-2.5 font-medium text-sm transition-all"
-              style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textSoft }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = C.bgHover; e.currentTarget.style.color = C.orange; e.currentTarget.style.borderColor = C.orange; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = C.textSoft; e.currentTarget.style.borderColor = C.border; }}>
-              Cancel
-            </button>
-            <button type="submit" disabled={saving || success}
-              className="flex-1 rounded-xl py-2.5 font-semibold text-sm nav-glow-btn"
-              style={{
-                background: `linear-gradient(135deg, ${C.orangeLt}, ${C.orange}, ${C.orangeDk})`,
-                color: '#ffffff',
-                boxShadow: `0 0 16px ${C.orangeGlow}`,
-              }}>
-              {saving ? 'Saving...' : 'Update Password'}
-            </button>
-          </div>
-        </form>
-      </motion.div>
-    </div>
-  );
-}
-
 export default function Navbar() {
   const { user, logout, metaLeadAssignment } = useAuth();
   const navigate = useNavigate();
@@ -386,7 +232,6 @@ export default function Navbar() {
   const [now, setNow] = useState(new Date());
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
-  const [showChangePassword, setShowChangePassword] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openSubMenus, setOpenSubMenus] = useState({
@@ -508,7 +353,6 @@ export default function Navbar() {
   const dateStr = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
   const roleLabel = user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Employee';
 
-  const isLimited = isLimitedStaff(user);
   const displayDesignation = user?.displayName || user?.designation || roleLabel;
 
   // Designation Navigation Rules:
@@ -798,14 +642,7 @@ export default function Navbar() {
   };
 
   const profileMenuItems = [
-    { label: 'Download Mobile App', icon: <FaMobileScreen className="w-3.5 h-3.5" />, onClick: () => { setShowProfile(false); handleDownloadApk(); } },
     { label: 'Profile', icon: <FaUser className="w-3.5 h-3.5" />, onClick: () => { setShowProfile(false); navigate('/profile'); } },
-    { label: 'Change Password', icon: <FaLock className="w-3.5 h-3.5" />, onClick: () => { setShowProfile(false); setShowChangePassword(true); } },
-    ...(!isLimited ? [
-      { label: 'Message Templates', icon: <FaFileLines className="w-3.5 h-3.5" />, onClick: () => { setShowProfile(false); navigate('/message-templates'); } },
-      { label: 'Blocklist', icon: <FaBan className="w-3.5 h-3.5" />, onClick: () => { setShowProfile(false); navigate('/blocklist'); } },
-    ] : []),
-    { label: 'My Activity Schedule', icon: <FaCalendarCheck className="w-3.5 h-3.5" />, onClick: () => { setShowProfile(false); navigate(user?._id ? `/${user._id}/activity-schedule` : '/activity-schedule'); } },
     { label: 'Logout', icon: <FaRightFromBracket className="w-3.5 h-3.5" />, onClick: () => { setShowProfile(false); logout(); }, danger: true },
   ];
 
@@ -1574,9 +1411,6 @@ export default function Navbar() {
         )}
       </AnimatePresence>
 
-      {showChangePassword && (
-        <ChangePasswordModal onClose={() => setShowChangePassword(false)} />
-      )}
     </>
   );
 }

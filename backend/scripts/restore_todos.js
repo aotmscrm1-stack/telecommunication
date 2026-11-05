@@ -58,3 +58,4 @@ async function restoreTodos() {
 }
 
 restoreTodos().catch(console.error);
+
