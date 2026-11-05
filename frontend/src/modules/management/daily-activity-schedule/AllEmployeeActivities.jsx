@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   FaMagnifyingGlass,
   FaFilter,
   FaPlus,
   FaEye,
   FaPen,
+  FaTrash,
   FaClock,
   FaBriefcase,
   FaIdBadge,
@@ -18,9 +19,19 @@ import {
   FaUserCheck
 } from 'react-icons/fa6';
 import { dailyActivityScheduleAPI } from '../../../services/api';
+import { canDeleteDailyActivitySchedule } from '../../../utils/permissions';
 import ActivityScheduleDetailModal from './ActivityScheduleDetailModal';
 import ActivityScheduleFormModal from './ActivityScheduleFormModal';
 import StagingReviewModal from './StagingReviewModal';
+
+export function compareEmployeeId(aId, bId) {
+  const strA = String(aId || '').trim();
+  const strB = String(bId || '').trim();
+  if (!strA && !strB) return 0;
+  if (!strA) return 1;
+  if (!strB) return -1;
+  return strA.localeCompare(strB, undefined, { numeric: true, sensitivity: 'base' });
+}
 
 export default function AllEmployeeActivities({
   currentUser,
@@ -83,6 +94,8 @@ export default function AllEmployeeActivities({
     fetchData();
   };
 
+  const canDelete = canDeleteDailyActivitySchedule(currentUser);
+
   // Archive / Restore
   const handleArchiveToggle = async (schedule) => {
     if (!schedule?._id) return;
@@ -100,12 +113,39 @@ export default function AllEmployeeActivities({
     }
   };
 
+  // Delete Schedule (Admin Only)
+  const handleDeleteSchedule = async (schedule) => {
+    if (!schedule?._id) return;
+    const empName = schedule.employee?.name || 'this employee';
+    const confirmed = window.confirm(
+      `Are you sure you want to permanently delete the daily activity schedule for ${empName}? This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    try {
+      await dailyActivityScheduleAPI.delete(schedule._id);
+      setFeedbackMsg(`Daily activity schedule for ${empName} has been deleted.`);
+      fetchData();
+    } catch (err) {
+      alert(err?.response?.data?.message || 'Failed to delete schedule.');
+    }
+  };
+
   // Departments list for filter
   const departments = Array.from(new Set(allEmployees.map(e => e.department).filter(Boolean)));
 
+  // Sort cards naturally by Employee ID in ascending order (AOTMS-01, AOTMS-02, ..., AOTMS-10, etc.)
+  const sortedDirectory = useMemo(() => {
+    return [...directory].sort((a, b) => {
+      const comp = compareEmployeeId(a.user?.employeeId, b.user?.employeeId);
+      if (comp !== 0) return comp;
+      return String(a.user?.name || '').localeCompare(String(b.user?.name || ''));
+    });
+  }, [directory]);
+
   // KPI Calculations
-  const totalEmployees = directory.length;
-  const configuredCount = directory.filter(d => d.isConfigured).length;
+  const totalEmployees = sortedDirectory.length;
+  const configuredCount = sortedDirectory.filter(d => d.isConfigured).length;
   const unconfiguredCount = totalEmployees - configuredCount;
   const pendingStagingCount = stagingItems.filter(s => !s.isCreatedInDb).length;
 
@@ -263,7 +303,7 @@ export default function AllEmployeeActivities({
             <div key={i} className="h-44 bg-slate-200/70 rounded-3xl" />
           ))}
         </div>
-      ) : directory.length === 0 ? (
+      ) : sortedDirectory.length === 0 ? (
         <div className="p-12 text-center bg-white rounded-3xl border border-slate-200 text-slate-400">
           <FaFilter className="w-8 h-8 mx-auto mb-2 opacity-40" />
           <p className="text-xs font-semibold text-slate-600">No matching employee records found.</p>
@@ -271,7 +311,7 @@ export default function AllEmployeeActivities({
         </div>
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {directory.map(({ user, schedule, isConfigured }) => {
+          {sortedDirectory.map(({ user, schedule, isConfigured }) => {
             const workingHours = schedule?.workingHours || {};
             const responsibilities = schedule?.keyResponsibilities || [];
             const isArchived = schedule?.publishStatus === 'archived';
@@ -361,25 +401,40 @@ export default function AllEmployeeActivities({
                           setSelectedSchedule(schedule);
                           setShowDetailModal(true);
                         }}
-                        className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition flex items-center gap-1.5 cursor-pointer"
+                        className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition flex items-center gap-1.5 cursor-pointer"
                       >
                         <FaEye className="w-3 h-3 text-slate-500" />
-                        <span>View Details</span>
+                        <span>View</span>
                       </button>
 
-                      {canEdit && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setFormInitialData(schedule);
-                            setShowFormModal(true);
-                          }}
-                          className="px-3 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 font-semibold text-xs transition flex items-center gap-1 cursor-pointer"
-                        >
-                          <FaPen className="w-2.5 h-2.5" />
-                          <span>Edit</span>
-                        </button>
-                      )}
+                      <div className="flex items-center gap-1.5">
+                        {canEdit && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFormInitialData(schedule);
+                              setShowFormModal(true);
+                            }}
+                            className="px-2.5 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 font-semibold text-xs transition flex items-center gap-1 cursor-pointer"
+                            title="Edit Schedule"
+                          >
+                            <FaPen className="w-2.5 h-2.5" />
+                            <span>Edit</span>
+                          </button>
+                        )}
+
+                        {canDelete && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSchedule(schedule)}
+                            className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold text-xs transition flex items-center gap-1 cursor-pointer"
+                            title="Delete Schedule"
+                          >
+                            <FaTrash className="w-2.5 h-2.5" />
+                            <span>Delete</span>
+                          </button>
+                        )}
+                      </div>
                     </>
                   ) : (
                     canEdit && (
@@ -418,7 +473,7 @@ export default function AllEmployeeActivities({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
-                {directory.map(({ user, schedule, isConfigured }) => {
+                {sortedDirectory.map(({ user, schedule, isConfigured }) => {
                   const workingHours = schedule?.workingHours || {};
                   return (
                     <tr key={user._id} className="hover:bg-slate-50/70 transition">
@@ -458,7 +513,7 @@ export default function AllEmployeeActivities({
                       </td>
                       <td className="py-3 px-4 text-right">
                         {isConfigured ? (
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center justify-end gap-1.5">
                             <button
                               type="button"
                               onClick={() => {
@@ -477,8 +532,20 @@ export default function AllEmployeeActivities({
                                   setShowFormModal(true);
                                 }}
                                 className="px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 font-semibold text-[11px] cursor-pointer"
+                                title="Edit Schedule"
                               >
                                 Edit
+                              </button>
+                            )}
+                            {canDelete && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteSchedule(schedule)}
+                                className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold text-[11px] flex items-center gap-1 cursor-pointer"
+                                title="Delete Schedule"
+                              >
+                                <FaTrash className="w-2.5 h-2.5" />
+                                <span>Delete</span>
                               </button>
                             )}
                           </div>
@@ -512,10 +579,12 @@ export default function AllEmployeeActivities({
         onClose={() => setShowDetailModal(false)}
         schedule={selectedSchedule}
         canEdit={canEdit}
+        canDelete={canDelete}
         onEdit={(sch) => {
           setFormInitialData(sch);
           setShowFormModal(true);
         }}
+        onDelete={handleDeleteSchedule}
         onArchiveToggle={handleArchiveToggle}
       />
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Phone, PhoneOff, Mail, MapPin, Award, IndianRupee, Globe, User, Calendar, Tag, Star, Edit3, Save, X, Plus, Clock, MessageCircle, Copy, Check, Trash2, BookOpen, Zap, Sparkles, ShieldAlert, CheckCircle2, ChevronRight, Volume2, Download, Mic, Maximize2, FileText, ChevronDown, ChevronUp } from 'lucide-react';
 import api, { leadsAPI, campaignsAPI, usersAPI, coursesAPI, followupsAPI, blocklistAPI, leadStagesAPI, messageTemplatesAPI, metaLeadsAPI } from '../../services/api';
@@ -1801,6 +1801,19 @@ export default function LeadDetailsPage({
     });
   }, [lead?.phone, leadPhone, lead?.status, metaLeadData?.status]);
 
+  // Reload lead details when a note or profile is updated via global modal
+  useEffect(() => {
+    const handleCrmLeadUpdated = (e) => {
+      const targetId = e.detail?.leadId;
+      const currentId = lead?._id || metaLeadId || id;
+      if (!targetId || String(targetId) === String(lead?._id) || String(targetId) === String(metaLeadId) || String(targetId) === String(id) || String(targetId) === String(currentId)) {
+        fetchLeadDetails();
+      }
+    };
+    window.addEventListener('crm:lead-updated', handleCrmLeadUpdated);
+    return () => window.removeEventListener('crm:lead-updated', handleCrmLeadUpdated);
+  }, [lead?._id, metaLeadId, id]);
+
   // Open Add Note Modal if triggered from Sonner reminder toast or custom event
   useEffect(() => {
     const handleOpenNoteModal = (e) => {
@@ -1819,18 +1832,29 @@ export default function LeadDetailsPage({
     const currentId = lead._id || metaLeadId || id;
     if (isStatusRequiringNote(lead.status)) {
       if (leadHasNote(lead)) {
-        leadNoteReminderService.resolveLead(currentId);
+        leadNoteReminderService.resolveLead(currentId, leadName || lead.name);
       } else {
+        const lastCallNote = Array.isArray(lead.callNotes) && lead.callNotes.length > 0 ? lead.callNotes[lead.callNotes.length - 1] : null;
+        const lastActivity = Array.isArray(lead.activities) && lead.activities.length > 0 ? lead.activities.find(a => a.type === 'call' || a.type === 'status_change') : null;
+        const counsellorName = lastCallNote?.userName || lastActivity?.performedBy?.name || lead?.assignedTo?.name || user?.name || user?.displayName || 'Counselor';
+        const counsellorId = lastCallNote?.user || lastActivity?.performedBy?._id || lead?.assignedTo?._id || user?._id || user?.id;
         leadNoteReminderService.trackLead({
           id: currentId,
           name: leadName || lead.name,
           status: lead.status,
-          createdBy: user?.name || user?.fullName || lead?.assignedTo?.name || lead?.callerName || 'Staff',
+          counsellorName,
+          counsellorId,
+          counsellorEmail: user?.email,
+          createdBy: counsellorName,
+          createdById: counsellorId,
+          assignedToId: lead?.assignedTo?._id || lead?.assignedTo,
+          assignedToName: lead?.assignedTo?.name,
           hasExistingNote: false,
+          isRemoteBroadcast: true,
         });
       }
     } else {
-      leadNoteReminderService.resolveLead(currentId);
+      leadNoteReminderService.resolveLead(currentId, leadName || lead.name);
     }
   }, [lead?.status, lead?.activities?.length, lead?.callNotes?.length, lead?._id, metaLeadId, id, leadName]);
 
@@ -1926,18 +1950,26 @@ export default function LeadDetailsPage({
       setEditForm(prev => ({ ...prev, status: newStatus }));
       onChange?.(updated);
 
-      // Track 5-minute note reminder for office visit's or Demo attended
+      // Track 5-minute note reminder for positive call summary
       const currentId = updated?._id || targetMetaId || id;
       if (isStatusRequiringNote(newStatus)) {
+        const counsellorName = user?.name || user?.displayName || user?.fullName || 'Counselor';
+        const counsellorId = user?._id || user?.id;
         leadNoteReminderService.trackLead({
           id: currentId,
           name: leadName || updated.name,
           status: newStatus,
-          createdBy: user?.name || user?.fullName || lead?.assignedTo?.name || lead?.callerName || 'Staff',
+          counsellorName,
+          counsellorId,
+          counsellorEmail: user?.email,
+          createdBy: counsellorName,
+          createdById: counsellorId,
+          assignedToId: updated?.assignedTo?._id || lead?.assignedTo?._id,
+          assignedToName: updated?.assignedTo?.name || lead?.assignedTo?.name,
           hasExistingNote: leadHasNote(updated),
         });
       } else {
-        leadNoteReminderService.resolveLead(currentId);
+        leadNoteReminderService.resolveLead(currentId, leadName || updated?.name);
       }
     } catch (err) { console.error(err); }
   };

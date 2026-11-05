@@ -20,6 +20,12 @@ function initWebSocketServer(server) {
         const data = JSON.parse(message.toString());
         if (data.type === 'ping') {
           ws.send(JSON.stringify({ type: 'pong' }));
+          return;
+        }
+        // Relay client broadcasts to all connected clients (e.g., lead_note reminders)
+        if (data.event || data.type) {
+          const eventName = data.event || data.type;
+          broadcastWebSocketEvent(eventName, data.payload);
         }
       } catch (err) {
         // ignore malformed ws messages

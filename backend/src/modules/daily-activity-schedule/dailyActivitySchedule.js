@@ -354,7 +354,21 @@ router.get('/', protect, async (req, res) => {
       ];
     }
 
-    const allUsers = await User.find(userQuery).select(SAFE_USER_PROJECTION).sort({ name: 1 });
+    const allUsers = await User.find(userQuery).select(SAFE_USER_PROJECTION);
+
+    // Natural employee ID comparator (AOTMS-01, AOTMS-02, ..., AOTMS-10)
+    const compareByEmployeeId = (userA, userB) => {
+      const strA = String(userA?.employeeId || '').trim();
+      const strB = String(userB?.employeeId || '').trim();
+      if (!strA && !strB) return String(userA?.name || '').localeCompare(String(userB?.name || ''));
+      if (!strA) return 1;
+      if (!strB) return -1;
+      const comp = strA.localeCompare(strB, undefined, { numeric: true, sensitivity: 'base' });
+      if (comp !== 0) return comp;
+      return String(userA?.name || '').localeCompare(String(userB?.name || ''));
+    };
+
+    allUsers.sort(compareByEmployeeId);
 
     // Fetch all schedules
     const scheduleQuery = {};
@@ -397,6 +411,8 @@ router.get('/', protect, async (req, res) => {
     } else if (status === 'archived') {
       directory = directory.filter(d => d.schedule?.publishStatus === 'archived');
     }
+
+    directory.sort((a, b) => compareByEmployeeId(a.user, b.user));
 
     return res.json({
       ok: true,
@@ -459,17 +475,18 @@ router.get('/:employeeId', protect, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/', protect, async (req, res) => {
   try {
-    if (!canManageSchedules(req.user)) {
-      return res.status(403).json({
-        ok: false,
-        message: 'Access denied. Only Admin and Manager can create schedules.'
-      });
-    }
-
     const { employee, workingHours, keyResponsibilities, regularActivities, weeklyResponsibilities, recurringMeetings, additionalInformation, publishStatus } = req.body;
 
     if (!employee) {
       return res.status(400).json({ ok: false, message: 'Target employee is required.' });
+    }
+
+    const isSelf = String(employee) === String(req.user._id);
+    if (!canManageSchedules(req.user) && !isSelf) {
+      return res.status(403).json({
+        ok: false,
+        message: 'Access denied. You can only configure your own daily activity schedule.'
+      });
     }
 
     const user = await User.findById(employee);
@@ -501,7 +518,7 @@ router.post('/', protect, async (req, res) => {
         action: 'created',
         performedBy: req.user._id,
         performedAt: new Date(),
-        summary: `Created by ${req.user.name || 'HR'}`,
+        summary: isSelf ? `Created by employee (${req.user.name || 'Self'})` : `Created by ${req.user.name || 'HR'}`,
         fieldChanges: []
       }]
     });
@@ -523,16 +540,17 @@ router.post('/', protect, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 router.put('/:id', protect, async (req, res) => {
   try {
-    if (!canManageSchedules(req.user)) {
-      return res.status(403).json({
-        ok: false,
-        message: 'Access denied. Only Admin and Manager can edit schedules.'
-      });
-    }
-
     const schedule = await EmployeeDailyActivitySchedule.findById(req.params.id);
     if (!schedule) {
       return res.status(404).json({ ok: false, message: 'Schedule not found.' });
+    }
+
+    const isSelf = String(schedule.employee) === String(req.user._id);
+    if (!canManageSchedules(req.user) && !isSelf) {
+      return res.status(403).json({
+        ok: false,
+        message: 'Access denied. You can only edit your own daily activity schedule.'
+      });
     }
 
     const { workingHours, keyResponsibilities, regularActivities, weeklyResponsibilities, recurringMeetings, additionalInformation, publishStatus, summary } = req.body;
@@ -555,7 +573,7 @@ router.put('/:id', protect, async (req, res) => {
         action: 'updated',
         performedBy: req.user._id,
         performedAt: new Date(),
-        summary: summary || `Updated ${diffs.length} field(s) by ${req.user.name || 'HR'}`,
+        summary: summary || (isSelf ? `Updated by employee (${req.user.name || 'Self'})` : `Updated ${diffs.length} field(s) by ${req.user.name || 'HR'}`),
         fieldChanges: diffs
       });
     }
@@ -718,7 +736,7 @@ router.get('/:id/audit-history', protect, async (req, res) => {
 router.delete('/:id', protect, async (req, res) => {
   try {
     if (!isAdmin(req.user) && !isManager(req.user)) {
-      return res.status(403).json({ ok: false, message: 'Delete is restricted to Admin and Manager. Please use Archive instead.' });
+      return res.status(403).json({ ok: false, message: 'Delete is restricted to Admin. Employees cannot delete activity schedules.' });
     }
 
     const schedule = await EmployeeDailyActivitySchedule.findByIdAndDelete(req.params.id);

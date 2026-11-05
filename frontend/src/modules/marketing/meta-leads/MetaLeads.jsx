@@ -1032,6 +1032,7 @@ export default function MetaLeads() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const pendingTargetLeadIdRef = useRef(null);
+  const pendingOpenNoteRef = useRef(false);
 
   // Overview Data
   const [campaignStats, setCampaignStats] = useState([]);
@@ -1329,7 +1330,19 @@ export default function MetaLeads() {
             setActiveMobileTab('profile');
             pendingTargetLeadIdRef.current = null;
           } else {
-            setSelectedLead(prev => (prev && fetched.some(l => l._id === prev._id) ? prev : fetched[0]));
+            // If lead is not on page 1 of campaign, fetch it directly so it is never missing!
+            metaLeadsAPI.getOne(targetId).then(singleRes => {
+              const singleLead = singleRes?.data?.lead || singleRes?.data?.rawLead;
+              if (singleLead) {
+                setSelectedLead(singleLead);
+                setActiveMobileTab('profile');
+                pendingTargetLeadIdRef.current = null;
+              } else {
+                setSelectedLead(prev => (prev && fetched.some(l => l._id === prev._id) ? prev : fetched[0]));
+              }
+            }).catch(() => {
+              setSelectedLead(prev => (prev && fetched.some(l => l._id === prev._id) ? prev : fetched[0]));
+            });
           }
         } else {
           setSelectedLead(prev => (prev && fetched.some(l => l._id === prev._id) ? prev : fetched[0]));
@@ -1356,16 +1369,43 @@ export default function MetaLeads() {
     }
   }, [selectedCampaign, fetchCampaignLeads]);
 
+  // Refresh leads list when a note or status is updated via global modal
+  useEffect(() => {
+    const handleCrmLeadUpdated = () => {
+      if (selectedCampaign) {
+        fetchCampaignLeads(selectedCampaign, leadsPage);
+      }
+    };
+    window.addEventListener('crm:lead-updated', handleCrmLeadUpdated);
+    return () => window.removeEventListener('crm:lead-updated', handleCrmLeadUpdated);
+  }, [selectedCampaign, leadsPage]);
+
   // Listen to open-lead-note-modal & select-meta-campaign-lead events dispatched from Sonner toast action buttons
   useEffect(() => {
     const urlCampaign = searchParams.get('campaign');
     const urlLeadId = searchParams.get('leadId');
-    if (urlCampaign) {
-      if (urlLeadId) pendingTargetLeadIdRef.current = urlLeadId;
-      setSelectedCampaign(urlCampaign);
+    if (urlLeadId) {
+      pendingTargetLeadIdRef.current = urlLeadId;
+      if (urlCampaign) {
+        if (urlCampaign !== selectedCampaign) setSelectedCampaign(urlCampaign);
+      } else {
+        // Automatically discover campaign from lead ID!
+        metaLeadsAPI.getOne(urlLeadId).then(res => {
+          const l = res?.data?.lead || res?.data?.rawLead;
+          const camp = l?.campaign || l?.rawData?.campaign;
+          if (camp && camp !== selectedCampaign) setSelectedCampaign(camp);
+          if (l) {
+            setSelectedLead(l);
+            setActiveMobileTab('profile');
+          }
+        }).catch(() => {});
+      }
+      setSearchParams({}, { replace: true });
+    } else if (urlCampaign) {
+      if (urlCampaign !== selectedCampaign) setSelectedCampaign(urlCampaign);
       setSearchParams({}, { replace: true });
     }
-  }, [searchParams, setSearchParams]);
+  }, [searchParams, setSearchParams, selectedCampaign]);
 
   useEffect(() => {
     const handleSelectCallbackLead = (e) => {
@@ -1416,19 +1456,25 @@ export default function MetaLeads() {
       setTimeout(() => setStatusMessage(''), 2500);
       fetchCampaigns();
 
-      // Track 5-minute note reminder for office visit's or Demo attended
+      // Track 5-minute note reminder for positive call summary
       const studentName = cleanLeadName(lead.fullName || lead.rawData?.full_name || lead.rawData?.Name || lead.name || 'Student');
-      const creatorName = user?.name || user?.fullName || user?.email || 'Caller';
+      const counsellorName = user?.name || user?.displayName || user?.fullName || 'Counselor';
+      const counsellorId = user?._id || user?.id;
       if (isStatusRequiringNote(newStatus)) {
         leadNoteReminderService.trackLead({
           id: lead._id,
           name: studentName,
           status: newStatus,
-          createdBy: creatorName,
+          counsellorName,
+          counsellorId,
+          counsellorEmail: user?.email,
+          createdBy: counsellorName,
+          createdById: counsellorId,
+          assignedToId: lead?.assignedTo?._id || lead?.assignedTo,
           hasExistingNote: leadHasNote(lead),
         });
       } else {
-        leadNoteReminderService.resolveLead(lead._id);
+        leadNoteReminderService.resolveLead(lead._id, studentName);
       }
     } catch (err) {
       console.error('Failed to update lead status:', err);

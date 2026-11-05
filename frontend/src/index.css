@@ -486,7 +486,36 @@ input, select, textarea { font-size: 16px; }
   scrollbar-color: #94a3b8 #f1f5f9;
 }
 
+/* ================= 60-SECOND TOAST TIMELINE PROGRESS BAR ================= */
+@keyframes toastProgress60s {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
+.animate-toast-progress-60s {
+  animation: toastProgress60s 60s linear forwards;
+}
+
+/* ================= 30-SECOND TOAST TIMELINE PROGRESS BAR ================= */
+@keyframes toastProgress30s {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
+.animate-toast-progress-30s {
+  animation: toastProgress30s 30s linear forwards;
+}
+
 /* ================= 5-SECOND TOAST TIMELINE PROGRESS BAR ================= */
+
 @keyframes toastProgress5s {
   from {
     width: 100%;
@@ -498,5 +527,17 @@ input, select, textarea { font-size: 16px; }
 
 .animate-toast-progress-5s {
   animation: toastProgress5s 5s linear forwards;
+}
+
+/* ================= SONNER TOAST UNSTYLED FIX (ELIMINATES OUTER WHITE BOX) ================= */
+[data-sonner-toast]:has([data-custom-note-card]),
+[data-sonner-toast]:has([data-custom-note-reminder]),
+[data-sonner-toast].note-reminder-sonner-toast,
+li[data-sonner-toast]:has(.note-reminder-card) {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
 }
 

@@ -553,7 +553,16 @@ export const canManageDailyActivitySchedule = (user) => {
   return canEditDailyActivitySchedule(user);
 };
 
+export const canDeleteDailyActivitySchedule = (user) => {
+  if (!user) return false;
+  return isExecutive(user) || user?.role === 'admin' || user?.role === 'superadmin';
+};
+
 export const canViewOwnDailyActivitySchedule = (user) => {
+  return Boolean(user);
+};
+
+export const canEditOwnDailyActivitySchedule = (user) => {
   return Boolean(user);
 };
 

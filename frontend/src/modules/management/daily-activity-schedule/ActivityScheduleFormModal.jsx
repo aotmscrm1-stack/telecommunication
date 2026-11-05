@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   FaXmark,
   FaPlus,
@@ -11,6 +11,7 @@ import {
   FaFloppyDisk
 } from 'react-icons/fa6';
 import { dailyActivityScheduleAPI } from '../../../services/api';
+import { compareEmployeeId } from './AllEmployeeActivities';
 
 const DAY_OPTIONS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Daily', 'Every 2 Days'];
 
@@ -44,6 +45,14 @@ export default function ActivityScheduleFormModal({
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  const sortedEmployees = useMemo(() => {
+    return [...allEmployees].sort((a, b) => {
+      const comp = compareEmployeeId(a.employeeId, b.employeeId);
+      if (comp !== 0) return comp;
+      return String(a.name || '').localeCompare(String(b.name || ''));
+    });
+  }, [allEmployees]);
 
   useEffect(() => {
     if (initialData) {
@@ -215,24 +224,35 @@ export default function ActivityScheduleFormModal({
 
           {/* 1. Employee Selection (if Create) */}
           {!isEdit && (
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
-                Select Employee *
-              </label>
-              <select
-                value={selectedEmployeeId}
-                onChange={e => setSelectedEmployeeId(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-sky-500 cursor-pointer"
-                required
-              >
-                <option value="">-- Choose an employee --</option>
-                {allEmployees.map(emp => (
-                  <option key={emp._id} value={emp._id}>
-                    {emp.name} ({emp.employeeId || 'ID N/A'}) — {emp.designation || 'Staff'} [{emp.department || 'General'}]
-                  </option>
-                ))}
-              </select>
-            </div>
+            sortedEmployees.length > 1 ? (
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                  Select Employee *
+                </label>
+                <select
+                  value={selectedEmployeeId}
+                  onChange={e => setSelectedEmployeeId(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-sky-500 cursor-pointer"
+                  required
+                >
+                  <option value="">-- Choose an employee --</option>
+                  {sortedEmployees.map(emp => (
+                    <option key={emp._id} value={emp._id}>
+                      {emp.name} ({emp.employeeId || 'ID N/A'}) — {emp.designation || 'Staff'} [{emp.department || 'General'}]
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                  Employee
+                </label>
+                <div className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800">
+                  {initialData?.employee?.name || sortedEmployees[0]?.name || 'Current User'}
+                </div>
+              </div>
+            )
           )}
 
           {/* 2. Working Hours */}

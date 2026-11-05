@@ -244,6 +244,7 @@ export const whatsappCampaignsAPI = {
 
 export const metaLeadsAPI = {
   getAll: (params) => api.get('/meta-leads', { params }),
+  getOne: (id) => api.get(`/meta-leads/${id}`),
   getCampaigns: () => api.get('/meta-leads/campaigns'),
   getAssignments: () => api.get('/meta-leads/assignments'),
   saveAssignments: (data) => api.post('/meta-leads/assignments', data),

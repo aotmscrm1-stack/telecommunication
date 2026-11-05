@@ -649,21 +649,35 @@ router.get('/:id', protect, async (req, res) => {
     const { normalizePhone10 } = require('../../../core/utils/phone');
     const MetaLead = require('../../../database/models/MetaLead');
 
+    const idStr = String(req.params.id || '').trim();
+    const isValidObjId = mongoose.Types.ObjectId.isValid(idStr);
+
     let lead = null;
-    if (mongoose.Types.ObjectId.isValid(req.params.id)) {
-      lead = await Lead.findById(req.params.id)
+    if (isValidObjId) {
+      lead = await Lead.findById(idStr)
         .populate('assignedTo', 'name email avatar')
         .populate('campaign', 'name')
         .populate('courseInterest')
         .populate('activities.performedBy', 'name avatar');
     }
 
-    if (!lead && mongoose.Types.ObjectId.isValid(req.params.id)) {
-      const metaLead = await MetaLead.findById(req.params.id)
-        .populate('assignedTo', 'name email avatar');
+    if (!lead) {
+      let metaLead = null;
+      if (isValidObjId) {
+        metaLead = await MetaLead.findById(idStr).populate('assignedTo', 'name email avatar');
+      }
+      if (!metaLead) {
+        metaLead = await MetaLead.findOne({
+          $or: [
+            { metaLeadId: idStr },
+            { phone: idStr },
+            { normalizedPhone: idStr },
+          ]
+        }).populate('assignedTo', 'name email avatar');
+      }
 
       if (metaLead) {
-        if (metaLead.crmLeadId) {
+        if (metaLead.crmLeadId && mongoose.Types.ObjectId.isValid(metaLead.crmLeadId)) {
           lead = await Lead.findById(metaLead.crmLeadId)
             .populate('assignedTo', 'name email avatar')
             .populate('campaign', 'name')
@@ -673,6 +687,17 @@ router.get('/:id', protect, async (req, res) => {
         if (!lead) {
           lead = await formatMetaLeadAsLead(metaLead);
         }
+      }
+    }
+
+    if (!lead) {
+      const p10 = normalizePhone10(idStr);
+      if (p10 && p10.length === 10) {
+        lead = await Lead.findOne({ phone: p10 })
+          .populate('assignedTo', 'name email avatar')
+          .populate('campaign', 'name')
+          .populate('courseInterest')
+          .populate('activities.performedBy', 'name avatar');
       }
     }
 
@@ -733,6 +758,13 @@ router.put('/:id', protect, async (req, res) => {
         metaLead.markModified('rawData');
         await metaLead.save();
         const updated = await formatMetaLeadAsLead(metaLead);
+        try {
+          const { broadcastWebSocketEvent } = require('../../../app/websocket');
+          broadcastWebSocketEvent('lead_note:reminder_resolved', {
+            id: metaLead._id.toString(),
+            name: metaLead.fullName || metaLead.name || 'Student'
+          });
+        } catch (_) {}
         return res.json({ lead: updated });
       }
     }
@@ -845,6 +877,14 @@ router.post('/:id/call', protect, async (req, res) => {
     await lead.save();
     await lead.populate('activities.performedBy', 'name avatar');
 
+    try {
+      const { broadcastWebSocketEvent } = require('../../../app/websocket');
+      broadcastWebSocketEvent('lead_note:reminder_resolved', {
+        id: lead._id.toString(),
+        name: lead.name || 'Student'
+      });
+    } catch (_) {}
+
     res.json({ lead });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -854,26 +894,57 @@ router.post('/:id/call', protect, async (req, res) => {
 router.post('/:id/note', protect, async (req, res) => {
   try {
     const { note, type } = req.body;
+    const idStr = String(req.params.id || '').trim();
+    const isValidObjId = mongoose.Types.ObjectId.isValid(idStr);
+
     let lead = null;
-    if (mongoose.Types.ObjectId.isValid(req.params.id)) {
-      lead = await Lead.findById(req.params.id);
+    if (isValidObjId) {
+      lead = await Lead.findById(idStr);
     }
 
-    if (!lead && mongoose.Types.ObjectId.isValid(req.params.id)) {
+    if (!lead) {
       const MetaLead = require('../../../database/models/MetaLead');
-      const metaLead = await MetaLead.findById(req.params.id).populate('assignedTo', 'name email avatar');
+      let metaLead = null;
+      if (isValidObjId) {
+        metaLead = await MetaLead.findById(idStr).populate('assignedTo', 'name email avatar');
+      }
+      if (!metaLead) {
+        metaLead = await MetaLead.findOne({
+          $or: [
+            { metaLeadId: idStr },
+            { phone: idStr },
+            { normalizedPhone: idStr },
+          ]
+        }).populate('assignedTo', 'name email avatar');
+      }
+
       if (metaLead) {
         if (!Array.isArray(metaLead.callNotes)) metaLead.callNotes = [];
         metaLead.callNotes.push({
           note,
           outcome: type || 'note',
           user: req.user?._id,
-          userName: req.user?.name,
+          userName: req.user?.displayName || req.user?.name || 'Agent',
           date: new Date()
         });
         await metaLead.save();
         const updated = await formatMetaLeadAsLead(metaLead);
+        try {
+          const { broadcastWebSocketEvent } = require('../../../app/websocket');
+          broadcastWebSocketEvent('lead_note:reminder_resolved', {
+            id: metaLead._id.toString(),
+            name: metaLead.fullName || metaLead.name || 'Student'
+          });
+        } catch (_) {}
         return res.json({ lead: updated });
+      }
+    }
+
+    if (!lead) {
+      const { normalizePhone10 } = require('../../../core/utils/phone');
+      const p10 = normalizePhone10(idStr);
+      if (p10 && p10.length === 10) {
+        lead = await Lead.findOne({ phone: p10 });
       }
     }
 
@@ -882,6 +953,14 @@ router.post('/:id/note', protect, async (req, res) => {
     lead.activities.unshift({ type: noteType, description: note, performedBy: req.user._id });
     await lead.save();
     await lead.populate('activities.performedBy', 'name avatar');
+
+    try {
+      const { broadcastWebSocketEvent } = require('../../../app/websocket');
+      broadcastWebSocketEvent('lead_note:reminder_resolved', {
+        id: lead._id.toString(),
+        name: lead.name || 'Student'
+      });
+    } catch (_) {}
 
     res.json({ lead });
   } catch (err) {
@@ -927,6 +1006,23 @@ router.put('/:id/status', protect, async (req, res) => {
     if (lead.assignedTo) {
       notifyLeadStatusChanged({ lead, prevStatus, newStatus: status, assignedToId: lead.assignedTo._id, performedByUser: req.user }).catch(() => {});
     }
+
+    try {
+      const { broadcastWebSocketEvent } = require('../../../app/websocket');
+      const sLower = String(status || '').toLowerCase().trim();
+      const isPos = sLower.includes('office visit') || sLower.includes('demo attended') || sLower === 'positive';
+      if (isPos) {
+        broadcastWebSocketEvent('lead_note:reminder_needed', {
+          id: lead._id.toString(),
+          name: lead.name || 'Student',
+          status: lead.status,
+          counsellorName: req.user.displayName || req.user.name || 'Counselor',
+          counsellorId: req.user._id.toString(),
+          counsellorEmail: req.user.email,
+          assignedToId: lead.assignedTo?._id?.toString() || lead.assignedTo?.toString()
+        });
+      }
+    } catch (_) {}
     res.json({ lead });
   } catch (err) {
     res.status(500).json({ message: err.message });

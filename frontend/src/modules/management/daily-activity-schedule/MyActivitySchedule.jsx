@@ -8,17 +8,21 @@ import {
   FaIdBadge,
   FaBuilding,
   FaTriangleExclamation,
-  FaFileLines
+  FaFileLines,
+  FaPen,
+  FaPlus
 } from 'react-icons/fa6';
 import { CheckCircle2, CircleDotDashed, Circle, Clock, Check, Layers, ChevronRight } from 'lucide-react';
 import { dailyActivityScheduleAPI } from '../../../services/api';
+import ActivityScheduleFormModal from './ActivityScheduleFormModal';
 
-export default function MyActivitySchedule() {
+export default function MyActivitySchedule({ currentUser = null }) {
   const [loading, setLoading] = useState(true);
   const [scheduleData, setScheduleData] = useState(null);
   const [status, setStatus] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const fetchMySchedule = async () => {
     setLoading(true);
@@ -93,17 +97,42 @@ export default function MyActivitySchedule() {
   // Case: Unconfigured
   if (!scheduleData) {
     return (
-      <div className="p-4 sm:p-6 max-w-4xl mx-auto w-full">
-        <div className="p-10 rounded-3xl bg-white border border-slate-200 shadow-sm text-center space-y-3">
-          <div className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto text-2xl font-bold">
-            <FaFileLines />
+      <>
+        <div className="p-4 sm:p-6 max-w-4xl mx-auto w-full">
+          <div className="p-10 rounded-3xl bg-white border border-slate-200 shadow-sm text-center space-y-4">
+            <div className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto text-2xl font-bold">
+              <FaFileLines />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-800">No Activity Schedule Configured</h2>
+              <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed mt-1">
+                {message || 'Your official job responsibilities and activity profile have not yet been configured in the system. You can configure your daily activity schedule below.'}
+              </p>
+            </div>
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowEditModal(true)}
+                className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-xl transition inline-flex items-center gap-1.5 shadow-sm cursor-pointer"
+              >
+                <FaPlus className="w-3.5 h-3.5" />
+                <span>Configure My Activity</span>
+              </button>
+            </div>
           </div>
-          <h2 className="text-base font-bold text-slate-800">No Activity Schedule Configured</h2>
-          <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-            {message || 'Your official job responsibilities and activity profile have not yet been configured in the system. Please reach out to HR.'}
-          </p>
         </div>
-      </div>
+
+        <ActivityScheduleFormModal
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          initialData={currentUser ? { employee: currentUser } : null}
+          allEmployees={currentUser ? [currentUser] : []}
+          onSaved={() => {
+            fetchMySchedule();
+            setShowEditModal(false);
+          }}
+        />
+      </>
     );
   }
 
@@ -144,8 +173,19 @@ export default function MyActivitySchedule() {
           </div>
         </div>
 
-        <div className="px-3 py-1 rounded-xl bg-white/15 backdrop-blur-sm border border-white/25 text-[11px] font-semibold text-white shrink-0">
-          Active Schedule
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setShowEditModal(true)}
+            className="px-3.5 py-1.5 rounded-xl bg-white text-sky-700 hover:bg-sky-50 font-bold text-xs transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+            title="Edit your activity schedule"
+          >
+            <FaPen className="w-2.5 h-2.5 text-sky-600" />
+            <span>Edit Activity</span>
+          </button>
+          <div className="px-3 py-1 rounded-xl bg-white/15 backdrop-blur-sm border border-white/25 text-[11px] font-semibold text-white">
+            Active Schedule
+          </div>
         </div>
       </div>
 
@@ -327,6 +367,18 @@ export default function MyActivitySchedule() {
           </p>
         </div>
       )}
+
+      {/* Employee Self-Edit Modal (No Delete allowed) */}
+      <ActivityScheduleFormModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        initialData={scheduleData}
+        allEmployees={currentUser ? [currentUser] : []}
+        onSaved={() => {
+          fetchMySchedule();
+          setShowEditModal(false);
+        }}
+      />
     </div>
   );
 }

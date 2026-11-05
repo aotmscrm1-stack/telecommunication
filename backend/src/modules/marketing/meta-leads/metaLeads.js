@@ -1261,12 +1261,57 @@ router.get('/', protect, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GET /api/meta-leads/:id (Get single meta lead by ID)
+// ─────────────────────────────────────────────────────────────────────────────
+router.get('/:id', protect, async (req, res) => {
+  try {
+    const idStr = String(req.params.id || '').trim();
+    const isValidObjId = mongoose.Types.ObjectId.isValid(idStr);
+    let metaLead = null;
+    if (isValidObjId) {
+      metaLead = await MetaLead.findById(idStr).populate('assignedTo', 'name email avatar');
+    }
+    if (!metaLead) {
+      metaLead = await MetaLead.findOne({
+        $or: [
+          { metaLeadId: idStr },
+          { phone: idStr },
+          { normalizedPhone: idStr },
+        ]
+      }).populate('assignedTo', 'name email avatar');
+    }
+    if (!metaLead) {
+      return res.status(404).json({ success: false, message: 'Meta lead not found' });
+    }
+    const formatted = await formatMetaLeadAsLead(metaLead);
+    res.json({ success: true, lead: formatted, rawLead: metaLead });
+  } catch (err) {
+    console.error('Error fetching meta lead by ID:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch meta lead', error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // PATCH /api/meta-leads/:id (Update lead status, rating, followUpDate, notes, department)
 // ─────────────────────────────────────────────────────────────────────────────
 router.patch('/:id', protect, async (req, res) => {
   try {
     const { status, rating, assignedTo, note, notes, callOutcome, followUpDate, department, incrementCall } = req.body;
-    const metaLead = await MetaLead.findById(req.params.id);
+    const idStr = String(req.params.id || '').trim();
+    const isValidObjId = mongoose.Types.ObjectId.isValid(idStr);
+    let metaLead = null;
+    if (isValidObjId) {
+      metaLead = await MetaLead.findById(idStr);
+    }
+    if (!metaLead) {
+      metaLead = await MetaLead.findOne({
+        $or: [
+          { metaLeadId: idStr },
+          { phone: idStr },
+          { normalizedPhone: idStr },
+        ]
+      });
+    }
     if (!metaLead) {
       return res.status(404).json({ success: false, message: 'Meta lead not found' });
     }
@@ -1298,6 +1343,32 @@ router.patch('/:id', protect, async (req, res) => {
     if (metaLead.crmLeadId && status) {
       await Lead.findByIdAndUpdate(metaLead.crmLeadId, { status }).catch(() => {});
     }
+
+    // Check if status requires counsellor note or resolves note
+    try {
+      const sLower = String(status || '').toLowerCase().trim();
+      const isPos = sLower.includes('office visit') || sLower.includes('demo attended') || sLower === 'positive';
+      if (isPos && (!note || !String(note).trim())) {
+        const studentName = metaLead.fullName || metaLead.name || metaLead.rawData?.full_name || metaLead.rawData?.Name || 'Student';
+        const counsellorName = req.user.displayName || req.user.name || 'Counselor';
+        broadcastWebSocketEvent('lead_note:reminder_needed', {
+          id: metaLead._id.toString(),
+          name: studentName,
+          status: metaLead.status,
+          counsellorName,
+          counsellorId: req.user._id.toString(),
+          counsellorEmail: req.user.email,
+          assignedToId: metaLead.assignedTo?.toString(),
+          campaign: metaLead.campaignName || metaLead.campaign,
+          isMeta: true
+        });
+      } else if (note && String(note).trim()) {
+        broadcastWebSocketEvent('lead_note:reminder_resolved', {
+          id: metaLead._id.toString(),
+          name: metaLead.fullName || metaLead.name || 'Student'
+        });
+      }
+    } catch (_) {}
 
     res.json({
       success: true,
