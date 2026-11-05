@@ -146,6 +146,17 @@ router.post('/leads', protectWithAccessToken, async (req, res) => {
 
     const lead = await Lead.create(newLeadData);
 
+    // Automated Outpero AI Voice Calling dispatch
+    try {
+      const { outpero } = require('./calling');
+      outpero.dispatchLeadToOutpero({
+        name: lead.name,
+        phone: lead.phone,
+        course: campaign || lead.leadSource || 'General',
+        campaign: campaign || lead.leadSource,
+      }).catch(err => console.error('[Outpero PublicApi Dispatch Error]:', err.message));
+    } catch (_) {}
+
     // Broadcast real-time WebSocket update for active agent dashboards
     broadcastWebSocketEvent('lead:created', {
       leadId: lead._id,
