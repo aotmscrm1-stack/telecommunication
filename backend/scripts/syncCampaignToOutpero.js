@@ -93,6 +93,7 @@ async function run() {
         phone,
         course: targetCampaign,
         campaign: targetCampaign,
+        bypassCampaignFilter: true,
       });
 
       if (res.success) {

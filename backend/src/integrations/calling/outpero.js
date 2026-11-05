@@ -39,13 +39,26 @@ function formatPhoneForOutpero(rawPhone) {
  * @param {string} [leadData.course] - Course of interest (e.g., 'SAP')
  * @param {string} [leadData.campaign] - Campaign name
  */
-async function dispatchLeadToOutpero({ name, phone, course, campaign }) {
+async function dispatchLeadToOutpero({ name, phone, course, campaign, bypassCampaignFilter = false }) {
   const intakeUrl = process.env.OUTPERO_LEAD_INTAKE_URL || DEFAULT_OUTPERO_URL;
   const secretKey = (process.env.OUTPERO_LEAD_SECRET || '').trim();
 
   if (!secretKey) {
     console.log('[Outpero Auto-Call] Skipped: OUTPERO_LEAD_SECRET not configured in .env');
     return { skipped: true, reason: 'secret_not_configured' };
+  }
+
+  // Check allowed campaigns whitelist (if configured in .env)
+  const allowedCampaignsConfig = (process.env.OUTPERO_ALLOWED_CAMPAIGNS || '').trim();
+  if (!bypassCampaignFilter && allowedCampaignsConfig && allowedCampaignsConfig !== '*') {
+    const allowedList = allowedCampaignsConfig.split(',').map(c => c.trim().toLowerCase()).filter(Boolean);
+    const currentCampaign = String(campaign || course || '').trim().toLowerCase();
+    const isAllowed = allowedList.some(allowed => currentCampaign.includes(allowed) || currentCampaign === allowed);
+
+    if (!isAllowed) {
+      console.log(`[Outpero Auto-Call] Skipped: Campaign "${campaign || course}" is not allowed in OUTPERO_ALLOWED_CAMPAIGNS (${allowedCampaignsConfig})`);
+      return { skipped: true, reason: 'campaign_not_whitelisted' };
+    }
   }
 
   const formattedPhone = formatPhoneForOutpero(phone);
