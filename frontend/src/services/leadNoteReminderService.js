@@ -117,6 +117,10 @@ function getCurrentStoredUser() {
   }
 }
 
+export function getCurrentUser() {
+  return getCurrentStoredUser();
+}
+
 export function isAdminOrManager(user) {
   if (!user) return false;
   const role = String(user.role || '').trim().toLowerCase();
@@ -183,9 +187,23 @@ class LeadNoteReminderService {
 
   connectWebSocket() {
     try {
-      const apiBase = import.meta.env.VITE_API_URL || window.location.origin;
-      const wsBase = apiBase.replace(/^http/, 'ws').replace(/\/api\/?$/, '');
-      const wsUrl = `${wsBase}/ws`;
+      if (this.wsReconnectTimer) {
+        clearTimeout(this.wsReconnectTimer);
+        this.wsReconnectTimer = null;
+      }
+      if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
+        return;
+      }
+
+      let wsUrl = '';
+      if (import.meta.env.VITE_API_URL) {
+        wsUrl = import.meta.env.VITE_API_URL.replace(/^http/, 'ws').replace(/\/api\/?$/, '') + '/ws';
+      } else if (window.location.protocol === 'https:') {
+        wsUrl = `wss://${window.location.host}/ws`;
+      } else {
+        wsUrl = `ws://${window.location.hostname}:5000/ws`;
+      }
+
       const ws = new WebSocket(wsUrl);
       this.ws = ws;
 
@@ -198,9 +216,16 @@ class LeadNoteReminderService {
         } catch (_) {}
       };
 
+      ws.onerror = () => {
+        // Suppress unhandled error log on console
+        try { ws.close(); } catch (_) {}
+      };
+
       ws.onclose = () => {
+        this.ws = null;
         if (this.initialized) {
-          setTimeout(() => this.connectWebSocket(), 5000);
+          // Reconnect with gentle backoff so console is never flooded
+          this.wsReconnectTimer = setTimeout(() => this.connectWebSocket(), 30000);
         }
       };
     } catch (_) {}
@@ -371,7 +396,7 @@ class LeadNoteReminderService {
    */
   showToast(entry) {
     if (!entry || !entry.id) return;
-    const currentUser = getCurrentUser();
+    const currentUser = getCurrentStoredUser();
     const currentUserName = currentUser?.name || currentUser?.fullName || currentUser?.email;
     const creator = (entry.createdBy && entry.createdBy !== 'Staff' && entry.createdBy !== 'Caller / Staff')
       ? entry.createdBy
