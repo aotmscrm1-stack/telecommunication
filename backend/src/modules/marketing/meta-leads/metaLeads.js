@@ -442,6 +442,17 @@ router.post('/', async (req, res) => {
         results.push(created);
         activeLeadIds.push(created._id);
         insertedCount++;
+
+        // Automated Outpero AI Voice Calling for new incoming lead
+        try {
+          const { outpero } = require('../../../integrations/calling');
+          outpero.dispatchLeadToOutpero({
+            name: created.fullName,
+            phone: created.phone || created.normalizedPhone,
+            course: campaign || 'SAP',
+            campaign: campaign,
+          }).catch(err => console.error('[Outpero MetaLead Dispatch Error]:', err.message));
+        } catch (_) {}
       }
     }
 

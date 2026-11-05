@@ -453,6 +453,18 @@ router.post('/', protect, async (req, res) => {
       { path: 'courseInterest' }
     ]);
     notifyNewLeadCreated({ lead, assignedToId, performedByUser: req.user }).catch(() => {});
+
+    // Automatic AI Voice Calling dispatch via Outpero (if configured in .env)
+    try {
+      const { outpero } = require('../../../integrations/calling');
+      outpero.dispatchLeadToOutpero({
+        name: lead.name,
+        phone: lead.phone,
+        course: lead.courseInterest?.name || body.courseInterest || metaCampaignName || 'General',
+        campaign: metaCampaignName || lead.campaign?.name,
+      }).catch(err => console.error('[Outpero Dispatch Error]:', err.message));
+    } catch (_) {}
+
     res.status(201).json({ lead, metaCampaign: metaCampaignName || undefined });
   } catch (err) {
     res.status(500).json({ message: err.message });
