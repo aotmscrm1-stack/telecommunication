@@ -507,6 +507,8 @@ function scheduledAutoSync() {
     if (colMap.name === -1 && colMap.phone === -1 && colMap.email === -1) continue;
 
     var data = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+    var batchLeads = [];
+    var batchRows = [];
 
     for (var i = 0; i < data.length; i++) {
       var row = data[i];
@@ -523,17 +525,54 @@ function scheduledAutoSync() {
 
       if (!fullName && !phone && !email) continue;
 
-      var success = sendLeadToCRM({
+      batchLeads.push({
         campaign: sheetName,
-        leadId: leadId,
+        source: 'google_sheets_apps_script',
+        metaLeadId: leadId || undefined,
         full_name: fullName,
-        phone_number: phone,
         email: email,
-        city: city
+        phone_number: phone,
+        city: city,
+        name: fullName,
+        phone: phone,
+        location: city,
+        rawData: {
+          id: leadId,
+          full_name: fullName,
+          email: email,
+          phone_number: phone,
+          city: city
+        }
       });
 
-      if (success && colMap.status !== -1) {
-        sheet.getRange(i + 2, colMap.status + 1).setValue('SYNCED_TO_CRM');
+      if (colMap.status !== -1) {
+        batchRows.push(i + 2);
+      }
+    }
+
+    // Send all unsynced leads in ONE SINGLE BATCH CALL (Prevents Google quota exhaustion)
+    if (batchLeads.length > 0) {
+      try {
+        var options = {
+          method: 'post',
+          contentType: 'application/json',
+          payload: JSON.stringify({
+            campaign: sheetName,
+            isFullTabSync: false,
+            leads: batchLeads
+          }),
+          muteHttpExceptions: true
+        };
+
+        var response = UrlFetchApp.fetch(CRM_API_URL, options);
+        var code = response.getResponseCode();
+        if (code >= 200 && code < 300 && colMap.status !== -1) {
+          for (var b = 0; b < batchRows.length; b++) {
+            sheet.getRange(batchRows[b], colMap.status + 1).setValue('SYNCED_TO_CRM');
+          }
+        }
+      } catch (batchErr) {
+        Logger.log('Batch sync error for sheet ' + sheetName + ': ' + batchErr.toString());
       }
     }
   }
@@ -588,16 +627,16 @@ function setupAutoSyncTrigger() {
     }
   }
 
-  // Install 1-minute time-driven trigger
+  // Install 5-minute time-driven trigger (prevents Google quota limits)
   ScriptApp.newTrigger('scheduledAutoSync')
     .timeBased()
-    .everyMinutes(1)
+    .everyMinutes(5)
     .create();
 
   SpreadsheetApp.getUi().alert(
     '✅ Full Automation Activated!\n\n' +
     '• Real-time edit & delete triggers are active.\n' +
-    '• 1-minute background auto-sync check is now active.'
+    '• 5-minute background batch auto-sync check is now active.'
   );
 }
 
