@@ -371,7 +371,11 @@ class LeadNoteReminderService {
    */
   showToast(entry) {
     if (!entry || !entry.id) return;
-    const creator = entry.createdBy || 'Staff';
+    const currentUser = getCurrentUser();
+    const currentUserName = currentUser?.name || currentUser?.fullName || currentUser?.email;
+    const creator = (entry.createdBy && entry.createdBy !== 'Staff' && entry.createdBy !== 'Caller / Staff')
+      ? entry.createdBy
+      : (currentUserName || entry.createdBy || 'Staff');
 
     toast.custom(
       (t) =>
@@ -474,7 +478,10 @@ class LeadNoteReminderService {
             },
             React.createElement('div', {
               className: 'h-full bg-amber-500 rounded-full animate-toast-progress-5s',
-              style: { width: '100%' },
+              style: {
+                width: '100%',
+                animation: 'toastProgress5s 5000ms linear forwards',
+              },
             })
           )
         ),
