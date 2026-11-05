@@ -49,6 +49,7 @@ import { Departments } from '../modules/management/departments';
 import { AttendanceRecords } from '../modules/management/attendance';
 import { LiveEmployeeTracking } from '../modules/management/live-tracking';
 import { DailyActivitySchedule } from '../modules/management/daily-activity-schedule';
+import { PerformanceDashboard } from '../modules/management/performance';
 
 // Communication Modules
 import { CallRecordings } from '../modules/communication/call-recordings';
@@ -273,6 +274,9 @@ export function AppRoutes() {
         <Route path="feereceipt" element={<Navigate to="/fee-receipt" replace />} />
 
         {/* Management Module Routes */}
+        <Route path="performance" element={<PerformanceDashboard />} />
+        <Route path="admin/performance" element={<PerformanceDashboard />} />
+        <Route path=":userId/performance" element={<PerformanceDashboard />} />
         <Route path="admin/employee-tracking" element={<AdminOnlyRoute><LiveEmployeeTracking /></AdminOnlyRoute>} />
         <Route path="employee-tracking" element={<AdminOnlyRoute><LiveEmployeeTracking /></AdminOnlyRoute>} />
         <Route path="admin/departments" element={<AdminRoute><Departments /></AdminRoute>} />

@@ -1,6 +1,7 @@
 const connectDB = require('../config/database');
 const { startOverdueTaskChecker } = require('../jobs/workers/taskOverdueChecker');
 const { startTaskReminderChecker } = require('../jobs/workers/taskReminderChecker');
+const { startComplianceScheduler } = require('../jobs/workers/complianceScheduler');
 const { initWebSocketServer } = require('../app/websocket');
 const { initTrackingSocketServer } = require('../modules/management/live-tracking/trackingSocket');
 const logger = require('../core/logger/logger');
@@ -19,7 +20,8 @@ const initProviders = async (server) => {
   // 3. Start Background Workers / Cron Checkers
   startOverdueTaskChecker(5 * 60 * 1000);
   startTaskReminderChecker(5 * 60 * 1000);
-  logger.info('Task background checkers started');
+  startComplianceScheduler();
+  logger.info('Task and Compliance background checkers started');
 
   // 4. Async DB migrations (One-time migration completed)
   // require('../../scripts/migrate_campaigns').run().catch(() => {});

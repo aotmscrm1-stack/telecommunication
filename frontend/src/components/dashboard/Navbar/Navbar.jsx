@@ -12,7 +12,7 @@ import {
   FaUserGear, FaKey, FaPlug, FaCircleInfo, FaCoins, FaSitemap,
   FaCode, FaBell, FaChevronDown, FaBars, FaXmark, FaRightFromBracket,
   FaUser, FaUserCheck, FaBook, FaCalendarDays,
-  FaChartLine, FaMobileScreen, FaDownload, FaPhoneVolume
+  FaChartLine, FaMobileScreen, FaDownload, FaPhoneVolume, FaAward
 } from 'react-icons/fa6';
 import { SiGooglesheets } from 'react-icons/si';
 import { isCEO, isHR, isManager, canViewDashboard, canViewCallRecordings, isDigitalMarketing, canAccessDigitalCalendar, normalizeDesignation, canViewCallFollowups, canAccessMarketingLeads, canAccessDailyActivity, isTelecaller } from '../../../utils/permissions';
@@ -620,6 +620,7 @@ export default function Navbar() {
       title: 'Management', icon: FaSitemap, items: [
         { label: 'Departments', path: '/admin/departments', icon: FaSitemap },
         { label: 'Daily Activity Schedule', path: '/daily-activity-schedule', icon: FaCalendarCheck },
+        { label: 'Performance & Compliance', path: '/performance', icon: FaAward },
         { label: 'Attendance', path: user?._id ? `/${user._id}/attendance-records` : '/attendance-records', icon: FaCalendarCheck },
         ...(canViewCallRecordings(user) ? [{ label: 'Call Recordings', path: '/recordings', icon: FaClock }] : []),
         { label: 'Live Tracking', path: '/admin/employee-tracking', icon: FaLocationDot, adminOnly: !isHR(user) && !isCEO(user) },

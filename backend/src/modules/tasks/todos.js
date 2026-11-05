@@ -271,8 +271,12 @@ router.put('/:id', protect, async (req, res) => {
 // PATCH /api/todos/:id/status
 router.patch('/:id/status', protect, async (req, res) => {
   try {
-    const { status } = req.body;
-    const update = { status: (status === 'completed' || status === 'done') ? 'done' : status };
+    const { status, note, reason } = req.body;
+    const finalStatus = (status === 'completed' || status === 'done') ? 'done' : status;
+    const update = { status: finalStatus };
+    if (note || reason) {
+      update.note = reason || note;
+    }
     if (update.status === 'done') {
       const isAdminUser = req.user.role === 'admin' || req.user.role === 'superadmin' || isStrictAdmin(req.user) || isManager(req.user);
       if (!isAdminUser) {
@@ -281,7 +285,23 @@ router.patch('/:id/status', protect, async (req, res) => {
       update.completedAt = new Date();
       update.completedBy = req.user._id;
     }
-    const todo = await Todo.findByIdAndUpdate(req.params.id, update, { new: true })
+
+    const statusNote = reason || note || '';
+    const activityEntry = {
+      action: 'status_update',
+      performedBy: req.user._id,
+      details: 'Status updated to ' + finalStatus + (statusNote ? ': ' + statusNote : ''),
+      timestamp: new Date()
+    };
+
+    const todo = await Todo.findByIdAndUpdate(
+      req.params.id, 
+      { 
+        $set: update,
+        $push: { activityHistory: activityEntry }
+      }, 
+      { new: true }
+    )
       .populate('assignedTo', 'name email avatar')
       .populate('assignedBy', 'name email avatar')
       .populate('completedBy', 'name email avatar')

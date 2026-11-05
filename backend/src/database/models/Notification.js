@@ -7,7 +7,8 @@ const notificationSchema = new mongoose.Schema({
     enum: [
       'lead_assigned', 'lead_status_changed', 'lead_updated', 'new_lead',
       'call_initiated', 'callback_due', 'task_created', 'task_assigned',
-      'task_edited', 'task_overdue', 'workflow_action', 'general'
+      'task_edited', 'task_overdue', 'task_reminder', 'compliance_alert',
+      'performance_ticket', 'workflow_action', 'general'
     ],
     required: true
   },
@@ -16,6 +17,14 @@ const notificationSchema = new mongoose.Schema({
   lead: { type: mongoose.Schema.Types.ObjectId, ref: 'Lead' },
   performedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   read: { type: Boolean, default: false },
+  idempotencyKey: { type: String, unique: true, sparse: true, index: true },
+  deliveryStatus: {
+    inAppDelivered: { type: Boolean, default: true },
+    fcmDelivered: { type: Boolean, default: false },
+    fcmAttemptCount: { type: Number, default: 0 },
+    fcmLastError: { type: String, default: '' },
+    wsDelivered: { type: Boolean, default: false }
+  },
   data: { type: mongoose.Schema.Types.Mixed, default: {} },
 }, { timestamps: true });
 

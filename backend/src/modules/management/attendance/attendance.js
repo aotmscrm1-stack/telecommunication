@@ -448,6 +448,103 @@ router.post('/stop', protect, async (req, res) => {
       });
     }
 
+    // ── Checkpoint 2: Before Logout / End Attendance Mandatory Task Status Update ──
+    const Todo = require('../../../database/models/Todo');
+    const PerformanceTicket = require('../../../database/models/PerformanceTicket');
+    const { getNextTicketNumber } = require('../../../database/models/PerformanceTicketSequence');
+    const crypto = require('crypto');
+
+    const attDateStr = attendance.date || now.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+    const startOfDay = new Date(`${attDateStr}T00:00:00.000+05:30`);
+    const endOfDay = new Date(`${attDateStr}T23:59:59.999+05:30`);
+
+    const dailyTasks = await Todo.find({
+      assignedTo: userId,
+      $or: [
+        { scheduledAt: { $gte: startOfDay, $lte: endOfDay } },
+        { scheduledAt: null, createdAt: { $gte: startOfDay, $lte: endOfDay } }
+      ]
+    }).select('_id title status note comments activityHistory');
+
+    const unupdatedTasks = [];
+    for (const t of dailyTasks) {
+      const hasStatusUpdateToday = Array.isArray(t.activityHistory) && t.activityHistory.some((log) => {
+        return (log.action === 'status_update' || log.action === 'status_confirmed') &&
+               new Date(log.timestamp) >= new Date(attendance.startTime);
+      });
+
+      const isCompleted = t.status === 'completed' || t.status === 'done';
+      const hasReason = Boolean((t.note && t.note.trim()) || (Array.isArray(t.comments) && t.comments.length > 0));
+
+      if (!hasStatusUpdateToday && !isCompleted) {
+        unupdatedTasks.push({
+          id: t._id,
+          title: t.title || 'Untitled task',
+          status: t.status,
+          missing: 'Status was not updated today'
+        });
+      } else if (!isCompleted && !hasReason) {
+        unupdatedTasks.push({
+          id: t._id,
+          title: t.title || 'Untitled task',
+          status: t.status,
+          missing: 'Mandatory explanation reason is missing'
+        });
+      }
+    }
+
+    if (unupdatedTasks.length > 0 && !req.body.force) {
+      return res.status(400).json({
+        ok: false,
+        code: 'TASKS_NOT_UPDATED',
+        unupdatedTasks,
+        message: 'You have daily tasks that must be updated with current status and reasons before ending attendance.'
+      });
+    }
+
+    // If forced to end attendance without updating tasks, record violation ticket
+    if (unupdatedTasks.length > 0 && req.body.force) {
+      const shiftComplianceKey = `${userId}_${attendance._id}`;
+      const incidentHash = crypto.createHash('sha256').update(`${userId}_${attendance._id}_LOGOUT_TASKS`).digest('hex');
+      try {
+        const ticketNumber = await getNextTicketNumber(attDateStr);
+        await PerformanceTicket.create({
+          ticketNumber,
+          incidentHash,
+          shiftComplianceKey,
+          shiftIdentifier: String(attendance._id),
+          employee: userId,
+          employeeCode: attendance.employeeCode || '',
+          employeeName: attendance.employeeName || req.user.name,
+          department: req.user.department || 'General',
+          checkpoint: 'CHECKPOINT_2_BEFORE_LOGOUT',
+          triggerType: 'SHIFT_TASK_UPDATE_MISSING',
+          priority: 'medium',
+          status: 'open',
+          incidentDate: attDateStr,
+          title: `Tasks Not Updated Before Logout: ${req.user.name}`,
+          description: `Employee ended attendance session without updating ${unupdatedTasks.length} daily task(s) or providing required explanation reasons.`,
+          missingRequirement: `Task status closure missing for: ${unupdatedTasks.map(u => u.title).join(', ')}`,
+          relatedAttendance: attendance._id,
+          relatedTasks: unupdatedTasks.map(u => u.id),
+          evidenceSnapshot: {
+            unupdatedTasks,
+            sessionStartTime: attendance.startTime,
+            forcedLogoutTime: now
+          },
+          timeline: [{
+            action: 'auto_generated',
+            notes: 'Generated upon forced attendance stop without task closure',
+            timestamp: now
+          }]
+        });
+      } catch (tktErr) {
+        if (tktErr.code !== 11000) {
+          console.error('[Forced Logout Ticket Creation Error]', tktErr.message);
+        }
+      }
+    }
+
     // If employee was currently on break when stopping, automatically close the active break
     if (attendance.status === 'ON_BREAK' && Array.isArray(attendance.breaks)) {
       attendance.breaks.forEach((b) => {

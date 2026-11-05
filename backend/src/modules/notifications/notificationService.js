@@ -5,10 +5,18 @@ const { sendFcmNotification } = require('./fcmService');
 /**
  * Create a notification for a user and dispatch mobile push alert
  */
-async function createNotification({ recipient, type, title, message, lead, performedBy, data = {} }) {
+async function createNotification({ recipient, type, title, message, lead, performedBy, idempotencyKey, data = {} }) {
   try {
     if (!recipient) return null;
-    const notif = await Notification.create({ recipient, type, title, message, lead, performedBy, data });
+    let notif;
+    try {
+      notif = await Notification.create({ recipient, type, title, message, lead, performedBy, idempotencyKey, data });
+    } catch (insertErr) {
+      if (insertErr.code === 11000 && idempotencyKey) {
+        return await Notification.findOne({ idempotencyKey });
+      }
+      throw insertErr;
+    }
 
     // Asynchronously dispatch mobile FCM Push Notification
     User.findById(recipient).select('fcmToken').then(targetUser => {

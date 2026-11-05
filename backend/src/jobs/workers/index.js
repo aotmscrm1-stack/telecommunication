@@ -1,7 +1,9 @@
-const { startOverdueTaskChecker } = require('../../jobs/workers/taskOverdueChecker');
-const { startTaskReminderChecker } = require('../../jobs/workers/taskReminderChecker');
+const { startOverdueTaskChecker } = require('./taskOverdueChecker');
+const { startTaskReminderChecker } = require('./taskReminderChecker');
+const { startComplianceScheduler } = require('./complianceScheduler');
 
 module.exports = {
   startOverdueTaskChecker,
-  startTaskReminderChecker
+  startTaskReminderChecker,
+  startComplianceScheduler
 };

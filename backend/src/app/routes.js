@@ -83,6 +83,11 @@ router.use('/recordings', (req, res, next) => {
 // Route alias for /audio-conversations
 router.use('/audio-conversations', apiLimiter, require('../modules/management/live-tracking/recordings'));
 
+// ── Employee Performance & Compliance Governance ─────────────────────────────
+router.use('/performance/compliance', apiLimiter, require('../modules/management/performance/compliance'));
+router.use('/performance/tickets', apiLimiter, require('../modules/management/performance/tickets'));
+router.use('/performance', apiLimiter, require('../modules/management/performance/performance'));
+
 // ── Communication & Notifications ────────────────────────────────────────────
 router.use('/email', apiLimiter, require('../modules/communication/email/email'));
 router.use('/notifications', apiLimiter, require('../modules/notifications/notifications'));

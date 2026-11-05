@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { attendanceAPI, trackingAPI, usersAPI } from '../../../services/api';
 import geoTracker from '../../../services/geoTracker';
+import { BeforeLogoutTaskModal } from '../performance';
 import LiveMap from '../../../components/tracking/LiveMap';
 import { isManagingDirector, isExecutive, isHR, isManager } from '../../../utils/permissions';
 import SplitText from '../../../components/ui/SplitText';
@@ -209,7 +210,8 @@ export default function AttendanceRecords() {
   const [sessionLoading, setSessionLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null); // 'START' | 'BREAK' | 'RESUME' | 'STOP' | null
   const [actionStatusMsg, setActionStatusMsg] = useState(null); // { type: 'success' | 'error', message: string }
-  const [nineHourWarningModal, setNineHourWarningModal] = useState(null); // { open: boolean, completedHms: string, remainingHms: string, percent: number }
+  const [nineHourWarningModal, setNineHourWarningModal] = useState(null);
+  const [unupdatedTasksModal, setUnupdatedTasksModal] = useState({ open: false, tasks: [] }); // { open: boolean, completedHms: string, remainingHms: string, percent: number }
 
   // Date and filter states
   const [selectedDate, setSelectedDate] = useState(getTodayIso());
@@ -648,7 +650,14 @@ export default function AttendanceRecords() {
         setActionStatusMsg({ type: 'error', message: res.data?.message || 'Failed to end attendance.' });
       }
     } catch (err) {
-      setActionStatusMsg({ type: 'error', message: err.response?.data?.message || err.message || 'Error ending attendance.' });
+      if (err.response?.data?.code === 'TASKS_NOT_UPDATED') {
+        setUnupdatedTasksModal({
+          open: true,
+          tasks: err.response.data.unupdatedTasks || []
+        });
+      } else {
+        setActionStatusMsg({ type: 'error', message: err.response?.data?.message || err.message || 'Error ending attendance.' });
+      }
     } finally {
       setActionLoading(null);
     }

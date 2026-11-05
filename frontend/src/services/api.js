@@ -589,4 +589,18 @@ export const dailyActivityScheduleAPI = {
   delete: (id) => api.delete(`/daily-activity-schedules/${id}`)
 };
 
+
+export const performanceAPI = {
+  getComplianceToday: (params) => api.get('/performance/compliance/today', { params }),
+  getMyComplianceStatus: () => api.get('/performance/compliance/my-status'),
+  runMorningSweep: (data) => api.post('/performance/compliance/run-morning-sweep', data),
+  getOverview: (params) => api.get('/performance/overview', { params }),
+  getRoster: (params) => api.get('/performance/roster', { params }),
+  overrideScore: (id, data) => api.post(`/performance/override/${id}`, data),
+  getTickets: (params) => api.get('/performance/tickets', { params }),
+  getTicket: (id) => api.get(`/performance/tickets/${id}`),
+  explainTicket: (id, data) => api.post(`/performance/tickets/${id}/explain`, data),
+  resolveTicket: (id, data) => api.post(`/performance/tickets/${id}/resolve`, data),
+};
+
 export default api;
