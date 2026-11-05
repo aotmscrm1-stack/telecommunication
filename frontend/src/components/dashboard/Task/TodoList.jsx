@@ -869,11 +869,8 @@ export default function TodoList({
         assignedBy: currentUser?._id,
       };
 
-      // Save via followupsAPI (which fetchTasks reads from) and sync with todosAPI
-      await Promise.all([
-        followupsAPI.create(payload),
-        todosAPI.create(payload).catch(() => {})
-      ]);
+      // Save directly into todos collection via API
+      await followupsAPI.create(payload);
 
       setQuickTitle('');
       if (fetchTasks) fetchTasks();
