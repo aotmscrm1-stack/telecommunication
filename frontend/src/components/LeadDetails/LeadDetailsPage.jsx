@@ -1689,7 +1689,7 @@ export default function LeadDetailsPage({
     try {
       const isRandom = id === 'random';
       const [res, followupsRes] = await Promise.all([
-        isRandom ? leadsAPI.getRandom() : leadsAPI.getOne(id).catch(err => {
+        isRandom ? leadsAPI.getRandom() : leadsAPI.getOne(id).catch(async (err) => {
           if (metaLeadData || isMeta) {
             return {
               data: {
