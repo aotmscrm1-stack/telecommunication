@@ -66,7 +66,7 @@ const FALLBACK_STATUSES = [
   'All', 'Fresh', 'Connected', 'Not Answered', 'Call Back', 'Call Not Responding', 'Call Back Later',
   'Not interested', 'Demo Scheduled', 'Demo Done', 'Won', 'Lost', 'Blocked'
 ];
-const SOURCES = ['All', 'Manual', 'Facebook', 'WhatsApp', 'Website', 'Excel', 'Instagram', 'Referral', 'Other'];
+const SOURCES = ['All', 'Manual', 'Facebook', 'WhatsApp', 'Website', 'Just Dial', 'Instagram', 'Referral', 'Other'];
 
 const STATUS_DOT_COLORS = {
   'fresh': '#3b82f6',

@@ -217,7 +217,7 @@ const FALLBACK_STATUSES = [
   'Fresh', 'Connected', 'Not Answered', 'Call Back', 'Call Not Responding', 'Call Back Later',
   'Not interested', 'Demo Scheduled', 'Demo Done', 'Won', 'Lost', 'Blocked'
 ];
-const SOURCES = ['Manual', 'Facebook', 'WhatsApp', 'Website', 'Excel', 'Referral'];
+const SOURCES = ['Manual', 'Facebook', 'WhatsApp', 'Website', 'Just Dial', 'Referral'];
 const MODES = ['Online', 'Offline', 'Hybrid'];
 
 function fmtDuration(sec) {

@@ -12,7 +12,7 @@ const FALLBACK_STATUSES = [
     'Fresh', 'Connected', 'Not Answered', 'Call Back', 'Call Not Responding', 'Call Back Later',
     'Not interested', 'Demo Scheduled', 'Demo Done', 'Won', 'Lost', 'Blocked'
 ];
-const SOURCES = ['Manual', 'Facebook', 'WhatsApp', 'Website', 'Excel', 'Instagram', 'Referral', 'Other'];
+const SOURCES = ['Manual', 'Facebook', 'WhatsApp', 'Website', 'Just Dial', 'Instagram', 'Referral', 'Other'];
 
 const COURSE_LIST = [
     'Full Stack', 'Java Full Stack', 'Python Full Stack', 'MEAN Stack', 'MERN Stack',
@@ -186,9 +186,7 @@ export default function AddLead() {
             if (!form.name.trim()) e.name = 'Full name is required';
             if (!form.phone.trim()) e.phone = 'Phone number is required';
             else if (form.phone.replace(/\D/g, '').length !== 10) e.phone = 'Enter a valid 10-digit phone number';
-            if (!form.email || !form.email.trim()) {
-                e.email = 'Email is required';
-            } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+            if (form.email && form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
                 e.email = 'Please enter a valid email address';
             }
         }
@@ -229,7 +227,7 @@ export default function AddLead() {
             const selectedCampaign = campaigns.find(c => c._id === form.campaign);
             const data = {
                 ...form,
-                email: form.email.trim().toLowerCase(),
+                email: form.email ? form.email.trim().toLowerCase() : '',
                 phone: form.phone ? form.phone.replace(/\D/g, '').slice(-10) : '',
                 budget: form.budget ? +form.budget : 0,
                 campaign: selectedCampaign ? (selectedCampaign.isMeta ? selectedCampaign.name : selectedCampaign._id) : undefined,
@@ -388,7 +386,7 @@ export default function AddLead() {
                                                 value={form.name} onChange={e => set('name', e.target.value)}
                                                 placeholder="Enter full name" />
                                         </Field>
-                                        <Field label="Email" required error={errors.email}>
+                                        <Field label="Email" optional error={errors.email}>
                                             <input type="email" className={inputCls} style={inputStyle(errors.email)}
                                                 value={form.email} onChange={e => set('email', e.target.value)}
                                                 placeholder="abc@xyz.com" />
@@ -528,7 +526,7 @@ export default function AddLead() {
                                                     placeholder="20,000" />
                                             </div>
                                         </Field>
-                                        <Field label="Last Qualification" required error={errors.lastQualification}>
+                                        <Field label="Last Qualification" optional error={errors.lastQualification}>
                                             <input className={inputCls} style={inputStyle(errors.lastQualification)}
                                                 value={form.lastQualification}
                                                 onChange={e => set('lastQualification', e.target.value)}

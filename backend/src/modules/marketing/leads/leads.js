@@ -370,8 +370,7 @@ router.post('/', protect, async (req, res) => {
     if (!body.campaign || body.campaign === '') body.campaign = undefined;
     if (!body.assignedTo || body.assignedTo === '') body.assignedTo = undefined;
     body.email = String(body.email || '').trim().toLowerCase();
-    if (!body.email) return res.status(400).json({ message: 'Email is required' });
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)) return res.status(400).json({ message: 'Please enter a valid email address' });
+    if (body.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)) return res.status(400).json({ message: 'Please enter a valid email address' });
 
     // Resolve campaign: CRM Campaign (ObjectId or name) OR Meta Leads campaign (sheet name)
     let metaCampaignName = null;
