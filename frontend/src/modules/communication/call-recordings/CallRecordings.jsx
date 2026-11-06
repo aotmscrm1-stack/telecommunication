@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, memo } from 'react';
+import { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   AudioLines, Table, PhoneCall, FileAudio, 
@@ -1503,6 +1503,7 @@ export default function CallRecordings() {
   const [calendarActivity, setCalendarActivity] = useState({});
   const [currentCalendarMonth, setCurrentCalendarMonth] = useState(new Date());
   const [usersList, setUsersList] = useState([]);
+  const [allUsersList, setAllUsersList] = useState([]);
 
   // Filter state (Content & Duration removed permanently)
   const [filters, setFilters] = useState({
@@ -1569,40 +1570,23 @@ export default function CallRecordings() {
   const isManagerUser = user?.role === 'manager' || isManager(user);
   const canViewAllRecordings = canManageCRUD && !isManagerUser;
 
-  // Helper: For Admin Panel Caller Team, include all active team members across the company
+  // Helper: For Caller Team, include active team members who have Meta Leads campaign assignments
   const isAllowedCallerTeamMember = (emp) => {
     if (!emp || !emp.name) return false;
     return emp.status !== 'inactive' && emp.status !== 'deleted';
   };
 
   const getCallerTeamRoleLabel = (emp) => {
+    if (Array.isArray(emp.assignedCampaigns) && emp.assignedCampaigns.length > 0) {
+      if (emp.assignedCampaigns.length <= 2) {
+        return `📢 ${emp.assignedCampaigns.join(', ')}`;
+      }
+      return `📢 ${emp.assignedCampaigns[0]}, ${emp.assignedCampaigns[1]} +${emp.assignedCampaigns.length - 2} more`;
+    }
     const desig = String(emp.designation || '').trim();
     const dept = String(emp.department || '').trim();
     const role = String(emp.role || '').trim();
-    const combined = `${desig} ${dept} ${role}`.toLowerCase();
-
-    if (combined.includes('counsellor') || combined.includes('counselor') || combined.includes('councellor')) {
-      return desig || 'Counsellor';
-    }
-    if (combined.includes('telecaller') || combined.includes('tele-caller') || combined.includes('tele caller')) {
-      return desig || 'Telecaller';
-    }
-    if (combined.includes('manager')) {
-      return desig || 'Manager';
-    }
-    if (/\bhr\b/i.test(combined) || combined.includes('human resource')) {
-      return desig || 'HR';
-    }
-    if (combined.includes('marketing')) {
-      return desig || 'Marketing';
-    }
-    if (combined.includes('developer')) {
-      return desig || 'Developer';
-    }
-    if (combined.includes('trainer')) {
-      return desig || 'Trainer';
-    }
-    return desig || dept || (role ? role.charAt(0).toUpperCase() + role.slice(1) : 'Team Member');
+    return desig || dept || (role ? role.charAt(0).toUpperCase() + role.slice(1) : 'Campaign Caller');
   };
 
   const getAudioUrl = (url) => {
@@ -1749,22 +1733,80 @@ export default function CallRecordings() {
     }
   };
 
-  // Fetch team members for Left Sidebar "Caller Team" card (Only Counsellors, Telecallers, and HR)
-  useEffect(() => {
+  // Fetch team members for Left Sidebar "Caller Team" card (Only users assigned to Meta Leads campaigns)
+  const loadCallerTeam = useCallback(() => {
     if (!isAllowed) return;
-    let isMounted = true;
-    usersAPI.getAll()
-      .then(res => {
-        if (!isMounted) return;
-        const list = res.data?.users || res.data || [];
-        const rawList = Array.isArray(list) ? list : [];
-        const filteredTeam = rawList.filter(isAllowedCallerTeamMember);
-        filteredTeam.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
-        setUsersList(filteredTeam);
-      })
-      .catch(() => {});
-    return () => { isMounted = false; };
+    Promise.allSettled([
+      usersAPI.getAll(),
+      metaLeadsAPI.getAssignments()
+    ]).then(([usersRes, assignRes]) => {
+      const rawUsers = usersRes.status === 'fulfilled' ? (usersRes.value.data?.users || usersRes.value.data || []) : [];
+      const allUsers = (Array.isArray(rawUsers) ? rawUsers : []).filter(isAllowedCallerTeamMember);
+      setAllUsersList(allUsers);
+
+      const rawAssignments = assignRes.status === 'fulfilled' ? (assignRes.value.data?.assignments || assignRes.value.data || []) : [];
+      const assignmentsList = Array.isArray(rawAssignments) ? rawAssignments : [];
+
+      // Map: userId -> campaign names
+      const assignedUserCampaignsMap = new Map();
+      assignmentsList.forEach(a => {
+        const campName = String(a.campaign || '').trim();
+        const users = a.assignedUsers || [];
+        users.forEach(u => {
+          const uId = String(u?._id || u?.id || u || '').trim();
+          if (!uId) return;
+          if (!assignedUserCampaignsMap.has(uId)) {
+            assignedUserCampaignsMap.set(uId, {
+              userObj: typeof u === 'object' && u ? u : null,
+              campaigns: campName ? [campName] : []
+            });
+          } else {
+            const entry = assignedUserCampaignsMap.get(uId);
+            if (campName && !entry.campaigns.includes(campName)) {
+              entry.campaigns.push(campName);
+            }
+            if (!entry.userObj && typeof u === 'object' && u) {
+              entry.userObj = u;
+            }
+          }
+        });
+      });
+
+      // Filter to ONLY callers who have at least one Meta Leads campaign assignment
+      const callerTeam = [];
+      allUsers.forEach(user => {
+        const uId = String(user._id || user.id || '').trim();
+        if (assignedUserCampaignsMap.has(uId)) {
+          const info = assignedUserCampaignsMap.get(uId);
+          callerTeam.push({
+            ...user,
+            assignedCampaigns: info.campaigns || []
+          });
+        }
+      });
+
+      // Also ensure any assigned user populated from assignments is included
+      assignedUserCampaignsMap.forEach((info, uId) => {
+        if (!callerTeam.some(c => String(c._id || c.id) === uId)) {
+          if (info.userObj && info.userObj.name && info.userObj.status !== 'inactive' && info.userObj.status !== 'deleted') {
+            callerTeam.push({
+              ...info.userObj,
+              assignedCampaigns: info.campaigns || []
+            });
+          }
+        }
+      });
+
+      callerTeam.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+      setUsersList(callerTeam);
+    }).catch(err => {
+      console.error('Failed to load caller team assignments:', err);
+    });
   }, [isAllowed]);
+
+  useEffect(() => {
+    loadCallerTeam();
+  }, [loadCallerTeam]);
 
   // Persist real audio duration when browser <audio> metadata loads
   const handleRecordingDurationDetected = async (recId, realSec) => {
@@ -2553,7 +2595,7 @@ export default function CallRecordings() {
                     </button>
                   )}
                   <span className="text-[11px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
-                    {usersList.length}
+                    {usersList.length} Callers
                   </span>
                 </div>
               </div>
@@ -2574,7 +2616,7 @@ export default function CallRecordings() {
                     </div>
                     <div className="truncate">
                       <div className="text-xs font-medium text-slate-900 truncate">All Callers</div>
-                      <div className="text-[10px] text-slate-500 truncate">All Team Members • Entire Company</div>
+                      <div className="text-[10px] text-slate-500 truncate">Meta Leads Campaign Callers</div>
                     </div>
                   </div>
                   {filters.user === 'all' && (
@@ -2584,55 +2626,65 @@ export default function CallRecordings() {
                   )}
                 </button>
 
-                {usersList.map(emp => {
-                  const empId = emp._id || emp.id;
-                  const isSelected = String(filters.user) === String(empId);
-                  const empAvatar = emp.avatar || emp.image || emp.profilePicture || emp.profilePhoto || '';
-                  return (
-                    <div
-                      key={empId}
-                      onClick={() => handleFilterChange({ ...filters, user: isSelected ? 'all' : empId })}
-                      className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-left transition-all border cursor-pointer group ${
-                        isSelected
-                          ? 'bg-sky-50 border-sky-200 text-sky-900'
-                          : 'border-transparent hover:bg-slate-50 text-slate-700'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                        <CallerAvatar
-                          src={empAvatar}
-                          name={emp.name}
-                          size={30}
-                        />
-                        <div className="truncate flex-1 min-w-0">
-                          <div className="text-xs font-semibold text-slate-900 truncate">{emp.name}</div>
-                          <div className="text-[10px] text-slate-500 truncate">
-                            {getCallerTeamRoleLabel(emp)}
+                {usersList.length === 0 ? (
+                  <div className="py-4 px-3 text-center text-xs text-slate-400 italic">
+                    No callers assigned to Meta Leads campaigns
+                  </div>
+                ) : (
+                  usersList.map(emp => {
+                    const empId = emp._id || emp.id;
+                    const isSelected = String(filters.user) === String(empId);
+                    const empAvatar = emp.avatar || emp.image || emp.profilePicture || emp.profilePhoto || '';
+                    const campaignTitle = Array.isArray(emp.assignedCampaigns) ? emp.assignedCampaigns.join(', ') : '';
+                    return (
+                      <div
+                        key={empId}
+                        onClick={() => handleFilterChange({ ...filters, user: isSelected ? 'all' : empId })}
+                        className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-left transition-all border cursor-pointer group ${
+                          isSelected
+                            ? 'bg-sky-50 border-sky-200 text-sky-900'
+                            : 'border-transparent hover:bg-slate-50 text-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <CallerAvatar
+                            src={empAvatar}
+                            name={emp.name}
+                            size={30}
+                          />
+                          <div className="truncate flex-1 min-w-0">
+                            <div className="text-xs font-semibold text-slate-900 truncate">{emp.name}</div>
+                            <div
+                              className="text-[10px] text-slate-500 truncate"
+                              title={campaignTitle}
+                            >
+                              {getCallerTeamRoleLabel(emp)}
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="flex items-center gap-1.5 shrink-0 ml-1">
-                        <button
-                          type="button"
-                          onClick={e => {
-                            e.stopPropagation();
-                            setActiveProfileEmployee(emp);
-                          }}
-                          title={`View ${emp.name}'s Profile`}
-                          className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 hover:bg-sky-100 text-slate-600 hover:text-sky-700 border border-slate-200/80 hover:border-sky-200 transition-colors cursor-pointer"
-                        >
-                          Profile
-                        </button>
-                        {isSelected && (
-                          <div className="w-4 h-4 rounded-full bg-sky-600 flex items-center justify-center shrink-0">
-                            <Check className="w-2.5 h-2.5 text-white" />
-                          </div>
-                        )}
+                        <div className="flex items-center gap-1.5 shrink-0 ml-1">
+                          <button
+                            type="button"
+                            onClick={e => {
+                              e.stopPropagation();
+                              setActiveProfileEmployee(emp);
+                            }}
+                            title={`View ${emp.name}'s Profile`}
+                            className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 hover:bg-sky-100 text-slate-600 hover:text-sky-700 border border-slate-200/80 hover:border-sky-200 transition-colors cursor-pointer"
+                          >
+                            Profile
+                          </button>
+                          {isSelected && (
+                            <div className="w-4 h-4 rounded-full bg-sky-600 flex items-center justify-center shrink-0">
+                              <Check className="w-2.5 h-2.5 text-white" />
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             </div>
           )}
@@ -2867,7 +2919,8 @@ export default function CallRecordings() {
                         {/* 4. Caller / Agent (with Profile Avatar & AutoScrollText) */}
                         <td className="py-3 px-2 max-w-[125px]">
                           {(() => {
-                            const matchedEmp = usersList.find(
+                            const userSourceList = allUsersList.length ? allUsersList : usersList;
+                            const matchedEmp = userSourceList.find(
                               u =>
                                 (rec.userId && String(u._id || u.id) === String(rec.userId)) ||
                                 (u.name && rec.userName && u.name.trim().toLowerCase() === rec.userName.trim().toLowerCase())
@@ -3145,13 +3198,7 @@ export default function CallRecordings() {
             employee={activeProfileEmployee}
             onClose={() => setActiveProfileEmployee(null)}
             onUpdated={() => {
-              usersAPI.getAll().then(res => {
-                const list = res.data?.users || res.data || [];
-                const rawList = Array.isArray(list) ? list : [];
-                const filteredTeam = rawList.filter(isAllowedCallerTeamMember);
-                filteredTeam.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
-                setUsersList(filteredTeam);
-              }).catch(() => {});
+              loadCallerTeam();
             }}
           />
         )}
