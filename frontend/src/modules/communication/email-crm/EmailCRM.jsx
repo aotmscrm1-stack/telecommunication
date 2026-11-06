@@ -578,6 +578,8 @@ ${user?.designation || 'Staff'}`
         const u = new URL(import.meta.env.VITE_API_URL);
         wsHost = u.host;
       } catch (e) {}
+    } else if (window.location.hostname.includes('academyoftechmasters.com')) {
+      wsHost = 'api.academyoftechmasters.com';
     }
     const wsUrl = `${wsProtocol}//${wsHost}/ws`;
     

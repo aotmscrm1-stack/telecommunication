@@ -288,10 +288,12 @@ class LeadNoteReminderService {
       let wsUrl = '';
       if (import.meta.env.VITE_API_URL) {
         wsUrl = import.meta.env.VITE_API_URL.replace(/^http/, 'ws').replace(/\/api\/?$/, '') + '/ws';
-      } else if (window.location.protocol === 'https:') {
+      } else if (typeof window !== 'undefined' && window.location.hostname.includes('academyoftechmasters.com')) {
+        wsUrl = 'wss://api.academyoftechmasters.com/ws';
+      } else if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
         wsUrl = `wss://${window.location.host}/ws`;
       } else {
-        wsUrl = `ws://${window.location.hostname}:5000/ws`;
+        wsUrl = `ws://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:5000/ws`;
       }
 
       const ws = new WebSocket(wsUrl);
