@@ -20,3 +20,5 @@ export { Drawer, DrawerTrigger, DrawerClose, DrawerTitle, DrawerDescription, Dra
 export { Tabs, TabsList, TabsTrigger, TabsContent } from './tabs';
 export { Input } from './input';
 export { Label } from './label';
+export { WetPaintButton, default as WetPaintButtonDefault } from './wet-paint-button';
+export { default as WetPaintButtonDemo } from './wet-paint-button-demo';
