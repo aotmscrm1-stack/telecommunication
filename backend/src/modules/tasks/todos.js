@@ -91,20 +91,23 @@ router.get('/', protect, async (req, res) => {
     } else if (!isAdmin) {
       if (isHead && !forMe) {
         if (callerId && callerId !== 'all' && isValidId(callerId)) {
-          query.$or = [{ assignedTo: callerId }, { assignedBy: callerId }, { createdBy: callerId }];
-        } else if (req.user.department || req.user.designation) {
           const User = require('../../database/models/User');
-          const deptOrDesigFilter = [];
-          if (req.user.department) deptOrDesigFilter.push({ department: req.user.department });
-          if (req.user.designation) deptOrDesigFilter.push({ designation: req.user.designation });
-
-          const teamUsers = await User.find({ $or: deptOrDesigFilter }).select('_id');
+          const callerUser = await User.findById(callerId).select('department').lean();
+          const sameDept = req.user.department && callerUser?.department && req.user.department.toLowerCase() === callerUser.department.toLowerCase();
+          if (!sameDept && String(callerId) !== String(req.user._id)) {
+            return res.json({ followups: [], todos: [] });
+          }
+          query.$or = [{ assignedTo: callerId }, { assignedBy: callerId }, { createdBy: callerId }];
+        } else if (req.user.department) {
+          const User = require('../../database/models/User');
+          const deptRegex = new RegExp(`^${req.user.department.trim()}$`, 'i');
+          const teamUsers = await User.find({ department: deptRegex }).select('_id');
           const teamUserIds = teamUsers.map(u => u._id);
           query.$or = [
             { assignedTo: { $in: teamUserIds } },
             { assignedBy: { $in: teamUserIds } },
             { createdBy: { $in: teamUserIds } },
-            ...(req.user.department ? [{ department: req.user.department }] : [])
+            { department: deptRegex }
           ];
         } else {
           query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { createdBy: req.user._id }];
@@ -220,9 +223,8 @@ router.get('/user/:userId', protect, async (req, res) => {
       const User = require('../../database/models/User');
       const targetUser = await User.findById(targetUserId).select('department designation').lean();
       const sameDept = req.user.department && targetUser?.department && req.user.department.toLowerCase() === targetUser.department.toLowerCase();
-      const sameDesig = req.user.designation && targetUser?.designation && req.user.designation.toLowerCase() === targetUser.designation.toLowerCase();
-      if (!sameDept && !sameDesig) {
-        return res.status(403).json({ message: "You are only authorized to view todos of members in your department or designation." });
+      if (!sameDept) {
+        return res.status(403).json({ message: "You are only authorized to view todos of members in your department." });
       }
     }
 

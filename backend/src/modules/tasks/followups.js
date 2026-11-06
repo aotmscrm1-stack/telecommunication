@@ -184,17 +184,15 @@ router.get('/', protect, async (req, res) => {
             { createdBy: { $in: deptUserIds } },
             { department: deptRegex }
           ];
-        } else if (req.user.department || req.user.designation) {
-          const deptOrDesigFilter = [];
-          if (req.user.department) deptOrDesigFilter.push({ department: req.user.department });
-          if (req.user.designation) deptOrDesigFilter.push({ designation: req.user.designation });
-          const deptUsers = await User.find({ $or: deptOrDesigFilter }).select('_id');
+        } else if (req.user.department) {
+          const deptRegex = new RegExp(`^${req.user.department.trim()}$`, 'i');
+          const deptUsers = await User.find({ department: deptRegex }).select('_id');
           const deptUserIds = deptUsers.map(u => u._id);
           query.$or = [
             { assignedTo: { $in: deptUserIds } },
             { assignedBy: { $in: deptUserIds } },
             { createdBy: { $in: deptUserIds } },
-            ...(req.user.department ? [{ department: req.user.department }] : [])
+            { department: deptRegex }
           ];
         } else {
           query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { createdBy: req.user._id }];

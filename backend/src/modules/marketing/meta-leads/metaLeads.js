@@ -81,11 +81,10 @@ function isExecutiveOrAdminUser(user) {
   return false;
 }
 
-// Scoping: isHead: true or Admin sees all Meta Leads; isHead: false sees ONLY their own assigned Meta Leads
+// Scoping: Strictly Admin sees all Meta Leads; Managers & Employees see ONLY their assigned Meta Leads
 function canViewAllMetaLeads(user) {
   if (!user) return false;
-  if (isExecutiveOrAdminUser(user)) return true;
-  return Boolean(user.isHead);
+  return isExecutiveOrAdminUser(user);
 }
 
 function cleanLeadName(rawName) {
@@ -575,10 +574,6 @@ router.get('/my-assignment-status', protect, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/assignments', protect, async (req, res) => {
   try {
-    if (!isExecutiveOrAdminUser(req.user)) {
-      return res.status(403).json({ success: false, message: 'Forbidden. Admin access required.' });
-    }
-
     const assignments = await MetaCampaignAssignment.find({})
       .populate('assignedUsers', 'name email designation department avatar status')
       .populate('assignedBy', 'name email')

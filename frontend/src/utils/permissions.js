@@ -88,7 +88,7 @@ export const isTrainer = (user) => {
 export const isCounsellor = (user) => {
   if (!user) return false;
   const id = String(user?._id || user?.id || '');
-  if (MANAGER_IDS.includes(id)) return true; // Managers with counselling capacity
+  if (user?.role === 'admin' || user?.role === 'superadmin' || isCEO(user) || isManager(user) || user?.role === 'manager' || MANAGER_IDS.includes(id)) return false;
 
   const desig = String(user?.designation || '').trim().toLowerCase();
   const dName = String(user?.displayName || '').trim().toLowerCase();
@@ -258,8 +258,11 @@ export const canViewDashboard = (user) => {
  */
 export const canViewCallRecordings = (user) => {
   if (!user) return false;
+  if (user?.role === 'admin' || user?.role === 'superadmin' || isCEO(user) || isManager(user) || user?.role === 'manager' || MANAGER_IDS.includes(String(user?._id || user?.id || ''))) {
+    return true;
+  }
   if (isCounsellor(user)) return false;
-  return isHR(user) || isCEO(user) || user?.role === 'admin' || user?.role === 'manager' || isManager(user);
+  return isHR(user);
 };
 
 /**
