@@ -13,3 +13,5 @@ export { MarqueeLogoScroller, default as MarqueeLogoScrollerDefault } from './ma
 export { MarqueeDemo } from './marquee-logo-scroller-demo';
 export { default as EnterpriseAIPipeline } from './ai-agent-pipeline';
 export { default as EnterpriseAIPipelineDemo } from './ai-agent-pipeline-demo';
+export { AnimatedBeam, default as AnimatedBeamDefault } from './animated-beam';
+export { default as AnimatedBeamDemo } from './animated-beam-demo';
