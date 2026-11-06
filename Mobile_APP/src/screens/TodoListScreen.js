@@ -27,9 +27,15 @@ const PRIORITY_CONFIG = {
   low: { label: 'Low', bg: '#F1F5F9', text: '#475569', border: '#E2E8F0', icon: 'remove' },
 };
 
-// Helper: Format today as YYYY-MM-DD
-const getTodayStr = () => {
-  const d = new Date();
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+const WEEK_DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+// Helper: Format date as YYYY-MM-DD
+const formatDateStr = (d) => {
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
@@ -56,10 +62,14 @@ export default function TodoListScreen({ onNavigate }) {
   const [submitting, setSubmitting] = useState(false);
   const [description, setDescription] = useState('1. ');
   const [priority, setPriority] = useState('medium');
-  const [dueDate, setDueDate] = useState(getTodayStr());
-  const [dueTime, setDueTime] = useState('18:30'); // Default to 06:30 PM Logout Time
+  const [dueDate, setDueDate] = useState(() => formatDateStr(new Date()));
+  const [dueTime, setDueTime] = useState('18:30'); // Strictly 24-Hours Format (Default Logout Time)
   const [assignedToId, setAssignedToId] = useState('');
   const [assignedById, setAssignedById] = useState('');
+
+  // Interactive Calendar State in Modal
+  const [calendarYear, setCalendarYear] = useState(() => new Date().getFullYear());
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date().getMonth());
 
   // User Picker Modal State
   const [userPickerVisible, setUserPickerVisible] = useState(false);
@@ -80,11 +90,10 @@ export default function TodoListScreen({ onNavigate }) {
       const uList = usersRes.users || [];
       setUsers(uList);
 
-      // Default assignedTo / assignedBy to current user
       if (user?._id || user?.id) {
         const myId = String(user._id || user.id);
-        setAssignedToId(prev => prev || myId);
-        setAssignedById(prev => prev || myId);
+        setAssignedToId((prev) => prev || myId);
+        setAssignedById((prev) => prev || myId);
       }
     } catch (err) {
       console.warn('[TodoListScreen] Error loading data:', err);
@@ -103,12 +112,15 @@ export default function TodoListScreen({ onNavigate }) {
     loadData();
   }, [loadData]);
 
-  // Open Add Task Modal (Resets to default "1. ")
+  // Open Add Task Modal (Resets to default "1. ", current date in calendar, 18:30 24h time)
   const handleOpenAddModal = () => {
+    const today = new Date();
     setDescription('1. ');
     setPriority('medium');
-    setDueDate(getTodayStr());
-    setDueTime('18:30');
+    setDueDate(formatDateStr(today));
+    setDueTime('18:30'); // Strictly 24-hours
+    setCalendarYear(today.getFullYear());
+    setCalendarMonth(today.getMonth());
     if (user?._id || user?.id) {
       const myId = String(user._id || user.id);
       setAssignedToId(myId);
@@ -130,14 +142,75 @@ export default function TodoListScreen({ onNavigate }) {
     });
   };
 
-  // Quick Date Helpers
-  const setQuickDueDate = (daysFromNow) => {
-    const d = new Date();
-    d.setDate(d.getDate() + daysFromNow);
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    setDueDate(`${yyyy}-${mm}-${dd}`);
+  // Calendar Navigation
+  const handlePrevMonth = () => {
+    if (calendarMonth === 0) {
+      setCalendarMonth(11);
+      setCalendarYear((prev) => prev - 1);
+    } else {
+      setCalendarMonth((prev) => prev - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (calendarMonth === 11) {
+      setCalendarMonth(0);
+      setCalendarYear((prev) => prev + 1);
+    } else {
+      setCalendarMonth((prev) => prev + 1);
+    }
+  };
+
+  // Generate calendar grid days for current month
+  const calendarDays = useMemo(() => {
+    const firstDayIndex = new Date(calendarYear, calendarMonth, 1).getDay();
+    const totalDays = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+    const prevMonthDays = new Date(calendarYear, calendarMonth, 0).getDate();
+
+    const days = [];
+    // Padding from previous month
+    for (let i = firstDayIndex - 1; i >= 0; i--) {
+      days.push({
+        day: prevMonthDays - i,
+        month: calendarMonth - 1,
+        year: calendarMonth === 0 ? calendarYear - 1 : calendarYear,
+        isCurrentMonth: false,
+      });
+    }
+    // Days in current month
+    for (let i = 1; i <= totalDays; i++) {
+      days.push({
+        day: i,
+        month: calendarMonth,
+        year: calendarYear,
+        isCurrentMonth: true,
+      });
+    }
+    // Trailing days to complete weeks of 7
+    const remainder = days.length % 7;
+    if (remainder !== 0) {
+      const needed = 7 - remainder;
+      for (let i = 1; i <= needed; i++) {
+        days.push({
+          day: i,
+          month: calendarMonth + 1,
+          year: calendarMonth === 11 ? calendarYear + 1 : calendarYear,
+          isCurrentMonth: false,
+        });
+      }
+    }
+    return days;
+  }, [calendarYear, calendarMonth]);
+
+  // Handle Calendar Day Selection
+  const handleSelectCalendarDay = (cell) => {
+    const mm = String(cell.month + 1).padStart(2, '0');
+    const dd = String(cell.day).padStart(2, '0');
+    setDueDate(`${cell.year}-${mm}-${dd}`);
+    if (!cell.isCurrentMonth) {
+      setCalendarMonth(cell.month);
+      setCalendarYear(cell.year);
+    }
   };
 
   // Quick Add handler (from the top bar)
@@ -150,7 +223,8 @@ export default function TodoListScreen({ onNavigate }) {
 
     setQuickAdding(true);
     try {
-      const scheduledDateTime = new Date(`${getTodayStr()}T18:30:00`).toISOString();
+      const todayStr = formatDateStr(new Date());
+      const scheduledDateTime = new Date(`${todayStr}T18:30:00`).toISOString();
       const rawLines = trimmed.split('\n').map((l) => l.trim()).filter(Boolean);
       const checklist = rawLines.map((line) => ({
         title: line.replace(/^(\d+[\.\)]|[\-\*•])\s*/, ''),
@@ -192,7 +266,7 @@ export default function TodoListScreen({ onNavigate }) {
 
     setSubmitting(true);
     try {
-      const datePart = dueDate || getTodayStr();
+      const datePart = dueDate || formatDateStr(new Date());
       const timePart = dueTime || '18:30';
       const scheduledDateTime = new Date(`${datePart}T${timePart}:00`).toISOString();
 
@@ -272,7 +346,6 @@ export default function TodoListScreen({ onNavigate }) {
       }));
     }
 
-    // Optimistic update
     setTodos((prev) =>
       prev.map((t) => (t._id === todo._id ? { ...t, checklist: updatedChecklist } : t))
     );
@@ -310,6 +383,48 @@ export default function TodoListScreen({ onNavigate }) {
     );
   };
 
+  // ── STRICT USER SCOPING: ONLY SHOW OUR USER'S TEAM/DEPARTMENT ───────────
+  const myDepartment = String(user?.department || '').trim().toLowerCase();
+  const myUserId = String(user?._id || user?.id || '');
+
+  // "Assigned To" -> ONLY OUR USER / DEPARTMENT USERS
+  const ourTeamUsers = useMemo(() => {
+    if (!users || users.length === 0) return [];
+    return users.filter((u) => {
+      if (!u) return false;
+      const uId = String(u._id || u.id || '');
+      if (uId === myUserId) return true; // Always show self (Our user)
+
+      if (myDepartment) {
+        const uDept = String(u.department || '').trim().toLowerCase();
+        if (uDept === myDepartment) return true;
+        if (myDepartment.includes('tele') && (uDept.includes('tele') || uDept.includes('call'))) return true;
+        if (myDepartment.includes('call') && (uDept.includes('tele') || uDept.includes('call'))) return true;
+        if (myDepartment.includes('sale') && uDept.includes('sale')) return true;
+        if (myDepartment.includes('dev') && (uDept.includes('dev') || uDept.includes('tech'))) return true;
+        return false;
+      }
+      return false;
+    });
+  }, [users, user, myDepartment, myUserId]);
+
+  // "Reported To" -> Managers, Heads, Directors, Admins, or Self
+  const reportingUsers = useMemo(() => {
+    if (!users || users.length === 0) return [];
+    return users.filter((u) => {
+      if (!u) return false;
+      const uId = String(u._id || u.id || '');
+      if (uId === myUserId) return true;
+      const role = String(u.role || '').toLowerCase();
+      const desig = String(u.designation || '').toUpperCase();
+      const dept = String(u.department || '').trim().toLowerCase();
+      if (role === 'admin' || role === 'superadmin' || role === 'manager') return true;
+      if (desig.includes('MANAGER') || desig.includes('HEAD') || desig.includes('LEAD') || desig.includes('DIRECTOR') || desig.includes('MD') || desig.includes('CEO')) return true;
+      if (myDepartment && dept === myDepartment) return true;
+      return false;
+    });
+  }, [users, user, myDepartment, myUserId]);
+
   // User Picker selection
   const handleSelectUser = (selectedU) => {
     if (userPickerMode === 'assignedTo') {
@@ -329,17 +444,18 @@ export default function TodoListScreen({ onNavigate }) {
     return found?.name || fallback;
   };
 
-  // Filtered Users for Picker
-  const filteredUsers = useMemo(() => {
-    if (!userSearchText.trim()) return users;
+  // Filtered Users for Picker Modal
+  const pickerDataSource = userPickerMode === 'assignedTo' ? ourTeamUsers : reportingUsers;
+  const filteredPickerUsers = useMemo(() => {
+    if (!userSearchText.trim()) return pickerDataSource;
     const q = userSearchText.toLowerCase();
-    return users.filter(
+    return pickerDataSource.filter(
       (u) =>
         (u.name || '').toLowerCase().includes(q) ||
         (u.department || '').toLowerCase().includes(q) ||
         (u.designation || '').toLowerCase().includes(q)
     );
-  }, [users, userSearchText]);
+  }, [pickerDataSource, userSearchText]);
 
   // Statistics
   const stats = useMemo(() => {
@@ -366,7 +482,7 @@ export default function TodoListScreen({ onNavigate }) {
 
   // Filtered Todos
   const filteredTodos = useMemo(() => {
-    const todayStr = getTodayStr();
+    const todayStr = formatDateStr(new Date());
 
     return todos.filter((t) => {
       const isDone = t.status === 'done' || t.status === 'completed';
@@ -390,7 +506,7 @@ export default function TodoListScreen({ onNavigate }) {
     });
   }, [todos, activeTab, searchQuery]);
 
-  // Format Date and Time
+  // Format Date and 24-Hour Time (e.g. "Nov 06 • 18:30")
   const formatDateTimeDisplay = (dateVal) => {
     if (!dateVal) return '';
     try {
@@ -406,19 +522,18 @@ export default function TodoListScreen({ onNavigate }) {
       if (isToday) dateLabel = 'Today';
       else if (isTomorrow) dateLabel = 'Tomorrow';
 
-      const timeLabel = d.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true,
-      });
+      // 24-HOUR FORMAT (HH:mm)
+      const hours = String(d.getHours()).padStart(2, '0');
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      const timeLabel24 = `${hours}:${minutes}`;
 
-      return `${dateLabel} • ${timeLabel}`;
+      return `${dateLabel} • ${timeLabel24}`;
     } catch {
       return '';
     }
   };
 
-  // Render individual Todo Card (matching Web CRM TodoChecklist design)
+  // Render individual Todo Card
   const renderTodoCard = ({ item }) => {
     const isDone = item.status === 'done' || item.status === 'completed';
     const prio = PRIORITY_CONFIG[item.priority] || PRIORITY_CONFIG.medium;
@@ -448,7 +563,7 @@ export default function TodoListScreen({ onNavigate }) {
     const doneSub = items.filter((c) => c.completed).length;
     const percent = totalSub > 0 ? Math.round((doneSub / totalSub) * 100) : 0;
 
-    const assigneeName = getUserName(item.assignedTo, 'Self');
+    const assigneeName = getUserName(item.assignedTo, 'Our User');
     const reportedToName =
       item.assignedBy === 'all' ? 'All Team' : getUserName(item.assignedBy, 'Manager');
 
@@ -469,7 +584,7 @@ export default function TodoListScreen({ onNavigate }) {
             )}
           </TouchableOpacity>
 
-          {/* Date & Time Badge */}
+          {/* Date & 24h Time Badge */}
           <View style={[styles.dateTimeBadge, isOverdue && styles.dateTimeBadgeOverdue]}>
             <Ionicons
               name={isOverdue ? 'warning' : 'calendar-outline'}
@@ -561,6 +676,8 @@ export default function TodoListScreen({ onNavigate }) {
       </View>
     );
   };
+
+  const todayStr = formatDateStr(new Date());
 
   return (
     <View style={styles.container}>
@@ -711,7 +828,7 @@ export default function TodoListScreen({ onNavigate }) {
         />
       )}
 
-      {/* ── FULL ADD TODO MODAL (SAME FORM WITH DEFAULT 1., ASSIGNED TO, REPORTED TO, DATE & TIME) ── */}
+      {/* ── FULL ADD TODO MODAL WITH CALENDAR & 24-HOUR TIME ── */}
       <Modal
         visible={modalVisible}
         animationType="slide"
@@ -727,7 +844,7 @@ export default function TodoListScreen({ onNavigate }) {
             <View style={styles.modalHeader}>
               <View>
                 <Text style={styles.modalTitle}>Create Todo Item</Text>
-                <Text style={styles.modalSubtitle}>Assign tasks, set reported to, date & logout time</Text>
+                <Text style={styles.modalSubtitle}>Assign task, pick date via calendar & set 24h time</Text>
               </View>
               <TouchableOpacity
                 onPress={() => setModalVisible(false)}
@@ -752,7 +869,7 @@ export default function TodoListScreen({ onNavigate }) {
               </View>
 
               <Text style={styles.helperTipText}>
-                Default is set to <Text style={{ fontWeight: '700' }}>1.</Text> Tap '+ Add Item' to add 2., 3., 4.
+                Default set to <Text style={{ fontWeight: '700' }}>1.</Text> Tap '+ Add Item' to add sub-items.
               </Text>
 
               <TextInput
@@ -762,14 +879,19 @@ export default function TodoListScreen({ onNavigate }) {
                 value={description}
                 onChangeText={setDescription}
                 multiline
-                numberOfLines={4}
+                numberOfLines={3}
               />
 
-              {/* 2. Assigned To & Reported To Pickers */}
+              {/* 2. Assigned To & Reported To Pickers (STRICTLY OUR USER) */}
               <View style={styles.dualFieldRow}>
-                {/* Assigned To */}
+                {/* Assigned To - ONLY OUR USER */}
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.modalLabel}>ASSIGNED TO</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Text style={styles.modalLabel}>ASSIGNED TO *</Text>
+                    <View style={styles.ourUserBadge}>
+                      <Text style={styles.ourUserBadgeText}>Our User</Text>
+                    </View>
+                  </View>
                   <TouchableOpacity
                     style={styles.pickerSelectorBtn}
                     onPress={() => {
@@ -779,9 +901,9 @@ export default function TodoListScreen({ onNavigate }) {
                     }}
                     activeOpacity={0.7}
                   >
-                    <Ionicons name="person-outline" size={14} color="#0369A1" />
+                    <Ionicons name="person" size={14} color="#0369A1" />
                     <Text style={styles.pickerSelectorText} numberOfLines={1}>
-                      {getUserName(assignedToId, 'Select User')}
+                      {getUserName(assignedToId, 'Select Our User')}
                     </Text>
                     <Ionicons name="chevron-down" size={14} color="#64748B" />
                   </TouchableOpacity>
@@ -799,7 +921,7 @@ export default function TodoListScreen({ onNavigate }) {
                     }}
                     activeOpacity={0.7}
                   >
-                    <Ionicons name="shield-checkmark-outline" size={14} color="#475569" />
+                    <Ionicons name="shield-checkmark" size={14} color="#475569" />
                     <Text style={styles.pickerSelectorText} numberOfLines={1}>
                       {getUserName(assignedById, 'Select Reporting')}
                     </Text>
@@ -808,82 +930,113 @@ export default function TodoListScreen({ onNavigate }) {
                 </View>
               </View>
 
-              {/* 3. Date & Logout Time */}
-              <Text style={styles.modalLabel}>DUE DATE & LOGOUT TIME</Text>
-              {/* Quick Date Selectors */}
-              <View style={styles.quickPillsRow}>
-                <TouchableOpacity
-                  style={styles.quickPillBtn}
-                  onPress={() => setQuickDueDate(0)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.quickPillText}>Today</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.quickPillBtn}
-                  onPress={() => setQuickDueDate(1)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.quickPillText}>Tomorrow</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.quickPillBtn}
-                  onPress={() => setQuickDueDate(3)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.quickPillText}>In 3 Days</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.quickPillBtn}
-                  onPress={() => setQuickDueDate(7)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.quickPillText}>In 1 Week</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.dualFieldRow}>
-                {/* Date Input */}
-                <View style={{ flex: 1.2 }}>
-                  <TextInput
-                    style={styles.modalInput}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor="#94A3B8"
-                    value={dueDate}
-                    onChangeText={setDueDate}
-                  />
-                </View>
-
-                {/* Time Input */}
-                <View style={{ flex: 1 }}>
-                  <TextInput
-                    style={styles.modalInput}
-                    placeholder="HH:mm (e.g. 18:30)"
-                    placeholderTextColor="#94A3B8"
-                    value={dueTime}
-                    onChangeText={setDueTime}
-                  />
+              {/* 3. CALENDAR FOR DATE SELECTION (Quick buttons removed as requested) */}
+              <View style={styles.formSectionHeader}>
+                <Text style={styles.modalLabel}>SELECT DATE (CALENDAR)</Text>
+                <View style={styles.selectedDatePill}>
+                  <Ionicons name="calendar" size={12} color="#174EA6" />
+                  <Text style={styles.selectedDatePillText}>{dueDate}</Text>
                 </View>
               </View>
 
-              {/* Quick Time Selectors */}
-              <View style={[styles.quickPillsRow, { marginTop: 4 }]}>
+              {/* Interactive Month Calendar Box */}
+              <View style={styles.calendarContainer}>
+                {/* Calendar Header with Navigation */}
+                <View style={styles.calendarHeaderRow}>
+                  <TouchableOpacity onPress={handlePrevMonth} style={styles.calendarNavBtn}>
+                    <Ionicons name="chevron-back" size={18} color="#174EA6" />
+                  </TouchableOpacity>
+
+                  <Text style={styles.calendarMonthTitle}>
+                    {MONTH_NAMES[calendarMonth]} {calendarYear}
+                  </Text>
+
+                  <TouchableOpacity onPress={handleNextMonth} style={styles.calendarNavBtn}>
+                    <Ionicons name="chevron-forward" size={18} color="#174EA6" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Weekday Names Row */}
+                <View style={styles.calendarWeekRow}>
+                  {WEEK_DAYS.map((wd) => (
+                    <Text key={wd} style={styles.calendarWeekDayText}>
+                      {wd}
+                    </Text>
+                  ))}
+                </View>
+
+                {/* Day Cells Grid */}
+                <View style={styles.calendarGrid}>
+                  {calendarDays.map((cell, idx) => {
+                    const cellDateStr = `${cell.year}-${String(cell.month + 1).padStart(2, '0')}-${String(cell.day).padStart(2, '0')}`;
+                    const isSelected = dueDate === cellDateStr;
+                    const isToday = cellDateStr === todayStr;
+
+                    return (
+                      <TouchableOpacity
+                        key={`${idx}-${cellDateStr}`}
+                        style={[
+                          styles.calendarDayCell,
+                          isSelected && styles.calendarDayCellSelected,
+                          isToday && !isSelected && styles.calendarDayCellToday,
+                        ]}
+                        onPress={() => handleSelectCalendarDay(cell)}
+                        activeOpacity={0.7}
+                      >
+                        <Text
+                          style={[
+                            styles.calendarDayText,
+                            !cell.isCurrentMonth && styles.calendarDayTextMuted,
+                            isSelected && styles.calendarDayTextSelected,
+                            isToday && !isSelected && styles.calendarDayTextToday,
+                          ]}
+                        >
+                          {cell.day}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* 4. TIME (24 HOURS FORMAT) */}
+              <View style={styles.formSectionHeader}>
+                <Text style={styles.modalLabel}>DUE / LOGOUT TIME (24 HOURS, HH:mm)</Text>
+                <View style={styles.time24Pill}>
+                  <Ionicons name="time" size={12} color="#059669" />
+                  <Text style={styles.time24PillText}>{dueTime} (24h)</Text>
+                </View>
+              </View>
+
+              <TextInput
+                style={styles.modalInput}
+                placeholder="18:30 (24-Hour Format: HH:mm)"
+                placeholderTextColor="#94A3B8"
+                value={dueTime}
+                onChangeText={setDueTime}
+              />
+
+              {/* Quick 24-Hour Slot Pills */}
+              <View style={styles.quick24Row}>
                 {[
-                  { label: '09:00 AM', val: '09:00' },
-                  { label: '01:00 PM', val: '13:00' },
-                  { label: '06:30 PM (Logout)', val: '18:30' },
-                  { label: '08:00 PM', val: '20:00' },
+                  { label: '09:00', val: '09:00' },
+                  { label: '11:00', val: '11:00' },
+                  { label: '13:00', val: '13:00' },
+                  { label: '16:00', val: '16:00' },
+                  { label: '18:30 (Logout)', val: '18:30' },
+                  { label: '20:00', val: '20:00' },
+                  { label: '22:00', val: '22:00' },
                 ].map((t) => (
                   <TouchableOpacity
                     key={t.val}
-                    style={[styles.quickTimeBtn, dueTime === t.val && styles.quickTimeBtnActive]}
+                    style={[styles.quick24Btn, dueTime === t.val && styles.quick24BtnActive]}
                     onPress={() => setDueTime(t.val)}
                     activeOpacity={0.7}
                   >
                     <Text
                       style={[
-                        styles.quickTimeText,
-                        dueTime === t.val && styles.quickTimeTextActive,
+                        styles.quick24Text,
+                        dueTime === t.val && styles.quick24TextActive,
                       ]}
                     >
                       {t.label}
@@ -892,7 +1045,7 @@ export default function TodoListScreen({ onNavigate }) {
                 ))}
               </View>
 
-              {/* 4. Priority Selector */}
+              {/* 5. Priority Selector */}
               <Text style={styles.modalLabel}>PRIORITY</Text>
               <View style={styles.prioritySelectorRow}>
                 {['low', 'medium', 'high', 'urgent'].map((p) => {
@@ -947,7 +1100,7 @@ export default function TodoListScreen({ onNavigate }) {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* ── USER PICKER MODAL (FOR ASSIGNED TO & REPORTED TO) ── */}
+      {/* ── USER PICKER MODAL (STRICTLY FILTERED: ONLY OUR USER IN ASSIGNED TO) ── */}
       <Modal
         visible={userPickerVisible}
         animationType="fade"
@@ -957,14 +1110,23 @@ export default function TodoListScreen({ onNavigate }) {
         <View style={styles.userPickerOverlay}>
           <View style={styles.userPickerCard}>
             <View style={styles.userPickerHeader}>
-              <Text style={styles.userPickerTitle}>
-                Select {userPickerMode === 'assignedTo' ? 'Assigned To' : 'Reported To'}
-              </Text>
+              <View>
+                <Text style={styles.userPickerTitle}>
+                  {userPickerMode === 'assignedTo'
+                    ? 'Select Assignee (Our User Only)'
+                    : 'Select Reporting Manager'}
+                </Text>
+                {userPickerMode === 'assignedTo' && myDepartment ? (
+                  <Text style={styles.userPickerSubtitle}>
+                    Department: {user?.department || 'Our Department'}
+                  </Text>
+                ) : null}
+              </View>
               <TouchableOpacity
                 onPress={() => setUserPickerVisible(false)}
                 style={{ padding: 4 }}
               >
-                <Ionicons name="close" size={20} color="#64748B" />
+                <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
             </View>
 
@@ -973,7 +1135,7 @@ export default function TodoListScreen({ onNavigate }) {
               <Ionicons name="search" size={16} color="#94A3B8" />
               <TextInput
                 style={styles.userSearchInput}
-                placeholder="Search staff by name or dept..."
+                placeholder="Search our user by name..."
                 placeholderTextColor="#94A3B8"
                 value={userSearchText}
                 onChangeText={setUserSearchText}
@@ -981,7 +1143,7 @@ export default function TodoListScreen({ onNavigate }) {
             </View>
 
             <FlatList
-              data={filteredUsers}
+              data={filteredPickerUsers}
               keyExtractor={(u) => u._id}
               style={{ maxHeight: 320 }}
               renderItem={({ item: u }) => {
@@ -989,24 +1151,25 @@ export default function TodoListScreen({ onNavigate }) {
                   userPickerMode === 'assignedTo'
                     ? assignedToId === u._id
                     : assignedById === u._id;
+                const isMe = u._id === myUserId;
                 return (
                   <TouchableOpacity
                     style={[styles.userListItem, isSelected && styles.userListItemActive]}
                     onPress={() => handleSelectUser(u)}
                     activeOpacity={0.7}
                   >
-                    <View style={styles.userAvatarBox}>
-                      <Text style={styles.userAvatarLetter}>
+                    <View style={[styles.userAvatarBox, isMe && styles.userAvatarBoxMe]}>
+                      <Text style={[styles.userAvatarLetter, isMe && styles.userAvatarLetterMe]}>
                         {(u.name || 'U').charAt(0).toUpperCase()}
                       </Text>
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.userNameText, isSelected && styles.userNameTextActive]}>
                         {u.name}
-                        {u._id === (user?._id || user?.id) ? ' (Me)' : ''}
+                        {isMe ? ' (Our User / Me)' : ''}
                       </Text>
                       <Text style={styles.userDeptText}>
-                        {u.designation || u.role || 'Staff'} • {u.department || 'General'}
+                        {u.designation || u.role || 'Staff'} • {u.department || 'Our Team'}
                       </Text>
                     </View>
                     {isSelected ? (
@@ -1015,6 +1178,13 @@ export default function TodoListScreen({ onNavigate }) {
                   </TouchableOpacity>
                 );
               }}
+              ListEmptyComponent={
+                <View style={{ padding: 20, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 13, color: '#64748B' }}>
+                    No users found for our department.
+                  </Text>
+                </View>
+              }
             />
           </View>
         </View>
@@ -1428,17 +1598,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    padding: 18,
-    maxHeight: '92%',
+    padding: 16,
+    maxHeight: '94%',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
-    paddingBottom: 10,
+    paddingBottom: 8,
   },
   modalTitle: {
     fontSize: 17,
@@ -1446,7 +1616,7 @@ const styles = StyleSheet.create({
     color: '#0F172A',
   },
   modalSubtitle: {
-    fontSize: 11.5,
+    fontSize: 11,
     color: '#64748B',
     marginTop: 2,
   },
@@ -1457,7 +1627,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 6,
+    marginTop: 8,
     marginBottom: 4,
   },
   modalLabel: {
@@ -1465,8 +1635,21 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#475569',
     letterSpacing: 0.5,
-    marginTop: 8,
+    marginTop: 6,
     marginBottom: 4,
+  },
+  ourUserBadge: {
+    backgroundColor: '#E0F2FE',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  ourUserBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#0369A1',
   },
   addItemBtn: {
     flexDirection: 'row',
@@ -1485,9 +1668,9 @@ const styles = StyleSheet.create({
     color: '#174EA6',
   },
   helperTipText: {
-    fontSize: 11,
+    fontSize: 10.5,
     color: '#EA580C',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   modalInput: {
     backgroundColor: '#F8FAFC',
@@ -1495,12 +1678,12 @@ const styles = StyleSheet.create({
     borderColor: '#CBD5E1',
     borderRadius: 9,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 7,
     fontSize: 13,
     color: '#0F172A',
   },
   modalTextArea: {
-    height: 90,
+    height: 75,
     textAlignVertical: 'top',
     lineHeight: 18,
   },
@@ -1517,56 +1700,157 @@ const styles = StyleSheet.create({
     borderColor: '#CBD5E1',
     borderRadius: 9,
     paddingHorizontal: 10,
-    paddingVertical: 9,
+    paddingVertical: 8,
     gap: 6,
   },
   pickerSelectorText: {
     flex: 1,
-    fontSize: 12.5,
+    fontSize: 12,
     fontWeight: '600',
     color: '#1E293B',
   },
-  quickPillsRow: {
+
+  /* Calendar Component Styles */
+  selectedDatePill: {
     flexDirection: 'row',
-    gap: 6,
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  selectedDatePillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#174EA6',
+  },
+  calendarContainer: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    padding: 10,
     marginBottom: 6,
   },
-  quickPillBtn: {
-    flex: 1,
-    backgroundColor: '#EFF6FF',
-    paddingVertical: 5,
-    borderRadius: 6,
+  calendarHeaderRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#DBEAFE',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    paddingHorizontal: 4,
   },
-  quickPillText: {
+  calendarNavBtn: {
+    padding: 4,
+    borderRadius: 6,
+    backgroundColor: '#E2E8F0',
+  },
+  calendarMonthTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  calendarWeekRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 6,
+    paddingBottom: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  calendarWeekDayText: {
+    width: 32,
+    textAlign: 'center',
     fontSize: 11,
-    fontWeight: '600',
-    color: '#1D4ED8',
+    fontWeight: '700',
+    color: '#64748B',
   },
-  quickTimeBtn: {
-    flex: 1,
-    backgroundColor: '#F1F5F9',
-    paddingVertical: 5,
-    borderRadius: 6,
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-around',
+  },
+  calendarDayCell: {
+    width: 34,
+    height: 32,
     alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 16,
+    marginVertical: 1,
+  },
+  calendarDayCellSelected: {
+    backgroundColor: '#174EA6',
+  },
+  calendarDayCellToday: {
+    borderWidth: 1.5,
+    borderColor: '#174EA6',
+  },
+  calendarDayText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  calendarDayTextMuted: {
+    color: '#CBD5E1',
+  },
+  calendarDayTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  calendarDayTextToday: {
+    color: '#174EA6',
+    fontWeight: '800',
+  },
+
+  /* 24-Hour Time Styles */
+  time24Pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  time24PillText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#059669',
+  },
+  quick24Row: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 5,
+    marginTop: 6,
+    marginBottom: 6,
+  },
+  quick24Btn: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
-  quickTimeBtnActive: {
+  quick24BtnActive: {
     backgroundColor: '#174EA6',
     borderColor: '#174EA6',
   },
-  quickTimeText: {
-    fontSize: 10,
+  quick24Text: {
+    fontSize: 10.5,
     fontWeight: '600',
     color: '#475569',
   },
-  quickTimeTextActive: {
+  quick24TextActive: {
     color: '#FFFFFF',
     fontWeight: '700',
   },
+
+  /* Priority Selector */
   prioritySelectorRow: {
     flexDirection: 'row',
     gap: 6,
@@ -1597,8 +1881,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#174EA6',
     paddingVertical: 12,
     borderRadius: 11,
-    marginTop: 18,
-    marginBottom: 12,
+    marginTop: 14,
+    marginBottom: 10,
   },
   modalSubmitBtnDisabled: {
     opacity: 0.7,
@@ -1630,13 +1914,19 @@ const styles = StyleSheet.create({
   userPickerHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 10,
   },
   userPickerTitle: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 14.5,
+    fontWeight: '800',
     color: '#0F172A',
+  },
+  userPickerSubtitle: {
+    fontSize: 11,
+    color: '#0284C7',
+    fontWeight: '600',
+    marginTop: 2,
   },
   userSearchBox: {
     flexDirection: 'row',
@@ -1677,10 +1967,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  userAvatarBoxMe: {
+    backgroundColor: '#DBEAFE',
+  },
   userAvatarLetter: {
     fontSize: 13,
     fontWeight: '700',
     color: '#174EA6',
+  },
+  userAvatarLetterMe: {
+    color: '#1E40AF',
   },
   userNameText: {
     fontSize: 13,
