@@ -9,3 +9,5 @@ export { default as GradientText } from './GradientText';
 export { default as TeamLanyardRail } from './team-lanyard-rail';
 export { default as TeamLanyardRailDemo } from './demo';
 export { default as HalftoneWordmarkFooter } from './halftone-wordmark-footer';
+export { MarqueeLogoScroller, default as MarqueeLogoScrollerDefault } from './marquee-logo-scroller';
+export { MarqueeDemo } from './marquee-logo-scroller-demo';
