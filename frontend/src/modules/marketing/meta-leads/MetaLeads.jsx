@@ -1071,12 +1071,12 @@ export default function MetaLeads() {
   const [sortField, setSortField] = useState('count');
   const [sortDir, setSortDir] = useState('desc');
 
-  // Permissions & Employees (Admin & Manager Only)
-  const [isAdmin, setIsAdmin] = useState(() => isAdminOrManager(user));
+  // Permissions & Employees: Head: true or Admin sees all; Head: false sees only assigned leads
+  const [isAdmin, setIsAdmin] = useState(() => (user?.role === 'admin' || user?.role === 'superadmin' || Boolean(user?.isHead)));
   const [isRestricted, setIsRestricted] = useState(false);
 
   useEffect(() => {
-    setIsAdmin(isAdminOrManager(user));
+    setIsAdmin(user?.role === 'admin' || user?.role === 'superadmin' || Boolean(user?.isHead));
   }, [user]);
   const [employees, setEmployees] = useState([]);
   const [assignments, setAssignments] = useState([]);
@@ -1176,7 +1176,7 @@ export default function MetaLeads() {
       const res = await metaLeadsAPI.getCampaigns();
       const payload = res.data || {};
       const rawCampaigns = payload.campaigns || [];
-      const adminRole = isAdminOrManager(user) && (payload.isAdmin !== undefined ? payload.isAdmin : true);
+      const adminRole = (user?.role === 'admin' || user?.role === 'superadmin' || Boolean(user?.isHead)) && (payload.isAdmin !== undefined ? payload.isAdmin : true);
       const restricted = payload.isRestricted || false;
 
       setIsAdmin(adminRole);

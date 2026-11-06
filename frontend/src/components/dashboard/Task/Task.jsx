@@ -2089,7 +2089,7 @@ function AddTaskModal({ type = 'todo', onClose, onCreated }) {
   const [repeatFrequency, setRepeatFrequency] = useState('none');
   const [repeatEndDate, setRepeatEndDate] = useState('');
 
-  const isAdminOrExecutive = isExecutive(currentUser) || isDeveloper(currentUser) || currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
+  const isAdminOrExecutive = currentUser?.role === 'admin' || currentUser?.role === 'superadmin' || isCEO(currentUser) || Boolean(currentUser?.isHead);
   const userDept = currentUser?.department || (
     isDeveloper(currentUser) ? 'Developer' :
     isHR(currentUser) ? 'HR' :
@@ -2692,7 +2692,7 @@ export default function Task() {
   };
 
   const [forFilter, setForFilter] = useState(() => {
-    return (currentUser?.role === 'admin' || currentUser?.role === 'manager' || isDeveloper(currentUser) || isExecutive(currentUser)) ? 'Team' : 'Me';
+    return (currentUser?.role === 'admin' || currentUser?.role === 'superadmin' || isCEO(currentUser) || Boolean(currentUser?.isHead)) ? 'Team' : 'Me';
   });
 
   const [dueFilter, setDueFilter] = useState(null);
@@ -2718,7 +2718,7 @@ export default function Task() {
   const hoverTimeoutRef = useRef(null);
   const [showTeamDrop, setShowTeamDrop] = useState(false);
   const teamDropRef = useRef(null);
-  const isAdminOrExecutive = isExecutive(currentUser) || isDeveloper(currentUser) || currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
+  const isAdminOrExecutive = currentUser?.role === 'admin' || currentUser?.role === 'superadmin' || isCEO(currentUser) || Boolean(currentUser?.isHead);
   const userDept = currentUser?.department || (
     isDeveloper(currentUser) ? 'Developer' :
     isHR(currentUser) ? 'HR' :

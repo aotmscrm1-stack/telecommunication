@@ -168,8 +168,8 @@ router.get('/', protect, async (req, res) => {
         }
       }
     } else if (!isAdmin) {
-      if ((isMgr || isHead) && !forMe) {
-        // Manager Panel: View relative department items & team members
+      if (isHead && !forMe) {
+        // Department Head: View relative department items & team members
         if (callerId && callerId !== 'all' && isValidId(callerId)) {
           query.$or = [{ assignedTo: callerId }, { assignedBy: callerId }, { createdBy: callerId }];
         } else if (department && department !== 'All' && department !== 'all') {

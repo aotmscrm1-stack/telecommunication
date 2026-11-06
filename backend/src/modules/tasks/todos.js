@@ -83,13 +83,13 @@ router.get('/', protect, async (req, res) => {
       if (!isValidId(targetId)) {
         query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { createdBy: req.user._id }];
       } else {
-        if (!isAdmin && !isMgr && !isHead && String(targetId) !== String(req.user._id)) {
+        if (!isAdmin && !isHead && String(targetId) !== String(req.user._id)) {
           return res.status(403).json({ message: "You are not authorized to view another user's todo list." });
         }
         query.$or = [{ assignedTo: targetId }, { assignedBy: targetId }, { createdBy: targetId }];
       }
     } else if (!isAdmin) {
-      if ((isMgr || isHead) && !forMe) {
+      if (isHead && !forMe) {
         if (callerId && callerId !== 'all' && isValidId(callerId)) {
           query.$or = [{ assignedTo: callerId }, { assignedBy: callerId }, { createdBy: callerId }];
         } else if (req.user.department || req.user.designation) {
@@ -212,11 +212,11 @@ router.get('/user/:userId', protect, async (req, res) => {
       return res.json({ followups: [], todos: [] });
     }
 
-    if (!isAdmin && !isMgr && !isHead && String(targetUserId) !== String(req.user._id)) {
+    if (!isAdmin && !isHead && String(targetUserId) !== String(req.user._id)) {
       return res.status(403).json({ message: "You are not authorized to view another user's todo list." });
     }
 
-    if (isHead && !isAdmin && !isMgr && String(targetUserId) !== String(req.user._id)) {
+    if (isHead && !isAdmin && String(targetUserId) !== String(req.user._id)) {
       const User = require('../../database/models/User');
       const targetUser = await User.findById(targetUserId).select('department designation').lean();
       const sameDept = req.user.department && targetUser?.department && req.user.department.toLowerCase() === targetUser.department.toLowerCase();

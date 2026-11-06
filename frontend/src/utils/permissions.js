@@ -250,7 +250,7 @@ export const canViewDashboard = (user) => {
 export const canViewCallRecordings = (user) => {
   if (!user) return false;
   if (isCounsellor(user)) return false;
-  return isHR(user) || isCEO(user) || user?.role === 'admin';
+  return isHR(user) || isCEO(user) || user?.role === 'admin' || user?.role === 'manager' || isManager(user);
 };
 
 /**

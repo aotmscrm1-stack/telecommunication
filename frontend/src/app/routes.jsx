@@ -233,8 +233,8 @@ export function AppRoutes() {
         <Route path="meta-leads" element={<MetaLeadsRoute><MetaLeads /></MetaLeadsRoute>} />
         <Route path="marketing/meta-leads" element={<MetaLeadsRoute><MetaLeads /></MetaLeadsRoute>} />
         <Route path="ai-calling" element={<MetaLeadsRoute><MetaLeads /></MetaLeadsRoute>} />
-        <Route path="leaderboard" element={<StaffRestrictedRoute><Leaderboard /></StaffRestrictedRoute>} />
-        <Route path="reports" element={<StaffRestrictedRoute><Reports /></StaffRestrictedRoute>} />
+        <Route path="leaderboard" element={<AdminOnlyRoute><Leaderboard /></AdminOnlyRoute>} />
+        <Route path="reports" element={<AdminOnlyRoute><Reports /></AdminOnlyRoute>} />
         <Route path="contacts" element={<StaffRestrictedRoute><Contacts /></StaffRestrictedRoute>} />
         <Route path="contact" element={<Navigate to="/contacts" replace />} />
         <Route path="whatsapp-campaigns" element={<Navigate to="/contacts" replace />} />

@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import useBreakpoint from '../../hooks/useBreakpoint';
 import { useSidebar } from '../../context/SidebarContext';
-import { canAccessEmailBlast, canViewCallRecordings, canAccessDigitalCalendar, canAccessDailyActivity, isManager, isExecutive, isCounsellor, isTelecaller, canAccessMarketingLeads, isDigitalMarketing, canViewDashboard } from '../../utils/permissions';
+import { canAccessEmailBlast, canViewCallRecordings, canAccessDigitalCalendar, canAccessDailyActivity, isManager, isExecutive, isCounsellor, isTelecaller, canAccessMarketingLeads, isDigitalMarketing, canViewDashboard, isCEO } from '../../utils/permissions';
 import { SiGooglesheets } from 'react-icons/si';
 
 const ACTIVE_BG = '#edf8f8';
@@ -264,13 +264,15 @@ export default function Sidebar() {
 
               <NavItem to="/meta-leads" icon={Icons.metaLeads} label="Meta Leads" iconColor="#0284c7" />
 
-              <ExpandGroup
-                icon={Icons.leaderboard} label="Performance"
-                isActiveGroup={isPerformanceActive} open={performanceOpen} setOpen={setPerformanceOpen}
-              >
-                <SubItem to="/leaderboard" icon={Icons.leaderboard} label="Leaderboard" />
-                <SubItem to="/reports"     icon={Icons.reports}     label="Report" />
-              </ExpandGroup>
+              {(user?.role === 'admin' || user?.role === 'superadmin' || isCEO(user)) && (
+                <ExpandGroup
+                  icon={Icons.leaderboard} label="Performance"
+                  isActiveGroup={isPerformanceActive} open={performanceOpen} setOpen={setPerformanceOpen}
+                >
+                  <SubItem to="/leaderboard" icon={Icons.leaderboard} label="Leaderboard" />
+                  <SubItem to="/reports"     icon={Icons.reports}     label="Report" />
+                </ExpandGroup>
+              )}
 
               <SectionLabel text="My Workspace" />
               <NavItem to={user?._id ? `/${user._id}/attendance-records` : "/attendance-records"} icon={Icons.attendanceRecords} label="Attendance" iconColor="#10b981" />
@@ -320,9 +322,13 @@ export default function Sidebar() {
                   {/* 3. Meta Leads */}
                   <NavItem to="/meta-leads"       icon={Icons.metaLeads}   label="Meta Leads" iconColor="#0284c7" />
 
-                  {/* 4. Performance */}
-                  <NavItem to="/leaderboard"      icon={Icons.leaderboard} label="Leaderboard" />
-                  <NavItem to="/reports"          icon={Icons.reports}     label="Reports" />
+                  {/* 4. Performance (Strictly Admin Only) */}
+                  {(user?.role === 'admin' || user?.role === 'superadmin' || isCEO(user)) && (
+                    <>
+                      <NavItem to="/leaderboard"      icon={Icons.leaderboard} label="Leaderboard" />
+                      <NavItem to="/reports"          icon={Icons.reports}     label="Reports" />
+                    </>
+                  )}
                   <NavItem to="/message-templates" icon={Icons.templates}  label="Message Templates" />
 
                   <SectionLabel text="Finance & Documents" />
@@ -333,11 +339,11 @@ export default function Sidebar() {
                   <NavItem to="/fee-receipt"      icon={Icons.receipt}     label="Fee Receipt"  iconColor="#8b5cf6" />
 
                   <SectionLabel text="Management" />
+                  {(user?.role === 'admin' || user?.role === 'manager' || isManager(user)) && (
+                    <NavItem to={user?._id ? `/${user._id}/attendance-records` : "/attendance-records"} icon={Icons.attendanceRecords} label="Attendance Records" iconColor="#10b981" />
+                  )}
                   {user?.role === 'admin' && (
-                    <>
-                      <NavItem to={user?._id ? `/${user._id}/attendance-records` : "/attendance-records"} icon={Icons.attendanceRecords} label="Attendance Records" iconColor="#10b981" />
-                      <NavItem to="/admin/employee-tracking" icon={Icons.liveTracking} label="Live Employee Tracking" iconColor="#0284c7" />
-                    </>
+                    <NavItem to="/admin/employee-tracking" icon={Icons.liveTracking} label="Live Employee Tracking" iconColor="#0284c7" />
                   )}
                   <NavItem to="/maps"            icon={Icons.maps}       label="Interactive Maps" iconColor="#6366f1" />
                   <NavItem to={user?._id ? `/${user._id}/email` : "/email"} icon={Icons.email} label="Email CRM" iconColor="#ea4335" />

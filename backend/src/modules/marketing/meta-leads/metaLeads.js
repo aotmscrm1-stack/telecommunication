@@ -54,35 +54,38 @@ const ALL_NEGATIVE_STATUSES = [
   ...NEGATIVE_SUB_STATUSES
 ];
 
-// Helper to determine if user has Admin or Manager access (Admin & Manager Only)
+// Helper to determine if user has strict Global Admin access
 function isExecutiveOrAdminUser(user) {
   if (!user) return false;
   const role = String(user.role || '').trim().toLowerCase();
   const d = String(user.designation || '').trim().toUpperCase();
   const dn = String(user.displayName || '').trim().toUpperCase();
 
-  // Explicit Admin / Superadmin / Manager role
-  if (role === 'admin' || role === 'superadmin' || role === 'manager') return true;
+  // Explicit Admin / Superadmin role
+  if (role === 'admin' || role === 'superadmin') return true;
 
-  // Explicit Admin / Manager / MD designation
+  // Explicit Admin / MD / CEO designation
   if (
     d === 'ADMIN' ||
     d === 'ADMINISTRATOR' ||
-    d === 'MANAGER' ||
-    d.includes('MANAGER') ||
     d === 'MD' ||
     d.includes('MANAGING DIRECTOR') ||
     d === 'CEO' ||
     d === 'CTO' ||
     dn === 'ADMIN' ||
-    dn === 'MANAGER' ||
-    dn.includes('MANAGER') ||
     dn.includes('MANAGING DIRECTOR')
   ) {
     return true;
   }
 
   return false;
+}
+
+// Scoping: isHead: true or Admin sees all Meta Leads; isHead: false sees ONLY their own assigned Meta Leads
+function canViewAllMetaLeads(user) {
+  if (!user) return false;
+  if (isExecutiveOrAdminUser(user)) return true;
+  return Boolean(user.isHead);
 }
 
 function cleanLeadName(rawName) {
@@ -534,8 +537,8 @@ router.post('/', async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/my-assignment-status', protect, async (req, res) => {
   try {
-    const isAdmin = isExecutiveOrAdminUser(req.user);
-    if (isAdmin) {
+    const canSeeAll = canViewAllMetaLeads(req.user);
+    if (canSeeAll) {
       return res.json({
         success: true,
         hasAccess: true,
@@ -545,16 +548,8 @@ router.get('/my-assignment-status', protect, async (req, res) => {
       });
     }
 
-    // Check assignments for this specific employee or their department team if Head
+    // Check assignments for this specific employee
     let userFilter = [req.user._id];
-    if (req.user?.isHead && (req.user.department || req.user.designation)) {
-      const deptOrDesig = [];
-      if (req.user.department) deptOrDesig.push({ department: req.user.department });
-      if (req.user.designation) deptOrDesig.push({ designation: req.user.designation });
-      const teamUsers = await User.find({ $or: deptOrDesig }).select('_id').lean();
-      userFilter = teamUsers.map(u => u._id);
-    }
-
     const userAssignments = await MetaCampaignAssignment.find({
       assignedUsers: { $in: userFilter }
     }).select('campaign').lean();
@@ -722,20 +717,12 @@ router.post('/campaign/:campaign/ai-pause', protect, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/campaigns', protect, async (req, res) => {
   try {
-    const isAdmin = isExecutiveOrAdminUser(req.user);
+    const isAdmin = canViewAllMetaLeads(req.user);
     let allowedCampaigns = null;
 
     if (!isAdmin) {
       let userFilter = [req.user._id];
-      if (req.user?.isHead && (req.user.department || req.user.designation)) {
-        const deptOrDesig = [];
-        if (req.user.department) deptOrDesig.push({ department: req.user.department });
-        if (req.user.designation) deptOrDesig.push({ designation: req.user.designation });
-        const teamUsers = await User.find({ $or: deptOrDesig }).select('_id').lean();
-        userFilter = teamUsers.map(u => u._id);
-      }
-
-      // Find campaigns assigned to this user or department team
+      // Find campaigns assigned to this user
       const userAssignments = await MetaCampaignAssignment.find({
         assignedUsers: { $in: userFilter }
       }).select('campaign').lean();
@@ -872,7 +859,7 @@ router.get('/campaigns', protect, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/departments', protect, async (req, res) => {
   try {
-    const isAdmin = isExecutiveOrAdminUser(req.user);
+    const isAdmin = canViewAllMetaLeads(req.user);
     if (!isAdmin) {
       const userAssignments = await MetaCampaignAssignment.find({
         assignedUsers: req.user._id
@@ -1049,7 +1036,7 @@ router.get('/call-dates', protect, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/', protect, async (req, res) => {
   try {
-    const isAdmin = isExecutiveOrAdminUser(req.user);
+    const isAdmin = canViewAllMetaLeads(req.user);
     const { campaign, department, search, status, calledDate, tzOffset, forLinking, all, page = 1, limit = 25 } = req.query;
     const isGlobalLinkView = forLinking === 'true' || all === 'true';
     const query = {};
@@ -1057,14 +1044,6 @@ router.get('/', protect, async (req, res) => {
     let allowedCampaigns = null;
     if (!isAdmin && !isGlobalLinkView) {
       let userFilter = [req.user._id];
-      if (req.user?.isHead && (req.user.department || req.user.designation)) {
-        const deptOrDesig = [];
-        if (req.user.department) deptOrDesig.push({ department: req.user.department });
-        if (req.user.designation) deptOrDesig.push({ designation: req.user.designation });
-        const teamUsers = await User.find({ $or: deptOrDesig }).select('_id').lean();
-        userFilter = teamUsers.map(u => u._id);
-      }
-
       const userAssignments = await MetaCampaignAssignment.find({
         assignedUsers: { $in: userFilter }
       }).select('campaign').lean();

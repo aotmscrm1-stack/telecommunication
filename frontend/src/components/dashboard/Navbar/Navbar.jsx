@@ -427,7 +427,7 @@ export default function Navbar() {
           isDirect: true,
           badge: 'AI'
         },
-        {
+        ...((user?.role === 'admin' || user?.role === 'superadmin' || isCEO(user)) ? [{
           id: 'performance',
           title: 'Performance',
           icon: FaChartLine,
@@ -435,7 +435,7 @@ export default function Navbar() {
             { label: 'Leaderboard', path: '/leaderboard', icon: FaTrophy },
             { label: 'Report', path: '/reports', icon: FaChartPie },
           ]
-        }
+        }] : [])
       ],
       items: [
         { label: 'Add Leads', path: '/leads/new', icon: FaUserPlus },
@@ -446,8 +446,10 @@ export default function Navbar() {
         { label: 'WhatsApp', path: '/whatsapp', icon: FaWhatsapp },
         { label: 'Meta Leads', path: '/meta-leads', icon: GoogleSheetsIcon },
         { label: 'AI Calling', path: '/ai-calling', icon: FaPhoneVolume, badge: 'AI' },
-        { label: 'Leaderboard', path: '/leaderboard', icon: FaTrophy },
-        { label: 'Report', path: '/reports', icon: FaChartPie },
+        ...((user?.role === 'admin' || user?.role === 'superadmin' || isCEO(user)) ? [
+          { label: 'Leaderboard', path: '/leaderboard', icon: FaTrophy },
+          { label: 'Report', path: '/reports', icon: FaChartPie },
+        ] : []),
       ]
     },
     {
@@ -485,7 +487,7 @@ export default function Navbar() {
         { label: 'TODO List', path: '/todo', icon: FaListCheck },
       ]
     }] : []),
-    ...(canSeeMetaLeads ? [{
+    ...(canSeeMetaLeads && !isMarketingStaff ? [{
       title: 'Marketing',
       icon: FaBullhorn,
       items: [
@@ -577,7 +579,7 @@ export default function Navbar() {
           isDirect: true,
           badge: 'AI'
         },
-        {
+        ...((user?.role === 'admin' || user?.role === 'superadmin' || isCEO(user)) ? [{
           id: 'performance',
           title: 'Performance',
           icon: FaChartLine,
@@ -585,7 +587,7 @@ export default function Navbar() {
             { label: 'Leaderboard', path: '/leaderboard', icon: FaTrophy },
             { label: 'Report', path: '/reports', icon: FaChartPie },
           ]
-        }
+        }] : [])
       ],
       items: [
         { label: 'Add Leads', path: '/leads/new', icon: FaUserPlus },
@@ -596,8 +598,10 @@ export default function Navbar() {
         { label: 'WhatsApp', path: '/whatsapp', icon: FaWhatsapp },
         { label: 'Meta Leads', path: '/meta-leads', icon: GoogleSheetsIcon },
         { label: 'AI Calling', path: '/ai-calling', icon: FaPhoneVolume, badge: 'AI' },
-        { label: 'Leaderboard', path: '/leaderboard', icon: FaTrophy },
-        { label: 'Report', path: '/reports', icon: FaChartPie },
+        ...((user?.role === 'admin' || user?.role === 'superadmin' || isCEO(user)) ? [
+          { label: 'Leaderboard', path: '/leaderboard', icon: FaTrophy },
+          { label: 'Report', path: '/reports', icon: FaChartPie },
+        ] : []),
       ]
     } : {
       title: 'Marketing',
