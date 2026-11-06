@@ -151,17 +151,17 @@ export function IntegrationsSection() {
         </div>
 
         {/* ══════════════════════════════════════════════
-            ANIMATED BEAM INTERACTIVE CANVAS (MIDDLE LOGO)
+            ANIMATED BEAM INTERACTIVE CANVAS (MIDDLE LOGO - WHITE THEME)
             ══════════════════════════════════════════════ */}
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8 }}
-          className="relative flex min-h-[480px] md:min-h-[520px] w-full items-center justify-center overflow-hidden rounded-3xl border border-slate-800/80 bg-[#070a12] p-6 md:p-12 shadow-2xl"
+          className="relative flex min-h-[480px] md:min-h-[520px] w-full items-center justify-center overflow-hidden rounded-3xl border border-slate-200/90 bg-white p-6 md:p-12 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.06)]"
           ref={containerRef}
           style={{
-            backgroundImage: `radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px)`,
+            backgroundImage: `radial-gradient(rgba(15, 23, 42, 0.08) 1.2px, transparent 1.2px)`,
             backgroundSize: '24px 24px',
           }}
         >
@@ -175,8 +175,8 @@ export function IntegrationsSection() {
               width: 380,
               height: 380,
               borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(4, 102, 200, 0.20) 0%, transparent 70%)',
-              filter: 'blur(50px)',
+              background: 'radial-gradient(circle, rgba(4, 102, 200, 0.10) 0%, transparent 70%)',
+              filter: 'blur(45px)',
               pointerEvents: 'none',
               zIndex: 1,
             }}
@@ -188,14 +188,14 @@ export function IntegrationsSection() {
             <div className="flex items-center gap-3">
               <div
                 ref={sheetsRef}
-                className="z-20 flex size-12 md:size-14 items-center justify-center rounded-2xl border border-emerald-500/30 bg-slate-900/90 p-3 shadow-lg hover:border-emerald-400 hover:scale-105 transition-all cursor-pointer group"
+                className="z-20 flex size-12 md:size-14 items-center justify-center rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_4px_14px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_20px_rgba(16,185,129,0.18)] hover:border-emerald-400 hover:scale-105 transition-all cursor-pointer group"
                 title="Google Sheets 2-Way Sync"
               >
-                <SiGooglesheets size={24} className="text-emerald-400 group-hover:scale-110 transition-transform" />
+                <SiGooglesheets size={24} className="text-emerald-500 group-hover:scale-110 transition-transform" />
               </div>
               <div className="hidden sm:block">
-                <div className="text-xs font-bold text-slate-200">Google Sheets</div>
-                <div className="text-[10px] text-slate-400 font-mono">2-Way Live Sync</div>
+                <div className="text-xs font-bold text-slate-800">Google Sheets</div>
+                <div className="text-[10px] text-slate-500 font-medium">2-Way Live Sync</div>
               </div>
             </div>
 
@@ -203,14 +203,14 @@ export function IntegrationsSection() {
             <div className="flex items-center gap-3">
               <div
                 ref={whatsappRef}
-                className="z-20 flex size-12 md:size-14 items-center justify-center rounded-2xl border border-green-500/30 bg-slate-900/90 p-3 shadow-lg hover:border-green-400 hover:scale-105 transition-all cursor-pointer group"
+                className="z-20 flex size-12 md:size-14 items-center justify-center rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_4px_14px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_20px_rgba(34,197,94,0.18)] hover:border-green-400 hover:scale-105 transition-all cursor-pointer group"
                 title="WhatsApp Cloud API"
               >
-                <SiWhatsapp size={24} className="text-green-400 group-hover:scale-110 transition-transform" />
+                <SiWhatsapp size={24} className="text-green-500 group-hover:scale-110 transition-transform" />
               </div>
               <div className="hidden sm:block">
-                <div className="text-xs font-bold text-slate-200">WhatsApp</div>
-                <div className="text-[10px] text-slate-400 font-mono">Meta Cloud API</div>
+                <div className="text-xs font-bold text-slate-800">WhatsApp</div>
+                <div className="text-[10px] text-slate-500 font-medium">Meta Cloud API</div>
               </div>
             </div>
 
@@ -218,14 +218,14 @@ export function IntegrationsSection() {
             <div className="flex items-center gap-3">
               <div
                 ref={metaRef}
-                className="z-20 flex size-12 md:size-14 items-center justify-center rounded-2xl border border-blue-500/30 bg-slate-900/90 p-3 shadow-lg hover:border-blue-400 hover:scale-105 transition-all cursor-pointer group"
+                className="z-20 flex size-12 md:size-14 items-center justify-center rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_4px_14px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_20px_rgba(37,99,235,0.18)] hover:border-blue-400 hover:scale-105 transition-all cursor-pointer group"
                 title="Facebook Lead Ads Webhook"
               >
-                <SiFacebook size={24} className="text-blue-400 group-hover:scale-110 transition-transform" />
+                <SiFacebook size={24} className="text-blue-600 group-hover:scale-110 transition-transform" />
               </div>
               <div className="hidden sm:block">
-                <div className="text-xs font-bold text-slate-200">Meta Ads</div>
-                <div className="text-[10px] text-slate-400 font-mono">&lt; 80ms Ingest</div>
+                <div className="text-xs font-bold text-slate-800">Meta Ads</div>
+                <div className="text-[10px] text-slate-500 font-medium">&lt; 80ms Ingest</div>
               </div>
             </div>
 
@@ -233,14 +233,14 @@ export function IntegrationsSection() {
             <div className="flex items-center gap-3">
               <div
                 ref={driveRef}
-                className="z-20 flex size-12 md:size-14 items-center justify-center rounded-2xl border border-amber-500/30 bg-slate-900/90 p-3 shadow-lg hover:border-amber-400 hover:scale-105 transition-all cursor-pointer group"
+                className="z-20 flex size-12 md:size-14 items-center justify-center rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_4px_14px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_20px_rgba(245,158,11,0.18)] hover:border-amber-400 hover:scale-105 transition-all cursor-pointer group"
                 title="Google Drive Document Storage"
               >
-                <SiGoogledrive size={24} className="text-amber-400 group-hover:scale-110 transition-transform" />
+                <SiGoogledrive size={24} className="text-amber-500 group-hover:scale-110 transition-transform" />
               </div>
               <div className="hidden sm:block">
-                <div className="text-xs font-bold text-slate-200">Google Drive</div>
-                <div className="text-[10px] text-slate-400 font-mono">Cloud Attachments</div>
+                <div className="text-xs font-bold text-slate-800">Google Drive</div>
+                <div className="text-[10px] text-slate-500 font-medium">Cloud Attachments</div>
               </div>
             </div>
           </div>
@@ -252,14 +252,14 @@ export function IntegrationsSection() {
               ref={centerRef}
               whileHover={{ scale: 1.05 }}
               transition={{ duration: 0.3 }}
-              className="z-20 flex size-20 md:size-24 items-center justify-center rounded-full border-2 border-blue-400/60 bg-white p-3 shadow-[0_0_50px_rgba(4,102,200,0.5)] relative cursor-pointer"
+              className="z-20 flex size-20 md:size-24 items-center justify-center rounded-full border-2 border-blue-500/50 bg-white p-3.5 shadow-[0_10px_35px_rgba(4,102,200,0.22)] relative cursor-pointer"
             >
               <img
                 src={aotmsLogo}
                 alt="AOTMS CRM"
                 className="h-full w-full object-contain"
               />
-              <span className="absolute -bottom-7 whitespace-nowrap text-[10.5px] font-mono font-bold tracking-wider text-blue-300 bg-slate-900/90 px-3 py-1 rounded-full border border-blue-500/40 shadow-md">
+              <span className="absolute -bottom-7 whitespace-nowrap text-[10.5px] font-mono font-bold tracking-wider text-blue-700 bg-blue-50/95 px-3 py-1 rounded-full border border-blue-200 shadow-sm">
                 AOTMS CORE CRM
               </span>
             </motion.div>
@@ -270,60 +270,60 @@ export function IntegrationsSection() {
             {/* 1. Airtel Telephony */}
             <div className="flex items-center justify-end gap-3">
               <div className="hidden sm:block text-right">
-                <div className="text-xs font-bold text-slate-200">Airtel Telecom</div>
-                <div className="text-[10px] text-slate-400 font-mono">SIP Trunk & VoIP</div>
+                <div className="text-xs font-bold text-slate-800">Airtel Telecom</div>
+                <div className="text-[10px] text-slate-500 font-medium">SIP Trunk & VoIP</div>
               </div>
               <div
                 ref={airtelRef}
-                className="z-20 flex size-12 md:size-14 items-center justify-center rounded-2xl border border-red-500/30 bg-slate-900/90 p-3 shadow-lg hover:border-red-400 hover:scale-105 transition-all cursor-pointer group"
+                className="z-20 flex size-12 md:size-14 items-center justify-center rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_4px_14px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_20px_rgba(239,68,68,0.18)] hover:border-red-400 hover:scale-105 transition-all cursor-pointer group"
                 title="Airtel Enterprise SIP Trunk"
               >
-                <SiAirtel size={24} className="text-red-400 group-hover:scale-110 transition-transform" />
+                <SiAirtel size={24} className="text-red-500 group-hover:scale-110 transition-transform" />
               </div>
             </div>
 
             {/* 2. Gmail */}
             <div className="flex items-center justify-end gap-3">
               <div className="hidden sm:block text-right">
-                <div className="text-xs font-bold text-slate-200">Gmail & SMTP</div>
-                <div className="text-[10px] text-slate-400 font-mono">Transactional Mail</div>
+                <div className="text-xs font-bold text-slate-800">Gmail & SMTP</div>
+                <div className="text-[10px] text-slate-500 font-medium">Transactional Mail</div>
               </div>
               <div
                 ref={gmailRef}
-                className="z-20 flex size-12 md:size-14 items-center justify-center rounded-2xl border border-rose-500/30 bg-slate-900/90 p-3 shadow-lg hover:border-rose-400 hover:scale-105 transition-all cursor-pointer group"
+                className="z-20 flex size-12 md:size-14 items-center justify-center rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_4px_14px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_20px_rgba(244,63,94,0.18)] hover:border-rose-400 hover:scale-105 transition-all cursor-pointer group"
                 title="Gmail & Enterprise SMTP"
               >
-                <SiGmail size={24} className="text-rose-400 group-hover:scale-110 transition-transform" />
+                <SiGmail size={24} className="text-rose-500 group-hover:scale-110 transition-transform" />
               </div>
             </div>
 
             {/* 3. Zapier Automation */}
             <div className="flex items-center justify-end gap-3">
               <div className="hidden sm:block text-right">
-                <div className="text-xs font-bold text-slate-200">Zapier</div>
-                <div className="text-[10px] text-slate-400 font-mono">5,000+ App Triggers</div>
+                <div className="text-xs font-bold text-slate-800">Zapier</div>
+                <div className="text-[10px] text-slate-500 font-medium">5,000+ App Triggers</div>
               </div>
               <div
                 ref={zapierRef}
-                className="z-20 flex size-12 md:size-14 items-center justify-center rounded-2xl border border-orange-500/30 bg-slate-900/90 p-3 shadow-lg hover:border-orange-400 hover:scale-105 transition-all cursor-pointer group"
+                className="z-20 flex size-12 md:size-14 items-center justify-center rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_4px_14px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_20px_rgba(249,115,22,0.18)] hover:border-orange-400 hover:scale-105 transition-all cursor-pointer group"
                 title="Zapier & Webhooks Automation"
               >
-                <SiZapier size={24} className="text-orange-400 group-hover:scale-110 transition-transform" />
+                <SiZapier size={24} className="text-orange-500 group-hover:scale-110 transition-transform" />
               </div>
             </div>
 
             {/* 4. Razorpay Payments */}
             <div className="flex items-center justify-end gap-3">
               <div className="hidden sm:block text-right">
-                <div className="text-xs font-bold text-slate-200">Razorpay</div>
-                <div className="text-[10px] text-slate-400 font-mono">Instant UPI Links</div>
+                <div className="text-xs font-bold text-slate-800">Razorpay</div>
+                <div className="text-[10px] text-slate-500 font-medium">Instant UPI Links</div>
               </div>
               <div
                 ref={razorpayRef}
-                className="z-20 flex size-12 md:size-14 items-center justify-center rounded-2xl border border-blue-500/30 bg-slate-900/90 p-3 shadow-lg hover:border-blue-400 hover:scale-105 transition-all cursor-pointer group"
+                className="z-20 flex size-12 md:size-14 items-center justify-center rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_4px_14px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_20px_rgba(37,99,235,0.18)] hover:border-blue-400 hover:scale-105 transition-all cursor-pointer group"
                 title="Razorpay Payment Links"
               >
-                <SiRazorpay size={24} className="text-blue-400 group-hover:scale-110 transition-transform" />
+                <SiRazorpay size={24} className="text-blue-600 group-hover:scale-110 transition-transform" />
               </div>
             </div>
           </div>
@@ -338,10 +338,11 @@ export function IntegrationsSection() {
             curvature={-70}
             endYOffset={-14}
             gradientStartColor="#0F9D58"
-            gradientStopColor="#34A853"
+            gradientStopColor="#10B981"
             duration={3.2}
-            pathColor="rgba(255,255,255,0.08)"
-            pathOpacity={0.4}
+            pathColor="#cbd5e1"
+            pathWidth={2}
+            pathOpacity={0.65}
           />
           <AnimatedBeam
             containerRef={containerRef}
@@ -350,11 +351,12 @@ export function IntegrationsSection() {
             curvature={-25}
             endYOffset={-6}
             gradientStartColor="#25D366"
-            gradientStopColor="#128C7E"
+            gradientStopColor="#059669"
             duration={2.8}
             delay={0.4}
-            pathColor="rgba(255,255,255,0.08)"
-            pathOpacity={0.4}
+            pathColor="#cbd5e1"
+            pathWidth={2}
+            pathOpacity={0.65}
           />
           <AnimatedBeam
             containerRef={containerRef}
@@ -363,11 +365,12 @@ export function IntegrationsSection() {
             curvature={25}
             endYOffset={6}
             gradientStartColor="#1877F2"
-            gradientStopColor="#0066DA"
+            gradientStopColor="#2563EB"
             duration={3.0}
             delay={0.8}
-            pathColor="rgba(255,255,255,0.08)"
-            pathOpacity={0.4}
+            pathColor="#cbd5e1"
+            pathWidth={2}
+            pathOpacity={0.65}
           />
           <AnimatedBeam
             containerRef={containerRef}
@@ -375,12 +378,13 @@ export function IntegrationsSection() {
             toRef={centerRef}
             curvature={70}
             endYOffset={14}
-            gradientStartColor="#FFBA00"
+            gradientStartColor="#F59E0B"
             gradientStopColor="#EA4335"
             duration={3.4}
             delay={1.2}
-            pathColor="rgba(255,255,255,0.08)"
-            pathOpacity={0.4}
+            pathColor="#cbd5e1"
+            pathWidth={2}
+            pathOpacity={0.65}
           />
 
           {/* ══════════════════════════════════════════════
@@ -396,8 +400,9 @@ export function IntegrationsSection() {
             gradientStopColor="#DC2626"
             duration={3.0}
             delay={0.2}
-            pathColor="rgba(255,255,255,0.08)"
-            pathOpacity={0.4}
+            pathColor="#cbd5e1"
+            pathWidth={2}
+            pathOpacity={0.65}
           />
           <AnimatedBeam
             containerRef={containerRef}
@@ -406,11 +411,12 @@ export function IntegrationsSection() {
             curvature={-25}
             startYOffset={-6}
             gradientStartColor="#EA4335"
-            gradientStopColor="#B91C1C"
+            gradientStopColor="#DC2626"
             duration={2.9}
             delay={0.6}
-            pathColor="rgba(255,255,255,0.08)"
-            pathOpacity={0.4}
+            pathColor="#cbd5e1"
+            pathWidth={2}
+            pathOpacity={0.65}
           />
           <AnimatedBeam
             containerRef={containerRef}
@@ -419,11 +425,12 @@ export function IntegrationsSection() {
             curvature={25}
             startYOffset={6}
             gradientStartColor="#FF4F00"
-            gradientStopColor="#FF8100"
+            gradientStopColor="#EA580C"
             duration={3.1}
             delay={1.0}
-            pathColor="rgba(255,255,255,0.08)"
-            pathOpacity={0.4}
+            pathColor="#cbd5e1"
+            pathWidth={2}
+            pathOpacity={0.65}
           />
           <AnimatedBeam
             containerRef={containerRef}
@@ -435,8 +442,9 @@ export function IntegrationsSection() {
             gradientStopColor="#0284C7"
             duration={3.3}
             delay={1.4}
-            pathColor="rgba(255,255,255,0.08)"
-            pathOpacity={0.4}
+            pathColor="#cbd5e1"
+            pathWidth={2}
+            pathOpacity={0.65}
           />
         </motion.div>
 
