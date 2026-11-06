@@ -467,31 +467,35 @@ export default function HalftoneWordmarkFooter({
       <style>{HWF_CSS}</style>
       <canvas ref={canvasRef} aria-hidden="true" />
       <span className="hwf-sr">{wordmark}</span>
-      <div className="hwf-top">
-        <div className="hwf-brand">
-          <strong>{label}</strong>
-          <span>{meta}</span>
+      {(label || meta || (columns && columns.length > 0)) ? (
+        <div className="hwf-top">
+          {(label || meta) ? (
+            <div className="hwf-brand">
+              {label ? <strong>{label}</strong> : null}
+              {meta ? <span>{meta}</span> : null}
+            </div>
+          ) : null}
+          {columns?.map((col) => (
+            <nav className="hwf-col" key={col.title} aria-label={col.title}>
+              <h3>{col.title}</h3>
+              <ul>
+                {col.links.map((l) => (
+                  <li key={l.label}>
+                    <a href={l.href || "#"}>{l.label}</a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          ))}
         </div>
-        {columns.map((col) => (
-          <nav className="hwf-col" key={col.title} aria-label={col.title}>
-            <h3>{col.title}</h3>
-            <ul>
-              {col.links.map((l) => (
-                <li key={l.label}>
-                  <a href={l.href || "#"}>{l.label}</a>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        ))}
-      </div>
-      <div className="hwf-rule">
-        {backToTop ? (
+      ) : null}
+      {backToTop ? (
+        <div className="hwf-rule">
           <button type="button" className="hwf-up" onClick={toTop}>
             Back to top ↑
           </button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
     </footer>
   )
 }
