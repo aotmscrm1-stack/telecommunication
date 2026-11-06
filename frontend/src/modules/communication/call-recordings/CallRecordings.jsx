@@ -1566,7 +1566,8 @@ export default function CallRecordings() {
   const isHRUser = isHR(user) || user?.role === 'hr' || String(user?.designation || '').toUpperCase() === 'HR';
   const isCEOUser = isCEO(user) || user?.role === 'ceo' || user?.role === 'admin' || user?.role === 'superadmin';
   const canManageCRUD = isHRUser || isCEOUser || user?.role === 'admin' || user?.role === 'superadmin';
-  const canViewAllRecordings = canManageCRUD || isManager(user) || user?.role === 'manager';
+  const isManagerUser = user?.role === 'manager' || isManager(user);
+  const canViewAllRecordings = canManageCRUD && !isManagerUser;
 
   // Helper: Filter Caller Team to ONLY Counsellors, Telecallers, and HR
   const isAllowedCallerTeamMember = (emp) => {
@@ -2539,105 +2540,107 @@ export default function CallRecordings() {
           </div>
 
           {/* 3. Caller Team (Only Counsellors, Telecallers, and HR) */}
-          <div className="bg-white rounded-3xl p-4 border border-slate-200/90 shadow-sm">
-            <div className="flex items-center justify-between mb-3 px-1">
-              <div className="flex items-center gap-2">
-                <User className="w-4 h-4 text-sky-600" />
-                <h3 className="text-xs font-semibold text-slate-800 uppercase tracking-wider">Caller Team</h3>
-              </div>
-              <div className="flex items-center gap-2">
-                {filters.user !== 'all' && (
-                  <button
-                    type="button"
-                    onClick={() => handleFilterChange({ ...filters, user: 'all' })}
-                    className="text-[11px] font-medium text-sky-600 hover:text-sky-700 cursor-pointer"
-                  >
-                    Reset
-                  </button>
-                )}
-                <span className="text-[11px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
-                  {usersList.length}
-                </span>
-              </div>
-            </div>
-            <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
-              {/* All Team Option */}
-              <button
-                type="button"
-                onClick={() => handleFilterChange({ ...filters, user: 'all' })}
-                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-left transition-all border cursor-pointer ${
-                  filters.user === 'all'
-                    ? 'bg-sky-50 border-sky-200 text-sky-900'
-                    : 'border-transparent hover:bg-slate-50 text-slate-700'
-                }`}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-slate-600 to-slate-800 text-white flex items-center justify-center text-[11px] font-semibold shrink-0">
-                    ALL
-                  </div>
-                  <div className="truncate">
-                    <div className="text-xs font-medium text-slate-900 truncate">All Callers</div>
-                    <div className="text-[10px] text-slate-500 truncate">Counsellors • Telecallers • HR</div>
-                  </div>
+          {canViewAllRecordings && (
+            <div className="bg-white rounded-3xl p-4 border border-slate-200/90 shadow-sm">
+              <div className="flex items-center justify-between mb-3 px-1">
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-sky-600" />
+                  <h3 className="text-xs font-semibold text-slate-800 uppercase tracking-wider">Caller Team</h3>
                 </div>
-                {filters.user === 'all' && (
-                  <div className="w-4 h-4 rounded-full bg-sky-600 flex items-center justify-center shrink-0">
-                    <Check className="w-2.5 h-2.5 text-white" />
+                <div className="flex items-center gap-2">
+                  {filters.user !== 'all' && (
+                    <button
+                      type="button"
+                      onClick={() => handleFilterChange({ ...filters, user: 'all' })}
+                      className="text-[11px] font-medium text-sky-600 hover:text-sky-700 cursor-pointer"
+                    >
+                      Reset
+                    </button>
+                  )}
+                  <span className="text-[11px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
+                    {usersList.length}
+                  </span>
+                </div>
+              </div>
+              <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
+                {/* All Team Option */}
+                <button
+                  type="button"
+                  onClick={() => handleFilterChange({ ...filters, user: 'all' })}
+                  className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-left transition-all border cursor-pointer ${
+                    filters.user === 'all'
+                      ? 'bg-sky-50 border-sky-200 text-sky-900'
+                      : 'border-transparent hover:bg-slate-50 text-slate-700'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-slate-600 to-slate-800 text-white flex items-center justify-center text-[11px] font-semibold shrink-0">
+                      ALL
+                    </div>
+                    <div className="truncate">
+                      <div className="text-xs font-medium text-slate-900 truncate">All Callers</div>
+                      <div className="text-[10px] text-slate-500 truncate">Counsellors • Telecallers • HR</div>
+                    </div>
                   </div>
-                )}
-              </button>
+                  {filters.user === 'all' && (
+                    <div className="w-4 h-4 rounded-full bg-sky-600 flex items-center justify-center shrink-0">
+                      <Check className="w-2.5 h-2.5 text-white" />
+                    </div>
+                  )}
+                </button>
 
-              {usersList.map(emp => {
-                const empId = emp._id || emp.id;
-                const isSelected = String(filters.user) === String(empId);
-                const empAvatar = emp.avatar || emp.image || emp.profilePicture || emp.profilePhoto || '';
-                return (
-                  <div
-                    key={empId}
-                    onClick={() => handleFilterChange({ ...filters, user: isSelected ? 'all' : empId })}
-                    className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-left transition-all border cursor-pointer group ${
-                      isSelected
-                        ? 'bg-sky-50 border-sky-200 text-sky-900'
-                        : 'border-transparent hover:bg-slate-50 text-slate-700'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                      <CallerAvatar
-                        src={empAvatar}
-                        name={emp.name}
-                        size={30}
-                      />
-                      <div className="truncate flex-1 min-w-0">
-                        <div className="text-xs font-semibold text-slate-900 truncate">{emp.name}</div>
-                        <div className="text-[10px] text-slate-500 truncate">
-                          {getCallerTeamRoleLabel(emp)}
+                {usersList.map(emp => {
+                  const empId = emp._id || emp.id;
+                  const isSelected = String(filters.user) === String(empId);
+                  const empAvatar = emp.avatar || emp.image || emp.profilePicture || emp.profilePhoto || '';
+                  return (
+                    <div
+                      key={empId}
+                      onClick={() => handleFilterChange({ ...filters, user: isSelected ? 'all' : empId })}
+                      className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-left transition-all border cursor-pointer group ${
+                        isSelected
+                          ? 'bg-sky-50 border-sky-200 text-sky-900'
+                          : 'border-transparent hover:bg-slate-50 text-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                        <CallerAvatar
+                          src={empAvatar}
+                          name={emp.name}
+                          size={30}
+                        />
+                        <div className="truncate flex-1 min-w-0">
+                          <div className="text-xs font-semibold text-slate-900 truncate">{emp.name}</div>
+                          <div className="text-[10px] text-slate-500 truncate">
+                            {getCallerTeamRoleLabel(emp)}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center gap-1.5 shrink-0 ml-1">
-                      <button
-                        type="button"
-                        onClick={e => {
-                          e.stopPropagation();
-                          setActiveProfileEmployee(emp);
-                        }}
-                        title={`View ${emp.name}'s Profile`}
-                        className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 hover:bg-sky-100 text-slate-600 hover:text-sky-700 border border-slate-200/80 hover:border-sky-200 transition-colors cursor-pointer"
-                      >
-                        Profile
-                      </button>
-                      {isSelected && (
-                        <div className="w-4 h-4 rounded-full bg-sky-600 flex items-center justify-center shrink-0">
-                          <Check className="w-2.5 h-2.5 text-white" />
-                        </div>
-                      )}
+                      <div className="flex items-center gap-1.5 shrink-0 ml-1">
+                        <button
+                          type="button"
+                          onClick={e => {
+                            e.stopPropagation();
+                            setActiveProfileEmployee(emp);
+                          }}
+                          title={`View ${emp.name}'s Profile`}
+                          className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 hover:bg-sky-100 text-slate-600 hover:text-sky-700 border border-slate-200/80 hover:border-sky-200 transition-colors cursor-pointer"
+                        >
+                          Profile
+                        </button>
+                        {isSelected && (
+                          <div className="w-4 h-4 rounded-full bg-sky-600 flex items-center justify-center shrink-0">
+                            <Check className="w-2.5 h-2.5 text-white" />
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* ── RIGHT WORKSPACE: PERMANENT TABLE FORMAT FOR ALL CALL RECORDS ── */}

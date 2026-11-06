@@ -312,14 +312,13 @@ function isHRorAdmin(user) {
   if (!user) return false;
   const role = String(user.role || '').toLowerCase();
   const desig = String(user.designation || '').trim().toUpperCase();
+  if (role === 'manager' || desig.includes('MANAGER')) return false;
   return (
     desig === 'HR' ||
     desig.includes('HR') ||
     role === 'hr' ||
     role === 'admin' ||
     role === 'superadmin' ||
-    role === 'manager' ||
-    desig.includes('MANAGER') ||
     desig === 'MANAGING DIRECTOR' ||
     desig === 'MD' ||
     desig === 'CEO' ||
