@@ -119,7 +119,8 @@ router.post('/', protect, authorize('manager', 'admin'), async (req, res) => {
       address,
       avatar,
       officeLocation,
-      joiningDate
+      joiningDate,
+      isHead = false
     } = req.body;
 
     const emailClean = (email || '').toLowerCase().trim();
@@ -172,6 +173,7 @@ router.post('/', protect, authorize('manager', 'admin'), async (req, res) => {
       avatar: avatar || '',
       officeLocation: officeLocation ? officeLocation.trim() : '',
       joiningDate: joiningDate ? new Date(joiningDate) : new Date(),
+      isHead: Boolean(isHead),
       approvalStatus: 'accepted',
       approvedBy: req.user._id,
       approvedAt: new Date(),

@@ -124,9 +124,13 @@ router.get('/', protect, async (req, res) => {
     const isHead = Boolean(req.user?.isHead);
     const forMe = forMeQuery === 'true';
 
-    // Only non-admin marketing staff are restricted from the todo module
+    // Only non-admin marketing staff are restricted from the todo module (they exclusively use Digital Calendar)
+    const userDept = String(req.user.department || '').trim().toLowerCase();
+    const userDesig = String(req.user.designation || '').trim().toLowerCase();
+    const isMarketing = userDept.includes('marketing') || userDesig.includes('marketing') || userDesig.includes('digital');
+
     if (!isAdmin && type === 'todo' && (
-      String(req.user.department || '').trim().toLowerCase() === 'marketing' ||
+      isMarketing ||
       String(department || '').trim().toLowerCase() === 'marketing'
     )) {
       return res.json({ followups: [], total: 0 });

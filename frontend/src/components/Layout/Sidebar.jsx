@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import useBreakpoint from '../../hooks/useBreakpoint';
 import { useSidebar } from '../../context/SidebarContext';
-import { canAccessEmailBlast, canViewCallRecordings, canAccessDigitalCalendar, canAccessDailyActivity, isManager, isExecutive, isCounsellor, isTelecaller, canAccessMarketingLeads } from '../../utils/permissions';
+import { canAccessEmailBlast, canViewCallRecordings, canAccessDigitalCalendar, canAccessDailyActivity, isManager, isExecutive, isCounsellor, isTelecaller, canAccessMarketingLeads, isDigitalMarketing, canViewDashboard } from '../../utils/permissions';
 import { SiGooglesheets } from 'react-icons/si';
 
 const ACTIVE_BG = '#edf8f8';
@@ -77,6 +77,7 @@ export default function Sidebar() {
   const [performanceOpen, setPerformanceOpen] = useState(false);
 
   const isAdmin = user?.role === 'admin' || user?.role === 'manager' || isManager(user) || isExecutive(user);
+  const isMarketingStaff = isDigitalMarketing(user) || String(user?.department || '').trim().toLowerCase() === 'marketing' || String(user?.designation || '').trim().toLowerCase().includes('marketing');
   const canSeeMetaLeads = isAdmin || canAccessMarketingLeads(user) || isCounsellor(user) || Boolean(metaLeadAssignment?.hasAccess);
 
   const goTo = (path) => {
@@ -278,10 +279,14 @@ export default function Sidebar() {
             </>
           ) : (
             <>
-              <NavItem to="/dashboard"     icon={Icons.dashboard}   label="Dashboard" />
+              {canViewDashboard(user) && (
+                <NavItem to="/dashboard"     icon={Icons.dashboard}   label="Dashboard" />
+              )}
               <NavItem to="/leads"         icon={Icons.leads}       label="All Leads" />
               <NavItem to="/daily-activity-schedule" icon={Icons.activitySchedule} label="Daily Activity Schedule" iconColor="#0284c7" />
-              <NavItem to="/todo" icon={Icons.tasks} label="TODO List" />
+              {!isMarketingStaff && (
+                <NavItem to="/todo" icon={Icons.tasks} label="TODO List" />
+              )}
               {canViewCallRecordings(user) && (
                 <NavItem to="/recordings"  icon={Icons.recordings}  label="Call Recordings" iconColor="#0284c7" />
               )}

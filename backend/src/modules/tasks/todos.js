@@ -66,6 +66,15 @@ router.get('/', protect, async (req, res) => {
     const isAdmin = isStrictAdmin(req.user);
     const isMgr = isManager(req.user);
     const isHead = Boolean(req.user?.isHead);
+
+    // Marketing staff are strictly restricted from the TODO module (they exclusively use Digital Calendar)
+    const userDept = String(req.user.department || '').trim().toLowerCase();
+    const userDesig = String(req.user.designation || '').trim().toLowerCase();
+    const isMarketing = userDept.includes('marketing') || userDesig.includes('marketing') || userDesig.includes('digital');
+
+    if (!isAdmin && isMarketing) {
+      return res.json({ followups: [], todos: [] });
+    }
     const forMe = forMeQuery === 'true';
 
     // Role-based visibility scoping
@@ -193,6 +202,15 @@ router.get('/user/:userId', protect, async (req, res) => {
     const isAdmin = isStrictAdmin(req.user);
     const isMgr = isManager(req.user);
     const isHead = Boolean(req.user?.isHead);
+
+    // Marketing staff are strictly restricted from the TODO module (they exclusively use Digital Calendar)
+    const userDept = String(req.user.department || '').trim().toLowerCase();
+    const userDesig = String(req.user.designation || '').trim().toLowerCase();
+    const isMarketing = userDept.includes('marketing') || userDesig.includes('marketing') || userDesig.includes('digital');
+
+    if (!isAdmin && isMarketing) {
+      return res.json({ followups: [], todos: [] });
+    }
 
     if (!isAdmin && !isMgr && !isHead && String(targetUserId) !== String(req.user._id)) {
       return res.status(403).json({ message: "You are not authorized to view another user's todo list." });

@@ -279,6 +279,7 @@ const login = async (req, res) => {
       name: user.name,
       email: user.email,
       role: user.role,
+      isHead: Boolean(user.isHead),
       approvalStatus: user.approvalStatus,
       department: user.department,
       designation: user.designation,

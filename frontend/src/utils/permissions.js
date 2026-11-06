@@ -136,7 +136,7 @@ export const isMarketingExecutive = (user) => {
   if (MARKETING_EXECUTIVE_IDS.includes(id)) return true;
   const d = normalizeDesignation(user);
   const dept = String(user?.department || '').trim().toUpperCase();
-  return d.includes('MARKETING') || dept === 'MARKETING' || dept === 'MKT';
+  return d.includes('MARKETING') || d.includes('DIGITAL') || dept === 'MARKETING' || dept === 'MKT';
 };
 
 export const isDigitalMarketing = (user) => isMarketingExecutive(user);

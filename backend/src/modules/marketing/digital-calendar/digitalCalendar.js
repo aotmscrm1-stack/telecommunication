@@ -64,6 +64,7 @@ function isStrictAdminOrCEO(user) {
 
 function isSeniorOrAdmin(user) {
   if (!user) return false;
+  if (Boolean(user.isHead)) return true;
   const role = String(user.role || '').trim().toLowerCase();
   if (role === 'admin' || role === 'superadmin' || role === 'manager') return true;
 
@@ -447,7 +448,7 @@ router.get('/employees', protect, async (req, res) => {
     };
 
     let marketingUsers = await User.find(marketingQuery)
-      .select('_id name firstName lastName displayName email designation department avatar role')
+      .select('_id name firstName lastName displayName email designation department avatar role isHead')
       .sort({ name: 1 });
 
     // Fallback: if no specific marketing users found, search for any user with 'market'
@@ -459,14 +460,14 @@ router.get('/employees', protect, async (req, res) => {
           { designation: { $regex: /market/i } }
         ]
       })
-        .select('_id name firstName lastName displayName email designation department avatar role')
+        .select('_id name firstName lastName displayName email designation department avatar role isHead')
         .sort({ name: 1 });
     }
 
     // Final fallback: return active employees so dropdown doesn't break if DB hasn't set department tags
     if (marketingUsers.length === 0) {
       marketingUsers = await User.find({ isActive: true })
-        .select('_id name firstName lastName displayName email designation department avatar role')
+        .select('_id name firstName lastName displayName email designation department avatar role isHead')
         .sort({ name: 1 });
     }
 
@@ -483,7 +484,8 @@ router.get('/employees', protect, async (req, res) => {
           designation: u.designation || displayName || 'Marketing',
           department: u.department || 'Marketing',
           email: u.email,
-          avatar: u.avatar || ''
+          avatar: u.avatar || '',
+          isHead: Boolean(u.isHead)
         };
       })
     });

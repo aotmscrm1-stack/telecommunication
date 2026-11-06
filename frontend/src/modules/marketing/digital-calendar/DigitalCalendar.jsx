@@ -662,6 +662,7 @@ export default function DigitalCalendar() {
   // "junior cant see the senior task, only senior can see their department tasks"
   const isUserSeniorOrAdmin = useMemo(() => {
     if (!user) return false;
+    if (Boolean(user.isHead)) return true;
     const role = String(user.role || '').trim().toLowerCase();
     if (role === 'admin' || role === 'superadmin' || role === 'manager') return true;
 
@@ -692,6 +693,7 @@ export default function DigitalCalendar() {
   const leadEmployeeIds = useMemo(() => {
     return (marketingEmployees || [])
       .filter(emp => {
+        if (Boolean(emp.isHead)) return true;
         const desig = String(emp.designation || emp.displayName || '').toUpperCase();
         return desig.includes('LEAD') || desig.includes('HEAD') || desig.includes('MANAGER') || desig.includes('DIRECTOR');
       })
@@ -1791,7 +1793,7 @@ export default function DigitalCalendar() {
                               </span>
                               {isLead && (
                                 <span className="px-1.5 py-0.2 rounded-md text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-200 shrink-0">
-                                  Sr. Lead
+                                  {emp.isHead ? 'Dept Head' : 'Sr. Lead'}
                                 </span>
                               )}
                             </div>
