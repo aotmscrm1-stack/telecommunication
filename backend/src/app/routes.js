@@ -97,4 +97,28 @@ router.use('/integrations', require('../integrations/integrations'));
 router.use('/access-tokens', apiLimiter, require('../integrations/accessTokens'));
 router.use('/public', apiLimiter, require('../integrations/publicApi'));
 
+// ── Direct Mobile APK Download ───────────────────────────────────────────────
+router.get('/download-apk', (req, res) => {
+  const path = require('path');
+  const fs = require('fs');
+  const candidates = [
+    path.join(__dirname, '..', 'uploads', 'app-release.apk'),
+    path.join(__dirname, '..', 'uploads', 'Telecom-CRM.apk'),
+    path.join(__dirname, '..', '..', 'Mobile_APP', 'AOTMS-CRM-Mobile-NEW.apk'),
+    path.join(__dirname, '..', '..', 'Mobile_APP', 'android', 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk'),
+    path.join(__dirname, '..', '..', 'AOTMS_CRM_v1.0.1.apk'),
+    '/app/uploads/app-release.apk',
+    '/app/src/uploads/app-release.apk',
+    '/var/www/uploads/app-release.apk',
+  ];
+  for (const apkPath of candidates) {
+    if (fs.existsSync(apkPath)) {
+      res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+      res.setHeader('Content-Disposition', 'attachment; filename="Telecom-CRM.apk"');
+      return res.download(apkPath, 'Telecom-CRM.apk');
+    }
+  }
+  return res.status(404).json({ error: 'APK build not found on server.' });
+});
+
 module.exports = router;

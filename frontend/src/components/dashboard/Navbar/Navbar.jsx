@@ -720,15 +720,28 @@ export default function Navbar() {
       title: 'Developer', icon: FaCode, items: [
         { label: 'Access Tokens', path: '/access-tokens', icon: FaKey },
         { label: 'Integrations', path: '/integrations', icon: FaPlug },
-        { label: 'Download APK', path: `${(import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000/api' : '/api')).replace(/\/api\/?$/, '')}/download-apk`, icon: FaDownload, isExternal: true },
+        { label: 'Download APK', path: `${(import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000/api' : '/api'))}/download-apk`, icon: FaDownload, isExternal: true },
       ]
     },
   ]);
 
-  const handleDownloadApk = () => {
+  const apkDownloadUrl = (() => {
     const rawApiUrl = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000/api' : '/api');
-    const rootUrl = rawApiUrl.replace(/\/api\/?$/, '');
-    window.open(`${rootUrl}/download-apk`, '_blank');
+    return `${rawApiUrl}/download-apk`;
+  })();
+
+  const handleDownloadApk = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const a = document.createElement('a');
+    a.href = apkDownloadUrl;
+    a.setAttribute('download', 'Telecom-CRM.apk');
+    a.setAttribute('target', '_blank');
+    a.setAttribute('rel', 'noopener noreferrer');
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      if (document.body.contains(a)) document.body.removeChild(a);
+    }, 1500);
   };
 
   const profileMenuItems = [
@@ -1104,13 +1117,17 @@ export default function Navbar() {
 
 
 
-                {/* Download Mobile APK (Prominent App APK Pill) */}
-                <motion.button
+                {/* Download Mobile APK (Prominent App APK Pill - Native <a> Link) */}
+                <motion.a
                   whileHover={{ scale: 1.05, y: -1 }}
                   whileTap={{ scale: 0.95 }}
+                  href={apkDownloadUrl}
+                  download="Telecom-CRM.apk"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   onClick={handleDownloadApk}
                   title="Download Latest Mobile Application APK (Android)"
-                  className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full font-bold text-xs transition-all shadow-xs cursor-pointer group"
+                  className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full font-bold text-xs transition-all shadow-xs cursor-pointer group no-underline"
                   style={{
                     background: 'linear-gradient(135deg, #eff6ff 0%, #fff7ed 100%)',
                     border: '1.5px solid #fdba74',
@@ -1128,15 +1145,19 @@ export default function Navbar() {
                   >
                     NEW
                   </span>
-                </motion.button>
+                </motion.a>
 
                 {/* Compact icon button for mobile/tablet screens */}
-                <motion.button
+                <motion.a
                   whileHover={{ scale: 1.08 }}
                   whileTap={{ scale: 0.95 }}
+                  href={apkDownloadUrl}
+                  download="Telecom-CRM.apk"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   onClick={handleDownloadApk}
                   title="Download Mobile APK (Android)"
-                  className="md:hidden w-9 h-9 rounded-full flex items-center justify-center transition-all nav-glow-icon-btn group relative"
+                  className="md:hidden w-9 h-9 rounded-full flex items-center justify-center transition-all nav-glow-icon-btn group relative no-underline"
                   style={{ background: C.bgSoft, border: `1px solid ${C.border}` }}
                 >
                   <FaMobileScreen className="w-4 h-4 transition-colors group-hover:scale-110" style={{ color: C.blue }} />
@@ -1144,7 +1165,7 @@ export default function Navbar() {
                     className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full"
                     style={{ background: C.orange, boxShadow: `0 0 6px ${C.orangeGlow}` }}
                   />
-                </motion.button>
+                </motion.a>
 
                 {/* Notifications */}
                 <div ref={bellRef} className="relative">
@@ -1411,13 +1432,14 @@ export default function Navbar() {
             style={{ background: C.bgSolid, borderBottom: `2px solid ${C.orange}`, color: C.text }}
           >
             <div className="space-y-4">
-              {/* Mobile App Download Banner */}
-              <div
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  handleDownloadApk();
-                }}
-                className="p-3 rounded-2xl flex items-center justify-between cursor-pointer border shadow-xs"
+              {/* Mobile App Download Banner (Direct Native Link) */}
+              <a
+                href={apkDownloadUrl}
+                download="Telecom-CRM.apk"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setMobileMenuOpen(false)}
+                className="p-3 rounded-2xl flex items-center justify-between cursor-pointer border shadow-xs no-underline"
                 style={{
                   background: 'linear-gradient(135deg, #eff6ff 0%, #fff7ed 100%)',
                   borderColor: '#fdba74'
@@ -1429,13 +1451,13 @@ export default function Navbar() {
                   </div>
                   <div>
                     <div className="text-xs font-bold text-slate-900">Download Mobile App APK</div>
-                    <div className="text-[10px] text-slate-500 font-medium">Latest Android Release (Updated)</div>
+                    <div className="text-[10px] text-slate-500 font-medium">Latest Android Release (Direct Download)</div>
                   </div>
                 </div>
                 <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-orange-500 text-white shadow-xs">
                   Download APK
                 </span>
-              </div>
+              </a>
               {topDropdownGroups.map(group => {
                 const GroupIcon = group.icon;
                 return (

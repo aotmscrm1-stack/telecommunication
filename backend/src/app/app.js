@@ -80,21 +80,30 @@ app.use('/api', (req, res, next) => {
 app.use('/api', masterRouter);
 
 // ── Static Files & Downloads ────────────────────────────────────────────────
-app.get('/download-apk', (req, res) => {
+const handleApkDownload = (req, res) => {
   const fs = require('fs');
   const candidates = [
     path.join(__dirname, '..', 'uploads', 'app-release.apk'),
+    path.join(__dirname, '..', 'uploads', 'Telecom-CRM.apk'),
     path.join(__dirname, '..', '..', 'Mobile_APP', 'AOTMS-CRM-Mobile-NEW.apk'),
     path.join(__dirname, '..', '..', 'Mobile_APP', 'android', 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk'),
     path.join(__dirname, '..', '..', 'AOTMS_CRM_v1.0.1.apk'),
+    '/app/uploads/app-release.apk',
+    '/app/src/uploads/app-release.apk',
+    '/var/www/uploads/app-release.apk',
   ];
   for (const apkPath of candidates) {
     if (fs.existsSync(apkPath)) {
+      res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+      res.setHeader('Content-Disposition', 'attachment; filename="Telecom-CRM.apk"');
       return res.download(apkPath, 'Telecom-CRM.apk');
     }
   }
-  return res.status(404).send('APK build not found on server.');
-});
+  return res.status(404).json({ error: 'APK build not found on server.' });
+};
+
+app.get('/download-apk', handleApkDownload);
+app.get('/api/download-apk', handleApkDownload);
 
 app.use('/uploads', (req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', isAllowedOrigin(req.headers.origin) ? (req.headers.origin || '*') : 'null');
