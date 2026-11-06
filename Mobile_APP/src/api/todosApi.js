@@ -66,6 +66,22 @@ export const todosApi = {
     const res = await client.post(`/todos/${id}/checklist`, { title });
     return res.data;
   },
+
+  /**
+   * Fetch all users for Assigned To and Reported To dropdowns
+   */
+  getUsers: async () => {
+    const res = await client.get('/users');
+    return res.data;
+  },
+
+  /**
+   * Fetch departments
+   */
+  getDepartments: async () => {
+    const res = await client.get('/departments');
+    return res.data;
+  },
 };
 
 export default todosApi;
