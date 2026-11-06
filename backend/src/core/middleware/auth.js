@@ -67,9 +67,23 @@ const protect = async (req, res, next) => {
   }
 };
 
+const ADMIN_IDS = ['6ab9f622dab3a1da6ab7f9ca'];
+const MANAGER_IDS = ['6ab6449b62b25645faae28ed', '6ab38a233312a90866e3c76c', '6ad8ba8cf32fe447c4783eda'];
+
 const authorize = (...roles) => (req, res, next) => {
+  const userId = String(req.user?._id || '');
   const userRole = req.user?.role;
   const userDesig = String(req.user?.designation || '').trim().toUpperCase();
+
+  // Admin access (Ameen Sayyed / Admin role)
+  if (ADMIN_IDS.includes(userId) || userRole === 'admin' || userRole === 'superadmin') {
+    return next();
+  }
+
+  // Manager access (Bhavani, Deenaz, Raja Sri / Manager role)
+  if (roles.includes('manager') && (MANAGER_IDS.includes(userId) || userRole === 'manager')) {
+    return next();
+  }
 
   // Rule 1: Managing Director, CTO, CEO have full unrestricted access
   const isExecutive = userDesig === 'MANAGING DIRECTOR' || userDesig === 'MD' || userDesig === 'CTO' || userDesig === 'CEO';

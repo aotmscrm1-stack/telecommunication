@@ -23,8 +23,31 @@ export const isCTO = (user) => {
   return d === 'CTO';
 };
 
+export const ADMIN_IDS = ['6ab9f622dab3a1da6ab7f9ca']; // Ameen Sayyed
+export const MANAGER_IDS = [
+  '6ab6449b62b25645faae28ed', // Dasari Durga Bhavani
+  '6ab38a233312a90866e3c76c', // deenaz shaik
+  '6ad8ba8cf32fe447c4783eda',  // Raja Sri
+];
+export const MARKETING_EXECUTIVE_IDS = [
+  '6ab63ad762b25645faae244e', // Ashok Y
+  '6abe21442605716ce3869045', // Chinthala Manasa
+  '6abe233b2605716ce38691a2',  // Moeen Ahmad Mahammad
+];
+export const SOFTWARE_DEVELOPER_IDS = [
+  '6ab25b5dc6d2062c7cd12eea', // Ramanadham Jayaveer
+  '6ab386d83312a90866e3c6d5', // Saadiya Mohammad
+];
+export const TRAINER_IDS = [
+  '6aba5c2fffdd149e031957ba', // Bhargav Possimsetty
+  '6aba63a7ffdd149e03195cb7', // Adilakshmi Vemala
+  '6ab7af419b0606da1d050728', // Venkat Sai
+];
+
 export const isExecutive = (user) => {
   if (!user) return false;
+  const id = String(user?._id || user?.id || '');
+  if (ADMIN_IDS.includes(id)) return true;
   const d = normalizeDesignation(user);
   const dept = String(user?.department || '').trim().toUpperCase();
   return isManagingDirector(user) || isCTO(user) || d === 'CEO' || user?.role === 'admin' || dept === 'ADMIN' || dept === 'MANAGEMENT';
@@ -34,6 +57,8 @@ export const isCEO = (user) => isExecutive(user);
 
 export const isManager = (user) => {
   if (!user) return false;
+  const id = String(user?._id || user?.id || '');
+  if (MANAGER_IDS.includes(id)) return true;
   const d = normalizeDesignation(user);
   const dept = String(user?.department || '').trim().toUpperCase();
   return d.includes('MANAGER') || user?.role === 'manager' || dept.includes('MANAGER') || dept.includes('MANAGEMENT');
@@ -41,6 +66,8 @@ export const isManager = (user) => {
 
 export const isDeveloper = (user) => {
   if (!user) return false;
+  const id = String(user?._id || user?.id || '');
+  if (SOFTWARE_DEVELOPER_IDS.includes(id)) return true;
   const d = normalizeDesignation(user);
   const dept = String(user?.department || '').trim().toUpperCase();
   return d.includes('DEVELOPER') || d.includes('ENGINEER') || dept === 'DEVELOPER' || dept === 'DEV';
@@ -48,6 +75,8 @@ export const isDeveloper = (user) => {
 
 export const isTrainer = (user) => {
   if (!user) return false;
+  const id = String(user?._id || user?.id || '');
+  if (TRAINER_IDS.includes(id)) return true;
   const d = normalizeDesignation(user);
   const dept = String(user?.department || '').trim().toUpperCase();
   return d.includes('TRAINER') || dept === 'TRAINER' || dept === 'TRAINERS';
@@ -56,8 +85,7 @@ export const isTrainer = (user) => {
 export const isCounsellor = (user) => {
   if (!user) return false;
   const id = String(user?._id || user?.id || '');
-  const email = String(user?.email || '').trim().toLowerCase();
-  if (id === '6ab6449b62b25645faae28ed' || email === 'bhavani@aotms.in') return true;
+  if (MANAGER_IDS.includes(id)) return true; // Managers with counselling capacity
 
   const desig = String(user?.designation || '').trim().toLowerCase();
   const dName = String(user?.displayName || '').trim().toLowerCase();
@@ -71,11 +99,7 @@ export const isCounsellor = (user) => {
 
 export const isTelecaller = (user) => {
   if (!user) return false;
-  if (user?.role === 'admin' || user?.role === 'superadmin' || isCEO(user)) return false;
-
-  const id = String(user?._id || user?.id || '');
-  const email = String(user?.email || '').trim().toLowerCase();
-  if (id === '6ab6449b62b25645faae28ed' || email === 'bhavani@aotms.in') return true;
+  if (user?.role === 'admin' || user?.role === 'superadmin' || isCEO(user) || isManager(user)) return false;
 
   const desig = String(user?.designation || '').trim().toLowerCase();
   const dName = String(user?.displayName || '').trim().toLowerCase();
@@ -96,7 +120,8 @@ export const isTelecaller = (user) => {
 
 export const isHR = (user) => {
   if (!user) return false;
-  if (isTelecaller(user)) return false;
+  const id = String(user?._id || user?.id || '');
+  if (MANAGER_IDS.includes(id)) return true;
   const d = normalizeDesignation(user);
   const dept = String(user?.department || '').trim().toUpperCase();
   const role = String(user?.role || '').trim().toLowerCase();
@@ -105,12 +130,16 @@ export const isHR = (user) => {
   return isHRStaff && isManagement;
 };
 
-export const isDigitalMarketing = (user) => {
+export const isMarketingExecutive = (user) => {
   if (!user) return false;
+  const id = String(user?._id || user?.id || '');
+  if (MARKETING_EXECUTIVE_IDS.includes(id)) return true;
   const d = normalizeDesignation(user);
   const dept = String(user?.department || '').trim().toUpperCase();
   return d.includes('MARKETING') || dept === 'MARKETING' || dept === 'MKT';
 };
+
+export const isDigitalMarketing = (user) => isMarketingExecutive(user);
 
 /**
  * Limited Staff: Developer, Trainer, Digital Marketing
