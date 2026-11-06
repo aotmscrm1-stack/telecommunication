@@ -1,24 +1,17 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  PhoneCall,
-  MessageSquare,
-  Users,
-  CheckCircle2,
-  BarChart3,
-  Layers,
-  ArrowRight,
   Sparkles,
-  Bot,
-  FileText,
-  ShieldCheck,
-  Radio,
+  ArrowRight,
   Zap,
-  Clock,
-  Send,
-  Building2,
-  Lock,
+  Bot,
+  Radio,
+  ShieldCheck,
+  CheckCircle2,
+  PhoneCall,
+  Activity,
+  Layers,
 } from 'lucide-react';
 import {
   SiAirtel,
@@ -30,10 +23,10 @@ import {
   SiRazorpay,
 } from 'react-icons/si';
 import { MarqueeLogoScroller } from '../../components/ui/marquee-logo-scroller';
-import { SpotlightCard } from '../../components/ui/SpotlightCard';
+import EnterpriseAIPipeline from '../../components/ui/ai-agent-pipeline';
 import { ShinyText } from '../../components/ui/ShinyText';
 
-// SVG fallbacks for additional partners in the CRM ecosystem
+// SVG icons for enterprise carriers in ecosystem
 const TwilioIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
     <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2" />
@@ -147,86 +140,23 @@ const CRM_PARTNERS = [
 ];
 
 /* ─────────────────────────────────────────────────────────
-   CRM CORE EXECUTION CAPABILITIES (BENTO GRID)
+   AI PIPELINE LOGS (REAL-TIME TELECOM CRM SCENARIOS)
    ───────────────────────────────────────────────────────── */
-const CRM_CORE_CAPABILITIES = [
-  {
-    id: 'ai-telecaller',
-    tag: 'Autonomous · Voice AI',
-    title: 'Autonomous AI Voice Telecaller',
-    badge: '10,000+ Calls / Day',
-    desc: 'Deploy human-sounding conversational voice agents in Telugu, Hindi & English. Qualifies leads, books appointments, and detects voicemails with zero latency.',
-    icon: Bot,
-    bg: '#FAF5FF',
-    accent: '#7c3aed',
-    highlight: 'Natural Indian Accents & Dialects',
-    metric: '98.4% Qualification Accuracy',
-  },
-  {
-    id: 'lead-pipeline',
-    tag: 'Realtime · Zero Leakage',
-    title: 'Omnichannel Smart Lead Pipeline',
-    badge: '< 80ms Ingest',
-    desc: 'Instantly ingest leads from Meta Ads, JustDial, IndiaMART, Sulekha & 99acres. Auto-assign to telecallers with weighted round-robin distribution and duplicate detection.',
-    icon: Users,
-    bg: '#F0F9FF',
-    accent: '#0284c7',
-    highlight: 'Multi-Tenant Lead Hierarchy',
-    metric: '100% Zero Lead Leakage',
-  },
-  {
-    id: 'cloud-telephony',
-    tag: 'WebRTC · HD Stereo',
-    title: '1-Click VoIP Dialer & Call Recording',
-    badge: 'Live Call Whispering',
-    desc: 'Built-in browser dialer with one-click calling, stereo recordings, auto disposition prompts, and manager barge-in capabilities for real-time sales coaching.',
-    icon: PhoneCall,
-    bg: '#FFFBEB',
-    accent: '#d97706',
-    highlight: 'Telecom PRI & SIP Trunking',
-    metric: '99.9% Call Uptime SLA',
-  },
-  {
-    id: 'whatsapp-crm',
-    tag: 'Meta Verified · Official',
-    title: 'Official WhatsApp Cloud Automation',
-    badge: '99.8% Open Rate',
-    desc: 'Trigger automated WhatsApp greetings, quotation PDFs, payment links, and scheduled follow-ups directly from lead cards with full 2-way chat sync.',
-    icon: MessageSquare,
-    bg: '#ECFDF5',
-    accent: '#059669',
-    highlight: 'Interactive Quick Reply Buttons',
-    metric: 'Instant PDF Quote Dispatch',
-  },
-  {
-    id: 'sales-leaderboard',
-    tag: 'Live Telemetry · Gamified',
-    title: 'Sales Team Leaderboard & Tracking',
-    badge: 'Live Dial Rankings',
-    desc: 'Motivate telecallers with real-time dial targets, closed revenue scoreboards, daily activity staging reviews, and geo-verified mobile attendance tracking.',
-    icon: BarChart3,
-    bg: '#FFF1F2',
-    accent: '#e11d48',
-    highlight: 'Field Force Geo-Attendance',
-    metric: '3.4x Dials per Agent / Day',
-  },
-  {
-    id: 'finance-docs',
-    tag: 'Automated · GST Ready',
-    title: '1-Click Invoices, Quotes & Receipts',
-    badge: 'Instant PDF Export',
-    desc: 'Generate branded GST Invoices, Quotations, Fee Receipts, Payslips, and Offer Letters straight from lead profiles with digital signatures and instant sharing.',
-    icon: FileText,
-    bg: '#F0FDF4',
-    accent: '#16a34a',
-    highlight: 'Auto Fee Splitting & Ledger',
-    metric: 'Automated Accounts Sync',
-  },
+const PIPELINE_MESSAGES = [
+  'Inbound call triggered: +91 98480... routed to Autonomous Voice AI',
+  'Carrier Handshake: Airtel Enterprise SIP Trunk verified (latency 38ms)',
+  'Real-time Speech ASR: Telugu transcribed → 412 token context stream',
+  'Semantic Qualification: High intent buyer detected (score: 0.94)',
+  'LLM Inference: 3 actions dispatched in parallel across CRM nodes',
+  'Tool: update_crm → Lead stage updated to "Hot Lead - Site Visit Scheduled"',
+  'Tool: send_whatsapp → Quotation PDF & Location Pin dispatched via Meta Cloud API',
+  'Tool: notify_agent → Telecaller assigned via weighted round-robin queue',
+  'Workflow complete: 3 actions dispatched in 310ms. Zero lead leakage.',
+  'Idle. Listening for next inbound call or Meta lead webhook...',
 ];
 
 export function FeaturesSection() {
   const navigate = useNavigate();
-  const [hoveredCard, setHoveredCard] = useState(null);
 
   return (
     <section
@@ -241,7 +171,7 @@ export function FeaturesSection() {
       {/* Anchor for Navbar link */}
       <div id="features" style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }} />
 
-      {/* Subtle background ambient radial gradient */}
+      {/* Subtle background ambient radial glow */}
       <div
         style={{
           position: 'absolute',
@@ -250,8 +180,8 @@ export function FeaturesSection() {
           transform: 'translateX(-50%)',
           width: '90%',
           maxWidth: 1200,
-          height: 400,
-          background: 'radial-gradient(ellipse at 50% 30%, rgba(4, 102, 200, 0.05) 0%, transparent 70%)',
+          height: 440,
+          background: 'radial-gradient(ellipse at 50% 30%, rgba(4, 102, 200, 0.06) 0%, transparent 70%)',
           pointerEvents: 'none',
           zIndex: 0,
         }}
@@ -289,7 +219,7 @@ export function FeaturesSection() {
           >
             <Sparkles size={14} color="#0466c8" />
             <ShinyText
-              text="ENTERPRISE WORKFLOWS & TELECOM INFRASTRUCTURE"
+              text="AUTONOMOUS AI EXECUTION & TELECOM PIPELINE"
               speed={3.5}
               style={{
                 fontSize: 11.5,
@@ -328,15 +258,189 @@ export function FeaturesSection() {
             style={{
               color: '#64748b',
               fontSize: 'clamp(15px, 1.1vw, 17px)',
-              maxWidth: 720,
+              maxWidth: 760,
               margin: '0 auto',
               lineHeight: 1.65,
               fontWeight: 450,
             }}
           >
-            The unified command center for telecom, real estate, education, and enterprise sales teams.
-            Automate 10,000+ AI voice calls, connect official Meta WhatsApp, and close deals 3x faster.
+            Watch how our Autonomous AI Agent Pipeline instantly receives inbound triggers,
+            scores lead intent in real-time, powers conversational voice calls, and synchronizes
+            CRM stages with WhatsApp quotes in under 350ms.
           </motion.p>
+        </div>
+
+        {/* ══════════════════════════════════════════════
+            LIVE AI AGENT PIPELINE SHOWCASE (REPLACES CARDS)
+            ══════════════════════════════════════════════ */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+            gap: 28,
+            alignItems: 'center',
+            marginBottom: 56,
+          }}
+        >
+          {/* Left Column: AI Pipeline Execution Engine */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+            style={{ width: '100%', display: 'flex', justifyContent: 'center' }}
+          >
+            <EnterpriseAIPipeline
+              messages={PIPELINE_MESSAGES}
+              liveTag="AOTMS TELECOM PIPELINE · LIVE"
+              statsTag="10k+ dials/day · 0 errors"
+              nodeLabels={{
+                triggerCategory: "TRIGGER",
+                triggerTitle: "Inbound Lead",
+                triggerSub: "airtel-sip-trunk",
+                vectorCategory: "SEMANTIC AI",
+                vectorTitle: "Intent Scoring",
+                vectorSub: "pinecone-v2",
+                llmCategory: "AI TELECALLER",
+                llmTitle: "Voice Agent",
+                llmSub: "gemini-2.0-flash",
+                out1Title: "WhatsApp Quote",
+                out2Title: "CRM Stage Update",
+                out3Title: "Agent Dispatch",
+              }}
+              stackInfo="AOTMS AI · Telecom SIP"
+            />
+          </motion.div>
+
+          {/* Right Column: Execution Capabilities & Live Metrics */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 16,
+              maxWidth: 520,
+              margin: '0 auto',
+              width: '100%',
+            }}
+          >
+            {/* Feature Highlight 1 */}
+            <div
+              style={{
+                padding: '18px 22px',
+                borderRadius: 16,
+                background: '#f8fafc',
+                border: '1px solid rgba(226, 232, 240, 0.9)',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 14,
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.02)',
+              }}
+            >
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 12,
+                  background: 'rgba(124, 58, 237, 0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#7c3aed',
+                  flexShrink: 0,
+                }}
+              >
+                <Bot size={20} strokeWidth={2.4} />
+              </div>
+              <div>
+                <h4 style={{ fontSize: 16, fontWeight: 750, color: '#0f172a', margin: '0 0 4px 0' }}>
+                  Autonomous AI Voice Telecaller
+                </h4>
+                <p style={{ fontSize: 13.5, color: '#64748b', margin: 0, lineHeight: 1.5 }}>
+                  Conducts human-like voice conversations in Telugu, Hindi & English. Qualifies leads, detects voicemails, and books appointments 24/7.
+                </p>
+              </div>
+            </div>
+
+            {/* Feature Highlight 2 */}
+            <div
+              style={{
+                padding: '18px 22px',
+                borderRadius: 16,
+                background: '#f8fafc',
+                border: '1px solid rgba(226, 232, 240, 0.9)',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 14,
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.02)',
+              }}
+            >
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 12,
+                  background: 'rgba(2, 132, 199, 0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#0284c7',
+                  flexShrink: 0,
+                }}
+              >
+                <Radio size={20} strokeWidth={2.4} />
+              </div>
+              <div>
+                <h4 style={{ fontSize: 16, fontWeight: 750, color: '#0f172a', margin: '0 0 4px 0' }}>
+                  Under 310ms End-to-End Latency
+                </h4>
+                <p style={{ fontSize: 13.5, color: '#64748b', margin: 0, lineHeight: 1.5 }}>
+                  Instant carrier handshake with Airtel & Jio SIP trunks ensures conversational fluidity without awkward delays or lag.
+                </p>
+              </div>
+            </div>
+
+            {/* Feature Highlight 3 */}
+            <div
+              style={{
+                padding: '18px 22px',
+                borderRadius: 16,
+                background: '#f8fafc',
+                border: '1px solid rgba(226, 232, 240, 0.9)',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 14,
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.02)',
+              }}
+            >
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 12,
+                  background: 'rgba(34, 197, 94, 0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#16a34a',
+                  flexShrink: 0,
+                }}
+              >
+                <CheckCircle2 size={20} strokeWidth={2.4} />
+              </div>
+              <div>
+                <h4 style={{ fontSize: 16, fontWeight: 750, color: '#0f172a', margin: '0 0 4px 0' }}>
+                  Automated Multi-Tool Dispatch
+                </h4>
+                <p style={{ fontSize: 13.5, color: '#64748b', margin: 0, lineHeight: 1.5 }}>
+                  Automatically updates CRM lead stage, dispatches WhatsApp quotation PDFs, and routes live calls to available agents via round-robin.
+                </p>
+              </div>
+            </div>
+          </motion.div>
         </div>
 
         {/* ══════════════════════════════════════════════
@@ -359,225 +463,6 @@ export function FeaturesSection() {
         </motion.div>
 
         {/* ══════════════════════════════════════════════
-            CRM CORE CAPABILITIES (BENTO GRID - 3x2)
-            ══════════════════════════════════════════════ */}
-        <div className="crm-bento-grid">
-          {CRM_CORE_CAPABILITIES.map((cap, index) => {
-            const Icon = cap.icon;
-            const isHovered = hoveredCard === cap.id;
-
-            return (
-              <motion.div
-                key={cap.id}
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.08 }}
-                onMouseEnter={() => setHoveredCard(cap.id)}
-                onMouseLeave={() => setHoveredCard(null)}
-                style={{ height: '100%' }}
-              >
-                <SpotlightCard
-                  spotlightColor="rgba(255, 255, 255, 0.85)"
-                  style={{
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    background: '#ffffff',
-                    borderRadius: 24,
-                    border: isHovered
-                      ? `1.5px solid ${cap.accent}`
-                      : '1px solid rgba(226, 232, 240, 0.95)',
-                    boxShadow: isHovered
-                      ? `0 20px 42px rgba(0, 0, 0, 0.08), 0 0 24px ${cap.accent}20`
-                      : '0 4px 20px rgba(0, 0, 0, 0.03)',
-                    transform: isHovered ? 'translateY(-6px)' : 'translateY(0)',
-                    transition:
-                      'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease, border-color 0.3s ease',
-                    overflow: 'hidden',
-                    cursor: 'pointer',
-                  }}
-                  onClick={() => navigate('/login')}
-                >
-                  {/* Upper Header Strip */}
-                  <div
-                    style={{
-                      background: cap.bg,
-                      padding: '24px 26px 20px',
-                      borderRadius: '22px 22px 0 0',
-                      borderBottom: '1px solid rgba(0, 0, 0, 0.04)',
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        marginBottom: 16,
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontSize: 12,
-                          fontWeight: 800,
-                          color: '#0f172a',
-                          background: 'rgba(255, 255, 255, 0.85)',
-                          padding: '4px 12px',
-                          borderRadius: 9999,
-                          border: '1px solid rgba(0, 0, 0, 0.06)',
-                          letterSpacing: '0.02em',
-                        }}
-                      >
-                        {cap.tag}
-                      </span>
-
-                      <span
-                        style={{
-                          fontSize: 11.5,
-                          fontWeight: 700,
-                          color: cap.accent,
-                          background: `${cap.accent}14`,
-                          padding: '4px 10px',
-                          borderRadius: 8,
-                        }}
-                      >
-                        {cap.badge}
-                      </span>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                      <div
-                        style={{
-                          width: 44,
-                          height: 44,
-                          borderRadius: 14,
-                          background: '#ffffff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: cap.accent,
-                          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.06)',
-                          flexShrink: 0,
-                        }}
-                      >
-                        <Icon size={22} strokeWidth={2.2} />
-                      </div>
-
-                      <h3
-                        style={{
-                          fontSize: 'clamp(18px, 1.4vw, 21px)',
-                          fontWeight: 800,
-                          lineHeight: 1.28,
-                          letterSpacing: '-0.02em',
-                          color: '#0f172a',
-                          margin: 0,
-                          fontFamily: '"Inter", sans-serif',
-                        }}
-                      >
-                        {cap.title}
-                      </h3>
-                    </div>
-                  </div>
-
-                  {/* Body Text */}
-                  <div
-                    style={{
-                      padding: '22px 26px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      flexGrow: 1,
-                      justifyContent: 'space-between',
-                    }}
-                  >
-                    <p
-                      style={{
-                        fontSize: 14,
-                        lineHeight: 1.65,
-                        color: '#64748b',
-                        margin: '0 0 20px 0',
-                        fontWeight: 450,
-                      }}
-                    >
-                      {cap.desc}
-                    </p>
-
-                    {/* Feature Highlight Pill */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '10px 14px',
-                        borderRadius: 12,
-                        background: '#f8fafc',
-                        border: '1px solid rgba(226, 232, 240, 0.8)',
-                        marginBottom: 16,
-                      }}
-                    >
-                      <span style={{ fontSize: 12.5, fontWeight: 650, color: '#334155' }}>
-                        {cap.highlight}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: 12,
-                          fontWeight: 800,
-                          color: cap.accent,
-                        }}
-                      >
-                        {cap.metric}
-                      </span>
-                    </div>
-
-                    {/* Bottom Action Strip */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        paddingTop: 12,
-                        borderTop: '1px solid rgba(226, 232, 240, 0.7)',
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontSize: 13,
-                          fontWeight: 700,
-                          color: isHovered ? cap.accent : '#0f172a',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 6,
-                          transition: 'color 0.2s ease',
-                        }}
-                      >
-                        Launch Module
-                        <ArrowRight
-                          size={14}
-                          strokeWidth={2.4}
-                          style={{
-                            transform: isHovered ? 'translateX(4px)' : 'translateX(0)',
-                            transition: 'transform 0.25s ease',
-                          }}
-                        />
-                      </span>
-
-                      <span
-                        style={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: '50%',
-                          background: cap.accent,
-                          boxShadow: `0 0 8px ${cap.accent}`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                </SpotlightCard>
-              </motion.div>
-            );
-          })}
-        </div>
-
-        {/* ══════════════════════════════════════════════
             BOTTOM CONVERSION BANNER
             ══════════════════════════════════════════════ */}
         <motion.div
@@ -586,7 +471,6 @@ export function FeaturesSection() {
           viewport={{ once: true }}
           transition={{ duration: 0.6, delay: 0.3 }}
           style={{
-            marginTop: 54,
             padding: '30px clamp(20px, 4vw, 44px)',
             borderRadius: 24,
             background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
@@ -682,32 +566,6 @@ export function FeaturesSection() {
           </div>
         </motion.div>
       </div>
-
-      {/* ══════════════════════════════════════════════
-          RESPONSIVE BENTO GRID STYLING
-          ══════════════════════════════════════════════ */}
-      <style>{`
-        .crm-bento-grid {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 22px;
-          width: 100%;
-        }
-
-        @media (max-width: 1060px) {
-          .crm-bento-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 18px;
-          }
-        }
-
-        @media (max-width: 680px) {
-          .crm-bento-grid {
-            grid-template-columns: 1fr;
-            gap: 16px;
-          }
-        }
-      `}</style>
     </section>
   );
 }
