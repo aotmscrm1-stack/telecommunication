@@ -1,9 +1,12 @@
 const { startOverdueTaskChecker } = require('./taskOverdueChecker');
 const { startTaskReminderChecker } = require('./taskReminderChecker');
 const { startComplianceScheduler } = require('./complianceScheduler');
+const { startGoogleSheetsAutoSync, stopGoogleSheetsAutoSync } = require('./googleSheetsAutoSync');
 
 module.exports = {
   startOverdueTaskChecker,
   startTaskReminderChecker,
-  startComplianceScheduler
+  startComplianceScheduler,
+  startGoogleSheetsAutoSync,
+  stopGoogleSheetsAutoSync
 };
