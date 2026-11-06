@@ -1379,18 +1379,16 @@ function CallSummaryDetailModal({ activity, lead, onClose, onInitiateCall, onSch
   const isCall = activity.type === 'call';
 
   const title = isRecording
-    ? 'Audio Recording & Call Summary'
+    ? 'Audio Recording Details'
     : isFollowup
-    ? 'Scheduled Callback Summary'
-    : isCall
-    ? 'Call Log & Call Summary'
-    : 'Note & Activity Summary';
+    ? 'Call Back Reminder Details'
+    : 'Note & Remarks Details';
 
   const summaryText =
     activity.description ||
     activity.note ||
     activity.rec?.transcript ||
-    (isFollowup ? 'Callback reminder scheduled for lead.' : 'No notes recorded.');
+    (isFollowup ? 'Call Back reminder scheduled for lead.' : 'No notes recorded.');
 
   const handleCopy = () => {
     navigator.clipboard?.writeText(summaryText);
@@ -2560,445 +2558,310 @@ export default function LeadDetailsPage({
           </div>
         </div>
 
-        {/* ─── Down: Activity & Calling History ─── */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-3.5 sm:p-5">
-          <h3 className="font-semibold text-slate-800 text-xs sm:text-sm uppercase tracking-wider mb-3 pb-2.5 border-b border-slate-100 flex items-center gap-2">
-            <Clock className="w-4 h-4 text-slate-500" /> Activity & Calling History
-          </h3>
-
-          {/* Filter Tabs */}
-          <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-5">
-            {[
-              { key: 'all', label: 'All Activities' },
-              { key: 'call', label: 'Calls' },
-              { key: 'recordings', label: 'Audio Recordings' },
-              { key: 'followup', label: 'Callback Later' },
-              { key: 'note', label: 'Notes' },
-            ].map(tab => {
-              let count = 0;
-              const metaCallNotes = (lead.callNotes || metaLeadData?.callNotes || []).map((cn, idx) => ({
-                _id: cn._id || `meta-note-${idx}`,
-                type: (cn.outcome && cn.outcome !== 'Note Added') ? 'call' : 'note',
-                description: cn.note || cn.outcome || 'Activity logged',
-                createdAt: cn.date,
-                performedBy: { name: cn.userName || 'Agent' },
-              }));
-              const nonStatusActivities = [
-                ...(lead.activities || []).filter(a => !String(a.description || a.note || '').toLowerCase().startsWith('status changed')),
-                ...metaCallNotes,
-              ];
-              if (tab.key === 'all') count = nonStatusActivities.length + leadFollowups.length + recordings.length;
-              else if (tab.key === 'followup') count = leadFollowups.length;
-              else if (tab.key === 'recordings') count = recordings.length;
-              else if (tab.key === 'call') count = nonStatusActivities.filter(a => a.type === 'call').length;
-              else if (tab.key === 'note') count = nonStatusActivities.filter(a => a.type === 'note').length;
-              else count = nonStatusActivities.filter(a => a.type === tab.key).length;
-
-              const isActive = activityFilter === tab.key;
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => setActivityFilter(tab.key)}
-                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
-                    isActive ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'
-                  }`}
-                >
-                  {tab.label}
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${
-                    isActive ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'
-                  }`}>
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
+        {/* ─── Down: Activity & Calling History (Only Notes, Call Back, Audio Record) ─── */}
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
+            <div>
+              <h3 className="font-bold text-slate-800 text-sm sm:text-base tracking-tight flex items-center gap-2">
+                <Clock className="w-4 h-4 text-blue-600" /> Activity & Calling History
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Notes, scheduled callbacks, and call audio recordings
+              </p>
+            </div>
           </div>
 
-          {/* 3-COLUMN CARD GRID DISPLAY (Redesigned Clean CRM Card Style) */}
-          <div>
-            {(() => {
-              const metaCallNotes = (lead.callNotes || metaLeadData?.callNotes || []).map((cn, idx) => ({
-                _id: cn._id || `meta-note-${idx}`,
-                type: cn.outcome === 'WhatsApp Sent'
-                  ? 'whatsapp'
-                  : (cn.outcome && cn.outcome !== 'Note Added')
-                  ? 'call'
-                  : 'note',
-                description: cn.note || cn.outcome || 'Activity logged',
-                createdAt: cn.date,
-                performedBy: { name: cn.userName || 'Agent' },
+          {(() => {
+            // 1. NOTES: Combine candidate/lead remarks, agent notes, and campaign notes
+            const metaCallNotes = (lead.callNotes || metaLeadData?.callNotes || []).map((cn, idx) => ({
+              _id: cn._id || `meta-note-${idx}`,
+              type: 'note',
+              description: cn.note || cn.outcome || 'Note recorded',
+              createdAt: cn.date,
+              performedBy: { name: cn.userName || 'Agent' },
+              isMetaNote: true,
+            }));
+
+            const regularNotes = (lead.activities || [])
+              .filter(a => a.type === 'note')
+              .filter(a => !String(a.description || a.note || '').toLowerCase().startsWith('status changed'))
+              .map(a => ({
+                ...a,
+                type: 'note',
+                description: a.description || a.note || 'Note added',
+                performedBy: a.performedBy || { name: 'Agent' },
               }));
-              const nonStatusActivities = [
-                ...(lead.activities || []).filter(a => !String(a.description || a.note || '').toLowerCase().startsWith('status changed')),
-                ...metaCallNotes,
-              ];
-              const activityItems = (activityFilter === 'all' || activityFilter === 'call' || activityFilter === 'note')
-                ? nonStatusActivities.filter(a => {
-                    if (activityFilter === 'all') return true;
-                    if (activityFilter === 'note') return a.type === 'note' || a.type === 'whatsapp';
-                    return a.type === activityFilter;
-                  })
-                : [];
 
-              const followupItems = (activityFilter === 'all' || activityFilter === 'followup')
-                ? leadFollowups.map(f => ({
-                    _followup: true,
-                    _id: f._id,
-                    type: 'followup',
-                    description: f.note || 'Callback scheduled',
-                    createdAt: f.createdAt,
-                    scheduledAt: f.scheduledAt,
-                    status: f.status,
-                    leadName: f.leadName || f.lead?.name || leadName || lead?.name,
-                    filledByName: f.filledByName || f.createdBy?.name || f.assignedBy?.name || f.assignedTo?.name || 'Agent',
-                    performedBy: f.assignedTo || f.createdBy,
-                  }))
-                : [];
+            const allNotes = [...regularNotes, ...metaCallNotes];
 
-              const recordingItems = (activityFilter === 'all' || activityFilter === 'recordings')
-                ? recordings.map(rec => ({
-                    _recording: true,
-                    _id: rec._id,
-                    type: 'recording',
-                    createdAt: rec.recordedAt || rec.createdAt,
-                    rec
-                  }))
-                : [];
+            // 2. CALL BACK: Scheduled callbacks / followups
+            const allFollowups = (leadFollowups || []).map(f => ({
+              _followup: true,
+              _id: f._id,
+              type: 'followup',
+              description: f.note || 'Callback scheduled',
+              createdAt: f.createdAt,
+              scheduledAt: f.scheduledAt,
+              status: f.status,
+              leadName: f.leadName || f.lead?.name || leadName || lead?.name,
+              filledByName: f.filledByName || f.createdBy?.name || f.assignedBy?.name || f.assignedTo?.name || 'Agent',
+              performedBy: f.assignedTo || f.createdBy,
+            }));
 
-              const allItems = [...activityItems, ...followupItems, ...recordingItems].sort(
-                (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-              );
+            // 3. AUDIO RECORD: Voice call recordings
+            const allRecordings = (recordings || []).map(rec => ({
+              _recording: true,
+              _id: rec._id,
+              type: 'recording',
+              createdAt: rec.recordedAt || rec.createdAt,
+              rec,
+            }));
 
-              if (allItems.length === 0) {
-                return (
-                  <div className="text-center py-12 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-                    <Clock className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                    <h4 className="text-sm font-bold text-slate-700">No activities found</h4>
-                    <p className="text-slate-400 text-xs font-normal">No activity logs or recordings match the selected filter.</p>
-                  </div>
-                );
-              }
+            const activeTab = ['all', 'note', 'followup', 'recordings'].includes(activityFilter) ? activityFilter : 'all';
 
-              return (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                  {allItems.map((a, i) => {
-                    // 1. AUDIO RECORDING CARD
-                    if (a._recording) {
-                      return (
-                        <motion.div
-                          initial={{ opacity: 0, y: 8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.18, delay: i * 0.02 }}
-                          key={a._id || i}
-                          onClick={() => setSelectedCallSummaryActivity(a)}
-                          style={{
-                            background: '#ffffff',
-                            border: `1px solid ${TODO_BORDER}`,
-                            borderTop: `3px solid ${TODO_BLUE_GREEN}`,
-                            borderRadius: 12,
-                            padding: 14,
-                            boxShadow: '0 2px 8px rgba(2, 48, 71, 0.05)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'space-between',
-                            cursor: 'pointer'
-                          }}
-                          className="hover:shadow-md transition-all"
-                        >
-                          <div>
-                            <div className="flex items-center justify-between gap-2 mb-2.5">
-                              <span
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: 5,
-                                  padding: '3px 9px',
-                                  borderRadius: 6,
-                                  fontSize: 10.5,
-                                  fontWeight: 700,
-                                  background: TODO_SKY_SURFACE,
-                                  color: TODO_DEEP_BLUE,
-                                  border: `1px solid ${TODO_BORDER}`
-                                }}
-                              >
-                                <Volume2 className="w-3 h-3" style={{ color: TODO_BLUE_GREEN }} /> Audio Recording
-                              </span>
-                              <a
-                                href={a.rec.streamUrl || a.rec.url}
-                                download
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                title="Download Audio"
-                                onClick={e => e.stopPropagation()}
-                                className="p-1 text-slate-400 hover:text-sky-700 hover:bg-sky-50 rounded-md transition-colors"
-                              >
-                                <Download className="w-3.5 h-3.5" />
-                              </a>
-                            </div>
+            const tabs = [
+              { key: 'all', label: 'All Items', count: allNotes.length + allFollowups.length + allRecordings.length },
+              { key: 'note', label: 'Notes', count: allNotes.length },
+              { key: 'followup', label: 'Call Back', count: allFollowups.length },
+              { key: 'recordings', label: 'Audio Records', count: allRecordings.length },
+            ];
 
-                            <h4 style={{ fontSize: 12.5, fontWeight: 600, color: TODO_DEEP_BLUE, marginBottom: 4 }} className="truncate" title={a.rec.originalName}>
-                              {a.rec.originalName || 'Call Recording'}
-                            </h4>
+            const noteItems = (activeTab === 'all' || activeTab === 'note') ? allNotes : [];
+            const followupItems = (activeTab === 'all' || activeTab === 'followup') ? allFollowups : [];
+            const recordingItems = (activeTab === 'all' || activeTab === 'recordings') ? allRecordings : [];
 
-                            <div style={{ fontSize: 11, color: TODO_MUTED, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
-                              <Phone className="w-3 h-3 text-emerald-600 flex-shrink-0" />
-                              <span className="truncate">{a.rec.phone || leadPhone}</span>
-                            </div>
+            const allItems = [...noteItems, ...followupItems, ...recordingItems].sort(
+              (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+            );
 
-                            {/* Audio Player Container */}
-                            <div style={{ background: '#f8fbfd', border: `1px solid ${TODO_INPUT_BORDER}`, borderRadius: 8, padding: 6, marginBottom: 8 }}>
-                              <audio
-                                onClick={e => e.stopPropagation()}
-                                controls
-                                preload="metadata"
-                                className="w-full h-7 rounded"
-                                src={a.rec.streamUrl || a.rec.url}
-                              >
-                                Audio not supported
-                              </audio>
-                            </div>
-
-                            {/* AI Transcript if available */}
-                            {a.rec.transcript && (
-                              <div style={{ background: TODO_SKY_SURFACE, border: `1px solid ${TODO_BORDER}`, borderRadius: 8, padding: '7px 9px', fontSize: 10.5, color: TODO_DEEP_BLUE, marginBottom: 8 }}>
-                                <div className="flex items-center justify-between mb-1">
-                                  <span style={{ fontWeight: 700, color: TODO_BLUE_GREEN, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                    <Sparkles className="w-3 h-3" /> Whisper Transcript
-                                  </span>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setActiveConversationRecording({
-                                        ...a.rec,
-                                        leadName: leadName !== '—' ? leadName : lead?.name,
-                                        phone: leadPhone !== '—' ? leadPhone : a.rec?.phone,
-                                      });
-                                    }}
-                                    title="Open Chat Conversation View"
-                                    style={{ background: '#fff', color: TODO_DEEP_BLUE, border: `1px solid ${TODO_BORDER}`, padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3 }}
-                                  >
-                                    <Maximize2 className="w-2.5 h-2.5" /> Chat
-                                  </button>
-                                </div>
-                                <p className="line-clamp-2 italic" style={{ color: '#334155', margin: 0 }}>{a.rec.transcript}</p>
-                              </div>
-                            )}
-                          </div>
-
-                          <div style={{ paddingTop: 8, borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10.5, color: TODO_MUTED, fontWeight: 500 }}>
-                            <span className="truncate max-w-[130px]">By: <strong style={{ color: TODO_DEEP_BLUE }}>{a.rec.user?.name || 'Agent'}</strong></span>
-                            <span>{a.createdAt ? format(new Date(a.createdAt), 'dd MMM, hh:mm a') : ''}</span>
-                          </div>
-                        </motion.div>
-                      );
-                    }
-
-                    // 2. CALLBACK SCHEDULED CARD
-                    if (a._followup) {
-                      return (
-                        <motion.div
-                          initial={{ opacity: 0, y: 8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.18, delay: i * 0.02 }}
-                          key={a._id || i}
-                          onClick={() => setSelectedCallSummaryActivity(a)}
-                          style={{
-                            background: '#ffffff',
-                            border: '1px solid #fde68a',
-                            borderTop: `3px solid ${TODO_ORANGE}`,
-                            borderRadius: 12,
-                            padding: 14,
-                            boxShadow: '0 2px 8px rgba(2, 48, 71, 0.05)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'space-between',
-                            cursor: 'pointer'
-                          }}
-                          className="hover:shadow-md transition-all"
-                        >
-                          <div>
-                            <div className="flex items-center justify-between gap-2 mb-2.5">
-                              <span
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: 5,
-                                  padding: '3px 9px',
-                                  borderRadius: 6,
-                                  fontSize: 10.5,
-                                  fontWeight: 700,
-                                  background: '#fffbeb',
-                                  color: '#b45309',
-                                  border: '1px solid #fde68a'
-                                }}
-                              >
-                                <Clock className="w-3 h-3 text-amber-600" /> Call Back Later
-                              </span>
-                              <span
-                                style={{
-                                  fontSize: 10,
-                                  fontWeight: 700,
-                                  padding: '2px 8px',
-                                  borderRadius: 12,
-                                  background: a.status === 'upcoming' ? '#fef3c7' : '#d1fae5',
-                                  color: a.status === 'upcoming' ? '#92400e' : '#065f46'
-                                }}
-                              >
-                                {a.status === 'upcoming' ? '⏳ Upcoming' : '✅ Done'}
-                              </span>
-                            </div>
-
-                            <div style={{ fontSize: 11.5, color: TODO_DEEP_BLUE, fontWeight: 600, marginBottom: 6 }}>
-                              👤 Person: {a.leadName || leadName || lead?.name}
-                            </div>
-
-                            {a.scheduledAt && (
-                              <div style={{ fontSize: 11.5, fontWeight: 700, color: '#92400e', background: '#fffbeb', padding: '7px 10px', borderRadius: 8, border: '1px solid #fde68a', marginBottom: 8 }}>
-                                ⏰ {format(new Date(a.scheduledAt), 'dd MMM yyyy, hh:mm a')}
-                              </div>
-                            )}
-
-                            {a.description && (
-                              <p style={{ fontSize: 11.5, color: '#334155', background: '#f8fbfd', padding: '8px 10px', borderRadius: 8, border: `1px solid ${TODO_INPUT_BORDER}`, margin: '0 0 8px 0' }} className="line-clamp-2">
-                                {a.description}
-                              </p>
-                            )}
-                          </div>
-
-                          <div style={{ paddingTop: 8, borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10.5, color: TODO_MUTED, fontWeight: 500 }}>
-                            <span className="truncate max-w-[140px]">Filled By: <strong style={{ color: TODO_DEEP_BLUE }}>{a.filledByName || a.performedBy?.name || 'Agent'}</strong></span>
-                            <span>{a.createdAt ? format(new Date(a.createdAt), 'dd MMM, hh:mm a') : ''}</span>
-                          </div>
-                        </motion.div>
-                      );
-                    }
-
-                    // 3. PURE CALL LOG CARD
-                    if (a.type === 'call') {
-                      return (
-                        <motion.div
-                          initial={{ opacity: 0, y: 8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.18, delay: i * 0.02 }}
-                          key={a._id || i}
-                          onClick={() => setSelectedCallSummaryActivity(a)}
-                          style={{
-                            background: '#ffffff',
-                            border: '1px solid #a7f3d0',
-                            borderTop: '3px solid #10b981',
-                            borderRadius: 12,
-                            padding: 14,
-                            boxShadow: '0 2px 8px rgba(2, 48, 71, 0.05)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'space-between',
-                            cursor: 'pointer'
-                          }}
-                          className="hover:shadow-md transition-all"
-                        >
-                          <div>
-                            <div className="flex items-center justify-between gap-2 mb-2.5">
-                              <span
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: 5,
-                                  padding: '3px 9px',
-                                  borderRadius: 6,
-                                  fontSize: 10.5,
-                                  fontWeight: 700,
-                                  background: '#ecfdf5',
-                                  color: '#065f46',
-                                  border: '1px solid #a7f3d0'
-                                }}
-                              >
-                                <Phone className="w-3 h-3 text-emerald-600" /> Logged Call
-                              </span>
-                              <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 12, background: '#d1fae5', color: '#065f46' }}>
-                                {a.callStatus?.toUpperCase() || 'CONNECTED'}
-                              </span>
-                            </div>
-
-                            {a.callDuration > 0 && (
-                              <div style={{ fontSize: 11.5, fontWeight: 600, color: TODO_DEEP_BLUE, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
-                                <Clock className="w-3.5 h-3.5 text-slate-400" />
-                                <span>Duration: {fmtDuration(a.callDuration)}</span>
-                              </div>
-                            )}
-
-                            <p style={{ fontSize: 11.5, color: '#334155', background: '#f8fbfd', padding: '8px 10px', borderRadius: 8, border: `1px solid ${TODO_INPUT_BORDER}`, margin: '0 0 8px 0' }} className="line-clamp-3">
-                              {a.description || 'Call activity logged.'}
-                            </p>
-                          </div>
-
-                          <div style={{ paddingTop: 8, borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10.5, color: TODO_MUTED, fontWeight: 500 }}>
-                            <span className="truncate max-w-[130px]">By: <strong style={{ color: TODO_DEEP_BLUE }}>{a.performedBy?.name || 'Agent'}</strong></span>
-                            <span>{a.createdAt ? format(new Date(a.createdAt), 'dd MMM, hh:mm a') : ''}</span>
-                          </div>
-                        </motion.div>
-                      );
-                    }
-
-                    // 4. WHATSAPP / NOTES / OTHER ACTIVITIES CARD
-                    const isWa = a.type === 'whatsapp';
+            return (
+              <>
+                {/* Filter Tabs */}
+                <div className="flex flex-wrap gap-2 mb-5">
+                  {tabs.map(tab => {
+                    const isActive = activeTab === tab.key;
                     return (
-                      <motion.div
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.18, delay: i * 0.02 }}
-                        key={a._id || i}
-                        onClick={() => setSelectedCallSummaryActivity(a)}
-                        style={{
-                          background: '#ffffff',
-                          border: `1px solid ${isWa ? '#bbf7d0' : TODO_BORDER}`,
-                          borderTop: `3px solid ${isWa ? '#16a34a' : TODO_BLUE_GREEN}`,
-                          borderRadius: 12,
-                          padding: 14,
-                          boxShadow: '0 2px 8px rgba(2, 48, 71, 0.05)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'space-between',
-                          cursor: 'pointer'
-                        }}
-                        className="hover:shadow-md transition-all"
+                      <button
+                        key={tab.key}
+                        onClick={() => setActivityFilter(tab.key)}
+                        className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                          isActive
+                            ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20'
+                            : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/80'
+                        }`}
                       >
-                        <div>
-                          <div className="flex items-center justify-between gap-2 mb-2.5">
-                            <span
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 5,
-                                padding: '3px 9px',
-                                borderRadius: 6,
-                                fontSize: 10.5,
-                                fontWeight: 700,
-                                background: isWa ? '#f0fdf4' : TODO_SKY_SURFACE,
-                                color: isWa ? '#166534' : TODO_DEEP_BLUE,
-                                border: `1px solid ${isWa ? '#bbf7d0' : TODO_BORDER}`
-                              }}
-                            >
-                              <MessageCircle className="w-3 h-3" style={{ color: isWa ? '#16a34a' : TODO_BLUE_GREEN }} />
-                              {isWa ? 'WHATSAPP' : (a.type ? a.type.toUpperCase() : 'NOTE')}
-                            </span>
-                          </div>
-
-                          <p style={{ fontSize: 11.5, color: '#334155', background: '#f8fbfd', padding: '8px 10px', borderRadius: 8, border: `1px solid ${TODO_INPUT_BORDER}`, margin: '0 0 8px 0' }} className="line-clamp-3">
-                            {a.description || 'Activity logged'}
-                          </p>
-                        </div>
-
-                        <div style={{ paddingTop: 8, borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10.5, color: TODO_MUTED, fontWeight: 500 }}>
-                          <span className="truncate max-w-[130px]">By: <strong style={{ color: TODO_DEEP_BLUE }}>{a.performedBy?.name || 'Agent'}</strong></span>
-                          <span>{a.createdAt ? format(new Date(a.createdAt), 'dd MMM, hh:mm a') : ''}</span>
-                        </div>
-                      </motion.div>
+                        {tab.label}
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${
+                          isActive ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-700'
+                        }`}>
+                          {tab.count}
+                        </span>
+                      </button>
                     );
                   })}
                 </div>
-              );
-            })()}
-          </div>
+
+                {/* Card Display Grid */}
+                {allItems.length === 0 ? (
+                  <div className="text-center py-12 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                    <Clock className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                    <h4 className="text-sm font-bold text-slate-700">No items found</h4>
+                    <p className="text-slate-400 text-xs font-normal">No notes, callbacks, or audio records match the selected filter.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {allItems.map((a, i) => {
+                      // 1. AUDIO RECORD CARD
+                      if (a._recording) {
+                        return (
+                          <motion.div
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.18, delay: i * 0.02 }}
+                            key={a._id || i}
+                            onClick={() => setSelectedCallSummaryActivity(a)}
+                            className="bg-white rounded-2xl border border-sky-200/80 shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between overflow-hidden group hover:border-sky-300"
+                          >
+                            <div className="h-1 bg-gradient-to-r from-sky-400 via-cyan-500 to-blue-600 w-full" />
+                            <div className="p-4 flex-1 flex flex-col justify-between">
+                              <div>
+                                <div className="flex items-center justify-between gap-2 mb-3">
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200">
+                                    <Volume2 className="w-3.5 h-3.5 text-sky-600" /> Audio Record
+                                  </span>
+                                  <a
+                                    href={a.rec.streamUrl || a.rec.url}
+                                    download
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    title="Download Audio Recording"
+                                    onClick={e => e.stopPropagation()}
+                                    className="p-1.5 text-slate-400 hover:text-sky-700 hover:bg-sky-50 rounded-lg transition-colors border border-transparent hover:border-sky-200"
+                                  >
+                                    <Download className="w-3.5 h-3.5" />
+                                  </a>
+                                </div>
+
+                                <h4 className="text-[13px] font-bold text-slate-800 mb-1 truncate" title={a.rec.originalName}>
+                                  {a.rec.originalName || 'Voice Call Recording'}
+                                </h4>
+
+                                <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium mb-3">
+                                  <Phone className="w-3 h-3 text-emerald-600 shrink-0" />
+                                  <span className="truncate">{a.rec.phone || leadPhone}</span>
+                                </div>
+
+                                {/* Audio Player */}
+                                <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-2 mb-3">
+                                  <audio
+                                    onClick={e => e.stopPropagation()}
+                                    controls
+                                    preload="metadata"
+                                    className="w-full h-8 rounded-lg"
+                                    src={a.rec.streamUrl || a.rec.url}
+                                  >
+                                    Audio not supported
+                                  </audio>
+                                </div>
+
+                                {/* AI Whisper Transcript Preview */}
+                                {a.rec.transcript && (
+                                  <div className="bg-sky-50/70 border border-sky-100 rounded-xl p-2.5 text-xs mb-2">
+                                    <div className="flex items-center justify-between mb-1">
+                                      <span className="font-bold text-sky-800 flex items-center gap-1.5 text-[11px]">
+                                        <Sparkles className="w-3 h-3 text-sky-600" /> Whisper Transcript
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setActiveConversationRecording({
+                                            ...a.rec,
+                                            leadName: leadName !== '—' ? leadName : lead?.name,
+                                            phone: leadPhone !== '—' ? leadPhone : a.rec?.phone,
+                                          });
+                                        }}
+                                        title="Open Chat Conversation View"
+                                        className="bg-white hover:bg-sky-100 text-sky-700 border border-sky-200 px-2 py-0.5 rounded-md text-[10px] font-bold cursor-pointer flex items-center gap-1 transition-colors"
+                                      >
+                                        <Maximize2 className="w-2.5 h-2.5" /> Chat View
+                                      </button>
+                                    </div>
+                                    <p className="line-clamp-2 text-slate-600 italic text-[11px] leading-relaxed">
+                                      "{a.rec.transcript}"
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium mt-2">
+                                <span className="truncate max-w-[130px]">By: <strong className="text-slate-800">{a.rec.user?.name || 'Agent'}</strong></span>
+                                <span>{a.createdAt ? format(new Date(a.createdAt), 'dd MMM, hh:mm a') : ''}</span>
+                              </div>
+                            </div>
+                          </motion.div>
+                        );
+                      }
+
+                      // 2. CALL BACK CARD
+                      if (a._followup) {
+                        return (
+                          <motion.div
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.18, delay: i * 0.02 }}
+                            key={a._id || i}
+                            onClick={() => setSelectedCallSummaryActivity(a)}
+                            className="bg-white rounded-2xl border border-amber-200/90 shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between overflow-hidden group hover:border-amber-300"
+                          >
+                            <div className="h-1 bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 w-full" />
+                            <div className="p-4 flex-1 flex flex-col justify-between">
+                              <div>
+                                <div className="flex items-center justify-between gap-2 mb-3">
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                    <Clock className="w-3.5 h-3.5 text-amber-600" /> Call Back
+                                  </span>
+                                  <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
+                                    a.status === 'upcoming'
+                                      ? 'bg-amber-100 text-amber-800 border-amber-200'
+                                      : 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                                  }`}>
+                                    {a.status === 'upcoming' ? '⏳ Upcoming' : '✅ Done'}
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 mb-2">
+                                  <User className="w-3.5 h-3.5 text-slate-400" />
+                                  <span className="truncate">Person: {a.leadName || leadName || lead?.name}</span>
+                                </div>
+
+                                {a.scheduledAt && (
+                                  <div className="bg-amber-50 border border-amber-200/80 rounded-xl px-3 py-2 text-xs font-bold text-amber-900 mb-2.5 flex items-center gap-2">
+                                    <Calendar className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                    <span className="truncate">{format(new Date(a.scheduledAt), 'dd MMM yyyy, hh:mm a')}</span>
+                                  </div>
+                                )}
+
+                                {a.description && (
+                                  <p className="text-xs text-slate-600 bg-slate-50 border border-slate-100 rounded-xl p-2.5 line-clamp-2 leading-relaxed mb-1">
+                                    {a.description}
+                                  </p>
+                                )}
+                              </div>
+
+                              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium mt-2">
+                                <span className="truncate max-w-[140px]">Filled By: <strong className="text-slate-800">{a.filledByName || a.performedBy?.name || 'Agent'}</strong></span>
+                                <span>{a.createdAt ? format(new Date(a.createdAt), 'dd MMM, hh:mm a') : ''}</span>
+                              </div>
+                            </div>
+                          </motion.div>
+                        );
+                      }
+
+                      // 3. NOTES CARD (lead note or meta campaign note)
+                      return (
+                        <motion.div
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.18, delay: i * 0.02 }}
+                          key={a._id || i}
+                          onClick={() => setSelectedCallSummaryActivity(a)}
+                          className="bg-white rounded-2xl border border-indigo-100/90 shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between overflow-hidden group hover:border-indigo-300"
+                        >
+                          <div className="h-1 bg-gradient-to-r from-indigo-500 via-indigo-600 to-purple-600 w-full" />
+                          <div className="p-4 flex-1 flex flex-col justify-between">
+                            <div>
+                              <div className="flex items-center justify-between gap-2 mb-3">
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                  <FileText className="w-3.5 h-3.5 text-indigo-600" /> Notes
+                                </span>
+                                {a.isMetaNote && (
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200">
+                                    Campaign Note
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 mb-2">
+                                <p className="text-xs text-slate-700 whitespace-pre-line line-clamp-4 leading-relaxed font-normal">
+                                  {a.description || 'Note recorded'}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium mt-2">
+                              <span className="truncate max-w-[130px]">By: <strong className="text-slate-800">{a.performedBy?.name || 'Agent'}</strong></span>
+                              <span>{a.createdAt ? format(new Date(a.createdAt), 'dd MMM, hh:mm a') : ''}</span>
+                            </div>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       </div>
 
