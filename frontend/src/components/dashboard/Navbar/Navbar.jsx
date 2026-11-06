@@ -361,10 +361,8 @@ export default function Navbar() {
   // 3. Remaining All: Dashboard is removed completely. Only Task/Daily Activity, Email CRM & Attendance.
   const hasDashboard = canViewDashboard(user);
   const isMarketingStaff = isDigitalMarketing(user) || String(user?.department || '').trim().toLowerCase() === 'marketing';
-  const isCaller = isTelecaller(user) ||
-    user?._id === '6ab6449b62b25645faae28ed' ||
-    user?.id === '6ab6449b62b25645faae28ed' ||
-    user?.email === 'bhavani@aotms.in' ||
+  const isManagerStaff = (user?.role === 'manager' || isManager(user)) && !isMarketingStaff;
+  const isCaller = !isManagerStaff && (isTelecaller(user) ||
     user?.role === 'caller' ||
     user?.role === 'telecaller' ||
     String(user?.department || '').toLowerCase().includes('telecall') ||
@@ -377,7 +375,90 @@ export default function Navbar() {
     String(user?.displayName || '').toLowerCase().includes('caller') ||
     String(user?.displayName || '').toLowerCase().includes('councellor') ||
     String(user?.displayName || '').toLowerCase().includes('counselor') ||
-    (String(user?.department || '').toLowerCase().includes('hr') && String(user?.role || '').toLowerCase() === 'employee');
+    (String(user?.department || '').toLowerCase().includes('hr') && String(user?.role || '').toLowerCase() === 'employee'));
+
+  const managerNavGroups = [
+    {
+      title: 'TODO List',
+      icon: FaListCheck,
+      items: [
+        { label: 'TODO List', path: '/todo', icon: FaListCheck },
+      ]
+    },
+    {
+      title: 'Marketing',
+      icon: FaBullhorn,
+      sections: [
+        {
+          id: 'leads',
+          title: 'Leads',
+          icon: FaUsers,
+          items: [
+            { label: 'Add Leads', path: '/leads/new', icon: FaUserPlus },
+            { label: 'All Leads', path: '/leads', icon: FaUsers },
+            { label: 'Campaigns', path: '/campaigns', icon: FaBullhorn },
+          ]
+        },
+        {
+          id: 'whatsapp',
+          title: 'WhatsApp',
+          icon: FaWhatsapp,
+          items: [
+            { label: 'Contact', path: '/contacts', icon: FaBook },
+            { label: 'WhatsApp Blast', path: '/whatsapp-blast', icon: WhatsAppBlastIcon },
+            { label: 'WhatsApp', path: '/whatsapp', icon: FaWhatsapp },
+          ]
+        },
+        {
+          id: 'meta-leads',
+          title: 'Meta Leads',
+          icon: GoogleSheetsIcon,
+          path: '/meta-leads',
+          isDirect: true,
+          badge: 'Google Sheets'
+        },
+        {
+          id: 'ai-calling',
+          title: 'AI Calling',
+          icon: FaPhoneVolume,
+          path: '/ai-calling',
+          isDirect: true,
+          badge: 'AI'
+        }
+      ],
+      items: [
+        { label: 'Add Leads', path: '/leads/new', icon: FaUserPlus },
+        { label: 'All Leads', path: '/leads', icon: FaUsers },
+        { label: 'Campaigns', path: '/campaigns', icon: FaBullhorn },
+        { label: 'Contact', path: '/contacts', icon: FaBook },
+        { label: 'WhatsApp Blast', path: '/whatsapp-blast', icon: WhatsAppBlastIcon },
+        { label: 'WhatsApp', path: '/whatsapp', icon: FaWhatsapp },
+        { label: 'Meta Leads', path: '/meta-leads', icon: GoogleSheetsIcon },
+        { label: 'AI Calling', path: '/ai-calling', icon: FaPhoneVolume, badge: 'AI' },
+      ]
+    },
+    {
+      title: 'Finance',
+      icon: FaCoins,
+      items: [
+        { label: 'Offer letter', path: '/offer-letter', icon: FaFileInvoiceDollar },
+        { label: 'Payslip', path: '/payslips', icon: FaReceipt },
+        { label: 'Quotation', path: '/quotation', icon: FaFileInvoiceDollar },
+        { label: 'Invoice', path: '/invoice', icon: FaReceipt },
+        { label: 'Fee Receipt', path: '/fee-receipt', icon: FaReceipt },
+      ]
+    },
+    {
+      title: 'Management',
+      icon: FaSitemap,
+      items: [
+        { label: 'Daily Activity Schedule', path: '/daily-activity-schedule', icon: FaCalendarCheck },
+        { label: 'Attendance', path: user?._id ? `/${user._id}/attendance-records` : '/attendance-records', icon: FaCalendarCheck },
+        { label: 'Call Recordings', path: '/recordings', icon: FaClock },
+        { label: 'Email CRM', path: user?._id ? `/${user._id}/email` : '/email', icon: FaEnvelopeOpenText },
+      ]
+    }
+  ];
 
   const telecallerNavGroups = [
     {
@@ -479,7 +560,11 @@ export default function Navbar() {
     }
   ];
 
-  const topDropdownGroups = isCaller ? telecallerNavWithSchedule : (!hasDashboard ? [
+  const topDropdownGroups = isCaller
+    ? telecallerNavWithSchedule
+    : isManagerStaff
+      ? managerNavGroups
+      : (!hasDashboard ? [
     ...(!isMarketingStaff ? [{
       title: 'TODO List',
       icon: FaListCheck,

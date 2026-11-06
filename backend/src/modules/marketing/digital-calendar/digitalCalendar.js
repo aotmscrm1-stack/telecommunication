@@ -51,14 +51,14 @@ function isStrictAdminOrCEO(user) {
     return false;
   }
 
+  if (role === 'manager') return false;
   if (role === 'admin' || role === 'superadmin') return true;
   return (
     desig.includes('MD') ||
     desig.includes('MANAGING DIRECTOR') ||
     desig.includes('CEO') ||
     desig.includes('CTO') ||
-    dept.includes('ADMIN') ||
-    dept.includes('MANAGEMENT')
+    dept.includes('ADMIN')
   );
 }
 

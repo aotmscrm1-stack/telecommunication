@@ -76,8 +76,9 @@ export default function Sidebar() {
   const [whatsappOpen, setWhatsappOpen] = useState(false);
   const [performanceOpen, setPerformanceOpen] = useState(false);
 
-  const isAdmin = user?.role === 'admin' || user?.role === 'manager' || isManager(user) || isExecutive(user);
   const isMarketingStaff = isDigitalMarketing(user) || String(user?.department || '').trim().toLowerCase() === 'marketing' || String(user?.designation || '').trim().toLowerCase().includes('marketing');
+  const isManagerStaff = (user?.role === 'manager' || isManager(user)) && !isMarketingStaff;
+  const isAdmin = (user?.role === 'admin' || user?.role === 'superadmin' || isExecutive(user)) && !isManagerStaff;
   const canSeeMetaLeads = isAdmin || canAccessMarketingLeads(user) || isCounsellor(user) || Boolean(metaLeadAssignment?.hasAccess);
 
   const goTo = (path) => {
@@ -278,6 +279,44 @@ export default function Sidebar() {
               <NavItem to={user?._id ? `/${user._id}/attendance-records` : "/attendance-records"} icon={Icons.attendanceRecords} label="Attendance" iconColor="#10b981" />
               <NavItem to={user?._id ? `/${user._id}/email` : "/email"} icon={Icons.email} label="Email CRM" iconColor="#ea4335" />
               <NavItem to={user?._id ? `/${user._id}/activity-schedule` : "/activity-schedule"} icon={Icons.activitySchedule} label="Activity Schedule" iconColor="#0284c7" />
+            </>
+          ) : isManagerStaff ? (
+            <>
+              <NavItem to="/todo" icon={Icons.tasks} label="TODO List" />
+
+              <SectionLabel text="Marketing" />
+              <ExpandGroup
+                icon={Icons.addLead} label="Leads"
+                isActiveGroup={isAddLeadsActive} open={addLeadsOpen} setOpen={setAddLeadsOpen}
+              >
+                <SubItem to="/leads/new"   icon={Icons.singleLead} label="Add Leads" />
+                <SubItem to="/leads"       icon={Icons.leads}      label="All Leads" />
+                <SubItem to="/campaigns"   icon={Icons.campaigns}  label="Campaigns" />
+              </ExpandGroup>
+
+              <ExpandGroup
+                icon={Icons.whatsapp} label="WhatsApp"
+                isActiveGroup={isWhatsAppActive} open={whatsappOpen} setOpen={setWhatsappOpen}
+              >
+                <SubItem to="/contacts"       icon={Icons.contactBook}   label="Contact" />
+                <SubItem to="/whatsapp-blast" icon={Icons.whatsappBlast} label="WhatsApp Blast" />
+                <SubItem to="/whatsapp"       icon={Icons.whatsapp}      label="WhatsApp" />
+              </ExpandGroup>
+
+              <NavItem to="/meta-leads" icon={Icons.metaLeads} label="Meta Leads" iconColor="#0284c7" />
+
+              <SectionLabel text="Finance" />
+              <NavItem to="/offer-letter"     icon={Icons.offerLetter} label="Offer letter" iconColor="#3b82f6" />
+              <NavItem to="/payslips"         icon={Icons.payslip}     label="Payslip"      iconColor="#6366f1" />
+              <NavItem to="/quotation"        icon={Icons.quotation}   label="Quotation"    iconColor="#f59e0b" />
+              <NavItem to="/invoice"          icon={Icons.invoice}     label="Invoice"      iconColor="#059669" />
+              <NavItem to="/fee-receipt"      icon={Icons.receipt}     label="Fee Receipt"  iconColor="#8b5cf6" />
+
+              <SectionLabel text="Management" />
+              <NavItem to="/daily-activity-schedule" icon={Icons.activitySchedule} label="Daily Activity Schedule" iconColor="#0284c7" />
+              <NavItem to={user?._id ? `/${user._id}/attendance-records` : "/attendance-records"} icon={Icons.attendanceRecords} label="Attendance Records" iconColor="#10b981" />
+              <NavItem to="/recordings"  icon={Icons.recordings}  label="Call Recordings" iconColor="#0284c7" />
+              <NavItem to={user?._id ? `/${user._id}/email` : "/email"} icon={Icons.email} label="Email CRM" iconColor="#ea4335" />
             </>
           ) : (
             <>

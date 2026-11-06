@@ -274,12 +274,12 @@ export function AppRoutes() {
         <Route path="feereceipt" element={<Navigate to="/fee-receipt" replace />} />
 
         {/* Management Module Routes */}
-        <Route path="performance" element={<PerformanceDashboard />} />
-        <Route path="admin/performance" element={<PerformanceDashboard />} />
-        <Route path=":userId/performance" element={<PerformanceDashboard />} />
+        <Route path="performance" element={<AdminOnlyRoute><PerformanceDashboard /></AdminOnlyRoute>} />
+        <Route path="admin/performance" element={<AdminOnlyRoute><PerformanceDashboard /></AdminOnlyRoute>} />
+        <Route path=":userId/performance" element={<AdminOnlyRoute><PerformanceDashboard /></AdminOnlyRoute>} />
         <Route path="admin/employee-tracking" element={<AdminOnlyRoute><LiveEmployeeTracking /></AdminOnlyRoute>} />
         <Route path="employee-tracking" element={<AdminOnlyRoute><LiveEmployeeTracking /></AdminOnlyRoute>} />
-        <Route path="admin/departments" element={<AdminRoute><Departments /></AdminRoute>} />
+        <Route path="admin/departments" element={<AdminOnlyRoute><Departments /></AdminOnlyRoute>} />
         <Route path="departments" element={<Navigate to="/admin/departments" replace />} />
         <Route path="admin/attendance-records" element={<AttendanceRecords />} />
         <Route path="attendance-records" element={<AttendanceRecords />} />
@@ -300,24 +300,24 @@ export function AppRoutes() {
         <Route path="recordings" element={<CallRecordingsRoute><CallRecordings /></CallRecordingsRoute>} />
         <Route path="call-recordings" element={<CallRecordingsRoute><CallRecordings /></CallRecordingsRoute>} />
         <Route path="instagram" element={<InstagramCRM />} />
-        <Route path="maps" element={<MapsDashboard />} />
+        <Route path="maps" element={<AdminOnlyRoute><MapsDashboard /></AdminOnlyRoute>} />
 
         {/* Developer Module Routes */}
-        <Route path="integrations" element={<AdminRoute><Integrations /></AdminRoute>} />
-        <Route path="integrations/setup/:type" element={<AdminRoute><IntegrationSetup /></AdminRoute>} />
-        <Route path="integrations/:id" element={<AdminRoute><IntegrationDetail /></AdminRoute>} />
-        <Route path="access-tokens" element={<AdminRoute><AccessTokens /></AdminRoute>} />
-        <Route path="webhooks" element={<AdminRoute><Webhooks /></AdminRoute>} />
-        <Route path="api-logs" element={<AdminRoute><ApiLogs /></AdminRoute>} />
-        <Route path="system-logs" element={<AdminRoute><SystemLogs /></AdminRoute>} />
+        <Route path="integrations" element={<AdminOnlyRoute><Integrations /></AdminOnlyRoute>} />
+        <Route path="integrations/setup/:type" element={<AdminOnlyRoute><IntegrationSetup /></AdminOnlyRoute>} />
+        <Route path="integrations/:id" element={<AdminOnlyRoute><IntegrationDetail /></AdminOnlyRoute>} />
+        <Route path="access-tokens" element={<AdminOnlyRoute><AccessTokens /></AdminOnlyRoute>} />
+        <Route path="webhooks" element={<AdminOnlyRoute><Webhooks /></AdminOnlyRoute>} />
+        <Route path="api-logs" element={<AdminOnlyRoute><ApiLogs /></AdminOnlyRoute>} />
+        <Route path="system-logs" element={<AdminOnlyRoute><SystemLogs /></AdminOnlyRoute>} />
 
         {/* User & System Settings */}
         <Route path="profile" element={<Profile />} />
         <Route path="my-preferences" element={<MyPreferences />} />
-        <Route path="fields" element={<AdminRoute><Fields /></AdminRoute>} />
-        <Route path="custom-actions" element={<AdminRoute><CustomActions /></AdminRoute>} />
-        <Route path="workspace-preferences" element={<AdminRoute><WorkspacePreferences /></AdminRoute>} />
-        <Route path="permission-templates" element={<AdminRoute><PermissionTemplates /></AdminRoute>} />
+        <Route path="fields" element={<AdminOnlyRoute><Fields /></AdminOnlyRoute>} />
+        <Route path="custom-actions" element={<AdminOnlyRoute><CustomActions /></AdminOnlyRoute>} />
+        <Route path="workspace-preferences" element={<AdminOnlyRoute><WorkspacePreferences /></AdminOnlyRoute>} />
+        <Route path="permission-templates" element={<AdminOnlyRoute><PermissionTemplates /></AdminOnlyRoute>} />
       </Route>
 
       {/* Standalone Error Routes */}

@@ -9,6 +9,7 @@ const router = express.Router();
 function isStrictAdmin(user) {
   if (!user) return false;
   const role = String(user.role || '').trim().toLowerCase();
+  if (role === 'manager') return false;
   if (role === 'admin' || role === 'superadmin') return true;
 
   const desig = String(user.designation || '').trim().toUpperCase();
@@ -21,8 +22,7 @@ function isStrictAdmin(user) {
     desig === 'CTO' ||
     desig === 'ADMIN' ||
     desig === 'SUPERADMIN' ||
-    dept === 'ADMIN' ||
-    dept === 'MANAGEMENT'
+    dept === 'ADMIN'
   );
 }
 

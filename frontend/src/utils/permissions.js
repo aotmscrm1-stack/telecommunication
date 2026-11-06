@@ -46,11 +46,13 @@ export const TRAINER_IDS = [
 
 export const isExecutive = (user) => {
   if (!user) return false;
+  const role = String(user?.role || '').trim().toLowerCase();
   const id = String(user?._id || user?.id || '');
+  if (role === 'manager' || MANAGER_IDS.includes(id)) return false;
   if (ADMIN_IDS.includes(id)) return true;
   const d = normalizeDesignation(user);
   const dept = String(user?.department || '').trim().toUpperCase();
-  return isManagingDirector(user) || isCTO(user) || d === 'CEO' || user?.role === 'admin' || dept === 'ADMIN' || dept === 'MANAGEMENT';
+  return isManagingDirector(user) || isCTO(user) || d === 'CEO' || role === 'admin' || dept === 'ADMIN';
 };
 
 export const isCEO = (user) => isExecutive(user);
@@ -58,6 +60,7 @@ export const isCEO = (user) => isExecutive(user);
 export const isManager = (user) => {
   if (!user) return false;
   const id = String(user?._id || user?.id || '');
+  if (ADMIN_IDS.includes(id) || user?.role === 'admin' || user?.role === 'superadmin') return false;
   if (MANAGER_IDS.includes(id)) return true;
   const d = normalizeDesignation(user);
   const dept = String(user?.department || '').trim().toUpperCase();
@@ -121,12 +124,12 @@ export const isTelecaller = (user) => {
 export const isHR = (user) => {
   if (!user) return false;
   const id = String(user?._id || user?.id || '');
-  if (MANAGER_IDS.includes(id)) return true;
+  const role = String(user?.role || '').trim().toLowerCase();
+  if (role === 'manager' || MANAGER_IDS.includes(id)) return false;
   const d = normalizeDesignation(user);
   const dept = String(user?.department || '').trim().toUpperCase();
-  const role = String(user?.role || '').trim().toLowerCase();
   const isHRStaff = d === 'HR' || d.includes('HR') || dept === 'HR';
-  const isManagement = role === 'manager' || role === 'admin' || isExecutive(user) || d.includes('MANAGER') || d.includes('HEAD') || d.includes('SPECIALIST');
+  const isManagement = role === 'admin' || isExecutive(user) || d.includes('MANAGER') || d.includes('HEAD') || d.includes('SPECIALIST');
   return isHRStaff && isManagement;
 };
 
@@ -155,7 +158,10 @@ export const isLimitedStaff = (user) => {
  */
 export const canAccessDigitalCalendar = (user) => {
   if (!user) return false;
-  return isDigitalMarketing(user) || isCEO(user) || isHR(user) || isManager(user) || user?.role === 'admin' || user?.role === 'manager';
+  const role = String(user?.role || '').trim().toLowerCase();
+  const id = String(user?._id || user?.id || '');
+  if (role === 'manager' || MANAGER_IDS.includes(id) || isManager(user)) return false;
+  return isDigitalMarketing(user) || isCEO(user) || isHR(user) || user?.role === 'admin' || user?.role === 'superadmin';
 };
 
 /**
@@ -238,6 +244,9 @@ export const canCompleteDigitalCalendar = (user) => {
  */
 export const canViewDashboard = (user) => {
   if (!user) return false;
+  const role = String(user?.role || '').trim().toLowerCase();
+  const id = String(user?._id || user?.id || '');
+  if (role === 'manager' || MANAGER_IDS.includes(id) || isManager(user)) return false;
   if (isTelecaller(user)) return false;
   return isCEO(user) || isHR(user);
 };
