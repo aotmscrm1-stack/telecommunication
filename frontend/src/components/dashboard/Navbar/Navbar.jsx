@@ -1104,13 +1104,39 @@ export default function Navbar() {
 
 
 
-                {/* Download Mobile APK */}
+                {/* Download Mobile APK (Prominent App APK Pill) */}
+                <motion.button
+                  whileHover={{ scale: 1.05, y: -1 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleDownloadApk}
+                  title="Download Latest Mobile Application APK (Android)"
+                  className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full font-bold text-xs transition-all shadow-xs cursor-pointer group"
+                  style={{
+                    background: 'linear-gradient(135deg, #eff6ff 0%, #fff7ed 100%)',
+                    border: '1.5px solid #fdba74',
+                    color: '#0f172a'
+                  }}
+                >
+                  <FaMobileScreen className="w-3.5 h-3.5 text-blue-600 group-hover:scale-110 transition-transform" />
+                  <span className="text-[11px] font-extrabold text-slate-800 tracking-tight">App APK</span>
+                  <span
+                    className="px-1.5 py-0.2 rounded-full text-[9px] font-black text-white uppercase tracking-wider"
+                    style={{
+                      background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+                      boxShadow: '0 0 6px rgba(249, 115, 22, 0.4)'
+                    }}
+                  >
+                    NEW
+                  </span>
+                </motion.button>
+
+                {/* Compact icon button for mobile/tablet screens */}
                 <motion.button
                   whileHover={{ scale: 1.08 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={handleDownloadApk}
                   title="Download Mobile APK (Android)"
-                  className="w-9 h-9 rounded-full flex items-center justify-center transition-all nav-glow-icon-btn group relative"
+                  className="md:hidden w-9 h-9 rounded-full flex items-center justify-center transition-all nav-glow-icon-btn group relative"
                   style={{ background: C.bgSoft, border: `1px solid ${C.border}` }}
                 >
                   <FaMobileScreen className="w-4 h-4 transition-colors group-hover:scale-110" style={{ color: C.blue }} />
@@ -1385,6 +1411,31 @@ export default function Navbar() {
             style={{ background: C.bgSolid, borderBottom: `2px solid ${C.orange}`, color: C.text }}
           >
             <div className="space-y-4">
+              {/* Mobile App Download Banner */}
+              <div
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  handleDownloadApk();
+                }}
+                className="p-3 rounded-2xl flex items-center justify-between cursor-pointer border shadow-xs"
+                style={{
+                  background: 'linear-gradient(135deg, #eff6ff 0%, #fff7ed 100%)',
+                  borderColor: '#fdba74'
+                }}
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                    <FaMobileScreen className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-slate-900">Download Mobile App APK</div>
+                    <div className="text-[10px] text-slate-500 font-medium">Latest Android Release (Updated)</div>
+                  </div>
+                </div>
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-orange-500 text-white shadow-xs">
+                  Download APK
+                </span>
+              </div>
               {topDropdownGroups.map(group => {
                 const GroupIcon = group.icon;
                 return (

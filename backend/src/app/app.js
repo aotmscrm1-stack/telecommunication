@@ -81,10 +81,17 @@ app.use('/api', masterRouter);
 
 // ── Static Files & Downloads ────────────────────────────────────────────────
 app.get('/download-apk', (req, res) => {
-  const apkPath = path.join(__dirname, '..', 'uploads', 'app-release.apk');
   const fs = require('fs');
-  if (fs.existsSync(apkPath)) {
-    return res.download(apkPath, 'Telecom-CRM.apk');
+  const candidates = [
+    path.join(__dirname, '..', 'uploads', 'app-release.apk'),
+    path.join(__dirname, '..', '..', 'Mobile_APP', 'AOTMS-CRM-Mobile-NEW.apk'),
+    path.join(__dirname, '..', '..', 'Mobile_APP', 'android', 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk'),
+    path.join(__dirname, '..', '..', 'AOTMS_CRM_v1.0.1.apk'),
+  ];
+  for (const apkPath of candidates) {
+    if (fs.existsSync(apkPath)) {
+      return res.download(apkPath, 'Telecom-CRM.apk');
+    }
   }
   return res.status(404).send('APK build not found on server.');
 });
