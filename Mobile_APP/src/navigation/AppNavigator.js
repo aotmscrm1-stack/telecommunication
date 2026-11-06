@@ -50,7 +50,7 @@ export default function AppNavigator() {
       } else if (type.includes('lead')) {
         setAuthScreen('all_leads');
       } else if (type.includes('task') || type.includes('followup')) {
-        setAuthScreen('daily_activity');
+        setAuthScreen('meta_calls');
       } else if (type.includes('attendance')) {
         setAuthScreen('attendance');
       } else if (type.includes('recording') || type.includes('call')) {

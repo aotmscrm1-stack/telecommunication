@@ -21,6 +21,40 @@ import { useAuth } from '../context/AuthContext';
 import { metaLeadsApi } from '../api/metaLeadsApi';
 import Header from '../components/Header';
 
+// ── Meta Leads Standard Status Classifications (Matching Web CRM) ───────────
+export const POSITIVE_STATUSES = [
+  "Agreed to Office visit's but no luck",
+  "Interested/Need time(After few months) waiting for parents approval",
+  "office visit's",
+  "Demo attended",
+  "Demo not attended-Call Back",
+  "time issues/Fee issues",
+  "Call back/We will Call",
+  "Not answering-call back/whats app text"
+];
+
+export const NEGATIVE_STATUSES = [
+  "Not interested/Time pass",
+  "WN-SO-ON",
+  "joined another institute/jobs"
+];
+
+export function isLeadPositive(lead) {
+  const st = String(lead?.status || '').toLowerCase().trim();
+  if (st === 'positive' || st === 'converted' || st === 'won' || st === 'interested' || st === 'enrolled' || st === 'demo scheduled' || st === 'demo done' || st === 'connected') {
+    return true;
+  }
+  return POSITIVE_STATUSES.some(p => p.toLowerCase().trim() === st);
+}
+
+export function isLeadNegative(lead) {
+  const st = String(lead?.status || '').toLowerCase().trim();
+  if (st === 'negative' || st === 'discarded' || st === 'lost' || st === 'blocked' || st === 'not interested' || st === 'not answered' || st === 'call not responding') {
+    return true;
+  }
+  return NEGATIVE_STATUSES.some(n => n.toLowerCase().trim() === st);
+}
+
 export default function MetaCallsScreen({ onNavigate }) {
   const { user } = useAuth();
 
@@ -94,15 +128,16 @@ export default function MetaCallsScreen({ onNavigate }) {
   // Live Calling Session Stats
   const [stats, setStats] = useState({
     total: 0,
+    positive: 0,
+    negative: 0,
     fresh: 0,
-    contacted: 0,
-    converted: 0,
   });
 
-  // Call Outcome & Notes Modal State
+  // Call Outcome & Notes Modal State (Positive Priority #1 First!)
   const [activeCallLead, setActiveCallLead] = useState(null);
   const [callModalVisible, setCallModalVisible] = useState(false);
-  const [callOutcomeStatus, setCallOutcomeStatus] = useState('Contacted');
+  const [outcomeCategory, setOutcomeCategory] = useState('Positive'); // 'Positive' (Priority #1) | 'Negative'
+  const [callOutcomeStatus, setCallOutcomeStatus] = useState(POSITIVE_STATUSES[0]);
   const [callNote, setCallNote] = useState('');
   const [followUpDate, setFollowUpDate] = useState('');
   const [savingOutcome, setSavingOutcome] = useState(false);
@@ -219,39 +254,49 @@ export default function MetaCallsScreen({ onNavigate }) {
         // Only pass department if verified admin chose a specific department
         if (isTrueAdmin && dept && dept !== 'All') params.department = dept;
         if (camp && camp !== 'All') params.campaign = camp;
-        if (status && status !== 'All') params.status = status;
+        if (status && status !== 'All' && status !== 'Positive' && status !== 'Negative') {
+          params.status = status;
+        }
 
         const res = await metaLeadsApi.getLeads(params);
         if (res && res.success) {
-          let list = res.leads || [];
-
-          // Server-side /api/meta-leads is authoritative for security & assignments.
-          // Apply client-side chip filters seamlessly if user selected a specific campaign or status:
+          let allVisibleList = res.leads || [];
           if (camp && camp !== 'All') {
-            list = list.filter((item) => item.campaign === camp);
-          }
-          if (status && status !== 'All') {
-            list = list.filter((item) => item.status === status);
+            allVisibleList = allVisibleList.filter((item) => item.campaign === camp);
           }
 
-          setLeads(list);
+          // Calculate metrics strictly on visible scoped leads before status chip filtering
+          const positive = allVisibleList.filter((l) => isLeadPositive(l)).length;
+          const negative = allVisibleList.filter((l) => isLeadNegative(l)).length;
+          const fresh = allVisibleList.filter((l) => (l.status || 'New').toLowerCase() === 'new' || l.status === 'Fresh').length;
+          setStats({
+            total: !isTrueAdmin ? allVisibleList.length : (res.total || allVisibleList.length),
+            positive,
+            negative,
+            fresh,
+          });
+
+          // Apply client-side chip filters for Positive, Negative, New, or specific status
+          let filteredList = allVisibleList;
+          if (status && status !== 'All') {
+            if (status === 'Positive') {
+              filteredList = allVisibleList.filter((item) => isLeadPositive(item));
+            } else if (status === 'Negative') {
+              filteredList = allVisibleList.filter((item) => isLeadNegative(item));
+            } else if (status === 'New' || status === 'Fresh') {
+              filteredList = allVisibleList.filter((item) => (item.status || 'New').toLowerCase() === 'new' || item.status === 'Fresh');
+            } else {
+              filteredList = allVisibleList.filter((item) => item.status === status);
+            }
+          }
+
+          setLeads(filteredList);
           setTotalPages(res.pages || 1);
-          setTotalCount(!isTrueAdmin ? list.length : (res.total || list.length));
+          setTotalCount(!isTrueAdmin ? filteredList.length : (res.total || filteredList.length));
           setPage(pageNum);
 
           if (isTrueAdmin && res.isAdmin !== undefined) setIsAdmin(!!res.isAdmin);
           if (!isTrueAdmin) setIsAdmin(false);
-
-          // Calculate calling session metrics strictly on the visible scoped leads
-          const fresh = list.filter((l) => (l.status || 'New') === 'New').length;
-          const contacted = list.filter((l) => l.status === 'Contacted').length;
-          const converted = list.filter((l) => l.status === 'Converted').length;
-          setStats({
-            total: !isTrueAdmin ? list.length : (res.total || list.length),
-            fresh,
-            contacted,
-            converted,
-          });
         }
       } catch (err) {
         console.warn('[MetaCalls] Fetch error:', err);
@@ -300,11 +345,18 @@ export default function MetaCallsScreen({ onNavigate }) {
       Alert.alert('Call Error', 'Could not open the native phone dialer.');
     });
 
-    // Auto-open Call Outcome Logger so telecaller can log notes during or immediately after call
+    // Auto-open Call Outcome Logger (Positive Priority #1 First!)
     setActiveCallLead(lead);
-    setCallOutcomeStatus(lead.status === 'New' ? 'Contacted' : (lead.status || 'Contacted'));
+    const isExistingNeg = isLeadNegative(lead);
+    const initialCategory = isExistingNeg ? 'Negative' : 'Positive'; // Priority #1 is Positive
+    setOutcomeCategory(initialCategory);
+    setCallOutcomeStatus(
+      lead.status && (initialCategory === 'Positive' ? POSITIVE_STATUSES.includes(lead.status) : NEGATIVE_STATUSES.includes(lead.status))
+        ? lead.status
+        : (initialCategory === 'Positive' ? POSITIVE_STATUSES[0] : NEGATIVE_STATUSES[0])
+    );
     setCallNote('');
-    setFollowUpDate('');
+    setFollowUpDate(lead.followUpDate ? new Date(lead.followUpDate).toISOString().slice(0, 10) : '');
     setCallModalVisible(true);
 
     // Track call increment in background
@@ -481,23 +533,19 @@ export default function MetaCallsScreen({ onNavigate }) {
     return myCamps;
   }, [isTrueAdmin, campaigns, allowedCampaigns]);
 
-  // Status Badge Colors
+  // Status Badge Colors (Aligned with Web CRM Positive vs Negative)
   const getStatusBadgeStyle = (status) => {
-    switch (String(status || 'New').toLowerCase()) {
-      case 'new':
-      case 'fresh':
-        return { bg: '#E0F2FE', text: '#0284C7', border: '#BAE6FD' };
-      case 'contacted':
-        return { bg: '#FEF3C7', text: '#D97706', border: '#FDE68A' };
-      case 'follow-up':
-        return { bg: '#F3E8FF', text: '#7E22CE', border: '#E9D5FF' };
-      case 'converted':
-        return { bg: '#DCFCE7', text: '#15803D', border: '#BBF7D0' };
-      case 'discarded':
-        return { bg: '#FFE4E6', text: '#E11D48', border: '#FECDD3' };
-      default:
-        return { bg: '#F1F5F9', text: '#475569', border: '#CBD5E1' };
+    if (isLeadPositive({ status })) {
+      return { bg: '#DCFCE7', text: '#15803D', border: '#BBF7D0' };
     }
+    if (isLeadNegative({ status })) {
+      return { bg: '#FFE4E6', text: '#E11D48', border: '#FECDD3' };
+    }
+    const s = String(status || 'New').toLowerCase();
+    if (s === 'new' || s === 'fresh') {
+      return { bg: '#E0F2FE', text: '#0284C7', border: '#BAE6FD' };
+    }
+    return { bg: '#F1F5F9', text: '#475569', border: '#CBD5E1' };
   };
 
   // Render Single Lead Card
@@ -609,7 +657,14 @@ export default function MetaCallsScreen({ onNavigate }) {
             style={styles.logButton}
             onPress={() => {
               setActiveCallLead(item);
-              setCallOutcomeStatus(item.status || 'Contacted');
+              const isExistingNeg = isLeadNegative(item);
+              const initialCategory = isExistingNeg ? 'Negative' : 'Positive'; // Priority #1 is Positive
+              setOutcomeCategory(initialCategory);
+              setCallOutcomeStatus(
+                item.status && (initialCategory === 'Positive' ? POSITIVE_STATUSES.includes(item.status) : NEGATIVE_STATUSES.includes(item.status))
+                  ? item.status
+                  : (initialCategory === 'Positive' ? POSITIVE_STATUSES[0] : NEGATIVE_STATUSES[0])
+              );
               setCallNote('');
               setFollowUpDate(item.followUpDate ? new Date(item.followUpDate).toISOString().slice(0, 10) : '');
               setCallModalVisible(true);
@@ -639,62 +694,33 @@ export default function MetaCallsScreen({ onNavigate }) {
 
   return (
     <View style={styles.container}>
-      {/* Top App Header */}
+      {/* Top App Header (Cloud & Refresh symbols removed as requested) */}
       <Header
         title="Meta Leads"
         subtitle={`${stats.total || totalCount} Assigned Leads`}
-        rightAction={
-          <View style={styles.headerRightActions}>
-            <TouchableOpacity
-              style={styles.iconActionBtn}
-              onPress={onRefresh}
-              disabled={refreshing}
-              activeOpacity={0.7}
-            >
-              {refreshing ? (
-                <ActivityIndicator size="small" color="#174EA6" />
-              ) : (
-                <Ionicons name="refresh-outline" size={20} color="#174EA6" />
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.iconActionBtn}
-              onPress={handleTriggerSync}
-              disabled={isSyncing}
-              activeOpacity={0.7}
-            >
-              {isSyncing ? (
-                <ActivityIndicator size="small" color="#174EA6" />
-              ) : (
-                <Ionicons name="cloud-download-outline" size={20} color="#174EA6" />
-              )}
-            </TouchableOpacity>
-          </View>
-        }
       />
 
-
-      {/* Realtime Calling Stats KPI Strip */}
+      {/* Realtime Calling Stats KPI Strip (Positive & Negative Aligned with Web CRM) */}
       <View style={styles.statsStrip}>
         <View style={styles.statItem}>
           <Text style={styles.statNumber}>{stats.total}</Text>
-          <Text style={styles.statLabel}>My Pool</Text>
+          <Text style={styles.statLabel}>Total</Text>
         </View>
         <View style={styles.statDivider} />
-        <View style={styles.statItem}>
+        <TouchableOpacity style={styles.statItem} onPress={() => setSelectedStatus('Positive')} activeOpacity={0.7}>
+          <Text style={[styles.statNumber, { color: '#059669' }]}>{stats.positive}</Text>
+          <Text style={[styles.statLabel, { color: '#059669', fontWeight: '700' }]}>Positive</Text>
+        </TouchableOpacity>
+        <View style={styles.statDivider} />
+        <TouchableOpacity style={styles.statItem} onPress={() => setSelectedStatus('Negative')} activeOpacity={0.7}>
+          <Text style={[styles.statNumber, { color: '#DC2626' }]}>{stats.negative}</Text>
+          <Text style={[styles.statLabel, { color: '#DC2626', fontWeight: '700' }]}>Negative</Text>
+        </TouchableOpacity>
+        <View style={styles.statDivider} />
+        <TouchableOpacity style={styles.statItem} onPress={() => setSelectedStatus('New')} activeOpacity={0.7}>
           <Text style={[styles.statNumber, { color: '#0284C7' }]}>{stats.fresh}</Text>
-          <Text style={styles.statLabel}>Fresh To Call</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Text style={[styles.statNumber, { color: '#D97706' }]}>{stats.contacted}</Text>
-          <Text style={styles.statLabel}>Contacted</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Text style={[styles.statNumber, { color: '#059669' }]}>{stats.converted}</Text>
-          <Text style={styles.statLabel}>Converted</Text>
-        </View>
+          <Text style={styles.statLabel}>Pending/New</Text>
+        </TouchableOpacity>
       </View>
 
       {/* SCOPE BANNER OR DEPARTMENT-WISE FILTER SELECTOR */}
@@ -797,19 +823,30 @@ export default function MetaCallsScreen({ onNavigate }) {
         </View>
       ) : null}
 
-      {/* Status Filter Tabs (New, Contacted, Converted, etc.) */}
+      {/* Status Filter Tabs (All, Positive, Negative, New) */}
       <View style={styles.statusTabsRow}>
-        {['All', 'New', 'Contacted', 'Follow-up', 'Converted'].map((st) => {
-          const isSelected = selectedStatus === st;
+        {[
+          { id: 'All', label: 'All' },
+          { id: 'Positive', label: 'Positive', color: '#059669' },
+          { id: 'Negative', label: 'Negative', color: '#DC2626' },
+          { id: 'New', label: 'New / Fresh', color: '#0284C7' },
+        ].map((st) => {
+          const isSelected = selectedStatus === st.id;
           return (
             <TouchableOpacity
-              key={st}
-              style={[styles.statusTabBtn, isSelected && styles.statusTabBtnActive]}
-              onPress={() => setSelectedStatus(st)}
+              key={st.id}
+              style={[
+                styles.statusTabBtn,
+                isSelected && styles.statusTabBtnActive,
+                isSelected && st.id === 'Positive' && { backgroundColor: '#059669', borderColor: '#059669' },
+                isSelected && st.id === 'Negative' && { backgroundColor: '#DC2626', borderColor: '#DC2626' },
+                isSelected && st.id === 'New' && { backgroundColor: '#0284C7', borderColor: '#0284C7' },
+              ]}
+              onPress={() => setSelectedStatus(st.id)}
               activeOpacity={0.7}
             >
               <Text style={[styles.statusTabBtnText, isSelected && styles.statusTabBtnTextActive]}>
-                {st}
+                {st.label}
               </Text>
             </TouchableOpacity>
           );
@@ -870,63 +907,157 @@ export default function MetaCallsScreen({ onNavigate }) {
         >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={styles.modalTitle}>Log Calling Outcome</Text>
-                <Text style={styles.modalLeadName}>
-                  {activeCallLead?.fullName || 'Selected Candidate'}
+                <Text style={styles.modalLeadName} numberOfLines={1}>
+                  {activeCallLead?.fullName || activeCallLead?.rawData?.full_name || activeCallLead?.name || 'Selected Candidate'}
                 </Text>
+                {activeCallLead ? (
+                  <Text style={styles.modalLeadPhone}>
+                    📞 {extractPhone(activeCallLead)} • {(activeCallLead.campaign || 'Campaign').replace(/_/g, ' ')}
+                  </Text>
+                ) : null}
               </View>
-              <TouchableOpacity onPress={() => setCallModalVisible(false)}>
+              <TouchableOpacity onPress={() => setCallModalVisible(false)} style={styles.modalCloseBtn}>
                 <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              {/* Outcome Selection Buttons */}
-              <Text style={styles.modalSectionLabel}>CALL DISPOSITION</Text>
-              <View style={styles.outcomeGrid}>
-                {['Contacted', 'Follow-up', 'Converted', 'Discarded'].map((opt) => {
-                  const isSel = callOutcomeStatus === opt;
+              {/* Category Selector: Positive (Priority 1) vs Negative */}
+              <Text style={styles.modalSectionLabel}>DISPOSITION CATEGORY</Text>
+              <View style={styles.categoryToggleRow}>
+                {/* 1. Positive (Priority First) */}
+                <TouchableOpacity
+                  style={[
+                    styles.categoryCard,
+                    outcomeCategory === 'Positive' && styles.categoryCardActivePositive,
+                  ]}
+                  onPress={() => {
+                    setOutcomeCategory('Positive');
+                    if (!POSITIVE_STATUSES.includes(callOutcomeStatus)) {
+                      setCallOutcomeStatus(POSITIVE_STATUSES[0]);
+                    }
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.categoryCardHeader}>
+                    <Ionicons
+                      name="thumbs-up"
+                      size={18}
+                      color={outcomeCategory === 'Positive' ? '#059669' : '#64748B'}
+                    />
+                    <View style={styles.priorityBadge}>
+                      <Text style={styles.priorityBadgeText}>Priority #1</Text>
+                    </View>
+                  </View>
+                  <Text
+                    style={[
+                      styles.categoryCardTitle,
+                      outcomeCategory === 'Positive' && styles.categoryCardTitleActivePositive,
+                    ]}
+                  >
+                    Positive
+                  </Text>
+                  <Text style={styles.categoryCardSubtitle}>
+                    Visits, Demos, Callbacks, Interested
+                  </Text>
+                </TouchableOpacity>
+
+                {/* 2. Negative */}
+                <TouchableOpacity
+                  style={[
+                    styles.categoryCard,
+                    outcomeCategory === 'Negative' && styles.categoryCardActiveNegative,
+                  ]}
+                  onPress={() => {
+                    setOutcomeCategory('Negative');
+                    if (!NEGATIVE_STATUSES.includes(callOutcomeStatus)) {
+                      setCallOutcomeStatus(NEGATIVE_STATUSES[0]);
+                    }
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.categoryCardHeader}>
+                    <Ionicons
+                      name="thumbs-down"
+                      size={18}
+                      color={outcomeCategory === 'Negative' ? '#DC2626' : '#64748B'}
+                    />
+                  </View>
+                  <Text
+                    style={[
+                      styles.categoryCardTitle,
+                      outcomeCategory === 'Negative' && styles.categoryCardTitleActiveNegative,
+                    ]}
+                  >
+                    Negative
+                  </Text>
+                  <Text style={styles.categoryCardSubtitle}>
+                    Not Interested, Time pass, Jobs
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Sub-disposition Status Selection Chips */}
+              <Text style={styles.modalSectionLabel}>
+                SELECT {outcomeCategory.toUpperCase()} STATUS
+              </Text>
+              <View style={styles.subStatusContainer}>
+                {(outcomeCategory === 'Positive' ? POSITIVE_STATUSES : NEGATIVE_STATUSES).map((st) => {
+                  const isSel = callOutcomeStatus === st;
+                  const isPos = outcomeCategory === 'Positive';
                   return (
                     <TouchableOpacity
-                      key={opt}
-                      style={[styles.outcomeOption, isSel && styles.outcomeOptionActive]}
-                      onPress={() => setCallOutcomeStatus(opt)}
+                      key={st}
+                      style={[
+                        styles.subStatusChip,
+                        isSel && (isPos ? styles.subStatusChipActivePos : styles.subStatusChipActiveNeg),
+                      ]}
+                      onPress={() => setCallOutcomeStatus(st)}
+                      activeOpacity={0.7}
                     >
                       <Ionicons
                         name={
-                          opt === 'Converted'
-                            ? 'trophy'
-                            : opt === 'Contacted'
+                          isSel
                             ? 'checkmark-circle'
-                            : opt === 'Follow-up'
-                            ? 'alarm'
-                            : 'close-circle'
+                            : isPos
+                            ? 'ellipse-outline'
+                            : 'close-circle-outline'
                         }
                         size={16}
-                        color={isSel ? '#FFFFFF' : colors.textSecondary}
+                        color={
+                          isSel
+                            ? isPos
+                              ? '#059669'
+                              : '#DC2626'
+                            : '#64748B'
+                        }
                       />
-                      <Text style={[styles.outcomeOptionText, isSel && styles.outcomeOptionTextActive]}>
-                        {opt}
+                      <Text
+                        style={[
+                          styles.subStatusChipText,
+                          isSel && (isPos ? styles.subStatusChipTextActivePos : styles.subStatusChipTextActiveNeg),
+                        ]}
+                      >
+                        {st}
                       </Text>
                     </TouchableOpacity>
                   );
                 })}
               </View>
 
-              {/* Next Follow Up Date (if follow up) */}
-              {callOutcomeStatus === 'Follow-up' ? (
-                <View style={styles.followUpInputContainer}>
-                  <Text style={styles.modalSectionLabel}>FOLLOW-UP DATE (YYYY-MM-DD)</Text>
-                  <TextInput
-                    style={styles.textInputBox}
-                    placeholder="e.g. 2026-10-25"
-                    placeholderTextColor={colors.textMuted}
-                    value={followUpDate}
-                    onChangeText={setFollowUpDate}
-                  />
-                </View>
-              ) : null}
+              {/* Next Follow Up Date */}
+              <View style={styles.followUpInputContainer}>
+                <Text style={styles.modalSectionLabel}>FOLLOW-UP DATE (OPTIONAL, YYYY-MM-DD)</Text>
+                <TextInput
+                  style={styles.textInputBox}
+                  placeholder="e.g. 2026-11-10"
+                  placeholderTextColor={colors.textMuted}
+                  value={followUpDate}
+                  onChangeText={setFollowUpDate}
+                />
+              </View>
 
               {/* Call Notes Input */}
               <Text style={styles.modalSectionLabel}>CALL NOTES / CANDIDATE REMARKS</Text>
@@ -951,7 +1082,10 @@ export default function MetaCallsScreen({ onNavigate }) {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.modalSaveBtn}
+                  style={[
+                    styles.modalSaveBtn,
+                    outcomeCategory === 'Positive' ? styles.modalSaveBtnPos : styles.modalSaveBtnNeg,
+                  ]}
                   onPress={handleSaveCallOutcome}
                   disabled={savingOutcome}
                 >
@@ -959,7 +1093,7 @@ export default function MetaCallsScreen({ onNavigate }) {
                     <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
                     <>
-                      <Ionicons name="save-outline" size={16} color="#FFFFFF" />
+                      <Ionicons name="checkmark-done" size={16} color="#FFFFFF" />
                       <Text style={styles.modalSaveText}>Save Outcome</Text>
                     </>
                   )}
@@ -1611,6 +1745,112 @@ const styles = StyleSheet.create({
     marginTop: 8,
     letterSpacing: 0.5,
   },
+  modalLeadPhone: {
+    fontSize: 11,
+    color: '#0284C7',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  modalCloseBtn: {
+    padding: 4,
+  },
+  /* Category Toggle: Positive (Priority 1) vs Negative */
+  categoryToggleRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 14,
+  },
+  categoryCard: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+  },
+  categoryCardActivePositive: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#059669',
+  },
+  categoryCardActiveNegative: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#DC2626',
+  },
+  categoryCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  priorityBadge: {
+    backgroundColor: '#059669',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  priorityBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  categoryCardTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1E293B',
+    marginBottom: 2,
+  },
+  categoryCardTitleActivePositive: {
+    color: '#065F46',
+  },
+  categoryCardTitleActiveNegative: {
+    color: '#991B1B',
+  },
+  categoryCardSubtitle: {
+    fontSize: 10,
+    color: '#64748B',
+    lineHeight: 14,
+  },
+
+  /* Sub-status Chips Container */
+  subStatusContainer: {
+    flexDirection: 'column',
+    gap: 6,
+    marginBottom: 14,
+  },
+  subStatusChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  subStatusChipActivePos: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#059669',
+  },
+  subStatusChipActiveNeg: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#DC2626',
+  },
+  subStatusChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#334155',
+    flex: 1,
+  },
+  subStatusChipTextActivePos: {
+    color: '#065F46',
+    fontWeight: '700',
+  },
+  subStatusChipTextActiveNeg: {
+    color: '#991B1B',
+    fontWeight: '700',
+  },
   outcomeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1687,6 +1927,12 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: colors.primary,
     gap: 6,
+  },
+  modalSaveBtnPos: {
+    backgroundColor: '#059669',
+  },
+  modalSaveBtnNeg: {
+    backgroundColor: '#DC2626',
   },
   modalSaveText: {
     fontSize: 13,

@@ -18,11 +18,10 @@ export default function BottomNav({ currentScreen, onNavigate }) {
   const insets = useSafeAreaInsets();
 
   const tabs = [
-    { id: 'daily_activity', label: 'Activity', icon: 'clipboard-outline', activeIcon: 'clipboard' },
+    { id: 'meta_calls', label: 'Meta Leads', icon: 'megaphone-outline', activeIcon: 'megaphone' },
     { id: 'all_leads', label: 'Leads', icon: 'people-outline', activeIcon: 'people' },
     { id: 'recordings', label: 'Records', icon: 'mic-outline', activeIcon: 'mic' },
     { id: 'attendance', label: 'Attendance', icon: 'time-outline', activeIcon: 'time' },
-    { id: 'meta_calls', label: 'Meta Leads', icon: 'megaphone-outline', activeIcon: 'megaphone' },
   ];
 
   const bottomPadding = Math.max(insets.bottom, Platform.OS === 'ios' ? 16 : 8);
@@ -35,8 +34,7 @@ export default function BottomNav({ currentScreen, onNavigate }) {
             currentScreen === tab.id ||
             (tab.id === 'all_leads' && currentScreen === 'leads') ||
             (tab.id === 'meta_calls' && (currentScreen === 'calling' || currentScreen === 'meta_leads')) ||
-            (tab.id === 'recordings' && currentScreen === 'records') ||
-            (tab.id === 'daily_activity' && currentScreen === 'activity');
+            (tab.id === 'recordings' && currentScreen === 'records');
 
           return (
             <TouchableOpacity
