@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate, useLocation, useParams } from 'react-rout
 import { followupsAPI, todosAPI, leadsAPI, usersAPI, departmentsAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import { formatISTDateTime, formatISTDate } from '../../../utils/dateFormat';
-import { isExecutive, isHR, isTrainer, isDigitalMarketing, isLimitedStaff, isDeveloper, canAccessDigitalCalendar, getTaskAssigneeOptions, getTaskAssignorOptions, filterTeamDropdownUsers, canEditTask, canDeleteTask, canEditOrDeleteTask, canMarkCompleteTask, canViewCallFollowups } from '../../../utils/permissions';
+import { isCEO, isExecutive, isHR, isTrainer, isDigitalMarketing, isLimitedStaff, isDeveloper, canAccessDigitalCalendar, getTaskAssigneeOptions, getTaskAssignorOptions, filterTeamDropdownUsers, canEditTask, canDeleteTask, canEditOrDeleteTask, canMarkCompleteTask, canViewCallFollowups } from '../../../utils/permissions';
 import TodoList from './TodoList';
 
 // Theme Palette Constants

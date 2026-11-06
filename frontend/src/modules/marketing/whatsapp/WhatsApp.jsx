@@ -23,6 +23,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
+import { getWebSocketUrl } from '../../../services/api';
 import { cn } from '@/lib/utils';
 
 // Axios instance with auth token
@@ -561,20 +562,7 @@ function InboxTab({ onSendTemplate }) {
 
   // Real-time WebSockets
   useEffect(() => {
-    const wsProtocol =
-      import.meta.env.VITE_API_URL?.startsWith('https') || window.location.protocol === 'https:'
-        ? 'wss:'
-        : 'ws:';
-    let wsHost = window.location.host;
-    if (import.meta.env.VITE_API_URL) {
-      try {
-        const u = new URL(import.meta.env.VITE_API_URL);
-        wsHost = u.host;
-      } catch (e) {}
-    } else if (window.location.hostname.includes('academyoftechmasters.com')) {
-      wsHost = 'api.academyoftechmasters.com';
-    }
-    const wsUrl = `${wsProtocol}//${wsHost}/ws`;
+    const wsUrl = getWebSocketUrl();
 
     let socket;
     try {

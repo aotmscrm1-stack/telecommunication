@@ -1,5 +1,6 @@
 import React from 'react';
 import { toast } from 'sonner';
+import { getWebSocketUrl } from './api';
 
 const STORAGE_KEY = 'aotms_note_reminders_pending';
 const RESOLVED_LEADS_KEY = 'aotms_resolved_note_leads';
@@ -285,16 +286,7 @@ class LeadNoteReminderService {
         return;
       }
 
-      let wsUrl = '';
-      if (import.meta.env.VITE_API_URL) {
-        wsUrl = import.meta.env.VITE_API_URL.replace(/^http/, 'ws').replace(/\/api\/?$/, '') + '/ws';
-      } else if (typeof window !== 'undefined' && window.location.hostname.includes('academyoftechmasters.com')) {
-        wsUrl = 'wss://api.academyoftechmasters.com/ws';
-      } else if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
-        wsUrl = `wss://${window.location.host}/ws`;
-      } else {
-        wsUrl = `ws://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:5000/ws`;
-      }
+      const wsUrl = getWebSocketUrl();
 
       const ws = new WebSocket(wsUrl);
       this.ws = ws;

@@ -1,6 +1,30 @@
 import axios from 'axios';
 import { emitCrmSync, CRM_EVENTS } from './crmSyncBus';
 
+export function getWebSocketUrl() {
+  if (typeof window !== 'undefined') {
+    if (window.location.hostname.includes('academyoftechmasters.com')) {
+      return 'wss://api.academyoftechmasters.com/ws';
+    }
+  }
+  const rawApi = import.meta.env.VITE_API_URL;
+  if (rawApi && (rawApi.startsWith('http://') || rawApi.startsWith('https://'))) {
+    try {
+      const u = new URL(rawApi);
+      const proto = u.protocol === 'https:' ? 'wss:' : 'ws:';
+      return `${proto}//${u.host}/ws`;
+    } catch (_) {}
+  }
+  if (typeof window !== 'undefined') {
+    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    if (window.location.port === '3000' || window.location.port === '5173') {
+      return `ws://${window.location.hostname}:5000/ws`;
+    }
+    return `${proto}//${window.location.host}/ws`;
+  }
+  return 'ws://localhost:5000/ws';
+}
+
 let baseURL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000/api' : '/api');
 if (baseURL.startsWith('http') && !baseURL.endsWith('/api') && !baseURL.endsWith('/api/')) {
   baseURL = baseURL.replace(/\/$/, '') + '/api';

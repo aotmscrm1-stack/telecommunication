@@ -5,7 +5,7 @@ import {
   AreaChart, Area, BarChart, Bar, LineChart, Line, Cell,
   Tooltip, ResponsiveContainer, XAxis, YAxis, CartesianGrid,
 } from 'recharts';
-import { leadsAPI, metaLeadsAPI, followupsAPI, reportsAPI, usersAPI, attendanceAPI, trackingAPI } from '../../services/api';
+import { leadsAPI, metaLeadsAPI, followupsAPI, reportsAPI, usersAPI, attendanceAPI, trackingAPI, getWebSocketUrl } from '../../services/api';
 import { onCrmSync, CRM_EVENTS } from '../../services/crmSyncBus';
 import { useAuth } from '../../context/AuthContext';
 import geoTracker from '../../services/geoTracker';
@@ -1030,17 +1030,7 @@ function LiveLeadPanel() {
     });
 
     // 2. Real-time WebSocket connection to backend (/ws) for instant lead webhooks
-    const wsProtocol = (import.meta.env.VITE_API_URL?.startsWith('https') || window.location.protocol === 'https:') ? 'wss:' : 'ws:';
-    let wsHost = window.location.host;
-    if (import.meta.env.VITE_API_URL) {
-      try {
-        const u = new URL(import.meta.env.VITE_API_URL);
-        wsHost = u.host;
-      } catch (e) {}
-    } else if (window.location.hostname.includes('academyoftechmasters.com')) {
-      wsHost = 'api.academyoftechmasters.com';
-    }
-    const wsUrl = `${wsProtocol}//${wsHost}/ws`;
+    const wsUrl = getWebSocketUrl();
 
     let socket;
     try {

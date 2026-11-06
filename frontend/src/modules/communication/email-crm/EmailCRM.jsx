@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../../context/AuthContext';
+import { getWebSocketUrl } from '../../../services/api';
 import { canDelete, isManagingDirector, isExecutive, canAccessEmailBlast } from '../../../utils/permissions';
 import SplitText from '../../../components/ui/SplitText';
 import ShinyText from '../../../components/ui/ShinyText';
@@ -571,17 +572,7 @@ ${user?.designation || 'Staff'}`
 
   // Real-time WebSocket connection for instant incoming email replies & sync updates
   useEffect(() => {
-    const wsProtocol = (import.meta.env.VITE_API_URL?.startsWith('https') || window.location.protocol === 'https:') ? 'wss:' : 'ws:';
-    let wsHost = window.location.host;
-    if (import.meta.env.VITE_API_URL) {
-      try {
-        const u = new URL(import.meta.env.VITE_API_URL);
-        wsHost = u.host;
-      } catch (e) {}
-    } else if (window.location.hostname.includes('academyoftechmasters.com')) {
-      wsHost = 'api.academyoftechmasters.com';
-    }
-    const wsUrl = `${wsProtocol}//${wsHost}/ws`;
+    const wsUrl = getWebSocketUrl();
     
     let socket;
     try {
