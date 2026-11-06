@@ -19,6 +19,7 @@ export default function BottomNav({ currentScreen, onNavigate }) {
 
   const tabs = [
     { id: 'meta_calls', label: 'Meta Leads', icon: 'megaphone-outline', activeIcon: 'megaphone' },
+    { id: 'todos', label: 'Todo List', icon: 'checkbox-outline', activeIcon: 'checkbox' },
     { id: 'all_leads', label: 'Leads', icon: 'people-outline', activeIcon: 'people' },
     { id: 'recordings', label: 'Records', icon: 'mic-outline', activeIcon: 'mic' },
     { id: 'attendance', label: 'Attendance', icon: 'time-outline', activeIcon: 'time' },
@@ -34,6 +35,7 @@ export default function BottomNav({ currentScreen, onNavigate }) {
             currentScreen === tab.id ||
             (tab.id === 'all_leads' && currentScreen === 'leads') ||
             (tab.id === 'meta_calls' && (currentScreen === 'calling' || currentScreen === 'meta_leads')) ||
+            (tab.id === 'todos' && (currentScreen === 'todo_list' || currentScreen === 'tasks')) ||
             (tab.id === 'recordings' && currentScreen === 'records');
 
           return (

@@ -587,7 +587,7 @@ export default function MetaCallsScreen({ onNavigate }) {
             <View style={[styles.statusDot, { backgroundColor: badge.text }]} />
             <AutoScrollText
               text={item.status || 'New'}
-              maxWidth={140}
+              maxWidth={112}
               style={[styles.statusText, { color: badge.text }]}
             />
           </View>
@@ -913,24 +913,45 @@ export default function MetaCallsScreen({ onNavigate }) {
         >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.modalTitle}>Log Calling Outcome</Text>
-                <Text style={styles.modalLeadName} numberOfLines={1}>
-                  {activeCallLead?.fullName || activeCallLead?.rawData?.full_name || activeCallLead?.name || 'Selected Candidate'}
+            <View style={{ flex: 1, paddingRight: 6 }}>
+              <Text style={styles.modalTitle}>Log Calling Outcome</Text>
+              <Text style={styles.modalLeadName} numberOfLines={1}>
+                {activeCallLead?.fullName || activeCallLead?.rawData?.full_name || activeCallLead?.name || 'Selected Candidate'}
+              </Text>
+              {activeCallLead ? (
+                <Text style={styles.modalLeadPhone}>
+                  📞 {extractPhone(activeCallLead)} • {(activeCallLead.campaign || 'Campaign').replace(/_/g, ' ')}
                 </Text>
-                {activeCallLead ? (
-                  <Text style={styles.modalLeadPhone}>
-                    📞 {extractPhone(activeCallLead)} • {(activeCallLead.campaign || 'Campaign').replace(/_/g, ' ')}
-                  </Text>
-                ) : null}
-              </View>
-              <TouchableOpacity onPress={() => setCallModalVisible(false)} style={styles.modalCloseBtn}>
-                <Ionicons name="close" size={24} color={colors.textSecondary} />
-              </TouchableOpacity>
+              ) : null}
+            </View>
+            {/* Top Corner AutoScroll Status Badge for Positive / Negative */}
+            <View
+              style={[
+                styles.modalCornerBadge,
+                outcomeCategory === 'Positive' ? styles.cornerBadgePos : styles.cornerBadgeNeg,
+              ]}
+            >
+              <Ionicons
+                name={outcomeCategory === 'Positive' ? 'checkmark-circle' : 'close-circle'}
+                size={13}
+                color={outcomeCategory === 'Positive' ? '#059669' : '#DC2626'}
+              />
+              <AutoScrollText
+                text={callOutcomeStatus}
+                maxWidth={120}
+                style={[
+                  styles.cornerStatusText,
+                  { color: outcomeCategory === 'Positive' ? '#065F46' : '#991B1B' },
+                ]}
+              />
+            </View>
+            <TouchableOpacity onPress={() => setCallModalVisible(false)} style={styles.modalCloseBtn}>
+              <Ionicons name="close" size={24} color={colors.textSecondary} />
+            </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              {/* Selected Status Header Badge with AutoScroll */}
+              {/* Selected Status Confirmation Banner with AutoScroll */}
               <View
                 style={[
                   styles.selectedStatusBanner,
@@ -948,16 +969,17 @@ export default function MetaCallsScreen({ onNavigate }) {
                     { color: outcomeCategory === 'Positive' ? '#065F46' : '#991B1B' },
                   ]}
                 >
-                  Status:
+                  {outcomeCategory.toUpperCase()}:
                 </Text>
-                <AutoScrollText
-                  text={callOutcomeStatus}
-                  maxWidth={230}
-                  style={[
-                    styles.selectedStatusBannerText,
-                    { color: outcomeCategory === 'Positive' ? '#065F46' : '#991B1B' },
-                  ]}
-                />
+                <View style={{ flex: 1 }}>
+                  <AutoScrollText
+                    text={callOutcomeStatus}
+                    style={[
+                      styles.selectedStatusBannerText,
+                      { color: outcomeCategory === 'Positive' ? '#065F46' : '#991B1B' },
+                    ]}
+                  />
+                </View>
               </View>
 
               {/* Category Selector: Positive (Priority 1) vs Negative */}
@@ -1080,23 +1102,24 @@ export default function MetaCallsScreen({ onNavigate }) {
                               ? 'ellipse-outline'
                               : 'close-circle-outline'
                           }
-                          size={16}
+                          size={18}
                           color={
                             isSel
                               ? isPos
                                 ? '#059669'
                                 : '#DC2626'
-                              : '#64748B'
+                              : '#94A3B8'
                           }
                         />
-                        <AutoScrollText
-                          text={st}
-                          maxWidth={270}
+                        <Text
                           style={[
                             styles.subStatusChipText,
                             isSel && (isPos ? styles.subStatusChipTextActivePos : styles.subStatusChipTextActiveNeg),
                           ]}
-                        />
+                          numberOfLines={2}
+                        >
+                          {st}
+                        </Text>
                       </TouchableOpacity>
                     );
                   })}
@@ -1820,6 +1843,29 @@ const styles = StyleSheet.create({
   },
   modalCloseBtn: {
     padding: 4,
+  },
+  modalCornerBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    maxWidth: 145,
+    marginRight: 6,
+  },
+  cornerBadgePos: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#A7F3D0',
+  },
+  cornerBadgeNeg: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECDD3',
+  },
+  cornerStatusText: {
+    fontSize: 10.5,
+    fontWeight: '700',
   },
   /* Selected Status Preview Banner with AutoScroll */
   selectedStatusBanner: {

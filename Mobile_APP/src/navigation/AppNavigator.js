@@ -13,6 +13,7 @@ import AddLeadScreen from '../screens/AddLeadScreen';
 import CallRecordingsScreen from '../screens/CallRecordingsScreen';
 import AttendanceScreen from '../screens/AttendanceScreen';
 import MetaCallsScreen from '../screens/MetaCallsScreen';
+import TodoListScreen from '../screens/TodoListScreen';
 import CampaignsScreen from '../screens/CampaignsScreen';
 import ContactsScreen from '../screens/ContactsScreen';
 import WhatsappBlastScreen from '../screens/WhatsappBlastScreen';
@@ -49,8 +50,8 @@ export default function AppNavigator() {
         setAuthScreen('meta_calls');
       } else if (type.includes('lead')) {
         setAuthScreen('all_leads');
-      } else if (type.includes('task') || type.includes('followup')) {
-        setAuthScreen('meta_calls');
+      } else if (type.includes('task') || type.includes('todo') || type.includes('followup')) {
+        setAuthScreen('todos');
       } else if (type.includes('attendance')) {
         setAuthScreen('attendance');
       } else if (type.includes('recording') || type.includes('call')) {
@@ -116,6 +117,10 @@ export default function AppNavigator() {
       case 'calling':
       case 'meta_leads':
         return <MetaCallsScreen onNavigate={setAuthScreen} />;
+      case 'todos':
+      case 'todo_list':
+      case 'tasks':
+        return <TodoListScreen onNavigate={setAuthScreen} />;
       case 'campaigns':
         return <CampaignsScreen onNavigate={setAuthScreen} />;
       case 'contacts':

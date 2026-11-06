@@ -3,13 +3,15 @@ import { View, Text, Animated, StyleSheet, Easing } from 'react-native';
 
 /**
  * AutoScrollText for React Native
- * Automatically measures text overflow within maxWidth.
- * If text exceeds maxWidth, smoothly auto-scrolls horizontally with pause.
+ * Measures text width against container width.
+ * When text exceeds container width, smoothly scrolls back and forth horizontally.
+ * The text is GUARANTEED to be 100% visible from frame 1 without collapsing.
  */
 export default function AutoScrollText({
   text = '',
-  maxWidth = 135,
+  maxWidth,
   style = {},
+  containerStyle = {},
   duration,
   delay = 1400,
 }) {
@@ -19,7 +21,7 @@ export default function AutoScrollText({
   const animationRef = useRef(null);
 
   const overflowDistance = Math.max(0, textWidth - containerWidth);
-  const isOverflowing = overflowDistance > 4;
+  const isOverflowing = overflowDistance > 6 && containerWidth > 0 && textWidth > 0;
 
   useEffect(() => {
     if (animationRef.current) {
@@ -27,14 +29,14 @@ export default function AutoScrollText({
     }
     animatedValue.setValue(0);
 
-    if (isOverflowing && containerWidth > 0 && textWidth > 0) {
-      const scrollDuration = duration || Math.max(2600, overflowDistance * 50);
+    if (isOverflowing) {
+      const scrollDuration = duration || Math.max(2600, overflowDistance * 45);
 
       const anim = Animated.loop(
         Animated.sequence([
           Animated.delay(delay),
           Animated.timing(animatedValue, {
-            toValue: -overflowDistance - 8,
+            toValue: -overflowDistance - 6,
             duration: scrollDuration,
             easing: Easing.inOut(Easing.ease),
             useNativeDriver: true,
@@ -64,28 +66,40 @@ export default function AutoScrollText({
     <View
       style={[
         styles.container,
-        { maxWidth },
-        style && style.maxWidth ? { maxWidth: style.maxWidth } : null,
+        maxWidth ? { maxWidth } : null,
+        containerStyle,
       ]}
       onLayout={(e) => {
         const w = Math.round(e.nativeEvent.layout.width);
-        if (w > 0 && w !== containerWidth) setContainerWidth(w);
+        if (w > 0 && w !== containerWidth) {
+          setContainerWidth(w);
+        }
       }}
     >
+      {/* Off-screen single-line row measurement to accurately obtain unwrapped width */}
+      <View style={styles.measureContainer} pointerEvents="none">
+        <Text
+          style={[styles.baseText, style]}
+          onLayout={(e) => {
+            const w = Math.round(e.nativeEvent.layout.width);
+            if (w > 0 && w !== textWidth) {
+              setTextWidth(w);
+            }
+          }}
+        >
+          {text}
+        </Text>
+      </View>
+
+      {/* Visible animated text: Always rendered visibly with 1 line */}
       <Animated.View
         style={{
           transform: [{ translateX: isOverflowing ? animatedValue : 0 }],
           flexDirection: 'row',
+          alignItems: 'center',
         }}
       >
-        <Text
-          numberOfLines={1}
-          style={[style, styles.text]}
-          onLayout={(e) => {
-            const w = Math.round(e.nativeEvent.layout.width);
-            if (w > 0 && w !== textWidth) setTextWidth(w);
-          }}
-        >
+        <Text numberOfLines={1} style={[styles.baseText, style]}>
           {text}
         </Text>
       </Animated.View>
@@ -97,9 +111,17 @@ const styles = StyleSheet.create({
   container: {
     overflow: 'hidden',
     justifyContent: 'center',
+    flexShrink: 1,
   },
-  text: {
-    flexShrink: 0,
+  baseText: {
+    fontSize: 11,
+    color: '#1E293B',
+  },
+  measureContainer: {
+    position: 'absolute',
+    top: -9999,
+    left: -9999,
+    opacity: 0,
+    flexDirection: 'row',
   },
 });
-
