@@ -163,8 +163,12 @@ export const canAccessDigitalCalendar = (user) => {
  * Marketing Executives / Digital Marketing, Telecallers, Counsellors, CEO, HR, Admin, and Managers have access to their assigned campaigns/leads.
  * Developers and Trainers are strictly excluded.
  */
-export const canAccessMarketingLeads = (user) => {
+export const canAccessMarketingLeads = (user, metaLeadAssignment) => {
   if (!user) return false;
+  // If user is designated as Department Head or has campaigns assigned by Admin, grant access
+  if (user?.isHead || metaLeadAssignment?.hasAccess || (metaLeadAssignment?.assignedCount > 0)) {
+    return true;
+  }
   if (isCounsellor(user)) return true;
   if (isDeveloper(user) || isTrainer(user)) return false;
   return true;
@@ -492,11 +496,20 @@ export const filterTeamDropdownUsers = (users = [], currentUser = null) => {
     return nonMarketingUsers;
   }
   const myDept = String(currentUser.department || '').toLowerCase().trim();
-  if (!myDept) return nonMarketingUsers;
+  const myDesig = String(currentUser.designation || '').toLowerCase().trim();
+  if (!myDept && !myDesig) return nonMarketingUsers;
   return nonMarketingUsers.filter(u => {
     const uDept = String(u.department || '').toLowerCase().trim();
     const uDesig = String(u.designation || '').toLowerCase().trim();
-    return uDept === myDept || uDesig.includes(myDept) || isSameUser(u, currentUser);
+    const matchDept = myDept && (uDept === myDept || uDesig.includes(myDept));
+    const matchDesig = myDesig && (
+      uDesig === myDesig || 
+      uDesig.includes(myDesig) || 
+      (myDesig.includes('developer') && (uDesig.includes('developer') || uDept.includes('dev'))) || 
+      (myDesig.includes('trainer') && (uDesig.includes('trainer') || uDept.includes('train'))) ||
+      (myDept.includes('dev') && (uDept.includes('dev') || uDesig.includes('developer')))
+    );
+    return matchDept || matchDesig || isSameUser(u, currentUser);
   });
 };
 
@@ -519,7 +532,7 @@ export const getTeamDropdownUsersWithFallback = (users = []) => {
  */
 export const canEditTask = (task, currentUser) => {
   if (!currentUser) return false;
-  if (isExecutive(currentUser) || currentUser?.role === 'admin' || currentUser?.role === 'superadmin') {
+  if (isExecutive(currentUser) || currentUser?.role === 'admin' || currentUser?.role === 'superadmin' || currentUser?.isHead) {
     return true;
   }
   if (!task) return false;
@@ -543,7 +556,7 @@ export const canEditTask = (task, currentUser) => {
  */
 export const canDeleteTask = (task, currentUser) => {
   if (!currentUser) return false;
-  return isExecutive(currentUser) || currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
+  return isExecutive(currentUser) || currentUser?.role === 'admin' || currentUser?.role === 'superadmin' || currentUser?.isHead;
 };
 
 /**
@@ -560,7 +573,7 @@ export const canEditOrDeleteTask = (task, currentUser) => {
  */
 export const canMarkCompleteTask = (currentUser) => {
   if (!currentUser) return false;
-  return isExecutive(currentUser) || currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
+  return isExecutive(currentUser) || currentUser?.role === 'admin' || currentUser?.role === 'superadmin' || currentUser?.isHead;
 };
 
 /**

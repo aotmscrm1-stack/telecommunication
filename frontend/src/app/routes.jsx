@@ -136,7 +136,7 @@ const StaffRestrictedRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
-  if (isLimitedStaff(user)) {
+  if (isLimitedStaff(user) && !user?.isHead) {
     return <Navigate to={getDefaultHomeRoute(user)} replace />;
   }
   return children;
@@ -145,7 +145,7 @@ const StaffRestrictedRoute = ({ children }) => {
 const MetaLeadsRoute = ({ children }) => {
   const { user, loading, metaLeadAssignment } = useAuth();
   if (loading) return null;
-  const isAllowed = isCEO(user) || isHR(user) || isCounsellor(user) || isTelecaller(user) || canAccessMarketingLeads(user) || user?.role === 'admin' || user?.role === 'manager' || metaLeadAssignment?.hasAccess;
+  const isAllowed = isCEO(user) || isHR(user) || isCounsellor(user) || isTelecaller(user) || canAccessMarketingLeads(user, metaLeadAssignment) || user?.role === 'admin' || user?.role === 'manager' || metaLeadAssignment?.hasAccess || Boolean(user?.isHead);
   if (isAllowed) {
     return children;
   }

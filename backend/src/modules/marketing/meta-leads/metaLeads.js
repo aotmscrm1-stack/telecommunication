@@ -545,9 +545,18 @@ router.get('/my-assignment-status', protect, async (req, res) => {
       });
     }
 
-    // Check assignments for this specific employee
+    // Check assignments for this specific employee or their department team if Head
+    let userFilter = [req.user._id];
+    if (req.user?.isHead && (req.user.department || req.user.designation)) {
+      const deptOrDesig = [];
+      if (req.user.department) deptOrDesig.push({ department: req.user.department });
+      if (req.user.designation) deptOrDesig.push({ designation: req.user.designation });
+      const teamUsers = await User.find({ $or: deptOrDesig }).select('_id').lean();
+      userFilter = teamUsers.map(u => u._id);
+    }
+
     const userAssignments = await MetaCampaignAssignment.find({
-      assignedUsers: req.user._id
+      assignedUsers: { $in: userFilter }
     }).select('campaign').lean();
 
     const assignedCampaigns = userAssignments.map(a => a.campaign);
@@ -717,9 +726,18 @@ router.get('/campaigns', protect, async (req, res) => {
     let allowedCampaigns = null;
 
     if (!isAdmin) {
-      // Find campaigns specifically assigned to this user
+      let userFilter = [req.user._id];
+      if (req.user?.isHead && (req.user.department || req.user.designation)) {
+        const deptOrDesig = [];
+        if (req.user.department) deptOrDesig.push({ department: req.user.department });
+        if (req.user.designation) deptOrDesig.push({ designation: req.user.designation });
+        const teamUsers = await User.find({ $or: deptOrDesig }).select('_id').lean();
+        userFilter = teamUsers.map(u => u._id);
+      }
+
+      // Find campaigns assigned to this user or department team
       const userAssignments = await MetaCampaignAssignment.find({
-        assignedUsers: req.user._id
+        assignedUsers: { $in: userFilter }
       }).select('campaign').lean();
 
       allowedCampaigns = userAssignments.map(a => a.campaign);
@@ -1038,18 +1056,27 @@ router.get('/', protect, async (req, res) => {
 
     let allowedCampaigns = null;
     if (!isAdmin && !isGlobalLinkView) {
+      let userFilter = [req.user._id];
+      if (req.user?.isHead && (req.user.department || req.user.designation)) {
+        const deptOrDesig = [];
+        if (req.user.department) deptOrDesig.push({ department: req.user.department });
+        if (req.user.designation) deptOrDesig.push({ designation: req.user.designation });
+        const teamUsers = await User.find({ $or: deptOrDesig }).select('_id').lean();
+        userFilter = teamUsers.map(u => u._id);
+      }
+
       const userAssignments = await MetaCampaignAssignment.find({
-        assignedUsers: req.user._id
+        assignedUsers: { $in: userFilter }
       }).select('campaign').lean();
 
       allowedCampaigns = userAssignments.map(a => a.campaign);
 
-      // Check if user has directly assigned or added leads
+      // Check if user or team has directly assigned or added leads
       const userLeadScope = {
         $or: [
           ...(allowedCampaigns.length > 0 ? [{ campaign: { $in: allowedCampaigns } }] : []),
-          { assignedTo: req.user._id },
-          { addedBy: req.user._id }
+          { assignedTo: { $in: userFilter } },
+          { addedBy: { $in: userFilter } }
         ]
       };
 

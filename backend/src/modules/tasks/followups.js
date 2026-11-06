@@ -105,6 +105,7 @@ router.get('/', protect, async (req, res) => {
 
     const isAdmin = isStrictAdmin(req.user);
     const isMgr = isManager(req.user);
+    const isHead = Boolean(req.user?.isHead);
     const forMe = forMeQuery === 'true';
 
     // Only non-admin marketing staff are restricted from the todo module
@@ -147,7 +148,7 @@ router.get('/', protect, async (req, res) => {
         }
       }
     } else if (!isAdmin) {
-      if (isMgr && !forMe) {
+      if ((isMgr || isHead) && !forMe) {
         // Manager Panel: View relative department items & team members
         if (callerId && callerId !== 'all' && isValidId(callerId)) {
           query.$or = [{ assignedTo: callerId }, { assignedBy: callerId }, { createdBy: callerId }];
@@ -163,14 +164,17 @@ router.get('/', protect, async (req, res) => {
             { createdBy: { $in: deptUserIds } },
             { department: deptRegex }
           ];
-        } else if (req.user.department) {
-          const deptUsers = await User.find({ department: req.user.department }).select('_id');
+        } else if (req.user.department || req.user.designation) {
+          const deptOrDesigFilter = [];
+          if (req.user.department) deptOrDesigFilter.push({ department: req.user.department });
+          if (req.user.designation) deptOrDesigFilter.push({ designation: req.user.designation });
+          const deptUsers = await User.find({ $or: deptOrDesigFilter }).select('_id');
           const deptUserIds = deptUsers.map(u => u._id);
           query.$or = [
             { assignedTo: { $in: deptUserIds } },
             { assignedBy: { $in: deptUserIds } },
             { createdBy: { $in: deptUserIds } },
-            { department: req.user.department }
+            ...(req.user.department ? [{ department: req.user.department }] : [])
           ];
         } else {
           query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { createdBy: req.user._id }];
@@ -608,7 +612,7 @@ router.put('/:id', protect, async (req, res) => {
       }
     }
 
-    const isAdminOrMgr = req.user.role === 'admin' || req.user.role === 'superadmin' || req.user.role === 'manager' || isStrictAdmin(req.user) || isManager(req.user);
+    const isAdminOrMgr = req.user.role === 'admin' || req.user.role === 'superadmin' || req.user.role === 'manager' || isStrictAdmin(req.user) || isManager(req.user) || Boolean(req.user?.isHead);
     if (!isAdminOrMgr) {
       const currentUserId = String(req.user._id);
       const isAssignedUser = String(followup.assignedTo || '') === currentUserId ||
@@ -623,7 +627,7 @@ router.put('/:id', protect, async (req, res) => {
 
     const update = { ...req.body };
     if ((update.status === 'done' || update.status === 'completed')) {
-      const isAdminUser = req.user.role === 'admin' || req.user.role === 'superadmin' || isStrictAdmin(req.user) || isManager(req.user);
+      const isAdminUser = req.user.role === 'admin' || req.user.role === 'superadmin' || isStrictAdmin(req.user) || isManager(req.user) || Boolean(req.user?.isHead);
       if (!isAdminUser) {
         return res.status(403).json({ message: 'Only Admin has permission to confirm and mark tasks as completed' });
       }
@@ -668,7 +672,7 @@ router.patch('/:id/status', protect, async (req, res) => {
 
     const update = { status: (status === 'completed' || status === 'done') ? 'done' : status };
     if (update.status === 'done') {
-      const isAdminUser = req.user.role === 'admin' || req.user.role === 'superadmin' || isStrictAdmin(req.user) || isManager(req.user);
+      const isAdminUser = req.user.role === 'admin' || req.user.role === 'superadmin' || isStrictAdmin(req.user) || isManager(req.user) || Boolean(req.user?.isHead);
       if (!isAdminUser) {
         return res.status(403).json({ message: 'Only Admin has permission to confirm and mark tasks as completed' });
       }
@@ -709,7 +713,7 @@ router.patch('/:id', protect, async (req, res) => {
 
     const update = { ...req.body };
     if (update.status === 'done' || update.status === 'completed') {
-      const isAdminUser = req.user.role === 'admin' || req.user.role === 'superadmin' || isStrictAdmin(req.user) || isManager(req.user);
+      const isAdminUser = req.user.role === 'admin' || req.user.role === 'superadmin' || isStrictAdmin(req.user) || isManager(req.user) || Boolean(req.user?.isHead);
       if (!isAdminUser) {
         return res.status(403).json({ message: 'Only Admin has permission to confirm and mark tasks as completed' });
       }
@@ -749,7 +753,7 @@ router.delete('/:id', protect, async (req, res) => {
     }
     if (!target) return res.status(404).json({ message: 'Item not found' });
 
-    const isAdmin = isStrictAdmin(req.user) || isManager(req.user) || req.user.role === 'admin' || req.user.role === 'superadmin';
+    const isAdmin = isStrictAdmin(req.user) || isManager(req.user) || req.user.role === 'admin' || req.user.role === 'superadmin' || Boolean(req.user?.isHead);
     if (!isAdmin) {
       return res.status(403).json({ message: 'Only Admin has permission to delete tasks or todos' });
     }

@@ -14,6 +14,7 @@ const userSchema = new mongoose.Schema({
   phone: { type: String, default: '' },
   designation: { type: String, default: '', trim: true },
   displayName: { type: String, default: '', trim: true },
+  isHead: { type: Boolean, default: false },
   bloodGroup: { type: String, default: '', trim: true },
   address: { type: String, default: '', trim: true },
   department: { type: String, default: '', trim: true },

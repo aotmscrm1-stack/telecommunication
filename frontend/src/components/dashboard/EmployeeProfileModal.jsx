@@ -78,6 +78,7 @@ export default function EmployeeProfileModal({
     joiningDate: '',
     role: 'employee',
     avatar: '',
+    isHead: false,
   });
 
   // Extract all fields properly with robust fallbacks
@@ -128,6 +129,7 @@ export default function EmployeeProfileModal({
       joiningDate: formattedJoiningDate,
       role: (data.role || 'employee').toLowerCase(),
       avatar: data.avatar || data.image || '',
+      isHead: Boolean(data.isHead),
     });
   };
 
@@ -305,6 +307,7 @@ export default function EmployeeProfileModal({
         address: formData.address?.trim(),
         role: formData.role,
         avatar: formData.avatar,
+        isHead: Boolean(formData.isHead),
       };
 
       if (formData.joiningDate) {
@@ -534,6 +537,12 @@ export default function EmployeeProfileModal({
                   </span>
                 )}
 
+                {current.isHead && (
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wide bg-amber-500/30 text-amber-200 border border-amber-400/50 flex items-center gap-1 shadow-sm">
+                    ⭐ Department Head (HOD)
+                  </span>
+                )}
+
                 {onOpenMap && (
                   <button
                     type="button"
@@ -753,6 +762,27 @@ export default function EmployeeProfileModal({
                       <option key={d} value={d} />
                     ))}
                   </datalist>
+                </div>
+
+                {/* Department Head (HOD) Privileges Toggle */}
+                <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl flex items-center justify-between gap-3">
+                  <div className="flex flex-col">
+                    <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      ⭐ Department Head (HOD)
+                    </span>
+                    <span className="text-[10.5px] text-slate-500">
+                      Allows this employee to view and manage Todos across their department and designation team.
+                    </span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(formData.isHead)}
+                      onChange={(e) => setFormData(prev => ({ ...prev, isHead: e.target.checked }))}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
+                  </label>
                 </div>
 
                 {/* 4. Contact Details: Official Email & Contact Number (10 Digits) */}

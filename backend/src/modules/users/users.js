@@ -335,7 +335,8 @@ router.put('/:id', protect, authorize('manager', 'admin'), async (req, res) => {
       'name', 'firstName', 'lastName', 'email', 'phone', 'employeeId',
       'avatar', 'designation', 'displayName', 'bloodGroup', 'address',
       'department', 'officeLocation', 'joiningDate', 'isActive',
-      'approvalStatus', 'rejectionReason', 'permissionTemplate', 'preferences', 'smtpConfig'
+      'approvalStatus', 'rejectionReason', 'permissionTemplate', 'preferences', 'smtpConfig',
+      'isHead'
     ];
 
     allowedFields.forEach(field => {

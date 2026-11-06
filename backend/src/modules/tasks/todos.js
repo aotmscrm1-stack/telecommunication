@@ -49,6 +49,7 @@ router.get('/', protect, async (req, res) => {
 
     const isAdmin = isStrictAdmin(req.user);
     const isMgr = isManager(req.user);
+    const isHead = Boolean(req.user?.isHead);
     const forMe = forMeQuery === 'true';
 
     // Role-based visibility scoping
@@ -57,30 +58,34 @@ router.get('/', protect, async (req, res) => {
       if (!isValidId(targetId)) {
         query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { createdBy: req.user._id }];
       } else {
-        if (!isAdmin && !isMgr && String(targetId) !== String(req.user._id)) {
+        if (!isAdmin && !isMgr && !isHead && String(targetId) !== String(req.user._id)) {
           return res.status(403).json({ message: "You are not authorized to view another user's todo list." });
         }
         query.$or = [{ assignedTo: targetId }, { assignedBy: targetId }, { createdBy: targetId }];
       }
     } else if (!isAdmin) {
-      if (isMgr && !forMe) {
+      if ((isMgr || isHead) && !forMe) {
         if (callerId && callerId !== 'all' && isValidId(callerId)) {
           query.$or = [{ assignedTo: callerId }, { assignedBy: callerId }, { createdBy: callerId }];
-        } else if (req.user.department) {
+        } else if (req.user.department || req.user.designation) {
           const User = require('../../database/models/User');
-          const deptUsers = await User.find({ department: req.user.department }).select('_id');
-          const deptUserIds = deptUsers.map(u => u._id);
+          const deptOrDesigFilter = [];
+          if (req.user.department) deptOrDesigFilter.push({ department: req.user.department });
+          if (req.user.designation) deptOrDesigFilter.push({ designation: req.user.designation });
+
+          const teamUsers = await User.find({ $or: deptOrDesigFilter }).select('_id');
+          const teamUserIds = teamUsers.map(u => u._id);
           query.$or = [
-            { assignedTo: { $in: deptUserIds } },
-            { assignedBy: { $in: deptUserIds } },
-            { createdBy: { $in: deptUserIds } },
-            { department: req.user.department }
+            { assignedTo: { $in: teamUserIds } },
+            { assignedBy: { $in: teamUserIds } },
+            { createdBy: { $in: teamUserIds } },
+            ...(req.user.department ? [{ department: req.user.department }] : [])
           ];
         } else {
           query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { createdBy: req.user._id }];
         }
       } else {
-        // Developer, Trainer, Digital Marketing, Employee Panels: ONLY see own todos!
+        // Standard Employee without Head privileges: ONLY see own todos!
         query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { createdBy: req.user._id }];
       }
     } else {
@@ -104,14 +109,22 @@ router.get('/', protect, async (req, res) => {
 
     const due = dueQuery || date;
     if (due) {
+      let start, end;
       if (due === 'today') {
-        const start = new Date(); start.setHours(0, 0, 0, 0);
-        const end = new Date(); end.setHours(23, 59, 59, 999);
-        query.$or = [{ scheduledAt: { $gte: start, $lte: end } }, { dueDate: { $gte: start, $lte: end } }];
+        start = new Date(); start.setHours(0, 0, 0, 0);
+        end = new Date(); end.setHours(23, 59, 59, 999);
       } else if (due === 'tomorrow') {
-        const start = new Date(); start.setDate(start.getDate() + 1); start.setHours(0, 0, 0, 0);
-        const end = new Date(); end.setDate(end.getDate() + 1); end.setHours(23, 59, 59, 999);
-        query.$or = [{ scheduledAt: { $gte: start, $lte: end } }, { dueDate: { $gte: start, $lte: end } }];
+        start = new Date(); start.setDate(start.getDate() + 1); start.setHours(0, 0, 0, 0);
+        end = new Date(); end.setDate(end.getDate() + 1); end.setHours(23, 59, 59, 999);
+      }
+      if (start && end) {
+        const dateFilter = { $or: [{ scheduledAt: { $gte: start, $lte: end } }, { dueDate: { $gte: start, $lte: end } }] };
+        if (query.$or) {
+          query.$and = [{ $or: query.$or }, dateFilter];
+          delete query.$or;
+        } else {
+          query.$or = dateFilter.$or;
+        }
       }
     }
 
@@ -163,9 +176,20 @@ router.get('/user/:userId', protect, async (req, res) => {
 
     const isAdmin = isStrictAdmin(req.user);
     const isMgr = isManager(req.user);
+    const isHead = Boolean(req.user?.isHead);
 
-    if (!isAdmin && !isMgr && String(targetUserId) !== String(req.user._id)) {
+    if (!isAdmin && !isMgr && !isHead && String(targetUserId) !== String(req.user._id)) {
       return res.status(403).json({ message: "You are not authorized to view another user's todo list." });
+    }
+
+    if (isHead && !isAdmin && !isMgr && String(targetUserId) !== String(req.user._id)) {
+      const User = require('../../database/models/User');
+      const targetUser = await User.findById(targetUserId).select('department designation').lean();
+      const sameDept = req.user.department && targetUser?.department && req.user.department.toLowerCase() === targetUser.department.toLowerCase();
+      const sameDesig = req.user.designation && targetUser?.designation && req.user.designation.toLowerCase() === targetUser.designation.toLowerCase();
+      if (!sameDept && !sameDesig) {
+        return res.status(403).json({ message: "You are only authorized to view todos of members in your department or designation." });
+      }
     }
 
     const query = {
@@ -247,7 +271,7 @@ router.put('/:id', protect, async (req, res) => {
   try {
     const update = { ...req.body };
     if (update.status === 'done' || update.status === 'completed') {
-      const isAdminUser = req.user.role === 'admin' || req.user.role === 'superadmin' || isStrictAdmin(req.user) || isManager(req.user);
+      const isAdminUser = req.user.role === 'admin' || req.user.role === 'superadmin' || isStrictAdmin(req.user) || isManager(req.user) || Boolean(req.user?.isHead);
       if (!isAdminUser) {
         return res.status(403).json({ message: 'Only Admin has permission to confirm and mark tasks as completed' });
       }
@@ -278,7 +302,7 @@ router.patch('/:id/status', protect, async (req, res) => {
       update.note = reason || note;
     }
     if (update.status === 'done') {
-      const isAdminUser = req.user.role === 'admin' || req.user.role === 'superadmin' || isStrictAdmin(req.user) || isManager(req.user);
+      const isAdminUser = req.user.role === 'admin' || req.user.role === 'superadmin' || isStrictAdmin(req.user) || isManager(req.user) || Boolean(req.user?.isHead);
       if (!isAdminUser) {
         return res.status(403).json({ message: 'Only Admin has permission to confirm and mark tasks as completed' });
       }
@@ -320,7 +344,7 @@ router.patch('/:id', protect, async (req, res) => {
   try {
     const update = { ...req.body };
     if (update.status === 'done' || update.status === 'completed') {
-      const isAdminUser = req.user.role === 'admin' || req.user.role === 'superadmin' || isStrictAdmin(req.user) || isManager(req.user);
+      const isAdminUser = req.user.role === 'admin' || req.user.role === 'superadmin' || isStrictAdmin(req.user) || isManager(req.user) || Boolean(req.user?.isHead);
       if (!isAdminUser) {
         return res.status(403).json({ message: 'Only Admin has permission to confirm and mark tasks as completed' });
       }
@@ -359,7 +383,7 @@ router.delete('/:id', protect, async (req, res) => {
     }
     if (!target) return res.status(404).json({ message: 'Todo not found' });
 
-    const isAdmin = isStrictAdmin(req.user) || isManager(req.user) || req.user.role === 'admin' || req.user.role === 'superadmin';
+    const isAdmin = isStrictAdmin(req.user) || isManager(req.user) || req.user.role === 'admin' || req.user.role === 'superadmin' || Boolean(req.user?.isHead);
     if (!isAdmin) {
       return res.status(403).json({ message: 'Only Admin has permission to delete todos' });
     }
