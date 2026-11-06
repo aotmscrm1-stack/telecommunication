@@ -1539,10 +1539,11 @@ export default function MetaLeads() {
       clearInterval(pollId);
       setSyncing(false);
       setStatusMessage(res.data?.message || '✅ Data sync & reload completed successfully!');
-      await fetchCampaigns();
-      if (selectedCampaign) {
-        await fetchCampaignLeads(selectedCampaign, 1);
-      }
+      await Promise.all([
+        fetchCampaigns(),
+        fetchEmployeesAndAssignments(),
+        selectedCampaign ? fetchCampaignLeads(selectedCampaign, 1) : Promise.resolve()
+      ]);
       setTimeout(() => setStatusMessage(''), 8000);
     } catch (err) {
       clearInterval(pollId);
@@ -2372,12 +2373,20 @@ export default function MetaLeads() {
 
           <button
             onClick={handleRefreshCampaignData}
-            disabled={isRefreshing}
-            title="Refresh Campaign Data"
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition-all active:scale-[0.98] cursor-pointer disabled:opacity-75"
+            disabled={isRefreshing || syncing}
+            title="Reload Local Campaign Table"
+            className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors cursor-pointer disabled:opacity-50"
           >
             <FiRefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-            <span>{isRefreshing ? 'Refreshing...' : 'Sync Data'}</span>
+          </button>
+          <button
+            onClick={handleSync}
+            disabled={syncing || isRefreshing}
+            title="Sync Data from Google Sheets"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition-all active:scale-[0.98] cursor-pointer disabled:opacity-75"
+          >
+            <FiRefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
+            <span>{syncing ? 'Syncing Sheets...' : 'Sync Data'}</span>
           </button>
         </div>
       </div>
@@ -2572,13 +2581,13 @@ export default function MetaLeads() {
                 : 'Sync your live Google Sheets (Fetching Name, Email, Mobile, City) directly into the CRM.'}
             </p>
             <button
-              onClick={handleRefreshCampaignData}
-              disabled={isRefreshing}
-              title="Refresh Campaign Data"
+              onClick={handleSync}
+              disabled={syncing || isRefreshing}
+              title="Sync Data from Google Sheets"
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-xs cursor-pointer disabled:opacity-75"
             >
-              <FiRefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-              <span>{isRefreshing ? 'Refreshing...' : 'Sync Data'}</span>
+              <FiRefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
+              <span>{syncing ? 'Syncing Sheets...' : 'Sync Data'}</span>
             </button>
           </div>
         ) : (

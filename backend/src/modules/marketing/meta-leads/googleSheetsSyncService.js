@@ -596,7 +596,8 @@ async function ensureGoogleSheetsIntegration() {
         }
       });
     } else {
-      // Check if sheetSources is completely empty; only initialize defaults if empty
+      // Check if sheetSources is completely empty or missing gids
+      let sourcesUpdated = false;
       const existingSources = integration.config?.sheetSources || [];
       if (existingSources.length === 0) {
         integration.config = {
@@ -606,6 +607,32 @@ async function ensureGoogleSheetsIntegration() {
           sheetRange: DEFAULT_META_SHEET_SOURCES[0].sheetRange,
           webhookUrl: ''
         };
+        sourcesUpdated = true;
+      } else {
+        // Ensure every source has its gid mapped from DEFAULT_META_SHEET_SOURCES if missing
+        const updatedSources = existingSources.map(src => {
+          const s = typeof src.toObject === 'function' ? src.toObject() : { ...src };
+          if (!s.gid) {
+            const def = DEFAULT_META_SHEET_SOURCES.find(d =>
+              d.sheetId === s.sheetId &&
+              (d.name === s.name || d.campaign === s.campaign || d.sheetRange === s.sheetRange)
+            );
+            if (def && def.gid) {
+              s.gid = def.gid;
+              sourcesUpdated = true;
+            }
+          }
+          return s;
+        });
+        if (sourcesUpdated) {
+          integration.config = {
+            ...(integration.config || {}),
+            sheetSources: updatedSources
+          };
+        }
+      }
+      if (sourcesUpdated) {
+        integration.markModified('config');
         integration.status = 'active';
         await integration.save();
       }
@@ -642,9 +669,23 @@ async function syncAllMetaSheets() {
   );
 
   const integration = await ensureGoogleSheetsIntegration();
-  const sources = (integration?.config?.sheetSources && integration.config.sheetSources.length > 0)
+  const rawSources = (integration?.config?.sheetSources && integration.config.sheetSources.length > 0)
     ? integration.config.sheetSources
     : DEFAULT_META_SHEET_SOURCES;
+
+  const sources = rawSources.map(src => {
+    const s = typeof src.toObject === 'function' ? src.toObject() : { ...src };
+    if (!s.gid) {
+      const def = DEFAULT_META_SHEET_SOURCES.find(d =>
+        d.sheetId === s.sheetId &&
+        (d.name === s.name || d.campaign === s.campaign || d.sheetRange === s.sheetRange)
+      );
+      if (def && def.gid) {
+        s.gid = def.gid;
+      }
+    }
+    return s;
+  });
 
   let totalProcessed = 0;
   let insertedCount = 0;
