@@ -21,10 +21,8 @@ function isStrictAdmin(user) {
     desig === 'CTO' ||
     desig === 'ADMIN' ||
     desig === 'SUPERADMIN' ||
-    desig.includes('DEVELOPER') ||
     dept === 'ADMIN' ||
-    dept === 'MANAGEMENT' ||
-    dept === 'DEVELOPMENT'
+    dept === 'MANAGEMENT'
   );
 }
 
