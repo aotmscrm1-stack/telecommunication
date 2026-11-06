@@ -35,6 +35,24 @@ function isManager(user) {
   return desig.includes('MANAGER') || desig.includes('HEAD') || desig.includes('LEAD') || desig.includes('SUPERVISOR');
 }
 
+function toIdVariants(id) {
+  if (!id) return [];
+  const str = String(id._id || id.id || id);
+  if (mongoose.Types.ObjectId.isValid(str)) {
+    return [new mongoose.Types.ObjectId(str), str];
+  }
+  return [str];
+}
+
+function toIdVariantsList(ids) {
+  if (!Array.isArray(ids)) return toIdVariants(ids);
+  const result = [];
+  ids.forEach(id => {
+    toIdVariants(id).forEach(v => result.push(v));
+  });
+  return result;
+}
+
 function isValidId(val) {
   return val && mongoose.Types.ObjectId.isValid(val);
 }
@@ -241,8 +259,8 @@ router.get('/user/:userId', protect, async (req, res) => {
 // POST /api/todos
 router.post('/', protect, async (req, res) => {
   try {
-    const assignedToVal = isValidId(req.body.assignedTo) ? req.body.assignedTo : req.user._id;
-    const assignedByVal = isValidId(req.body.assignedBy) ? req.body.assignedBy : req.user._id;
+    const assignedToVal = isValidId(req.body.assignedTo) ? new mongoose.Types.ObjectId(req.body.assignedTo) : req.user._id;
+    const assignedByVal = isValidId(req.body.assignedBy) ? new mongoose.Types.ObjectId(req.body.assignedBy) : req.user._id;
 
     const baseDoc = {
       ...req.body,
