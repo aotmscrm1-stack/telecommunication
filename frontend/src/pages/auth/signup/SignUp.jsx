@@ -5,7 +5,6 @@ import { authAPI } from '../../../services/api';
 import { canViewDashboard } from '../../../utils/permissions';
 import TechText from '../components/TechText';
 import MagicRings from '../components/MagicRings';
-import lampImg from '../../../assets/lamp.png';
 import {
   Camera,
   UploadCloud,
@@ -1783,21 +1782,7 @@ export default function SignUp() {
         </form>
       </main>
 
-      <div
-        className="lamp"
-        id="lamp"
-        onPointerEnter={handleLampPointerEnter}
-        onPointerLeave={handleLampPointerLeave}
-        onClick={handleLampClick}
-        title="Hover or click to switch lamp"
-      >
-        <img src={lampImg} alt="Modern Organic Pendant Lamps" className="lamp-img" />
-        <div className="lamp-glow-overlay" />
-      </div>
 
-      <div className="hint" onClick={() => setIsLit(true)} style={{ cursor: 'pointer' }}>
-        Hover the lamp &nbsp;💡
-      </div>
 
       {isCropModalOpen && (
         <div className="crop-modal-overlay">

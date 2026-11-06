@@ -15,3 +15,8 @@ export { default as EnterpriseAIPipeline } from './ai-agent-pipeline';
 export { default as EnterpriseAIPipelineDemo } from './ai-agent-pipeline-demo';
 export { AnimatedBeam, default as AnimatedBeamDefault } from './animated-beam';
 export { default as AnimatedBeamDemo } from './animated-beam-demo';
+export { SignInDrawer, default as SignInDrawerDefault } from './family-signin-drawer';
+export { Drawer, DrawerTrigger, DrawerClose, DrawerTitle, DrawerDescription, DrawerContent, DrawerHeader, DrawerFooter } from './drawer';
+export { Tabs, TabsList, TabsTrigger, TabsContent } from './tabs';
+export { Input } from './input';
+export { Label } from './label';
