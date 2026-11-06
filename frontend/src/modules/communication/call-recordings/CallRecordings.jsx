@@ -1569,25 +1569,10 @@ export default function CallRecordings() {
   const isManagerUser = user?.role === 'manager' || isManager(user);
   const canViewAllRecordings = canManageCRUD && !isManagerUser;
 
-  // Helper: Filter Caller Team to ONLY Counsellors, Telecallers, and HR
+  // Helper: For Admin Panel Caller Team, include all active team members across the company
   const isAllowedCallerTeamMember = (emp) => {
-    if (!emp) return false;
-    const desig = String(emp.designation || '').toLowerCase();
-    const dept = String(emp.department || '').toLowerCase();
-    const role = String(emp.role || '').toLowerCase();
-    const combined = `${desig} ${dept} ${role}`;
-
-    return (
-      combined.includes('counsellor') ||
-      combined.includes('counselor') ||
-      combined.includes('councellor') ||
-      combined.includes('telecaller') ||
-      combined.includes('tele-caller') ||
-      combined.includes('tele caller') ||
-      combined.includes('caller') ||
-      /\bhr\b/i.test(combined) ||
-      combined.includes('human resource')
-    );
+    if (!emp || !emp.name) return false;
+    return emp.status !== 'inactive' && emp.status !== 'deleted';
   };
 
   const getCallerTeamRoleLabel = (emp) => {
@@ -1602,13 +1587,22 @@ export default function CallRecordings() {
     if (combined.includes('telecaller') || combined.includes('tele-caller') || combined.includes('tele caller')) {
       return desig || 'Telecaller';
     }
+    if (combined.includes('manager')) {
+      return desig || 'Manager';
+    }
     if (/\bhr\b/i.test(combined) || combined.includes('human resource')) {
       return desig || 'HR';
     }
-    if (combined.includes('caller')) {
-      return desig || 'Telecaller';
+    if (combined.includes('marketing')) {
+      return desig || 'Marketing';
     }
-    return desig || dept || 'Telecaller';
+    if (combined.includes('developer')) {
+      return desig || 'Developer';
+    }
+    if (combined.includes('trainer')) {
+      return desig || 'Trainer';
+    }
+    return desig || dept || (role ? role.charAt(0).toUpperCase() + role.slice(1) : 'Team Member');
   };
 
   const getAudioUrl = (url) => {
@@ -1765,6 +1759,7 @@ export default function CallRecordings() {
         const list = res.data?.users || res.data || [];
         const rawList = Array.isArray(list) ? list : [];
         const filteredTeam = rawList.filter(isAllowedCallerTeamMember);
+        filteredTeam.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
         setUsersList(filteredTeam);
       })
       .catch(() => {});
@@ -2579,7 +2574,7 @@ export default function CallRecordings() {
                     </div>
                     <div className="truncate">
                       <div className="text-xs font-medium text-slate-900 truncate">All Callers</div>
-                      <div className="text-[10px] text-slate-500 truncate">Counsellors • Telecallers • HR</div>
+                      <div className="text-[10px] text-slate-500 truncate">All Team Members • Entire Company</div>
                     </div>
                   </div>
                   {filters.user === 'all' && (
@@ -3153,7 +3148,9 @@ export default function CallRecordings() {
               usersAPI.getAll().then(res => {
                 const list = res.data?.users || res.data || [];
                 const rawList = Array.isArray(list) ? list : [];
-                setUsersList(rawList.filter(isAllowedCallerTeamMember));
+                const filteredTeam = rawList.filter(isAllowedCallerTeamMember);
+                filteredTeam.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+                setUsersList(filteredTeam);
               }).catch(() => {});
             }}
           />
