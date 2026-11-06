@@ -142,3 +142,4 @@ const Drip: React.FC<DripProps> = ({ left, height, delay }) => {
 };
 
 export default WetPaintButton;
+

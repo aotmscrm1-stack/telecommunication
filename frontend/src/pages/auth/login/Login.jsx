@@ -303,45 +303,8 @@ export default function Login() {
         </div>
       </div>
 
-      {/* ══════════════════════════════════════════════════
-          2. TECH TEXT DISPLAY (CRM Vector Outline)
-          ══════════════════════════════════════════════════ */}
-      <div
-        className="tech-text-responsive-wrapper pointer-events-none"
-        style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: 'clamp(280px, 50vw, 700px)',
-          height: 'clamp(160px, 35vh, 320px)',
-          zIndex: 5,
-          opacity: 0.42,
-        }}
-      >
-        <TechText
-          text="CRM"
-          fontWeight={600}
-          fontSize={140}
-          reveal="letter"
-          dashLength={4}
-          dashGap={2}
-          specks={15}
-          fontFamily=""
-          color="rgba(255, 255, 255, 0.45)"
-          accentColor="#3b82f6"
-          letterSpacing={-0.05}
-          reach={200}
-          softness={0.7}
-          strokeWidth={1.5}
-          speed={1}
-          lineStyle="dashed"
-          selection={false}
-          labels={false}
-          draggable={false}
-          sweep
-        />
-      </div>
+      
+      
 
       {/* ══════════════════════════════════════════════════
           3. MIDDLE TRIGGER: ONLY WET PAINT BUTTON SHOWING
