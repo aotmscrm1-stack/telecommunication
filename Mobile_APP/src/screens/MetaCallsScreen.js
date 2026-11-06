@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
 import { metaLeadsApi } from '../api/metaLeadsApi';
 import Header from '../components/Header';
+import AutoScrollText from '../components/AutoScrollText';
 
 // ── Meta Leads Standard Status Classifications (Matching Web CRM) ───────────
 export const POSITIVE_STATUSES = [
@@ -141,6 +142,7 @@ export default function MetaCallsScreen({ onNavigate }) {
   const [callNote, setCallNote] = useState('');
   const [followUpDate, setFollowUpDate] = useState('');
   const [savingOutcome, setSavingOutcome] = useState(false);
+  const subStatusScrollRef = useRef(null);
 
   // Lead Details Modal State
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
@@ -580,10 +582,14 @@ export default function MetaCallsScreen({ onNavigate }) {
               {rawPhone || 'No phone number'}
             </Text>
           </View>
+          {/* Top-Right Corner Status Badge with AutoScroll for Long Positive/Negative Statuses */}
           <View style={[styles.statusBadge, { backgroundColor: badge.bg, borderColor: badge.border }]}>
-            <Text style={[styles.statusText, { color: badge.text }]}>
-              {item.status || 'New'}
-            </Text>
+            <View style={[styles.statusDot, { backgroundColor: badge.text }]} />
+            <AutoScrollText
+              text={item.status || 'New'}
+              maxWidth={140}
+              style={[styles.statusText, { color: badge.text }]}
+            />
           </View>
         </View>
 
@@ -924,6 +930,36 @@ export default function MetaCallsScreen({ onNavigate }) {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              {/* Selected Status Header Badge with AutoScroll */}
+              <View
+                style={[
+                  styles.selectedStatusBanner,
+                  outcomeCategory === 'Positive' ? styles.selBannerPos : styles.selBannerNeg,
+                ]}
+              >
+                <Ionicons
+                  name={outcomeCategory === 'Positive' ? 'checkmark-circle' : 'close-circle'}
+                  size={16}
+                  color={outcomeCategory === 'Positive' ? '#059669' : '#DC2626'}
+                />
+                <Text
+                  style={[
+                    styles.selectedStatusBannerLabel,
+                    { color: outcomeCategory === 'Positive' ? '#065F46' : '#991B1B' },
+                  ]}
+                >
+                  Status:
+                </Text>
+                <AutoScrollText
+                  text={callOutcomeStatus}
+                  maxWidth={230}
+                  style={[
+                    styles.selectedStatusBannerText,
+                    { color: outcomeCategory === 'Positive' ? '#065F46' : '#991B1B' },
+                  ]}
+                />
+              </View>
+
               {/* Category Selector: Positive (Priority 1) vs Negative */}
               <Text style={styles.modalSectionLabel}>DISPOSITION CATEGORY</Text>
               <View style={styles.categoryToggleRow}>
@@ -938,6 +974,9 @@ export default function MetaCallsScreen({ onNavigate }) {
                     if (!POSITIVE_STATUSES.includes(callOutcomeStatus)) {
                       setCallOutcomeStatus(POSITIVE_STATUSES[0]);
                     }
+                    setTimeout(() => {
+                      subStatusScrollRef.current?.scrollTo({ y: 0, animated: true });
+                    }, 50);
                   }}
                   activeOpacity={0.8}
                 >
@@ -975,6 +1014,9 @@ export default function MetaCallsScreen({ onNavigate }) {
                     if (!NEGATIVE_STATUSES.includes(callOutcomeStatus)) {
                       setCallOutcomeStatus(NEGATIVE_STATUSES[0]);
                     }
+                    setTimeout(() => {
+                      subStatusScrollRef.current?.scrollTo({ y: 0, animated: true });
+                    }, 50);
                   }}
                   activeOpacity={0.8}
                 >
@@ -999,52 +1041,66 @@ export default function MetaCallsScreen({ onNavigate }) {
                 </TouchableOpacity>
               </View>
 
-              {/* Sub-disposition Status Selection Chips */}
-              <Text style={styles.modalSectionLabel}>
-                SELECT {outcomeCategory.toUpperCase()} STATUS
-              </Text>
-              <View style={styles.subStatusContainer}>
-                {(outcomeCategory === 'Positive' ? POSITIVE_STATUSES : NEGATIVE_STATUSES).map((st) => {
-                  const isSel = callOutcomeStatus === st;
-                  const isPos = outcomeCategory === 'Positive';
-                  return (
-                    <TouchableOpacity
-                      key={st}
-                      style={[
-                        styles.subStatusChip,
-                        isSel && (isPos ? styles.subStatusChipActivePos : styles.subStatusChipActiveNeg),
-                      ]}
-                      onPress={() => setCallOutcomeStatus(st)}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons
-                        name={
-                          isSel
-                            ? 'checkmark-circle'
-                            : isPos
-                            ? 'ellipse-outline'
-                            : 'close-circle-outline'
-                        }
-                        size={16}
-                        color={
-                          isSel
-                            ? isPos
-                              ? '#059669'
-                              : '#DC2626'
-                            : '#64748B'
-                        }
-                      />
-                      <Text
+              {/* Sub-disposition Status Selection Chips with Bounded ScrollView */}
+              <View style={styles.subStatusSectionHeader}>
+                <Text style={styles.modalSectionLabel}>
+                  SELECT {outcomeCategory.toUpperCase()} STATUS
+                </Text>
+                <Text style={styles.subStatusCountHint}>
+                  {(outcomeCategory === 'Positive' ? POSITIVE_STATUSES : NEGATIVE_STATUSES).length} Options
+                </Text>
+              </View>
+
+              <View style={styles.subStatusScrollWrapper}>
+                <ScrollView
+                  ref={subStatusScrollRef}
+                  nestedScrollEnabled
+                  showsVerticalScrollIndicator={true}
+                  style={styles.subStatusScrollView}
+                  contentContainerStyle={styles.subStatusContainer}
+                >
+                  {(outcomeCategory === 'Positive' ? POSITIVE_STATUSES : NEGATIVE_STATUSES).map((st) => {
+                    const isSel = callOutcomeStatus === st;
+                    const isPos = outcomeCategory === 'Positive';
+                    return (
+                      <TouchableOpacity
+                        key={st}
                         style={[
-                          styles.subStatusChipText,
-                          isSel && (isPos ? styles.subStatusChipTextActivePos : styles.subStatusChipTextActiveNeg),
+                          styles.subStatusChip,
+                          isSel && (isPos ? styles.subStatusChipActivePos : styles.subStatusChipActiveNeg),
                         ]}
+                        onPress={() => setCallOutcomeStatus(st)}
+                        activeOpacity={0.7}
                       >
-                        {st}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
+                        <Ionicons
+                          name={
+                            isSel
+                              ? 'checkmark-circle'
+                              : isPos
+                              ? 'ellipse-outline'
+                              : 'close-circle-outline'
+                          }
+                          size={16}
+                          color={
+                            isSel
+                              ? isPos
+                                ? '#059669'
+                                : '#DC2626'
+                              : '#64748B'
+                          }
+                        />
+                        <AutoScrollText
+                          text={st}
+                          maxWidth={270}
+                          style={[
+                            styles.subStatusChipText,
+                            isSel && (isPos ? styles.subStatusChipTextActivePos : styles.subStatusChipTextActiveNeg),
+                          ]}
+                        />
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
               </View>
 
               {/* Next Follow Up Date */}
@@ -1451,10 +1507,21 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
     borderWidth: 1,
+    maxWidth: 140,
+    alignSelf: 'flex-start',
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    flexShrink: 0,
   },
   statusText: {
     fontSize: 10,
@@ -1754,15 +1821,44 @@ const styles = StyleSheet.create({
   modalCloseBtn: {
     padding: 4,
   },
+  /* Selected Status Preview Banner with AutoScroll */
+  selectedStatusBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  selBannerPos: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#A7F3D0',
+  },
+  selBannerNeg: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECDD3',
+  },
+  selectedStatusBannerLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  selectedStatusBannerText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+
   /* Category Toggle: Positive (Priority 1) vs Negative */
   categoryToggleRow: {
     flexDirection: 'row',
     gap: 10,
-    marginBottom: 14,
+    marginBottom: 12,
   },
   categoryCard: {
     flex: 1,
-    padding: 12,
+    padding: 10,
     borderRadius: 12,
     backgroundColor: '#F8FAFC',
     borderWidth: 1.5,
@@ -1780,7 +1876,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   priorityBadge: {
     backgroundColor: '#059669',
@@ -1798,7 +1894,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     color: '#1E293B',
-    marginBottom: 2,
+    marginBottom: 1,
   },
   categoryCardTitleActivePositive: {
     color: '#065F46',
@@ -1809,23 +1905,44 @@ const styles = StyleSheet.create({
   categoryCardSubtitle: {
     fontSize: 10,
     color: '#64748B',
-    lineHeight: 14,
+    lineHeight: 13,
   },
 
-  /* Sub-status Chips Container */
+  /* Sub-status Scroll Section */
+  subStatusSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  subStatusCountHint: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
+  subStatusScrollWrapper: {
+    maxHeight: 180,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+    padding: 6,
+    marginBottom: 12,
+  },
+  subStatusScrollView: {
+    flexGrow: 0,
+  },
   subStatusContainer: {
-    flexDirection: 'column',
-    gap: 6,
-    marginBottom: 14,
+    gap: 5,
   },
   subStatusChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderRadius: 10,
-    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 9,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
@@ -1838,7 +1955,7 @@ const styles = StyleSheet.create({
     borderColor: '#DC2626',
   },
   subStatusChipText: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '600',
     color: '#334155',
     flex: 1,
