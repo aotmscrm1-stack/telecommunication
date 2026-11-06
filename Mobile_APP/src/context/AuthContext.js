@@ -8,6 +8,20 @@ import {
 
 const AuthContext = createContext();
 
+// Helper: Ensure only Managers (or Admin/CEO) can access the Mobile Application
+export const isAllowedManagerRole = (user) => {
+  if (!user) return false;
+  const role = String(user.role || '').toLowerCase().trim();
+  const desig = String(user.designation || '').toLowerCase().trim();
+  return (
+    role === 'manager' ||
+    role === 'admin' ||
+    role === 'superadmin' ||
+    role === 'ceo' ||
+    desig.includes('manager')
+  );
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
@@ -24,11 +38,27 @@ export const AuthProvider = ({ children }) => {
       const storedUser = await AsyncStorage.getItem('aotms_user');
 
       if (storedToken) {
-        setToken(storedToken);
+        let parsedUser = null;
         if (storedUser) {
           try {
-            setUser(JSON.parse(storedUser));
+            parsedUser = JSON.parse(storedUser);
           } catch (parseErr) {}
+        }
+
+        // If stored user is not a manager, immediately clear the session
+        if (parsedUser && !isAllowedManagerRole(parsedUser)) {
+          console.log('[AuthContext] Stored user is not a manager, clearing session');
+          await AsyncStorage.removeItem('aotms_token');
+          await AsyncStorage.removeItem('aotms_user');
+          setToken(null);
+          setUser(null);
+          setIsLoading(false);
+          return;
+        }
+
+        setToken(storedToken);
+        if (parsedUser) {
+          setUser(parsedUser);
         }
 
         // Immediately unblock UI so app opens in milliseconds
@@ -41,6 +71,11 @@ export const AuthProvider = ({ children }) => {
         authApi.getMe()
           .then(async (meData) => {
             if (meData?.user) {
+              if (!isAllowedManagerRole(meData.user)) {
+                console.log('[AuthContext] Verified user is not a manager, logging out');
+                await logout();
+                return;
+              }
               setUser(meData.user);
               await AsyncStorage.setItem('aotms_user', JSON.stringify(meData.user));
               registerForPushNotificationsAsync().catch(() => {});
@@ -66,6 +101,11 @@ export const AuthProvider = ({ children }) => {
     const receivedToken = data.token;
     const receivedUser = data.user;
 
+    // Restrict mobile app access to Managers only
+    if (!isAllowedManagerRole(receivedUser)) {
+      throw new Error('Access Restricted: This Mobile Application is exclusively for Managers.');
+    }
+
     if (receivedToken) {
       await AsyncStorage.setItem('aotms_token', receivedToken);
       setToken(receivedToken);
@@ -83,6 +123,11 @@ export const AuthProvider = ({ children }) => {
     const data = await authApi.register(userData);
     const receivedToken = data.token;
     const receivedUser = data.user;
+
+    // Restrict mobile app access to Managers only
+    if (!isAllowedManagerRole(receivedUser)) {
+      throw new Error('Access Restricted: This Mobile Application is exclusively for Managers.');
+    }
 
     if (receivedToken) {
       await AsyncStorage.setItem('aotms_token', receivedToken);

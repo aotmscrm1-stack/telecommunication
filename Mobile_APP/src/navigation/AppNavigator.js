@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ActivityIndicator, Keyboard, Platform } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Keyboard, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
-import { useAuth } from '../context/AuthContext';
+import { Ionicons } from '@expo/vector-icons';
+import { useAuth, isAllowedManagerRole } from '../context/AuthContext';
 import { colors } from '../theme/colors';
 
 // Screens
@@ -21,7 +22,7 @@ import WhatsappDirectScreen from '../screens/WhatsappDirectScreen';
 import BottomNav from '../components/BottomNav';
 
 export default function AppNavigator() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user, logout } = useAuth();
   // Default directly to Meta Leads or Daily Activity (Dashboard removed as per specification)
   const [authScreen, setAuthScreen] = useState('meta_calls');
   const [keyboardVisible, setKeyboardVisible] = useState(false);
@@ -75,6 +76,24 @@ export default function AppNavigator() {
   // ── UNAUTHENTICATED FLOW (DIRECT LOGIN ONLY) ──────────────────────
   if (!isAuthenticated) {
     return <LoginScreen />;
+  }
+
+  // ── ROLE RESTRICTION: EXCLUSIVELY FOR MANAGERS ────────────────────
+  if (user && !isAllowedManagerRole(user)) {
+    return (
+      <View style={styles.restrictedContainer}>
+        <View style={styles.restrictedIconBox}>
+          <Ionicons name="shield-outline" size={54} color="#DC2626" />
+        </View>
+        <Text style={styles.restrictedTitle}>Access Restricted</Text>
+        <Text style={styles.restrictedMsg}>
+          This Mobile Application is exclusively for Managers. Please sign in with a Manager account.
+        </Text>
+        <TouchableOpacity style={styles.logoutBtn} onPress={logout} activeOpacity={0.8}>
+          <Text style={styles.logoutBtnText}>Sign Out</Text>
+        </TouchableOpacity>
+      </View>
+    );
   }
 
   // ── AUTHENTICATED CRM FLOW (5 MAIN MODULES + AUXILIARY) ────────────
@@ -143,6 +162,47 @@ const styles = StyleSheet.create({
     backgroundColor: '#F4F7FB',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  restrictedContainer: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 36,
+  },
+  restrictedIconBox: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: '#FEE2E2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  restrictedTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  restrictedMsg: {
+    fontSize: 14,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 28,
+  },
+  logoutBtn: {
+    backgroundColor: '#174EA6',
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  logoutBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
   },
 });
 

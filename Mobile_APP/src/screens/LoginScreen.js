@@ -55,7 +55,9 @@ export default function LoginScreen() {
       await login(email.trim().toLowerCase(), password);
     } catch (err) {
       let msg = err.response?.data?.message || err.message || 'Login failed. Please verify your credentials.';
-      if (err.message?.toLowerCase().includes('network error') || !err.response) {
+      if (err.message?.includes('exclusively for Managers')) {
+        msg = 'Access Restricted: This Mobile Application is exclusively for Managers.';
+      } else if (err.message?.toLowerCase().includes('network error') || !err.response) {
         msg = 'Connection Notice: Cloud server is initializing. Please wait a few seconds and try again.';
       }
       setErrorMsg(msg);
@@ -118,6 +120,10 @@ export default function LoginScreen() {
           {/* ── HEADER TEXT ── */}
           <View style={styles.headerArea}>
             <Text style={styles.headerTitle}>WELCOME BACK</Text>
+            <View style={styles.managerBadge}>
+              <Ionicons name="shield-checkmark" size={13} color="#FFFFFF" />
+              <Text style={styles.managerBadgeText}>MANAGER ACCESS ONLY</Text>
+            </View>
           </View>
 
           {/* ── FORM CONTENT ── */}
@@ -204,6 +210,7 @@ const styles = StyleSheet.create({
     height: height * 0.25,
     justifyContent: 'center',
     alignItems: 'center',
+    gap: 8,
   },
   headerTitle: {
     color: '#FFFFFF',
@@ -211,6 +218,23 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 2.5,
     fontFamily: 'Outfit_900Black',
+  },
+  managerBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    borderColor: 'rgba(255, 255, 255, 0.35)',
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 14,
+  },
+  managerBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
   },
 
   /* ── CONTENT FORM ── */

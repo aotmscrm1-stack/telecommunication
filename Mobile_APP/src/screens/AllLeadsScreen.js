@@ -20,7 +20,12 @@ import LeadCard from '../components/LeadCard';
 
 export default function AllLeadsScreen({ onNavigate }) {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+  const isManagerOrAdmin =
+    user?.role === 'manager' ||
+    user?.role === 'admin' ||
+    user?.role === 'superadmin' ||
+    user?.role === 'ceo' ||
+    String(user?.designation || '').toLowerCase().includes('manager');
 
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -44,7 +49,7 @@ export default function AllLeadsScreen({ onNavigate }) {
       const params = {
         page: pageNum,
         limit: 20,
-        filter: isAdmin ? 'all' : 'mine',
+        filter: isManagerOrAdmin ? 'all' : 'mine',
       };
       if (searchQuery.trim()) params.search = searchQuery.trim();
       if (statusFilter !== 'All') params.status = statusFilter;

@@ -6,9 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/Logo.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "backgroundColor": "#FFFFFF"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.aotms.crm",
@@ -19,7 +16,6 @@
     "android": {
       "package": "com.telecom.crm",
       "versionCode": 4,
-      "usesCleartextTraffic": true,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
@@ -49,7 +45,8 @@
           "color": "#174EA6",
           "defaultChannel": "crm_notifications"
         }
-      ]
+      ],
+      "expo-status-bar"
     ],
     "extra": {
       "eas": {
