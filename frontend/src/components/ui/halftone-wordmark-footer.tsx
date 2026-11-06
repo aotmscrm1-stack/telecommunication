@@ -497,4 +497,3 @@ export default function HalftoneWordmarkFooter({
 }
 
 type PointerEv = PointerEvent
-
