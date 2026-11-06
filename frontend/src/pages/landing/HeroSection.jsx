@@ -47,10 +47,15 @@ const HERO_SLIDES = [
     ],
     description: 'The unified CRM for telecom & enterprise sales teams — pipeline, live leads, follow-ups, and analytics, all in one intelligent workspace.',
     primaryBtnText: 'Get Started',
-    primaryBtnBg: '#ffffff',
-    primaryBtnTextColor: '#000000',
+    primaryBtnBg: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+    primaryBtnSolidBg: '#ea580c',
+    primaryBtnHoverBg: '#c2410c',
+    primaryBtnShadow: '0 8px 24px rgba(234, 88, 12, 0.45)',
+    primaryBtnHoverShadow: '0 16px 36px rgba(234, 88, 12, 0.65)',
+    primaryBtnBorder: '1px solid rgba(255, 255, 255, 0.25)',
+    primaryBtnTextColor: '#ffffff',
     secondaryBtnText: 'Watch Demo',
-    waveConfig: { horizonColor: '#4c1d95', waveColor: '#7c3aed', crestColor: '#fdba74' },
+    waveConfig: { horizonColor: '#ffa200ff', waveColor: '#d86100ff', crestColor: '#fdba74' },
     trustBadges: [
       { text: 'Enterprise Grade', dot: '#34d399' },
       { text: 'No credit card required' },
@@ -76,8 +81,13 @@ const HERO_SLIDES = [
     ],
     description: 'Deploy intelligent AI voice telecallers that speak natural Telugu, Hindi & English to qualify leads, book appointments, and close sales 24/7.',
     primaryBtnText: 'Start Free AI Calling',
-    primaryBtnBg: '#ffffff',
-    primaryBtnTextColor: '#000000',
+    primaryBtnBg: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
+    primaryBtnSolidBg: '#0284c7',
+    primaryBtnHoverBg: '#0369a1',
+    primaryBtnShadow: '0 8px 24px rgba(2, 132, 199, 0.45)',
+    primaryBtnHoverShadow: '0 16px 36px rgba(2, 132, 199, 0.65)',
+    primaryBtnBorder: '1px solid rgba(255, 255, 255, 0.25)',
+    primaryBtnTextColor: '#ffffff',
     secondaryBtnText: 'Listen AI Voice Demo',
     waveConfig: { horizonColor: '#020617', waveColor: '#0369a1', crestColor: '#38bdf8' },
     trustBadges: [
@@ -521,14 +531,14 @@ export function HeroSection({
             alignItems: 'center',
           }}
         >
-          {/* PRIMARY GET STARTED BUTTON */}
+          {/* PRIMARY GET STARTED / START AI CALLING BUTTON */}
           <motion.button
             onClick={() => navigate('/login')}
             whileHover={{
               y: -3,
               scale: 1.02,
-              backgroundColor: '#1d4ed8',
-              boxShadow: '0 16px 36px rgba(37, 99, 235, 0.45)',
+              filter: 'brightness(1.08)',
+              boxShadow: currentSlide.primaryBtnHoverShadow,
             }}
             whileTap={{ scale: 0.97 }}
             transition={{ duration: 0.25, ease: EASE }}
@@ -537,9 +547,10 @@ export function HeroSection({
               height: isMobile ? 54 : 58,
               boxSizing: 'border-box',
               borderRadius: 9999,
-              border: 'none',
-              backgroundColor: '#2563eb',
-              color: '#ffffff',
+              border: currentSlide.primaryBtnBorder || '1px solid rgba(255, 255, 255, 0.25)',
+              background: currentSlide.primaryBtnBg,
+              backgroundColor: currentSlide.primaryBtnSolidBg,
+              color: currentSlide.primaryBtnTextColor || '#ffffff',
               fontWeight: 700,
               fontSize: isMobile ? 14 : 15,
               cursor: 'pointer',
@@ -549,8 +560,9 @@ export function HeroSection({
               gap: 10,
               letterSpacing: '-0.01em',
               fontFamily: '"Inter", system-ui, sans-serif',
-              boxShadow: '0 8px 24px rgba(37, 99, 235, 0.35)',
+              boxShadow: currentSlide.primaryBtnShadow,
               flexShrink: 0,
+              transition: 'background 0.4s ease, background-color 0.4s ease, box-shadow 0.4s ease, border-color 0.4s ease',
             }}
           >
             <span>{currentSlide.primaryBtnText || 'Get Started'}</span>

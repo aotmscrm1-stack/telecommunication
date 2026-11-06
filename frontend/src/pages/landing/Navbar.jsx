@@ -101,20 +101,20 @@ export function Navbar({ activeSlideIndex = 0 }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState('home');
 
-  // Slide 0 = Transaction 1 (Blue), Slide 1 = AI Calling (Orange)
+  // Slide 0 = CRM Pipeline (Orange), Slide 1 = AI Telecaller (Blue)
   const isAiCallingSlide = activeSlideIndex === 1;
 
   const btnBg = isAiCallingSlide
-    ? 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)'
-    : 'linear-gradient(135deg, #0466c8 0%, #0353a4 100%)';
+    ? 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)'
+    : 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)';
 
   const btnShadow = isAiCallingSlide
-    ? '0 6px 18px rgba(249, 115, 22, 0.35)'
-    : '0 6px 18px rgba(4, 102, 200, 0.35)';
+    ? '0 6px 18px rgba(2, 132, 199, 0.35)'
+    : '0 6px 18px rgba(249, 115, 22, 0.35)';
 
   const hoverGlow = isAiCallingSlide
-    ? `0 0 0 2px #f97316, 0 0 20px rgba(249, 115, 22, 0.45), 0 10px 26px rgba(249, 115, 22, 0.25)`
-    : `0 0 0 2px #0466c8, 0 0 20px rgba(4, 102, 200, 0.45), 0 10px 26px rgba(4, 102, 200, 0.25)`;
+    ? `0 0 0 2px #0284c7, 0 0 20px rgba(2, 132, 199, 0.45), 0 10px 26px rgba(2, 132, 199, 0.25)`
+    : `0 0 0 2px #f97316, 0 0 20px rgba(249, 115, 22, 0.45), 0 10px 26px rgba(249, 115, 22, 0.25)`;
 
   // Track scroll position to update navbar style & highlight active section
   useEffect(() => {
@@ -223,12 +223,12 @@ export function Navbar({ activeSlideIndex = 0 }) {
               } catch (err) {}
             }
             e.currentTarget.style.boxShadow = `
-              0 0 0 2px ${isAiCallingSlide ? '#f97316' : '#0466c8'},
-              0 0 18px ${isAiCallingSlide ? 'rgba(249, 115, 22, 0.45)' : 'rgba(4, 102, 200, 0.45)'}
+              0 0 0 2px ${isAiCallingSlide ? '#0284c7' : '#f97316'},
+              0 0 18px ${isAiCallingSlide ? 'rgba(2, 132, 199, 0.45)' : 'rgba(249, 115, 22, 0.45)'}
             `;
             if (isScrolled) {
               e.currentTarget.style.background = '#ffffff';
-              e.currentTarget.style.borderColor = isAiCallingSlide ? '#f97316' : '#0466c8';
+              e.currentTarget.style.borderColor = isAiCallingSlide ? '#0284c7' : '#f97316';
             }
           }}
           onMouseLeave={(e) => {
