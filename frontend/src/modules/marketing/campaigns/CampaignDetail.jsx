@@ -5,6 +5,8 @@ import * as XLSX from 'xlsx';
 import StatusBadge from '../../../components/common/StatusBadge';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import LeadDetailsPage from '../../../components/LeadDetails/LeadDetailsPage';
+import { useAuth } from '../../../context/AuthContext';
+import { canDelete } from '../../../utils/permissions';
 import {
   User,
   Phone,
@@ -21,7 +23,8 @@ import {
   UploadCloud,
   Users,
   FileSpreadsheet,
-  FolderPlus
+  FolderPlus,
+  Trash2
 } from 'lucide-react';
 
 // ─── White, Orange, Blue Design Tokens ────────────────────────────────────────
@@ -1653,6 +1656,8 @@ function AddStudentModal({ campaignId, campaignName, onClose, onSuccess, onOpenB
 export default function CampaignDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const userCanDelete = canDelete(user);
 
   const [campaign, setCampaign] = useState(null);
   const [leads, setLeads] = useState([]);
@@ -1669,6 +1674,21 @@ export default function CampaignDetail() {
 
   // Mobile / Tablet Tab View ('students' | 'analytics' | 'profile')
   const [activeMobileTab, setActiveMobileTab] = useState('students');
+
+  const handleDeleteLead = async (leadId, leadName, e) => {
+    if (e) e.stopPropagation();
+    if (!window.confirm(`Are you sure you want to delete lead "${leadName || 'this student'}"? This action cannot be undone.`)) return;
+    try {
+      await leadsAPI.delete(leadId);
+      if (selectedLead?._id === leadId) {
+        setSelectedLead(null);
+      }
+      fetchLeads(page);
+      fetchCampaign();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to delete lead');
+    }
+  };
 
   const fetchCampaign = useCallback(async () => {
     try {
@@ -1858,6 +1878,29 @@ export default function CampaignDetail() {
                       </div>
                       <div style={{ fontSize: 10.5, color: MUTED, fontFamily: 'monospace', fontWeight: 400 }}>{lead.phone}</div>
                     </div>
+                    {userCanDelete && (
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteLead(lead._id, lead.name, e)}
+                        title="Delete Student from Campaign"
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          padding: '4px',
+                          color: '#94a3b8',
+                          cursor: 'pointer',
+                          borderRadius: '4px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'all 0.15s ease',
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = '#fef2f2'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.background = 'transparent'; }}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><polyline points="9 18 15 12 9 6" /></svg>
                   </div>
                   <div style={{ marginTop: 4 }}><MiniStatus status={lead.status} /></div>

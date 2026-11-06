@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { metaLeadsAPI, usersAPI, blocklistAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
+import { canDelete } from '../../../utils/permissions';
 import AssignMembersModal from './AssignMembersModal';
 import DeleteCampaignModal from './DeleteCampaignModal';
 import LeadDetailsPage, { cleanLeadName } from '../../../components/LeadDetails/LeadDetailsPage';
@@ -1584,6 +1585,21 @@ export default function MetaLeads() {
     setTimeout(() => setStatusMessage(''), 4000);
   };
 
+  const handleDeleteLead = async (leadId, leadName, e) => {
+    if (e) e.stopPropagation();
+    if (!window.confirm(`Are you sure you want to delete lead "${leadName || 'this lead'}"? This action cannot be undone.`)) return;
+    try {
+      await metaLeadsAPI.delete(leadId);
+      if (selectedLead?._id === leadId) {
+        setSelectedLead(null);
+      }
+      fetchCampaignLeads(selectedCampaign, leadsPage);
+      fetchCampaigns();
+    } catch (err) {
+      alert(err?.response?.data?.message || err?.message || 'Failed to delete lead');
+    }
+  };
+
   // ── Export CSV Handler ──────────────────────────────────────────────────────
   const handleExportCSV = () => {
     const listToExport = selectedCampaign ? campaignLeads : campaignStats;
@@ -2036,6 +2052,29 @@ export default function MetaLeads() {
                             {city && <span style={{ fontFamily: 'inherit', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>· {city}</span>}
                           </div>
                         </div>
+                        {canDelete(user) && (
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeleteLead(lead._id, name, e)}
+                            title="Delete Lead"
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              padding: '4px',
+                              color: '#94a3b8',
+                              cursor: 'pointer',
+                              borderRadius: '4px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'all 0.15s ease',
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = '#fef2f2'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.background = 'transparent'; }}
+                          >
+                            <FiTrash2 size={13} />
+                          </button>
+                        )}
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><polyline points="9 18 15 12 9 6" /></svg>
                       </div>
 

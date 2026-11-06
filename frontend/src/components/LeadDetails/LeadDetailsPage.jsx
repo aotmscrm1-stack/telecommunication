@@ -1992,7 +1992,13 @@ export default function LeadDetailsPage({
   const handleDeleteLead = async () => {
     if (!confirm('Are you sure you want to delete this lead? This action cannot be undone.')) return;
     try {
-      await leadsAPI.delete(lead._id);
+      const targetMetaId = metaLeadId || (isMeta ? id : null);
+      if (targetMetaId) {
+        await metaLeadsAPI.delete(targetMetaId).catch(() => {});
+      }
+      if (lead?._id) {
+        await leadsAPI.delete(lead._id).catch(() => {});
+      }
       if (onDeleted) onDeleted(); else navigate('/leads');
     } catch (err) { alert(err.response?.data?.message || 'Failed to delete lead'); }
   };
@@ -2136,6 +2142,17 @@ export default function LeadDetailsPage({
               status={lead.status}
               onStatusChange={handleStatusChange}
             />
+            {canDelete(user) && (
+              <button
+                type="button"
+                onClick={handleDeleteLead}
+                title="Delete Lead"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition-all cursor-pointer shadow-2xs"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                <span className="hidden sm:inline">Delete Lead</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -2525,16 +2542,29 @@ export default function LeadDetailsPage({
             <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1.5">
               <Zap className="w-3.5 h-3.5 text-sky-600" /> Quick Action Center
             </h3>
-            <button
-              type="button"
-              onClick={handleBlockToggle}
-              disabled={blockingAction}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
-                isBlocked ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs' : 'bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100'
-              }`}
-            >
-              {blockingAction ? 'Updating...' : isBlocked ? '✓ Unblock Contact' : 'Block Contact'}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleBlockToggle}
+                disabled={blockingAction}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                  isBlocked ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs' : 'bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100'
+                }`}
+              >
+                {blockingAction ? 'Updating...' : isBlocked ? '✓ Unblock Contact' : 'Block Contact'}
+              </button>
+              {canDelete(user) && (
+                <button
+                  type="button"
+                  onClick={handleDeleteLead}
+                  title="Delete Lead"
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 hover:text-red-700"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                  Delete Lead
+                </button>
+              )}
+            </div>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
             {[
@@ -2818,7 +2848,7 @@ export default function LeadDetailsPage({
                         );
                       }
 
-                      // 3. NOTES CARD (lead note or meta campaign note)
+                      // 3. NOTES CARD (v-card-16 inspired repository card design)
                       return (
                         <motion.div
                           initial={{ opacity: 0, y: 8 }}
@@ -2826,33 +2856,53 @@ export default function LeadDetailsPage({
                           transition={{ duration: 0.18, delay: i * 0.02 }}
                           key={a._id || i}
                           onClick={() => setSelectedCallSummaryActivity(a)}
-                          className="bg-white rounded-2xl border border-indigo-100/90 shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between overflow-hidden group hover:border-indigo-300"
+                          className="rounded-xl border border-slate-200/90 bg-white text-slate-900 shadow-xs hover:shadow-md transition-all cursor-pointer p-4 flex flex-col justify-between gap-3 group hover:border-slate-300"
                         >
-                          <div className="h-1 bg-gradient-to-r from-indigo-500 via-indigo-600 to-purple-600 w-full" />
-                          <div className="p-4 flex-1 flex flex-col justify-between">
-                            <div>
-                              <div className="flex items-center justify-between gap-2 mb-3">
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                                  <FileText className="w-3.5 h-3.5 text-indigo-600" /> Notes
+                          <div className="flex flex-col gap-2.5">
+                            {/* Top Header: Icon + Title + Secondary Badge */}
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <FileText className="w-4 h-4 shrink-0 text-slate-500 group-hover:text-blue-600 transition-colors" />
+                                <span className="font-semibold text-sm text-slate-800 truncate">
+                                  {a.isMetaNote ? 'Meta Campaign Note' : 'Lead Note'}
                                 </span>
-                                {a.isMetaNote && (
-                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200">
-                                    Campaign Note
-                                  </span>
-                                )}
                               </div>
-
-                              <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 mb-2">
-                                <p className="text-xs text-slate-700 whitespace-pre-line line-clamp-4 leading-relaxed font-normal">
-                                  {a.description || 'Note recorded'}
-                                </p>
-                              </div>
+                              <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-100/90 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600 shrink-0">
+                                {a.isMetaNote ? 'Campaign' : 'Internal'}
+                              </span>
                             </div>
 
-                            <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium mt-2">
-                              <span className="truncate max-w-[130px]">By: <strong className="text-slate-800">{a.performedBy?.name || 'Agent'}</strong></span>
-                              <span>{a.createdAt ? format(new Date(a.createdAt), 'dd MMM, hh:mm a') : ''}</span>
+                            {/* Description / Content */}
+                            <p className="text-slate-600 text-xs leading-relaxed whitespace-pre-line line-clamp-3">
+                              {a.description || 'Note recorded'}
+                            </p>
+                          </div>
+
+                          {/* Bottom Meta Stats Bar (v-card-16 style: dot indicator, agent, clock & time, copy icon) */}
+                          <div className="flex items-center justify-between gap-2 text-slate-500 text-xs pt-2.5 border-t border-slate-100">
+                            <div className="flex items-center gap-3">
+                              <span className="flex items-center gap-1.5 text-[11px] font-medium text-slate-600">
+                                <span className={`size-2.5 rounded-full ${a.isMetaNote ? 'bg-purple-500' : 'bg-blue-500'}`} />
+                                {a.performedBy?.name || 'Agent'}
+                              </span>
+                              <span className="flex items-center gap-1 text-[11px] text-slate-400">
+                                <Clock className="w-3 h-3 text-slate-400" />
+                                {a.createdAt ? format(new Date(a.createdAt), 'dd MMM, hh:mm a') : 'Recent'}
+                              </span>
                             </div>
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigator.clipboard?.writeText(a.description || '');
+                                alert('Note copied to clipboard');
+                              }}
+                              title="Copy Note text"
+                              className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded transition-colors"
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         </motion.div>
                       );
