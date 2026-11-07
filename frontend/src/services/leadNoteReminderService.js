@@ -346,8 +346,15 @@ class LeadNoteReminderService {
       this.intervalId = null;
     }
     if (this.ws) {
-      try { this.ws.close(); } catch (_) {}
+      const socket = this.ws;
       this.ws = null;
+      if (socket.readyState === WebSocket.OPEN) {
+        try { socket.close(); } catch (_) {}
+      } else if (socket.readyState === WebSocket.CONNECTING) {
+        socket.onopen = () => { try { socket.close(); } catch (_) {} };
+        socket.onerror = () => {};
+        socket.onclose = () => {};
+      }
     }
     if (this.activeToastTimer) {
       clearTimeout(this.activeToastTimer);

@@ -2183,9 +2183,6 @@ export default function LeadDetailsPage({
               status={lead.status}
               onStatusChange={handleStatusChange}
             />
-            {canDelete(user) && (
-              {/* Delete Lead button removed per policy */}
-            )}
           </div>
         </div>
       </div>
@@ -2586,9 +2583,6 @@ export default function LeadDetailsPage({
               >
                 {blockingAction ? 'Updating...' : isBlocked ? '✓ Unblock Contact' : 'Block Contact'}
               </button>
-              {canDelete(user) && (
-                {/* Delete Lead button removed per policy */}
-              )}
             </div>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
@@ -2627,27 +2621,42 @@ export default function LeadDetailsPage({
           </div>
 
           {(() => {
-            // 1. NOTES: Combine candidate/lead remarks, agent notes, and campaign notes
+            // 1. NOTES: Combine candidate/lead remarks, agent notes, and campaign notes (deduplicated)
             const metaCallNotes = (lead.callNotes || metaLeadData?.callNotes || []).map((cn, idx) => ({
               _id: cn._id || `meta-note-${idx}`,
               type: 'note',
-              description: cn.note || cn.outcome || 'Note recorded',
+              description: String(cn.note || cn.outcome || 'Note recorded'),
               createdAt: cn.date,
-              performedBy: { name: cn.userName || 'Agent' },
+              performedBy: { name: typeof cn.userName === 'string' ? cn.userName : (cn.user?.name || 'Agent') },
               isMetaNote: true,
             }));
 
             const regularNotes = (lead.activities || [])
               .filter(a => a.type === 'note')
               .filter(a => !String(a.description || a.note || '').toLowerCase().startsWith('status changed'))
-              .map(a => ({
+              .map((a, idx) => ({
                 ...a,
+                _id: a._id || `reg-note-${idx}`,
                 type: 'note',
-                description: a.description || a.note || 'Note added',
-                performedBy: a.performedBy || { name: 'Agent' },
+                description: String(a.description || a.note || 'Note added'),
+                performedBy: typeof a.performedBy === 'object' && a.performedBy !== null
+                  ? { name: a.performedBy.name || 'Agent' }
+                  : { name: typeof a.performedBy === 'string' ? a.performedBy : 'Agent' },
               }));
 
-            const allNotes = [...regularNotes, ...metaCallNotes];
+            const seenNoteIds = new Set();
+            const seenNoteFingerprints = new Set();
+            const allNotes = [...metaCallNotes, ...regularNotes].filter(n => {
+              const idStr = n._id ? String(n._id) : '';
+              if (idStr && !idStr.startsWith('meta-note-') && !idStr.startsWith('reg-note-')) {
+                if (seenNoteIds.has(idStr)) return false;
+                seenNoteIds.add(idStr);
+              }
+              const fp = `${String(n.description || '').trim()}|${n.createdAt ? new Date(n.createdAt).toISOString().slice(0, 16) : ''}`;
+              if (seenNoteFingerprints.has(fp)) return false;
+              seenNoteFingerprints.add(fp);
+              return true;
+            });
 
             // 2. CALL BACK: Scheduled callbacks / followups
             const allFollowups = (leadFollowups || []).map(f => ({
@@ -2733,7 +2742,7 @@ export default function LeadDetailsPage({
                             initial={{ opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.18, delay: i * 0.02 }}
-                            key={a._id || i}
+                            key={`${a.type || 'item'}-${a._id || i}-${i}`}
                             onClick={() => setSelectedCallSummaryActivity(a)}
                             className="bg-white rounded-2xl border border-sky-200/80 shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between overflow-hidden group hover:border-sky-300"
                           >
@@ -2825,7 +2834,7 @@ export default function LeadDetailsPage({
                             initial={{ opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.18, delay: i * 0.02 }}
-                            key={a._id || i}
+                            key={`${a.type || 'item'}-${a._id || i}-${i}`}
                             onClick={() => setSelectedCallSummaryActivity(a)}
                             className="bg-white rounded-2xl border border-amber-200/90 shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between overflow-hidden group hover:border-amber-300"
                           >
@@ -2879,7 +2888,7 @@ export default function LeadDetailsPage({
                           initial={{ opacity: 0, y: 8 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.18, delay: i * 0.02 }}
-                          key={a._id || i}
+                          key={`${a.type || 'item'}-${a._id || i}-${i}`}
                           onClick={() => setSelectedCallSummaryActivity(a)}
                           className="rounded-xl border border-slate-200/90 bg-white text-slate-900 shadow-xs hover:shadow-md transition-all cursor-pointer p-4 flex flex-col justify-between gap-3 group hover:border-slate-300"
                         >
