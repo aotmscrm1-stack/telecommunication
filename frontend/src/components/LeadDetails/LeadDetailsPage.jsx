@@ -348,6 +348,25 @@ function AddNoteModal({ lead, onClose, onSubmit }) {
             </div>
           )}
 
+          {/* Dedicated Date & Time Row (New Line) */}
+          <div
+            style={{
+              background: '#f8fafc',
+              border: `1px solid ${TODO_BORDER}`,
+              borderRadius: 8,
+              padding: '8px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontSize: 12
+            }}
+          >
+            <span style={{ color: TODO_MUTED, fontWeight: 500 }}>📅 Date & Time:</span>
+            <span style={{ fontWeight: 600, color: TODO_DEEP_BLUE }}>
+              {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} • {new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+            </span>
+          </div>
+
           <div>
             <label style={{ fontSize: 13, fontWeight: 500, color: TODO_DEEP_BLUE, display: 'block', marginBottom: 6 }}>
               Note Details *
@@ -2165,15 +2184,7 @@ export default function LeadDetailsPage({
               onStatusChange={handleStatusChange}
             />
             {canDelete(user) && (
-              <button
-                type="button"
-                onClick={handleDeleteLead}
-                title="Delete Lead"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition-all cursor-pointer shadow-2xs"
-              >
-                <Trash2 className="w-3.5 h-3.5 text-red-600" />
-                <span className="hidden sm:inline">Delete Lead</span>
-              </button>
+              {/* Delete Lead button removed per policy */}
             )}
           </div>
         </div>
@@ -2576,15 +2587,7 @@ export default function LeadDetailsPage({
                 {blockingAction ? 'Updating...' : isBlocked ? '✓ Unblock Contact' : 'Block Contact'}
               </button>
               {canDelete(user) && (
-                <button
-                  type="button"
-                  onClick={handleDeleteLead}
-                  title="Delete Lead"
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 hover:text-red-700"
-                >
-                  <Trash2 className="w-3.5 h-3.5 text-red-600" />
-                  Delete Lead
-                </button>
+                {/* Delete Lead button removed per policy */}
               )}
             </div>
           </div>
@@ -2900,31 +2903,42 @@ export default function LeadDetailsPage({
                             </p>
                           </div>
 
-                          {/* Bottom Meta Stats Bar (v-card-16 style: dot indicator, agent, clock & time, copy icon) */}
-                          <div className="flex items-center justify-between gap-2 text-slate-500 text-xs pt-2.5 border-t border-slate-100">
-                            <div className="flex items-center gap-3">
-                              <span className="flex items-center gap-1.5 text-[11px] font-medium text-slate-600">
-                                <span className={`size-2.5 rounded-full ${a.isMetaNote ? 'bg-purple-500' : 'bg-blue-500'}`} />
-                                {a.performedBy?.name || 'Agent'}
+                          {/* Note Card Footer: Agent Row + Dedicated Date/Time on NEW LINE */}
+                          <div className="pt-2.5 border-t border-slate-100 flex flex-col gap-1.5">
+                            {/* Line 1: Agent & Copy Button */}
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="flex items-center gap-1.5 text-[11.5px] font-semibold text-slate-700">
+                                <span className={`size-2 rounded-full ${a.isMetaNote ? 'bg-purple-500' : 'bg-blue-500'}`} />
+                                <span className="text-slate-400 font-normal">By:</span>
+                                <span>{a.performedBy?.name || 'Agent'}</span>
                               </span>
-                              <span className="flex items-center gap-1 text-[11px] text-slate-400">
-                                <Clock className="w-3 h-3 text-slate-400" />
-                                {a.createdAt ? format(new Date(a.createdAt), 'dd MMM, hh:mm a') : 'Recent'}
-                              </span>
+
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigator.clipboard?.writeText(a.description || '');
+                                  alert('Note copied to clipboard');
+                                }}
+                                title="Copy Note text"
+                                className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded transition-colors"
+                              >
+                                <Copy className="w-3.5 h-3.5" />
+                              </button>
                             </div>
 
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigator.clipboard?.writeText(a.description || '');
-                                alert('Note copied to clipboard');
-                              }}
-                              title="Copy Note text"
-                              className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded transition-colors"
-                            >
-                              <Copy className="w-3.5 h-3.5" />
-                            </button>
+                            {/* Line 2 (NEW LINE): Date & Time */}
+                            <div className="flex items-center gap-2 text-[11px] font-medium text-slate-500 bg-slate-50/90 px-2.5 py-1 rounded-lg border border-slate-200/60">
+                              <span className="inline-flex items-center gap-1 text-slate-600 font-semibold">
+                                <Calendar className="w-3 h-3 text-blue-600 shrink-0" />
+                                {a.createdAt ? format(new Date(a.createdAt), 'dd MMM yyyy') : 'Recent'}
+                              </span>
+                              <span className="text-slate-300">•</span>
+                              <span className="inline-flex items-center gap-1 text-slate-600 font-semibold">
+                                <Clock className="w-3 h-3 text-amber-600 shrink-0" />
+                                {a.createdAt ? format(new Date(a.createdAt), 'hh:mm:ss a') : ''}
+                              </span>
+                            </div>
                           </div>
                         </motion.div>
                       );

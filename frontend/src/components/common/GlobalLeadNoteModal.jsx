@@ -185,6 +185,19 @@ export default function GlobalLeadNoteModal() {
                 {summaryStatus}
               </span>
             </div>
+
+            {/* Date & Time on Dedicated New Line */}
+            <div className="flex items-center justify-between text-xs sm:text-sm pt-1 border-t border-amber-200/50">
+              <span className="text-slate-500 font-medium flex items-center gap-1.5">
+                <span>📅</span>
+                <span>Date & Time:</span>
+              </span>
+              <div className="flex items-center gap-1.5 font-bold text-slate-800 bg-white px-2.5 py-0.5 rounded-md border border-amber-200/60">
+                <span className="text-blue-700">{new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                <span className="text-slate-300">•</span>
+                <span className="text-amber-700">{new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}</span>
+              </div>
+            </div>
           </div>
 
           {/* Note Input */}

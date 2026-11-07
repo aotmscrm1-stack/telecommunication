@@ -240,7 +240,19 @@ function extractCoreIdentifiers(rawData = {}) {
     }
   }
 
-  // 6. Empty or Inverted Header Row Check
+  // 6. Interested / Course
+  let interested = rawData.interested || rawData.Interested || rawData.course || rawData.Course || rawData['Interested In'] || rawData['interested_in'] || rawData.subject || rawData.program || rawData['which_sap_module_are_you_interested_in'] || '';
+  if (typeof interested === 'string') interested = interested.trim();
+  if (!interested) {
+    for (const [k, v] of Object.entries(rawData)) {
+      if (/interested|course|program|module/i.test(k) && typeof v === 'string' && v.trim()) {
+        interested = v.trim();
+        break;
+      }
+    }
+  }
+
+  // 7. Empty or Inverted Header Row Check
   const isHeaderRow = (metaLeadId === 'id' || metaLeadId === 'lead_id') 
     || (phone === 'phone_number' || phone === 'phone')
     || (fullName === 'full_name');
@@ -254,6 +266,7 @@ function extractCoreIdentifiers(rawData = {}) {
     email: email && email !== 'email' ? email : '',
     fullName,
     city: city || '',
+    interested: interested || '',
     isEmptyRow
   };
 }
@@ -384,12 +397,14 @@ router.post('/', async (req, res) => {
         });
       }
 
-      // Strictly allow only Name, Phone, Email, Location
+      // Strictly allow Name, Phone, Email, Location, Interested
       const allowedRawData = {
         full_name: fullName,
         email: email || '',
         phone_number: phone || normalizedPhone,
         city: city || '',
+        interested: interested || '',
+        course: interested || '',
         name: fullName,
         phone: phone || normalizedPhone,
         location: city || ''
@@ -414,6 +429,10 @@ router.post('/', async (req, res) => {
         existing.normalizedPhone = normalizedPhone || existing.normalizedPhone || undefined;
         existing.email = email || existing.email || undefined;
         if (city) existing.city = city;
+        if (interested) {
+          existing.interested = interested;
+          existing.course = interested;
+        }
         if (fullName && fullName !== 'Unknown Lead') {
           existing.fullName = fullName;
         }
@@ -435,6 +454,8 @@ router.post('/', async (req, res) => {
           normalizedPhone: normalizedPhone || undefined,
           email: email || undefined,
           city: city || undefined,
+          interested: interested || undefined,
+          course: interested || undefined,
           fullName: fullName || 'Unknown Lead',
           rawData: allowedRawData,
           status: derived.status || 'New',

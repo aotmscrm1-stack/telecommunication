@@ -661,6 +661,10 @@ async function ingestRowsIntoMetaLeads(rows, campaignName, sourceLabel) {
       existing.normalizedPhone = normalizedPhone || existing.normalizedPhone || undefined;
       existing.email = email || existing.email || undefined;
       if (city) existing.city = city;
+      if (interested) {
+        existing.interested = interested;
+        existing.course = interested;
+      }
       if (fullName && fullName !== 'Unknown Lead') {
         existing.fullName = fullName;
       }
@@ -680,6 +684,8 @@ async function ingestRowsIntoMetaLeads(rows, campaignName, sourceLabel) {
         normalizedPhone: normalizedPhone || undefined,
         email: email || undefined,
         city: city || undefined,
+        interested: interested || undefined,
+        course: interested || undefined,
         fullName: fullName || 'Unknown Lead',
         rawData: allowedRawData,
         status: derived.status || 'New',

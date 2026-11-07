@@ -43,6 +43,16 @@ const metaLeadSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  interested: {
+    type: String,
+    trim: true,
+    index: true
+  },
+  course: {
+    type: String,
+    trim: true,
+    index: true
+  },
   // Flexible container holding the exact, raw Google Sheet columns
   rawData: {
     type: mongoose.Schema.Types.Mixed,

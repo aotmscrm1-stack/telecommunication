@@ -6,6 +6,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { canDelete } from '../../../utils/permissions';
 import AssignMembersModal from './AssignMembersModal';
 import DeleteCampaignModal from './DeleteCampaignModal';
+import AddLeadModal from './AddLeadModal';
 import LeadDetailsPage, { cleanLeadName } from '../../../components/LeadDetails/LeadDetailsPage';
 import leadNoteReminderService, { isStatusRequiringNote, leadHasNote, isAdminOrManager } from '../../../services/leadNoteReminderService';
 import AutoScrollText from '../../../components/common/AutoScrollText';
@@ -1085,6 +1086,8 @@ export default function MetaLeads() {
   const [assignModalCampaign, setAssignModalCampaign] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteModalCampaign, setDeleteModalCampaign] = useState({ name: '', count: 0 });
+  const [showAddLeadModal, setShowAddLeadModal] = useState(false);
+  const [addLeadCampaign, setAddLeadCampaign] = useState('');
 
   // ── Robust Name, Phone & Email Extraction (Resolves "Unknown Lead") ────────
   const getLeadIdentifiers = (lead) => {
@@ -1162,11 +1165,23 @@ export default function MetaLeads() {
       }
     }
 
+    // 5. Interested / Course extraction
+    let interested = lead.interested || lead.course || raw.interested || raw.Interested || raw.course || raw.Course || raw['Interested In'] || raw['interested_in'] || raw.subject || raw.program || raw['which_sap_module_are_you_interested_in'] || '';
+    if (!interested) {
+      for (const [k, v] of Object.entries(raw)) {
+        if (/interested|course|program|module/i.test(k) && typeof v === 'string' && v.trim()) {
+          interested = v.trim();
+          break;
+        }
+      }
+    }
+
     return {
       phone: String(phone).trim(),
       name: String(name).trim(),
       email: String(email).trim(),
-      city: String(city).trim()
+      city: String(city).trim(),
+      interested: String(interested).trim()
     };
   };
 
@@ -1838,28 +1853,29 @@ export default function MetaLeads() {
                         <path d="M3.51 15a9 9 0 1 0 .49-5" />
                       </svg>
                     </button>
-                    {isAdmin && (
-                      <button
-                        onClick={() => handleOpenDeleteCampaignModal(selectedCampaign, totalCampaignStudents)}
-                        title="Delete Campaign (Admin/Manager)"
-                        style={{
-                          background: '#fef2f2',
-                          color: '#dc2626',
-                          border: '1px solid #fecaca',
-                          borderRadius: 6,
-                          padding: '3px 7px',
-                          fontSize: 10.5,
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 3
-                        }}
-                      >
-                        <FiTrash2 size={11} />
-                        Delete
-                      </button>
-                    )}
+                    <button
+                      onClick={() => {
+                        setAddLeadCampaign(selectedCampaign);
+                        setShowAddLeadModal(true);
+                      }}
+                      title="Add Lead to Campaign"
+                      style={{
+                        background: '#0284c7',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: 6,
+                        padding: '3px 8px',
+                        fontSize: 10.5,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 3
+                      }}
+                    >
+                      <FiPlus size={11} />
+                      Add Lead
+                    </button>
                   </div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 5 }}>
@@ -1909,16 +1925,17 @@ export default function MetaLeads() {
                   </button>
                 )}
 
-                {isAdmin && (
-                  <button
-                    onClick={() => handleOpenDeleteCampaignModal(selectedCampaign, totalCampaignStudents)}
-                    title="Delete Campaign (Admin/Manager)"
-                    style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', borderRadius: 6, padding: '6px 9px', fontSize: 11, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 3 }}
-                  >
-                    <FiTrash2 size={12} />
-                    Delete
-                  </button>
-                )}
+                <button
+                  onClick={() => {
+                    setAddLeadCampaign(selectedCampaign);
+                    setShowAddLeadModal(true);
+                  }}
+                  title="Add Lead to Campaign"
+                  style={{ background: '#0284c7', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4 }}
+                >
+                  <FiPlus size={12} />
+                  + Add Lead
+                </button>
               </div>
 
               <div style={{ fontSize: 10.5, color: MUTED, fontWeight: 400, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
@@ -2034,7 +2051,7 @@ export default function MetaLeads() {
                 </div>
               ) : (
                 campaignLeads.map(lead => {
-                  const { name, phone, email, city } = getLeadIdentifiers(lead);
+                  const { name, phone, email, city, interested } = getLeadIdentifiers(lead);
                   const isSelected = selectedLead?._id === lead._id;
                   const isPos = isLeadPositive(lead);
                   const isNeg = isLeadNegative(lead);
@@ -2070,30 +2087,14 @@ export default function MetaLeads() {
                             <span style={{ flexShrink: 0 }}>{phone || 'No phone'}</span>
                             {city && <span style={{ fontFamily: 'inherit', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>· {city}</span>}
                           </div>
+                          {interested && (
+                            <div style={{ marginTop: 2, display: 'inline-flex', alignItems: 'center', gap: 3, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              <span style={{ fontSize: 9.5, fontWeight: 600, color: '#0369a1', background: '#e0f2fe', padding: '1px 5px', borderRadius: 4, border: '1px solid #bae6fd' }}>
+                                🎯 {interested}
+                              </span>
+                            </div>
+                          )}
                         </div>
-                        {canDelete(user) && (
-                          <button
-                            type="button"
-                            onClick={(e) => handleDeleteLead(lead._id, name, e)}
-                            title="Delete Lead"
-                            style={{
-                              background: 'transparent',
-                              border: 'none',
-                              padding: '4px',
-                              color: '#94a3b8',
-                              cursor: 'pointer',
-                              borderRadius: '4px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              transition: 'all 0.15s ease',
-                            }}
-                            onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = '#fef2f2'; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.background = 'transparent'; }}
-                          >
-                            <FiTrash2 size={13} />
-                          </button>
-                        )}
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><polyline points="9 18 15 12 9 6" /></svg>
                       </div>
 
@@ -2352,6 +2353,23 @@ export default function MetaLeads() {
             onConfirm={handleConfirmDeleteCampaign}
           />
         )}
+
+        {/* Add Lead Modal */}
+        <AddLeadModal
+          isOpen={showAddLeadModal}
+          onClose={() => setShowAddLeadModal(false)}
+          campaign={addLeadCampaign || selectedCampaign}
+          campaigns={campaignStats}
+          onLeadCreated={async (newLead, camp) => {
+            setStatusMessage(`Lead added successfully to ${camp}!`);
+            setTimeout(() => setStatusMessage(''), 4000);
+            await fetchCampaigns();
+            if (selectedCampaign === camp) {
+              await fetchCampaignLeads(camp, 1);
+              if (newLead) setSelectedLead(newLead);
+            }
+          }}
+        />
       </div>
     );
   }
@@ -2725,6 +2743,17 @@ export default function MetaLeads() {
                           >
                             View Leads
                           </button>
+                          <button
+                            onClick={() => {
+                              setAddLeadCampaign(c.campaign);
+                              setShowAddLeadModal(true);
+                            }}
+                            title="Add Lead to Campaign"
+                            className="px-2.5 py-1 rounded-lg text-xs font-semibold text-sky-700 bg-sky-50 border border-sky-200 hover:bg-sky-100 transition-colors flex items-center gap-1"
+                          >
+                            <FiPlus className="w-3.5 h-3.5" />
+                            Add Lead
+                          </button>
                           {isAdmin && (
                             <button
                               onClick={() => handleOpenAssignModal(c.campaign)}
@@ -2732,15 +2761,6 @@ export default function MetaLeads() {
                               className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors"
                             >
                               <FiUserPlus className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                          {isAdmin && (
-                            <button
-                              onClick={() => handleOpenDeleteCampaignModal(c.campaign, c.count || 0)}
-                              title="Delete Campaign (Admin/Manager)"
-                              className="p-1.5 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 transition-colors"
-                            >
-                              <FiTrash2 className="w-3.5 h-3.5" />
                             </button>
                           )}
                         </div>
@@ -2782,6 +2802,24 @@ export default function MetaLeads() {
           onConfirm={handleConfirmDeleteCampaign}
         />
       )}
+
+      {/* Add Lead Modal */}
+      <AddLeadModal
+        isOpen={showAddLeadModal}
+        onClose={() => setShowAddLeadModal(false)}
+        campaign={addLeadCampaign || selectedCampaign}
+        campaigns={campaignStats}
+        onLeadCreated={async (newLead, camp) => {
+          setStatusMessage(`Lead added successfully to ${camp}!`);
+          setTimeout(() => setStatusMessage(''), 4000);
+          await fetchCampaigns();
+          if (camp) {
+            setSelectedCampaign(camp);
+            await fetchCampaignLeads(camp, 1);
+            if (newLead) setSelectedLead(newLead);
+          }
+        }}
+      />
     </div>
   );
 }
