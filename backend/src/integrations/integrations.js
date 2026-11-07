@@ -226,12 +226,26 @@ router.get('/:id/leads', protect, async (req, res) => {
 
 router.get('/:id/sheets/columns', protect, async (req, res) => {
   try {
-    const { sheetId, range } = req.query;
-    if (!sheetId) return res.status(400).json({ message: 'sheetId is required' });
-    const result = await getSheetHeaders(sheetId, range);
+    let { sheetId, range, gid } = req.query;
+    if (!sheetId) return res.status(400).json({ success: false, message: 'Google Sheet ID or URL is required' });
+    const urlMatch = String(sheetId).trim().match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+    if (urlMatch) {
+      sheetId = urlMatch[1];
+    }
+    if (!gid) {
+      const gidMatch = String(req.query.sheetId || '').match(/[#&?]gid=([0-9]+)/);
+      if (gidMatch) gid = gidMatch[1];
+    }
+    if (range) {
+      range = String(range).replace(/!:+/g, '!').trim();
+    }
+    const result = await getSheetHeaders(sheetId, range, gid);
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
     res.json(result);
   } catch (err) {
-    res.status(500).json({ message: err.message, columns: [] });
+    res.status(500).json({ success: false, message: err.message, columns: [] });
   }
 });
 

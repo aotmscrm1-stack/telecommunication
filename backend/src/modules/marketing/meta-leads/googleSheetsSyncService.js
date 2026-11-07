@@ -250,22 +250,24 @@ function extractCoreIdentifiers(rawData) {
 
 function parseTabName(range, name) {
   if (range && typeof range === 'string') {
-    const match = range.match(/^'?([^'!]+)'?!/);
+    const cleanRange = range.replace(/!:+/g, '!').trim();
+    const match = cleanRange.match(/^'?([^'!]+)'?!/);
     if (match && match[1]) return match[1].trim();
-    if (range.includes('!')) return range.split('!')[0].replace(/^'|'$/g, '').trim();
+    if (cleanRange.includes('!')) return cleanRange.split('!')[0].replace(/^'|'$/g, '').trim();
+    if (cleanRange) return cleanRange.replace(/^'|'$/g, '').trim();
   }
   if (name && typeof name === 'string' && name.trim()) return name.trim();
   return 'Sheet1';
 }
 
 /**
- * Fetch rows from Google Sheet via GViz public CSV endpoint using matrix row parsing
- */
-/**
  * Fetch rows from Google Sheet via direct CSV export endpoint (Priority 1) or GViz endpoint (Fallback)
  */
 async function fetchSheetRows(sheetId, tabName, gid) {
   let csvText = '';
+  let lastError = null;
+  let lastHttpStatus = null;
+
   // Priority 1: Direct Google Sheets CSV export endpoint via gid (Returns ALL rows, no 59-row GViz cutoff!)
   if (gid !== undefined && gid !== null && String(gid).length > 0) {
     try {
@@ -277,23 +279,57 @@ async function fetchSheetRows(sheetId, tabName, gid) {
       });
       csvText = Buffer.from(response.data).toString('utf8').replace(/^\uFEFF/, '');
     } catch (exportErr) {
+      lastError = exportErr;
+      lastHttpStatus = exportErr.response?.status;
       console.warn(`[MetaLeads Native Sync] Direct CSV export via gid=${gid} failed (${exportErr.message}), trying GViz...`);
     }
   }
 
   // Priority 2: Fallback to GViz endpoint
   if (!csvText) {
-    const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}`;
-    const response = await axios.get(url, {
-      responseType: 'arraybuffer',
-      timeout: 20000,
-      headers: { 'Accept': 'text/csv,application/octet-stream; charset=utf-8' }
-    });
-    csvText = Buffer.isBuffer(response.data)
-      ? response.data.toString('utf8').replace(/^\uFEFF/, '')
-      : typeof response.data === 'string'
-        ? response.data.replace(/^\uFEFF/, '')
-        : Buffer.from(response.data).toString('utf8').replace(/^\uFEFF/, '');
+    try {
+      const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}`;
+      const response = await axios.get(url, {
+        responseType: 'arraybuffer',
+        timeout: 20000,
+        headers: { 'Accept': 'text/csv,application/octet-stream; charset=utf-8' }
+      });
+      csvText = Buffer.isBuffer(response.data)
+        ? response.data.toString('utf8').replace(/^\uFEFF/, '')
+        : typeof response.data === 'string'
+          ? response.data.replace(/^\uFEFF/, '')
+          : Buffer.from(response.data).toString('utf8').replace(/^\uFEFF/, '');
+    } catch (err2) {
+      lastError = err2;
+      lastHttpStatus = err2.response?.status;
+    }
+  }
+
+  // Priority 3: Fallback to direct export without gid (Active Tab)
+  if (!csvText) {
+    try {
+      const fallbackUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
+      const response = await axios.get(fallbackUrl, {
+        responseType: 'arraybuffer',
+        timeout: 20000,
+        headers: { 'Accept': 'text/csv,application/octet-stream; charset=utf-8' }
+      });
+      csvText = Buffer.from(response.data).toString('utf8').replace(/^\uFEFF/, '');
+    } catch (err3) {
+      lastError = err3;
+      lastHttpStatus = err3.response?.status;
+    }
+  }
+
+  if (!csvText || !csvText.trim()) {
+    if (lastHttpStatus === 401) {
+      throw new Error(`Google Sheet is Restricted (401). Please open Google Sheet, click Share (top right), and set General access to "Anyone with the link" (Viewer).`);
+    } else if (lastHttpStatus === 404) {
+      throw new Error(`Google Sheet not found (404). Please verify that the Sheet ID "${sheetId}" is correct (Google Sheet IDs are case-sensitive).`);
+    } else if (lastError?.message) {
+      throw new Error(`Could not read Google Sheet: ${lastError.message}`);
+    }
+    return [];
   }
 
   const workbook = xlsx.read(csvText, { type: 'string', raw: false, codepage: 65001 });
@@ -314,8 +350,13 @@ async function fetchSheetRows(sheetId, tabName, gid) {
         obj[key] = rawRow[colIdx] != null ? String(rawRow[colIdx]).trim() : '';
       }
     });
-    // Ensure the row has at least a Name, Phone, or Email
-    if (obj.name || obj.phone || obj.email) {
+    rawHeaders.forEach((rawKey, colIdx) => {
+      if (rawKey && obj[rawKey] === undefined) {
+        obj[rawKey] = rawRow[colIdx] != null ? String(rawRow[colIdx]).trim() : '';
+      }
+    });
+    const hasAny = Object.values(obj).some(val => val && String(val).trim().length > 0);
+    if (hasAny) {
       rows.push(obj);
     }
   }
@@ -325,20 +366,86 @@ async function fetchSheetRows(sheetId, tabName, gid) {
 /**
  * Fetch column headers for a given sheet and tab range
  */
-async function getSheetHeaders(sheetId, range) {
-  const tabName = parseTabName(range);
+async function getSheetHeaders(sheetId, range, gid) {
+  const cleanRange = String(range || '').replace(/!:+/g, '!').trim();
+  const tabName = parseTabName(cleanRange);
+  let lastError = null;
+  let lastHttpStatus = null;
+
   try {
-    const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}`;
-    const response = await axios.get(url, {
-      responseType: 'arraybuffer',
-      timeout: 15000,
-      headers: { 'Accept': 'text/csv,application/octet-stream; charset=utf-8' }
-    });
-    const csvText = Buffer.isBuffer(response.data)
-      ? response.data.toString('utf8').replace(/^\uFEFF/, '')
-      : typeof response.data === 'string'
-        ? response.data.replace(/^\uFEFF/, '')
-        : Buffer.from(response.data).toString('utf8').replace(/^\uFEFF/, '');
+    let csvText = '';
+
+    // Priority 1: direct CSV export via gid if available
+    if (gid !== undefined && gid !== null && String(gid).length > 0) {
+      try {
+        const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+        const response = await axios.get(exportUrl, {
+          responseType: 'arraybuffer',
+          timeout: 15000,
+          headers: { 'Accept': 'text/csv,application/octet-stream; charset=utf-8' }
+        });
+        csvText = Buffer.from(response.data).toString('utf8').replace(/^\uFEFF/, '');
+      } catch (err1) {
+        lastError = err1;
+        lastHttpStatus = err1.response?.status;
+      }
+    }
+
+    // Priority 2: GViz endpoint with tabName
+    if (!csvText) {
+      try {
+        const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}`;
+        const response = await axios.get(url, {
+          responseType: 'arraybuffer',
+          timeout: 15000,
+          headers: { 'Accept': 'text/csv,application/octet-stream; charset=utf-8' }
+        });
+        csvText = Buffer.isBuffer(response.data)
+          ? response.data.toString('utf8').replace(/^\uFEFF/, '')
+          : typeof response.data === 'string'
+            ? response.data.replace(/^\uFEFF/, '')
+            : Buffer.from(response.data).toString('utf8').replace(/^\uFEFF/, '');
+      } catch (err2) {
+        lastError = err2;
+        lastHttpStatus = err2.response?.status;
+      }
+    }
+
+    // Priority 3: Fallback to active tab CSV export (works without needing tab name!)
+    if (!csvText) {
+      try {
+        const fallbackUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
+        const response = await axios.get(fallbackUrl, {
+          responseType: 'arraybuffer',
+          timeout: 15000,
+          headers: { 'Accept': 'text/csv,application/octet-stream; charset=utf-8' }
+        });
+        csvText = Buffer.from(response.data).toString('utf8').replace(/^\uFEFF/, '');
+      } catch (err3) {
+        lastError = err3;
+        lastHttpStatus = err3.response?.status;
+      }
+    }
+
+    if (!csvText || !csvText.trim()) {
+      let msg = 'Could not fetch Google Sheet data.';
+      if (lastHttpStatus === 401) {
+        msg = 'Google Sheet is Restricted (401). Please open your Google Sheet, click Share (top right), and change General access to "Anyone with the link" (Role: Viewer).';
+      } else if (lastHttpStatus === 404) {
+        msg = 'Google Sheet not found (404). Please verify that the Sheet ID or URL is correct (Google Sheet IDs are case-sensitive).';
+      } else if (lastError?.message) {
+        msg = lastError.message;
+      }
+      return {
+        success: false,
+        message: msg,
+        columns: [],
+        rawHeaders: [],
+        sampleRows: [],
+        totalRows: 0
+      };
+    }
+
     const workbook = xlsx.read(csvText, { type: 'string', raw: false, codepage: 65001 });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rawMatrix = xlsx.utils.sheet_to_json(sheet, { header: 1 });
@@ -347,17 +454,44 @@ async function getSheetHeaders(sheetId, range) {
       headers = (rawMatrix[0] || []).filter(h => typeof h === 'string' && h.trim().length > 0 && !h.startsWith('__EMPTY'));
     }
     const cleanHeaders = headers.map(normalizeHeaderName).filter(h => h);
-    const allowed = ['name', 'phone', 'email', 'city'];
-    return { success: true, columns: Array.from(new Set([...allowed, ...cleanHeaders])) };
+    const allowed = ['name', 'phone', 'email', 'city', 'interested'];
+    const merged = Array.from(new Set([...headers, ...cleanHeaders, ...allowed])).filter(Boolean);
+    const sampleRows = [];
+    for (let i = 1; i < Math.min(rawMatrix.length, 6); i++) {
+      const row = rawMatrix[i];
+      if (row && row.some(cell => cell != null && String(cell).trim() !== '')) {
+        const rowObj = {};
+        headers.forEach((h, hIdx) => {
+          rowObj[h] = row[hIdx] != null ? String(row[hIdx]).trim() : '';
+        });
+        sampleRows.push(rowObj);
+      }
+    }
+    const totalDataRows = Math.max(0, rawMatrix.length - 1);
+    return {
+      success: true,
+      columns: merged,
+      rawHeaders: headers,
+      sampleRows,
+      totalRows: totalDataRows
+    };
   } catch (err) {
+    let errorMsg = err.message || 'Could not parse sheet data.';
+    if (lastHttpStatus === 401 || err.response?.status === 401) {
+      errorMsg = 'Google Sheet is Restricted (401). Please open your Google Sheet, click Share (top right), and change General access to "Anyone with the link" (Role: Viewer).';
+    } else if (lastHttpStatus === 404 || err.response?.status === 404) {
+      errorMsg = 'Google Sheet not found (404). Please verify that the Sheet ID or URL is correct (Google Sheet IDs are case-sensitive).';
+    }
     return {
       success: false,
-      message: err.message,
-      columns: ['name', 'phone', 'email', 'city']
+      message: errorMsg,
+      columns: [],
+      rawHeaders: [],
+      sampleRows: [],
+      totalRows: 0
     };
   }
 }
-
 
 function deriveStatusFromRow(rawData) {
   let updateText = '';
@@ -489,7 +623,13 @@ async function ingestRowsIntoMetaLeads(rows, campaignName, sourceLabel) {
       });
     }
 
-    // Strictly allow only Name, Phone, Email, Location / City
+    // Allow Name, Phone, Email, Location / City, Interested
+    let interested = rawData.interested || rawData.Interested || rawData.course || rawData.Course || rawData['Interested In'] || rawData['interested_in'] || '';
+    if (typeof interested === 'string') interested = interested.trim();
+    if (!interested) {
+      const foundKey = Object.keys(rawData).find(k => /interest|course|program/i.test(k));
+      if (foundKey && typeof rawData[foundKey] === 'string') interested = rawData[foundKey].trim();
+    }
     const allowedRawData = {
       full_name: fullName,
       email: email || '',
@@ -497,7 +637,9 @@ async function ingestRowsIntoMetaLeads(rows, campaignName, sourceLabel) {
       city: city || '',
       name: fullName,
       phone: phone || normalizedPhone,
-      location: city || ''
+      location: city || '',
+      interested: interested || '',
+      course: interested || ''
     };
 
     const derived = deriveStatusFromRow(rawData);
