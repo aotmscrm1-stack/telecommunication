@@ -121,4 +121,16 @@ router.get('/download-apk', (req, res) => {
   return res.status(404).json({ error: 'APK build not found on server.' });
 });
 
+router.get('/download-apk-v1', (req, res) => {
+  const path = require('path');
+  const fs = require('fs');
+  const legacyPath = path.join(__dirname, '..', '..', 'AOTMS_CRM_v1.0.1.apk');
+  if (fs.existsSync(legacyPath)) {
+    res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+    res.setHeader('Content-Disposition', 'attachment; filename="AOTMS_CRM_v1.0.1.apk"');
+    return res.download(legacyPath, 'AOTMS_CRM_v1.0.1.apk');
+  }
+  return res.status(404).json({ error: 'Legacy APK not found.' });
+});
+
 module.exports = router;
