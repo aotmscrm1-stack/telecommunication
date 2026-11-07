@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "CRM",
-    "slug": "crm",
+    "slug": "aotms-crm",
     "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/Logo.png",
