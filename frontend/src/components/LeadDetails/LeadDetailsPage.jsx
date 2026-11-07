@@ -1702,6 +1702,40 @@ export default function LeadDetailsPage({
     return '—';
   })();
 
+  const leadInterested = (() => {
+    if (lead?.interested && lead.interested !== '—') return lead.interested;
+    if (lead?.course && lead.course !== '—') return lead.course;
+    if (metaLeadData?.interested && metaLeadData.interested !== '—') return metaLeadData.interested;
+    if (metaLeadData?.course && metaLeadData.course !== '—') return metaLeadData.course;
+    const rawCandidates = [
+      metaRaw.interested,
+      metaRaw.Interested,
+      metaRaw.course,
+      metaRaw.Course,
+      metaRaw['Interested In'],
+      metaRaw['interested_in'],
+      metaRaw['which_sap_module_are_you_interested_in'],
+      metaRaw['which_sap_module_are_you_interested_in?'],
+      metaRaw.subject,
+      metaRaw.program,
+      metaRaw.module,
+    ];
+    for (const c of rawCandidates) {
+      if (typeof c === 'string' && c.trim() && !['interested', 'course', 'subject'].includes(c.trim().toLowerCase())) {
+        return c.trim();
+      }
+    }
+    for (const [k, v] of Object.entries(metaRaw)) {
+      if (typeof v === 'string' && v.trim()) {
+        const lk = k.toLowerCase().trim();
+        if ((lk.includes('interest') || lk.includes('course') || lk.includes('module') || lk.includes('program')) && !['interested', 'course'].includes(v.trim().toLowerCase())) {
+          return v.trim();
+        }
+      }
+    }
+    return '—';
+  })();
+
   const fetchLeadDetails = async () => {
     try {
       const isRandom = id === 'random';
@@ -1716,6 +1750,7 @@ export default function LeadDetailsPage({
                   phone: metaLeadData?.phone || metaRaw.phone || metaRaw.phone_number || '—',
                   email: metaLeadData?.email || metaRaw.email || '—',
                   location: metaLeadData?.city || metaRaw.city || '—',
+                  interested: metaLeadData?.interested || metaRaw.interested || metaRaw.Interested || (leadInterested !== '—' ? leadInterested : ''),
                   status: metaLeadData?.status || 'New',
                   rating: metaLeadData?.rating || 0,
                   leadSource: 'Meta Lead',
@@ -1750,6 +1785,7 @@ export default function LeadDetailsPage({
         rating: l.rating || metaLeadData?.rating || 0,
         leadSource: l.leadSource || (isMeta ? 'Meta Lead' : 'Manual'),
         courseInterest: l.courseInterest?._id || l.courseInterest || '',
+        interested: l.interested || metaLeadData?.interested || (leadInterested !== '—' ? leadInterested : ''),
         mode: l.mode || '',
         budget: l.budget > 0 ? l.budget : '',
         location: l.location || (leadCity !== '—' ? leadCity : ''),
@@ -1766,6 +1802,7 @@ export default function LeadDetailsPage({
           phone: metaLeadData.phone || metaRaw.phone || metaRaw.phone_number || '—',
           email: metaLeadData.email || metaRaw.email || '—',
           location: metaLeadData.city || metaRaw.city || '—',
+          interested: metaLeadData.interested || metaRaw.interested || metaRaw.Interested || (leadInterested !== '—' ? leadInterested : ''),
           status: metaLeadData.status || 'New',
           rating: metaLeadData.rating || 0,
           leadSource: 'Meta Lead',
@@ -1781,6 +1818,7 @@ export default function LeadDetailsPage({
           status: synth.status,
           rating: synth.rating,
           location: synth.location !== '—' ? synth.location : '',
+          interested: synth.interested !== '—' ? synth.interested : '',
         });
       }
     } finally {
@@ -2099,6 +2137,15 @@ export default function LeadDetailsPage({
     try {
       const data = { ...editForm, budget: editForm.budget !== '' ? +editForm.budget : 0, assignedTo: editForm.assignedTo || null, campaign: editForm.campaign || null, courseInterest: editForm.courseInterest || null };
       const res = await leadsAPI.update(lead._id, data);
+      if (isMeta && (metaLeadId || metaLeadData?._id)) {
+        await metaLeadsAPI.update(metaLeadId || metaLeadData._id, {
+          name: editForm.name,
+          email: editForm.email,
+          phone: editForm.phone,
+          city: editForm.location,
+          interested: editForm.interested,
+        }).catch(() => {});
+      }
       setLead(res.data.lead);
       setIsEditingInfo(false);
       onChange?.(res.data.lead);
@@ -2219,9 +2266,9 @@ export default function LeadDetailsPage({
               {isEditingInfo ? (
                 isMeta ? (
                   <div className="space-y-3">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
                       <div>
-                        <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1 block">Full Name</label>
+                        <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1 block">Name</label>
                         <input
                           type="text"
                           className="w-full border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-800"
@@ -2240,7 +2287,7 @@ export default function LeadDetailsPage({
                         />
                       </div>
                       <div>
-                        <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1 block">Phone Number</label>
+                        <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1 block">Phone</label>
                         <input
                           type="text"
                           className="w-full border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-800"
@@ -2257,6 +2304,16 @@ export default function LeadDetailsPage({
                           value={editForm.location || ''}
                           onChange={e => setEditForm({ ...editForm, location: e.target.value })}
                           placeholder="City"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1 block">Interested</label>
+                        <input
+                          type="text"
+                          className="w-full border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-800"
+                          value={editForm.interested || ''}
+                          onChange={e => setEditForm({ ...editForm, interested: e.target.value })}
+                          placeholder="Course / Interested In"
                         />
                       </div>
                     </div>
@@ -2348,7 +2405,7 @@ export default function LeadDetailsPage({
                 )
               ) : (
                 isMeta ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
                     {/* 1. Name */}
                     <div className="p-2 sm:p-2.5 rounded-lg bg-slate-50/80 border border-slate-100 hover:border-blue-200 transition-colors min-w-0">
                       <div className="flex items-center gap-1.5 text-blue-600 mb-1">
@@ -2408,6 +2465,17 @@ export default function LeadDetailsPage({
                       </div>
                       <div className="flex items-center justify-between gap-1">
                         <span className="text-xs font-medium text-slate-800 truncate" title={leadCity}>{leadCity}</span>
+                      </div>
+                    </div>
+
+                    {/* 5. Interested */}
+                    <div className="p-2 sm:p-2.5 rounded-lg bg-slate-50/80 border border-slate-100 hover:border-blue-200 transition-colors min-w-0">
+                      <div className="flex items-center gap-1.5 text-blue-600 mb-1">
+                        <BookOpen className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider truncate">Interested</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-xs font-semibold text-slate-800 truncate" title={leadInterested}>{leadInterested}</span>
                       </div>
                     </div>
                   </div>

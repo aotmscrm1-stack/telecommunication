@@ -619,7 +619,16 @@ async function formatMetaLeadAsLead(metaLead) {
     }
   });
 
-  const location = raw.city || raw.City || raw.location || raw.Location || raw['Gudivada'] || '';
+  const location = metaLead.city || raw.city || raw.City || raw.location || raw.Location || raw['Gudivada'] || '';
+  let interested = metaLead.interested || metaLead.course || raw.interested || raw.Interested || raw.course || raw.Course || raw['Interested In'] || raw['interested_in'] || raw['which_sap_module_are_you_interested_in'] || '';
+  if (!interested) {
+    for (const [k, v] of Object.entries(raw)) {
+      if (typeof v === 'string' && v.trim() && /interest|course|program|module|planning_to_start/i.test(k)) {
+        interested = v.trim();
+        break;
+      }
+    }
+  }
   const qualification = raw.qualification || raw.Qualification || raw['Highest Qualification'] || raw.degree || raw['degree'] || 'Degree';
   const platform = raw.platform?.toLowerCase() || '';
   const source = platform === 'ig' ? 'Instagram' : (platform === 'fb' ? 'Facebook' : (metaLead.source === 'google_sheets_meta' ? 'Meta Ads' : 'Meta Ads'));
@@ -638,6 +647,7 @@ async function formatMetaLeadAsLead(metaLead) {
     leadSource: source,
     sourceSheetName: metaLead.campaign,
     courseInterest: courseObj,
+    interested,
     mode: raw.mode || raw.Mode || 'Hybrid',
     budget,
     location,
@@ -761,7 +771,16 @@ router.put('/:id', protect, async (req, res) => {
         if (req.body.isStarred !== undefined) metaLead.isStarred = req.body.isStarred;
 
         if (!metaLead.rawData) metaLead.rawData = {};
-        if (req.body.location) metaLead.rawData.city = req.body.location;
+        if (req.body.location !== undefined) {
+          metaLead.city = req.body.location;
+          metaLead.rawData.city = req.body.location;
+        }
+        if (req.body.interested !== undefined) {
+          metaLead.interested = req.body.interested;
+          metaLead.course = req.body.interested;
+          metaLead.rawData.interested = req.body.interested;
+          metaLead.rawData.Interested = req.body.interested;
+        }
         if (req.body.lastQualification) metaLead.rawData.qualification = req.body.lastQualification;
         if (req.body.budget) metaLead.rawData.budget = req.body.budget;
         if (req.body.mode) metaLead.rawData.mode = req.body.mode;

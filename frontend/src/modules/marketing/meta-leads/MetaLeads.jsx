@@ -6,7 +6,6 @@ import { useAuth } from '../../../context/AuthContext';
 import { canDelete } from '../../../utils/permissions';
 import AssignMembersModal from './AssignMembersModal';
 import DeleteCampaignModal from './DeleteCampaignModal';
-import AddLeadModal from './AddLeadModal';
 import LeadDetailsPage, { cleanLeadName } from '../../../components/LeadDetails/LeadDetailsPage';
 import leadNoteReminderService, { isStatusRequiringNote, leadHasNote, isAdminOrManager } from '../../../services/leadNoteReminderService';
 import AutoScrollText from '../../../components/common/AutoScrollText';
@@ -1086,8 +1085,6 @@ export default function MetaLeads() {
   const [assignModalCampaign, setAssignModalCampaign] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteModalCampaign, setDeleteModalCampaign] = useState({ name: '', count: 0 });
-  const [showAddLeadModal, setShowAddLeadModal] = useState(false);
-  const [addLeadCampaign, setAddLeadCampaign] = useState('');
 
   // ── Robust Name, Phone & Email Extraction (Resolves "Unknown Lead") ────────
   const getLeadIdentifiers = (lead) => {
@@ -1853,29 +1850,6 @@ export default function MetaLeads() {
                         <path d="M3.51 15a9 9 0 1 0 .49-5" />
                       </svg>
                     </button>
-                    <button
-                      onClick={() => {
-                        setAddLeadCampaign(selectedCampaign);
-                        setShowAddLeadModal(true);
-                      }}
-                      title="Add Lead to Campaign"
-                      style={{
-                        background: '#0284c7',
-                        color: '#ffffff',
-                        border: 'none',
-                        borderRadius: 6,
-                        padding: '3px 8px',
-                        fontSize: 10.5,
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 3
-                      }}
-                    >
-                      <FiPlus size={11} />
-                      Add Lead
-                    </button>
                   </div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 5 }}>
@@ -1924,18 +1898,6 @@ export default function MetaLeads() {
                     Assign
                   </button>
                 )}
-
-                <button
-                  onClick={() => {
-                    setAddLeadCampaign(selectedCampaign);
-                    setShowAddLeadModal(true);
-                  }}
-                  title="Add Lead to Campaign"
-                  style={{ background: '#0284c7', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4 }}
-                >
-                  <FiPlus size={12} />
-                  + Add Lead
-                </button>
               </div>
 
               <div style={{ fontSize: 10.5, color: MUTED, fontWeight: 400, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
@@ -2353,23 +2315,6 @@ export default function MetaLeads() {
             onConfirm={handleConfirmDeleteCampaign}
           />
         )}
-
-        {/* Add Lead Modal */}
-        <AddLeadModal
-          isOpen={showAddLeadModal}
-          onClose={() => setShowAddLeadModal(false)}
-          campaign={addLeadCampaign || selectedCampaign}
-          campaigns={campaignStats}
-          onLeadCreated={async (newLead, camp) => {
-            setStatusMessage(`Lead added successfully to ${camp}!`);
-            setTimeout(() => setStatusMessage(''), 4000);
-            await fetchCampaigns();
-            if (selectedCampaign === camp) {
-              await fetchCampaignLeads(camp, 1);
-              if (newLead) setSelectedLead(newLead);
-            }
-          }}
-        />
       </div>
     );
   }
@@ -2743,17 +2688,6 @@ export default function MetaLeads() {
                           >
                             View Leads
                           </button>
-                          <button
-                            onClick={() => {
-                              setAddLeadCampaign(c.campaign);
-                              setShowAddLeadModal(true);
-                            }}
-                            title="Add Lead to Campaign"
-                            className="px-2.5 py-1 rounded-lg text-xs font-semibold text-sky-700 bg-sky-50 border border-sky-200 hover:bg-sky-100 transition-colors flex items-center gap-1"
-                          >
-                            <FiPlus className="w-3.5 h-3.5" />
-                            Add Lead
-                          </button>
                           {isAdmin && (
                             <button
                               onClick={() => handleOpenAssignModal(c.campaign)}
@@ -2802,24 +2736,6 @@ export default function MetaLeads() {
           onConfirm={handleConfirmDeleteCampaign}
         />
       )}
-
-      {/* Add Lead Modal */}
-      <AddLeadModal
-        isOpen={showAddLeadModal}
-        onClose={() => setShowAddLeadModal(false)}
-        campaign={addLeadCampaign || selectedCampaign}
-        campaigns={campaignStats}
-        onLeadCreated={async (newLead, camp) => {
-          setStatusMessage(`Lead added successfully to ${camp}!`);
-          setTimeout(() => setStatusMessage(''), 4000);
-          await fetchCampaigns();
-          if (camp) {
-            setSelectedCampaign(camp);
-            await fetchCampaignLeads(camp, 1);
-            if (newLead) setSelectedLead(newLead);
-          }
-        }}
-      />
     </div>
   );
 }

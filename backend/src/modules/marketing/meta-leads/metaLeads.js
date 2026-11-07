@@ -1329,7 +1329,7 @@ router.get('/:id', protect, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 router.patch('/:id', protect, async (req, res) => {
   try {
-    const { status, rating, assignedTo, note, notes, callOutcome, followUpDate, department, incrementCall } = req.body;
+    const { status, rating, assignedTo, note, notes, callOutcome, followUpDate, department, incrementCall, fullName, name, email, phone, city, location, interested } = req.body;
     const idStr = String(req.params.id || '').trim();
     const isValidObjId = mongoose.Types.ObjectId.isValid(idStr);
     let metaLead = null;
@@ -1359,6 +1359,33 @@ router.patch('/:id', protect, async (req, res) => {
       metaLead.callCount = (metaLead.callCount || 0) + 1;
       metaLead.lastCallAt = new Date();
     }
+    if (!metaLead.rawData) metaLead.rawData = {};
+    if (fullName !== undefined || name !== undefined) {
+      const nextName = fullName !== undefined ? fullName : name;
+      metaLead.fullName = nextName;
+      metaLead.rawData.full_name = nextName;
+    }
+    if (email !== undefined) {
+      metaLead.email = email;
+      metaLead.rawData.email = email;
+    }
+    if (phone !== undefined) {
+      metaLead.phone = phone;
+      metaLead.normalizedPhone = String(phone).replace(/\D/g, '').slice(-10);
+      metaLead.rawData.phone_number = phone;
+    }
+    if (city !== undefined || location !== undefined) {
+      const nextCity = city !== undefined ? city : location;
+      metaLead.city = nextCity;
+      metaLead.rawData.city = nextCity;
+    }
+    if (interested !== undefined) {
+      metaLead.interested = interested;
+      metaLead.course = interested;
+      metaLead.rawData.interested = interested;
+      metaLead.rawData.Interested = interested;
+    }
+    metaLead.markModified('rawData');
 
     if (note || callOutcome) {
       if (!Array.isArray(metaLead.callNotes)) metaLead.callNotes = [];
