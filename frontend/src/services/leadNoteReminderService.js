@@ -191,10 +191,10 @@ export function canUserSeeNoteReminder(entry, currentUser = null) {
   const user = currentUser || getCurrentStoredUser();
   if (!user) return false;
 
-  // 1. Admin and Manager can see ALL positive summary pop ups
+  // 1. Admin and Manager can see ALL positive summary pop ups (with lead, campaign, and counsellor details)
   if (isAdminOrManager(user)) return true;
 
-  // 2. Counsellors can see their added popups (only the counsellor who added this positive summary)
+  // 2. Specific Counsellor whose account recorded this summary, OR who is assigned to this lead
   const uid = String(user._id || user.id || '').trim();
   const uname = String(user.name || user.displayName || user.fullName || '').trim().toLowerCase();
   const uemail = String(user.email || '').trim().toLowerCase();
@@ -203,11 +203,19 @@ export function canUserSeeNoteReminder(entry, currentUser = null) {
   const cName = String(entry.counsellorName || entry.createdBy || '').trim().toLowerCase();
   const cEmail = String(entry.counsellorEmail || '').trim().toLowerCase();
 
-  if (uid && cId && uid === cId) return true;
-  if (uemail && cEmail && uemail === cEmail) return true;
-  if (uname && cName && (uname === cName || cName.includes(uname) || uname.includes(cName))) return true;
+  const aId = String(entry.assignedToId || '').trim();
+  const aName = String(entry.assignedToName || '').trim().toLowerCase();
 
-  // 3. Remaining employees and other counsellors who did not add this summary must NOT see it
+  // Match by counsellor ID or assigned counsellor ID
+  if (uid && cId && uid === cId) return true;
+  if (uid && aId && uid === aId) return true;
+  // Match by email
+  if (uemail && cEmail && uemail === cEmail) return true;
+  // Match by counsellor name or assigned counsellor name
+  if (uname && cName && (uname === cName || cName.includes(uname) || uname.includes(cName))) return true;
+  if (uname && aName && (uname === aName || aName.includes(uname) || uname.includes(aName))) return true;
+
+  // 3. Other employees who did not record and are not assigned do NOT see it
   return false;
 }
 
@@ -520,28 +528,26 @@ class LeadNoteReminderService {
     const now = Date.now();
     const currentUser = getCurrentStoredUser();
 
+    const isCurrentAdmin = isAdminOrManager(currentUser);
     const finalCounsellorName =
       counsellorName ||
-      createdBy ||
+      assignedToName ||
+      (!isCurrentAdmin ? (currentUser?.name || currentUser?.displayName || currentUser?.fullName) : null) ||
       existing?.counsellorName ||
-      existing?.createdBy ||
-      currentUser?.name ||
-      currentUser?.displayName ||
-      currentUser?.fullName ||
+      existing?.assignedToName ||
       'Counselor';
 
     const finalCounsellorId =
       counsellorId ||
-      createdById ||
+      assignedToId ||
+      (!isCurrentAdmin ? (currentUser?._id || currentUser?.id) : null) ||
       existing?.counsellorId ||
-      existing?.createdById ||
-      currentUser?._id ||
-      currentUser?.id;
+      existing?.assignedToId;
 
     const finalCounsellorEmail =
       counsellorEmail ||
-      existing?.counsellorEmail ||
-      currentUser?.email;
+      (!isCurrentAdmin ? currentUser?.email : null) ||
+      existing?.counsellorEmail;
 
     reminders[strId] = {
       id: strId,
@@ -562,8 +568,8 @@ class LeadNoteReminderService {
     saveStoredReminders(reminders);
 
     // Queue reminder so it displays one after one
-    if (canUserSeeNoteReminder(reminders[id])) {
-      this.enqueueToast(reminders[id]);
+    if (canUserSeeNoteReminder(reminders[strId])) {
+      this.enqueueToast(reminders[strId]);
     }
 
     // Broadcast across WebSocket to keep Admin & Manager notified in real-time

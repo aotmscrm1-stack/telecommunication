@@ -1022,16 +1022,45 @@ router.put('/:id/status', protect, async (req, res) => {
     try {
       const { broadcastWebSocketEvent } = require('../../../app/websocket');
       const sLower = String(status || '').toLowerCase().trim();
-      const isPos = sLower.includes('office visit') || sLower.includes('demo attended') || sLower === 'positive';
+      const isPos = sLower.includes('office visit') || sLower.includes('demo attended') || sLower === 'positive' ||
+        ["agreed to office visit's but no luck", "interested/need time", "demo not attended", "call back/we will call", "time issues/fee issues", "not answering"].some(p => sLower.includes(p));
       if (isPos) {
+        let counsellorName = req.user.displayName || req.user.name || 'Counselor';
+        let counsellorId = req.user._id.toString();
+        let counsellorEmail = req.user.email;
+        let assignedToName = '';
+        let assignedToId = lead.assignedTo?._id?.toString() || lead.assignedTo?.toString();
+
+        if (assignedToId) {
+          const User = require('../../../database/models/User');
+          const aUser = await User.findById(assignedToId).select('name email');
+          if (aUser) {
+            assignedToName = aUser.name;
+            if (req.user.role === 'admin' || req.user.role === 'superadmin') {
+              counsellorName = aUser.name;
+              counsellorId = aUser._id.toString();
+              counsellorEmail = aUser.email;
+            }
+          }
+        }
+
+        let campaignName = '';
+        if (lead.campaign) {
+          const Campaign = require('../../../database/models/Campaign');
+          const camp = await Campaign.findById(lead.campaign).select('name');
+          if (camp) campaignName = camp.name;
+        }
+
         broadcastWebSocketEvent('lead_note:reminder_needed', {
           id: lead._id.toString(),
           name: lead.name || 'Student',
           status: lead.status,
-          counsellorName: req.user.displayName || req.user.name || 'Counselor',
-          counsellorId: req.user._id.toString(),
-          counsellorEmail: req.user.email,
-          assignedToId: lead.assignedTo?._id?.toString() || lead.assignedTo?.toString()
+          counsellorName,
+          counsellorId,
+          counsellorEmail,
+          assignedToId,
+          assignedToName,
+          campaign: campaignName
         });
       }
     } catch (_) {}

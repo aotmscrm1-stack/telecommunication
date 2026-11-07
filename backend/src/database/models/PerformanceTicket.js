@@ -45,6 +45,7 @@ const performanceTicketSchema = new mongoose.Schema({
       'DAILY_TASK_SUBMISSION_MISSING',       // Morning Checkpoint: Tasks missing
       'MORNING_COMPLIANCE_DUAL_VIOLATION',   // Morning Checkpoint: Both missing
       'SHIFT_TASK_UPDATE_MISSING',          // Logout Checkpoint: Tasks not updated
+      'MORNING_COMPLIANCE_PASSED',          // Morning Checkpoint: 100% Compliant Green Pass
       'TASK_OVERDUE', 
       'POOR_PERFORMANCE_DAILY', 
       'REPEATED_LATE_LOGIN', 
@@ -55,10 +56,10 @@ const performanceTicketSchema = new mongoose.Schema({
     index: true
   },
   
-  priority: { type: String, enum: ['low', 'medium', 'high', 'critical'], default: 'medium', index: true },
+  priority: { type: String, enum: ['green', 'orange', 'red', 'critical', 'low', 'medium', 'high'], default: 'orange', index: true },
   status: { 
     type: String, 
-    enum: ['open', 'under_review', 'employee_response_pending', 'action_required', 'resolved', 'closed', 'reopened'], 
+    enum: ['open', 'acknowledged', 'under_review', 'employee_response_pending', 'action_required', 'resolved', 'escalated', 'overridden', 'closed', 'reopened', 'cleared', 'verified'], 
     default: 'open',
     index: true 
   },
@@ -67,6 +68,25 @@ const performanceTicketSchema = new mongoose.Schema({
   title: { type: String, required: true, trim: true },
   description: { type: String, required: true },
   missingRequirement: { type: String, default: '' },
+  
+  // Progressive Escalation & Streak Tracking
+  consecutiveCount: { type: Number, default: 1, index: true },
+  correctionDeadline: { type: Date },
+  
+  // Employee Acknowledgement
+  isAcknowledged: { type: Boolean, default: false, index: true },
+  acknowledgedAt: { type: Date },
+  acknowledgementNotes: { type: String, default: '' },
+
+  // Management Override
+  isOverridden: { type: Boolean, default: false, index: true },
+  overrideReason: { type: String, default: '' },
+  overriddenBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  overriddenAt: { type: Date },
+
+  // HR Remarks & Escalation Link
+  hrRemarks: { type: String, default: '' },
+  escalatedFromTicket: { type: mongoose.Schema.Types.ObjectId, ref: 'PerformanceTicket' },
   
   // Late Correction Tracking
   isCorrectedLater: { type: Boolean, default: false },

@@ -1457,10 +1457,25 @@ export default function MetaLeads() {
       setTimeout(() => setStatusMessage(''), 2500);
       fetchCampaigns();
 
-      // Track 5-minute note reminder for positive call summary
+      // Track 10-minute note reminder for positive call summary
       const studentName = cleanLeadName(lead.fullName || lead.rawData?.full_name || lead.rawData?.Name || lead.name || 'Student');
-      const counsellorName = user?.name || user?.displayName || user?.fullName || 'Counselor';
-      const counsellorId = user?._id || user?.id;
+      const isCurrentAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+      const assignedCounsellorName = lead?.assignedTo?.name || lead?.assignedToName;
+      const assignedCounsellorId = lead?.assignedTo?._id || lead?.assignedTo;
+
+      // Identify counsellor from the exact account recording the status:
+      // If Bhavani or Rajasree records it, her name and account ID are used!
+      // If Admin records it, use the assigned counsellor (Bhavani or Rajasree).
+      const counsellorName = (!isCurrentAdmin && user?.name)
+        ? (user.displayName || user.name)
+        : (assignedCounsellorName || user?.displayName || user?.name || 'Counselor');
+
+      const counsellorId = (!isCurrentAdmin && user?._id)
+        ? (user._id || user.id)
+        : (assignedCounsellorId || user?._id || user?.id);
+
+      const campaignName = lead.campaign || lead.campaignName || activeCampaign || 'Meta Leads';
+
       if (isStatusRequiringNote(newStatus)) {
         leadNoteReminderService.trackLead({
           id: lead._id,
@@ -1468,10 +1483,13 @@ export default function MetaLeads() {
           status: newStatus,
           counsellorName,
           counsellorId,
-          counsellorEmail: user?.email,
+          counsellorEmail: (!isCurrentAdmin && user?.email) ? user?.email : undefined,
           createdBy: counsellorName,
           createdById: counsellorId,
-          assignedToId: lead?.assignedTo?._id || lead?.assignedTo,
+          assignedToId: assignedCounsellorId,
+          assignedToName: assignedCounsellorName,
+          campaign: campaignName,
+          isMeta: true,
           hasExistingNote: leadHasNote(lead),
         });
       } else {

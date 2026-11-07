@@ -48,6 +48,7 @@ router.get('/today', protect, async (req, res) => {
     const attendanceMissingTickets = tickets.filter(t => t.triggerType === 'ATTENDANCE_NON_COMPLIANCE').length;
     const taskMissingTickets = tickets.filter(t => t.triggerType === 'DAILY_TASK_SUBMISSION_MISSING').length;
     const logoutTickets = tickets.filter(t => t.triggerType === 'SHIFT_TASK_UPDATE_MISSING').length;
+    const greenTickets = tickets.filter(t => t.priority === 'green' || t.triggerType === 'MORNING_COMPLIANCE_PASSED').length;
 
     // Attendances
     const attendances = await Attendance.find({ date: todayStr });
@@ -57,7 +58,7 @@ router.get('/today', protect, async (req, res) => {
 
     // Calculate compliant count
     const totalViolations = dualViolations + attendanceMissingTickets + taskMissingTickets;
-    const fullyCompliantMorning = Math.max(0, totalActive - totalViolations);
+    const fullyCompliantMorning = greenTickets > 0 ? greenTickets : Math.max(0, totalActive - totalViolations);
 
     res.json({
       ok: true,
@@ -65,6 +66,7 @@ router.get('/today', protect, async (req, res) => {
       metrics: {
         totalActive,
         fullyCompliantMorning,
+        greenTickets,
         attendanceOnTime,
         attendanceLate,
         attendanceMissing,

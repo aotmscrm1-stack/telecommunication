@@ -30,12 +30,24 @@ async function computeDailyEmployeeScore(employee, dateStr) {
   const startOfDay = new Date(`${dateStr}T00:00:00.000+05:30`);
   const endOfDay = new Date(`${dateStr}T23:59:59.999+05:30`);
 
-  // Pillar 1: Task Completion (30%)
+  // Pillar 1: Task Completion (30%) - Includes tasks created today or in advance
   const dailyTasks = await Todo.find({
-    assignedTo: employee._id,
-    $or: [
-      { scheduledAt: { $gte: startOfDay, $lte: endOfDay } },
-      { scheduledAt: null, createdAt: { $gte: startOfDay, $lte: endOfDay } }
+    $and: [
+      {
+        $or: [
+          { assignedTo: employee._id },
+          { createdBy: employee._id }
+        ]
+      },
+      {
+        $or: [
+          { scheduledAt: { $gte: startOfDay, $lte: endOfDay } },
+          { dueDate: { $gte: startOfDay, $lte: endOfDay } },
+          { createdAt: { $gte: startOfDay, $lte: endOfDay } },
+          { completedAt: { $gte: startOfDay, $lte: endOfDay } },
+          { status: { $in: ['upcoming', 'pending', 'in_progress', 'done', 'completed'] } }
+        ]
+      }
     ]
   }).select('status note comments');
 
@@ -192,7 +204,7 @@ router.get('/roster', protect, async (req, res) => {
 
     // Fetch all tickets for today
     const ticketsToday = await PerformanceTicket.find({ incidentDate: dateStr })
-      .select('ticketNumber employee employeeName employeeCode department triggerType priority status missingRequirement title description employeeExplanation isDisputed resolutionNotes correctiveActionPlan createdAt');
+      .select('ticketNumber employee employeeName employeeCode department triggerType priority status missingRequirement title description employeeExplanation isDisputed resolutionNotes correctiveActionPlan createdAt consecutiveCount correctionDeadline isAcknowledged acknowledgedAt hrRemarks isOverridden overrideReason assignedManager assignedTo');
 
     // Build map of tickets per employee
     const ticketsByEmployee = {};
@@ -201,6 +213,11 @@ router.get('/roster', protect, async (req, res) => {
       if (!ticketsByEmployee[empKey]) ticketsByEmployee[empKey] = [];
       ticketsByEmployee[empKey].push(t);
     });
+
+    // Cutoff timestamps for 10:00 AM IST Universal Rule
+    const cutoff10Am = new Date(`${dateStr}T10:00:00.000+05:30`);
+    const startOfDay = new Date(`${dateStr}T00:00:00.000+05:30`);
+    const endOfDay = new Date(`${dateStr}T23:59:59.999+05:30`);
 
     // Compute or fetch daily scores for every employee
     const rosterList = [];
@@ -238,9 +255,72 @@ router.get('/roster', protect, async (req, res) => {
         }
       }
 
+      // Check live morning compliance on or before 10:00 AM IST
+      const attRecord = await Attendance.findOne({
+        employeeId: emp._id,
+        date: dateStr,
+        startTime: { $lte: cutoff10Am }
+      }).select('startTime status');
+
+      const morningTasks = await Todo.find({
+        $and: [
+          {
+            $or: [
+              { assignedTo: emp._id },
+              { createdBy: emp._id }
+            ]
+          },
+          {
+            createdAt: { $lte: cutoff10Am }
+          },
+          {
+            $or: [
+              { scheduledAt: { $gte: startOfDay, $lte: endOfDay } },
+              { dueDate: { $gte: startOfDay, $lte: endOfDay } },
+              { createdAt: { $gte: startOfDay, $lte: cutoff10Am } },
+              { completedAt: { $gte: startOfDay, $lte: cutoff10Am } },
+              { status: { $in: ['upcoming', 'pending', 'in_progress'] } }
+            ]
+          }
+        ]
+      }).select('_id title status');
+
+      const hasAtt = !!attRecord;
+      const hasTask = morningTasks.length > 0;
+      const isCompliant = hasAtt && hasTask;
+
+      perfRecord.morningCheck = {
+        hasAttendance: hasAtt,
+        checkInTime: attRecord?.startTime ? new Date(attRecord.startTime).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' }) : null,
+        hasTasks: hasTask,
+        taskCount: morningTasks.length,
+        isCompliant
+      };
+
       // Attach employee details and tickets
       perfRecord.employee = emp;
-      perfRecord.tickets = ticketsByEmployee[String(emp._id)] || [];
+      let empTickets = ticketsByEmployee[String(emp._id)] || [];
+
+      // Guarantee official Green Ticket for compliant employees
+      if (isCompliant) {
+        empTickets = empTickets.filter(t => t.priority === 'green' || t.triggerType === 'MORNING_COMPLIANCE_PASSED');
+        if (empTickets.length === 0) {
+          empTickets = [{
+            _id: `pass_${emp._id}_${dateStr.replace(/-/g, '')}`,
+            ticketNumber: `TKT-${dateStr.replace(/-/g, '')}-PASS-${emp.employeeId || String(emp._id).slice(-4).toUpperCase()}`,
+            triggerType: 'MORNING_COMPLIANCE_PASSED',
+            priority: 'green',
+            status: 'cleared',
+            consecutiveCount: 0,
+            title: `[GREEN TICKET] 100% Morning Compliant: ${emp.name}`,
+            description: `Employee ${emp.name} (${emp.employeeId || 'ID Pending'}) passed all morning compliance checks on ${dateStr}: Check-in recorded and daily tasks active/submitted before 10:00 AM IST.`,
+            incidentDate: dateStr,
+            createdAt: new Date(`${dateStr}T10:00:00.000+05:30`),
+            isGreenTicket: true
+          }];
+        }
+      }
+      perfRecord.tickets = empTickets;
 
       // Check category filter
       if (!category || category === 'ALL' || perfRecord.category === category) {

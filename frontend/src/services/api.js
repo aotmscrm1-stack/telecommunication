@@ -622,9 +622,18 @@ export const performanceAPI = {
   getRoster: (params) => api.get('/performance/roster', { params }),
   overrideScore: (id, data) => api.post(`/performance/override/${id}`, data),
   getTickets: (params) => api.get('/performance/tickets', { params }),
+  getTicketSummary: (params) => api.get('/performance/tickets/summary', { params }),
+  getTicketManagers: () => api.get('/performance/tickets/managers'),
+  getEmployeeHistory: (empId, params) => api.get(`/performance/tickets/employee-history/${empId}`, { params }),
+  getAnalyticsOverview: (params) => api.get('/performance/tickets/analytics/overview', { params }),
   getTicket: (id) => api.get(`/performance/tickets/${id}`),
+  acknowledgeTicket: (id, data) => api.post(`/performance/tickets/${id}/acknowledge`, data),
   explainTicket: (id, data) => api.post(`/performance/tickets/${id}/explain`, data),
+  addTicketRemarks: (id, data) => api.post(`/performance/tickets/${id}/remarks`, data),
+  assignTicket: (id, data) => api.post(`/performance/tickets/${id}/assign`, data),
   resolveTicket: (id, data) => api.post(`/performance/tickets/${id}/resolve`, data),
+  overrideTicket: (id, data) => api.post(`/performance/tickets/${id}/override`, data),
+  escalateTicket: (id, data) => api.post(`/performance/tickets/${id}/escalate`, data),
 };
 
 export default api;

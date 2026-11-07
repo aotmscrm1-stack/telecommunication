@@ -1359,19 +1359,41 @@ router.patch('/:id', protect, async (req, res) => {
     // Check if status requires counsellor note or resolves note
     try {
       const sLower = String(status || '').toLowerCase().trim();
-      const isPos = sLower.includes('office visit') || sLower.includes('demo attended') || sLower === 'positive';
+      const isPos = sLower.includes('office visit') || sLower.includes('demo attended') || sLower === 'positive' ||
+        ["agreed to office visit's but no luck", "interested/need time", "demo not attended", "call back/we will call", "time issues/fee issues", "not answering"].some(p => sLower.includes(p));
       if (isPos && (!note || !String(note).trim())) {
         const studentName = metaLead.fullName || metaLead.name || metaLead.rawData?.full_name || metaLead.rawData?.Name || 'Student';
-        const counsellorName = req.user.displayName || req.user.name || 'Counselor';
+        let counsellorName = req.user.displayName || req.user.name || 'Counselor';
+        let counsellorId = req.user._id.toString();
+        let counsellorEmail = req.user.email;
+        let assignedToName = '';
+        let assignedToId = metaLead.assignedTo?.toString();
+
+        if (assignedToId) {
+          const User = require('../../../database/models/User');
+          const aUser = await User.findById(assignedToId).select('name email');
+          if (aUser) {
+            assignedToName = aUser.name;
+            if (req.user.role === 'admin' || req.user.role === 'superadmin') {
+              counsellorName = aUser.name;
+              counsellorId = aUser._id.toString();
+              counsellorEmail = aUser.email;
+            }
+          }
+        }
+
+        const campaignName = metaLead.campaignName || metaLead.campaign || 'Meta Campaign';
+
         broadcastWebSocketEvent('lead_note:reminder_needed', {
           id: metaLead._id.toString(),
           name: studentName,
           status: metaLead.status,
           counsellorName,
-          counsellorId: req.user._id.toString(),
-          counsellorEmail: req.user.email,
-          assignedToId: metaLead.assignedTo?.toString(),
-          campaign: metaLead.campaignName || metaLead.campaign,
+          counsellorId,
+          counsellorEmail,
+          assignedToId,
+          assignedToName,
+          campaign: campaignName,
           isMeta: true
         });
       } else if (note && String(note).trim()) {
@@ -1420,6 +1442,50 @@ router.post('/:id/call-log', protect, async (req, res) => {
     });
 
     await metaLead.save();
+
+    // Trigger positive call summary reminder if no substantive note provided
+    try {
+      const sLower = String(status || '').toLowerCase().trim();
+      const isPos = sLower.includes('office visit') || sLower.includes('demo attended') || sLower === 'positive' ||
+        ["agreed to office visit's but no luck", "interested/need time", "demo not attended", "call back/we will call", "time issues/fee issues", "not answering"].some(p => sLower.includes(p));
+      const hasRealNote = Boolean(note && String(note).trim() && !String(note).startsWith('Call outcome:'));
+      if (isPos && !hasRealNote) {
+        const studentName = metaLead.fullName || metaLead.name || metaLead.rawData?.full_name || metaLead.rawData?.Name || 'Student';
+        let counsellorName = req.user.displayName || req.user.name || 'Counselor';
+        let counsellorId = req.user._id.toString();
+        let counsellorEmail = req.user.email;
+        let assignedToName = '';
+        let assignedToId = metaLead.assignedTo?.toString();
+
+        if (assignedToId) {
+          const User = require('../../../database/models/User');
+          const aUser = await User.findById(assignedToId).select('name email');
+          if (aUser) {
+            assignedToName = aUser.name;
+            if (req.user.role === 'admin' || req.user.role === 'superadmin') {
+              counsellorName = aUser.name;
+              counsellorId = aUser._id.toString();
+              counsellorEmail = aUser.email;
+            }
+          }
+        }
+
+        const campaignName = metaLead.campaignName || metaLead.campaign || 'Meta Campaign';
+
+        broadcastWebSocketEvent('lead_note:reminder_needed', {
+          id: metaLead._id.toString(),
+          name: studentName,
+          status: metaLead.status,
+          counsellorName,
+          counsellorId,
+          counsellorEmail,
+          assignedToId,
+          assignedToName,
+          campaign: campaignName,
+          isMeta: true
+        });
+      }
+    } catch (_) {}
 
     res.json({
       success: true,

@@ -1834,19 +1834,30 @@ export default function LeadDetailsPage({
       } else {
         const lastCallNote = Array.isArray(lead.callNotes) && lead.callNotes.length > 0 ? lead.callNotes[lead.callNotes.length - 1] : null;
         const lastActivity = Array.isArray(lead.activities) && lead.activities.length > 0 ? lead.activities.find(a => a.type === 'call' || a.type === 'status_change') : null;
-        const counsellorName = lastCallNote?.userName || lastActivity?.performedBy?.name || lead?.assignedTo?.name || user?.name || user?.displayName || 'Counselor';
-        const counsellorId = lastCallNote?.user || lastActivity?.performedBy?._id || lead?.assignedTo?._id || user?._id || user?.id;
+        const isCurrentAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+        const assignedCounsellorName = lead?.assignedTo?.name;
+        const assignedCounsellorId = lead?.assignedTo?._id || lead?.assignedTo;
+
+        const counsellorName = (!isCurrentAdmin && user?.name)
+          ? (user.displayName || user.name)
+          : (lastCallNote?.userName || lastActivity?.performedBy?.name || assignedCounsellorName || user?.displayName || user?.name || 'Counselor');
+        const counsellorId = (!isCurrentAdmin && user?._id)
+          ? (user._id || user.id)
+          : (lastCallNote?.user || lastActivity?.performedBy?._id || assignedCounsellorId || user?._id);
+        const campaignName = lead?.campaign?.name || lead?.campaign || metaLead?.campaign || '';
+
         leadNoteReminderService.trackLead({
           id: currentId,
           name: leadName || lead.name,
           status: lead.status,
           counsellorName,
           counsellorId,
-          counsellorEmail: user?.email,
+          counsellorEmail: (!isCurrentAdmin && user?.email) ? user?.email : undefined,
           createdBy: counsellorName,
           createdById: counsellorId,
-          assignedToId: lead?.assignedTo?._id || lead?.assignedTo,
-          assignedToName: lead?.assignedTo?.name,
+          assignedToId: assignedCounsellorId,
+          assignedToName: assignedCounsellorName,
+          campaign: campaignName,
           hasExistingNote: false,
           isRemoteBroadcast: true,
         });
@@ -1948,22 +1959,33 @@ export default function LeadDetailsPage({
       setEditForm(prev => ({ ...prev, status: newStatus }));
       onChange?.(updated);
 
-      // Track 5-minute note reminder for positive call summary
+      // Track 10-minute note reminder for positive call summary
       const currentId = updated?._id || targetMetaId || id;
       if (isStatusRequiringNote(newStatus)) {
-        const counsellorName = user?.name || user?.displayName || user?.fullName || 'Counselor';
-        const counsellorId = user?._id || user?.id;
+        const isCurrentAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+        const assignedCounsellorName = updated?.assignedTo?.name || lead?.assignedTo?.name;
+        const assignedCounsellorId = updated?.assignedTo?._id || lead?.assignedTo?._id;
+
+        const counsellorName = (!isCurrentAdmin && user?.name)
+          ? (user.displayName || user.name)
+          : (assignedCounsellorName || user?.displayName || user?.name || 'Counselor');
+        const counsellorId = (!isCurrentAdmin && user?._id)
+          ? (user._id || user.id)
+          : (assignedCounsellorId || user?._id || user?.id);
+        const campaignName = updated?.campaign?.name || updated?.campaign || lead?.campaign?.name || lead?.campaign || metaLead?.campaign || '';
+
         leadNoteReminderService.trackLead({
           id: currentId,
           name: leadName || updated.name,
           status: newStatus,
           counsellorName,
           counsellorId,
-          counsellorEmail: user?.email,
+          counsellorEmail: (!isCurrentAdmin && user?.email) ? user?.email : undefined,
           createdBy: counsellorName,
           createdById: counsellorId,
-          assignedToId: updated?.assignedTo?._id || lead?.assignedTo?._id,
-          assignedToName: updated?.assignedTo?.name || lead?.assignedTo?.name,
+          assignedToId: assignedCounsellorId,
+          assignedToName: assignedCounsellorName,
+          campaign: campaignName,
           hasExistingNote: leadHasNote(updated),
         });
       } else {
