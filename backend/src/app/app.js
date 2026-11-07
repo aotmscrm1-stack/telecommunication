@@ -105,6 +105,17 @@ const handleApkDownload = (req, res) => {
 app.get('/download-apk', handleApkDownload);
 app.get('/api/download-apk', handleApkDownload);
 
+app.get('/download-apk-v1', (req, res) => {
+  const fs = require('fs');
+  const legacyPath = path.join(__dirname, '..', '..', 'AOTMS_CRM_v1.0.1.apk');
+  if (fs.existsSync(legacyPath)) {
+    res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+    res.setHeader('Content-Disposition', 'attachment; filename="AOTMS_CRM_v1.0.1.apk"');
+    return res.download(legacyPath, 'AOTMS_CRM_v1.0.1.apk');
+  }
+  return res.status(404).json({ error: 'Legacy APK not found.' });
+});
+
 app.use('/uploads', (req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', isAllowedOrigin(req.headers.origin) ? (req.headers.origin || '*') : 'null');
   res.setHeader('Access-Control-Allow-Headers', 'Range');

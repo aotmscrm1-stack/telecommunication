@@ -3,8 +3,6 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { integrationsAPI, campaignsAPI, usersAPI } from '../../../services/api';
 import api from '../../../services/api';
 
-// Official brand logos, fetched live from each company's real domain.
-// Falls back to colored initials if the logo can't be loaded.
 // Official brand logos (high-res vector/SVG and CDN images)
 const REAL_BRAND_LOGOS = {
   google_sheets: 'https://upload.wikimedia.org/wikipedia/commons/3/30/Google_Sheets_logo_%282014-2020%29.svg',
@@ -78,6 +76,7 @@ const IntegrationLogo = ({ type, name, size = 52 }) => {
   );
 };
 
+// Generic steps for non-sheets integrations
 const STEPS = [
   { label: 'Step 1', sub: 'Integration details' },
   { label: 'Step 2', sub: 'Field mapping' },
@@ -105,10 +104,6 @@ const CONFIG_FIELDS = {
     { key: 'apiKey', label: 'API Key', placeholder: 'Enter your WhatsApp API key' },
     { key: 'webhookVerifyToken', label: 'Webhook Verify Token', placeholder: 'your_verify_token' },
   ],
-  google_sheets: [
-    { key: 'sheetId', label: 'Google Sheet ID', placeholder: '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms', hint: 'From the sheet URL: /spreadsheets/d/{SHEET_ID}/' },
-    { key: 'sheetRange', label: 'Sheet Range', placeholder: 'Sheet1!A1:Z1000', hint: 'Range to read/write leads' },
-  ],
   google_meet: [],
   knowlarity: [
     { key: 'apiKey', label: 'API Key', placeholder: 'Your Knowlarity x-api-key', hint: 'From Knowlarity Developer Portal' },
@@ -126,37 +121,80 @@ const CONFIG_FIELDS = {
   ],
 };
 
-// Target AOTMS lead fields available for mapping (matches backend Lead schema).
-// 'name' and 'phone' are core; the rest are optional but all get imported when mapped.
-const LEAD_MAP_FIELDS = [
-  { key: 'name', label: 'Name' },
-  { key: 'phone', label: 'Phone', required: true },
-  { key: 'alternatePhone', label: 'Alternate Phone' },
-  { key: 'email', label: 'Email' },
-  { key: 'location', label: 'Location' },
-  { key: 'collegeName', label: 'College Name' },
-  { key: 'lastQualification', label: 'Last Qualification' },
-  { key: 'mode', label: 'Mode (Online/Offline/Hybrid)' },
-  { key: 'budget', label: 'Budget' },
-];
-
 const emptyFieldMapping = () => ({
-  name: '', phone: '', alternatePhone: '', email: '', location: '',
-  collegeName: '', lastQualification: '', mode: '', budget: '',
+  name: '', phone: '', email: '', location: '', interested: '',
+  alternatePhone: '', collegeName: '', lastQualification: '', mode: '', budget: '',
 });
-const OAUTH_TYPES = ['facebook', 'google_sheets', 'google_meet'];
+
+// Smart URL / ID parser for Google Sheets
+const parseSheetUrlOrId = (input) => {
+  if (!input || typeof input !== 'string') return { sheetId: '', gid: '', tabName: '' };
+  const str = input.trim();
+  let sheetId = str;
+  let gid = '';
+  let tabName = '';
+
+  const idMatch = str.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  if (idMatch && idMatch[1]) {
+    sheetId = idMatch[1];
+  }
+  const gidMatch = str.match(/[#&?]gid=([0-9]+)/);
+  if (gidMatch && gidMatch[1]) {
+    gid = gidMatch[1];
+  }
+  const sheetMatch = str.match(/[#&?]sheet=([^&#]+)/);
+  if (sheetMatch && sheetMatch[1]) {
+    try {
+      tabName = decodeURIComponent(sheetMatch[1]);
+    } catch (_) {
+      tabName = sheetMatch[1];
+    }
+  }
+  return { sheetId, gid, tabName };
+};
+
+// Auto-match helper: maps sheet columns to CRM fields based on keywords
+const autoMapFields = (columns = []) => {
+  const mapping = emptyFieldMapping();
+  const lowerCols = columns.map(c => ({
+    original: c,
+    lower: String(c).toLowerCase().replace(/[^a-z0-9]/g, '')
+  }));
+
+  const findCol = (patterns) => {
+    for (const pat of patterns) {
+      const match = lowerCols.find(c => c.lower.includes(pat));
+      if (match) return match.original;
+    }
+    return '';
+  };
+
+  mapping.name = findCol(['fullname', 'candidatename', 'studentname', 'leadname', 'candidate', 'name']) || '';
+  mapping.phone = findCol(['phonenumber', 'contactnumber', 'studentphone', 'mobile', 'contact', 'phone']) || '';
+  mapping.email = findCol(['emailaddress', 'emailid', 'email']) || '';
+  mapping.location = findCol(['city', 'location', 'town', 'address']) || '';
+  mapping.interested = findCol(['interested', 'course', 'program', 'training', 'domain', 'stream']) || '';
+  mapping.collegeName = findCol(['collegename', 'college', 'university', 'institute']) || '';
+  mapping.lastQualification = findCol(['qualification', 'degree', 'education', 'branch']) || '';
+  mapping.mode = findCol(['mode', 'trainingmode', 'batchmode']) || '';
+  mapping.budget = findCol(['budget', 'fee', 'price', 'fees']) || '';
+
+  return mapping;
+};
+
+const OAUTH_TYPES = ['facebook', 'google_meet'];
 const WEBHOOK_TYPES = ['whatsapp_cloud', 'whatsapp', 'knowlarity', 'callerdesk', 'maqsam'];
 const GENERIC_WEBHOOK_TYPES = ['justdial', '99acres', 'housing', 'indiamart', 'magicbricks', 'sulekha', 'tradeindia', 'webhook'];
 
 const s = {
-  card: { background: '#fff', border: '1px solid var(--theme-border-tint)', borderRadius: 12, padding: 20 },
-  inp: { width: '100%', padding: '9px 12px', border: '1px solid var(--theme-border-tint)', borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box' },
-  lbl: { display: 'block', fontSize: 12, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 },
-  btnPrimary: { padding: '9px 22px', borderRadius: 8, border: 'none', background: 'var(--theme-primary-alt)', color: '#fff', fontWeight: 600, fontSize: 14, cursor: 'pointer' },
-  btnGhost: { padding: '8px 18px', borderRadius: 8, border: '1.5px solid var(--theme-border-tint)', background: '#fff', color: 'var(--theme-text-strongest)', fontWeight: 600, fontSize: 13, cursor: 'pointer' },
-  btnDanger: { padding: '7px 18px', borderRadius: 8, border: '1.5px solid #ef4444', background: '#fff', color: '#ef4444', fontWeight: 600, fontSize: 13, cursor: 'pointer' },
-  hint: { fontSize: 12, color: '#9ca3af', marginTop: 4 },
-  badge: (color) => ({ display: 'inline-block', padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 600, background: color === 'green' ? '#d1fae5' : '#fef3c7', color: color === 'green' ? '#059669' : '#b45309' }),
+  card: { background: '#fff', border: '1px solid var(--theme-border-tint)', borderRadius: 14, padding: 22 },
+  inp: { width: '100%', padding: '10px 14px', border: '1px solid var(--theme-border-tint)', borderRadius: 10, fontSize: 13, outline: 'none', boxSizing: 'border-box', background: '#fff', color: 'var(--theme-text-strongest)', transition: 'border-color 0.15s ease' },
+  lbl: { display: 'block', fontSize: 11, fontWeight: 700, color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 },
+  btnPrimary: { padding: '10px 22px', borderRadius: 10, border: 'none', background: 'var(--theme-primary-alt)', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.15s' },
+  btnGhost: { padding: '9px 18px', borderRadius: 10, border: '1.5px solid var(--theme-border-tint)', background: '#fff', color: 'var(--theme-text-strongest)', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  btnDanger: { padding: '7px 18px', borderRadius: 10, border: '1.5px solid #ef4444', background: '#fff', color: '#ef4444', fontWeight: 600, fontSize: 13, cursor: 'pointer' },
+  hint: { fontSize: 11, color: '#6b7280', marginTop: 4 },
+  badge: (color) => ({ display: 'inline-block', padding: '3px 10px', borderRadius: 12, fontSize: 11, fontWeight: 600, background: color === 'green' ? '#d1fae5' : '#fef3c7', color: color === 'green' ? '#059669' : '#b45309' }),
 };
 
 export default function IntegrationDetail() {
@@ -168,8 +206,11 @@ export default function IntegrationDetail() {
   const [leadsTotal, setLeadsTotal] = useState(0);
   const [sheetFilter, setSheetFilter] = useState('');
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('configuration'); // Default directly to configuration
+
+  // Generic step (for Facebook, WhatsApp, etc.)
   const [step, setStep] = useState(0);
+
   const [activeSheetIdx, setActiveSheetIdx] = useState(0);
   const [campaigns, setCampaigns] = useState([]);
   const [users, setUsers] = useState([]);
@@ -178,18 +219,40 @@ export default function IntegrationDetail() {
   const [actionLoading, setActionLoading] = useState('');
   const [actionResult, setActionResult] = useState(null);
 
+  // Popup Modal Card state ("Add Todo" style preview modal)
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewData, setPreviewData] = useState(null);
+  const [confirmLoading, setConfirmLoading] = useState(false);
+
   // Config state
   const [config, setConfig] = useState({});
-  const [fieldMapping, setFieldMapping] = useState({ name: 'name', phone: 'phone', email: 'email', location: 'location' });
+  const [fieldMapping, setFieldMapping] = useState({ name: 'name', phone: 'phone', email: 'email', location: 'location', interested: 'interested' });
   const [defaultCampaign, setDefaultCampaign] = useState('');
   const [defaultAssignedTo, setDefaultAssignedTo] = useState('');
   const [showNewCampaign, setShowNewCampaign] = useState(false);
   const [newCampaignName, setNewCampaignName] = useState('');
   const [creatingCampaign, setCreatingCampaign] = useState(false);
 
-  // Multiple Google Sheets sources (google_sheets type only) — each has its own
-  // sheetId/sheetRange/fieldMapping and its own fetched column list.
-  const emptySheetSource = () => ({ sheetId: '', sheetRange: '', name: '', fieldMapping: emptyFieldMapping(), extraColumns: [], columns: [], columnsLoading: false, columnsError: '', availableTabs: [], campaign: '', assignedTo: '', showNewCampaign: false, newCampaignName: '', creatingCampaign: false });
+  // Multiple Google Sheets sources (google_sheets type only)
+  const emptySheetSource = () => ({
+    sheetId: '',
+    gid: '',
+    sheetRange: '',
+    name: '',
+    fieldMapping: emptyFieldMapping(),
+    allowedColumns: { phone: true, name: true, email: true, city: true, interested: true },
+    extraColumns: [],
+    columns: [],
+    columnsLoading: false,
+    columnsError: '',
+    availableTabs: [],
+    campaign: '',
+    assignedTo: '',
+    showNewCampaign: false,
+    newCampaignName: '',
+    creatingCampaign: false
+  });
+
   const [sheetSources, setSheetSources] = useState([emptySheetSource()]);
 
   // Extra states for Google Meet
@@ -204,13 +267,11 @@ export default function IntegrationDetail() {
     if (!oauthStatus) return;
 
     if (window.opener && window.opener !== window) {
-      // This tab IS the OAuth popup — notify the original tab and close.
       window.opener.postMessage({ type: 'google_oauth', status: oauthStatus }, window.location.origin);
       window.close();
       return;
     }
 
-    // This tab is the main app tab (fallback if popup blocked / same-tab redirect)
     if (oauthStatus === 'success') {
       fetchAll();
       alert('Google account connected successfully.');
@@ -223,7 +284,6 @@ export default function IntegrationDetail() {
     setSearchParams(searchParams, { replace: true });
   }, [searchParams]);
 
-  // Listen for postMessage from the OAuth popup window
   useEffect(() => {
     const handler = (event) => {
       if (event.origin !== window.location.origin) return;
@@ -250,23 +310,22 @@ export default function IntegrationDetail() {
       const intg = intRes.data;
       setIntegration(intg);
       setConfig(intg.config || {});
-      setFieldMapping(intg.fieldMapping || { name: 'name', phone: 'phone', email: 'email', location: 'location' });
+      setFieldMapping(intg.fieldMapping || { name: 'name', phone: 'phone', email: 'email', location: 'location', interested: 'interested' });
       if (intg.type === 'google_sheets') {
         const existing = (intg.config?.sheetSources && intg.config.sheetSources.length > 0)
           ? intg.config.sheetSources
-          : [{ sheetId: intg.config?.sheetId || '', sheetRange: intg.config?.sheetRange || '', name: '', fieldMapping: intg.fieldMapping || {} }];
+          : [{ sheetId: intg.config?.sheetId || '', gid: intg.config?.gid || '', sheetRange: intg.config?.sheetRange || '', name: '', fieldMapping: intg.fieldMapping || {} }];
         setSheetSources(prevSources => existing.map(src => {
-          // Preserve already-loaded columns for this sheet (matched by id+range) so
-          // navigating between wizard steps (which silently re-saves/re-fetches)
-          // doesn't wipe out columns the user already loaded in Step 1.
           const prevMatch = prevSources.find(p => p.sheetId === (src.sheetId || '') && p.sheetRange === (src.sheetRange || ''));
           return {
             sheetId: src.sheetId || '',
+            gid: src.gid || '',
             sheetRange: src.sheetRange || '',
             name: src.name || '',
             fieldMapping: { ...emptyFieldMapping(), ...(src.fieldMapping || {}) },
+            allowedColumns: src.allowedColumns || { phone: true, name: true, email: true, city: true, interested: true },
             extraColumns: src.extraColumns || [],
-            columns: prevMatch?.columns || [],
+            columns: prevMatch?.columns || src.columns || [],
             columnsLoading: false,
             columnsError: '',
             availableTabs: [],
@@ -305,11 +364,22 @@ export default function IntegrationDetail() {
             name: rest.name || `Sheet ${idx + 1}`,
             campaign: rest.campaign || rest.name || `Sheet ${idx + 1}`
           }));
-        payloadConfig = { ...config, sheetSources: cleanSources, sheetId: cleanSources[0]?.sheetId || '', sheetRange: cleanSources[0]?.sheetRange || '' };
+        payloadConfig = {
+          ...config,
+          sheetSources: cleanSources,
+          sheetId: cleanSources[0]?.sheetId || '',
+          sheetRange: cleanSources[0]?.sheetRange || ''
+        };
         payloadMapping = cleanSources[0]?.fieldMapping || fieldMapping;
       }
-      await integrationsAPI.update(id, { config: payloadConfig, fieldMapping: payloadMapping, defaultCampaign: defaultCampaign || null, defaultAssignedTo: defaultAssignedTo || null, ...extra });
-      if (!extra.status && !silent) alert('Saved successfully');
+      await integrationsAPI.update(id, {
+        config: payloadConfig,
+        fieldMapping: payloadMapping,
+        defaultCampaign: defaultCampaign || null,
+        defaultAssignedTo: defaultAssignedTo || null,
+        ...extra
+      });
+      if (!extra.status && !silent) alert('Configuration saved successfully');
       fetchAll();
     } catch (err) {
       alert(err.response?.data?.message || 'Save failed');
@@ -337,7 +407,7 @@ export default function IntegrationDetail() {
   };
 
   const handleRemove = async () => {
-    if (!window.confirm('Remove this integration? Leads already imported will remain.')) return;
+    if (!window.confirm('Remove this integration? Leads already imported will remain in CRM.')) return;
     setRemoving(true);
     try {
       await integrationsAPI.remove(id);
@@ -361,17 +431,26 @@ export default function IntegrationDetail() {
     }
   };
 
-  const addSheetSource = () => setSheetSources(prev => { const next = [...prev, emptySheetSource()]; setActiveSheetIdx(next.length - 1); return next; });
+  const addSheetSource = () => setSheetSources(prev => {
+    const next = [...prev, emptySheetSource()];
+    setActiveSheetIdx(next.length - 1);
+    return next;
+  });
 
   const removeSheetSource = async (idx) => {
-    if (!window.confirm('Remove this sheet? It will be permanently deleted and will not sync again.')) return;
+    if (!window.confirm('Remove this sheet source? Leads already synced will be preserved in CRM.')) return;
     const next = sheetSources.filter((_, i) => i !== idx);
-    setSheetSources(next);
-    setActiveSheetIdx(a => Math.min(a, Math.max(next.length - 1, 0)));
+    const updatedSources = next.length > 0 ? next : [emptySheetSource()];
+    setSheetSources(updatedSources);
+    setActiveSheetIdx(a => Math.min(a, Math.max(updatedSources.length - 1, 0)));
     try {
-      const cleanSources = next
+      const cleanSources = updatedSources
         .filter(src => src.sheetId)
-        .map(({ columns, columnsLoading, columnsError, availableTabs, showNewCampaign, newCampaignName, creatingCampaign, ...rest }) => rest);
+        .map(({ columns, columnsLoading, columnsError, availableTabs, showNewCampaign, newCampaignName, creatingCampaign, ...rest }, sIdx) => ({
+          ...rest,
+          name: rest.name || `Sheet ${sIdx + 1}`,
+          campaign: rest.campaign || rest.name || `Sheet ${sIdx + 1}`
+        }));
       await integrationsAPI.update(id, {
         config: { ...config, sheetSources: cleanSources, sheetId: cleanSources[0]?.sheetId || '', sheetRange: cleanSources[0]?.sheetRange || '' },
       });
@@ -387,11 +466,20 @@ export default function IntegrationDetail() {
     i === idx ? { ...s, fieldMapping: { ...s.fieldMapping, [field]: value } } : s
   )));
 
-  const toggleExtraColumn = (idx, col) => setSheetSources(prev => prev.map((s, i) => {
-    if (i !== idx) return s;
-    const has = s.extraColumns.includes(col);
-    return { ...s, extraColumns: has ? s.extraColumns.filter(c => c !== col) : [...s.extraColumns, col] };
-  }));
+  const toggleAllowedColumn = (idx, colKey) => {
+    if (colKey === 'phone') return; // Phone is mandatory
+    setSheetSources(prev => prev.map((s, i) => {
+      if (i !== idx) return s;
+      const current = s.allowedColumns || { phone: true, name: true, email: true, city: true, interested: true };
+      return {
+        ...s,
+        allowedColumns: {
+          ...current,
+          [colKey]: !current[colKey]
+        }
+      };
+    }));
+  };
 
   const createCampaignForSource = async (idx) => {
     const nameVal = sheetSources[idx]?.newCampaignName?.trim();
@@ -409,18 +497,85 @@ export default function IntegrationDetail() {
     }
   };
 
-  const fetchColumnsForSource = async (idx) => {
+  const handleSheetIdChange = (idx, val) => {
+    const { sheetId, gid, tabName } = parseSheetUrlOrId(val);
+    const updates = { sheetId, columns: [], columnsError: '' };
+    if (gid) updates.gid = gid;
+    if (tabName && !sheetSources[idx]?.sheetRange) {
+      updates.sheetRange = `'${tabName}'!A:ZZ`;
+    }
+    updateSheetSource(idx, updates);
+  };
+
+  // Test Connection, Fetch Columns & Sample Rows, then trigger Popup Card
+  const testConnectionAndShowModal = async (idx) => {
     const src = sheetSources[idx];
-    if (!src.sheetId) { updateSheetSource(idx, { columnsError: 'Enter a Sheet ID first.' }); return; }
+    if (!src.sheetId) {
+      updateSheetSource(idx, { columnsError: 'Please enter a Google Sheet ID or URL.' });
+      return;
+    }
+
+    // Auto-clean typos like !:
+    const cleanRange = (src.sheetRange || '').replace(/!:+/g, '!').trim();
+    if (cleanRange !== src.sheetRange) {
+      updateSheetSource(idx, { sheetRange: cleanRange });
+    }
+
+    // Parse URL if full URL was pasted
+    const parsed = parseSheetUrlOrId(src.sheetId);
+    const effectiveSheetId = parsed.sheetId || src.sheetId;
+    const effectiveGid = parsed.gid || src.gid;
+
     updateSheetSource(idx, { columnsLoading: true, columnsError: '' });
     try {
-      const res = await integrationsAPI.getSheetColumns(id, src.sheetId, src.sheetRange);
+      const res = await integrationsAPI.getSheetColumns(id, effectiveSheetId, cleanRange || src.sheetRange, effectiveGid);
       const cols = res.data.columns || [];
-      updateSheetSource(idx, { columns: cols, columnsLoading: false });
-      // Auto-save the sheet sources immediately so newly added sheets are never lost when navigating to Meta Leads
+      const sampleRows = res.data.sampleRows || [];
+      const totalRows = res.data.totalRows !== undefined ? res.data.totalRows : (sampleRows.length || 0);
+
+      if (!res.data.success || cols.length === 0) {
+        updateSheetSource(idx, {
+          columnsLoading: false,
+          columnsError: res.data.message || 'No columns found in the sheet. Please make sure sheet contains header row and is shared with link.'
+        });
+        return;
+      }
+
+      // Auto-map empty fields
+      const autoMapped = autoMapFields(cols);
+      const updatedMapping = { ...src.fieldMapping };
+      Object.keys(autoMapped).forEach(k => {
+        if (!updatedMapping[k] && autoMapped[k]) {
+          updatedMapping[k] = autoMapped[k];
+        }
+      });
+
+      updateSheetSource(idx, {
+        sheetId: effectiveSheetId,
+        gid: effectiveGid,
+        columns: cols,
+        columnsLoading: false,
+        columnsError: '',
+        fieldMapping: updatedMapping
+      });
+
+      // Prepare preview data and OPEN POPUP MODAL ("Add Todo" style)
+      setPreviewData({
+        sheetIdx: idx,
+        sheetName: src.name || `Sheet ${idx + 1}`,
+        tabName: cleanRange || src.sheetRange || 'Default Sheet',
+        columns: cols,
+        sampleRows,
+        totalRows,
+        fieldMapping: updatedMapping,
+        allowedColumns: src.allowedColumns || { phone: true, name: true, email: true, city: true, interested: true }
+      });
+      setShowPreviewModal(true);
+
+      // Silently save
       setTimeout(async () => {
         try {
-          const currentSources = sheetSources.map((s, i) => i === idx ? { ...s, columns: cols } : s);
+          const currentSources = sheetSources.map((s, i) => i === idx ? { ...s, sheetId: effectiveSheetId, gid: effectiveGid, sheetRange: cleanRange, columns: cols, fieldMapping: updatedMapping } : s);
           const cleanSources = currentSources
             .filter(s => s.sheetId)
             .map(({ columns, columnsLoading, columnsError, availableTabs, showNewCampaign, newCampaignName, creatingCampaign, ...rest }, sIdx) => ({
@@ -437,14 +592,31 @@ export default function IntegrationDetail() {
     } catch (err) {
       updateSheetSource(idx, {
         columnsLoading: false,
-        columnsError: err.response?.data?.message || 'Could not load columns',
+        columnsError: err.response?.data?.message || err.message || 'Could not load columns. Please verify that sheet sharing is set to "Anyone with the link can view".',
         availableTabs: err.response?.data?.availableTabs || [],
       });
     }
   };
 
+  // Confirm in Popup Modal: Save, Sync & Navigate to Meta Leads!
+  const handleConfirmAndSync = async () => {
+    setConfirmLoading(true);
+    try {
+      await handleSave({}, true);
+      const targetSrc = sheetSources[activeSheetIdx];
+      await integrationsAPI.importSheets(id, targetSrc?.sheetId);
+      setShowPreviewModal(false);
+      // Immediately navigate to Meta Leads!
+      navigate('/meta-leads');
+    } catch (err) {
+      alert(err.response?.data?.message || 'Sync failed. Please check sheet permissions.');
+    } finally {
+      setConfirmLoading(false);
+    }
+  };
+
   const useSuggestedTab = (idx, tabName) => {
-    updateSheetSource(idx, { sheetRange: `${tabName}!A1:Z1000`, columnsError: '', availableTabs: [] });
+    updateSheetSource(idx, { sheetRange: `'${tabName}'!A:ZZ`, columnsError: '', availableTabs: [] });
   };
 
   const startGoogleOAuth = async () => {
@@ -470,9 +642,11 @@ export default function IntegrationDetail() {
   const type = integration.type;
   const webhookUrl = `${backendUrl}/api/integrations/webhook/${integration.webhookKey}`;
   const configFields = CONFIG_FIELDS[type] || [];
-  const isOAuth = OAUTH_TYPES.includes(type);
   const isGenericWebhook = GENERIC_WEBHOOK_TYPES.includes(type);
   const isRealWebhook = WEBHOOK_TYPES.includes(type);
+
+  const currentSource = sheetSources[activeSheetIdx] || emptySheetSource();
+  const allowed = currentSource.allowedColumns || { phone: true, name: true, email: true, city: true, interested: true };
 
   return (
     <div className="id-shell" style={{ padding: '20px 28px', maxWidth: 1200, margin: '0 auto', overflowX: 'hidden', boxSizing: 'border-box' }}>
@@ -484,8 +658,10 @@ export default function IntegrationDetail() {
           .id-shell div[style*="display: flex"] > * { min-width: 0; }
         }
       `}</style>
+
+      {/* Top Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <button onClick={() => navigate('/integrations')} style={{ background: 'none', border: 'none', color: 'var(--theme-primary-alt)', cursor: 'pointer', fontSize: 14, padding: 0 }}>
+        <button onClick={() => navigate('/integrations')} style={{ background: 'none', border: 'none', color: 'var(--theme-primary-alt)', cursor: 'pointer', fontSize: 14, padding: 0, fontWeight: 600 }}>
           ← Back to Integrations
         </button>
         <button onClick={handleRemove} disabled={removing} style={s.btnDanger}>
@@ -497,12 +673,17 @@ export default function IntegrationDetail() {
         <IntegrationLogo type={integration.type} name={integration.name} size={52} />
         <div>
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: 'var(--theme-text-strongest)' }}>{integration.name}</h2>
-          <p style={{ margin: 0, fontSize: 13, color: '#6b7280' }}>{integration.description}</p>
+          <p style={{ margin: 0, fontSize: 13, color: '#6b7280' }}>
+            {type === 'google_sheets'
+              ? 'Native Google Sheets Direct Cloud Sync — 100% automated without Apps Script or Code.gs'
+              : integration.description}
+          </p>
         </div>
       </div>
 
+      {/* Tabs */}
       <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid var(--theme-border-tint)', marginBottom: 24, overflowX: 'auto' }}>
-        {['overview', 'configuration', 'actions', 'leads'].map(tab => (
+        {['configuration', 'overview', 'actions', 'leads'].map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)} style={{
             padding: '10px 20px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 14,
             fontWeight: activeTab === tab ? 600 : 400,
@@ -515,392 +696,875 @@ export default function IntegrationDetail() {
         ))}
       </div>
 
-      {/* ── Overview ── */}
-      {activeTab === 'overview' && (
-        <div>
-          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', marginBottom: 24 }}>
-            {[
-              { label: 'Total Leads Imported', value: integration.totalLeadsImported },
-              { label: 'Status', value: integration.status === 'active' ? '✓ Active' : integration.status === 'pending' ? 'Pending setup' : 'Inactive' },
-              { label: 'Last Lead', value: integration.lastLeadAt ? new Date(integration.lastLeadAt).toLocaleDateString() : 'Never' },
-              { label: 'Default Campaign', value: integration.defaultCampaign?.name || 'None' },
-            ].map(stat => (
-              <div key={stat.label} style={{ ...s.card, padding: '16px 24px', minWidth: 160 }}>
-                <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 4 }}>{stat.label}</div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--theme-text-strongest)' }}>{stat.value}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Connection method info */}
-          <div style={{ ...s.card, marginBottom: 20, borderLeft: '4px solid var(--theme-primary-alt)' }}>
-            <div style={{ fontWeight: 700, color: 'var(--theme-text-strongest)', marginBottom: 8 }}>
-              {type === 'facebook' && '📘 Connected via Meta Graph API'}
-              {(type === 'whatsapp_cloud' || type === 'whatsapp') && '💬 Connected via WhatsApp Cloud API'}
-              {type === 'google_sheets' && '📊 Connected via Google Sheets API'}
-              {type === 'google_meet' && '🎥 Connected via Google Calendar API'}
-              {type === 'knowlarity' && '📞 Connected via Knowlarity REST API'}
-              {type === 'callerdesk' && '📞 Connected via CallerDesk API'}
-              {type === 'maqsam' && '📞 Connected via Maqsam API'}
-              {isGenericWebhook && '🔗 Connected via Webhook'}
-            </div>
-            <div style={{ fontSize: 13, color: '#6b7280' }}>
-              {type === 'facebook' && 'Leads are pulled in real-time from Facebook Lead Ads via Meta webhooks.'}
-              {(type === 'whatsapp_cloud') && 'Incoming WhatsApp messages create leads automatically. You can also send messages from lead profiles.'}
-              {type === 'google_sheets' && 'Import leads from your sheet or export leads to it. Import from Configuration → Step 5.'}
-              {type === 'google_meet' && 'Create Google Meet links directly from lead profiles. Use the Actions tab.'}
-              {(type === 'knowlarity' || type === 'callerdesk' || type === 'maqsam') && 'Inbound calls create leads automatically. CDR is logged against existing leads.'}
-              {isGenericWebhook && `${integration.name} sends leads to your webhook URL. Copy it and paste in your ${integration.name} dashboard.`}
-            </div>
-          </div>
-
-          {/* Webhook URL for generic types */}
-          {(isGenericWebhook || isRealWebhook) && (
-            <div style={{ ...s.card, marginBottom: 20 }}>
-              <h4 style={{ margin: '0 0 12px', fontSize: 15 }}>
-                {isRealWebhook ? 'Webhook URL (for CDR / events)' : 'Webhook URL'}
-              </h4>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <code style={{ flex: 1, background: 'var(--theme-surface-faint2)', padding: '8px 14px', borderRadius: 8, fontSize: 12, color: '#4f46e5', wordBreak: 'break-all', border: '1px solid var(--theme-border-tint)' }}>
-                  {type === 'whatsapp_cloud' || type === 'whatsapp' ? `${backendUrl}/api/integrations/whatsapp/webhook` : webhookUrl}
-                </code>
-                <button onClick={() => { navigator.clipboard.writeText(type === 'whatsapp_cloud' ? `${backendUrl}/api/integrations/whatsapp/webhook` : webhookUrl); alert('Copied!'); }} style={s.btnPrimary}>
-                  Copy
-                </button>
-              </div>
-              {type === 'whatsapp_cloud' && (
-                <div style={{ marginTop: 10, fontSize: 13, color: '#6b7280' }}>
-                  Paste this URL in Meta Business → WhatsApp → Configuration → Webhook URL. Subscribe to <strong>messages</strong> field.
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Facebook webhook URL */}
-          {type === 'facebook' && (
-            <div style={{ ...s.card }}>
-              <h4 style={{ margin: '0 0 12px' }}>Meta Webhook URL</h4>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <code style={{ flex: 1, background: 'var(--theme-surface-faint2)', padding: '8px 14px', borderRadius: 8, fontSize: 12, color: '#4f46e5', wordBreak: 'break-all', border: '1px solid var(--theme-border-tint)' }}>
-                  {backendUrl}/api/integrations/facebook/webhook
-                </code>
-                <button onClick={() => { navigator.clipboard.writeText(`${backendUrl}/api/integrations/facebook/webhook`); alert('Copied!'); }} style={s.btnPrimary}>Copy</button>
-              </div>
-              <div style={{ marginTop: 10, fontSize: 13, color: '#6b7280' }}>
-                Paste in Meta App → Webhooks → Page → leadgen. Verify token: set <code>FACEBOOK_WEBHOOK_VERIFY_TOKEN</code> in your .env
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Configuration ── */}
+      {/* ── Configuration Tab ── */}
       {activeTab === 'configuration' && (
         <div>
-          {type === 'google_sheets' && step > 0 && (
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
-              {sheetSources.map((src, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setActiveSheetIdx(idx)}
-                  style={{
-                    padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600,
-                    border: `1.5px solid ${idx === activeSheetIdx ? 'var(--theme-primary-alt)' : 'var(--theme-border-tint)'}`,
-                    background: idx === activeSheetIdx ? 'var(--theme-primary-alt)' : '#fff',
-                    color: idx === activeSheetIdx ? '#fff' : 'var(--theme-text-strongest)',
-                  }}
-                >
-                  {src.name || `Sheet ${idx + 1}`}
-                </button>
-              ))}
-            </div>
-          )}
-
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 32, overflowX: 'auto', paddingBottom: 4 }}>
-            {STEPS.map((st, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer' }} onClick={() => setStep(i)}>
+          {type === 'google_sheets' ? (
+            /* ============================================================== */
+            /* SINGLE-STEP REACTBITS-INSPIRED GOOGLE SHEETS CARD              */
+            /* ============================================================== */
+            <div>
+              {/* Direct CRM Cloud Connection Badge */}
+              <div style={{
+                background: 'linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%)',
+                border: '1px solid #a7f3d0',
+                borderRadius: 14,
+                padding: '14px 18px',
+                marginBottom: 20,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: 12
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <div style={{
-                    width: 28, height: 28, borderRadius: '50%',
-                    border: `2px solid ${i <= step ? 'var(--theme-primary-alt)' : '#d1d5db'}`,
-                    background: i < step ? 'var(--theme-primary-alt)' : '#fff',
+                    width: 38, height: 38, borderRadius: 10, background: '#10b981',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: i < step ? '#fff' : i === step ? 'var(--theme-primary-alt)' : '#9ca3af',
-                    fontWeight: 700, fontSize: 13,
+                    color: '#fff', fontSize: 20, flexShrink: 0
                   }}>
-                    {i < step ? '✓' : i + 1}
+                    ⚡
                   </div>
-                  <div style={{ fontSize: 11, color: i === step ? 'var(--theme-primary-alt)' : '#9ca3af', fontWeight: i === step ? 600 : 400, marginTop: 4, textAlign: 'center', whiteSpace: 'nowrap' }}>
-                    {st.label}<br /><span style={{ fontSize: 10 }}>{st.sub}</span>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: '#065f46' }}>
+                      Direct CRM Cloud Connection Active — No Code.gs or Google Apps Script Needed!
+                    </div>
+                    <div style={{ fontSize: 12, color: '#047857', marginTop: 1 }}>
+                      CRM directly syncs rows from Google Sheets. Quota limits and URLFetch issues are permanently eliminated.
+                    </div>
                   </div>
                 </div>
-                {i < STEPS.length - 1 && <div style={{ height: 1, width: 60, background: i < step ? 'var(--theme-primary-alt)' : '#d1d5db', margin: '0 4px', marginBottom: 24 }} />}
+                <div style={{
+                  background: '#d1fae5', color: '#065f46', fontWeight: 700, fontSize: 11,
+                  padding: '4px 12px', borderRadius: 20, border: '1px solid #6ee7b7'
+                }}>
+                  ✓ Direct Sync Active
+                </div>
               </div>
-            ))}
-          </div>
 
-          <div style={{ ...s.card, padding: 28 }}>
+              {/* Multi-Sheet Selector Tabs */}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                background: '#fff', border: '1px solid var(--theme-border-tint)',
+                borderRadius: 12, padding: '8px 12px', marginBottom: 20, overflowX: 'auto'
+              }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em', marginRight: 4, whiteSpace: 'nowrap' }}>
+                  Sheets:
+                </span>
+                {sheetSources.map((src, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      padding: '6px 14px', borderRadius: 8, cursor: 'pointer',
+                      fontSize: 12, fontWeight: idx === activeSheetIdx ? 700 : 500,
+                      background: idx === activeSheetIdx ? 'var(--theme-primary-alt)' : 'var(--theme-surface-faint2)',
+                      color: idx === activeSheetIdx ? '#fff' : 'var(--theme-text-strongest)',
+                      border: `1.5px solid ${idx === activeSheetIdx ? 'var(--theme-primary-alt)' : 'var(--theme-border-tint)'}`,
+                      whiteSpace: 'nowrap', transition: 'all 0.15s ease'
+                    }}
+                    onClick={() => setActiveSheetIdx(idx)}
+                  >
+                    <span>📊 {src.name || `Sheet ${idx + 1}`}</span>
+                    {sheetSources.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); removeSheetSource(idx); }}
+                        title="Remove this sheet"
+                        style={{
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          color: idx === activeSheetIdx ? '#fecaca' : '#9ca3af',
+                          fontSize: 15, padding: '0 2px', lineHeight: 1
+                        }}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={addSheetSource}
+                  style={{
+                    padding: '6px 14px', borderRadius: 8, cursor: 'pointer',
+                    fontSize: 12, fontWeight: 600, background: '#fff',
+                    color: 'var(--theme-primary-alt)',
+                    border: '1.5px dashed var(--theme-primary-alt)',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  + Add Another Sheet
+                </button>
+              </div>
 
-            {/* Step 0: API credentials */}
-            {step === 0 && (
-              <div>
-                <h4 style={{ margin: '0 0 20px', color: 'var(--theme-text-strongest)' }}>Integration Credentials</h4>
+              {/* Single Reactbits-Style Main Card */}
+              <div style={{
+                background: 'linear-gradient(180deg, #ffffff 0%, #fbfcfd 100%)',
+                border: '1px solid rgba(226, 232, 240, 0.9)',
+                borderRadius: 18,
+                padding: '24px 28px',
+                boxShadow: '0 12px 32px -8px rgba(0,0,0,0.06), 0 4px 12px -2px rgba(0,0,0,0.02)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--theme-text-strongest)' }}>
+                      Google Sheet Configuration
+                    </h3>
+                    <p style={{ margin: '3px 0 0', fontSize: 12, color: '#6b7280' }}>
+                      Configure connection details, assign campaign/telecaller, and choose allowed columns.
+                    </p>
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#059669', background: '#d1fae5', padding: '4px 12px', borderRadius: 20 }}>
+                    Editing: {currentSource.name || `Sheet ${activeSheetIdx + 1}`}
+                  </span>
+                </div>
 
-                {/* OAuth types */}
-                {type === 'facebook' && (
-                  <div style={{ marginBottom: 20 }}>
-                    <button onClick={startFacebookOAuth} style={s.btnPrimary}>🔐 Connect with Facebook (OAuth)</button>
-                    <p style={s.hint}>This will open a Facebook login window. Authorize to get your page access token.</p>
-                    <div style={{ marginTop: 16, padding: 12, background: '#fef3c7', borderRadius: 8, fontSize: 13, color: '#92400e' }}>
-                      Or fill credentials manually below if you already have tokens:
+                {/* Input Fields Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginBottom: 20 }}>
+                  {/* Sheet Label */}
+                  <div>
+                    <label style={s.lbl}>Sheet Label / Title</label>
+                    <input
+                      value={currentSource.name}
+                      onChange={e => updateSheetSource(activeSheetIdx, { name: e.target.value })}
+                      placeholder="e.g. Digital Marketing Leads, SAP Leads"
+                      style={s.inp}
+                    />
+                    <div style={s.hint}>Custom label for this sheet in CRM.</div>
+                  </div>
+
+                  {/* Google Sheet ID or URL */}
+                  <div>
+                    <label style={s.lbl}>Google Sheet ID or Full URL</label>
+                    <input
+                      value={currentSource.sheetId}
+                      onChange={e => handleSheetIdChange(activeSheetIdx, e.target.value)}
+                      placeholder="Paste Sheet URL or ID (https://docs.google.com/spreadsheets/d/...)"
+                      style={s.inp}
+                    />
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+                      <span style={s.hint}>Paste full URL or Sheet ID</span>
+                      {currentSource.sheetId && (
+                        <span style={{ fontSize: 10, fontWeight: 600, color: '#059669', background: '#ecfdf5', padding: '1px 6px', borderRadius: 4 }}>
+                          ✓ ID: {currentSource.sheetId.slice(0, 14)}... {currentSource.gid ? `(GID: ${currentSource.gid})` : ''}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Sheet Range / Tab Name */}
+                  <div>
+                    <label style={s.lbl}>Sheet Tab Name / Range</label>
+                    <input
+                      value={currentSource.sheetRange}
+                      onChange={e => updateSheetSource(activeSheetIdx, { sheetRange: e.target.value.replace(/!:+/g, '!'), columns: [] })}
+                      onBlur={e => updateSheetSource(activeSheetIdx, { sheetRange: e.target.value.replace(/!:+/g, '!').trim() })}
+                      placeholder="e.g. 'CyberSecurity_Lead_Form_Nov2026'!A:ZZ or Sheet1"
+                      style={s.inp}
+                    />
+                    <div style={s.hint}>Tab name in your Google Sheet (e.g. Sheet1, Leads).</div>
+                  </div>
+
+                  {/* Target Campaign */}
+                  <div>
+                    <label style={s.lbl}>Target Campaign</label>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <select
+                        value={currentSource.campaign}
+                        onChange={e => updateSheetSource(activeSheetIdx, { campaign: e.target.value })}
+                        style={{ ...s.inp, flex: 1 }}
+                      >
+                        <option value="">-- Auto (Use Sheet Name) --</option>
+                        {campaigns.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => updateSheetSource(activeSheetIdx, { showNewCampaign: !currentSource.showNewCampaign })}
+                        style={{ ...s.btnGhost, padding: '7px 12px', fontSize: 12 }}
+                      >
+                        + New
+                      </button>
+                    </div>
+                    {currentSource.showNewCampaign && (
+                      <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                        <input
+                          value={currentSource.newCampaignName || ''}
+                          onChange={e => updateSheetSource(activeSheetIdx, { newCampaignName: e.target.value })}
+                          placeholder="Campaign name"
+                          style={{ ...s.inp, flex: 1, padding: '6px 10px', fontSize: 12 }}
+                          onKeyDown={e => { if (e.key === 'Enter') createCampaignForSource(activeSheetIdx); }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => createCampaignForSource(activeSheetIdx)}
+                          style={{ ...s.btnPrimary, padding: '6px 14px', fontSize: 12 }}
+                          disabled={currentSource.creatingCampaign || !currentSource.newCampaignName?.trim()}
+                        >
+                          Create
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Telecaller Assignment */}
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={s.lbl}>Auto-Assign Telecaller / Agent</label>
+                    <select
+                      value={currentSource.assignedTo || ''}
+                      onChange={e => updateSheetSource(activeSheetIdx, { assignedTo: e.target.value })}
+                      style={s.inp}
+                    >
+                      <option value="">Auto assign / Round-robin (or unassigned)</option>
+                      {users.map(u => (
+                        <option key={u._id} value={u._id}>{u.name} ({u.role})</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Suggested Tabs pill buttons if any */}
+                {currentSource.availableTabs && currentSource.availableTabs.length > 0 && (
+                  <div style={{ marginBottom: 16 }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: '#4b5563', marginRight: 6 }}>Suggested Tabs:</span>
+                    {currentSource.availableTabs.map(tab => (
+                      <button key={tab} type="button" onClick={() => useSuggestedTab(activeSheetIdx, tab)} style={{ ...s.btnGhost, padding: '3px 8px', fontSize: 11, marginRight: 6 }}>
+                        Use "{tab}"
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Column Error / Helper Banner */}
+                {currentSource.columnsError && (
+                  <div style={{
+                    padding: '16px 18px',
+                    borderRadius: 12,
+                    background: currentSource.columnsError.includes('401') || currentSource.columnsError.toLowerCase().includes('restricted') ? '#fef2f2' : '#fffbeb',
+                    border: `1.5px solid ${currentSource.columnsError.includes('401') || currentSource.columnsError.toLowerCase().includes('restricted') ? '#fca5a5' : '#fcd34d'}`,
+                    marginBottom: 20,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                      <span style={{ fontSize: 24, lineHeight: 1 }}>
+                        {currentSource.columnsError.includes('401') || currentSource.columnsError.toLowerCase().includes('restricted') ? '🔒' : '⚠️'}
+                      </span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{
+                          fontWeight: 700,
+                          fontSize: 14,
+                          color: currentSource.columnsError.includes('401') || currentSource.columnsError.toLowerCase().includes('restricted') ? '#991b1b' : '#92400e',
+                          marginBottom: 4
+                        }}>
+                          {currentSource.columnsError.includes('401') || currentSource.columnsError.toLowerCase().includes('restricted')
+                            ? 'Google Sheet Access Restricted (401 Error) — Data Not Visible'
+                            : currentSource.columnsError.includes('404')
+                              ? 'Google Sheet Not Found (404 Error)'
+                              : 'Google Sheet Connection Notice'}
+                        </div>
+                        <div style={{ fontSize: 12.5, lineHeight: 1.5, color: '#374151' }}>
+                          {currentSource.columnsError.includes('401') || currentSource.columnsError.toLowerCase().includes('restricted') ? (
+                            <div>
+                              <p style={{ margin: '0 0 8px 0', color: '#b91c1c', fontWeight: 600 }}>
+                                Ee Google Sheet private / restricted gaa undi. CRM data ni access cheyadaniki Google Sheet Share permissions change cheyali:
+                              </p>
+                              <ol style={{ margin: '0 0 10px 0', paddingLeft: 20, color: '#4b5563', lineHeight: 1.6 }}>
+                                <li>Mee Google Sheet ni browser lo open cheyandi.</li>
+                                <li>Top-Right corner lo unna <strong>Share</strong> button click cheyandi.</li>
+                                <li><strong>General access</strong> lo <em>Restricted</em> place lo <strong>Anyone with the link</strong> select chesi, role <strong>Viewer</strong> unchandi.</li>
+                                <li><strong>Done</strong> click chesi, ikkada kinda malli <strong>⚡ Test Connection & Load Columns</strong> click cheyandi. Existing leads ventane kanapadathayi!</li>
+                              </ol>
+                              {currentSource.sheetId && (
+                                <a
+                                  href={`https://docs.google.com/spreadsheets/d/${currentSource.sheetId}/edit`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 6,
+                                    fontSize: 12,
+                                    fontWeight: 600,
+                                    color: '#2563eb',
+                                    textDecoration: 'underline',
+                                    marginTop: 4
+                                  }}
+                                >
+                                  Open Google Sheet in new tab ↗
+                                </a>
+                              )}
+                            </div>
+                          ) : currentSource.columnsError.includes('404') ? (
+                            <div>
+                              <p style={{ margin: '0 0 6px 0', color: '#b91c1c', fontWeight: 600 }}>
+                                Google Sheet ID match avvaledhu (Google Sheet IDs are case-sensitive).
+                              </p>
+                              <div style={{ color: '#4b5563' }}>
+                                Browser address bar lo unna complete URL (e.g. <code>https://docs.google.com/spreadsheets/d/...</code>) copy chesi 'Google Sheet ID or Full URL' box lo paste cheyandi.
+                              </div>
+                            </div>
+                          ) : (
+                            <div>{currentSource.columnsError}</div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
 
-                {(type === 'google_sheets' || type === 'google_meet') && (
-                  <div style={{ marginBottom: 20 }}>
-                    <button onClick={startGoogleOAuth} style={s.btnPrimary}>🔐 Connect with Google (OAuth)</button>
-                    <p style={s.hint}>Opens Google login to authorize access. Integration ID is saved automatically.</p>
-                    {integration.config?.refreshToken && (
-                      <div style={{ marginTop: 10, ...s.badge('green') }}>✓ Google account connected</div>
+                {/* ── COLUMNS ALLOW SECTION ── */}
+                <div style={{
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 14,
+                  padding: '18px 20px',
+                  marginBottom: 22
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--theme-text-strongest)' }}>
+                        Columns Allowed / Required
+                      </div>
+                      <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                        Toggle which fields to capture. Phone is mandatory. Match to sheet column below:
+                      </div>
+                    </div>
+                    {currentSource.columns.length > 0 && (
+                      <span style={{ fontSize: 11, fontWeight: 600, color: '#059669', background: '#ecfdf5', padding: '3px 10px', borderRadius: 12, border: '1px solid #a7f3d0' }}>
+                        ✓ {currentSource.columns.length} Columns Detected in Sheet
+                      </span>
+                    )}
+                  </div>
+
+                  {/* 5 Column Toggle Cards / Buttons */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12 }}>
+
+                    {/* 1. Phone (Mandatory) */}
+                    <div style={{
+                      padding: '12px 14px', borderRadius: 12,
+                      background: '#ecfdf5', border: '1.5px solid #10b981',
+                      display: 'flex', flexDirection: 'column', gap: 6,
+                      boxShadow: '0 2px 6px rgba(16, 185, 129, 0.08)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontWeight: 700, fontSize: 13, color: '#065f46' }}>📱 Phone</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, background: '#10b981', color: '#fff', padding: '2px 8px', borderRadius: 12 }}>
+                          Mandatory *
+                        </span>
+                      </div>
+                      <select
+                        value={currentSource.fieldMapping?.phone || ''}
+                        onChange={e => updateSheetSourceMapping(activeSheetIdx, 'phone', e.target.value)}
+                        style={{ width: '100%', padding: '6px 8px', borderRadius: 6, border: '1px solid #a7f3d0', fontSize: 12, background: '#fff', outline: 'none' }}
+                      >
+                        <option value="">-- Match Phone Column --</option>
+                        {currentSource.columns.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+
+                    {/* 2. Name */}
+                    {(() => {
+                      const isChecked = allowed.name !== false;
+                      return (
+                        <div style={{
+                          padding: '12px 14px', borderRadius: 12,
+                          background: isChecked ? '#f0fdf4' : '#f9fafb',
+                          border: `1.5px solid ${isChecked ? '#34d399' : '#e5e7eb'}`,
+                          display: 'flex', flexDirection: 'column', gap: 6,
+                          transition: 'all 0.15s ease'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span style={{ fontWeight: 700, fontSize: 13, color: isChecked ? '#065f46' : '#6b7280' }}>👤 Name</span>
+                            <button
+                              type="button"
+                              onClick={() => toggleAllowedColumn(activeSheetIdx, 'name')}
+                              style={{
+                                padding: '3px 10px', borderRadius: 12, border: 'none', cursor: 'pointer',
+                                fontSize: 11, fontWeight: 700,
+                                background: isChecked ? '#10b981' : '#e5e7eb',
+                                color: isChecked ? '#fff' : '#6b7280'
+                              }}
+                            >
+                              {isChecked ? '✓ Allowed' : '+ Include'}
+                            </button>
+                          </div>
+                          {isChecked && (
+                            <select
+                              value={currentSource.fieldMapping?.name || ''}
+                              onChange={e => updateSheetSourceMapping(activeSheetIdx, 'name', e.target.value)}
+                              style={{ width: '100%', padding: '6px 8px', borderRadius: 6, border: '1px solid #d1fae5', fontSize: 12, background: '#fff', outline: 'none' }}
+                            >
+                              <option value="">-- Match Name Column --</option>
+                              {currentSource.columns.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    {/* 3. Email */}
+                    {(() => {
+                      const isChecked = allowed.email !== false;
+                      return (
+                        <div style={{
+                          padding: '12px 14px', borderRadius: 12,
+                          background: isChecked ? '#f0fdf4' : '#f9fafb',
+                          border: `1.5px solid ${isChecked ? '#34d399' : '#e5e7eb'}`,
+                          display: 'flex', flexDirection: 'column', gap: 6,
+                          transition: 'all 0.15s ease'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span style={{ fontWeight: 700, fontSize: 13, color: isChecked ? '#065f46' : '#6b7280' }}>✉️ Email</span>
+                            <button
+                              type="button"
+                              onClick={() => toggleAllowedColumn(activeSheetIdx, 'email')}
+                              style={{
+                                padding: '3px 10px', borderRadius: 12, border: 'none', cursor: 'pointer',
+                                fontSize: 11, fontWeight: 700,
+                                background: isChecked ? '#10b981' : '#e5e7eb',
+                                color: isChecked ? '#fff' : '#6b7280'
+                              }}
+                            >
+                              {isChecked ? '✓ Allowed' : '+ Include'}
+                            </button>
+                          </div>
+                          {isChecked && (
+                            <select
+                              value={currentSource.fieldMapping?.email || ''}
+                              onChange={e => updateSheetSourceMapping(activeSheetIdx, 'email', e.target.value)}
+                              style={{ width: '100%', padding: '6px 8px', borderRadius: 6, border: '1px solid #d1fae5', fontSize: 12, background: '#fff', outline: 'none' }}
+                            >
+                              <option value="">-- Match Email Column --</option>
+                              {currentSource.columns.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    {/* 4. City */}
+                    {(() => {
+                      const isChecked = allowed.city !== false;
+                      return (
+                        <div style={{
+                          padding: '12px 14px', borderRadius: 12,
+                          background: isChecked ? '#f0fdf4' : '#f9fafb',
+                          border: `1.5px solid ${isChecked ? '#34d399' : '#e5e7eb'}`,
+                          display: 'flex', flexDirection: 'column', gap: 6,
+                          transition: 'all 0.15s ease'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span style={{ fontWeight: 700, fontSize: 13, color: isChecked ? '#065f46' : '#6b7280' }}>📍 City</span>
+                            <button
+                              type="button"
+                              onClick={() => toggleAllowedColumn(activeSheetIdx, 'city')}
+                              style={{
+                                padding: '3px 10px', borderRadius: 12, border: 'none', cursor: 'pointer',
+                                fontSize: 11, fontWeight: 700,
+                                background: isChecked ? '#10b981' : '#e5e7eb',
+                                color: isChecked ? '#fff' : '#6b7280'
+                              }}
+                            >
+                              {isChecked ? '✓ Allowed' : '+ Include'}
+                            </button>
+                          </div>
+                          {isChecked && (
+                            <select
+                              value={currentSource.fieldMapping?.location || ''}
+                              onChange={e => updateSheetSourceMapping(activeSheetIdx, 'location', e.target.value)}
+                              style={{ width: '100%', padding: '6px 8px', borderRadius: 6, border: '1px solid #d1fae5', fontSize: 12, background: '#fff', outline: 'none' }}
+                            >
+                              <option value="">-- Match City Column --</option>
+                              {currentSource.columns.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    {/* 5. Interested */}
+                    {(() => {
+                      const isChecked = allowed.interested !== false;
+                      return (
+                        <div style={{
+                          padding: '12px 14px', borderRadius: 12,
+                          background: isChecked ? '#f0fdf4' : '#f9fafb',
+                          border: `1.5px solid ${isChecked ? '#34d399' : '#e5e7eb'}`,
+                          display: 'flex', flexDirection: 'column', gap: 6,
+                          transition: 'all 0.15s ease'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span style={{ fontWeight: 700, fontSize: 13, color: isChecked ? '#065f46' : '#6b7280' }}>🎯 Interested</span>
+                            <button
+                              type="button"
+                              onClick={() => toggleAllowedColumn(activeSheetIdx, 'interested')}
+                              style={{
+                                padding: '3px 10px', borderRadius: 12, border: 'none', cursor: 'pointer',
+                                fontSize: 11, fontWeight: 700,
+                                background: isChecked ? '#10b981' : '#e5e7eb',
+                                color: isChecked ? '#fff' : '#6b7280'
+                              }}
+                            >
+                              {isChecked ? '✓ Allowed' : '+ Include'}
+                            </button>
+                          </div>
+                          {isChecked && (
+                            <select
+                              value={currentSource.fieldMapping?.interested || ''}
+                              onChange={e => updateSheetSourceMapping(activeSheetIdx, 'interested', e.target.value)}
+                              style={{ width: '100%', padding: '6px 8px', borderRadius: 6, border: '1px solid #d1fae5', fontSize: 12, background: '#fff', outline: 'none' }}
+                            >
+                              <option value="">-- Match Course / Interest --</option>
+                              {currentSource.columns.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                  </div>
+                </div>
+
+                {/* Bottom Action Buttons */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, paddingTop: 6 }}>
+                  <button
+                    type="button"
+                    onClick={() => testConnectionAndShowModal(activeSheetIdx)}
+                    disabled={currentSource.columnsLoading}
+                    style={{
+                      ...s.btnPrimary,
+                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      padding: '12px 24px',
+                      fontSize: 14,
+                      boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)'
+                    }}
+                  >
+                    {/* Modern SVG Lightning / Connection Icon */}
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                    </svg>
+                    {currentSource.columnsLoading ? 'Connecting & Reading Data...' : '⚡ Test Connection & Load Columns'}
+                  </button>
+
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/meta-leads')}
+                      style={s.btnGhost}
+                    >
+                      View Meta Leads ➔
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await handleSave({ status: 'active' });
+                        alert('Google Sheet configuration saved successfully!');
+                      }}
+                      style={s.btnPrimary}
+                      disabled={saving}
+                    >
+                      {saving ? 'Saving...' : '💾 Save Configuration'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* ────────────────────────────────────────────────────────── */}
+              {/* "ADD TODO" STYLE POPUP MODAL CARD (Preview & Confirmation) */}
+              {/* ────────────────────────────────────────────────────────── */}
+              {showPreviewModal && previewData && (
+                <div style={{
+                  position: 'fixed', inset: 0,
+                  background: 'rgba(2, 48, 71, 0.45)',
+                  backdropFilter: 'blur(3px)',
+                  zIndex: 1000,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  padding: 16
+                }}>
+                  <div style={{
+                    background: '#fff',
+                    borderRadius: 16,
+                    width: '100%',
+                    maxWidth: 560,
+                    padding: 24,
+                    boxShadow: '0 16px 40px rgba(2, 48, 71, 0.18)',
+                    border: '1px solid #e2e8f0',
+                    maxHeight: '92vh',
+                    overflowY: 'auto'
+                  }}>
+                    {/* Modal Top Header */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18, borderBottom: '1px solid #f1f5f9', paddingBottom: 14 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{
+                          width: 36, height: 36, borderRadius: 10,
+                          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          color: '#fff', fontSize: 18
+                        }}>
+                          ⚡
+                        </div>
+                        <div>
+                          <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--theme-text-strongest)', margin: 0 }}>
+                            Sheet Connection & Data Preview
+                          </h3>
+                          <div style={{ fontSize: 12, color: '#64748b' }}>
+                            {previewData.sheetName} ({previewData.tabName})
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowPreviewModal(false)}
+                        style={{
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          color: '#94a3b8', fontSize: 22, lineHeight: 1, padding: 4
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+
+                    {/* Modal Body */}
+                    <div style={{ display: 'grid', gap: 16 }}>
+                      {/* Connection Status Badge */}
+                      {previewData.totalRows === 0 ? (
+                        <div style={{ padding: '12px 14px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: 13, color: '#92400e' }}>
+                              ⚠️ Sheet Connected, but 0 Lead Row(s) Detected
+                            </div>
+                            <div style={{ fontSize: 11, color: '#b45309', marginTop: 2 }}>
+                              Sheet header read ayyindi, but row data emi ledu. Sheet lo lead rows undho ledo check cheyandi.
+                            </div>
+                          </div>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', background: '#f59e0b', padding: '3px 10px', borderRadius: 20 }}>
+                            0 Leads Found
+                          </span>
+                        </div>
+                      ) : (
+                        <div style={{ padding: '12px 14px', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: 13, color: '#065f46' }}>
+                              ✓ Successfully Connected to Google Sheet!
+                            </div>
+                            <div style={{ fontSize: 11, color: '#047857', marginTop: 2 }}>
+                              {previewData.totalRows} lead row(s) ready to sync • {previewData.columns.length} columns available
+                            </div>
+                          </div>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', background: '#10b981', padding: '3px 10px', borderRadius: 20 }}>
+                            Ready to Sync ({previewData.totalRows} leads)
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Allowed Columns Display */}
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
+                          Columns to Ingest:
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          <span style={{ background: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0', padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600 }}>
+                            📱 Phone (Mandatory)
+                          </span>
+                          {previewData.allowedColumns.name !== false && (
+                            <span style={{ background: '#f8fafc', color: '#334155', border: '1px solid #cbd5e1', padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600 }}>
+                              👤 Name
+                            </span>
+                          )}
+                          {previewData.allowedColumns.email !== false && (
+                            <span style={{ background: '#f8fafc', color: '#334155', border: '1px solid #cbd5e1', padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600 }}>
+                              ✉️ Email
+                            </span>
+                          )}
+                          {previewData.allowedColumns.city !== false && (
+                            <span style={{ background: '#f8fafc', color: '#334155', border: '1px solid #cbd5e1', padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600 }}>
+                              📍 City
+                            </span>
+                          )}
+                          {previewData.allowedColumns.interested !== false && (
+                            <span style={{ background: '#f8fafc', color: '#334155', border: '1px solid #cbd5e1', padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600 }}>
+                              🎯 Interested
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Sample Data Live Preview Table */}
+                      {previewData.sampleRows && previewData.sampleRows.length > 0 ? (
+                        <div>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
+                            Sample Existing Leads from Sheet ({previewData.sampleRows.length} shown):
+                          </div>
+                          <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, overflowX: 'auto', background: '#fafafa' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                              <thead>
+                                <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #e2e8f0' }}>
+                                  <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>Name</th>
+                                  <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>Phone</th>
+                                  <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>Email</th>
+                                  <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>City</th>
+                                  <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>Interested</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {previewData.sampleRows.map((row, rIdx) => {
+                                  const nameVal = row[previewData.fieldMapping?.name] || row.full_name || row.name || row.Candidate || '-';
+                                  const phoneVal = row[previewData.fieldMapping?.phone] || row.phone_number || row.phone || row.mobile || '-';
+                                  const emailVal = row[previewData.fieldMapping?.email] || row.email || '-';
+                                  const cityVal = row[previewData.fieldMapping?.location] || row.city || row.location || '-';
+                                  const interestedVal = row[previewData.fieldMapping?.interested] || row.interested || row.course || '-';
+                                  return (
+                                    <tr key={rIdx} style={{ borderBottom: rIdx < previewData.sampleRows.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                                      <td style={{ padding: '6px 10px', fontWeight: 500, color: '#1e293b' }}>{String(nameVal).slice(0, 20)}</td>
+                                      <td style={{ padding: '6px 10px', color: '#059669', fontWeight: 600 }}>{String(phoneVal).slice(0, 15)}</td>
+                                      <td style={{ padding: '6px 10px', color: '#64748b' }}>{String(emailVal).slice(0, 24)}</td>
+                                      <td style={{ padding: '6px 10px', color: '#64748b' }}>{String(cityVal).slice(0, 15)}</td>
+                                      <td style={{ padding: '6px 10px', color: '#64748b' }}>{String(interestedVal).slice(0, 20)}</td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ padding: 12, background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: 8, color: '#64748b', fontSize: 12, textAlign: 'center' }}>
+                          No lead rows were found under the header row in this sheet tab.
+                        </div>
+                      )}
+
+                      {/* Direct Sync Info */}
+                      <div style={{ fontSize: 12, color: '#64748b', background: '#f8fafc', padding: 10, borderRadius: 8, border: '1px solid #e2e8f0', lineHeight: 1.4 }}>
+                        💡 Click <strong>Confirm & Sync</strong> to save this sheet configuration and immediately sync all existing leads into CRM Meta Leads.
+                      </div>
+                    </div>
+
+                    {/* Modal Bottom Buttons (Cancel & Confirm) */}
+                    <div style={{ display: 'flex', gap: 10, marginTop: 22 }}>
+                      <button
+                        type="button"
+                        onClick={() => setShowPreviewModal(false)}
+                        style={{
+                          flex: 1, padding: '10px 14px',
+                          border: '1px solid var(--theme-border-tint)',
+                          borderRadius: 8, background: '#fff',
+                          fontSize: 14, fontWeight: 500, cursor: 'pointer',
+                          color: 'var(--theme-text-strongest)'
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleConfirmAndSync}
+                        disabled={confirmLoading}
+                        style={{
+                          flex: 1.4, padding: '10px 14px',
+                          border: 'none', borderRadius: 8,
+                          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                          color: '#fff', fontSize: 14, fontWeight: 600,
+                          cursor: 'pointer',
+                          opacity: confirmLoading ? 0.7 : 1,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+                        }}
+                      >
+                        {confirmLoading ? 'Syncing to Meta Leads...' : (previewData.totalRows > 0 ? `Confirm & Sync ${previewData.totalRows} Leads ➔` : 'Confirm & Sync to Meta Leads ➔')}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* ============================================================== */
+            /* GENERIC INTEGRATIONS WIZARD (Facebook, WhatsApp, etc.)         */
+            /* ============================================================== */
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 32, overflowX: 'auto', paddingBottom: 4 }}>
+                {STEPS.map((st, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer' }} onClick={() => setStep(i)}>
+                      <div style={{
+                        width: 28, height: 28, borderRadius: '50%',
+                        border: `2px solid ${i <= step ? 'var(--theme-primary-alt)' : '#d1d5db'}`,
+                        background: i < step ? 'var(--theme-primary-alt)' : '#fff',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        color: i < step ? '#fff' : i === step ? 'var(--theme-primary-alt)' : '#9ca3af',
+                        fontWeight: 700, fontSize: 13,
+                      }}>
+                        {i < step ? '✓' : i + 1}
+                      </div>
+                      <div style={{ fontSize: 11, color: i === step ? 'var(--theme-primary-alt)' : '#9ca3af', fontWeight: i === step ? 600 : 400, marginTop: 4, textAlign: 'center', whiteSpace: 'nowrap' }}>
+                        {st.label}<br /><span style={{ fontSize: 10 }}>{st.sub}</span>
+                      </div>
+                    </div>
+                    {i < STEPS.length - 1 && <div style={{ height: 1, width: 60, background: i < step ? 'var(--theme-primary-alt)' : '#d1d5db', margin: '0 4px', marginBottom: 24 }} />}
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ ...s.card, padding: 28 }}>
+                {step === 0 && (
+                  <div>
+                    <h4 style={{ margin: '0 0 20px', color: 'var(--theme-text-strongest)' }}>Integration Credentials</h4>
+                    {type === 'facebook' && (
+                      <div style={{ marginBottom: 20 }}>
+                        <button onClick={startFacebookOAuth} style={s.btnPrimary}>🔐 Connect with Facebook (OAuth)</button>
+                      </div>
+                    )}
+                    {type === 'google_meet' && (
+                      <div style={{ marginBottom: 20 }}>
+                        <button onClick={startGoogleOAuth} style={s.btnPrimary}>🔐 Connect with Google (OAuth)</button>
+                      </div>
+                    )}
+                    {configFields.length > 0 && (
+                      <div style={{ display: 'grid', gap: 16, marginTop: 16 }}>
+                        {configFields.map(field => (
+                          <div key={field.key}>
+                            <label style={s.lbl}>{field.label}</label>
+                            <input
+                              value={config[field.key] || ''}
+                              onChange={e => setConfig(prev => ({ ...prev, [field.key]: e.target.value }))}
+                              placeholder={field.placeholder}
+                              style={s.inp}
+                              type={field.key.toLowerCase().includes('secret') || field.key.toLowerCase().includes('token') ? 'password' : 'text'}
+                            />
+                            {field.hint && <div style={s.hint}>{field.hint}</div>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {isGenericWebhook && (
+                      <div style={{ padding: 20, background: 'var(--theme-surface-faint2)', borderRadius: 8, fontSize: 14, color: '#374151' }}>
+                        <strong>{integration.name}</strong> uses a webhook push model.
+                        Copy the webhook URL from the Overview tab and paste it in your {integration.name} account.
+                      </div>
                     )}
                   </div>
                 )}
 
-                {type === 'google_sheets' && (
-                  <div style={{ display: 'grid', gap: 16 }}>
-                    {sheetSources.map((src, idx) => (
-                      <div key={idx} style={{ ...s.card, position: 'relative' }}>
-                        {sheetSources.length > 1 && (
-                          <button onClick={() => removeSheetSource(idx)} style={{ position: 'absolute', top: 12, right: 12, ...s.btnDanger, padding: '4px 10px' }}>
-                            Remove
-                          </button>
-                        )}
-                        <div style={{ display: 'grid', gap: 12 }}>
-                          <div>
-                            <label style={s.lbl}>Sheet Label (optional)</label>
-                            <input
-                              value={src.name}
-                              onChange={e => updateSheetSource(idx, { name: e.target.value })}
-                              placeholder={`Sheet ${idx + 1}`}
-                              style={s.inp}
-                            />
-                          </div>
-                          <div>
-                            <label style={s.lbl}>Google Sheet ID</label>
-                            <input
-                              value={src.sheetId}
-                              onChange={e => updateSheetSource(idx, { sheetId: e.target.value, columns: [] })}
-                              placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms"
-                              style={s.inp}
-                            />
-                            <div style={s.hint}>From the sheet URL: /spreadsheets/d/&#123;SHEET_ID&#125;/</div>
-                          </div>
-                          <div>
-                            <label style={s.lbl}>Sheet Range</label>
-                            <input
-                              value={src.sheetRange}
-                              onChange={e => updateSheetSource(idx, { sheetRange: e.target.value, columns: [] })}
-                              placeholder="Sheet1!A1:Z1000"
-                              style={s.inp}
-                            />
-                          </div>
-                          <button onClick={() => fetchColumnsForSource(idx)} style={s.btnGhost} disabled={src.columnsLoading}>
-                            {src.columnsLoading ? 'Loading columns...' : '↻ Load Columns from this Sheet'}
-                          </button>
-                          {src.columnsError && <div style={{ color: '#dc2626', fontSize: 13 }}>{src.columnsError}</div>}
-                          {src.availableTabs && src.availableTabs.length > 0 && (
-                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
-                              {src.availableTabs.map(tab => (
-                                <button key={tab} onClick={() => useSuggestedTab(idx, tab)} style={{ ...s.btnGhost, padding: '4px 10px', fontSize: 12 }}>
-                                  Use "{tab}"
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                          {src.columns.length > 0 && (
-                            <div style={{ fontSize: 12, color: '#059669', fontWeight: 600 }}>
-                              ✓ {src.columns.length} columns loaded — Sheet & Campaign saved and visible in Meta Leads!
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                    <button onClick={addSheetSource} style={s.btnGhost}>+ Add Another Sheet</button>
-                  </div>
-                )}
-
-                {/* Manual config fields */}
-                {configFields.length > 0 && type !== 'google_sheets' && (
-                  <div style={{ display: 'grid', gap: 16, marginTop: 16 }}>
-                    {configFields.map(field => (
-                      <div key={field.key}>
-                        <label style={s.lbl}>{field.label}</label>
-                        <input
-                          value={config[field.key] || ''}
-                          onChange={e => setConfig(prev => ({ ...prev, [field.key]: e.target.value }))}
-                          placeholder={field.placeholder}
-                          style={s.inp}
-                          type={field.key.toLowerCase().includes('secret') || field.key.toLowerCase().includes('token') ? 'password' : 'text'}
-                        />
-                        {field.hint && <div style={s.hint}>{field.hint}</div>}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Generic webhook types have no credentials */}
-                {isGenericWebhook && (
-                  <div style={{ padding: 20, background: 'var(--theme-surface-faint2)', borderRadius: 8, fontSize: 14, color: '#374151' }}>
-                    <strong>{integration.name}</strong> uses a webhook push model — no API credentials needed here.
-                    Just copy the webhook URL from the Overview tab and paste it in your {integration.name} account.
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Step 1: Field mapping */}
-            {step === 1 && (
-              <div>
-                <h4 style={{ margin: '0 0 8px', color: 'var(--theme-text-strongest)' }}>Map Fields</h4>
-                <p style={{ color: '#6b7280', fontSize: 13, margin: '0 0 20px' }}>
-                  {type === 'google_sheets'
-                    ? 'Pick which column from each sheet fills each AOTMS lead field. Only mapped columns are imported.'
-                    : 'Map the source field names to AOTMS lead fields. Leave as-is if they match.'}
-                </p>
-                {type === 'facebook' && (
-                  <div style={{ marginBottom: 16, padding: 12, background: '#eff6ff', borderRadius: 8, fontSize: 13, color: '#1e40af' }}>
-                    Facebook default fields: <code>full_name</code>, <code>phone_number</code>, <code>email</code>, <code>city</code>
-                  </div>
-                )}
-
-                {type === 'google_sheets' ? (
-                  <div style={{ display: 'grid', gap: 20 }}>
-                    {sheetSources.filter((_, idx) => idx === activeSheetIdx).map((src) => {
-                      const idx = activeSheetIdx;
-                      return (
-                      <div key={idx} style={s.card}>
-                        <h5 style={{ margin: '0 0 4px' }}>{src.name || `Sheet ${idx + 1}`}</h5>
-                        <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 12, wordBreak: 'break-all' }}>{src.sheetId || 'No Sheet ID set'}</div>
-                        {src.columns.length === 0 ? (
-                          <div style={{ fontSize: 13, color: '#b45309', background: '#fef3c7', padding: 10, borderRadius: 8 }}>
-                            No columns loaded yet — go back to Step 1 and click "Load Columns from this Sheet".
-                          </div>
-                        ) : (
-                          <div style={{ display: 'grid', gap: 12 }}>
-                            {LEAD_MAP_FIELDS.map(({ key: field, label, required }) => (
-                              <div key={field} style={{ display: 'grid', gridTemplateColumns: '160px 20px 1fr', alignItems: 'center', gap: 12 }}>
-                                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--theme-text-strongest)' }}>
-                                  {label}{required && ' *'}
-                                </span>
-                                <span style={{ color: '#9ca3af' }}>←</span>
-                                <select
-                                  value={src.fieldMapping[field] || ''}
-                                  onChange={e => updateSheetSourceMapping(idx, field, e.target.value)}
-                                  style={s.inp}
-                                >
-                                  <option value="">-- Not mapped (skip) --</option>
-                                  {src.columns.map(col => (
-                                    <option key={col} value={col}>{col}</option>
-                                  ))}
-                                </select>
-                              </div>
-                            ))}
-                            {(() => {
-                              const mappedCols = new Set(Object.values(src.fieldMapping).filter(Boolean));
-                              const remaining = src.columns.filter(col => !mappedCols.has(col));
-                              if (remaining.length === 0) return null;
-                              return (
-                                <div style={{ marginTop: 8, paddingTop: 12, borderTop: '1px solid var(--theme-border-tint)' }}>
-                                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Other columns in this sheet</div>
-                                  <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>
-                                    Not part of the standard AOTMS fields above — check any you also want imported (saved as extra custom fields on the lead).
-                                  </div>
-                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                                    {remaining.map(col => (
-                                      <label key={col} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, background: '#f9fafb', border: '1px solid var(--theme-border-tint)', borderRadius: 8, padding: '6px 10px', cursor: 'pointer' }}>
-                                        <input
-                                          type="checkbox"
-                                          checked={src.extraColumns.includes(col)}
-                                          onChange={() => toggleExtraColumn(idx, col)}
-                                        />
-                                        {col}
-                                      </label>
-                                    ))}
-                                  </div>
-                                </div>
-                              );
-                            })()}
-                          </div>
-                        )}
-                      </div>
-                      );
-                    })}
-                    <div style={{ fontSize: 12, color: '#9ca3af' }}>* Phone must be mapped or that sheet is skipped on import.</div>
-                  </div>
-                ) : (
-                  <div style={{ display: 'grid', gap: 12 }}>
-                    {['name', 'phone', 'email', 'location'].map(field => (
-                      <div key={field} style={{ display: 'grid', gridTemplateColumns: '120px 20px 1fr', alignItems: 'center', gap: 12 }}>
-                        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--theme-text-strongest)', textTransform: 'capitalize' }}>{field}</span>
-                        <span style={{ color: '#9ca3af' }}>←</span>
-                        <input
-                          value={fieldMapping[field] || ''}
-                          onChange={e => setFieldMapping(prev => ({ ...prev, [field]: e.target.value }))}
-                          placeholder={`Source field for "${field}"`}
-                          style={s.inp}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Step 2: Campaign */}
-            {step === 2 && (
-              <div>
-                <h4 style={{ margin: '0 0 8px' }}>{type === 'google_sheets' ? 'Campaign per Sheet' : 'Default Campaign'}</h4>
-                <p style={{ color: '#6b7280', fontSize: 13, margin: '0 0 20px' }}>
-                  {type === 'google_sheets'
-                    ? 'Each sheet has its own campaign — leads imported from that sheet go to that sheet\'s campaign.'
-                    : 'Leads from this integration will be added to this campaign.'}
-                </p>
-
-                {type === 'google_sheets' ? (
-                  <div style={{ display: 'grid', gap: 16 }}>
-                    {sheetSources.filter((_, idx) => idx === activeSheetIdx).map((src) => {
-                      const idx = activeSheetIdx;
-                      return (
-                      <div key={idx} style={s.card}>
-                        <h5 style={{ margin: '0 0 12px' }}>{src.name || `Sheet ${idx + 1}`}</h5>
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <select value={src.campaign} onChange={e => updateSheetSource(idx, { campaign: e.target.value })} style={{ ...s.inp, flex: 1 }}>
-                            <option value="">No campaign</option>
-                            {campaigns.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
-                          </select>
-                          <button onClick={() => updateSheetSource(idx, { showNewCampaign: !src.showNewCampaign })} style={s.btnGhost}>+ New Campaign</button>
-                        </div>
-                        {src.showNewCampaign && (
-                          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                            <input
-                              value={src.newCampaignName}
-                              onChange={e => updateSheetSource(idx, { newCampaignName: e.target.value })}
-                              placeholder="Campaign name"
-                              style={{ ...s.inp, flex: 1 }}
-                              onKeyDown={e => { if (e.key === 'Enter') createCampaignForSource(idx); }}
-                            />
-                            <button onClick={() => createCampaignForSource(idx)} style={s.btnPrimary} disabled={src.creatingCampaign || !src.newCampaignName?.trim()}>
-                              {src.creatingCampaign ? 'Creating...' : 'Create'}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                      );
-                    })}
-                  </div>
-                ) : (
+                {step === 1 && (
                   <div>
+                    <h4 style={{ margin: '0 0 8px', color: 'var(--theme-text-strongest)' }}>Map Fields</h4>
+                    <div style={{ display: 'grid', gap: 12 }}>
+                      {['name', 'phone', 'email', 'location'].map(field => (
+                        <div key={field} style={{ display: 'grid', gridTemplateColumns: '120px 20px 1fr', alignItems: 'center', gap: 12 }}>
+                          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--theme-text-strongest)', textTransform: 'capitalize' }}>{field}</span>
+                          <span style={{ color: '#9ca3af' }}>←</span>
+                          <input
+                            value={fieldMapping[field] || ''}
+                            onChange={e => setFieldMapping(prev => ({ ...prev, [field]: e.target.value }))}
+                            placeholder={`Source field for "${field}"`}
+                            style={s.inp}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {step === 2 && (
+                  <div>
+                    <h4 style={{ margin: '0 0 8px' }}>Default Campaign</h4>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <select value={defaultCampaign} onChange={e => setDefaultCampaign(e.target.value)} style={{ ...s.inp, flex: 1 }}>
                         <option value="">No campaign</option>
@@ -924,340 +1588,96 @@ export default function IntegrationDetail() {
                     )}
                   </div>
                 )}
-              </div>
-            )}
 
-            {/* Step 3: Lead distribution */}
-            {step === 3 && (
-              <div>
-                <h4 style={{ margin: '0 0 8px' }}>{type === 'google_sheets' ? 'Lead Distribution per Sheet' : 'Lead Distribution'}</h4>
-                <p style={{ color: '#6b7280', fontSize: 13, margin: '0 0 20px' }}>
-                  {type === 'google_sheets' ? 'Auto-assign leads from each sheet to a team member.' : 'Auto-assign leads to a team member.'}
-                </p>
-                {type === 'google_sheets' ? (
-                  <div style={{ display: 'grid', gap: 16 }}>
-                    {sheetSources.filter((_, idx) => idx === activeSheetIdx).map((src) => {
-                      const idx = activeSheetIdx;
-                      return (
-                      <div key={idx} style={s.card}>
-                        <h5 style={{ margin: '0 0 12px' }}>{src.name || `Sheet ${idx + 1}`}</h5>
-                        <select value={src.assignedTo} onChange={e => updateSheetSource(idx, { assignedTo: e.target.value })} style={s.inp}>
-                          <option value="">Auto assign / None</option>
-                          {users.map(u => <option key={u._id} value={u._id}>{u.name} ({u.role})</option>)}
-                        </select>
-                      </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <select value={defaultAssignedTo} onChange={e => setDefaultAssignedTo(e.target.value)} style={s.inp}>
-                    <option value="">Auto assign / None</option>
-                    {users.map(u => <option key={u._id} value={u._id}>{u.name} ({u.role})</option>)}
-                  </select>
-                )}
-              </div>
-            )}
-
-            {/* Step 4: Connect & verify */}
-            {step === 4 && (
-              <div>
-                <h4 style={{ margin: '0 0 20px' }}>Connect & Verify</h4>
-
-                {type === 'facebook' && (
-                  <div style={{ display: 'grid', gap: 12 }}>
-                    <button onClick={() => doAction('subscribe', () => api.post(`/integrations/${id}/facebook/subscribe`))} style={s.btnPrimary} disabled={!!actionLoading}>
-                      {actionLoading === 'subscribe' ? 'Subscribing...' : '1. Subscribe Page to Lead Webhooks'}
-                    </button>
-                    <button onClick={() => doAction('sync', () => api.post(`/integrations/${id}/facebook/sync`))} style={s.btnGhost} disabled={!!actionLoading}>
-                      {actionLoading === 'sync' ? 'Syncing...' : '2. Pull Existing Leads from Form'}
-                    </button>
-                    <button onClick={() => doAction('forms', () => api.get(`/integrations/${id}/facebook/forms`))} style={s.btnGhost} disabled={!!actionLoading}>
-                      {actionLoading === 'forms' ? 'Loading...' : '3. List Available Lead Forms'}
-                    </button>
+                {step === 3 && (
+                  <div>
+                    <h4 style={{ margin: '0 0 8px' }}>Lead Distribution</h4>
+                    <select value={defaultAssignedTo} onChange={e => setDefaultAssignedTo(e.target.value)} style={s.inp}>
+                      <option value="">Auto assign / None</option>
+                      {users.map(u => <option key={u._id} value={u._id}>{u.name} ({u.role})</option>)}
+                    </select>
                   </div>
                 )}
 
-                {(type === 'whatsapp_cloud') && (
-                  <div style={{ display: 'grid', gap: 10 }}>
-                    <div style={{ padding: 16, background: '#f0fdf4', borderRadius: 8, fontSize: 13 }}>
-                      <strong>Setup steps:</strong>
-                      <ol style={{ paddingLeft: 18, margin: '8px 0 0' }}>
-                        <li>Go to Meta Business → WhatsApp → Configuration</li>
-                        <li>Set Webhook URL: <code>{backendUrl}/api/integrations/whatsapp/webhook</code></li>
-                        <li>Set Verify Token to whatever you put in <strong>Webhook Verify Token</strong> field above</li>
-                        <li>Subscribe to <strong>messages</strong> field</li>
-                        <li>Save credentials and click Save & Finish</li>
-                      </ol>
-                    </div>
-                    <button onClick={() => doAction('wainfo', () => api.get(`/integrations/${id}/whatsapp/templates`))} style={s.btnGhost} disabled={!!actionLoading}>
-                      {actionLoading === 'wainfo' ? 'Testing...' : 'Test Connection (Load Templates)'}
-                    </button>
-                  </div>
-                )}
-
-                {(type === 'google_sheets') && (
-                  <div style={{ display: 'grid', gap: 12 }}>
-                    {!integration.config?.refreshToken && (
-                      <div style={{ padding: 12, background: '#fef3c7', borderRadius: 8, fontSize: 13, color: '#92400e' }}>
-                        Google account not connected yet.
-                        <button onClick={startGoogleOAuth} style={{ ...s.btnPrimary, marginTop: 10 }}>🔐 Connect with Google (OAuth)</button>
+                {step === 4 && (
+                  <div>
+                    <h4 style={{ margin: '0 0 20px' }}>Connect & Verify</h4>
+                    {type === 'facebook' && (
+                      <div style={{ display: 'grid', gap: 12 }}>
+                        <button onClick={() => doAction('subscribe', () => api.post(`/integrations/${id}/facebook/subscribe`))} style={s.btnPrimary} disabled={!!actionLoading}>
+                          {actionLoading === 'subscribe' ? 'Subscribing...' : '1. Subscribe Page to Lead Webhooks'}
+                        </button>
+                        <button onClick={() => doAction('sync', () => api.post(`/integrations/${id}/facebook/sync`))} style={s.btnGhost} disabled={!!actionLoading}>
+                          {actionLoading === 'sync' ? 'Syncing...' : '2. Pull Existing Leads from Form'}
+                        </button>
                       </div>
                     )}
-                    <button onClick={() => doAction('sheets', async () => { await handleSave({}, true); return api.get(`/integrations/${id}/sheets/list`); })} style={s.btnGhost} disabled={!!actionLoading}>
-                      {actionLoading === 'sheets' ? 'Loading...' : 'Test Connection (List Sheets)'}
-                    </button>
-                    {actionResult && !actionResult.ok && actionResult.needsAuth && (
-                      <button onClick={startGoogleOAuth} style={s.btnGhost}>🔐 Reconnect Google Account</button>
-                    )}
-                    <div style={{ height: 1, background: 'var(--theme-border-tint)', margin: '4px 0' }} />
-                    <div style={{ padding: 12, background: '#f0fdf4', borderRadius: 8, fontSize: 13, color: '#166534' }}>
-                      ⚡ Auto-sync is on. New rows in <strong>{sheetSources[activeSheetIdx]?.name || `Sheet ${activeSheetIdx + 1}`}</strong> are picked up automatically every ~2 minutes → campaign <strong>{campaigns.find(c => c._id === sheetSources[activeSheetIdx]?.campaign)?.name || 'none'}</strong>, assigned to <strong>{users.find(u => u._id === sheetSources[activeSheetIdx]?.assignedTo)?.name || 'auto/none'}</strong>.
-                    </div>
-                    {integration.lastAutoSyncAt && (
-                      <div style={{ fontSize: 12, color: '#6b7280' }}>
-                        Last checked: {new Date(integration.lastAutoSyncAt).toLocaleString()}
-                        {integration.lastAutoSyncResult ? ` · Imported ${integration.lastAutoSyncResult.imported}, updated ${integration.lastAutoSyncResult.updated || 0}` : ''}
-                        {integration.lastAutoSyncError ? ` · Error: ${integration.lastAutoSyncError}` : ''}
+                    {type === 'whatsapp_cloud' && (
+                      <div style={{ padding: 16, background: '#f0fdf4', borderRadius: 8, fontSize: 13 }}>
+                        Webhook URL: <code>{backendUrl}/api/integrations/whatsapp/webhook</code>
                       </div>
                     )}
-                    <button
-                      onClick={() => doAction('import', async () => { await handleSave({}, true); return api.post(`/integrations/${id}/sheets/import`, { sheetId: sheetSources[activeSheetIdx]?.sheetId }); })}
-                      style={s.btnGhost}
-                      disabled={!!actionLoading}
-                    >
-                      {actionLoading === 'import' ? 'Syncing...' : `↓ Sync Now: ${sheetSources[activeSheetIdx]?.name || `Sheet ${activeSheetIdx + 1}`} (optional, for testing)`}
-                    </button>
-                  </div>
-                )}
-
-                {(type === 'google_meet') && (
-                  <div style={{ padding: 16, background: '#f0fdf4', borderRadius: 8, fontSize: 13 }}>
-                    Google Meet is connected via OAuth. You can now create meetings from the Actions tab or from lead profiles.
-                  </div>
-                )}
-
-                {(type === 'knowlarity' || type === 'callerdesk' || type === 'maqsam') && (
-                  <div style={{ display: 'grid', gap: 12 }}>
-                    <button onClick={() => doAction('agents', () => api.get(`/integrations/${id}/${type}/agents`))} style={s.btnPrimary} disabled={!!actionLoading}>
-                      {actionLoading === 'agents' ? 'Testing...' : 'Test Connection (Load Agents)'}
-                    </button>
-                    <div style={{ fontSize: 13, color: '#6b7280' }}>
-                      Also paste the webhook URL below in your {integration.name} dashboard to receive inbound call events:
-                    </div>
-                    <code style={{ background: '#f3f4f6', padding: '8px 12px', borderRadius: 8, fontSize: 12, color: '#4f46e5', wordBreak: 'break-all' }}>
-                      {webhookUrl}
-                    </code>
-                  </div>
-                )}
-
-                {isGenericWebhook && (
-                  <div style={{ padding: 16, background: '#f0fdf4', borderRadius: 8 }}>
-                    <p style={{ margin: '0 0 8px', fontWeight: 600, fontSize: 14 }}>Your webhook URL:</p>
-                    <code style={{ fontSize: 12, color: '#4f46e5', wordBreak: 'break-all' }}>{webhookUrl}</code>
-                    <p style={{ margin: '12px 0 0', fontSize: 13, color: '#6b7280' }}>
-                      Paste this in your {integration.name} dashboard under webhook / lead push settings.
-                    </p>
-                  </div>
-                )}
-
-                {actionResult && (
-                  <div style={{ marginTop: 16, padding: 14, borderRadius: 8, background: actionResult.ok ? '#f0fdf4' : '#fef2f2', border: `1px solid ${actionResult.ok ? '#86efac' : '#fca5a5'}`, fontSize: 13 }}>
-                    {actionResult.ok ? (
-                      <pre style={{ margin: 0, whiteSpace: 'pre-wrap', color: '#166534', fontSize: 12 }}>
-                        {JSON.stringify(actionResult.data, null, 2)}
-                      </pre>
-                    ) : (
-                      <span style={{ color: '#dc2626' }}>❌ {actionResult.msg}</span>
+                    {type === 'google_meet' && (
+                      <div style={{ padding: 16, background: '#f0fdf4', borderRadius: 8, fontSize: 13 }}>
+                        Google Meet is connected via OAuth.
+                      </div>
+                    )}
+                    {isGenericWebhook && (
+                      <div style={{ padding: 16, background: '#f0fdf4', borderRadius: 8 }}>
+                        <code>{webhookUrl}</code>
+                      </div>
                     )}
                   </div>
                 )}
-              </div>
-            )}
 
-            {/* Step 5: Done */}
-            {step === 5 && (
-              <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                <div style={{ fontSize: 52, marginBottom: 16 }}>🎉</div>
-                <h4 style={{ margin: '0 0 8px', color: 'var(--theme-text-strongest)', fontSize: 18 }}>Integration Complete!</h4>
-                <p style={{ color: '#6b7280', fontSize: 14 }}>{integration.name} is now active and ready.</p>
-                <button onClick={() => setActiveTab('leads')} style={{ ...s.btnPrimary, marginTop: 16 }}>View Leads</button>
+                {step === 5 && (
+                  <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                    <div style={{ fontSize: 52, marginBottom: 16 }}>🎉</div>
+                    <h4 style={{ margin: '0 0 8px', color: 'var(--theme-text-strongest)', fontSize: 18 }}>Integration Complete!</h4>
+                    <button onClick={() => setActiveTab('leads')} style={{ ...s.btnPrimary, marginTop: 16 }}>View Leads</button>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          {step < 5 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20 }}>
-              <button onClick={() => setStep(s => Math.max(0, s - 1))} disabled={step === 0} style={{ ...s.btnGhost, opacity: step === 0 ? 0.5 : 1 }}>Back</button>
-              <button onClick={async () => {
-                if (step === 4) { await handleSave({ status: 'active' }); setStep(5); }
-                else { await handleSave({}, true); setStep(s => s + 1); }
-              }} style={s.btnPrimary} disabled={saving}>
-                {step === 4 ? (saving ? 'Saving...' : 'Save & Finish') : (saving ? 'Saving...' : 'Next')}
-              </button>
+              {step < 5 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20 }}>
+                  <button onClick={() => setStep(s => Math.max(0, s - 1))} disabled={step === 0} style={{ ...s.btnGhost, opacity: step === 0 ? 0.5 : 1 }}>Back</button>
+                  <button onClick={async () => {
+                    if (step === 4) { await handleSave({ status: 'active' }); setStep(5); }
+                    else { await handleSave({}, true); setStep(s => s + 1); }
+                  }} style={s.btnPrimary} disabled={saving}>
+                    {step === 4 ? (saving ? 'Saving...' : 'Save & Finish') : (saving ? 'Saving...' : 'Next')}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
       )}
 
-      {/* ── Actions tab ── */}
+      {/* ── Actions Tab ── */}
       {activeTab === 'actions' && (
         <div style={{ display: 'grid', gap: 20 }}>
-
-          {type === 'facebook' && (
-            <div style={s.card}>
-              <h4 style={{ margin: '0 0 16px' }}>Facebook Actions</h4>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                <button onClick={() => doAction('sync', () => api.post(`/integrations/${id}/facebook/sync`))} style={s.btnPrimary} disabled={!!actionLoading}>
-                  {actionLoading === 'sync' ? 'Syncing...' : '↓ Pull Leads from Form'}
-                </button>
-                <button onClick={() => doAction('subscribe', () => api.post(`/integrations/${id}/facebook/subscribe`))} style={s.btnGhost} disabled={!!actionLoading}>
-                  {actionLoading === 'subscribe' ? '...' : 'Re-subscribe Webhook'}
-                </button>
-                <button onClick={() => doAction('forms', () => api.get(`/integrations/${id}/facebook/forms`))} style={s.btnGhost} disabled={!!actionLoading}>
-                  {actionLoading === 'forms' ? '...' : 'List Lead Forms'}
-                </button>
-                <button onClick={() => doAction('pages', () => api.get(`/integrations/${id}/facebook/pages`))} style={s.btnGhost} disabled={!!actionLoading}>
-                  {actionLoading === 'pages' ? '...' : 'List Pages'}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {type === 'whatsapp_cloud' && (
-            <div style={s.card}>
-              <h4 style={{ margin: '0 0 16px' }}>WhatsApp Actions</h4>
-              <div style={{ display: 'grid', gap: 12, marginBottom: 16 }}>
-                <div>
-                  <label style={s.lbl}>Send Test Message</label>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <input id="wa-to" placeholder="Recipient phone (91xxxxxxxxxx)" style={{ ...s.inp, flex: 1 }} />
-                    <input id="wa-msg" placeholder="Message text" style={{ ...s.inp, flex: 2 }} />
-                    <button onClick={() => doAction('send', () => api.post(`/integrations/${id}/whatsapp/send`, {
-                      to: document.getElementById('wa-to').value,
-                      message: document.getElementById('wa-msg').value,
-                    }))} style={s.btnPrimary} disabled={!!actionLoading}>
-                      {actionLoading === 'send' ? '...' : 'Send'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <button onClick={() => doAction('templates', () => api.get(`/integrations/${id}/whatsapp/templates`))} style={s.btnGhost} disabled={!!actionLoading}>
-                {actionLoading === 'templates' ? '...' : 'Load Message Templates'}
-              </button>
-            </div>
-          )}
-
           {type === 'google_sheets' && (
             <div style={s.card}>
-              <h4 style={{ margin: '0 0 16px' }}>Google Sheets Actions</h4>
-              <div style={{ padding: 12, background: '#eff6ff', borderRadius: 8, fontSize: 13, color: '#1e40af', marginBottom: 12 }}>
-                Importing leads has moved to <strong>Configuration → Step 5 (Connect & Finish)</strong>, so it always saves your
-                Default Campaign and Lead Distribution settings first — leads now land in the right campaign and get assigned correctly.
+              <h4 style={{ margin: '0 0 16px' }}>Google Sheets Direct Cloud Actions</h4>
+              <div style={{ padding: 14, background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, fontSize: 13, color: '#166534', marginBottom: 16 }}>
+                ⚡ <strong>Direct CRM Live Sync</strong> is active. Google Apps Script (<code>Code.gs</code>) is permanently removed.
               </div>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                <button onClick={() => doAction('listsheets', () => api.get(`/integrations/${id}/sheets/list`))} style={s.btnGhost} disabled={!!actionLoading}>
-                  {actionLoading === 'listsheets' ? '...' : 'List Sheets in Spreadsheet'}
+                <button
+                  type="button"
+                  onClick={() => doAction('import_all', () => api.post(`/integrations/${id}/sheets/import`))}
+                  style={s.btnPrimary}
+                  disabled={!!actionLoading}
+                >
+                  {actionLoading === 'import_all' ? 'Live Syncing...' : '🚀 Live Sync All Sheets Now'}
                 </button>
               </div>
             </div>
           )}
 
-          {type === 'google_meet' && (
-            <div style={s.card}>
-              <h4 style={{ margin: '0 0 16px' }}>Create Google Meet</h4>
-              <div style={{ display: 'grid', gap: 12, marginBottom: 16 }}>
-                <div>
-                  <label style={s.lbl}>Meeting Title</label>
-                  <input value={newMeeting.summary} onChange={e => setNewMeeting(p => ({ ...p, summary: e.target.value }))} style={s.inp} placeholder="Discovery Call" />
-                </div>
-                <div>
-                  <label style={s.lbl}>Start Time</label>
-                  <input type="datetime-local" value={newMeeting.startTime} onChange={e => setNewMeeting(p => ({ ...p, startTime: e.target.value }))} style={s.inp} />
-                </div>
-                <div>
-                  <label style={s.lbl}>Attendee Emails (comma separated)</label>
-                  <input value={newMeeting.attendeeEmails} onChange={e => setNewMeeting(p => ({ ...p, attendeeEmails: e.target.value }))} style={s.inp} placeholder="lead@email.com, colleague@email.com" />
-                </div>
-                <button onClick={() => doAction('meet', () => api.post(`/integrations/${id}/meet/create`, {
-                  summary: newMeeting.summary,
-                  startTime: newMeeting.startTime,
-                  attendeeEmails: newMeeting.attendeeEmails.split(',').map(e => e.trim()).filter(Boolean),
-                }))} style={s.btnPrimary} disabled={!!actionLoading}>
-                  {actionLoading === 'meet' ? 'Creating...' : 'Create Meeting'}
-                </button>
-              </div>
-              <button onClick={() => doAction('listmeet', () => api.get(`/integrations/${id}/meet/list`))} style={s.btnGhost} disabled={!!actionLoading}>
-                {actionLoading === 'listmeet' ? '...' : 'View Upcoming Meetings'}
-              </button>
-
-              {actionResult && actionResult.ok && actionResult.label === 'meet' && actionResult.data?.meetLink && (
-                <div style={{ marginTop: 16, padding: 14, borderRadius: 8, background: '#f0fdf4', border: '1px solid #86efac' }}>
-                  <div style={{ fontWeight: 600, marginBottom: 8, color: '#166534' }}>✅ Meeting created: {actionResult.data.summary}</div>
-                  <a href={actionResult.data.meetLink} target="_blank" rel="noreferrer" style={{ ...s.btnPrimary, display: 'inline-block', textDecoration: 'none' }}>
-                    🎥 Join Google Meet
-                  </a>
-                </div>
-              )}
-
-              {actionResult && actionResult.ok && Array.isArray(actionResult.data) && (
-                <div style={{ marginTop: 16, display: 'grid', gap: 10 }}>
-                  {actionResult.data.length === 0 && (
-                    <div style={{ color: '#9ca3af', fontSize: 13 }}>No upcoming meetings with a Google Meet link found.</div>
-                  )}
-                  {actionResult.data.map(m => (
-                    <div key={m.eventId} style={{ padding: 12, border: '1px solid var(--theme-border-tint)', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: 14 }}>{m.summary || 'Meeting'}</div>
-                        <div style={{ fontSize: 12, color: '#6b7280' }}>{m.start ? new Date(m.start).toLocaleString() : ''}</div>
-                      </div>
-                      {m.meetLink ? (
-                        <a href={m.meetLink} target="_blank" rel="noreferrer" style={{ ...s.btnPrimary, textDecoration: 'none', padding: '7px 16px' }}>
-                          🎥 Join
-                        </a>
-                      ) : (
-                        <span style={{ fontSize: 12, color: '#9ca3af' }}>No link</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {(type === 'knowlarity' || type === 'callerdesk' || type === 'maqsam') && (
-            <div style={s.card}>
-              <h4 style={{ margin: '0 0 16px' }}>{integration.name} Actions</h4>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
-                <button onClick={() => doAction('agents', () => api.get(`/integrations/${id}/${type}/agents`))} style={s.btnGhost} disabled={!!actionLoading}>
-                  {actionLoading === 'agents' ? '...' : 'Load Agents'}
-                </button>
-                <button onClick={() => doAction('calllogs', () => api.get(`/integrations/${id}/${type}/call-logs`))} style={s.btnGhost} disabled={!!actionLoading}>
-                  {actionLoading === 'calllogs' ? '...' : 'View Call Logs'}
-                </button>
-              </div>
-              <div>
-                <label style={s.lbl}>Click-to-Call</label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input id="cl-agent" placeholder="Agent extension" style={{ ...s.inp, flex: 1 }} />
-                  <input id="cl-cust" placeholder="Customer phone" style={{ ...s.inp, flex: 1 }} />
-                  <button onClick={() => doAction('call', () => api.post(`/integrations/${id}/${type}/call`, {
-                    agentExtension: document.getElementById('cl-agent').value,
-                    customerPhone: document.getElementById('cl-cust').value,
-                  }))} style={s.btnPrimary} disabled={!!actionLoading}>
-                    {actionLoading === 'call' ? '...' : 'Call'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {isGenericWebhook && (
-            <div style={{ ...s.card, textAlign: 'center', padding: 40, color: '#9ca3af' }}>
-              No manual actions available. {integration.name} pushes leads to your webhook URL automatically.
-            </div>
-          )}
-
-          {actionResult && !(type === 'google_meet' && (actionResult.label === 'meet' || actionResult.label === 'listmeet')) && (
+          {actionResult && (
             <div style={{ ...s.card, background: actionResult.ok ? '#f0fdf4' : '#fef2f2', border: `1px solid ${actionResult.ok ? '#86efac' : '#fca5a5'}` }}>
               <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontSize: 12, color: actionResult.ok ? '#166534' : '#dc2626' }}>
                 {actionResult.ok ? JSON.stringify(actionResult.data, null, 2) : `❌ ${actionResult.msg}`}
@@ -1267,7 +1687,7 @@ export default function IntegrationDetail() {
         </div>
       )}
 
-      {/* ── Leads tab ── */}
+      {/* ── Leads Tab ── */}
       {activeTab === 'leads' && (
         <div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
@@ -1276,7 +1696,7 @@ export default function IntegrationDetail() {
             </h3>
             {type === 'google_sheets' && sheetSources.length > 0 && (
               <select value={sheetFilter} onChange={e => setSheetFilter(e.target.value)} style={{ ...s.inp, width: 220 }}>
-                <option value="">All sheets</option>
+                <option value="">All sheet sources</option>
                 {sheetSources.filter(src => src.sheetId).map((src, idx) => (
                   <option key={idx} value={src.name || `Sheet ${idx + 1}`}>{src.name || `Sheet ${idx + 1}`}</option>
                 ))}
@@ -1285,7 +1705,7 @@ export default function IntegrationDetail() {
           </div>
           {(() => {
             const filteredLeads = (type === 'google_sheets' && sheetFilter)
-              ? leads.filter(lead => (lead.sourceSheetName || '') === sheetFilter)
+              ? leads.filter(lead => (lead.sourceSheetName || '') === sheetFilter || (lead.campaign?.name || '') === sheetFilter)
               : leads;
             if (filteredLeads.length === 0) {
               return (
@@ -1295,36 +1715,36 @@ export default function IntegrationDetail() {
               );
             }
             return (
-            <div style={{ background: '#fff', border: '1px solid var(--theme-border-tint)', borderRadius: 12, overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-                <thead>
-                  <tr style={{ background: 'var(--theme-surface-faint2)' }}>
-                    {['Name', 'Phone', 'Email', 'Status', 'Campaign', 'Assigned To', ...(type === 'google_sheets' ? ['Source Sheet'] : []), 'Date'].map(h => (
-                      <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--theme-surface-faint5)' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredLeads.map((lead, idx) => (
-                    <tr key={lead._id} style={{ borderBottom: idx < filteredLeads.length - 1 ? '1px solid var(--theme-surface-faint5)' : 'none', cursor: 'pointer' }}
-                      onClick={() => navigate(`/leads/${lead._id}`)}>
-                      <td style={{ padding: '12px 16px', fontWeight: 500 }}>{lead.name}</td>
-                      <td style={{ padding: '12px 16px', color: '#4f46e5' }}>{lead.phone}</td>
-                      <td style={{ padding: '12px 16px', color: '#6b7280' }}>{lead.email || '-'}</td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <span style={{ padding: '3px 10px', borderRadius: 12, background: 'var(--theme-surface-tint2)', color: 'var(--theme-primary)', fontSize: 12, fontWeight: 500 }}>{lead.status}</span>
-                      </td>
-                      <td style={{ padding: '12px 16px', color: '#6b7280' }}>{lead.campaign?.name || '-'}</td>
-                      <td style={{ padding: '12px 16px', color: '#6b7280' }}>{lead.assignedTo?.name || '-'}</td>
-                      {type === 'google_sheets' && (
-                        <td style={{ padding: '12px 16px', color: '#6b7280' }}>{lead.sourceSheetName || '-'}</td>
-                      )}
-                      <td style={{ padding: '12px 16px', color: '#6b7280' }}>{new Date(lead.createdAt).toLocaleDateString()}</td>
+              <div style={{ background: '#fff', border: '1px solid var(--theme-border-tint)', borderRadius: 12, overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                  <thead>
+                    <tr style={{ background: 'var(--theme-surface-faint2)' }}>
+                      {['Name', 'Phone', 'Email', 'Status', 'Campaign', 'Assigned To', ...(type === 'google_sheets' ? ['Source Sheet'] : []), 'Date'].map(h => (
+                        <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--theme-surface-faint5)' }}>{h}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {filteredLeads.map((lead, idx) => (
+                      <tr key={lead._id} style={{ borderBottom: idx < filteredLeads.length - 1 ? '1px solid var(--theme-surface-faint5)' : 'none', cursor: 'pointer' }}
+                        onClick={() => navigate(`/leads/${lead._id}`)}>
+                        <td style={{ padding: '12px 16px', fontWeight: 500 }}>{lead.name}</td>
+                        <td style={{ padding: '12px 16px', color: '#4f46e5' }}>{lead.phone}</td>
+                        <td style={{ padding: '12px 16px', color: '#6b7280' }}>{lead.email || '-'}</td>
+                        <td style={{ padding: '12px 16px' }}>
+                          <span style={{ padding: '3px 10px', borderRadius: 12, background: 'var(--theme-surface-tint2)', color: 'var(--theme-primary)', fontSize: 12, fontWeight: 500 }}>{lead.status}</span>
+                        </td>
+                        <td style={{ padding: '12px 16px', color: '#6b7280' }}>{lead.campaign?.name || '-'}</td>
+                        <td style={{ padding: '12px 16px', color: '#6b7280' }}>{lead.assignedTo?.name || '-'}</td>
+                        {type === 'google_sheets' && (
+                          <td style={{ padding: '12px 16px', color: '#6b7280' }}>{lead.sourceSheetName || '-'}</td>
+                        )}
+                        <td style={{ padding: '12px 16px', color: '#6b7280' }}>{new Date(lead.createdAt).toLocaleDateString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             );
           })()}
         </div>
