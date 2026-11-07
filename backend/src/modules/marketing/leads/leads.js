@@ -620,10 +620,10 @@ async function formatMetaLeadAsLead(metaLead) {
   });
 
   const location = metaLead.city || raw.city || raw.City || raw.location || raw.Location || raw['Gudivada'] || '';
-  let interested = metaLead.interested || metaLead.course || raw.interested || raw.Interested || raw.course || raw.Course || raw['Interested In'] || raw['interested_in'] || raw['which_sap_module_are_you_interested_in'] || '';
+  let interested = metaLead.interested || metaLead.course || raw.interested || raw.Interested || raw.intersted || raw.Intersted || raw.course || raw.Course || raw['Interested In'] || raw['interested_in'] || raw['which_sap_module_are_you_interested_in'] || '';
   if (!interested) {
     for (const [k, v] of Object.entries(raw)) {
-      if (typeof v === 'string' && v.trim() && /interest|course|program|module|planning_to_start/i.test(k)) {
+      if (typeof v === 'string' && v.trim() && /intere?st|course|program|module|planning_to_start/i.test(k)) {
         interested = v.trim();
         break;
       }

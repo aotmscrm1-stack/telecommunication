@@ -1163,10 +1163,10 @@ export default function MetaLeads() {
     }
 
     // 5. Interested / Course extraction
-    let interested = lead.interested || lead.course || raw.interested || raw.Interested || raw.course || raw.Course || raw['Interested In'] || raw['interested_in'] || raw.subject || raw.program || raw['which_sap_module_are_you_interested_in'] || '';
+    let interested = lead.interested || lead.course || raw.interested || raw.Interested || raw.intersted || raw.Intersted || raw.course || raw.Course || raw['Interested In'] || raw['interested_in'] || raw.subject || raw.program || raw['which_sap_module_are_you_interested_in'] || '';
     if (!interested) {
       for (const [k, v] of Object.entries(raw)) {
-        if (/interested|course|program|module/i.test(k) && typeof v === 'string' && v.trim()) {
+        if (/intere?st|course|program|module/i.test(k) && typeof v === 'string' && v.trim()) {
           interested = v.trim();
           break;
         }

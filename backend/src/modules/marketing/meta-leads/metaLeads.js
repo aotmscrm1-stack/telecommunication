@@ -241,11 +241,11 @@ function extractCoreIdentifiers(rawData = {}) {
   }
 
   // 6. Interested / Course
-  let interested = rawData.interested || rawData.Interested || rawData.course || rawData.Course || rawData['Interested In'] || rawData['interested_in'] || rawData.subject || rawData.program || rawData['which_sap_module_are_you_interested_in'] || '';
+  let interested = rawData.interested || rawData.Interested || rawData.intersted || rawData.Intersted || rawData.course || rawData.Course || rawData['Interested In'] || rawData['interested_in'] || rawData.subject || rawData.program || rawData['which_sap_module_are_you_interested_in'] || '';
   if (typeof interested === 'string') interested = interested.trim();
   if (!interested) {
     for (const [k, v] of Object.entries(rawData)) {
-      if (/interested|course|program|module/i.test(k) && typeof v === 'string' && v.trim()) {
+      if (/intere?st|course|program|module/i.test(k) && typeof v === 'string' && v.trim()) {
         interested = v.trim();
         break;
       }

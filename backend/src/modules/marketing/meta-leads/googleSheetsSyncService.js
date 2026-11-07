@@ -95,6 +95,33 @@ const DEFAULT_META_SHEET_SOURCES = [
     campaign: 'Practice Sheet',
     fieldMapping: { name: 'full_name', phone: 'phone_number', email: 'email', location: 'city' },
     columns: ['full_name', 'phone_number', 'email', 'city']
+  },
+  {
+    name: 'CyberSecurity_Lead_Form_Nov2026',
+    sheetId: '12oaPnKPhH5B6tESkguUbkU-AGyyOkS32AlpOjECufGM',
+    gid: '',
+    sheetRange: "'CyberSecurity_Lead_Form_Nov2026'!A:ZZ",
+    campaign: 'CyberSecurity_Lead_Form_Nov2026',
+    fieldMapping: { name: 'full_name', phone: 'phone', email: 'email', location: 'city' },
+    columns: ['full_name', 'phone', 'email', 'city', 'interested']
+  },
+  {
+    name: 'DataAnalyticsAI_Lead_Form_Nov2026',
+    sheetId: '12oaPnKPhH5B6tESkguUbkU-AGyyOkS32AlpOjECufGM',
+    gid: '1445056527',
+    sheetRange: "'DataAnalyticsAI_Lead_Form_Nov2026'!A:ZZ",
+    campaign: 'DataAnalyticsAI_Lead_Form_Nov2026',
+    fieldMapping: { name: 'full_name', phone: 'phone', email: 'email', location: 'city' },
+    columns: ['full_name', 'phone', 'email', 'city', 'interested']
+  },
+  {
+    name: 'SAP_Lead_Form_Nov0411',
+    sheetId: '12oaPnKPhH5B6tESkguUbkU-AGyyOkS32AlpOjECufGM',
+    gid: '',
+    sheetRange: "'SAP_Lead_Form_Nov0411'!A:ZZ",
+    campaign: 'SAP_Lead_Form_Nov0411',
+    fieldMapping: { name: 'full_name', phone: 'phone', email: 'email', location: 'city' },
+    columns: ['full_name', 'phone', 'email', 'city', 'interested']
   }
 ];
 
@@ -154,6 +181,7 @@ function normalizeHeaderName(raw) {
   if (s.startsWith('phone') || s.startsWith('mobile') || s.startsWith('contact')) return 'phone';
   if (s.startsWith('city') || s.startsWith('location') || s.startsWith('town') || s.startsWith('address')) return 'city';
   if (s.startsWith('full_name') || s.startsWith('full name') || s.startsWith('candidate') || s.startsWith('student') || s === 'name' || s.startsWith('name ')) return 'name';
+  if (s.startsWith('interst') || s.startsWith('interest') || s.startsWith('course') || s.startsWith('which_sap_module')) return 'interested';
   if (s.startsWith('l:') || s.startsWith('id') || s.startsWith('lead_id')) return 'id';
   return s.split(/\s+/)[0].replace(/[^a-z0-9_]/g, '');
 }
@@ -285,10 +313,10 @@ async function fetchSheetRows(sheetId, tabName, gid) {
     }
   }
 
-  // Priority 2: Fallback to GViz endpoint
+  // Priority 2: Fallback to GViz endpoint (always pass headers=1 so GViz never merges first data rows into header!)
   if (!csvText) {
     try {
-      const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}`;
+      const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&headers=1&sheet=${encodeURIComponent(tabName)}`;
       const response = await axios.get(url, {
         responseType: 'arraybuffer',
         timeout: 20000,
@@ -394,7 +422,7 @@ async function getSheetHeaders(sheetId, range, gid) {
     // Priority 2: GViz endpoint with tabName
     if (!csvText) {
       try {
-        const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}`;
+        const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&headers=1&sheet=${encodeURIComponent(tabName)}`;
         const response = await axios.get(url, {
           responseType: 'arraybuffer',
           timeout: 15000,
@@ -624,10 +652,10 @@ async function ingestRowsIntoMetaLeads(rows, campaignName, sourceLabel) {
     }
 
     // Allow Name, Phone, Email, Location / City, Interested
-    let interested = rawData.interested || rawData.Interested || rawData.course || rawData.Course || rawData['Interested In'] || rawData['interested_in'] || '';
+    let interested = rawData.interested || rawData.Interested || rawData.intersted || rawData.Intersted || rawData.course || rawData.Course || rawData['Interested In'] || rawData['interested_in'] || '';
     if (typeof interested === 'string') interested = interested.trim();
     if (!interested) {
-      const foundKey = Object.keys(rawData).find(k => /interest|course|program/i.test(k));
+      const foundKey = Object.keys(rawData).find(k => /intere?st|course|program|module/i.test(k));
       if (foundKey && typeof rawData[foundKey] === 'string') interested = rawData[foundKey].trim();
     }
     const allowedRawData = {

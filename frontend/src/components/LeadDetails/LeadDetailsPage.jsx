@@ -1710,6 +1710,8 @@ export default function LeadDetailsPage({
     const rawCandidates = [
       metaRaw.interested,
       metaRaw.Interested,
+      metaRaw.intersted,
+      metaRaw.Intersted,
       metaRaw.course,
       metaRaw.Course,
       metaRaw['Interested In'],
@@ -1721,14 +1723,14 @@ export default function LeadDetailsPage({
       metaRaw.module,
     ];
     for (const c of rawCandidates) {
-      if (typeof c === 'string' && c.trim() && !['interested', 'course', 'subject'].includes(c.trim().toLowerCase())) {
+      if (typeof c === 'string' && c.trim() && !['interested', 'intersted', 'course', 'subject'].includes(c.trim().toLowerCase())) {
         return c.trim();
       }
     }
     for (const [k, v] of Object.entries(metaRaw)) {
       if (typeof v === 'string' && v.trim()) {
         const lk = k.toLowerCase().trim();
-        if ((lk.includes('interest') || lk.includes('course') || lk.includes('module') || lk.includes('program')) && !['interested', 'course'].includes(v.trim().toLowerCase())) {
+        if ((lk.includes('interest') || lk.includes('interst') || lk.includes('course') || lk.includes('module') || lk.includes('program')) && !['interested', 'intersted', 'course'].includes(v.trim().toLowerCase())) {
           return v.trim();
         }
       }
