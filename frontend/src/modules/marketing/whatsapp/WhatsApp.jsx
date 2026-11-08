@@ -49,6 +49,11 @@ const NAV_ITEMS = [
     label: 'Templates',
     icon: <FileText className="w-4 h-4" />,
   },
+  {
+    key: 'automation',
+    label: 'Automation',
+    icon: <Sparkles className="w-4 h-4" />,
+  },
 ];
 
 // ── Hamburger Menu ─────────────────────────────────────────────────────────────
@@ -407,6 +412,7 @@ function InboxTab({ onSendTemplate }) {
   const [sendingTemplate, setSendingTemplate] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState(null);
   const [templateSearchText, setTemplateSearchText] = useState('');
+  const [sendingBotGreeting, setSendingBotGreeting] = useState(false);
 
   const handleChatScroll = (e) => {
     const el = e.target;
@@ -591,10 +597,12 @@ function InboxTab({ onSendTemplate }) {
           }
 
           if (eventName === 'whatsapp:incoming_message') {
-            const { leadId, name, phone, text, messageId, timestamp } = payloadData;
-            playWhatsAppRingtone();
-            if ('Notification' in window && Notification.permission === 'granted') {
-              new Notification(`WhatsApp from ${name || phone}`, { body: text });
+            const { leadId, name, phone, text, messageId, timestamp, direction, performedByName } = payloadData;
+            if (!direction || direction === 'inbound') {
+              playWhatsAppRingtone();
+              if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(`WhatsApp from ${name || phone}`, { body: text });
+              }
             }
             fetchLeads();
             setThread((prev) => {
@@ -605,7 +613,9 @@ function InboxTab({ onSendTemplate }) {
               const newMsg = {
                 _id: messageId || String(Date.now()),
                 type: 'whatsapp',
-                direction: 'inbound',
+                direction: direction || 'inbound',
+                performedByName: performedByName || '',
+                userName: performedByName || '',
                 description: text,
                 metaMessageId: messageId,
                 createdAt: timestamp || new Date().toISOString(),
@@ -660,6 +670,20 @@ function InboxTab({ onSendTemplate }) {
       alert(err.response?.data?.message || err.message || 'Failed to dispatch Meta WhatsApp template');
     } finally {
       setSendingTemplate(false);
+    }
+  };
+
+  const handleSendBotGreeting = async () => {
+    if (!selectedId || sendingBotGreeting) return;
+    setSendingBotGreeting(true);
+    try {
+      await api.post('/whatsapp-inbox/automation/send-greeting', { leadId: selectedId });
+      await openThread(selectedId);
+      await fetchLeads();
+    } catch (err) {
+      alert(err.response?.data?.message || err.message || 'Failed to send Greeting & Courses Menu');
+    } finally {
+      setSendingBotGreeting(false);
     }
   };
 
@@ -884,6 +908,17 @@ function InboxTab({ onSendTemplate }) {
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
                 </a>
+
+                <button
+                  type="button"
+                  onClick={handleSendBotGreeting}
+                  disabled={sendingBotGreeting}
+                  title="Send Automated Greeting & Courses Menu"
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors flex items-center gap-1 disabled:opacity-50"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">{sendingBotGreeting ? 'Sending...' : 'Courses Bot'}</span>
+                </button>
 
                 <button
                   type="button"
@@ -1672,6 +1707,503 @@ function TemplatesTab() {
   );
 }
 
+// ── Automation Tab (Auto-Greeting & Courses Bot) ───────────────────────────────
+function AutomationTab() {
+  const [config, setConfig] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
+  const [selectedCourseIdx, setSelectedCourseIdx] = useState(0);
+  const [testPhone, setTestPhone] = useState('');
+  const [sendingTest, setSendingTest] = useState(false);
+  const [testResult, setTestResult] = useState('');
+
+  const loadConfig = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/whatsapp-inbox/automation/config');
+      if (res.data?.config) {
+        setConfig(res.data.config);
+      }
+    } catch (err) {
+      console.error('Failed to load WhatsApp automation config:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadConfig();
+  }, [loadConfig]);
+
+  const handleSave = async () => {
+    if (!config) return;
+    setSaving(true);
+    setSaveMessage('');
+    try {
+      const res = await api.put('/whatsapp-inbox/automation/config', config);
+      if (res.data?.config) setConfig(res.data.config);
+      setSaveMessage('✅ WhatsApp Greeting & Courses Automation saved!');
+      setTimeout(() => setSaveMessage(''), 4000);
+    } catch (err) {
+      setSaveMessage('❌ ' + (err.response?.data?.message || 'Failed to save configuration'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSendTestGreeting = async () => {
+    const cleanPhone = String(testPhone || '').replace(/\D/g, '').slice(-10);
+    if (cleanPhone.length !== 10) {
+      setTestResult('❌ Enter a valid 10-digit WhatsApp number');
+      return;
+    }
+    setSendingTest(true);
+    setTestResult('');
+    try {
+      const res = await api.post('/whatsapp-inbox/automation/send-greeting', { phone: cleanPhone });
+      setTestResult('✅ ' + (res.data?.message || 'Greeting & Courses Menu sent!'));
+      setTimeout(() => setTestResult(''), 5000);
+    } catch (err) {
+      setTestResult('❌ ' + (err.response?.data?.message || 'Failed to send test message'));
+    } finally {
+      setSendingTest(false);
+    }
+  };
+
+  const updateCourseField = (idx, field, value) => {
+    setConfig((prev) => {
+      if (!prev) return prev;
+      const updated = [...(prev.courses || [])];
+      updated[idx] = { ...updated[idx], [field]: value };
+      if (field === 'name' && (!updated[idx].shortTitle || updated[idx].shortTitle === prev.courses[idx]?.name?.slice(0, 24))) {
+        updated[idx].shortTitle = String(value).slice(0, 24);
+      }
+      return { ...prev, courses: updated };
+    });
+  };
+
+  const addCourse = () => {
+    setConfig((prev) => {
+      if (!prev) return prev;
+      const current = prev.courses || [];
+      if (current.length >= 10) {
+        alert('Meta WhatsApp Interactive List supports up to 10 courses maximum.');
+        return prev;
+      }
+      const next = [
+        ...current,
+        {
+          id: `course_custom_${Date.now()}`,
+          name: 'New IT Course',
+          shortTitle: 'New IT Course',
+          duration: '4 Months',
+          fee: '₹25,000',
+          mode: 'Online & Offline (Classroom)',
+          highlights: '100% Practical Training, Real-Time Projects & Placement Assistance.',
+        },
+      ];
+      setSelectedCourseIdx(next.length - 1);
+      return { ...prev, courses: next };
+    });
+  };
+
+  const removeCourse = (idx) => {
+    setConfig((prev) => {
+      if (!prev) return prev;
+      const updated = (prev.courses || []).filter((_, i) => i !== idx);
+      setSelectedCourseIdx((s) => Math.max(0, Math.min(s, updated.length - 1)));
+      return { ...prev, courses: updated };
+    });
+  };
+
+  if (loading || !config) {
+    return (
+      <div className="flex-1 flex items-center justify-center text-xs text-slate-400">
+        Loading WhatsApp Automation settings...
+      </div>
+    );
+  }
+
+  const courses = config.courses || [];
+  const previewCourse = courses[selectedCourseIdx] || courses[0];
+
+  return (
+    <div className="flex flex-1 min-h-0 h-full bg-slate-50/40 overflow-hidden flex-col lg:flex-row">
+      {/* Left Column: Configuration Form */}
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 border-r border-slate-200 bg-white">
+        {/* Top Banner & Master Toggle */}
+        <div className="p-4 rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50/80 via-indigo-50/50 to-emerald-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold text-slate-900">
+                  WhatsApp Greeting & Courses Bot Automation
+                </h2>
+                <span
+                  className={cn(
+                    'text-[10px] font-bold px-2 py-0.5 rounded-full uppercase',
+                    config.enabled
+                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                      : 'bg-slate-200 text-slate-600'
+                  )}
+                >
+                  {config.enabled ? 'Active' : 'Paused'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 mt-0.5">
+                Automatically greets students when they message your Meta WhatsApp number and sends an interactive Courses Menu with Syllabus, Fees & Free Demo booking.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            <label className="inline-flex items-center cursor-pointer gap-2">
+              <input
+                type="checkbox"
+                checked={Boolean(config.enabled)}
+                onChange={(e) => setConfig({ ...config, enabled: e.target.checked })}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all relative peer-checked:bg-emerald-600" />
+              <span className="text-xs font-bold text-slate-800">
+                {config.enabled ? 'Bot Enabled' : 'Bot Disabled'}
+              </span>
+            </label>
+
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              className="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-colors shadow-xs disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+
+        {saveMessage && (
+          <div className="px-4 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold">
+            {saveMessage}
+          </div>
+        )}
+
+        {/* Greeting Message Settings */}
+        <div className="p-4 rounded-2xl border border-slate-200 bg-white space-y-3.5">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+              1. Welcome Greeting Message Settings
+            </h3>
+            <label className="inline-flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={config.replyToAllFirstMessages !== false}
+                onChange={(e) => setConfig({ ...config, replyToAllFirstMessages: e.target.checked })}
+                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span>Auto-greet on any first inbound message + keywords (Hi, Hello, Courses, Fees)</span>
+            </label>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                Greeting Header (Max 60 chars)
+              </label>
+              <input
+                value={config.greetingHeader || ''}
+                maxLength={60}
+                onChange={(e) => setConfig({ ...config, greetingHeader: e.target.value })}
+                className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg outline-none focus:border-blue-500"
+                placeholder="👋 Welcome to AOTMS!"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                Courses Button Text (Max 20 chars)
+              </label>
+              <input
+                value={config.listButtonLabel || ''}
+                maxLength={20}
+                onChange={(e) => setConfig({ ...config, listButtonLabel: e.target.value })}
+                className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg outline-none focus:border-blue-500"
+                placeholder="📚 View Courses"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                Counsellor Helpline Number
+              </label>
+              <input
+                value={config.counsellorPhone || ''}
+                onChange={(e) => setConfig({ ...config, counsellorPhone: e.target.value })}
+                className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg outline-none focus:border-blue-500"
+                placeholder="+91 80199 42233"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Greeting Message Body <span className="text-slate-400 font-normal">(Use {'{{name}}'} for student name)</span>
+            </label>
+            <textarea
+              rows={5}
+              value={config.greetingBody || ''}
+              onChange={(e) => setConfig({ ...config, greetingBody: e.target.value })}
+              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg outline-none focus:border-blue-500 leading-relaxed"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Footer Text (Max 60 chars)
+            </label>
+            <input
+              value={config.greetingFooter || ''}
+              maxLength={60}
+              onChange={(e) => setConfig({ ...config, greetingFooter: e.target.value })}
+              className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg outline-none focus:border-blue-500"
+            />
+          </div>
+        </div>
+
+        {/* Courses Catalog Manager */}
+        <div className="p-4 rounded-2xl border border-slate-200 bg-white space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                2. Courses Menu & Auto-Reply Details ({courses.length}/10 Courses)
+              </h3>
+              <p className="text-[11px] text-slate-500">
+                When a student selects a course from the WhatsApp menu, the bot automatically replies with these details + Book Free Demo button.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={addCourse}
+              className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 text-xs font-bold hover:bg-blue-100 flex items-center gap-1"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Course</span>
+            </button>
+          </div>
+
+          {/* Course Pills Selector */}
+          <div className="flex flex-wrap gap-1.5">
+            {courses.map((c, idx) => (
+              <button
+                key={c.id || idx}
+                type="button"
+                onClick={() => setSelectedCourseIdx(idx)}
+                className={cn(
+                  'px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all flex items-center gap-1.5',
+                  selectedCourseIdx === idx
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                )}
+              >
+                <span>{idx + 1}. {c.shortTitle || c.name}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Active Course Editor */}
+          {previewCourse && (
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-blue-700">
+                  Editing Course #{selectedCourseIdx + 1}: {previewCourse.name}
+                </span>
+                {courses.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeCourse(selectedCourseIdx)}
+                    className="text-xs font-semibold text-red-600 hover:text-red-700 flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Remove</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                    Full Course Name
+                  </label>
+                  <input
+                    value={previewCourse.name || ''}
+                    onChange={(e) => updateCourseField(selectedCourseIdx, 'name', e.target.value)}
+                    className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                    WhatsApp Menu Row Title (Max 24 chars)
+                  </label>
+                  <input
+                    value={previewCourse.shortTitle || ''}
+                    maxLength={24}
+                    onChange={(e) => updateCourseField(selectedCourseIdx, 'shortTitle', e.target.value)}
+                    className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                    Duration
+                  </label>
+                  <input
+                    value={previewCourse.duration || ''}
+                    onChange={(e) => updateCourseField(selectedCourseIdx, 'duration', e.target.value)}
+                    placeholder="e.g. 4 Months"
+                    className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                    Course Fee
+                  </label>
+                  <input
+                    value={previewCourse.fee || ''}
+                    onChange={(e) => updateCourseField(selectedCourseIdx, 'fee', e.target.value)}
+                    placeholder="e.g. ₹25,000"
+                    className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                    Training Mode
+                  </label>
+                  <input
+                    value={previewCourse.mode || ''}
+                    onChange={(e) => updateCourseField(selectedCourseIdx, 'mode', e.target.value)}
+                    placeholder="Online & Offline"
+                    className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  Key Syllabus & Highlights
+                </label>
+                <textarea
+                  rows={2}
+                  value={previewCourse.highlights || ''}
+                  onChange={(e) => updateCourseField(selectedCourseIdx, 'highlights', e.target.value)}
+                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:border-blue-500"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Right Column: Live WhatsApp Bot Preview & Instant Test Sender */}
+      <div className="w-full lg:w-96 bg-slate-100/80 p-4 sm:p-5 flex flex-col gap-4 overflow-y-auto shrink-0">
+        {/* Quick Test Box */}
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2.5">
+          <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+            <Send className="w-3.5 h-3.5 text-blue-600" />
+            <span>Test Greeting & Courses Bot Now</span>
+          </h4>
+          <p className="text-[11px] text-slate-500">
+            Send the interactive Greeting & Courses Menu directly to any WhatsApp number:
+          </p>
+          <div className="flex gap-2">
+            <input
+              value={testPhone}
+              onChange={(e) => setTestPhone(e.target.value)}
+              placeholder="Enter 10-digit mobile..."
+              className="flex-1 px-3 py-1.5 text-xs border border-slate-200 rounded-lg outline-none focus:border-blue-500"
+            />
+            <button
+              type="button"
+              onClick={handleSendTestGreeting}
+              disabled={sendingTest}
+              className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 disabled:opacity-50 shrink-0"
+            >
+              {sendingTest ? 'Sending...' : 'Send Test'}
+            </button>
+          </div>
+          {testResult && (
+            <div className="text-[11px] font-semibold text-slate-700 bg-slate-50 p-2 rounded-lg border border-slate-200">
+              {testResult}
+            </div>
+          )}
+        </div>
+
+        {/* Live Mobile WhatsApp Simulation Preview */}
+        <div className="bg-[#efeae2] rounded-2xl border border-slate-300 shadow-sm overflow-hidden flex flex-col">
+          <div className="bg-[#075e54] text-white px-4 py-2.5 flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-full bg-emerald-500 text-white font-bold text-xs flex items-center justify-center">
+              A
+            </div>
+            <div>
+              <div className="text-xs font-bold leading-tight">Academy of Tech Masters</div>
+              <div className="text-[10px] text-emerald-100">Official Business Account • Automated</div>
+            </div>
+          </div>
+
+          <div className="p-3 space-y-3 text-xs">
+            {/* Simulated Student Inbound */}
+            <div className="flex justify-start">
+              <div className="bg-white rounded-xl rounded-tl-none px-3 py-1.5 shadow-2xs text-slate-800 max-w-[75%]">
+                Hi, I want course details
+              </div>
+            </div>
+
+            {/* Simulated Bot Greeting + List */}
+            <div className="flex justify-end">
+              <div className="bg-[#d9fdd3] rounded-xl rounded-tr-none p-3 shadow-2xs text-slate-900 max-w-[92%] space-y-1.5">
+                <div className="font-bold text-slate-900">{config.greetingHeader}</div>
+                <div className="whitespace-pre-wrap text-[11px] leading-relaxed text-slate-800">
+                  {(config.greetingBody || '').replace(/\{\{\s*name\s*\}\}/gi, 'Student')}
+                </div>
+                <div className="text-[10px] text-slate-500">{config.greetingFooter}</div>
+                <div className="pt-1.5 border-t border-emerald-200 text-center font-bold text-blue-600 text-xs">
+                  {config.listButtonLabel || '📚 View Courses'}
+                </div>
+              </div>
+            </div>
+
+            {/* Simulated Course Detail Reply */}
+            {previewCourse && (
+              <div className="flex justify-end">
+                <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-2xs text-slate-900 max-w-[92%] space-y-1.5">
+                  <div className="font-bold text-xs text-blue-700">
+                    🎓 {previewCourse.shortTitle || previewCourse.name}
+                  </div>
+                  <div className="text-[11px] space-y-0.5 text-slate-700">
+                    <div><strong>📘 Course:</strong> {previewCourse.name}</div>
+                    <div><strong>⏳ Duration:</strong> {previewCourse.duration}</div>
+                    <div><strong>💰 Fee:</strong> {previewCourse.fee}</div>
+                    <div className="pt-1 text-[10px] text-slate-600">{previewCourse.highlights}</div>
+                  </div>
+                  <div className="pt-2 border-t border-slate-100 flex flex-col gap-1 text-center text-[11px] font-bold text-blue-600">
+                    <div className="py-1 bg-slate-50 rounded">📅 Book Free Demo</div>
+                    <div className="py-1 bg-slate-50 rounded">📞 Talk to Expert</div>
+                    <div className="py-1 bg-slate-50 rounded">📚 All Courses</div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main WhatsApp CRM Shell ────────────────────────────────────────────────────
 export default function WhatsApp() {
   const [activeTab, setActiveTab] = useState('inbox');
@@ -1770,6 +2302,7 @@ export default function WhatsApp() {
         <div className="flex-1 min-h-0 flex flex-col bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
           {activeTab === 'inbox' && <InboxTab onSendTemplate={() => setActiveTab('templates')} />}
           {activeTab === 'templates' && <TemplatesTab />}
+          {activeTab === 'automation' && <AutomationTab />}
         </div>
       </main>
     </div>

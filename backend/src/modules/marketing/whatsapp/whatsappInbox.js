@@ -197,6 +197,72 @@ router.get('/', protect, async (req, res) => {
   }
 });
 
+// ── GET /api/whatsapp-inbox/automation/config — Get Auto-Greeting & Courses Bot Config ──
+router.get('/automation/config', protect, async (req, res) => {
+  try {
+    const config = await whatsappService.getWhatsAppAutomationConfig();
+    res.json({ config });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ── PUT /api/whatsapp-inbox/automation/config — Save Auto-Greeting & Courses Bot Config ──
+router.put('/automation/config', protect, async (req, res) => {
+  try {
+    const updated = await whatsappService.saveWhatsAppAutomationConfig(req.body || {});
+    res.json({ message: 'WhatsApp Automation configuration saved', config: updated });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ── POST /api/whatsapp-inbox/automation/send-greeting — Trigger Bot Greeting / Course Details to Lead ──
+router.post('/automation/send-greeting', protect, async (req, res) => {
+  try {
+    const { leadId, phone, courseId } = req.body || {};
+    const targetKey = leadId || phone;
+    if (!targetKey) {
+      return res.status(400).json({ message: 'leadId or phone is required' });
+    }
+
+    const lead = await findOrCreateLeadForIdOrPhone(targetKey);
+    if (!lead) return res.status(404).json({ message: 'Lead or Contact not found' });
+
+    const integration = await Integration.findOne({ type: 'whatsapp_cloud', status: 'active' });
+    const config = await whatsappService.getWhatsAppAutomationConfig(integration);
+
+    if (courseId) {
+      const course = (config.courses || []).find(c => c.id === courseId || c.name === courseId);
+      if (!course) {
+        return res.status(404).json({ message: 'Selected course not found in automation config' });
+      }
+      await whatsappService.sendAutomatedCourseDetails({
+        lead,
+        phone: lead.phone,
+        name: lead.name,
+        course,
+        integration,
+        config,
+      });
+      return res.json({ message: `Sent ${course.name} details to ${lead.name || lead.phone}`, leadId: lead._id });
+    }
+
+    await whatsappService.sendAutomatedGreetingMenu({
+      lead,
+      phone: lead.phone,
+      name: lead.name,
+      integration,
+      config,
+    });
+
+    res.json({ message: `Sent Automated Greeting & Courses Menu to ${lead.name || lead.phone}`, leadId: lead._id });
+  } catch (err) {
+    const message = err.response?.data?.error?.message || err.message;
+    res.status(500).json({ message });
+  }
+});
+
 // ── GET /api/whatsapp-inbox/:leadId — full whatsapp thread for the chat panel ──
 router.get('/:leadId', protect, async (req, res) => {
   try {
