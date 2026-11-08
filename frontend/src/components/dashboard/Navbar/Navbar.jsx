@@ -436,7 +436,7 @@ export default function Navbar() {
           icon: GoogleSheetsIcon,
           path: '/meta-leads',
           isDirect: true,
-          badge: 'Google Sheets'
+          
         },
         {
           id: 'ai-calling',
@@ -444,7 +444,7 @@ export default function Navbar() {
           icon: FaPhoneVolume,
           path: '/ai-calling',
           isDirect: true,
-          badge: 'AI'
+          
         }
       ],
       items: [

@@ -60,3 +60,4 @@ export function startOtaUpdateListener({ onUpdateReady } = {}) {
     sub.remove();
   };
 }
+
