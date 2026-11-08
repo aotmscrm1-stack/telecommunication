@@ -2049,13 +2049,6 @@ export default function MetaLeads() {
                             <span style={{ flexShrink: 0 }}>{phone || 'No phone'}</span>
                             {city && <span style={{ fontFamily: 'inherit', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>· {city}</span>}
                           </div>
-                          {interested && (
-                            <div style={{ marginTop: 2, display: 'inline-flex', alignItems: 'center', gap: 3, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              <span style={{ fontSize: 9.5, fontWeight: 600, color: '#0369a1', background: '#e0f2fe', padding: '1px 5px', borderRadius: 4, border: '1px solid #bae6fd' }}>
-                                🎯 {interested}
-                              </span>
-                            </div>
-                          )}
                         </div>
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><polyline points="9 18 15 12 9 6" /></svg>
                       </div>

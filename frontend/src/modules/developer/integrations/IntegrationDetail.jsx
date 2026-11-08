@@ -42,6 +42,10 @@ const ORANGE_DARK = '#c2410c';
 const ORANGE_LIGHT = '#fff7ed';
 const ORANGE_BORDER = '#fed7aa';
 
+const BLUE = '#2563eb';
+const BLUE_LIGHT = '#eff6ff';
+const BLUE_BORDER = '#dbeafe';
+
 const IntegrationLogo = ({ type, name, size = 50 }) => {
   const initials = (name || type || '??').slice(0, 2).toUpperCase();
   const directLogo = REAL_BRAND_LOGOS[type];
@@ -600,7 +604,7 @@ export default function IntegrationDetail() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
         <button
           onClick={() => navigate('/integrations')}
-          style={{ background: 'none', border: 'none', color: ORANGE, cursor: 'pointer', fontSize: 13.5, padding: 0, fontWeight: 600 }}
+          style={{ background: 'none', border: 'none', color: BLUE, cursor: 'pointer', fontSize: 13.5, padding: 0, fontWeight: 600 }}
         >
           ← Back to Integrations
         </button>
@@ -613,16 +617,16 @@ export default function IntegrationDetail() {
               style={{
                 padding: '8px 16px',
                 borderRadius: 10,
-                border: `1.5px solid ${ORANGE}`,
-                background: ORANGE_LIGHT,
-                color: ORANGE,
+                border: `1.5px solid ${BLUE}`,
+                background: BLUE_LIGHT,
+                color: BLUE,
                 fontWeight: 700,
                 fontSize: 12.5,
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
-                boxShadow: '0 2px 6px rgba(234, 88, 12, 0.1)'
+                boxShadow: '0 2px 6px rgba(37, 99, 235, 0.1)'
               }}
             >
               How to Connect
@@ -655,8 +659,8 @@ export default function IntegrationDetail() {
         </div>
         {type === 'google_sheets' && (
           <span style={{
-            background: ORANGE_LIGHT, color: ORANGE, fontWeight: 700, fontSize: 11.5,
-            padding: '5px 14px', borderRadius: 20, border: `1px solid ${ORANGE_BORDER}`
+            background: BLUE_LIGHT, color: BLUE, fontWeight: 700, fontSize: 11.5,
+            padding: '5px 14px', borderRadius: 20, border: `1px solid ${BLUE_BORDER}`
           }}>
             Direct Cloud Sync
           </span>
@@ -714,9 +718,9 @@ export default function IntegrationDetail() {
               onClick={addSheetSource}
               style={{
                 padding: '6px 14px', borderRadius: 8, cursor: 'pointer',
-                fontSize: 12, fontWeight: 600, background: ORANGE_LIGHT,
-                color: ORANGE,
-                border: `1.5px dashed ${ORANGE}`,
+                fontSize: 12, fontWeight: 600, background: BLUE_LIGHT,
+                color: BLUE,
+                border: `1.5px dashed ${BLUE}`,
                 whiteSpace: 'nowrap'
               }}
             >
@@ -724,7 +728,7 @@ export default function IntegrationDetail() {
             </button>
           </div>
 
-          {/* Google Sheet Configuration Card (Orange & White Theme) */}
+          {/* Google Sheet Configuration Card (Orange, Blue & White Theme) */}
           <div style={{
             background: '#ffffff',
             border: `1.5px solid ${ORANGE_BORDER}`,
@@ -743,7 +747,7 @@ export default function IntegrationDetail() {
                 </p>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 11.5, fontWeight: 600, color: ORANGE, background: ORANGE_LIGHT, border: `1px solid ${ORANGE_BORDER}`, padding: '4px 12px', borderRadius: 20 }}>
+                <span style={{ fontSize: 11.5, fontWeight: 600, color: BLUE, background: BLUE_LIGHT, border: `1px solid ${BLUE_BORDER}`, padding: '4px 12px', borderRadius: 20 }}>
                   Editing: {currentSource.name || `Sheet ${activeSheetIdx + 1}`}
                 </span>
               </div>
@@ -775,7 +779,7 @@ export default function IntegrationDetail() {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
                   <span style={s.hint}>Paste full link or Sheet ID</span>
                   {currentSource.sheetId && (
-                    <span style={{ fontSize: 10.5, fontWeight: 600, color: ORANGE, background: ORANGE_LIGHT, padding: '1px 7px', borderRadius: 4, border: `1px solid ${ORANGE_BORDER}` }}>
+                    <span style={{ fontSize: 10.5, fontWeight: 600, color: BLUE, background: BLUE_LIGHT, padding: '1px 7px', borderRadius: 4, border: `1px solid ${BLUE_BORDER}` }}>
                       ID: {currentSource.sheetId.slice(0, 12)}...
                     </span>
                   )}
@@ -928,7 +932,12 @@ export default function IntegrationDetail() {
                 <button
                   type="button"
                   onClick={() => navigate('/meta-leads')}
-                  style={s.btnGhost}
+                  style={{
+                    ...s.btnGhost,
+                    border: `1.5px solid ${BLUE_BORDER}`,
+                    background: BLUE_LIGHT,
+                    color: BLUE
+                  }}
                 >
                   View Meta Leads →
                 </button>
@@ -940,9 +949,9 @@ export default function IntegrationDetail() {
                   }}
                   style={{
                     ...s.btnPrimary,
-                    background: '#ffffff',
-                    color: ORANGE,
-                    border: `1.5px solid ${ORANGE}`
+                    background: BLUE,
+                    color: '#ffffff',
+                    boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)'
                   }}
                   disabled={saving}
                 >
@@ -1098,8 +1107,8 @@ export default function IntegrationDetail() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <span style={{
                       fontSize: 12, fontWeight: 700,
-                      color: ORANGE, background: ORANGE_LIGHT,
-                      border: `1px solid ${ORANGE_BORDER}`,
+                      color: BLUE, background: BLUE_LIGHT,
+                      border: `1px solid ${BLUE_BORDER}`,
                       padding: '4px 12px', borderRadius: 20
                     }}>
                       {previewData.sampleRows.length} Leads Found
@@ -1121,9 +1130,9 @@ export default function IntegrationDetail() {
                 <div style={{ marginTop: 14, flex: 1, overflowY: 'auto', maxHeight: '58vh', border: '1px solid #e2e8f0', borderRadius: 10 }}>
                   {previewData.sampleRows && previewData.sampleRows.length > 0 ? (
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
-                      <thead style={{ position: 'sticky', top: 0, background: ORANGE_LIGHT, zIndex: 1 }}>
-                        <tr style={{ borderBottom: `1px solid ${ORANGE_BORDER}` }}>
-                          <th style={{ padding: '9px 10px', textAlign: 'left', fontWeight: 700, color: ORANGE, width: 40 }}>#</th>
+                      <thead style={{ position: 'sticky', top: 0, background: BLUE_LIGHT, zIndex: 1 }}>
+                        <tr style={{ borderBottom: `1px solid ${BLUE_BORDER}` }}>
+                          <th style={{ padding: '9px 10px', textAlign: 'left', fontWeight: 700, color: BLUE, width: 40 }}>#</th>
                           <th style={{ padding: '9px 10px', textAlign: 'left', fontWeight: 700, color: '#0f172a' }}>Name</th>
                           <th style={{ padding: '9px 10px', textAlign: 'left', fontWeight: 700, color: '#0f172a' }}>Phone</th>
                           <th style={{ padding: '9px 10px', textAlign: 'left', fontWeight: 700, color: '#0f172a' }}>Email</th>
@@ -1141,7 +1150,7 @@ export default function IntegrationDetail() {
                               <td style={{ padding: '8px 10px', color: ORANGE, fontWeight: 600, fontFamily: 'monospace' }}>{item.phone}</td>
                               <td style={{ padding: '8px 10px', color: '#475569' }}>{item.email}</td>
                               <td style={{ padding: '8px 10px', color: '#475569' }}>{item.city}</td>
-                              <td style={{ padding: '8px 10px', color: '#0f172a', fontWeight: 500 }}>{item.interested}</td>
+                              <td style={{ padding: '8px 10px', color: BLUE, fontWeight: 600 }}>{item.interested}</td>
                             </tr>
                           );
                         })}
