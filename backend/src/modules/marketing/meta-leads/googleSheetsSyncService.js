@@ -485,17 +485,37 @@ async function getSheetHeaders(sheetId, range, gid) {
     const allowed = ['name', 'phone', 'email', 'city', 'interested'];
     const merged = Array.from(new Set([...headers, ...cleanHeaders, ...allowed])).filter(Boolean);
     const sampleRows = [];
-    for (let i = 1; i < Math.min(rawMatrix.length, 6); i++) {
+    for (let i = 1; i < rawMatrix.length; i++) {
       const row = rawMatrix[i];
       if (row && row.some(cell => cell != null && String(cell).trim() !== '')) {
         const rowObj = {};
+        cleanHeaders.forEach((key, colIdx) => {
+          if (key && rowObj[key] === undefined) {
+            rowObj[key] = row[colIdx] != null ? String(row[colIdx]).trim() : '';
+          }
+        });
         headers.forEach((h, hIdx) => {
           rowObj[h] = row[hIdx] != null ? String(row[hIdx]).trim() : '';
         });
+        const core = extractCoreIdentifiers(rowObj);
+        if (core.isEmptyRow) continue;
+        let interestedVal = rowObj.interested || rowObj.Interested || rowObj.intersted || rowObj.Intersted || rowObj.course || rowObj.Course || rowObj['Interested In'] || rowObj['interested_in'] || '';
+        if (typeof interestedVal === 'string') interestedVal = interestedVal.trim();
+        if (!interestedVal) {
+          const foundKey = Object.keys(rowObj).find(k => /intere?st|course|program|module/i.test(k));
+          if (foundKey && typeof rowObj[foundKey] === 'string') interestedVal = rowObj[foundKey].trim();
+        }
+        rowObj._extracted = {
+          name: core.fullName && core.fullName !== 'Unknown Lead' ? core.fullName : (rowObj.full_name || rowObj.name || '-'),
+          phone: core.phone || core.normalizedPhone || rowObj.phone_number || rowObj.phone || '-',
+          email: core.email || rowObj.email || '-',
+          city: core.city || rowObj.city || rowObj.location || '-',
+          interested: interestedVal || '-'
+        };
         sampleRows.push(rowObj);
       }
     }
-    const totalDataRows = Math.max(0, rawMatrix.length - 1);
+    const totalDataRows = sampleRows.length;
     return {
       success: true,
       columns: merged,
