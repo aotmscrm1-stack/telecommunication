@@ -1,9 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Keyboard, Platform } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Keyboard, Platform, Linking } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth, isAllowedManagerRole } from '../context/AuthContext';
 import { colors } from '../theme/colors';
+import {
+  startZeroTouchCallListener,
+  executeZeroTouchCall,
+  formatDialablePhone,
+} from '../services/autoCallService';
 
 // Screens
 import LoginScreen from '../screens/LoginScreen';
@@ -27,6 +32,34 @@ export default function AppNavigator() {
   // Default directly to Meta Leads or Daily Activity (Dashboard removed as per specification)
   const [authScreen, setAuthScreen] = useState('meta_calls');
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [autoCallBanner, setAutoCallBanner] = useState(null);
+  const bannerTimerRef = useRef(null);
+
+  const handleAutoCallTriggered = useCallback((callData) => {
+    if (!callData) return;
+    setAutoCallBanner({
+      leadName: callData.leadName || 'Lead',
+      leadPhone: callData.leadPhone || '',
+      leadId: callData.leadId || '',
+      isMetaLead: Boolean(callData.isMetaLead),
+    });
+    if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
+    bannerTimerRef.current = setTimeout(() => {
+      setAutoCallBanner(null);
+    }, 8000);
+  }, []);
+
+  // ── 100% AUTOMATIC ZERO-TOUCH CALL LISTENER (WHEN MOBILE APP IS OPEN) ──
+  useEffect(() => {
+    if (!isAuthenticated || !user?._id) return;
+    const stopListener = startZeroTouchCallListener({
+      user,
+      onCallTriggered: handleAutoCallTriggered,
+    });
+    return () => {
+      stopListener();
+    };
+  }, [isAuthenticated, user?._id, handleAutoCallTriggered]);
 
   useEffect(() => {
     const showSub = Keyboard.addListener(
@@ -38,13 +71,41 @@ export default function AppNavigator() {
       () => setKeyboardVisible(false)
     );
 
-    // ── NOTIFICATION TAP NAVIGATION HANDLER ──
+    // ── FOREGROUND PUSH NOTIFICATION AUTO-CALL HANDLER (ZERO TOUCH) ──
+    const fgNotifSub = Notifications.addNotificationReceivedListener((notification) => {
+      const data = notification?.request?.content?.data;
+      if (!data || data.localGenerated === 'true') return;
+      const type = String(data.type || '');
+      if (type === 'call_initiated' || data.autoDial === 'true') {
+        executeZeroTouchCall(
+          {
+            callId: data.callId,
+            leadId: data.leadId || data.entityId,
+            leadName: data.leadName,
+            leadPhone: data.leadPhone,
+            isMetaLead: data.isMetaLead === 'true',
+          },
+          { fromNotification: true, onCallTriggered: handleAutoCallTriggered }
+        );
+      }
+    });
+
+    // ── NOTIFICATION TAP NAVIGATION & AUTO-DIAL HANDLER ──
     const notifSub = Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response?.notification?.request?.content?.data;
       if (!data) return;
 
-      const type = data.type || '';
+      const type = String(data.type || '');
       console.log('[AppNavigator] Notification tapped, payload:', data);
+
+      if (type === 'call_initiated' || data.autoDial === 'true') {
+        const dialNum = formatDialablePhone(data.leadPhone);
+        if (dialNum) {
+          Linking.openURL(`tel:${dialNum}`).catch(() => {});
+        }
+        setAuthScreen(data.isMetaLead === 'true' ? 'meta_calls' : 'all_leads');
+        return;
+      }
 
       if (type.includes('meta')) {
         setAuthScreen('meta_calls');
@@ -62,9 +123,11 @@ export default function AppNavigator() {
     return () => {
       showSub.remove();
       hideSub.remove();
+      fgNotifSub.remove();
       notifSub.remove();
+      if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
     };
-  }, []);
+  }, [handleAutoCallTriggered]);
 
   if (isLoading) {
     return (
@@ -140,6 +203,36 @@ export default function AppNavigator() {
 
   return (
     <View style={styles.container}>
+      {autoCallBanner ? (
+        <View style={styles.autoCallBanner}>
+          <View style={styles.autoCallIconWrap}>
+            <Ionicons name="call" size={18} color="#FFFFFF" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.autoCallTitle} numberOfLines={1}>
+              Auto-Calling: {autoCallBanner.leadName}
+            </Text>
+            <Text style={styles.autoCallSub} numberOfLines={1}>
+              {autoCallBanner.leadPhone} • Triggered from Website
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.autoCallDialBtn}
+            onPress={() => {
+              const dial = formatDialablePhone(autoCallBanner.leadPhone);
+              if (dial) Linking.openURL(`tel:${dial}`).catch(() => {});
+            }}
+          >
+            <Text style={styles.autoCallDialBtnText}>Dial</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setAutoCallBanner(null)}
+            style={styles.autoCallCloseBtn}
+          >
+            <Ionicons name="close" size={18} color="#94A3B8" />
+          </TouchableOpacity>
+        </View>
+      ) : null}
       <View style={styles.screenArea}>
         {renderAuthScreen()}
       </View>
@@ -208,6 +301,53 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '700',
+  },
+  autoCallBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
+    marginHorizontal: 12,
+    marginTop: Platform.OS === 'ios' ? 48 : 36,
+    marginBottom: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#10B981',
+    gap: 10,
+    elevation: 6,
+  },
+  autoCallIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#10B981',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  autoCallTitle: {
+    color: '#FFFFFF',
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
+  autoCallSub: {
+    color: '#94A3B8',
+    fontSize: 11.5,
+    marginTop: 1,
+  },
+  autoCallDialBtn: {
+    backgroundColor: '#10B981',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  autoCallDialBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  autoCallCloseBtn: {
+    padding: 4,
   },
 });
 

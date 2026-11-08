@@ -14,8 +14,30 @@ const {
   notifyNewLeadCreated,
   notifyCallInitiated,
 } = require('../../../modules/notifications/notificationService');
+const { broadcastWebSocketEvent } = require('../../../app/websocket');
 
 const router = express.Router();
+
+// In-memory queue for zero-touch mobile call signals (45s TTL)
+const pendingCallMap = new Map();
+
+// GET /api/leads/pending-call — Poll/fetch latest pending auto-call for logged-in mobile user
+router.get('/pending-call', protect, async (req, res) => {
+  try {
+    const uid = String(req.user._id);
+    const entry = pendingCallMap.get(uid);
+    if (entry && Date.now() - entry.timestamp < 45000) {
+      pendingCallMap.delete(uid);
+      return res.json({ pendingCall: entry });
+    }
+    if (entry) {
+      pendingCallMap.delete(uid);
+    }
+    return res.json({ pendingCall: null });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
 
 // GET /api/leads/export — CSV export
 router.get('/export', protect, async (req, res) => {
@@ -1141,64 +1163,120 @@ router.delete('/:id', protect, authorize('employee', 'caller', 'manager', 'admin
 router.post('/:id/initiate-call', protect, async (req, res) => {
   try {
     let lead = null;
+    let metaLead = null;
+
     if (mongoose.Types.ObjectId.isValid(req.params.id)) {
       lead = await Lead.findById(req.params.id).populate('assignedTo', 'name email');
-    }
-
-    if (!lead && mongoose.Types.ObjectId.isValid(req.params.id)) {
-      const MetaLead = require('../../../database/models/MetaLead');
-      const metaLead = await MetaLead.findById(req.params.id).populate('assignedTo', 'name email');
-      if (metaLead) {
-        const caller = req.user;
-        const phone = metaLead.normalizedPhone || (metaLead.phone ? metaLead.phone.replace(/\D/g, '').slice(-10) : '');
-        if (!Array.isArray(metaLead.callNotes)) metaLead.callNotes = [];
-        metaLead.callNotes.push({
-          note: `📞 Call initiated by ${req.user.name}`,
-          outcome: 'call',
-          user: req.user._id,
-          userName: req.user.name,
-          date: new Date()
-        });
-        await metaLead.save();
-        return res.json({
-          success: true,
-          message: `✅ Call initiated for ${caller.name}`,
-          callerName: caller.name,
-          leadName: metaLead.fullName || 'Meta Lead',
-          leadPhone: phone,
-        });
+      if (!lead) {
+        const MetaLead = require('../../../database/models/MetaLead');
+        metaLead = await MetaLead.findById(req.params.id).populate('assignedTo', 'name email');
       }
     }
 
-    if (!lead) return res.status(404).json({ message: 'Lead not found' });
+    if (!lead && !metaLead) {
+      return res.status(404).json({ message: 'Lead not found' });
+    }
 
-    let caller;
-    if (req.user.role === 'employee' || req.user.role === 'caller') {
-      caller = await User.findById(req.user._id).select('name email');
-    } else {
-      if (req.body.callerId && req.body.callerId !== lead.assignedTo?._id?.toString()) {
-        caller = await User.findById(req.body.callerId).select('name email');
+    const targetDoc = lead || metaLead;
+    const isMeta = !lead && Boolean(metaLead);
+
+    let caller = null;
+    if (req.body.callerId && mongoose.Types.ObjectId.isValid(req.body.callerId)) {
+      caller = await User.findById(req.body.callerId).select('name email');
+    }
+    if (!caller) {
+      if (req.user.role === 'employee' || req.user.role === 'caller') {
+        caller = req.user;
+      } else if (targetDoc.assignedTo && targetDoc.assignedTo._id) {
+        caller = targetDoc.assignedTo;
       } else {
-        caller = lead.assignedTo;
+        caller = req.user;
       }
     }
 
-    if (!caller) return res.status(400).json({ message: 'No caller assigned. Please assign a caller first.' });
+    const rawPhone = isMeta
+      ? (metaLead.phone || metaLead.normalizedPhone || metaLead.rawData?.phone || metaLead.rawData?.['Phone Number'] || metaLead.rawData?.['Phone'] || req.body.phone || '')
+      : (lead.phone || req.body.phone || '');
+    const cleanPhone = String(rawPhone).replace(/^p:/i, '').trim();
+    const resolvedLeadName = isMeta
+      ? (metaLead.fullName || metaLead.rawData?.full_name || metaLead.rawData?.['Full Name'] || req.body.leadName || 'Meta Lead')
+      : (lead.name || req.body.leadName || 'Lead');
 
-    lead.activities.unshift({
-      type: 'note',
-      description: `📞 Call initiated by ${req.user.name} for ${caller.name}`,
-      performedBy: req.user._id,
-    });
-    await lead.save();
-    notifyCallInitiated({ lead, callerId: caller._id, performedByUser: req.user }).catch(() => {});
+    if (isMeta) {
+      if (!Array.isArray(metaLead.callNotes)) metaLead.callNotes = [];
+      metaLead.callNotes.push({
+        note: `📞 Call initiated by ${req.user.name} for ${caller.name}`,
+        outcome: 'call',
+        user: req.user._id,
+        userName: req.user.name,
+        date: new Date(),
+      });
+      metaLead.totalCalls = (metaLead.totalCalls || 0) + 1;
+      metaLead.lastCalledAt = new Date();
+      await metaLead.save();
+    } else {
+      lead.activities.unshift({
+        type: 'note',
+        description: `📞 Call initiated by ${req.user.name} for ${caller.name}`,
+        performedBy: req.user._id,
+      });
+      lead.totalCalls = (lead.totalCalls || 0) + 1;
+      lead.lastCalledAt = new Date();
+      await lead.save();
+    }
 
-    res.json({
-      success: true,
-      message: `✅ Call initiated for ${caller.name}`,
+    const explicitOtherCaller =
+      req.body.callerId &&
+      String(req.body.callerId) !== String(req.user._id);
+
+    const targetUserIds = explicitOtherCaller
+      ? [String(caller._id)]
+      : Array.from(new Set([String(caller._id), String(req.user._id)]));
+
+    const callId = `call_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const callEventPayload = {
+      callId,
+      leadId: String(targetDoc._id),
+      leadName: resolvedLeadName,
+      leadPhone: cleanPhone,
+      isMetaLead: isMeta,
+      callerId: String(caller._id),
       callerName: caller.name,
-      leadName: lead.name,
-      leadPhone: lead.phone,
+      triggeredById: String(req.user._id),
+      triggeredByName: req.user.name,
+      targetUserIds,
+      timestamp: Date.now(),
+    };
+
+    for (const uid of targetUserIds) {
+      pendingCallMap.set(uid, callEventPayload);
+    }
+
+    // 1. Real-time WebSocket broadcast for 100% Zero-Touch Auto-Dial when Mobile App is open
+    broadcastWebSocketEvent('call:initiate', callEventPayload);
+
+    // 2. FCM Push Notification for background/system notification alert
+    for (const uid of targetUserIds) {
+      notifyCallInitiated({
+        lead: {
+          _id: targetDoc._id,
+          name: resolvedLeadName,
+          phone: cleanPhone,
+          callId,
+          isMetaLead: isMeta,
+        },
+        callerId: uid,
+        performedByUser: req.user,
+      }).catch(() => {});
+    }
+
+    return res.json({
+      success: true,
+      message: `✅ Auto-call signal sent to mobile (${caller.name}) — Dialing ${cleanPhone}`,
+      callerName: caller.name,
+      leadName: resolvedLeadName,
+      leadPhone: cleanPhone,
+      callId,
     });
   } catch (err) {
     res.status(500).json({ message: err.message });

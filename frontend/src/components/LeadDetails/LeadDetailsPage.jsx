@@ -433,29 +433,43 @@ function AddNoteModal({ lead, onClose, onSubmit }) {
   );
 }
 
-// ── Initiate Call Modal ("Create Todo Item" Style) ───────────────────────────
+// ── Initiate Call Modal ("Create Todo Item" Style — Auto-Triggers on Click) ──
 function InitiateCallModal({ lead, callers, currentUser, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+  const autoTriggeredRef = useRef(false);
 
   const isCaller = currentUser?.role === 'employee' || currentUser?.role === 'caller';
   const [selectedCaller, setSelectedCaller] = useState(
     isCaller ? currentUser?._id : (lead?.assignedTo?._id || '')
   );
 
-  const handleSend = async () => {
+  const handleSend = async (overrideCallerId) => {
+    if (!lead?._id) return;
     setLoading(true);
     setResult(null);
     try {
-      const res = await leadsAPI.initiateCall(lead._id, selectedCaller || undefined);
+      const targetCaller = overrideCallerId !== undefined ? overrideCallerId : (selectedCaller || undefined);
+      const res = await leadsAPI.initiateCall(lead._id, targetCaller);
       setResult({ success: true, message: res.data.message });
       if (onSuccess) onSuccess();
     } catch (err) {
-      setResult({ success: false, message: err.response?.data?.message || 'Failed to send notification' });
+      setResult({ success: false, message: err.response?.data?.message || 'Failed to send call signal to mobile' });
     } finally {
       setLoading(false);
     }
   };
+
+  // Automatically trigger the mobile call as soon as CALL NOW is clicked!
+  useEffect(() => {
+    if (!autoTriggeredRef.current && lead?._id) {
+      autoTriggeredRef.current = true;
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission().catch(() => {});
+      }
+      handleSend();
+    }
+  }, [lead?._id]);
 
   const callersList = callers.filter(c => c.role === 'employee' || c.role === 'caller');
 
@@ -599,25 +613,23 @@ function InitiateCallModal({ lead, callers, currentUser, onClose, onSuccess }) {
           >
             {result?.success ? 'Close' : 'Cancel'}
           </button>
-          {!result?.success && (
-            <button
-              type="button"
-              onClick={handleSend}
-              disabled={loading}
-              style={{
-                padding: '9px 20px',
-                fontSize: 13.5,
-                fontWeight: 500,
-                borderRadius: 8,
-                border: 'none',
-                background: loading ? '#f8c284' : TODO_ORANGE,
-                color: '#fff',
-                cursor: loading ? 'not-allowed' : 'pointer'
-              }}
-            >
-              {loading ? 'Sending...' : 'Send Call Notification'}
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => handleSend()}
+            disabled={loading}
+            style={{
+              padding: '9px 20px',
+              fontSize: 13.5,
+              fontWeight: 500,
+              borderRadius: 8,
+              border: 'none',
+              background: loading ? '#f8c284' : TODO_ORANGE,
+              color: '#fff',
+              cursor: loading ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {loading ? 'Calling Mobile...' : result?.success ? '📞 Dial Again on Mobile' : 'Send Call Notification'}
+          </button>
         </div>
       </motion.div>
     </div>
@@ -3046,7 +3058,7 @@ export default function LeadDetailsPage({
         {showDemoModal && lead && <ScheduleDemoModal lead={lead} onClose={() => setShowDemoModal(false)} onSave={handleScheduleDemo} />}
         {showInitiateCallModal && (
           <InitiateCallModal
-            lead={{ ...lead, name: leadName !== '—' ? leadName : lead?.name, phone: leadPhone !== '—' ? leadPhone : lead?.phone }}
+            lead={{ ...lead, _id: lead?._id || metaLeadId || id, name: leadName !== '—' ? leadName : lead?.name, phone: leadPhone !== '—' ? leadPhone : lead?.phone }}
             callers={callers}
             currentUser={user}
             onClose={() => setShowInitiateCallModal(false)}

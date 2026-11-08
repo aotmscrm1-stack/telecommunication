@@ -1,19 +1,43 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
-import { Platform } from 'react-native';
+import { Platform, PermissionsAndroid } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import client from '../api/client';
 
 const FCM_TOKEN_STORAGE_KEY = 'aotms_fcm_token';
 
-// Configure foreground presentation behavior
+// Configure foreground presentation behavior (Allow Banner, Alert, Sound, Badge)
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
   }),
 });
+
+/**
+ * Request Android runtime permissions for Notifications (Android 13+) and Direct Phone Calling
+ */
+export async function requestCallAndNotificationPermissionsAsync() {
+  if (Platform.OS === 'android') {
+    try {
+      const permsToRequest = [];
+      if (PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS) {
+        permsToRequest.push(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
+      }
+      if (PermissionsAndroid.PERMISSIONS.CALL_PHONE) {
+        permsToRequest.push(PermissionsAndroid.PERMISSIONS.CALL_PHONE);
+      }
+      if (permsToRequest.length > 0) {
+        await PermissionsAndroid.requestMultiple(permsToRequest);
+      }
+    } catch (err) {
+      console.warn('[NotificationService] Android runtime permission notice:', err.message);
+    }
+  }
+}
 
 /**
  * Configure Android notification channels with high priority heads-up sound & vibration
@@ -30,9 +54,47 @@ export async function setupNotificationChannels() {
         enableVibrate: true,
         showBadge: true,
       });
+
+      await Notifications.setNotificationChannelAsync('crm_calls', {
+        name: 'CRM Auto-Call Alerts',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 400, 200, 400],
+        lightColor: '#10B981',
+        sound: 'default',
+        enableVibrate: true,
+        showBadge: true,
+      });
     } catch (err) {
       console.warn('[NotificationService] Channel setup notice:', err.message);
     }
+  }
+}
+
+/**
+ * Show an instant local notification banner when a Website -> Mobile auto-call is triggered
+ */
+export async function triggerLocalCallNotification({ leadName, leadPhone, leadId, callId, isMetaLead }) {
+  try {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: `📞 Auto-Calling ${leadName || 'Lead'}`,
+        body: `Dialing ${leadPhone || ''} automatically from Website CRM`,
+        sound: 'default',
+        data: {
+          type: 'call_initiated',
+          leadId: String(leadId || ''),
+          leadName: String(leadName || 'Lead'),
+          leadPhone: String(leadPhone || ''),
+          isMetaLead: String(Boolean(isMetaLead)),
+          autoDial: 'true',
+          callId: String(callId || Date.now()),
+          localGenerated: 'true',
+        },
+      },
+      trigger: null,
+    });
+  } catch (err) {
+    // ignore local notification errors
   }
 }
 
@@ -41,6 +103,7 @@ export async function setupNotificationChannels() {
  */
 export async function registerForPushNotificationsAsync() {
   await setupNotificationChannels();
+  await requestCallAndNotificationPermissionsAsync();
 
   if (!Device.isDevice) {
     console.log('[NotificationService] Push notifications require a physical device.');

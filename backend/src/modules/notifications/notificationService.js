@@ -121,11 +121,19 @@ async function notifyCallInitiated({ lead, callerId, performedByUser }) {
   return createNotification({
     recipient: callerId,
     type: 'call_initiated',
-    title: '📞 Call Initiated',
-    message: `${performedByUser?.name || 'Admin'} sent a call request for "${lead.name}" (${lead.phone})`,
+    title: '📞 Auto-Dialing Lead Now',
+    message: `Calling "${lead.name}" (${lead.phone}) — triggered by ${performedByUser?.name || 'CRM Web'}`,
     lead: lead._id,
     performedBy: performedByUser?._id,
-    data: { leadName: lead.name, leadPhone: lead.phone },
+    data: {
+      type: 'call_initiated',
+      leadId: String(lead._id || ''),
+      leadName: String(lead.name || 'Lead'),
+      leadPhone: String(lead.phone || ''),
+      isMetaLead: String(Boolean(lead.isMetaLead)),
+      autoDial: 'true',
+      callId: String(lead.callId || Date.now()),
+    },
   });
 }
 
