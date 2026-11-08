@@ -154,8 +154,10 @@ router.get('/', protect, async (req, res) => {
       query.$and.push({ $or: [{ lead: leadId }, { metaLeadId: leadId }] });
     }
 
-    // Role-based visibility scoping
-    if (queryUserId) {
+    // Strict per-creator visibility when polling own due callbacks (forMe=true & call_followup)
+    if (forMe && type === 'call_followup') {
+      query.createdBy = req.user._id;
+    } else if (queryUserId) {
       const targetId = queryUserId === 'me' ? req.user._id : queryUserId;
       if (!isValidId(targetId)) {
         query.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { createdBy: req.user._id }];
@@ -592,7 +594,9 @@ router.post('/', protect, async (req, res) => {
       } catch (_) {}
     }
 
-    fireAndForget(() => notifyAdminsTaskCreated({ followup, performedByUser: req.user }));
+    if (itemType !== 'call_followup') {
+      fireAndForget(() => notifyAdminsTaskCreated({ followup, performedByUser: req.user }));
+    }
 
     return res.status(201).json({ followup, callbackToastPayload });
   } catch (err) {

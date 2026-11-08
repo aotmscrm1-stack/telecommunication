@@ -439,9 +439,9 @@ function InitiateCallModal({ lead, callers, currentUser, onClose, onSuccess }) {
   const [result, setResult] = useState(null);
   const autoTriggeredRef = useRef(false);
 
-  const isCaller = currentUser?.role === 'employee' || currentUser?.role === 'caller';
+  const isStrictAdmin = currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
   const [selectedCaller, setSelectedCaller] = useState(
-    isCaller ? currentUser?._id : (lead?.assignedTo?._id || '')
+    isStrictAdmin ? (lead?.assignedTo?._id || '') : (currentUser?._id || '')
   );
 
   const handleSend = async (overrideCallerId) => {
@@ -543,7 +543,7 @@ function InitiateCallModal({ lead, callers, currentUser, onClose, onSuccess }) {
             )}
           </div>
 
-          {isCaller ? (
+          {!isStrictAdmin ? (
             <div style={{ background: '#f8fbfd', border: `1px solid ${TODO_INPUT_BORDER}`, borderRadius: 8, padding: '10px 12px' }}>
               <div style={{ fontSize: 13, fontWeight: 500, color: TODO_DEEP_BLUE }}>
                 📱 Sending to your mobile: <strong>{currentUser?.name}</strong>

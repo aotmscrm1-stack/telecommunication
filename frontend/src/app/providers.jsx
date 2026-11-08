@@ -90,7 +90,7 @@ export function AppProviders({ children }) {
         <CallbackToastRedirectHandler />
         <GlobalLeadNoteModal />
         {children}
-        <Toaster position="top-right" richColors closeButton visibleToasts={1} />
+        <Toaster position="bottom-right" richColors closeButton visibleToasts={1} />
       </BrowserRouter>
     </AuthProvider>
   );

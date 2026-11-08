@@ -181,56 +181,44 @@ export function isAdminOrManager(user) {
 }
 
 /**
- * Determines whether the current user is allowed to view the counsellor note reminder popup:
- * 1. Admin and Manager can see ALL notification popups.
- * 2. The Counsellor who added this summary / who needs to add the note can see it.
- * 3. Remaining employees (other counsellors, developers, trainers, executives) MUST NOT see it.
+ * Strictly only the account that created/triggered the note reminder can see the popup
+ * (Even for Admin: only visible if Admin created it)
  */
 export function canUserSeeNoteReminder(entry, currentUser = null) {
   if (!entry) return false;
   const user = currentUser || getCurrentStoredUser();
   if (!user) return false;
 
-  // 1. Admin and Manager can see ALL positive summary pop ups (with lead, campaign, and counsellor details)
-  if (isAdminOrManager(user)) return true;
-
-  // 2. Specific Counsellor whose account recorded this summary, OR who is assigned to this lead
   const uid = String(user._id || user.id || '').trim();
   const uname = String(user.name || user.displayName || user.fullName || '').trim().toLowerCase();
   const uemail = String(user.email || '').trim().toLowerCase();
 
-  const cId = String(entry.counsellorId || entry.createdById || entry.userId || '').trim();
-  const cName = String(entry.counsellorName || entry.createdBy || '').trim().toLowerCase();
+  const cId = String(entry.createdById || entry.counsellorId || entry.userId || '').trim();
+  const cName = String(entry.createdBy || entry.counsellorName || '').trim().toLowerCase();
   const cEmail = String(entry.counsellorEmail || '').trim().toLowerCase();
 
-  const aId = String(entry.assignedToId || '').trim();
-  const aName = String(entry.assignedToName || '').trim().toLowerCase();
+  if (uid && cId) return uid === cId;
+  if (uemail && cEmail) return uemail === cEmail;
+  if (uname && cName && !cId) return uname === cName;
 
-  // Match by counsellor ID or assigned counsellor ID
-  if (uid && cId && uid === cId) return true;
-  if (uid && aId && uid === aId) return true;
-  // Match by email
-  if (uemail && cEmail && uemail === cEmail) return true;
-  // Match by counsellor name or assigned counsellor name
-  if (uname && cName && (uname === cName || cName.includes(uname) || uname.includes(cName))) return true;
-  if (uname && aName && (uname === aName || aName.includes(uname) || uname.includes(aName))) return true;
-
-  // 3. Other employees who did not record and are not assigned do NOT see it
   return false;
 }
 
+/**
+ * Strictly only the account that requested/created the Call Back Later can see the popup
+ * (Even for Admin: only visible if Admin created it)
+ */
 export function canUserSeeCallbackToast(payload, currentUser = null) {
+  if (!payload) return false;
   const user = currentUser || getCurrentStoredUser();
   if (!user) return false;
-  if (isAdminOrManager(user)) return true;
 
-  const uid = String(user._id || user.id || '');
+  const uid = String(user._id || user.id || '').trim();
   if (!uid) return false;
 
-  if (payload?.filledById && String(payload.filledById) === uid) return true;
-  if (payload?.assignedToId && String(payload.assignedToId) === uid) return true;
-  if (Array.isArray(payload?.campaignAssignedUserIds)) {
-    if (payload.campaignAssignedUserIds.map(String).includes(uid)) return true;
+  const creatorId = String(payload.filledById || payload.createdById || '').trim();
+  if (creatorId) {
+    return creatorId === uid;
   }
   return false;
 }
@@ -366,7 +354,8 @@ class LeadNoteReminderService {
   }
 
   /**
-   * Triggers a "Call Back Later" Toast Message (Visible ONLY to Admin, Manager & Assigned Employees)
+   * Triggers a "Call Back Later" Small Down-Corner Toast Message
+   * Visible ONLY to the exact account that created/requested the Call Back Later (even for Admin)
    */
   triggerCallbackToast(payload, { isImmediate = true, isDueAlert = false } = {}) {
     if (!payload) return;
@@ -390,7 +379,6 @@ class LeadNoteReminderService {
     }
 
     const personName = payload.leadName || 'Lead';
-    const filledByName = payload.filledByName || 'Agent';
     const schedStr = payload.scheduledAt
       ? new Date(payload.scheduledAt).toLocaleString('en-IN', {
           day: '2-digit',
@@ -400,27 +388,86 @@ class LeadNoteReminderService {
         })
       : '';
 
-    const title = isDueAlert
-      ? `⏰ Call Back Later Due Now — ${personName}`
-      : `⏰ Call Back Later Scheduled — ${personName}`;
+    const toastId = `callback-toast-${dedupeKey}`;
+    const handleClose = () => toast.dismiss(toastId);
 
-    const description = `👤 Person Name: ${personName}${payload.leadPhone && payload.leadPhone !== '—' ? ` (${payload.leadPhone})` : ''}  •  ✍️ Form Fill By: ${filledByName}${schedStr ? `  •  🕒 ${schedStr}` : ''}`;
-
-    toast.info(title, {
-      id: `callback-toast-${dedupeKey}`,
-      description,
-      duration: 18000,
-      action: {
-        label: 'GO',
-        onClick: () => {
-          window.dispatchEvent(
-            new CustomEvent('redirect-to-callback-lead', {
-              detail: payload,
-            })
-          );
-        },
-      },
-    });
+    toast.custom(
+      () =>
+        React.createElement(
+          'div',
+          {
+            className:
+              'w-[265px] max-w-[88vw] bg-white border border-sky-200 rounded-xl shadow-lg p-3 text-slate-800 flex flex-col gap-2 select-none',
+          },
+          React.createElement(
+            'div',
+            { className: 'flex items-center justify-between gap-2' },
+            React.createElement(
+              'span',
+              { className: 'text-[11px] font-bold text-sky-700 flex items-center gap-1' },
+              React.createElement('span', null, '⏰'),
+              React.createElement('span', null, isDueAlert ? 'Call Back Due Now' : 'Call Back Later')
+            ),
+            React.createElement(
+              'button',
+              {
+                onClick: handleClose,
+                className: 'text-slate-400 hover:text-slate-700 text-xs cursor-pointer leading-none',
+                title: 'Close',
+              },
+              '✕'
+            )
+          ),
+          React.createElement(
+            'div',
+            { className: 'flex items-center justify-between gap-2' },
+            React.createElement(
+              'div',
+              { className: 'min-w-0 flex-1' },
+              React.createElement(
+                'div',
+                { className: 'text-xs font-bold text-slate-900 truncate', title: personName },
+                `👤 ${personName}`
+              ),
+              schedStr
+                ? React.createElement(
+                    'div',
+                    { className: 'text-[10.5px] text-slate-500 truncate mt-0.5' },
+                    `🕒 ${schedStr}`
+                  )
+                : null
+            ),
+            React.createElement(
+              'button',
+              {
+                onClick: () => {
+                  handleClose();
+                  const targetLeadId = payload.metaLeadId || payload.leadId;
+                  window.dispatchEvent(
+                    new CustomEvent('redirect-to-lead-note', {
+                      detail: {
+                        leadId: targetLeadId,
+                        campaign: payload.campaign || '',
+                        isMeta: Boolean(payload.metaLeadId || payload.campaign),
+                      },
+                    })
+                  );
+                },
+                className:
+                  'px-2.5 py-1 rounded-lg text-[11px] font-bold text-white bg-orange-500 hover:bg-orange-600 transition-colors cursor-pointer shrink-0',
+              },
+              '✏️ Add Note'
+            )
+          )
+        ),
+      {
+        id: toastId,
+        position: 'bottom-right',
+        duration: 15000,
+        unstyled: true,
+        className: '!p-0 !bg-transparent !border-0 !shadow-none !m-0 !w-auto',
+      }
+    );
   }
 
   checkAndTriggerDueCallbacks() {
@@ -433,7 +480,11 @@ class LeadNoteReminderService {
 
     for (const key of keys) {
       const item = callbacks[key];
-      if (!item || item.dueNotified) continue;
+      if (!item || item.dueNotified || !canUserSeeCallbackToast(item)) {
+        delete callbacks[key];
+        changed = true;
+        continue;
+      }
       const schedTime = new Date(item.scheduledAt).getTime();
       if (isNaN(schedTime)) {
         delete callbacks[key];
@@ -535,25 +586,22 @@ class LeadNoteReminderService {
     const now = Date.now();
     const currentUser = getCurrentStoredUser();
 
-    const isCurrentAdmin = isAdminOrManager(currentUser);
     const finalCounsellorName =
       counsellorName ||
-      assignedToName ||
-      (!isCurrentAdmin ? (currentUser?.name || currentUser?.displayName || currentUser?.fullName) : null) ||
+      createdBy ||
+      (!isRemoteBroadcast ? (currentUser?.name || currentUser?.displayName || currentUser?.fullName) : null) ||
       existing?.counsellorName ||
-      existing?.assignedToName ||
       'Counselor';
 
     const finalCounsellorId =
+      createdById ||
       counsellorId ||
-      assignedToId ||
-      (!isCurrentAdmin ? (currentUser?._id || currentUser?.id) : null) ||
-      existing?.counsellorId ||
-      existing?.assignedToId;
+      (!isRemoteBroadcast ? (currentUser?._id || currentUser?.id) : null) ||
+      existing?.counsellorId;
 
     const finalCounsellorEmail =
       counsellorEmail ||
-      (!isCurrentAdmin ? currentUser?.email : null) ||
+      (!isRemoteBroadcast ? currentUser?.email : null) ||
       existing?.counsellorEmail;
 
     reminders[strId] = {
@@ -630,235 +678,101 @@ class LeadNoteReminderService {
   }
 
   /**
-   * Displays the styled custom Sonner toast notification.
-   * Displays for 30 SECONDS so user has plenty of time to read and act.
-   * Strictly ONE notification at a time with NO card stacking behind it.
+   * Displays a small, simple bottom-right toast container.
+   * Clicking "Add Note" redirects directly to the Lead.
    */
   showToast(entry) {
     if (!entry || !entry.id) return;
     if (!canUserSeeNoteReminder(entry)) return;
 
-    // Clear any active toasts first to guarantee NO double box or stacked cards behind
     toast.dismiss();
-
     this.activeToastId = entry.id;
 
     const leadName = entry.name || 'Student';
-    let counsellorName = entry.counsellorName || entry.createdBy;
-    if (!counsellorName || counsellorName === 'Staff' || counsellorName === 'Caller / Staff' || counsellorName === 'Agent') {
-      const curUser = getCurrentStoredUser();
-      counsellorName = curUser?.name || curUser?.displayName || curUser?.fullName || 'Counselor';
-    }
-    const summaryStatus = entry.status || 'Positive';
-    const campaignName = entry.campaign || entry.campaignName || '';
+    const summaryStatus = entry.status || 'Call Back Later';
 
     const handleClose = () => {
       toast.dismiss(`note-reminder-${entry.id}`);
       this.onToastClosed(entry.id);
     };
 
-    // Auto-advance to next queued notification after 30 seconds
     if (this.activeToastTimer) clearTimeout(this.activeToastTimer);
     this.activeToastTimer = setTimeout(() => {
       this.onToastClosed(entry.id);
     }, TOAST_DURATION_MS + 200);
 
     toast.custom(
-      (t) =>
+      () =>
         React.createElement(
           'div',
           {
             'data-custom-note-card': 'true',
             className:
-              'note-reminder-card relative overflow-hidden w-[370px] max-w-[94vw] bg-white border border-amber-200/90 rounded-2xl shadow-2xl p-4 text-slate-800 flex flex-col gap-2.5 transition-all select-none',
-            style: {
-              boxShadow: '0 20px 35px -8px rgba(0, 0, 0, 0.18), 0 8px 12px -4px rgba(0, 0, 0, 0.08)',
-            },
+              'note-reminder-card relative overflow-hidden w-[265px] max-w-[88vw] bg-white border border-amber-200 rounded-xl shadow-lg p-3 text-slate-800 flex flex-col gap-2 transition-all select-none',
           },
-          // Header: Icon + Title + Close Button
           React.createElement(
             'div',
-            { className: 'flex items-start justify-between gap-2.5 pb-2 border-b border-amber-100/70' },
+            { className: 'flex items-center justify-between gap-2' },
             React.createElement(
-              'div',
-              { className: 'flex items-center gap-2.5' },
-              React.createElement(
-                'div',
-                {
-                  className:
-                    'w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center flex-shrink-0 text-base shadow-xs border border-amber-200/60',
-                },
-                '📝'
-              ),
-              React.createElement(
-                'div',
-                null,
-                React.createElement(
-                  'h4',
-                  { className: 'text-xs font-black uppercase tracking-wider text-amber-800 leading-tight' },
-                  'Counsellor Note Required'
-                ),
-                React.createElement(
-                  'p',
-                  { className: 'text-[10px] text-slate-400 font-medium' },
-                  'Positive Call Summary Follow-up'
-                )
-              )
+              'span',
+              { className: 'text-[11px] font-bold text-amber-700 flex items-center gap-1' },
+              React.createElement('span', null, '📝'),
+              React.createElement('span', null, 'Call Back / Note Reminder')
             ),
             React.createElement(
               'button',
               {
                 onClick: handleClose,
-                className:
-                  'w-6 h-6 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors text-xs cursor-pointer',
+                className: 'text-slate-400 hover:text-slate-700 text-xs cursor-pointer leading-none',
                 title: 'Close',
               },
               '✕'
             )
           ),
-          // Body Rows: Lead Name + Counsellor Name + Summary Status
           React.createElement(
             'div',
-            { className: 'flex flex-col gap-2 pt-1' },
-            // Lead Name Row
+            { className: 'flex items-center justify-between gap-2' },
             React.createElement(
               'div',
-              { className: 'flex items-center justify-between text-xs' },
+              { className: 'min-w-0 flex-1' },
               React.createElement(
-                'span',
-                { className: 'text-slate-500 font-medium flex items-center gap-1.5' },
-                React.createElement('span', null, '👤'),
-                React.createElement('span', null, 'Lead Name:')
+                'div',
+                { className: 'text-xs font-bold text-slate-900 truncate', title: leadName },
+                `👤 ${leadName}`
               ),
               React.createElement(
-                'span',
-                {
-                  className:
-                    'font-bold text-slate-900 bg-slate-100 px-2.5 py-0.5 rounded-md border border-slate-200 max-w-[210px] truncate',
-                  title: leadName,
-                },
-                leadName
+                'div',
+                { className: 'text-[10.5px] text-slate-500 truncate mt-0.5', title: summaryStatus },
+                `📞 ${summaryStatus}`
               )
             ),
-            // Counsellor Name Row
-            React.createElement(
-              'div',
-              { className: 'flex items-center justify-between text-xs' },
-              React.createElement(
-                'span',
-                { className: 'text-slate-500 font-medium flex items-center gap-1.5' },
-                React.createElement('span', null, '✍️'),
-                React.createElement('span', null, 'Counsellor:')
-              ),
-              React.createElement(
-                'span',
-                {
-                  className:
-                    'font-bold text-amber-900 bg-amber-50 px-2.5 py-0.5 rounded-md border border-amber-200/70 max-w-[210px] truncate',
-                  title: counsellorName,
-                },
-                counsellorName
-              )
-            ),
-            // Campaign Name Row
-            campaignName
-              ? React.createElement(
-                  'div',
-                  { className: 'flex items-center justify-between text-xs' },
-                  React.createElement(
-                    'span',
-                    { className: 'text-slate-500 font-medium flex items-center gap-1.5' },
-                    React.createElement('span', null, '📢'),
-                    React.createElement('span', null, 'Campaign:')
-                  ),
-                  React.createElement(
-                    'span',
-                    {
-                      className:
-                        'font-bold text-indigo-900 bg-indigo-50 px-2.5 py-0.5 rounded-md border border-indigo-200/70 max-w-[210px] truncate',
-                      title: campaignName,
-                    },
-                    campaignName
-                  )
-                )
-              : null,
-            // Call Summary Status Row
-            React.createElement(
-              'div',
-              { className: 'flex items-center justify-between text-xs' },
-              React.createElement(
-                'span',
-                { className: 'text-slate-500 font-medium flex items-center gap-1.5' },
-                React.createElement('span', null, '📞'),
-                React.createElement('span', null, 'Call Summary:')
-              ),
-              React.createElement(
-                'span',
-                {
-                  className:
-                    'font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200 max-w-[210px] truncate',
-                  title: summaryStatus,
-                },
-                summaryStatus
-              )
-            ),
-            React.createElement(
-              'p',
-              { className: 'text-[11px] text-slate-500 italic mt-0.5' },
-              `Call summary is "${summaryStatus}". Please record the counsellor note for this student.`
-            )
-          ),
-          // Action Row: "Add Note" Button
-          React.createElement(
-            'div',
-            { className: 'flex items-center justify-end gap-2 pt-1' },
             React.createElement(
               'button',
               {
                 onClick: () => {
                   handleClose();
-                  // Open Global Add Note Modal directly on screen with full facility to add note
                   window.dispatchEvent(
-                    new CustomEvent('open-global-lead-note-modal', {
+                    new CustomEvent('redirect-to-lead-note', {
                       detail: {
                         leadId: entry.id,
                         leadName: leadName,
-                        counsellorName: counsellorName,
                         status: summaryStatus,
                         campaign: entry.campaign,
                         isMeta: entry.isMeta,
                       },
                     })
                   );
-                  window.dispatchEvent(
-                    new CustomEvent('open-lead-note-modal', {
-                      detail: { leadId: entry.id, leadName: leadName, status: summaryStatus, openNote: true },
-                    })
-                  );
                 },
                 className:
-                  'inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-black active:scale-95 transition-all shadow-md cursor-pointer',
+                  'px-2.5 py-1 rounded-lg text-[11px] font-bold text-white bg-orange-500 hover:bg-orange-600 transition-colors cursor-pointer shrink-0',
               },
               '✏️ Add Note'
             )
-          ),
-          // Bottom 60-second Progress Bar Timeline
-          React.createElement(
-            'div',
-            {
-              className: 'absolute bottom-0 left-0 right-0 h-1 bg-amber-100/70 overflow-hidden',
-            },
-            React.createElement('div', {
-              className: 'h-full bg-amber-500 rounded-full animate-toast-progress-60s',
-              style: {
-                width: '100%',
-                animation: 'toastProgress60s 60000ms linear forwards',
-              },
-            })
           )
         ),
       {
         id: `note-reminder-${entry.id}`,
+        position: 'bottom-right',
         duration: TOAST_DURATION_MS,
         unstyled: true,
         className: '!p-0 !bg-transparent !border-0 !shadow-none !m-0 !w-auto note-reminder-sonner-toast',

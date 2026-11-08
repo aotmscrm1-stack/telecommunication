@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { followupsAPI, notificationsAPI } from '../../../services/api';
+import leadNoteReminderService from '../../../services/leadNoteReminderService';
 import logoImg from '../../../assets/aotms-global-logo.png';
 import useBreakpoint from '../../../hooks/useBreakpoint';
 import {
@@ -280,17 +281,37 @@ export default function Navbar() {
       const res = await followupsAPI.getAll({ type: 'call_followup', status: 'upcoming', forMe: 'true' });
       const all = res.data.followups || [];
       const now = new Date();
+      const uid = String(user._id || user.id || '');
       const due = all.filter(f => {
+        const creatorId = String(f.createdBy?._id || f.createdBy || '');
+        if (creatorId && uid && creatorId !== uid) return false;
         const t = new Date(f.scheduledAt);
         return t <= now && !alertedIds.current.has(f._id);
       });
       if (due.length > 0) {
-        due.forEach(f => alertedIds.current.add(f._id));
+        due.forEach(f => {
+          alertedIds.current.add(f._id);
+          leadNoteReminderService.triggerCallbackToast(
+            {
+              followupId: String(f._id),
+              leadId: String(f.lead?._id || f.lead || f.metaLeadId || ''),
+              metaLeadId: f.metaLeadId ? String(f.metaLeadId) : '',
+              leadName: f.leadName || f.lead?.name || 'Lead',
+              leadPhone: f.leadPhone || f.lead?.phone || '',
+              campaign: f.campaign || '',
+              filledById: uid,
+              filledByName: user.name || 'Agent',
+              scheduledAt: f.scheduledAt,
+              note: f.note || '',
+            },
+            { isImmediate: false, isDueAlert: true }
+          );
+        });
         const newNotifs = due.map(f => ({
           id: 'cb_' + f._id, type: 'callback_due',
           title: '📞 Callback Due Now!',
-          message: `Call ${f.lead?.name || 'lead'} (${f.lead?.phone || ''}) — scheduled callback`,
-          time: 'now', read: false, leadId: f.lead?._id,
+          message: `Call ${f.leadName || f.lead?.name || 'lead'} (${f.leadPhone || f.lead?.phone || ''}) — scheduled callback`,
+          time: 'now', read: false, leadId: f.lead?._id || f.metaLeadId,
           followupId: f._id, ephemeral: true,
         }));
         setNotifications(prev => [...newNotifs, ...prev.filter(n => !n.ephemeral || alertedIds.current.has(n.followupId))]);
