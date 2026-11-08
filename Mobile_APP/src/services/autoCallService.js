@@ -1,5 +1,6 @@
-import { Linking, AppState } from 'react-native';
+import { Linking, AppState, Platform, PermissionsAndroid } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import * as IntentLauncher from 'expo-intent-launcher';
 import client, { API_BASE_URL } from '../api/client';
 import { triggerLocalCallNotification } from './notificationService';
 
@@ -80,8 +81,26 @@ export async function executeZeroTouchCall(payload, options = {}) {
     } catch (e) {}
   }
 
-  // Immediately launch native phone dialer / call (Zero Touch)
+  // Immediately launch direct phone call on Android (ACTION_CALL) with fallback to tel: dialer
   try {
+    if (Platform.OS === 'android') {
+      try {
+        const hasCallPerm = await PermissionsAndroid.check(
+          PermissionsAndroid.PERMISSIONS.CALL_PHONE
+        );
+        if (!hasCallPerm) {
+          await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CALL_PHONE);
+        }
+        await IntentLauncher.startActivityAsync('android.intent.action.CALL', {
+          data: `tel:${dialNumber}`,
+        });
+        return true;
+      } catch (intentErr) {
+        // Fallback to standard tel: URL if direct CALL intent is blocked
+        await Linking.openURL(`tel:${dialNumber}`);
+        return true;
+      }
+    }
     await Linking.openURL(`tel:${dialNumber}`);
     return true;
   } catch (err) {

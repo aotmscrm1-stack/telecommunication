@@ -9,6 +9,10 @@ import {
   executeZeroTouchCall,
   formatDialablePhone,
 } from '../services/autoCallService';
+import {
+  startOtaUpdateListener,
+  applyOtaUpdateNow,
+} from '../services/otaUpdateService';
 
 // Screens
 import LoginScreen from '../screens/LoginScreen';
@@ -33,7 +37,16 @@ export default function AppNavigator() {
   const [authScreen, setAuthScreen] = useState('meta_calls');
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [autoCallBanner, setAutoCallBanner] = useState(null);
+  const [otaUpdateReady, setOtaUpdateReady] = useState(false);
   const bannerTimerRef = useRef(null);
+
+  // ── AUTOMATIC OTA UPDATE CHECKER (NO RE-INSTALL NEEDED) ──
+  useEffect(() => {
+    const stopOta = startOtaUpdateListener({
+      onUpdateReady: () => setOtaUpdateReady(true),
+    });
+    return () => stopOta();
+  }, []);
 
   const handleAutoCallTriggered = useCallback((callData) => {
     if (!callData) return;
@@ -203,6 +216,36 @@ export default function AppNavigator() {
 
   return (
     <View style={styles.container}>
+      {otaUpdateReady ? (
+        <View style={[styles.autoCallBanner, { borderColor: '#3B82F6' }]}>
+          <View style={[styles.autoCallIconWrap, { backgroundColor: '#2563EB' }]}>
+            <Ionicons name="cloud-download" size={18} color="#FFFFFF" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.autoCallTitle} numberOfLines={1}>
+              New App Update Available
+            </Text>
+            <Text style={styles.autoCallSub} numberOfLines={1}>
+              Tap Update to apply instantly without reinstalling
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.autoCallDialBtn, { backgroundColor: '#2563EB' }]}
+            onPress={() => {
+              setOtaUpdateReady(false);
+              applyOtaUpdateNow();
+            }}
+          >
+            <Text style={styles.autoCallDialBtnText}>Update</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setOtaUpdateReady(false)}
+            style={styles.autoCallCloseBtn}
+          >
+            <Ionicons name="close" size={18} color="#94A3B8" />
+          </TouchableOpacity>
+        </View>
+      ) : null}
       {autoCallBanner ? (
         <View style={styles.autoCallBanner}>
           <View style={styles.autoCallIconWrap}>

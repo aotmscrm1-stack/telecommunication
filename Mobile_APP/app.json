@@ -2,7 +2,14 @@
   "expo": {
     "name": "CRM",
     "slug": "aotms-crm",
-    "version": "1.0.4",
+    "version": "1.0.5",
+    "runtimeVersion": "1.0.5",
+    "updates": {
+      "url": "https://u.expo.dev/6efbff82-383c-417b-9baf-bac4c5c56a14",
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
     "orientation": "portrait",
     "icon": "./assets/Logo.png",
     "userInterfaceStyle": "light",
@@ -15,7 +22,7 @@
     },
     "android": {
       "package": "com.telecom.crm",
-      "versionCode": 5,
+      "versionCode": 6,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
