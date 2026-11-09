@@ -16,6 +16,7 @@ const { normalizePhone10 } = require('../../../core/utils/phone');
 const { protect } = require('../../../core/middleware/auth');
 const { aiLimiter } = require('../../../core/middleware/rateLimiter');
 const { deleteFromCloudinary, uploadAudioToCloudinary } = require('../../../core/utils/cloudinary');
+const { getRecordingsDir } = require('../../../core/utils/recordingsStorage');
 
 let transcribeAudioFile = null;
 try {
@@ -23,38 +24,13 @@ try {
 } catch (_) {}
 
 // ─── Storage setup ────────────────────────────────────────────────────────
-function getUploadDirectory() {
-  const defaultDir = path.join(__dirname, '..', '..', '..', 'uploads', 'recordings');
-  const preferred = process.env.RECORDINGS_DIR || (
-    process.env.NODE_ENV === 'production'
-      ? '/var/data/recordings'
-      : defaultDir
-  );
+// Resolution lives in core/utils/recordingsStorage so the retention sweeper, the
+// transcription service and this router can never disagree about the directory.
+// Deployments should set RECORDINGS_DIR (compose points it at the mounted volume);
+// without it the production default is a path that exists outside the volume and
+// recordings end up on the container's writable layer, lost on the next rebuild.
 
-  try {
-    if (!fs.existsSync(preferred)) {
-      fs.mkdirSync(preferred, { recursive: true });
-    }
-    fs.accessSync(preferred, fs.constants.W_OK);
-    return preferred;
-  } catch (_) {
-    const fallback = defaultDir;
-    try {
-      if (!fs.existsSync(fallback)) {
-        fs.mkdirSync(fallback, { recursive: true });
-      }
-      return fallback;
-    } catch (e) {
-      const tmpFallback = path.join('/tmp', 'recordings');
-      if (!fs.existsSync(tmpFallback)) {
-        fs.mkdirSync(tmpFallback, { recursive: true });
-      }
-      return tmpFallback;
-    }
-  }
-}
-
-const UPLOAD_DIR = getUploadDirectory();
+const UPLOAD_DIR = getRecordingsDir();
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
@@ -281,7 +257,7 @@ router.post('/', protect, upload.single('audio'), async (req, res) => {
         try { sttFn = require('../../../modules/communication/calls/transcriptionService').transcribeAudioFile; } catch (_) {}
       }
       if (sttFn && fs.existsSync(absolutePath)) {
-        sttFn(absolutePath)
+        sttFn(absolutePath, undefined, { remoteUrl: cloudinaryData.secure_url })
           .then(async (transcriptText) => {
             await CallRecording.findByIdAndUpdate(doc._id, {
               transcript: transcriptText,
@@ -1286,7 +1262,9 @@ router.post('/:id/transcribe', protect, aiLimiter, async (req, res) => {
 
     try {
       const absolutePath = path.join(UPLOAD_DIR, rec.storedName);
-      const transcript = await sttFn(absolutePath, req.body.apiKey);
+      // The local cache may already have been swept; Cloudinary is the fallback
+      // source the transcription service downloads from in that case.
+      const transcript = await sttFn(absolutePath, req.body.apiKey, { remoteUrl: rec.cloudinaryUrl || rec.url });
       rec.transcript = transcript;
       rec.transcriptStatus = 'done';
       rec.transcriptError = '';
@@ -1565,13 +1543,25 @@ function absoluteUrl(relativePath) {
 // ─── Startup Migration Routine for Legacy Recordings ───────────────────────
 async function syncLegacyRecordings() {
   try {
+    // Only rows that genuinely need work. The previous filter included
+    // `{ fileAvailable: { $ne: false } }`, which matches almost every document,
+    // so every boot walked the entire collection and re-stat-ed every file.
+    // `cloudinaryUrl: null` already matches both null and a missing field.
+    //
+    // Duration is deliberately not part of the filter: a row that is already in
+    // Cloudinary with duration 0 would match forever and permanently occupy the
+    // batch, starving real backfills. Duration is repaired inside the loop for
+    // the rows that are pulled in here.
     const legacyRecs = await CallRecording.find({
       $or: [
         { cloudinaryUrl: null },
         { cloudinaryUrl: '' },
-        { fileAvailable: { $ne: false } },
       ]
-    });
+    }).limit(2000);
+
+    if (legacyRecs.length > 0) {
+      console.log(`[Legacy Audio Sync] ${legacyRecs.length} recording(s) need a backfill pass.`);
+    }
 
     for (const rec of legacyRecs) {
       // Backfill duration if missing or 0
@@ -1616,16 +1606,10 @@ async function syncLegacyRecordings() {
   }
 }
 
-// Run legacy sync once MongoDB connection is established
-function triggerLegacySync() {
-  if (mongoose.connection && mongoose.connection.readyState === 1) {
-    syncLegacyRecordings().catch(() => {});
-  } else if (mongoose.connection) {
-    mongoose.connection.once('connected', () => {
-      syncLegacyRecordings().catch(() => {});
-    });
-  }
-}
-setTimeout(triggerLegacySync, 2000);
+// The one-time legacy audio backfill is background work, so it is invoked by the
+// worker that holds the scheduler lease (see jobs/workers/index.js) instead of on
+// module load — otherwise every API replica would scan the whole collection on
+// boot, and a scaled-out API would race itself re-uploading the same files.
+router.syncLegacyRecordings = syncLegacyRecordings;
 
 module.exports = router;

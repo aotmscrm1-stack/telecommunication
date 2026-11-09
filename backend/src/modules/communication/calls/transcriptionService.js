@@ -2,6 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const { OpenAI, toFile } = require('openai');
+const { getTempRecordingsDir } = require('../../../core/utils/recordingsStorage');
 
 /**
  * Filter out repetition hallucination loops common in Whisper on silent/noisy audio
@@ -82,14 +83,22 @@ async function transliterateToEnglishChat(text, openai) {
 }
 
 /**
- * Download audio file from remote Render server to local temporary file if not present on disk
+ * Locate the audio locally, or download a throwaway copy if the local cache has
+ * already been swept.
+ *
+ * Local files are a cache now (see jobs/workers/recordingsRetention.js), so a
+ * recording that is a few hours old may only exist in Cloudinary. The caller
+ * passes that URL in; the legacy Render host remains as a last-resort fallback.
+ *
+ * @returns {Promise<{ filePath: string, isTemporary: boolean }>}
  */
-async function ensureLocalAudioFile(filePath) {
-  if (fs.existsSync(filePath)) return filePath;
+async function ensureLocalAudioFile(filePath, remoteUrl = '') {
+  if (fs.existsSync(filePath)) return { filePath, isTemporary: false };
 
   const filename = path.basename(filePath);
   const possiblePaths = [
     filePath,
+    path.join(getTempRecordingsDir(), filename),
     path.join(__dirname, '..', '..', 'management', 'uploads', 'recordings', filename),
     path.join(__dirname, '..', '..', 'management', 'uploads', filename),
     path.join(__dirname, '..', 'uploads', 'recordings', filename),
@@ -100,40 +109,53 @@ async function ensureLocalAudioFile(filePath) {
   ];
   for (const p of possiblePaths) {
     try {
-      if (fs.existsSync(p)) return p;
+      if (fs.existsSync(p)) return { filePath: p, isTemporary: false };
     } catch (_) {}
   }
 
-  // Not on disk: download from remote Render deployment to local temp file
-  const remoteUrl = `https://telecommunication-l3oz.onrender.com/api/recordings/stream/${filename}`;
-  console.log(`[STT] Audio file not found locally on disk. Downloading from ${remoteUrl}...`);
+  // Not on disk: fetch a disposable copy. Cloudinary first (the real source of
+  // truth), then the legacy Render deployment.
+  const downloadUrl = remoteUrl
+    || `https://telecommunication-l3oz.onrender.com/api/recordings/stream/${filename}`;
+  console.log(`[STT] Audio not cached locally. Downloading a temporary copy from ${downloadUrl}...`);
 
-  const tempDir = path.join(__dirname, '..', '..', '..', 'temp_recordings');
-  if (!fs.existsSync(tempDir)) {
-    fs.mkdirSync(tempDir, { recursive: true });
-  }
+  const tempDir = getTempRecordingsDir();
   const downloadedPath = path.join(tempDir, filename);
 
   const https = require('https');
   await new Promise((resolve, reject) => {
-    const fileStream = fs.createWriteStream(downloadedPath);
-    https.get(remoteUrl, (res) => {
-      if (res.statusCode !== 200) {
-        return reject(new Error(`Failed to download audio from remote server: HTTP ${res.statusCode}`));
-      }
-      res.pipe(fileStream);
-      fileStream.on('finish', () => {
-        fileStream.close();
-        resolve();
+    const request = (url, redirectsLeft) => {
+      https.get(url, (res) => {
+        // Cloudinary hands back a CDN redirect for some resource types.
+        if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) {
+          res.resume();
+          if (redirectsLeft <= 0) return reject(new Error('Too many redirects while downloading audio'));
+          return request(res.headers.location, redirectsLeft - 1);
+        }
+        if (res.statusCode !== 200) {
+          res.resume();
+          return reject(new Error(`Failed to download audio: HTTP ${res.statusCode}`));
+        }
+        const fileStream = fs.createWriteStream(downloadedPath);
+        res.pipe(fileStream);
+        fileStream.on('finish', () => {
+          fileStream.close();
+          resolve();
+        });
+        fileStream.on('error', (err) => {
+          fs.unlink(downloadedPath, () => {});
+          reject(err);
+        });
+      }).on('error', (err) => {
+        fs.unlink(downloadedPath, () => {});
+        reject(err);
       });
-    }).on('error', (err) => {
-      fs.unlink(downloadedPath, () => {});
-      reject(err);
-    });
+    };
+    request(downloadUrl, 5);
   });
 
   if (fs.existsSync(downloadedPath)) {
-    return downloadedPath;
+    return { filePath: downloadedPath, isTemporary: true };
   }
 
   throw new Error(`Audio file not found at path: ${filePath}`);
@@ -176,58 +198,68 @@ function getOpenAISafeFileDescriptor(targetPath) {
  * 
  * @param {string} filePath - Absolute path to the audio file on disk or stored filename
  * @param {string} [overrideApiKey] - Optional custom OpenAI API key (falls back to process.env.OPENAI_API_KEY)
+ * @param {object} [options]
+ * @param {string} [options.remoteUrl] - Source of truth to download from when the local cache is empty (e.g. the Cloudinary URL)
  * @returns {Promise<string>} Transcribed text in English chatting format
  */
-async function transcribeAudioFile(filePath, overrideApiKey = '') {
+async function transcribeAudioFile(filePath, overrideApiKey = '', options = {}) {
   const apiKey = overrideApiKey || process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
     throw new Error('OPENAI_API_KEY is not configured on the server. Please set it in process.env or provide a custom key.');
   }
 
-  const targetPath = await ensureLocalAudioFile(filePath);
-
-  const openai = new OpenAI({ apiKey });
-
-  const { virtualFilename, mimeType } = getOpenAISafeFileDescriptor(targetPath);
-
-  let response;
-  // Prompt instructions for English chatting script / Telugish
-  const promptText = 'Customer support call recording in Telugu, English chatting language (Telugish). Example: "Hi em chestunnavu, ela unnavu?". Transcribe accurately in Romanized English chatting script.';
+  const { filePath: targetPath, isTemporary } = await ensureLocalAudioFile(filePath, options.remoteUrl || '');
 
   try {
-    const audioFile = await toFile(fs.createReadStream(targetPath), virtualFilename, { type: mimeType });
-    response = await openai.audio.transcriptions.create({
-      file: audioFile,
-      model: 'gpt-4o-mini-transcribe',
-      prompt: promptText,
-      temperature: 0,
-      response_format: 'json',
-    });
-  } catch (modelErr) {
-    console.warn('[STT] gpt-4o-mini-transcribe fallback to whisper-1:', modelErr?.message || modelErr);
-    const retryAudioFile = await toFile(fs.createReadStream(targetPath), virtualFilename, { type: mimeType });
-    response = await openai.audio.transcriptions.create({
-      file: retryAudioFile,
-      model: 'whisper-1',
-      prompt: promptText,
-      temperature: 0,
-      response_format: 'json',
-    });
+    const openai = new OpenAI({ apiKey });
+
+    const { virtualFilename, mimeType } = getOpenAISafeFileDescriptor(targetPath);
+
+    let response;
+    // Prompt instructions for English chatting script / Telugish
+    const promptText = 'Customer support call recording in Telugu, English chatting language (Telugish). Example: "Hi em chestunnavu, ela unnavu?". Transcribe accurately in Romanized English chatting script.';
+
+    try {
+      const audioFile = await toFile(fs.createReadStream(targetPath), virtualFilename, { type: mimeType });
+      response = await openai.audio.transcriptions.create({
+        file: audioFile,
+        model: 'gpt-4o-mini-transcribe',
+        prompt: promptText,
+        temperature: 0,
+        response_format: 'json',
+      });
+    } catch (modelErr) {
+      console.warn('[STT] gpt-4o-mini-transcribe fallback to whisper-1:', modelErr?.message || modelErr);
+      const retryAudioFile = await toFile(fs.createReadStream(targetPath), virtualFilename, { type: mimeType });
+      response = await openai.audio.transcriptions.create({
+        file: retryAudioFile,
+        model: 'whisper-1',
+        prompt: promptText,
+        temperature: 0,
+        response_format: 'json',
+      });
+    }
+
+    if (!response || typeof response.text !== 'string') {
+      throw new Error('Invalid or empty response received from OpenAI Transcription API');
+    }
+
+    const rawText = response.text.trim();
+    const cleanedText = cleanRepeatedHallucinations(rawText) || rawText;
+
+    // Convert any native Telugu/Hindi script into casual English Chatting Language
+    // Like: "Hi Em Chestunnavu , Ala Unnavu"
+    const englishChatTranscript = await transliterateToEnglishChat(cleanedText, openai);
+
+    return englishChatTranscript;
+  } finally {
+    // Only a copy we downloaded ourselves is disposable. A real cached recording
+    // must survive so repeat transcription and playback stay fast.
+    if (isTemporary) {
+      fs.promises.unlink(targetPath).catch(() => {});
+    }
   }
-
-  if (!response || typeof response.text !== 'string') {
-    throw new Error('Invalid or empty response received from OpenAI Transcription API');
-  }
-
-  const rawText = response.text.trim();
-  const cleanedText = cleanRepeatedHallucinations(rawText) || rawText;
-
-  // Convert any native Telugu/Hindi script into casual English Chatting Language
-  // Like: "Hi Em Chestunnavu , Ala Unnavu"
-  const englishChatTranscript = await transliterateToEnglishChat(cleanedText, openai);
-
-  return englishChatTranscript;
 }
 
 module.exports = {

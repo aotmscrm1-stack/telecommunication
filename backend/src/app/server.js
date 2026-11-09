@@ -1,11 +1,16 @@
 const http = require('node:http');
 const app = require('./app');
-const { initProviders } = require('./providers');
+const { initProviders, stopBackgroundServices } = require('./providers');
+const { runsHttpApi, describeRole } = require('../config/runtime');
 const logger = require('../core/logger/logger');
 const env = require('../config/env');
 
 const PORT = env.PORT || 5000;
 const server = http.createServer(app);
+
+// The API can be scaled to several replicas behind nginx/a load balancer only
+// because background schedulers are gated by PROCESS_ROLE (see config/runtime).
+logger.info(`[Runtime] Booting API process (role: ${describeRole()}) on port ${PORT}`);
 
 // Handle port conflicts gracefully during nodemon hot-restarts
 server.on('error', (err) => {
@@ -33,8 +38,10 @@ initProviders(server).then(() => {
   logger.error('Failed to initialize server providers:', err);
 });
 
-// Self Keep-Alive Ping (Render Spin-down prevention)
-if (env.PUBLIC_BASE_URL) {
+// Self Keep-Alive Ping (Render Spin-down prevention).
+// Only meaningful for a public single instance that idles out; on a VPS it is
+// pure self-inflicted load, and in `worker` role there is no listener to ping.
+if (env.PUBLIC_BASE_URL && runsHttpApi) {
   setInterval(() => {
     http.get(`${env.PUBLIC_BASE_URL.replace('https', 'http')}/api/health`, (res) => {
       logger.debug('[keep-alive] ping:', res.statusCode);
@@ -46,8 +53,22 @@ if (env.PUBLIC_BASE_URL) {
 }
 
 // Graceful shutdown handling for Docker and orchestrators
-const gracefulShutdown = (signal) => {
+let shuttingDown = false;
+
+const gracefulShutdown = async (signal) => {
+  if (shuttingDown) return;
+  shuttingDown = true;
   logger.info(`Received ${signal}. Initiating graceful shutdown...`);
+
+  // Stop schedulers first and release the lease, so a peer can pick the work up
+  // immediately instead of waiting for the lease to expire. Without this an
+  // in-flight sweep could be cut in half by the container stopping.
+  try {
+    await stopBackgroundServices();
+  } catch (err) {
+    logger.warn(`Background shutdown warning: ${err.message}`);
+  }
+
   server.close(() => {
     logger.info('HTTP & Socket server closed.');
     const mongoose = require('mongoose');
