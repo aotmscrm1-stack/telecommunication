@@ -49,7 +49,8 @@ async function startBackgroundServices() {
 
   // Leadership is never awaited on the boot path: an API container must keep
   // serving traffic even while another replica holds the lease.
-  leaderElection.waitForLeadership().catch((err) =>
+  // NOTE: waitForLeadership is a Promise, not a function — do not call it.
+  leaderElection.waitForLeadership.catch((err) =>
     logger.error(`[Runtime] Scheduler leadership failed: ${err && err.message ? err.message : err}`)
   );
 

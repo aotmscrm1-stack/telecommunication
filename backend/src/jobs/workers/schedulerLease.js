@@ -13,7 +13,9 @@ const logger = require('../../core/logger/logger');
  * so a crashed holder is replaced within one heartbeat window.
  *
  * Semantics:
- *   - `waitForLeadership()` resolves once this process owns the lease.
+ *   - `waitForLeadership` is a Promise (NOT a function): it resolves once this
+ *     process owns the lease. Never await it on a boot path — use
+ *     `onBecomeLeader` instead, which fires on every promotion, not just the first.
  *   - If the lease cannot be renewed (network blip, Mongo failover), leadership
  *     is released proactively by the new holder and `onLoseLeadership` fires so
  *     the caller can stop its schedulers instead of double-running them.
