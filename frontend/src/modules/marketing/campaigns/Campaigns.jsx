@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { campaignsAPI, usersAPI, leadsAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import { canDelete } from '../../../utils/permissions';
+import AotmsSpinner from '../../../components/common/AotmsSpinner';
 
 import {
   FiPlus, FiRefreshCw, FiSearch, FiLayers, FiUsers, FiCalendar,
@@ -757,10 +758,11 @@ export default function Campaigns() {
             </h1>
             <button
               onClick={loadCampaigns}
+              disabled={loading}
               title="Refresh Campaigns"
-              className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors"
+              className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors disabled:opacity-50"
             >
-              <FiRefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              {loading ? <AotmsSpinner size={14} /> : <FiRefreshCw className="w-3.5 h-3.5" />}
             </button>
           </div>
           <p className="text-xs text-slate-500 font-normal mt-0.5">
@@ -965,8 +967,7 @@ export default function Campaigns() {
       <div className="rounded-xl border bg-white shadow-xs overflow-hidden" style={{ borderColor: T.border }}>
         {loading ? (
           <div className="text-center py-16">
-            <FiRefreshCw className="w-7 h-7 animate-spin mx-auto mb-2 text-blue-600" />
-            <p className="text-xs font-medium text-slate-500">Loading outreach campaigns...</p>
+            <AotmsSpinner size={38} text="Loading outreach campaigns..." />
           </div>
         ) : (
           <div className="overflow-x-auto">

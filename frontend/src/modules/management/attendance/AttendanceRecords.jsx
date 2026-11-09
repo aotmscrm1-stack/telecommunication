@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { attendanceAPI, trackingAPI, usersAPI } from '../../../services/api';
+import AotmsSpinner from '../../../components/common/AotmsSpinner';
 import geoTracker from '../../../services/geoTracker';
 import { BeforeLogoutTaskModal } from '../performance';
 import LiveMap from '../../../components/tracking/LiveMap';
@@ -1245,7 +1246,7 @@ export default function AttendanceRecords() {
               transition: 'all 0.15s',
             }}
           >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
+            {loading ? <AotmsSpinner size={14} /> : <RefreshCw size={14} />} Refresh
           </button>
         </div>
       </div>

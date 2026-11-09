@@ -7,6 +7,7 @@ import {
 import { RiFolderChartLine, RiFileExcel2Line } from 'react-icons/ri';
 import { reportsAPI, followupsAPI, leadsAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
+import AotmsSpinner from '../../../components/common/AotmsSpinner';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, Area, AreaChart
@@ -171,7 +172,7 @@ function LeaderboardTab() {
 
       {loading ? (
         <div className="flex justify-center py-16">
-          <FiRefreshCw className="w-8 h-8 animate-spin text-orange-500" />
+          <AotmsSpinner size={38} text="Loading reports..." />
         </div>
       ) : data.length === 0 ? (
         <div className="text-center py-14 text-stone-400 text-xs font-medium bg-white rounded-2xl border" style={{ borderColor: O.line }}>
@@ -405,10 +406,11 @@ function LeadViewCharts({ summary }) {
           </select>
           <button
             onClick={fetchChartData}
+            disabled={loading}
             className="p-2 rounded-lg border bg-white hover:bg-orange-50 transition-colors"
             style={{ borderColor: O.line, color: O.deep }}
           >
-            <FiRefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? <AotmsSpinner size={14} /> : <FiRefreshCw className="w-3.5 h-3.5" />}
           </button>
         </div>
       </div>
@@ -417,7 +419,7 @@ function LeadViewCharts({ summary }) {
       <div className="p-5">
         {loading ? (
           <div className="flex justify-center items-center h-56">
-            <FiRefreshCw className="w-6 h-6 animate-spin text-orange-500" />
+            <AotmsSpinner size={38} text="Loading analytics chart..." />
           </div>
         ) : chartData.length === 0 ? (
           <div className="flex items-center justify-center h-56 text-stone-400 text-xs font-medium">
@@ -607,10 +609,11 @@ export default function Reports() {
 
         <button
           onClick={fetchAll}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-bold hover:bg-orange-50 transition-colors shadow-sm self-start sm:self-auto"
+          disabled={loading}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-bold hover:bg-orange-50 transition-colors shadow-sm self-start sm:self-auto disabled:opacity-50"
           style={{ borderColor: O.line, color: O.deep, background: '#ffffff' }}
         >
-          <FiRefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          {loading ? <AotmsSpinner size={14} /> : <FiRefreshCw className="w-3.5 h-3.5" />}
           Refresh Metrics
         </button>
       </div>

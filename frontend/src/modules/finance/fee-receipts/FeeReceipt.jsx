@@ -23,6 +23,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { invoicesAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
+import AotmsSpinner from '../../../components/common/AotmsSpinner';
 import { canDelete } from '../../../utils/permissions';
 import { numberToWords } from '../../../utils/numberToWords';
 import FeeReceiptDocument from './FeeReceiptDocument';
@@ -910,18 +911,18 @@ export default function FeeReceipt() {
               <span>Total: <strong>{history.length}</strong> receipts</span>
               <button
                 onClick={loadHistory}
-                className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors"
+                disabled={loadingHistory}
+                className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors disabled:opacity-50"
                 title="Refresh history"
               >
-                <RefreshCw size={15} className={loadingHistory ? 'animate-spin' : ''} />
+                {loadingHistory ? <AotmsSpinner size={15} /> : <RefreshCw size={15} />}
               </button>
             </div>
           </div>
 
           {loadingHistory ? (
             <div className="p-12 text-center text-slate-400 flex flex-col items-center gap-2">
-              <RefreshCw className="animate-spin text-emerald-600" size={28} />
-              <span>Loading fee receipt records...</span>
+              <AotmsSpinner size={38} text="Loading fee receipt records..." />
             </div>
           ) : history.length === 0 ? (
             <div className="p-12 text-center text-slate-400 space-y-2">

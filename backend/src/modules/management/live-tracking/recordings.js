@@ -528,11 +528,14 @@ async function handleDeleteRecording(req, res) {
       return res.status(404).json({ error: 'Audio conversation record not found' });
     }
 
-    // 3. Confirm authorization: requester must be owner or HR/Admin/Manager
-    const currentUserId = String(req.user._id || req.user.id);
-    const isOwner = String(rec.user) === currentUserId;
-    if (!isOwner && !isHRorAdmin(req.user)) {
-      return res.status(403).json({ error: 'Not authorized: You do not have permission to delete this audio conversation' });
+    // 3. Confirm authorization: requester must be Admin
+    const isExecutiveOrAdmin = req.user.role === 'admin' || req.user.role === 'superadmin' || 
+      String(req.user.designation || '').toUpperCase().includes('CEO') || 
+      String(req.user.designation || '').toUpperCase().includes('MANAGING DIRECTOR') ||
+      String(req.user.designation || '').toUpperCase().includes('MD') ||
+      String(req.user.designation || '').toUpperCase() === 'ADMIN';
+    if (!isExecutiveOrAdmin) {
+      return res.status(403).json({ error: 'Not authorized: Only Admin has permission to delete audio call recordings' });
     }
 
     // 4. Determine Cloudinary public_id

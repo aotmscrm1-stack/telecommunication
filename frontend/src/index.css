@@ -568,3 +568,48 @@ li[data-sonner-toast]:has(.note-reminder-card) {
   padding: 0 !important;
 }
 
+/* ========================================================================= */
+/* AOTMS SIGNATURE ORANGE & BLUE GRADIENT SPINNERS & REFRESH SYMBOLS         */
+/* ========================================================================= */
+@keyframes aotmsSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.aotms-gradient-circle {
+  display: inline-block;
+  border-radius: 50%;
+  border-style: solid;
+  border-color: #F97316 #FB923C #1677C8 #0284C7;
+  animation: aotmsSpin 0.85s linear infinite;
+  box-shadow: 0 0 12px rgba(249, 115, 22, 0.25);
+}
+
+.aotms-conic-spinner {
+  display: inline-block;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #F97316 0%, #FB923C 35%, #1677C8 70%, #0284C7 90%, #F97316 100%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3.5px), #fff calc(100% - 3px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3.5px), #fff calc(100% - 3px));
+  animation: aotmsSpin 0.85s linear infinite;
+}
+
+.aotms-refresh-gradient {
+  background: linear-gradient(135deg, #F97316, #1677C8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Universal fallback for any SVG spinning icon across the entire CRM */
+svg.animate-spin:not([data-no-gradient]) {
+  stroke: url(#aotms-signature-grad) !important;
+  filter: drop-shadow(0 1px 3px rgba(249, 115, 22, 0.2));
+}
+
+/* Universal fallback for any div border spinner across the entire CRM */
+div.animate-spin.rounded-full:not([data-no-gradient]) {
+  border-color: #F97316 #FB923C #1677C8 transparent !important;
+  box-shadow: 0 0 10px rgba(249, 115, 22, 0.2);
+}
+
+

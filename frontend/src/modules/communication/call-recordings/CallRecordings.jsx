@@ -16,6 +16,7 @@ import CallAnalyticsCards from './components/CallAnalyticsCards';
 import SpotlightCard from '../../../components/ui/SpotlightCard';
 import AnimatedNumber from '../../../components/ui/AnimatedNumber';
 import AutoScrollText from '../../../components/common/AutoScrollText';
+import AotmsSpinner from '../../../components/common/AotmsSpinner';
 
 // ── CALLER PROFILE AVATAR (Renders user profile image with fallback initial)
 function CallerAvatar({ src, name, size = 28, className = '' }) {
@@ -2318,7 +2319,7 @@ export default function CallRecordings() {
               }}
               title="Automatically match unlinked call recordings to CRM leads by phone number"
             >
-              <RefreshCw style={{ width: '14px', height: '14px', animation: rematching ? 'spin 1s linear infinite' : 'none' }} />
+              {rematching ? <AotmsSpinner size={14} /> : <RefreshCw style={{ width: '14px', height: '14px' }} />}
               {rematching ? 'Matching...' : 'Auto-Match Leads'}
             </button>
           )}
@@ -2329,6 +2330,7 @@ export default function CallRecordings() {
               fetchSummary(filters);
               fetchCalendarActivity(currentCalendarMonth, filters);
             }}
+            disabled={loading}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -2340,11 +2342,12 @@ export default function CallRecordings() {
               fontSize: '13px',
               fontWeight: 500,
               color: '#ffffff',
-              cursor: 'pointer',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading ? 0.7 : 1,
               transition: 'all 0.15s',
             }}
           >
-            <RefreshCw style={{ width: '14px', height: '14px' }} />
+            {loading ? <AotmsSpinner size={14} /> : <RefreshCw style={{ width: '14px', height: '14px' }} />}
             Refresh
           </button>
         </div>
@@ -2774,8 +2777,7 @@ export default function CallRecordings() {
           {/* Loading or Empty State */}
           {loading ? (
             <div className="py-20 px-6 text-center text-slate-500 text-sm">
-              <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-3 text-sky-600" />
-              Loading call records table...
+              <AotmsSpinner size={38} text="Loading call records table..." />
             </div>
           ) : recordings.length === 0 ? (
             <div className="py-20 px-6 text-center">

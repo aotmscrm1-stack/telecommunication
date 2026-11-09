@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { digitalCalendarAPI } from '../../../services/api';
+import AotmsSpinner from '../../../components/common/AotmsSpinner';
 import {
   isCEO,
   isHR,
@@ -1459,10 +1460,11 @@ export default function DigitalCalendar() {
             <button
               type="button"
               onClick={fetchData}
+              disabled={loading}
               title="Refresh Data"
-              className="p-2 text-slate-600 bg-white border border-slate-200 hover:text-sky-600 hover:border-sky-400 hover:bg-sky-50/50 rounded-xl shadow-xs transition active:scale-95 cursor-pointer shrink-0"
+              className="p-2 text-slate-600 bg-white border border-slate-200 hover:text-sky-600 hover:border-sky-400 hover:bg-sky-50/50 rounded-xl shadow-xs transition active:scale-95 cursor-pointer shrink-0 disabled:opacity-50"
             >
-              <FaRotate className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-sky-600' : ''}`} />
+              {loading ? <AotmsSpinner size={14} /> : <FaRotate className="w-3.5 h-3.5" />}
             </button>
 
             {/* 5. Add Content CTA Button */}
@@ -2049,8 +2051,7 @@ export default function DigitalCalendar() {
             {/* ── Content Cards Grid ── */}
             {loading ? (
               <div className="p-12 text-center bg-white rounded-3xl border border-slate-200">
-                <FaRotate className="w-6 h-6 animate-spin text-sky-600 mx-auto mb-3" />
-                <span className="text-xs font-medium text-slate-500">Loading calendar items...</span>
+                <AotmsSpinner size={38} text="Loading calendar items..." />
               </div>
             ) : filteredItems.length === 0 ? (
               <div className="p-12 text-center bg-white rounded-3xl border border-slate-200 shadow-sm">

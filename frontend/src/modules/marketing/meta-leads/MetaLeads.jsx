@@ -9,6 +9,7 @@ import DeleteCampaignModal from './DeleteCampaignModal';
 import LeadDetailsPage, { cleanLeadName } from '../../../components/LeadDetails/LeadDetailsPage';
 import leadNoteReminderService, { isStatusRequiringNote, leadHasNote, isAdminOrManager } from '../../../services/leadNoteReminderService';
 import AutoScrollText from '../../../components/common/AutoScrollText';
+import AotmsSpinner from '../../../components/common/AotmsSpinner';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 
 import {
@@ -1987,7 +1988,7 @@ export default function MetaLeads() {
             <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
               {leadsLoading ? (
                 <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 120 }}>
-                  <FiRefreshCw className="animate-spin text-blue-600" size={24} />
+                  <AotmsSpinner size={38} />
                 </div>
               ) : campaignLeads.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '28px 14px', color: MUTED }}>
@@ -2351,7 +2352,7 @@ export default function MetaLeads() {
             title="Reload Local Campaign Table"
             className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors cursor-pointer disabled:opacity-50"
           >
-            <FiRefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? <AotmsSpinner size={14} /> : <FiRefreshCw className="w-3.5 h-3.5" />}
           </button>
           <button
             onClick={handleSync}
@@ -2359,7 +2360,7 @@ export default function MetaLeads() {
             title="Sync Data from Google Sheets"
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition-all active:scale-[0.98] cursor-pointer disabled:opacity-75"
           >
-            <FiRefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? <AotmsSpinner size={14} /> : <FiRefreshCw className="w-3.5 h-3.5" />}
             <span>{syncing ? 'Syncing Sheets...' : 'Sync Data'}</span>
           </button>
         </div>
@@ -2537,8 +2538,7 @@ export default function MetaLeads() {
       <div className="rounded-xl border bg-white shadow-xs overflow-hidden" style={{ borderColor: BORDER }}>
         {loading ? (
           <div className="text-center py-16">
-            <FiRefreshCw className="w-7 h-7 animate-spin mx-auto mb-2 text-blue-600" />
-            <p className="text-xs font-medium text-slate-500">Loading Meta outreach campaigns...</p>
+            <AotmsSpinner size={38} text="Loading Meta outreach campaigns..." />
           </div>
         ) : filteredCampaigns.length === 0 ? (
           <div className="text-center py-16 px-4">

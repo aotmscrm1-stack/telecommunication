@@ -19,6 +19,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { invoicesAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
+import AotmsSpinner from '../../../components/common/AotmsSpinner';
 import { canDelete } from '../../../utils/permissions';
 import { numberToWords } from '../../../utils/numberToWords';
 import { A4Container, A4Page, A4Unit } from '../../../components/Finance/A4TemplateWrapper';
@@ -1101,15 +1102,16 @@ export default function OfferLetter() {
             </div>
             <button
               onClick={loadHistory}
-              className="px-4 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl flex items-center gap-2 transition-all self-start sm:self-auto"
+              disabled={loadingHistory}
+              className="px-4 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl flex items-center gap-2 transition-all self-start sm:self-auto disabled:opacity-50"
             >
-              <RefreshCw size={14} className={loadingHistory ? 'animate-spin' : ''} /> Refresh Records
+              {loadingHistory ? <AotmsSpinner size={14} /> : <RefreshCw size={14} />} Refresh Records
             </button>
           </div>
 
           {loadingHistory && (
             <div className="text-center py-12 text-slate-400 flex items-center justify-center gap-2 text-sm">
-              <RefreshCw className="animate-spin" size={18} /> Loading records...
+              <AotmsSpinner size={38} text="Loading offer letters records..." />
             </div>
           )}
 

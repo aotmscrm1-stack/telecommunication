@@ -5,6 +5,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { formatISTDateTime, formatISTDate } from '../../../utils/dateFormat';
 import { isCEO, isExecutive, isHR, isTrainer, isDigitalMarketing, isLimitedStaff, isDeveloper, canAccessDigitalCalendar, getTaskAssigneeOptions, getTaskAssignorOptions, filterTeamDropdownUsers, canEditTask, canDeleteTask, canEditOrDeleteTask, canMarkCompleteTask, canViewCallFollowups } from '../../../utils/permissions';
 import TodoList from './TodoList';
+import AotmsSpinner from '../../common/AotmsSpinner';
 
 // Theme Palette Constants
 const COLOR_DEEP_BLUE = '#023047';
@@ -452,34 +453,11 @@ function FormattedDescription({ text, task }) {
   );
 }
 
-// ── Vibrant Orange Loading State ─────────────────────────────────────────────
+// ── Vibrant Orange & Blue Loading State ─────────────────────────────────────
 function OrangeLoadingState({ isCard = false }) {
   return (
     <div style={{ padding: isCard ? '50px 20px' : '60px 20px', textAlign: 'center', width: '100%', boxSizing: 'border-box' }}>
-      <div
-        style={{
-          width: 44,
-          height: 44,
-          margin: '0 auto 16px',
-          borderRadius: '50%',
-          border: '3.5px solid #ffedd5',
-          borderTopColor: COLOR_ORANGE,
-          animation: 'spinOrange 0.8s linear infinite',
-          boxShadow: '0 0 14px rgba(251, 133, 0, 0.35)'
-        }}
-      />
-      <style>{`
-        @keyframes spinOrange {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
-      <div style={{ fontSize: 15, fontWeight: 600, color: COLOR_ORANGE, letterSpacing: '0.2px' }}>
-        Loading Todos & Tasks...
-      </div>
-      <div style={{ fontSize: 12.5, color: '#94a3b8', marginTop: 4 }}>
-        Fetching latest data and status updates
-      </div>
+      <AotmsSpinner size={38} text="Loading Todos & Tasks..." />
     </div>
   );
 }
@@ -2089,7 +2067,7 @@ function AddTaskModal({ type = 'todo', onClose, onCreated }) {
   const [repeatFrequency, setRepeatFrequency] = useState('none');
   const [repeatEndDate, setRepeatEndDate] = useState('');
 
-  const isAdminOrExecutive = currentUser?.role === 'admin' || currentUser?.role === 'superadmin' || isCEO(currentUser) || Boolean(currentUser?.isHead);
+  const isAdminOrExecutive = currentUser?.role === 'admin' || currentUser?.role === 'superadmin' || currentUser?.role === 'manager' || isCEO(currentUser) || Boolean(currentUser?.isHead);
   const userDept = currentUser?.department || (
     isDeveloper(currentUser) ? 'Developer' :
     isHR(currentUser) ? 'HR' :
@@ -2718,7 +2696,7 @@ export default function Task() {
   const hoverTimeoutRef = useRef(null);
   const [showTeamDrop, setShowTeamDrop] = useState(false);
   const teamDropRef = useRef(null);
-  const isAdminOrExecutive = currentUser?.role === 'admin' || currentUser?.role === 'superadmin' || isCEO(currentUser) || Boolean(currentUser?.isHead);
+  const isAdminOrExecutive = currentUser?.role === 'admin' || currentUser?.role === 'superadmin' || currentUser?.role === 'manager' || isCEO(currentUser) || Boolean(currentUser?.isHead);
   const userDept = currentUser?.department || (
     isDeveloper(currentUser) ? 'Developer' :
     isHR(currentUser) ? 'HR' :
@@ -3185,67 +3163,12 @@ export default function Task() {
             </p>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {/* Refresh button */}
-            <button
-              onClick={fetchTasks}
-              title="Refresh tasks"
-              style={{
-                width: 38,
-                height: 38,
-                borderRadius: 8,
-                border: `1px solid ${COLOR_BORDER}`,
-                background: '#fff',
-                color: COLOR_BLUE_GREEN,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 1px 4px rgba(2, 48, 71, 0.04)',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 .49-5" />
-              </svg>
-            </button>
-
-            {!historyMode && (
-              <>
-                {/* Upload Todo List / Tasks Form Button */}
-                <button
-                  onClick={() => setShowUploadModal(true)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 7,
-                    background: COLOR_SKY_SURFACE,
-                    border: `1px solid ${COLOR_BORDER}`,
-                    borderRadius: 8,
-                    cursor: 'pointer',
-                    fontSize: 14,
-                    color: COLOR_BLUE_GREEN,
-                    fontWeight: 500,
-                    padding: '9px 16px',
-                    transition: 'all 0.15s ease'
-                  }}
-                  title={activeTab === 'Todo' ? 'Open Todo List Excel/CSV Upload Form' : 'Open Tasks Upload Form'}
-                >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="17 8 12 3 7 8" />
-                    <line x1="12" y1="3" x2="12" y2="15" />
-                  </svg>
-                  Upload Todo List
-                </button>
-              </>
-            )}
-
-            {/* Refresh Data Button */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* Refresh Tasks Button */}
             <button
               onClick={() => fetchTasks()}
               disabled={loading}
-              title="Refresh Todo List"
+              title="Refresh tasks"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -3261,47 +3184,22 @@ export default function Task() {
                 transition: 'all 0.15s ease'
               }}
             >
-              <svg 
-                width="15" 
-                height="15" 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                stroke={COLOR_BLUE_GREEN} 
-                strokeWidth="2.2"
-                style={{
-                  animation: loading ? 'spin 1s linear infinite' : 'none'
-                }}
-              >
-                <path d="M21.5 2v6h-6M2.5 22v-6h6" />
-                <path d="M2 11.5a10 10 0 0 1 18.8-4.3L21.5 8M22 12.5a10 10 0 0 1-18.8 4.3L2.5 16" />
-              </svg>
-              Refresh Todo
-            </button>
-
-            {/* Export CSV */}
-            <button
-              onClick={() => downloadCSV(tasks, activeTab)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 7,
-                background: '#fff',
-                border: `1px solid ${COLOR_BORDER}`,
-                borderRadius: 8,
-                cursor: 'pointer',
-                fontSize: 14,
-                color: COLOR_DEEP_BLUE,
-                fontWeight: 500,
-                padding: '9px 16px',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={COLOR_BLUE_GREEN} strokeWidth="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-              Export CSV
+              {loading ? (
+                <AotmsSpinner size={16} />
+              ) : (
+                <svg 
+                  width="15" 
+                  height="15" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke={COLOR_BLUE_GREEN} 
+                  strokeWidth="2.2"
+                >
+                  <path d="M21.5 2v6h-6M2.5 22v-6h6" />
+                  <path d="M2 11.5a10 10 0 0 1 18.8-4.3L21.5 8M22 12.5a10 10 0 0 1-18.8 4.3L2.5 16" />
+                </svg>
+              )}
+              Refresh Tasks
             </button>
           </div>
         </div>

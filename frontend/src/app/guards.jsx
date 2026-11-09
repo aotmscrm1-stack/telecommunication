@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { isCEO, isManager } from '../utils/permissions';
 import { ROLES } from '../permissions/roles';
+import AotmsSpinner from '../components/common/AotmsSpinner';
 
 export function ProtectedRoute({ children, allowedRoles }) {
   const { user, token, loading } = useAuth();
@@ -10,8 +11,8 @@ export function ProtectedRoute({ children, allowedRoles }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
-        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-indigo-500"></div>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <AotmsSpinner size={38} text="Loading CRM Workspace..." />
       </div>
     );
   }

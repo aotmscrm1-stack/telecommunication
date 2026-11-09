@@ -23,6 +23,7 @@ import {
   Edit3,
 } from 'lucide-react';
 import { payslipsAPI } from '../../../services/api';
+import AotmsSpinner from '../../../components/common/AotmsSpinner';
 import { useAuth } from '../../../context/AuthContext';
 import { canDelete } from '../../../utils/permissions';
 import { numberToWords } from '../../../utils/numberToWords';
@@ -1120,15 +1121,20 @@ export default function Payslip() {
               <button
                 type="button"
                 onClick={fetchHistory}
-                style={{ padding: '9px 12px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#f8fafc', color: '#475569', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                disabled={loadingHistory}
+                style={{ padding: '9px 12px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#f8fafc', color: '#475569', cursor: loadingHistory ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', opacity: loadingHistory ? 0.6 : 1 }}
                 title="Refresh history"
               >
-                <RefreshCw size={16} className={loadingHistory ? 'animate-spin' : ''} />
+                {loadingHistory ? <AotmsSpinner size={15} /> : <RefreshCw size={16} />}
               </button>
             </div>
           </div>
 
-          {loadingHistory && <div style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>Loading records...</div>}
+          {loadingHistory && (
+            <div style={{ textAlign: 'center', padding: 40 }}>
+              <AotmsSpinner size={38} text="Loading payslip records..." />
+            </div>
+          )}
 
           {!loadingHistory && history.length === 0 && (
             <div style={{ textAlign: 'center', padding: '60px 20px', color: '#64748b' }}>

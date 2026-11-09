@@ -6,6 +6,7 @@ import { onCrmSync, CRM_EVENTS } from '../../../services/crmSyncBus';
 import StatusBadge from '../../../components/common/StatusBadge';
 import { format } from 'date-fns';
 import { useAuth } from '../../../context/AuthContext';
+import AotmsSpinner from '../../../components/common/AotmsSpinner';
 import {
   Search, Plus, RefreshCw, Star, Trash2, Ban,
   ChevronLeft, ChevronRight, Users, CheckCircle,
@@ -563,10 +564,11 @@ export default function AllLeads() {
 
               <button
                 onClick={fetchLeads}
-                className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors"
+                disabled={loading}
+                className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
                 title="Refresh leads list"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-blue-600' : ''}`} />
+                {loading ? <AotmsSpinner size={14} /> : <RefreshCw className="w-3.5 h-3.5" />}
               </button>
             </div>
 
@@ -595,8 +597,7 @@ export default function AllLeads() {
                   {loading ? (
                     <tr>
                       <td colSpan={isAdmin ? 7 : 6} className="px-4 py-16 text-center">
-                        <div className="w-7 h-7 rounded-full border-2 border-blue-600 border-t-transparent animate-spin mx-auto mb-2" />
-                        <div className="text-xs font-medium text-slate-500">Loading leads...</div>
+                        <AotmsSpinner size={38} text="Loading leads..." />
                       </td>
                     </tr>
                   ) : leads.length === 0 ? (
