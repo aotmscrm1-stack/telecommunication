@@ -1,9 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const Contact = require('../../../database/models/Contact');
+const { protect } = require('../../../core/middleware/auth');
+const { blastLimiter } = require('../../../core/middleware/rateLimiter');
+
+// Every contact endpoint requires a signed-in user. These routes hold the full
+// customer phone/email book and can trigger outbound WhatsApp messages, so they
+// must never be reachable anonymously.
 
 // GET /api/contacts - list all contacts
-router.get('/', async (req, res) => {
+router.get('/', protect, async (req, res) => {
   try {
     const contacts = await Contact.find().sort({ createdAt: -1 });
     res.json({ success: true, contacts });
@@ -14,7 +20,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/contacts - create or update single contact in MongoDB
-router.post('/', async (req, res) => {
+router.post('/', protect, async (req, res) => {
   try {
     const { name, phone, email, identity, segment, source } = req.body;
     if (!name || !phone) {
@@ -45,7 +51,7 @@ router.post('/', async (req, res) => {
 });
 
 // POST /api/contacts/save - bulk upsert contacts from excel/csv to MongoDB
-router.post('/save', async (req, res) => {
+router.post('/save', protect, async (req, res) => {
   try {
     const { contacts: incomingContacts, source } = req.body;
     if (!Array.isArray(incomingContacts) || incomingContacts.length === 0) {
@@ -88,7 +94,7 @@ router.post('/save', async (req, res) => {
 });
 
 // PUT /api/contacts/:id - update contact
-router.put('/:id', async (req, res) => {
+router.put('/:id', protect, async (req, res) => {
   try {
     const { name, phone, email, identity, segment } = req.body;
     const updated = await Contact.findByIdAndUpdate(
@@ -115,7 +121,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE /api/contacts/:id - delete contact
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', protect, async (req, res) => {
   try {
     const deleted = await Contact.findByIdAndDelete(req.params.id);
     if (!deleted) {
@@ -129,7 +135,7 @@ router.delete('/:id', async (req, res) => {
 });
 
 // POST /api/contacts/whatsapp-blast - execute WhatsApp Blast to contacts or leads
-router.post('/whatsapp-blast', async (req, res) => {
+router.post('/whatsapp-blast', protect, blastLimiter, async (req, res) => {
   try {
     const { template_name, language, contact_ids, lead_ids, sample_values, recipient_type } = req.body;
     const ids = Array.isArray(contact_ids) && contact_ids.length > 0 ? contact_ids : (Array.isArray(lead_ids) ? lead_ids : []);
@@ -310,7 +316,7 @@ router.post('/whatsapp-blast', async (req, res) => {
 });
 
 // POST /api/contacts/send-single-whatsapp - 1-click test sender
-router.post('/send-single-whatsapp', async (req, res) => {
+router.post('/send-single-whatsapp', protect, blastLimiter, async (req, res) => {
   try {
     const { phone, template_name, message } = req.body;
     if (!phone) {

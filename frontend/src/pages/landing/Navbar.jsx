@@ -1,70 +1,25 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
 import { animate } from 'animejs';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, ArrowUpRight } from 'lucide-react';
 import aotmsLogo from '../../assets/aotms-global-logo.png';
+import {
+  border,
+  brand,
+  fonts,
+  gradients,
+  layout,
+  radii,
+  shadows,
+  surface,
+  text,
+  transitions,
+} from './theme';
 
-const EASE = [0.22, 1, 0.36, 1];
-
-/* ─────────────────────────────────────────────────────────
-   COLOR PALETTE THEME (Smart Blue / Sapphire / Navy)
-   ───────────────────────────────────────────────────────── */
-export const BLUE_THEME = {
-  smart_blue: {
-    DEFAULT: '#0466c8',
-    100: '#011428',
-    200: '#022950',
-    300: '#023d78',
-    400: '#0352a0',
-    500: '#0466c8',
-    600: '#0f85fa',
-    700: '#4ba3fb',
-    800: '#87c2fd',
-    900: '#c3e0fe',
-  },
-  sapphire: {
-    DEFAULT: '#0353a4',
-    100: '#011121',
-    200: '#012242',
-    300: '#023263',
-    400: '#034384',
-    500: '#0353a4',
-    600: '#0576e8',
-    700: '#3698fb',
-    800: '#79bbfc',
-    900: '#bcddfe',
-  },
-  blue_slate: {
-    DEFAULT: '#5c677d',
-    100: '#131519',
-    200: '#252a32',
-    300: '#383f4c',
-    400: '#4b5365',
-    500: '#5c677d',
-    600: '#79859c',
-    700: '#9ba3b5',
-    800: '#bcc2ce',
-    900: '#dee0e6',
-  },
-};
-
-/* ─────────────────────────────────────────────────────────
-   ORANGE HOVER THEME
-   ───────────────────────────────────────────────────────── */
-const ORANGE = {
-  DEFAULT: '#f97316',
-  LIGHT: '#fb923c',
-  LIGHTER: '#fdba74',
-  DEEP: '#ea580c',
-  GLOW: 'rgba(249, 115, 22, 0.55)',
-  GLOW_SOFT: 'rgba(249, 115, 22, 0.30)',
-  SURFACE: 'rgba(249, 115, 22, 0.14)',
-  TEXT: '#7c2d12',
-};
+const EASE = transitions.ease;
 
 /* ═══════════════════════════════════════════════════════════
-   NAVIGATION ITEMS (Landing Page Single-Page Smooth Scroll)
+   NAVIGATION ITEMS (single-page smooth scroll)
    ═══════════════════════════════════════════════════════════ */
 const NAV_ITEMS = [
   { label: 'Home', id: 'home' },
@@ -74,61 +29,28 @@ const NAV_ITEMS = [
   { label: 'Contact', id: 'contact' },
 ];
 
-/* ─────────────────────────────────────────────────────────
-   THEME TOKENS
-   ───────────────────────────────────────────────────────── */
-const C = {
-  pillBg: '#ffffff',
-  pillBorder: 'rgba(4, 102, 200, 0.12)',
-  pillShadow: '0 8px 30px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(4, 102, 200, 0.06)',
-
-  idleText: BLUE_THEME.blue_slate.DEFAULT,
-  activeText: BLUE_THEME.smart_blue[200],
-
-  activeBg: 'rgba(4, 102, 200, 0.10)',
-  activeBorder: 'rgba(4, 102, 200, 0.22)',
-
-  brandMark1: BLUE_THEME.smart_blue.DEFAULT,
-  brandMark2: BLUE_THEME.sapphire.DEFAULT,
-  ctaText: '#ffffff',
-};
-
-export function Navbar({ activeSlideIndex = 0 }) {
-  const navigate = useNavigate();
+export function Navbar({ onBookDemo }) {
   const logoRef = useRef(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [hoveredId, setHoveredId] = useState(null);
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState('home');
 
-  // Slide 0 = CRM Pipeline (Orange), Slide 1 = AI Telecaller (Blue)
-  const isAiCallingSlide = activeSlideIndex === 1;
-
-  const btnBg = isAiCallingSlide
-    ? 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)'
-    : 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)';
-
-  const btnShadow = isAiCallingSlide
-    ? '0 6px 18px rgba(2, 132, 199, 0.35)'
-    : '0 6px 18px rgba(249, 115, 22, 0.35)';
-
-  const hoverGlow = isAiCallingSlide
-    ? `0 0 0 2px #0284c7, 0 0 20px rgba(2, 132, 199, 0.45), 0 10px 26px rgba(2, 132, 199, 0.25)`
-    : `0 0 0 2px #f97316, 0 0 20px rgba(249, 115, 22, 0.45), 0 10px 26px rgba(249, 115, 22, 0.25)`;
+  // Over the dark hero the bar is glass-on-ink; once scrolled it becomes a light surface.
+  const onDark = !isScrolled;
 
   // Track scroll position to update navbar style & highlight active section
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 25);
+      setIsScrolled(window.scrollY > 24);
 
       const scrollPosition = window.scrollY + 220;
-      const sectionIds = ['home', 'about', 'services', 'pricing', 'contact'];
+      const sectionIds = NAV_ITEMS.map((item) => item.id);
 
       for (let i = sectionIds.length - 1; i >= 0; i--) {
         const el = document.getElementById(sectionIds[i]);
         if (el) {
-          const top = el.offsetTop;
-          if (scrollPosition >= top) {
+          if (scrollPosition >= el.offsetTop) {
             setActiveSection(sectionIds[i]);
             break;
           }
@@ -142,7 +64,6 @@ export function Navbar({ activeSlideIndex = 0 }) {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Smooth scroll handler
   const handleNavClick = (sectionId) => {
     setActiveSection(sectionId);
     const element = document.getElementById(sectionId);
@@ -151,6 +72,19 @@ export function Navbar({ activeSlideIndex = 0 }) {
     }
     setMobileOpen(false);
   };
+
+  /* ── Derived surface tokens ─────────────────────────── */
+  const pillBg = onDark ? 'rgba(255, 255, 255, 0.07)' : surface.subtle;
+  const pillBorder = onDark ? 'rgba(255, 255, 255, 0.16)' : border.base;
+  const pillShadow = onDark ? 'none' : shadows.xs;
+
+  const itemIdle = onDark ? 'rgba(255, 255, 255, 0.74)' : text.tertiary;
+  const itemActive = onDark ? '#FFFFFF' : brand.hover;
+  const itemHoverBg = onDark ? 'rgba(255, 255, 255, 0.10)' : brand.tint;
+  const itemHoverBorder = onDark ? 'rgba(255, 255, 255, 0.26)' : brand.line;
+
+  const activeBg = onDark ? 'rgba(255, 255, 255, 0.14)' : brand.tintStrong;
+  const activeBorder = onDark ? 'rgba(255, 255, 255, 0.30)' : brand.line;
 
   return (
     <motion.nav
@@ -163,35 +97,33 @@ export function Navbar({ activeSlideIndex = 0 }) {
         left: 0,
         right: 0,
         zIndex: 50,
-        background: isScrolled ? 'rgba(255, 255, 255, 0.96)' : 'transparent',
-        backgroundColor: isScrolled ? 'rgba(255, 255, 255, 0.96)' : 'transparent',
-        backdropFilter: isScrolled ? 'blur(16px)' : 'none',
-        WebkitBackdropFilter: isScrolled ? 'blur(16px)' : 'none',
+        background: isScrolled ? 'rgba(255, 255, 255, 0.92)' : 'transparent',
+        backdropFilter: isScrolled ? 'blur(18px) saturate(160%)' : 'none',
+        WebkitBackdropFilter: isScrolled ? 'blur(18px) saturate(160%)' : 'none',
         borderBottom: isScrolled
-          ? '1px solid rgba(226, 232, 240, 0.85)'
+          ? `1px solid ${border.hairline}`
           : '1px solid transparent',
-        boxShadow: isScrolled
-          ? '0 4px 24px -2px rgba(0, 0, 0, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.04)'
-          : 'none',
+        boxShadow: isScrolled ? shadows.sm : 'none',
         padding: isScrolled
-          ? '12px clamp(20px, 5vw, 60px)'
-          : '20px clamp(20px, 5vw, 60px)',
+          ? `12px ${layout.gutter}`
+          : `20px ${layout.gutter}`,
         display: 'flex',
         justifyContent: 'center',
-        transition: 'background-color 0.35s ease, padding 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease',
+        transition:
+          'background-color 0.35s ease, padding 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease',
       }}
     >
       <div
         style={{
           width: '100%',
-          maxWidth: 1200,
+          maxWidth: layout.maxWidth,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: 24,
         }}
       >
-        {/* BRAND LOGO */}
+        {/* BRAND LOGO — always on a light chip so the mark stays legible on both surfaces */}
         <motion.div
           ref={logoRef}
           onClick={() => handleNavClick('home')}
@@ -203,14 +135,12 @@ export function Navbar({ activeSlideIndex = 0 }) {
             justifyContent: 'center',
             cursor: 'pointer',
             flexShrink: 0,
-            background: isScrolled ? 'transparent' : '#ffffff',
-            borderRadius: 14,
-            padding: isScrolled ? '6px 10px' : '8px 14px',
-            border: isScrolled ? '1px solid transparent' : `1px solid ${C.pillBorder}`,
-            boxShadow: isScrolled
-              ? 'none'
-              : `0 6px 20px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(4, 102, 200, 0.06)`,
-            transition: 'box-shadow .3s ease, background .3s ease, border-color .3s ease, padding .3s ease',
+            background: '#FFFFFF',
+            borderRadius: radii.md,
+            padding: isScrolled ? '6px 10px' : '7px 12px',
+            border: `1px solid ${isScrolled ? 'transparent' : 'rgba(255, 255, 255, 0.9)'}`,
+            boxShadow: isScrolled ? 'none' : shadows.sm,
+            transition: 'box-shadow .3s ease, padding .3s ease, border-color .3s ease',
           }}
           onMouseEnter={(e) => {
             if (logoRef.current) {
@@ -220,25 +150,14 @@ export function Navbar({ activeSlideIndex = 0 }) {
                   duration: 600,
                   ease: 'easeOutElastic(1, .5)',
                 });
-              } catch (err) {}
+              } catch (err) {
+                /* no-op: animation is decorative */
+              }
             }
-            e.currentTarget.style.boxShadow = `
-              0 0 0 2px ${isAiCallingSlide ? '#0284c7' : '#f97316'},
-              0 0 18px ${isAiCallingSlide ? 'rgba(2, 132, 199, 0.45)' : 'rgba(249, 115, 22, 0.45)'}
-            `;
-            if (isScrolled) {
-              e.currentTarget.style.background = '#ffffff';
-              e.currentTarget.style.borderColor = isAiCallingSlide ? '#0284c7' : '#f97316';
-            }
+            e.currentTarget.style.boxShadow = shadows.brand;
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.boxShadow = isScrolled
-              ? 'none'
-              : `0 6px 20px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(4, 102, 200, 0.06)`;
-            if (isScrolled) {
-              e.currentTarget.style.background = 'transparent';
-              e.currentTarget.style.borderColor = 'transparent';
-            }
+            e.currentTarget.style.boxShadow = isScrolled ? 'none' : shadows.sm;
           }}
         >
           <img
@@ -258,11 +177,13 @@ export function Navbar({ activeSlideIndex = 0 }) {
           className="hidden lg:flex"
           style={{
             alignItems: 'center',
-            background: isScrolled ? 'rgba(241, 245, 249, 0.85)' : C.pillBg,
-            border: isScrolled ? '1px solid rgba(226, 232, 240, 0.95)' : `1px solid ${C.pillBorder}`,
-            borderRadius: 9999,
+            background: pillBg,
+            border: `1px solid ${pillBorder}`,
+            borderRadius: radii.pill,
             padding: 5,
-            boxShadow: isScrolled ? '0 2px 8px rgba(0, 0, 0, 0.04)' : C.pillShadow,
+            boxShadow: pillShadow,
+            backdropFilter: onDark ? 'blur(18px) saturate(150%)' : 'none',
+            WebkitBackdropFilter: onDark ? 'blur(18px) saturate(150%)' : 'none',
             gap: 2,
             transition: 'background .3s ease, border-color .3s ease, box-shadow .3s ease',
             position: 'relative',
@@ -283,30 +204,17 @@ export function Navbar({ activeSlideIndex = 0 }) {
                 transition={{ duration: 0.22, ease: EASE }}
                 style={{
                   position: 'relative',
-                  border: isHovered && !isActive
-                    ? `1.5px solid ${ORANGE.DEFAULT}`
-                    : '1.5px solid transparent',
-                  background: isHovered && !isActive
-                    ? 'rgba(249, 115, 22, 0.08)'
-                    : 'transparent',
+                  border: `1.5px solid ${isHovered && !isActive ? itemHoverBorder : 'transparent'}`,
+                  background: isHovered && !isActive ? itemHoverBg : 'transparent',
                   cursor: 'pointer',
                   padding: '8px 20px',
                   fontSize: 13.5,
-                  fontWeight: isActive || isHovered ? 700 : 500,
+                  fontWeight: isActive || isHovered ? 650 : 500,
                   letterSpacing: '-0.005em',
-                  color: isHovered
-                    ? BLUE_THEME.smart_blue.DEFAULT
-                    : isActive
-                      ? C.activeText
-                      : isScrolled
-                        ? '#334155'
-                        : C.idleText,
-                  borderRadius: 9999,
-                  boxShadow: isHovered && !isActive
-                    ? `0 0 14px ${ORANGE.GLOW_SOFT}`
-                    : 'none',
+                  color: isHovered || isActive ? itemActive : itemIdle,
+                  borderRadius: radii.pill,
                   transition: 'all .25s ease',
-                  fontFamily: '"Inter", system-ui, sans-serif',
+                  fontFamily: fonts.sans,
                   zIndex: 1,
                 }}
               >
@@ -317,9 +225,9 @@ export function Navbar({ activeSlideIndex = 0 }) {
                     style={{
                       position: 'absolute',
                       inset: 0,
-                      borderRadius: 9999,
-                      background: C.activeBg,
-                      border: `1px solid ${C.activeBorder}`,
+                      borderRadius: radii.pill,
+                      background: activeBg,
+                      border: `1px solid ${activeBorder}`,
                       zIndex: -1,
                     }}
                   />
@@ -330,60 +238,54 @@ export function Navbar({ activeSlideIndex = 0 }) {
           })}
         </div>
 
-        {/* RIGHT: CTA + Mobile hamburger toggle */}
+        {/* RIGHT: CTA + mobile toggle */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
           <motion.button
-            whileHover={{
-              scale: 1.04,
-              y: -2,
-              boxShadow: hoverGlow,
-            }}
+            whileHover={{ scale: 1.03, y: -2, boxShadow: shadows.brandLg }}
             whileTap={{ scale: 0.96 }}
             transition={{ duration: 0.28, ease: EASE }}
-            onClick={() => navigate('/login')}
+            onClick={() => onBookDemo?.()}
             className="hidden sm:inline-flex"
             style={{
-              padding: '10px 22px',
-              borderRadius: 9999,
-              border: 'none',
-              background: btnBg,
-              color: '#ffffff',
+              alignItems: 'center',
+              gap: 7,
+              padding: '10px 20px',
+              borderRadius: radii.pill,
+              border: '1px solid rgba(255, 255, 255, 0.18)',
+              background: gradients.brand,
+              color: '#FFFFFF',
               fontSize: 13.5,
-              fontWeight: 700,
+              fontWeight: 650,
+              letterSpacing: '-0.005em',
               cursor: 'pointer',
-              boxShadow: btnShadow,
-              fontFamily: '"Inter", system-ui, sans-serif',
-              transition: 'background .4s ease, box-shadow .4s ease',
+              boxShadow: shadows.brand,
+              fontFamily: fonts.sans,
             }}
           >
-            Get Started
+            Book Free Demo
+            <ArrowUpRight size={15} strokeWidth={2.6} />
           </motion.button>
 
           <motion.button
             onClick={() => setMobileOpen((o) => !o)}
-            whileHover={{
-              scale: 1.08,
-              boxShadow: `
-                0 0 0 2px ${ORANGE.DEFAULT},
-                0 0 18px ${ORANGE.GLOW},
-                0 8px 22px ${ORANGE.GLOW_SOFT}
-              `,
-            }}
+            whileHover={{ scale: 1.06 }}
             whileTap={{ scale: 0.94 }}
             transition={{ duration: 0.25, ease: EASE }}
             className="lg:hidden"
             style={{
               width: 40,
               height: 40,
-              borderRadius: 9999,
-              border: isScrolled ? '1px solid rgba(226, 232, 240, 0.9)' : `1px solid ${C.pillBorder}`,
-              background: isScrolled ? 'rgba(241, 245, 249, 0.85)' : C.pillBg,
+              borderRadius: radii.pill,
+              border: `1px solid ${pillBorder}`,
+              background: pillBg,
+              backdropFilter: onDark ? 'blur(18px)' : 'none',
+              WebkitBackdropFilter: onDark ? 'blur(18px)' : 'none',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: C.activeText,
-              boxShadow: isScrolled ? '0 2px 8px rgba(0, 0, 0, 0.04)' : C.pillShadow,
+              color: itemActive,
+              boxShadow: pillShadow,
               transition: 'background .3s ease, border-color .3s ease',
             }}
             aria-label="Toggle menu"
@@ -405,19 +307,19 @@ export function Navbar({ activeSlideIndex = 0 }) {
             style={{
               position: 'absolute',
               top: '100%',
-              left: 'clamp(20px, 5vw, 60px)',
-              right: 'clamp(20px, 5vw, 60px)',
+              left: layout.gutter,
+              right: layout.gutter,
               overflow: 'hidden',
-              background: '#ffffff',
-              border: '1px solid rgba(226, 232, 240, 0.9)',
-              borderRadius: 20,
+              background: '#FFFFFF',
+              border: `1px solid ${border.hairline}`,
+              borderRadius: radii.lg,
               marginTop: 8,
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.12)',
+              boxShadow: shadows.lg,
               maxHeight: '80vh',
               overflowY: 'auto',
             }}
           >
-            <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
               {NAV_ITEMS.map((item) => {
                 const isActive = activeSection === item.id;
 
@@ -426,17 +328,17 @@ export function Navbar({ activeSlideIndex = 0 }) {
                     key={item.id}
                     onClick={() => handleNavClick(item.id)}
                     style={{
-                      padding: '13px 18px',
-                      borderRadius: 12,
-                      background: isActive ? C.activeBg : 'transparent',
-                      border: isActive ? `1px solid ${C.activeBorder}` : '1px solid transparent',
+                      padding: '13px 16px',
+                      borderRadius: radii.sm,
+                      background: isActive ? brand.tint : 'transparent',
+                      border: `1px solid ${isActive ? brand.line : 'transparent'}`,
                       cursor: 'pointer',
                       textAlign: 'left',
                       fontSize: 14.5,
-                      fontWeight: isActive ? 700 : 500,
-                      color: isActive ? C.activeText : C.idleText,
+                      fontWeight: isActive ? 650 : 500,
+                      color: isActive ? brand.hover : text.secondary,
                       transition: 'all .25s ease',
-                      fontFamily: '"Inter", system-ui, sans-serif',
+                      fontFamily: fonts.sans,
                     }}
                   >
                     {item.label}
@@ -446,29 +348,30 @@ export function Navbar({ activeSlideIndex = 0 }) {
 
               <motion.button
                 onClick={() => {
-                  navigate('/login');
                   setMobileOpen(false);
-                }}
-                whileHover={{
-                  boxShadow: hoverGlow,
+                  onBookDemo?.();
                 }}
                 whileTap={{ scale: 0.97 }}
                 style={{
-                  marginTop: 6,
+                  marginTop: 8,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
                   padding: '14px 20px',
-                  borderRadius: 12,
+                  borderRadius: radii.sm,
                   border: 'none',
-                  background: btnBg,
-                  color: '#ffffff',
+                  background: gradients.brand,
+                  color: '#FFFFFF',
                   fontSize: 14.5,
-                  fontWeight: 800,
+                  fontWeight: 700,
                   cursor: 'pointer',
-                  boxShadow: btnShadow,
-                  fontFamily: '"Inter", system-ui, sans-serif',
-                  transition: 'background .4s ease, box-shadow .4s ease',
+                  boxShadow: shadows.brand,
+                  fontFamily: fonts.sans,
                 }}
               >
-                Get Started
+                Book Free Demo
+                <ArrowUpRight size={16} strokeWidth={2.6} />
               </motion.button>
             </div>
           </motion.div>

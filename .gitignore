@@ -13,8 +13,18 @@ build/
 .env.local
 .env.*.local
 *.env
-*serviceAccount*.json
-**/serviceAccountKey.json
+# Any file holding service-account / private-key material, whatever the extension
+*serviceAccount*
+**/serviceAccountKey*
+*.base64.txt
+*.pem
+*.p12
+*.pfx
+
+# NOTE: frontend/.env.production is intentionally tracked — it only holds public
+# VITE_* values that are baked into the bundle at build time, and the VPS deploy
+# (git reset --hard + docker compose build) needs the file to be present.
+# Never add a non-VITE_ secret to that file.
 
 # Logs
 npm-debug.log*

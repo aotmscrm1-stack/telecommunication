@@ -519,7 +519,6 @@ export default function Navbar() {
           icon: GoogleSheetsIcon,
           path: '/meta-leads',
           isDirect: true,
-          badge: 'Google Sheets'
         },
         {
           id: 'ai-calling',
@@ -527,7 +526,6 @@ export default function Navbar() {
           icon: FaPhoneVolume,
           path: '/ai-calling',
           isDirect: true,
-          badge: 'AI'
         },
         ...((user?.role === 'admin' || user?.role === 'superadmin' || isCEO(user)) ? [{
           id: 'performance',
@@ -598,7 +596,7 @@ export default function Navbar() {
       icon: FaBullhorn,
       items: [
         { label: 'Meta Leads', path: '/meta-leads', icon: GoogleSheetsIcon },
-        { label: 'AI Calling', path: '/ai-calling', icon: FaPhoneVolume, badge: 'AI' },
+        { label: 'AI Calling', path: '/ai-calling', icon: FaPhoneVolume },
       ]
     }] : []),
     ...(canAccessDigitalCalendar(user) ? [{
@@ -675,7 +673,6 @@ export default function Navbar() {
           icon: GoogleSheetsIcon,
           path: '/meta-leads',
           isDirect: true,
-          badge: 'Google Sheets'
         },
         {
           id: 'ai-calling',
@@ -683,7 +680,6 @@ export default function Navbar() {
           icon: FaPhoneVolume,
           path: '/ai-calling',
           isDirect: true,
-          badge: 'AI'
         },
         ...((user?.role === 'admin' || user?.role === 'superadmin' || isCEO(user)) ? [{
           id: 'performance',
@@ -729,6 +725,7 @@ export default function Navbar() {
     {
       title: 'Management', icon: FaSitemap, items: [
         { label: 'Departments', path: '/admin/departments', icon: FaSitemap },
+        { label: 'Client Demos Booked', path: '/demo-bookings', icon: FaCalendarCheck },
         { label: 'Daily Activity Schedule', path: '/daily-activity-schedule', icon: FaCalendarCheck },
         { label: 'Performance & Compliance', path: '/performance', icon: FaAward },
         { label: 'Attendance', path: user?._id ? `/${user._id}/attendance-records` : '/attendance-records', icon: FaCalendarCheck },
@@ -1138,54 +1135,42 @@ export default function Navbar() {
 
 
 
-                {/* Download Mobile APK (Prominent App APK Pill - Native <a> Link) */}
+                {/* Mobile APK — icon-only action (no text label) */}
                 <motion.a
-                  whileHover={{ scale: 1.05, y: -1 }}
-                  whileTap={{ scale: 0.95 }}
+                  whileHover={{ scale: 1.08, y: -1 }}
+                  whileTap={{ scale: 0.94 }}
                   href={apkDownloadUrl}
                   download="Telecom-CRM.apk"
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={handleDownloadApk}
-                  title="Download Latest Mobile Application APK (Android)"
-                  className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full font-bold text-xs transition-all shadow-xs cursor-pointer group no-underline"
+                  title="Download Mobile App (APK)"
+                  aria-label="Download Mobile App (APK)"
+                  className="group relative w-9 h-9 rounded-full flex items-center justify-center cursor-pointer no-underline transition-all"
                   style={{
                     background: 'linear-gradient(135deg, #eff6ff 0%, #fff7ed 100%)',
-                    border: '1.5px solid #fdba74',
-                    color: '#0f172a'
+                    border: `1.5px solid ${C.borderBlue}`,
+                    boxShadow: '0 2px 8px rgba(2, 132, 199, 0.14)',
                   }}
                 >
-                  <FaMobileScreen className="w-3.5 h-3.5 text-blue-600 group-hover:scale-110 transition-transform" />
-                  <span className="text-[11px] font-extrabold text-slate-800 tracking-tight">App APK</span>
+                  <FaMobileScreen
+                    className="w-4 h-4 transition-transform duration-300 group-hover:scale-110"
+                    style={{ color: C.blue }}
+                  />
                   <span
-                    className="px-1.5 py-0.2 rounded-full text-[9px] font-black text-white uppercase tracking-wider"
+                    className="absolute flex items-center justify-center rounded-full"
                     style={{
-                      background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
-                      boxShadow: '0 0 6px rgba(249, 115, 22, 0.4)'
+                      width: 13,
+                      height: 13,
+                      bottom: -2,
+                      right: -2,
+                      background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDk} 100%)`,
+                      border: `1.5px solid ${C.bgSolid}`,
+                      boxShadow: `0 0 6px ${C.orangeGlow}`,
                     }}
                   >
-                    NEW
+                    <FaDownload size={7} color="#ffffff" />
                   </span>
-                </motion.a>
-
-                {/* Compact icon button for mobile/tablet screens */}
-                <motion.a
-                  whileHover={{ scale: 1.08 }}
-                  whileTap={{ scale: 0.95 }}
-                  href={apkDownloadUrl}
-                  download="Telecom-CRM.apk"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={handleDownloadApk}
-                  title="Download Mobile APK (Android)"
-                  className="md:hidden w-9 h-9 rounded-full flex items-center justify-center transition-all nav-glow-icon-btn group relative no-underline"
-                  style={{ background: C.bgSoft, border: `1px solid ${C.border}` }}
-                >
-                  <FaMobileScreen className="w-4 h-4 transition-colors group-hover:scale-110" style={{ color: C.blue }} />
-                  <span
-                    className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full"
-                    style={{ background: C.orange, boxShadow: `0 0 6px ${C.orangeGlow}` }}
-                  />
                 </motion.a>
 
                 {/* Notifications */}

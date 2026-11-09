@@ -3,6 +3,7 @@ import { X, Sparkles } from 'lucide-react';
 import { messageTemplatesAPI } from '../../../services/api';
 import EmailRichEditor from './EmailRichEditor';
 import { applyTemplateVariables } from '../../../utils/emailTemplateUtils';
+import { sanitizeHtml } from '../../../utils/sanitizeHtml';
 
 const PURPLE = 'var(--theme-primary)';
 const NAVY = 'var(--theme-text-strong)';
@@ -42,7 +43,7 @@ export default function EmailTemplateModal({ onClose, onSaved }) {
   };
 
   const previewSubject = applyTemplateVariables(subject, SAMPLE_DATA);
-  const previewBodyHtml = applyTemplateVariables(body, SAMPLE_DATA);
+  const previewBodyHtml = sanitizeHtml(applyTemplateVariables(body, SAMPLE_DATA));
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(45,45,107,0.45)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: 20 }}>

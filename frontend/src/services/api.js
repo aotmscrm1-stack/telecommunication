@@ -298,6 +298,17 @@ export const contactsAPI = {
   sendSingleWhatsapp: (data) => api.post('/contacts/send-single-whatsapp', data),
 };
 
+export const demoBookingsAPI = {
+  // Public — landing page "Book a Free Demo" form
+  create: (data) => api.post('/demo-bookings', data),
+  // Admin — review console
+  getAll: (params) => api.get('/demo-bookings', { params }),
+  getStats: () => api.get('/demo-bookings/stats'),
+  updateStatus: (id, status) => api.patch(`/demo-bookings/${id}/status`, { status }),
+  update: (id, data) => api.patch(`/demo-bookings/${id}`, data),
+  remove: (id) => api.delete(`/demo-bookings/${id}`),
+};
+
 export const emailBlastAPI = {
   getTemplates: () => api.get('/email/templates'),
   createTemplate: (data) => api.post('/email/templates', data),

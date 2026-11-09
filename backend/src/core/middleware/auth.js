@@ -62,13 +62,28 @@ const protect = async (req, res, next) => {
     req.user = user;
     next();
   } catch (err) {
+    // Do not echo token/verification internals back to the caller.
     res.setHeader('WWW-Authenticate', 'Basic realm="AOTMS CRM API"');
-    return res.status(401).json({ message: 'Authentication failed: ' + err.message });
+    return res.status(401).json({ message: 'Authentication failed.' });
   }
 };
 
-const ADMIN_IDS = ['6ab9f622dab3a1da6ab7f9ca'];
-const MANAGER_IDS = ['6ab6449b62b25645faae28ed', '6ab38a233312a90866e3c76c', '6ad8ba8cf32fe447c4783eda'];
+// Allow-lists of privileged account ids come from the environment so that they
+// can be rotated without a code change. The literals below are only the
+// fallback for an existing deployment that has not set the variables yet.
+const parseIds = (value, fallback) =>
+  String(value || '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean)
+    .concat(fallback);
+
+const ADMIN_IDS = parseIds(process.env.ADMIN_IDS, ['6ab9f622dab3a1da6ab7f9ca']);
+const MANAGER_IDS = parseIds(process.env.MANAGER_IDS, [
+  '6ab6449b62b25645faae28ed',
+  '6ab38a233312a90866e3c76c',
+  '6ad8ba8cf32fe447c4783eda',
+]);
 
 const authorize = (...roles) => (req, res, next) => {
   const userId = String(req.user?._id || '');

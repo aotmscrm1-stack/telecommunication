@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Payslip = require('../../../database/models/Payslip');
-const { protect } = require('../../../core/middleware/auth');
+const { protect, authorize } = require('../../../core/middleware/auth');
 const { numberToWords } = require('../../../core/utils/numberToWords');
 
 const MONTH_NAMES_LIST = [
@@ -90,7 +90,12 @@ function calculateSalaryComponents(grossSalary, effectiveWorkDays = 30, lopDays 
 }
 
 // ── GET /api/payslips/calculate (Live preview helper) ──────────────────────────
-router.post('/calculate', protect, (req, res) => {
+// Payslips contain salary, PAN and bank account details, so every route is
+// limited to HR / admin / management roles. (authorize() already lets HR and
+// executives through and blocks HR from DELETE.)
+const FINANCE_ROLES = authorize('admin', 'manager');
+
+router.post('/calculate', protect, FINANCE_ROLES, (req, res) => {
   try {
     const { gross_salary, effective_work_days, lop, tds, incentive } = req.body;
     const components = calculateSalaryComponents(gross_salary, effective_work_days, lop, incentive, tds);
@@ -101,7 +106,7 @@ router.post('/calculate', protect, (req, res) => {
 });
 
 // ── GET /api/payslips (List with search & pagination) ──────────────────────────
-router.get('/', protect, async (req, res) => {
+router.get('/', protect, FINANCE_ROLES, async (req, res) => {
   try {
     const { search, month, page = 1, limit = 20 } = req.query;
     const query = {};
@@ -142,7 +147,7 @@ router.get('/', protect, async (req, res) => {
 });
 
 // ── GET /api/payslips/:id (Single payslip) ────────────────────────────────────
-router.get('/:id', protect, async (req, res) => {
+router.get('/:id', protect, FINANCE_ROLES, async (req, res) => {
   try {
     const payslip = await Payslip.findById(req.params.id).populate('createdBy', 'name email');
     if (!payslip) return res.status(404).json({ message: 'Payslip not found' });
@@ -153,7 +158,7 @@ router.get('/:id', protect, async (req, res) => {
 });
 
 // ── POST /api/payslips (Create & save new payslip) ─────────────────────────────
-router.post('/', protect, async (req, res) => {
+router.post('/', protect, FINANCE_ROLES, async (req, res) => {
   try {
     const {
       employee_name,
@@ -250,7 +255,7 @@ router.post('/', protect, async (req, res) => {
 });
 
 // ── POST /api/payslips/bulk (Bulk create & save payslips) ──────────────────────
-router.post('/bulk', protect, async (req, res) => {
+router.post('/bulk', protect, FINANCE_ROLES, async (req, res) => {
   try {
     const { payslips = [] } = req.body;
     if (!Array.isArray(payslips) || payslips.length === 0) {
@@ -340,7 +345,7 @@ router.post('/bulk', protect, async (req, res) => {
 });
 
 // ── PUT /api/payslips/:id (Update payslip) ────────────────────────────────────
-router.put('/:id', protect, async (req, res) => {
+router.put('/:id', protect, FINANCE_ROLES, async (req, res) => {
   try {
     const existing = await Payslip.findById(req.params.id);
     if (!existing) return res.status(404).json({ message: 'Payslip not found' });
@@ -399,7 +404,7 @@ router.put('/:id', protect, async (req, res) => {
 });
 
 // ── DELETE /api/payslips/:id (Delete payslip) ──────────────────────────────────
-router.delete('/:id', protect, async (req, res) => {
+router.delete('/:id', protect, FINANCE_ROLES, async (req, res) => {
   try {
     const payslip = await Payslip.findByIdAndDelete(req.params.id);
     if (!payslip) return res.status(404).json({ message: 'Payslip not found' });

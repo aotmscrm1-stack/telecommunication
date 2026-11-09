@@ -23,6 +23,18 @@ import {
 import { AnimatedBeam } from '../../components/ui/animated-beam';
 import { ShinyText } from '../../components/ui/ShinyText';
 import aotmsLogo from '../../assets/Logo.png';
+import {
+  accent,
+  border,
+  brand,
+  cobalt,
+  fonts,
+  layout,
+  radii,
+  shadows,
+  surface,
+  text,
+} from './theme';
 
 export function IntegrationsSection() {
   const containerRef = useRef(null);
@@ -45,8 +57,8 @@ export function IntegrationsSection() {
       id="services"
       style={{
         position: 'relative',
-        background: '#ffffff',
-        padding: 'clamp(64px, 8vw, 110px) clamp(20px, 5vw, 64px)',
+        background: surface.subtle,
+        padding: `${layout.sectionY} ${layout.gutter}`,
         overflow: 'hidden',
       }}
     >
@@ -63,7 +75,7 @@ export function IntegrationsSection() {
           width: '90%',
           maxWidth: 1100,
           height: 480,
-          background: 'radial-gradient(ellipse at 50% 30%, rgba(4, 102, 200, 0.05) 0%, transparent 70%)',
+          background: 'radial-gradient(ellipse at 50% 25%, rgba(37, 99, 235, 0.07) 0%, transparent 68%)',
           pointerEvents: 'none',
           zIndex: 0,
         }}
@@ -91,23 +103,23 @@ export function IntegrationsSection() {
               display: 'inline-flex',
               alignItems: 'center',
               gap: 8,
-              padding: '6px 18px',
-              borderRadius: 9999,
-              background: 'rgba(4, 102, 200, 0.08)',
-              border: '1px solid rgba(4, 102, 200, 0.22)',
-              marginBottom: 16,
-              boxShadow: '0 2px 10px rgba(4, 102, 200, 0.08)',
+              padding: '6px 16px',
+              borderRadius: radii.pill,
+              background: surface.page,
+              border: `1px solid ${cobalt[200]}`,
+              marginBottom: 18,
+              boxShadow: 'none',
             }}
           >
-            <Sparkles size={14} color="#0466c8" />
+            <Sparkles size={13} strokeWidth={2.4} color={brand.base} />
             <ShinyText
               text="LIVE NATIVE CONNECTORS & API PIPELINE"
               speed={3.5}
               style={{
-                fontSize: 11.5,
-                fontWeight: 800,
-                letterSpacing: '0.08em',
-                color: '#0466c8',
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.10em',
+                color: cobalt[700],
               }}
             />
           </motion.div>
@@ -119,13 +131,13 @@ export function IntegrationsSection() {
             viewport={{ once: true }}
             transition={{ duration: 0.7, delay: 0.1 }}
             style={{
-              fontSize: 'clamp(32px, 4.4vw, 48px)',
-              fontWeight: 900,
-              letterSpacing: '-0.03em',
+              fontSize: 'clamp(30px, 4.2vw, 46px)',
+              fontWeight: 800,
+              letterSpacing: '-0.035em',
               lineHeight: 1.15,
-              color: '#0f172a',
+              color: text.primary,
               margin: '0 0 16px 0',
-              fontFamily: '"Bricolage Grotesque", "Plus Jakarta Sans", "Inter", sans-serif',
+              fontFamily: fonts.display,
             }}
           >
             Connects with the platforms you already use
@@ -138,12 +150,12 @@ export function IntegrationsSection() {
             viewport={{ once: true }}
             transition={{ duration: 0.7, delay: 0.2 }}
             style={{
-              color: '#64748b',
+              color: text.tertiary,
               fontSize: 'clamp(15px, 1.1vw, 17px)',
               maxWidth: 720,
               margin: '0 auto',
-              lineHeight: 1.65,
-              fontWeight: 450,
+              lineHeight: 1.7,
+              fontWeight: 400,
             }}
           >
             Real, native API integrations — not just webhook stubs. Route telephony calls, capture social ads, sync Google Sheets, and trigger WhatsApp dispatches in under 120ms.
@@ -158,11 +170,11 @@ export function IntegrationsSection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8 }}
-          className="relative flex min-h-[480px] md:min-h-[520px] w-full items-center justify-center overflow-hidden rounded-3xl border border-slate-200/90 bg-white p-6 md:p-12 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.06)]"
+          className="relative flex min-h-[480px] md:min-h-[520px] w-full items-center justify-center overflow-hidden rounded-[28px] border border-[#E1E7F1] bg-white p-6 md:p-12 shadow-[0_28px_70px_-30px_rgba(11,17,32,0.22)]"
           ref={containerRef}
           style={{
-            backgroundImage: `radial-gradient(rgba(15, 23, 42, 0.08) 1.2px, transparent 1.2px)`,
-            backgroundSize: '24px 24px',
+            backgroundImage: `radial-gradient(rgba(17, 24, 41, 0.07) 1.2px, transparent 1.2px)`,
+            backgroundSize: '26px 26px',
           }}
         >
           {/* Subtle Ambient Radial Glow in center */}
@@ -175,7 +187,7 @@ export function IntegrationsSection() {
               width: 380,
               height: 380,
               borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(4, 102, 200, 0.10) 0%, transparent 70%)',
+              background: 'radial-gradient(circle, rgba(37, 99, 235, 0.12) 0%, transparent 70%)',
               filter: 'blur(45px)',
               pointerEvents: 'none',
               zIndex: 1,
@@ -194,8 +206,8 @@ export function IntegrationsSection() {
                 <SiGooglesheets size={24} className="text-emerald-500 group-hover:scale-110 transition-transform" />
               </div>
               <div className="hidden sm:block">
-                <div className="text-xs font-bold text-slate-800">Google Sheets</div>
-                <div className="text-[10px] text-slate-500 font-medium">2-Way Live Sync</div>
+                <div className="text-xs font-semibold text-[#111829]">Google Sheets</div>
+                <div className="text-[10px] text-[#5F6E8C] font-medium">2-Way Live Sync</div>
               </div>
             </div>
 
@@ -209,8 +221,8 @@ export function IntegrationsSection() {
                 <SiWhatsapp size={24} className="text-green-500 group-hover:scale-110 transition-transform" />
               </div>
               <div className="hidden sm:block">
-                <div className="text-xs font-bold text-slate-800">WhatsApp</div>
-                <div className="text-[10px] text-slate-500 font-medium">Meta Cloud API</div>
+                <div className="text-xs font-semibold text-[#111829]">WhatsApp</div>
+                <div className="text-[10px] text-[#5F6E8C] font-medium">Meta Cloud API</div>
               </div>
             </div>
 
@@ -224,8 +236,8 @@ export function IntegrationsSection() {
                 <SiFacebook size={24} className="text-blue-600 group-hover:scale-110 transition-transform" />
               </div>
               <div className="hidden sm:block">
-                <div className="text-xs font-bold text-slate-800">Meta Ads</div>
-                <div className="text-[10px] text-slate-500 font-medium">&lt; 80ms Ingest</div>
+                <div className="text-xs font-semibold text-[#111829]">Meta Ads</div>
+                <div className="text-[10px] text-[#5F6E8C] font-medium">&lt; 80ms Ingest</div>
               </div>
             </div>
 
@@ -239,8 +251,8 @@ export function IntegrationsSection() {
                 <SiGoogledrive size={24} className="text-amber-500 group-hover:scale-110 transition-transform" />
               </div>
               <div className="hidden sm:block">
-                <div className="text-xs font-bold text-slate-800">Google Drive</div>
-                <div className="text-[10px] text-slate-500 font-medium">Cloud Attachments</div>
+                <div className="text-xs font-semibold text-[#111829]">Google Drive</div>
+                <div className="text-[10px] text-[#5F6E8C] font-medium">Cloud Attachments</div>
               </div>
             </div>
           </div>
@@ -252,14 +264,14 @@ export function IntegrationsSection() {
               ref={centerRef}
               whileHover={{ scale: 1.05 }}
               transition={{ duration: 0.3 }}
-              className="z-20 flex size-20 md:size-24 items-center justify-center rounded-full border-2 border-blue-500/50 bg-white p-3.5 shadow-[0_10px_35px_rgba(4,102,200,0.22)] relative cursor-pointer"
+              className="z-20 flex size-20 md:size-24 items-center justify-center rounded-full border-2 border-[#2563EB]/40 bg-white p-3.5 shadow-[0_12px_38px_rgba(37,99,235,0.24)] relative cursor-pointer"
             >
               <img
                 src={aotmsLogo}
                 alt="AOTMS CRM"
                 className="h-full w-full object-contain"
               />
-              <span className="absolute -bottom-7 whitespace-nowrap text-[10.5px] font-mono font-bold tracking-wider text-blue-700 bg-blue-50/95 px-3 py-1 rounded-full border border-blue-200 shadow-sm">
+              <span className="absolute -bottom-7 whitespace-nowrap text-[10px] font-mono font-semibold tracking-[0.14em] text-[#1D4ED8] bg-[#EFF4FF] px-3 py-1 rounded-full border border-[#BFD2FD] shadow-sm">
                 AOTMS CORE CRM
               </span>
             </motion.div>
@@ -270,8 +282,8 @@ export function IntegrationsSection() {
             {/* 1. Airtel Telephony */}
             <div className="flex items-center justify-end gap-3">
               <div className="hidden sm:block text-right">
-                <div className="text-xs font-bold text-slate-800">Airtel Telecom</div>
-                <div className="text-[10px] text-slate-500 font-medium">SIP Trunk & VoIP</div>
+                <div className="text-xs font-semibold text-[#111829]">Airtel Telecom</div>
+                <div className="text-[10px] text-[#5F6E8C] font-medium">SIP Trunk & VoIP</div>
               </div>
               <div
                 ref={airtelRef}
@@ -285,8 +297,8 @@ export function IntegrationsSection() {
             {/* 2. Gmail */}
             <div className="flex items-center justify-end gap-3">
               <div className="hidden sm:block text-right">
-                <div className="text-xs font-bold text-slate-800">Gmail & SMTP</div>
-                <div className="text-[10px] text-slate-500 font-medium">Transactional Mail</div>
+                <div className="text-xs font-semibold text-[#111829]">Gmail & SMTP</div>
+                <div className="text-[10px] text-[#5F6E8C] font-medium">Transactional Mail</div>
               </div>
               <div
                 ref={gmailRef}
@@ -300,8 +312,8 @@ export function IntegrationsSection() {
             {/* 3. Zapier Automation */}
             <div className="flex items-center justify-end gap-3">
               <div className="hidden sm:block text-right">
-                <div className="text-xs font-bold text-slate-800">Zapier</div>
-                <div className="text-[10px] text-slate-500 font-medium">5,000+ App Triggers</div>
+                <div className="text-xs font-semibold text-[#111829]">Zapier</div>
+                <div className="text-[10px] text-[#5F6E8C] font-medium">5,000+ App Triggers</div>
               </div>
               <div
                 ref={zapierRef}
@@ -315,8 +327,8 @@ export function IntegrationsSection() {
             {/* 4. Razorpay Payments */}
             <div className="flex items-center justify-end gap-3">
               <div className="hidden sm:block text-right">
-                <div className="text-xs font-bold text-slate-800">Razorpay</div>
-                <div className="text-[10px] text-slate-500 font-medium">Instant UPI Links</div>
+                <div className="text-xs font-semibold text-[#111829]">Razorpay</div>
+                <div className="text-[10px] text-[#5F6E8C] font-medium">Instant UPI Links</div>
               </div>
               <div
                 ref={razorpayRef}
@@ -340,7 +352,7 @@ export function IntegrationsSection() {
             gradientStartColor="#0F9D58"
             gradientStopColor="#10B981"
             duration={3.2}
-            pathColor="#cbd5e1"
+            pathColor="#C9D2E1"
             pathWidth={2}
             pathOpacity={0.65}
           />
@@ -354,7 +366,7 @@ export function IntegrationsSection() {
             gradientStopColor="#059669"
             duration={2.8}
             delay={0.4}
-            pathColor="#cbd5e1"
+            pathColor="#C9D2E1"
             pathWidth={2}
             pathOpacity={0.65}
           />
@@ -368,7 +380,7 @@ export function IntegrationsSection() {
             gradientStopColor="#2563EB"
             duration={3.0}
             delay={0.8}
-            pathColor="#cbd5e1"
+            pathColor="#C9D2E1"
             pathWidth={2}
             pathOpacity={0.65}
           />
@@ -382,7 +394,7 @@ export function IntegrationsSection() {
             gradientStopColor="#EA4335"
             duration={3.4}
             delay={1.2}
-            pathColor="#cbd5e1"
+            pathColor="#C9D2E1"
             pathWidth={2}
             pathOpacity={0.65}
           />
@@ -400,7 +412,7 @@ export function IntegrationsSection() {
             gradientStopColor="#DC2626"
             duration={3.0}
             delay={0.2}
-            pathColor="#cbd5e1"
+            pathColor="#C9D2E1"
             pathWidth={2}
             pathOpacity={0.65}
           />
@@ -414,7 +426,7 @@ export function IntegrationsSection() {
             gradientStopColor="#DC2626"
             duration={2.9}
             delay={0.6}
-            pathColor="#cbd5e1"
+            pathColor="#C9D2E1"
             pathWidth={2}
             pathOpacity={0.65}
           />
@@ -428,7 +440,7 @@ export function IntegrationsSection() {
             gradientStopColor="#EA580C"
             duration={3.1}
             delay={1.0}
-            pathColor="#cbd5e1"
+            pathColor="#C9D2E1"
             pathWidth={2}
             pathOpacity={0.65}
           />
@@ -442,7 +454,7 @@ export function IntegrationsSection() {
             gradientStopColor="#0284C7"
             duration={3.3}
             delay={1.4}
-            pathColor="#cbd5e1"
+            pathColor="#C9D2E1"
             pathWidth={2}
             pathOpacity={0.65}
           />
@@ -462,128 +474,132 @@ export function IntegrationsSection() {
           <div
             style={{
               padding: '20px 24px',
-              borderRadius: 18,
-              background: '#f8fafc',
-              border: '1px solid rgba(226, 232, 240, 0.9)',
+              borderRadius: radii.lg,
+              background: surface.page,
+              border: `1px solid ${border.hairline}`,
               display: 'flex',
               alignItems: 'center',
               gap: 14,
+              boxShadow: shadows.xs,
             }}
           >
             <div
               style={{
                 width: 44,
                 height: 44,
-                borderRadius: 12,
-                background: 'rgba(2, 132, 199, 0.1)',
+                borderRadius: radii.sm,
+                background: brand.tint,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#0284c7',
+                color: brand.base,
                 flexShrink: 0,
               }}
             >
               <Zap size={22} strokeWidth={2.4} />
             </div>
             <div>
-              <div style={{ fontSize: 20, fontWeight: 850, color: '#0f172a' }}>&lt; 80ms</div>
-              <div style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>Webhook Sync Latency</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: text.primary, letterSpacing: '-0.015em' }}>&lt; 80ms</div>
+              <div style={{ fontSize: 12.5, color: text.tertiary, fontWeight: 500 }}>Webhook Sync Latency</div>
             </div>
           </div>
 
           <div
             style={{
               padding: '20px 24px',
-              borderRadius: 18,
-              background: '#f8fafc',
-              border: '1px solid rgba(226, 232, 240, 0.9)',
+              borderRadius: radii.lg,
+              background: surface.page,
+              border: `1px solid ${border.hairline}`,
               display: 'flex',
               alignItems: 'center',
               gap: 14,
+              boxShadow: shadows.xs,
             }}
           >
             <div
               style={{
                 width: 44,
                 height: 44,
-                borderRadius: 12,
-                background: 'rgba(34, 197, 94, 0.1)',
+                borderRadius: radii.sm,
+                background: accent.emerald.tint,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#16a34a',
+                color: accent.emerald.text,
                 flexShrink: 0,
               }}
             >
               <ShieldCheck size={22} strokeWidth={2.4} />
             </div>
             <div>
-              <div style={{ fontSize: 20, fontWeight: 850, color: '#0f172a' }}>99.9% Uptime</div>
-              <div style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>Carrier SIP & WebRTC</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: text.primary, letterSpacing: '-0.015em' }}>99.9% Uptime</div>
+              <div style={{ fontSize: 12.5, color: text.tertiary, fontWeight: 500 }}>Carrier SIP & WebRTC</div>
             </div>
           </div>
 
           <div
             style={{
               padding: '20px 24px',
-              borderRadius: 18,
-              background: '#f8fafc',
-              border: '1px solid rgba(226, 232, 240, 0.9)',
+              borderRadius: radii.lg,
+              background: surface.page,
+              border: `1px solid ${border.hairline}`,
               display: 'flex',
               alignItems: 'center',
               gap: 14,
+              boxShadow: shadows.xs,
             }}
           >
             <div
               style={{
                 width: 44,
                 height: 44,
-                borderRadius: 12,
-                background: 'rgba(124, 58, 237, 0.1)',
+                borderRadius: radii.sm,
+                background: accent.teal.tint,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#7c3aed',
+                color: accent.teal.text,
                 flexShrink: 0,
               }}
             >
               <Layers size={22} strokeWidth={2.4} />
             </div>
             <div>
-              <div style={{ fontSize: 20, fontWeight: 850, color: '#0f172a' }}>100+ Connectors</div>
-              <div style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>Native CRM & Ad APIs</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: text.primary, letterSpacing: '-0.015em' }}>100+ Connectors</div>
+              <div style={{ fontSize: 12.5, color: text.tertiary, fontWeight: 500 }}>Native CRM & Ad APIs</div>
             </div>
           </div>
 
           <div
             style={{
               padding: '20px 24px',
-              borderRadius: 18,
-              background: '#f8fafc',
-              border: '1px solid rgba(226, 232, 240, 0.9)',
+              borderRadius: radii.lg,
+              background: surface.page,
+              border: `1px solid ${border.hairline}`,
               display: 'flex',
               alignItems: 'center',
               gap: 14,
+              boxShadow: shadows.xs,
             }}
           >
             <div
               style={{
                 width: 44,
                 height: 44,
-                borderRadius: 12,
-                background: 'rgba(249, 115, 22, 0.1)',
+                borderRadius: radii.sm,
+                background: accent.amber.tint,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#ea580c',
+                color: accent.amber.text,
                 flexShrink: 0,
               }}
             >
               <CheckCircle2 size={22} strokeWidth={2.4} />
             </div>
             <div>
-              <div style={{ fontSize: 20, fontWeight: 850, color: '#0f172a' }}>0% Leakage</div>
-              <div style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>Automated Round-Robin</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: text.primary, letterSpacing: '-0.015em' }}>0% Leakage</div>
+              <div style={{ fontSize: 12.5, color: text.tertiary, fontWeight: 500 }}>Automated Round-Robin</div>
             </div>
           </div>
         </div>

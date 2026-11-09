@@ -14,6 +14,7 @@ const Campaign = require('../../../database/models/Campaign');
 const User = require('../../../database/models/User');
 const { normalizePhone10 } = require('../../../core/utils/phone');
 const { protect } = require('../../../core/middleware/auth');
+const { aiLimiter } = require('../../../core/middleware/rateLimiter');
 const { deleteFromCloudinary, uploadAudioToCloudinary } = require('../../../core/utils/cloudinary');
 
 let transcribeAudioFile = null;
@@ -1251,7 +1252,7 @@ router.get('/', protect, async (req, res) => {
 });
 
 // ─── POST /api/recordings/:id/transcribe ──────────────────────────────────
-router.post('/:id/transcribe', protect, async (req, res) => {
+router.post('/:id/transcribe', protect, aiLimiter, async (req, res) => {
   try {
     if (!isHRorAdmin(req.user)) {
       return res.status(403).json({ error: 'Not authorized: Call recordings are restricted to HR and Admin' });

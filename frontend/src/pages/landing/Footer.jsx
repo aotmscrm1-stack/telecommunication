@@ -1,19 +1,29 @@
 import React from 'react';
 import HalftoneWordmarkFooter from '../../components/ui/halftone-wordmark-footer';
+import { cobalt, ink } from './theme';
 
 export const Footer = () => {
   return (
-    <div id="contact" className="w-full relative z-10 bg-white border-t border-slate-200">
+    <div
+      id="contact"
+      style={{
+        width: '100%',
+        position: 'relative',
+        zIndex: 10,
+        background: ink[950],
+        borderTop: `1px solid ${ink[800]}`,
+      }}
+    >
       <HalftoneWordmarkFooter
         wordmark="crm"
         label=""
         meta=""
         columns={[]}
-        preset="paper"
+        preset="night"
         palette={{
-          background: '#ffffff',
-          ink: '#090d16',
-          warm: '#2563eb',
+          background: ink[950],
+          ink: '#E8EDF7',
+          warm: cobalt[500],
         }}
         dotGap={6}
         radius={90}

@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useAuth } from '../../../context/AuthContext';
 import { getWebSocketUrl } from '../../../services/api';
 import { canDelete, isManagingDirector, isExecutive, canAccessEmailBlast } from '../../../utils/permissions';
+import { sanitizeHtml } from '../../../utils/sanitizeHtml';
 import SplitText from '../../../components/ui/SplitText';
 import ShinyText from '../../../components/ui/ShinyText';
 import BulkEmailBlast from './BulkEmailBlast';
@@ -89,7 +90,8 @@ const formatEmailBodyHtml = (content) => {
     html = html.replace(/\[https?:\/\/[^\s\]]+\]/gi, '');
   }
 
-  return html;
+  // Email bodies are authored by external senders — never trust their HTML.
+  return sanitizeHtml(html);
 };
 
 const cleanEmailBody = (content) => formatEmailBodyHtml(content);
@@ -2960,7 +2962,7 @@ ${user?.designation || 'Staff'}`
                     <div
                       style={{ fontSize: 13.5, lineHeight: 1.7, color: TEXT_MAIN, minHeight: 120 }}
                       dangerouslySetInnerHTML={{
-                        __html: generateEmailHtml(body, attachments, driveLinks, photos)
+                        __html: sanitizeHtml(generateEmailHtml(body, attachments, driveLinks, photos))
                       }}
                     />
                   </div>
@@ -3347,7 +3349,7 @@ ${user?.designation || 'Staff'}`
                   padding: 22, boxShadow: '0 1px 3px rgba(0,0,0,0.05)', fontSize: 13.5, lineHeight: 1.7
                 }}
                 dangerouslySetInnerHTML={{
-                  __html: lastSentEmail.html || (lastSentEmail.body || '').replace(/\n/g, '<br/>')
+                  __html: sanitizeHtml(lastSentEmail.html || (lastSentEmail.body || '').replace(/\n/g, '<br/>'))
                 }}
               />
             </div>

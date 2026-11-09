@@ -13,6 +13,21 @@ import {
 } from 'lucide-react';
 import { SpotlightCard } from '../../components/ui/SpotlightCard';
 import { ShinyText } from '../../components/ui/ShinyText';
+import {
+  accent,
+  amber,
+  border,
+  brand,
+  cobalt,
+  fonts,
+  gradients,
+  ink,
+  layout,
+  radii,
+  shadows,
+  surface,
+  text,
+} from './theme';
 
 const PRICING_TIERS = [
   {
@@ -24,7 +39,6 @@ const PRICING_TIERS = [
     yearlyPrice: 699,
     savingsText: 'Save ₹3,600/yr',
     popular: false,
-    accentColor: '#0466c8',
     buttonText: 'Start Free Trial',
     buttonStyle: 'secondary',
     features: [
@@ -46,7 +60,6 @@ const PRICING_TIERS = [
     yearlyPrice: 1299,
     savingsText: 'Save ₹7,200/yr · 32% Off',
     popular: true,
-    accentColor: '#f97316',
     buttonText: 'Start 14-Day Pro Trial',
     buttonStyle: 'primary',
     features: [
@@ -69,7 +82,6 @@ const PRICING_TIERS = [
     yearlyPrice: 2499,
     savingsText: 'Save ₹12,000/yr',
     popular: false,
-    accentColor: '#7c3aed',
     buttonText: 'Talk to Enterprise',
     buttonStyle: 'secondary',
     features: [
@@ -109,8 +121,8 @@ export const PricingSection = () => {
     <section
       id="pricing"
       style={{
-        padding: '100px 24px 110px',
-        background: 'linear-gradient(180deg, #f8fafc 0%, #ffffff 50%, #f8fafc 100%)',
+        padding: `${layout.sectionY} ${layout.gutter}`,
+        background: surface.page,
         position: 'relative',
         overflow: 'hidden',
       }}
@@ -124,7 +136,7 @@ export const PricingSection = () => {
           transform: 'translateX(-50%)',
           width: 900,
           height: 600,
-          background: 'radial-gradient(circle, rgba(249, 115, 22, 0.05) 0%, rgba(4, 102, 200, 0.04) 50%, transparent 75%)',
+          background: 'radial-gradient(circle, rgba(37, 99, 235, 0.06) 0%, rgba(6, 182, 212, 0.04) 52%, transparent 78%)',
           filter: 'blur(90px)',
           pointerEvents: 'none',
           zIndex: 0,
@@ -145,23 +157,23 @@ export const PricingSection = () => {
               display: 'inline-flex',
               alignItems: 'center',
               gap: 8,
-              padding: '6px 18px',
-              borderRadius: 9999,
-              background: 'rgba(249, 115, 22, 0.08)',
-              border: '1px solid rgba(249, 115, 22, 0.25)',
-              marginBottom: 16,
-              boxShadow: '0 2px 10px rgba(249, 115, 22, 0.08)',
+              padding: '6px 16px',
+              borderRadius: radii.pill,
+              background: brand.soft,
+              border: `1px solid ${cobalt[200]}`,
+              marginBottom: 18,
+              boxShadow: 'none',
             }}
           >
-            <Sparkles size={14} color="#f97316" />
+            <Sparkles size={13} strokeWidth={2.4} color={brand.base} />
             <ShinyText
               text="TRANSPARENT VALUE PRICING"
               speed={3.5}
               style={{
-                fontSize: 11.5,
-                fontWeight: 800,
-                letterSpacing: '0.08em',
-                color: '#ea580c',
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.10em',
+                color: cobalt[700],
               }}
             />
           </motion.div>
@@ -173,12 +185,12 @@ export const PricingSection = () => {
             transition={{ duration: 0.7, delay: 0.1 }}
             style={{
               fontSize: 'clamp(30px, 4.2vw, 46px)',
-              fontWeight: 900,
-              letterSpacing: '-0.03em',
+              fontWeight: 800,
+              letterSpacing: '-0.035em',
               lineHeight: 1.15,
-              color: '#0f172a',
+              color: text.primary,
               margin: '0 0 14px 0',
-              fontFamily: '"Bricolage Grotesque", "Plus Jakarta Sans", "Inter", sans-serif',
+              fontFamily: fonts.display,
             }}
           >
             Simple, Transparent Pricing
@@ -190,12 +202,12 @@ export const PricingSection = () => {
             viewport={{ once: true }}
             transition={{ duration: 0.7, delay: 0.2 }}
             style={{
-              color: '#64748b',
+              color: text.tertiary,
               fontSize: 'clamp(15px, 1.1vw, 17px)',
               maxWidth: 640,
               margin: '0 auto',
-              lineHeight: 1.65,
-              fontWeight: 450,
+              lineHeight: 1.7,
+              fontWeight: 400,
             }}
           >
             Invest in revenue growth, not overhead. Choose the plan tailored for your telecommunication team with zero hidden charges.
@@ -218,10 +230,10 @@ export const PricingSection = () => {
               display: 'inline-flex',
               alignItems: 'center',
               padding: 5,
-              borderRadius: 9999,
-              background: '#ffffff',
-              border: '1px solid rgba(226, 232, 240, 0.95)',
-              boxShadow: '0 6px 20px rgba(0, 0, 0, 0.05)',
+              borderRadius: radii.pill,
+              background: surface.subtle,
+              border: `1px solid ${border.base}`,
+              boxShadow: 'none',
               gap: 4,
             }}
           >
@@ -229,15 +241,16 @@ export const PricingSection = () => {
               onClick={() => setBillingCycle('monthly')}
               style={{
                 border: 'none',
-                background: !isYearly ? '#0f172a' : 'transparent',
-                color: !isYearly ? '#ffffff' : '#64748b',
+                background: !isYearly ? surface.page : 'transparent',
+                color: !isYearly ? text.primary : text.tertiary,
                 padding: '9px 22px',
-                borderRadius: 9999,
+                borderRadius: radii.pill,
                 fontSize: 13.5,
-                fontWeight: 700,
+                fontWeight: !isYearly ? 650 : 500,
                 cursor: 'pointer',
+                boxShadow: !isYearly ? shadows.xs : 'none',
                 transition: 'all 0.25s ease',
-                fontFamily: '"Inter", sans-serif',
+                fontFamily: fonts.sans,
               }}
             >
               Monthly Billing
@@ -247,35 +260,37 @@ export const PricingSection = () => {
               onClick={() => setBillingCycle('yearly')}
               style={{
                 border: 'none',
-                background: isYearly ? '#0f172a' : 'transparent',
-                color: isYearly ? '#ffffff' : '#64748b',
+                background: isYearly ? surface.page : 'transparent',
+                color: isYearly ? text.primary : text.tertiary,
                 padding: '9px 22px',
-                borderRadius: 9999,
+                borderRadius: radii.pill,
                 fontSize: 13.5,
-                fontWeight: 700,
+                fontWeight: isYearly ? 650 : 500,
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 8,
+                boxShadow: isYearly ? shadows.xs : 'none',
                 transition: 'all 0.25s ease',
-                fontFamily: '"Inter", sans-serif',
+                fontFamily: fonts.sans,
               }}
             >
               Yearly Billing
               <span
                 style={{
-                  fontSize: 11,
-                  fontWeight: 800,
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  letterSpacing: '0.04em',
                   background: isYearly
-                    ? 'linear-gradient(135deg, #f97316, #ea580c)'
-                    : '#fef3c7',
-                  color: isYearly ? '#ffffff' : '#b45309',
+                    ? `linear-gradient(135deg, ${amber[500]}, ${amber[600]})`
+                    : amber[100],
+                  color: isYearly ? '#FFFFFF' : amber[700],
                   padding: '3px 9px',
-                  borderRadius: 9999,
-                  boxShadow: isYearly ? '0 2px 8px rgba(249, 115, 22, 0.4)' : 'none',
+                  borderRadius: radii.pill,
+                  boxShadow: isYearly ? '0 2px 8px rgba(245, 158, 11, 0.35)' : 'none',
                 }}
               >
-                SAVE 32% ✨
+                SAVE 32%
               </span>
             </button>
           </div>
@@ -298,19 +313,17 @@ export const PricingSection = () => {
                 style={{ height: '100%' }}
               >
                 <SpotlightCard
-                  spotlightColor="rgba(255, 255, 255, 0.85)"
+                  spotlightColor="rgba(37, 99, 235, 0.10)"
                   style={{
                     height: '100%',
-                    borderRadius: 26,
-                    background: tier.popular
-                      ? 'linear-gradient(180deg, #ffffff 0%, #fffcf9 100%)'
-                      : '#ffffff',
+                    borderRadius: radii.xl,
+                    background: tier.popular ? gradients.brandSoft : surface.page,
                     border: tier.popular
-                      ? '2.5px solid #f97316'
-                      : '1px solid rgba(226, 232, 240, 0.9)',
+                      ? `1.5px solid ${cobalt[500]}`
+                      : `1px solid ${border.base}`,
                     boxShadow: tier.popular
-                      ? '0 20px 48px rgba(249, 115, 22, 0.16), 0 2px 10px rgba(0, 0, 0, 0.04)'
-                      : '0 8px 30px rgba(0, 0, 0, 0.04)',
+                      ? '0 28px 64px -28px rgba(37, 99, 235, 0.45), 0 2px 10px rgba(11, 17, 32, 0.04)'
+                      : shadows.sm,
                     padding: '28px 26px',
                     display: 'flex',
                     flexDirection: 'column',
@@ -320,19 +333,15 @@ export const PricingSection = () => {
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.transform = 'translateY(-6px)';
-                    if (tier.popular) {
-                      e.currentTarget.style.boxShadow =
-                        '0 28px 56px rgba(249, 115, 22, 0.24), 0 4px 16px rgba(0, 0, 0, 0.06)';
-                    } else {
-                      e.currentTarget.style.boxShadow =
-                        '0 18px 40px rgba(0, 0, 0, 0.08)';
-                    }
+                    e.currentTarget.style.boxShadow = tier.popular
+                      ? '0 34px 72px -26px rgba(37, 99, 235, 0.52), 0 4px 16px rgba(11, 17, 32, 0.06)'
+                      : shadows.lg;
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.transform = 'translateY(0)';
                     e.currentTarget.style.boxShadow = tier.popular
-                      ? '0 20px 48px rgba(249, 115, 22, 0.16), 0 2px 10px rgba(0, 0, 0, 0.04)'
-                      : '0 8px 30px rgba(0, 0, 0, 0.04)';
+                      ? '0 28px 64px -28px rgba(37, 99, 235, 0.45), 0 2px 10px rgba(11, 17, 32, 0.04)'
+                      : shadows.sm;
                   }}
                 >
                   <div>
@@ -347,18 +356,18 @@ export const PricingSection = () => {
                             gap: 7,
                             width: '100%',
                             padding: '9px 16px',
-                            borderRadius: 12,
-                            background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
-                            color: '#ffffff',
-                            fontSize: 12,
-                            fontWeight: 850,
-                            letterSpacing: '0.07em',
-                            boxShadow: '0 4px 16px rgba(234, 88, 12, 0.38)',
+                            borderRadius: radii.sm,
+                            background: gradients.brand,
+                            color: '#FFFFFF',
+                            fontSize: 11,
+                            fontWeight: 700,
+                            letterSpacing: '0.10em',
+                            boxShadow: '0 6px 18px rgba(37, 99, 235, 0.32)',
                             textTransform: 'uppercase',
                           }}
                         >
-                          <Sparkles size={14} fill="#ffffff" strokeWidth={0} />
-                          MOST POPULAR CHOICE
+                          <Sparkles size={13} fill="#FFFFFF" strokeWidth={0} />
+                          MOST POPULAR
                         </div>
                       ) : (
                         <div
@@ -368,19 +377,13 @@ export const PricingSection = () => {
                             justifyContent: 'center',
                             width: '100%',
                             padding: '9px 16px',
-                            borderRadius: 12,
-                            background:
-                              tier.id === 'enterprise' ? '#faf5ff' : '#f1f5f9',
-                            color:
-                              tier.id === 'enterprise' ? '#7c3aed' : '#475569',
-                            border: `1px solid ${
-                              tier.id === 'enterprise'
-                                ? 'rgba(124, 58, 237, 0.2)'
-                                : 'rgba(226, 232, 240, 0.8)'
-                            }`,
-                            fontSize: 11.5,
-                            fontWeight: 750,
-                            letterSpacing: '0.05em',
+                            borderRadius: radii.sm,
+                            background: surface.subtle,
+                            color: text.secondary,
+                            border: `1px solid ${border.base}`,
+                            fontSize: 11,
+                            fontWeight: 650,
+                            letterSpacing: '0.08em',
                             textTransform: 'uppercase',
                           }}
                         >
@@ -400,11 +403,11 @@ export const PricingSection = () => {
                     >
                       <h3
                         style={{
-                          fontSize: 22,
-                          fontWeight: 800,
-                          color: '#0f172a',
+                          fontSize: 21,
+                          fontWeight: 700,
+                          color: text.primary,
                           margin: 0,
-                          letterSpacing: '-0.02em',
+                          letterSpacing: '-0.025em',
                         }}
                       >
                         {tier.name}
@@ -412,20 +415,19 @@ export const PricingSection = () => {
 
                       <span
                         style={{
-                          fontSize: 11,
-                          fontWeight: 700,
+                          fontSize: 10.5,
+                          fontWeight: 650,
                           padding: '3px 8px',
                           borderRadius: 6,
-                          background: tier.popular ? '#fff7ed' : '#f8fafc',
-                          color: tier.popular ? '#ea580c' : '#64748b',
+                          letterSpacing: '0.02em',
+                          background: tier.popular ? brand.soft : surface.subtle,
+                          color: tier.popular ? cobalt[700] : text.tertiary,
                           border: `1px solid ${
-                            tier.popular
-                              ? 'rgba(234, 88, 12, 0.25)'
-                              : 'rgba(226, 232, 240, 0.8)'
+                            tier.popular ? cobalt[200] : border.base
                           }`,
                         }}
                       >
-                        {tier.popular ? '★ Best Value' : 'Standard'}
+                        {tier.popular ? 'Best Value' : 'Standard'}
                       </span>
                     </div>
 
@@ -433,8 +435,8 @@ export const PricingSection = () => {
                     <p
                       style={{
                         fontSize: 13,
-                        color: '#64748b',
-                        lineHeight: 1.55,
+                        color: text.tertiary,
+                        lineHeight: 1.6,
                         margin: '0 0 24px 0',
                         minHeight: 40,
                       }}
@@ -446,28 +448,28 @@ export const PricingSection = () => {
                     <div
                       style={{
                         padding: '18px 0',
-                        borderTop: '1px solid rgba(226, 232, 240, 0.7)',
-                        borderBottom: '1px solid rgba(226, 232, 240, 0.7)',
+                        borderTop: `1px solid ${border.hairline}`,
+                        borderBottom: `1px solid ${border.hairline}`,
                         marginBottom: 24,
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                        <span style={{ fontSize: 24, fontWeight: 700, color: '#0f172a' }}>
+                        <span style={{ fontSize: 22, fontWeight: 600, color: text.tertiary }}>
                           ₹
                         </span>
                         <span
                           style={{
-                            fontSize: 'clamp(38px, 3.8vw, 48px)',
-                            fontWeight: 900,
-                            letterSpacing: '-0.03em',
-                            color: '#0f172a',
+                            fontSize: 'clamp(36px, 3.6vw, 46px)',
+                            fontWeight: 800,
+                            letterSpacing: '-0.04em',
+                            color: text.primary,
                             lineHeight: 1,
-                            fontFamily: '"Bricolage Grotesque", "Inter", sans-serif',
+                            fontFamily: fonts.display,
                           }}
                         >
                           {price.toLocaleString('en-IN')}
                         </span>
-                        <span style={{ fontSize: 13.5, color: '#64748b', fontWeight: 500 }}>
+                        <span style={{ fontSize: 13, color: text.tertiary, fontWeight: 500 }}>
                           / user / mo
                         </span>
                       </div>
@@ -475,8 +477,8 @@ export const PricingSection = () => {
                       <div
                         style={{
                           fontSize: 12,
-                          color: isYearly ? '#16a34a' : '#64748b',
-                          fontWeight: 650,
+                          color: isYearly ? accent.emerald.strong : text.tertiary,
+                          fontWeight: 600,
                           marginTop: 6,
                           display: 'flex',
                           alignItems: 'center',
@@ -485,7 +487,7 @@ export const PricingSection = () => {
                       >
                         {isYearly ? (
                           <>
-                            <CheckCircle2 size={13} color="#16a34a" />
+                            <CheckCircle2 size={13} color={accent.emerald.strong} />
                             <span>Billed annually ({tier.savingsText})</span>
                           </>
                         ) : (
@@ -498,11 +500,11 @@ export const PricingSection = () => {
                     <div style={{ marginBottom: 30 }}>
                       <div
                         style={{
-                          fontSize: 11.5,
-                          fontWeight: 800,
-                          letterSpacing: '0.05em',
+                          fontSize: 11,
+                          fontWeight: 650,
+                          letterSpacing: '0.10em',
                           textTransform: 'uppercase',
-                          color: '#0f172a',
+                          color: text.muted,
                           marginBottom: 14,
                         }}
                       >
@@ -518,8 +520,8 @@ export const PricingSection = () => {
                               alignItems: 'flex-start',
                               gap: 10,
                               fontSize: 13.5,
-                              color: '#334155',
-                              lineHeight: 1.45,
+                              color: text.secondary,
+                              lineHeight: 1.5,
                             }}
                           >
                             <span
@@ -527,11 +529,11 @@ export const PricingSection = () => {
                                 width: 18,
                                 height: 18,
                                 borderRadius: '50%',
-                                background: tier.popular ? '#fff7ed' : '#f0fdf4',
+                                background: tier.popular ? brand.soft : accent.emerald.soft,
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                color: tier.popular ? '#ea580c' : '#16a34a',
+                                color: tier.popular ? brand.base : accent.emerald.text,
                                 flexShrink: 0,
                                 marginTop: 1,
                               }}
@@ -551,43 +553,39 @@ export const PricingSection = () => {
                     style={{
                       width: '100%',
                       padding: '14px 20px',
-                      borderRadius: 14,
-                      border: tier.popular
-                        ? 'none'
-                        : '1.5px solid rgba(15, 23, 42, 0.85)',
-                      background: tier.popular
-                        ? 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)'
-                        : '#ffffff',
-                      color: tier.popular ? '#ffffff' : '#0f172a',
+                      borderRadius: radii.md,
+                      border: tier.popular ? 'none' : `1.5px solid ${border.strong}`,
+                      background: tier.popular ? gradients.brand : surface.page,
+                      color: tier.popular ? '#FFFFFF' : text.primary,
                       fontSize: 14,
-                      fontWeight: 800,
+                      fontWeight: 650,
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       gap: 8,
-                      boxShadow: tier.popular
-                        ? '0 10px 24px rgba(234, 88, 12, 0.35)'
-                        : '0 2px 8px rgba(0, 0, 0, 0.04)',
+                      boxShadow: tier.popular ? shadows.brand : shadows.xs,
                       transition: 'all 0.25s ease',
-                      fontFamily: '"Inter", sans-serif',
+                      fontFamily: fonts.sans,
                     }}
                     onMouseEnter={(e) => {
-                      if (tier.popular) {
-                        e.currentTarget.style.boxShadow =
-                          '0 14px 30px rgba(234, 88, 12, 0.48)';
-                      } else {
-                        e.currentTarget.style.background = '#0f172a';
-                        e.currentTarget.style.color = '#ffffff';
+                      e.currentTarget.style.boxShadow = tier.popular
+                        ? shadows.brandLg
+                        : shadows.sm;
+                      if (!tier.popular) {
+                        e.currentTarget.style.background = ink[900];
+                        e.currentTarget.style.color = '#FFFFFF';
+                        e.currentTarget.style.borderColor = ink[900];
                       }
                     }}
                     onMouseLeave={(e) => {
-                      if (tier.popular) {
-                        e.currentTarget.style.boxShadow =
-                          '0 10px 24px rgba(234, 88, 12, 0.35)';
-                      } else {
-                        e.currentTarget.style.background = '#ffffff';
-                        e.currentTarget.style.color = '#0f172a';
+                      e.currentTarget.style.boxShadow = tier.popular
+                        ? shadows.brand
+                        : shadows.xs;
+                      if (!tier.popular) {
+                        e.currentTarget.style.background = surface.page;
+                        e.currentTarget.style.color = text.primary;
+                        e.currentTarget.style.borderColor = border.strong;
                       }
                     }}
                   >
@@ -612,26 +610,26 @@ export const PricingSection = () => {
             flexWrap: 'wrap',
             gap: 28,
             padding: '16px 24px',
-            borderRadius: 16,
-            background: 'rgba(255, 255, 255, 0.8)',
-            border: '1px solid rgba(226, 232, 240, 0.8)',
-            fontSize: 13,
-            fontWeight: 600,
-            color: '#475569',
+            borderRadius: radii.lg,
+            background: surface.page,
+            border: `1px solid ${border.hairline}`,
+            fontSize: 12.5,
+            fontWeight: 550,
+            color: text.secondary,
           }}
         >
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-            <Zap size={16} color="#f97316" />
+            <Zap size={15} color={accent.amber.base} />
             14-Day Full Access Trial
           </span>
           <span style={{ opacity: 0.3 }}>•</span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-            <ShieldCheck size={16} color="#16a34a" />
+            <ShieldCheck size={15} color={accent.emerald.strong} />
             No Credit Card Required
           </span>
           <span style={{ opacity: 0.3 }}>•</span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-            <Headphones size={16} color="#0466c8" />
+            <Headphones size={15} color={brand.base} />
             Free Onboarding & Migration
           </span>
         </div>
@@ -652,10 +650,10 @@ export const PricingSection = () => {
                 key={faq.q}
                 style={{
                   padding: '18px 20px',
-                  borderRadius: 16,
-                  background: '#ffffff',
-                  border: '1px solid rgba(226, 232, 240, 0.85)',
-                  boxShadow: '0 2px 10px rgba(0, 0, 0, 0.02)',
+                  borderRadius: radii.lg,
+                  background: surface.page,
+                  border: `1px solid ${border.hairline}`,
+                  boxShadow: shadows.xs,
                 }}
               >
                 <div
@@ -663,16 +661,16 @@ export const PricingSection = () => {
                     display: 'flex',
                     alignItems: 'center',
                     gap: 8,
-                    fontSize: 13.5,
-                    fontWeight: 750,
-                    color: '#0f172a',
+                    fontSize: 13,
+                    fontWeight: 650,
+                    color: text.primary,
                     marginBottom: 6,
                   }}
                 >
-                  <HelpCircle size={15} color="#0466c8" />
+                  <HelpCircle size={14} color={brand.base} />
                   {faq.q}
                 </div>
-                <div style={{ fontSize: 12.5, color: '#64748b', lineHeight: 1.5 }}>
+                <div style={{ fontSize: 12.5, color: text.tertiary, lineHeight: 1.6 }}>
                   {faq.a}
                 </div>
               </div>
