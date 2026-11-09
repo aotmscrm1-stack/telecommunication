@@ -133,6 +133,8 @@ export const leadsAPI = {
   },
   // Get leads by caller
   getByCallerAll: (callerId) => api.get(`/leads/by-caller/${callerId}`),
+  // Delete specific activity/call note from a lead (Admin Only)
+  deleteActivity: (leadId, activityId) => api.delete(`/leads/${leadId}/activities/${activityId}`),
 };
 
 export const followupsAPI = {
@@ -281,6 +283,7 @@ export const metaLeadsAPI = {
   triggerSync: () => api.post('/meta-leads/sync'),
   getSyncStatus: () => api.get('/meta-leads/sync-status'),
   clearAll: () => api.delete('/meta-leads/clear-all'),
+  deleteCallNote: (id, noteId) => api.delete(`/meta-leads/${id}/call-notes/${noteId}`),
   getMyAssignmentStatus: () => api.get('/meta-leads/my-assignment-status'),
   aiStart: (campaign, config) => api.post(`/meta-leads/campaign/${encodeURIComponent(campaign)}/ai-start`, config),
   aiPause: (campaign) => api.post(`/meta-leads/campaign/${encodeURIComponent(campaign)}/ai-pause`),

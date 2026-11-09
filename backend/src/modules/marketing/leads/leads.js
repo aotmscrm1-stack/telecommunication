@@ -1129,6 +1129,45 @@ router.delete('/clear-all', protect, authorize('admin', 'manager'), async (req, 
   }
 });
 
+// DELETE /api/leads/:id/activities/:activityId (Delete specific lead activity / call note - Admin Only)
+router.delete('/:id/activities/:activityId', protect, async (req, res) => {
+  try {
+    const isExecutiveOrAdmin = req.user.role === 'admin' || req.user.role === 'superadmin' || 
+      String(req.user.designation || '').toUpperCase().includes('CEO') || 
+      String(req.user.designation || '').toUpperCase().includes('MANAGING DIRECTOR') ||
+      String(req.user.designation || '').toUpperCase().includes('MD') ||
+      String(req.user.designation || '').toUpperCase() === 'ADMIN';
+    if (!isExecutiveOrAdmin) {
+      return res.status(403).json({ message: 'Forbidden: Only Admin has permission to delete call and activity history' });
+    }
+
+    const { id, activityId } = req.params;
+    let lead = null;
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      lead = await Lead.findById(id);
+    }
+
+    if (!lead && mongoose.Types.ObjectId.isValid(id)) {
+      const MetaLead = require('../../../database/models/MetaLead');
+      const metaLead = await MetaLead.findById(id);
+      if (metaLead) {
+        metaLead.callNotes = (metaLead.callNotes || []).filter(cn => String(cn._id) !== String(activityId));
+        await metaLead.save();
+        return res.json({ success: true, message: 'Call note deleted successfully' });
+      }
+    }
+
+    if (!lead) return res.status(404).json({ message: 'Lead not found' });
+
+    lead.activities = (lead.activities || []).filter(a => String(a._id) !== String(activityId));
+    await lead.save();
+    return res.json({ success: true, message: 'Activity deleted successfully' });
+  } catch (err) {
+    console.error('[DELETE /leads/:id/activities/:activityId]', err);
+    return res.status(500).json({ message: err.message });
+  }
+});
+
 router.delete('/:id', protect, authorize('employee', 'caller', 'manager', 'admin'), async (req, res) => {
   try {
     let lead = null;

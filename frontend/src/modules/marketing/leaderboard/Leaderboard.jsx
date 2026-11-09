@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import AotmsSpinner from '../../../components/common/AotmsSpinner';
 
 const PURPLE = 'var(--theme-primary)';
 const PURPLE_LIGHT = 'var(--theme-surface-tint2)';
@@ -334,10 +335,14 @@ export default function Leaderboard() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 22, fontWeight: 800, color: TEXT_MAIN }}>🏆 Leaderboard</span>
-          <button onClick={fetchData} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }} title="Refresh">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={TEXT_MUTED} strokeWidth="2.5">
-              <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-5"/>
-            </svg>
+          <button onClick={fetchData} disabled={loading} style={{ background: 'none', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', padding: 4 }} title="Refresh">
+            {loading ? (
+              <AotmsSpinner size={16} />
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={TEXT_MUTED} strokeWidth="2.5">
+                <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-5"/>
+              </svg>
+            )}
           </button>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -451,10 +456,8 @@ export default function Leaderboard() {
 
       {/* Content */}
       {loading ? (
-        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: 200, gap: 12, background: '#fff', borderRadius: 16, border: '1px solid var(--theme-border-tint)' }}>
-          <div style={{ width: 36, height: 36, border: `4px solid ${PURPLE_LIGHT}`, borderTopColor: PURPLE, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-          <div style={{ fontSize: 13, color: TEXT_MUTED }}>Loading leaderboard...</div>
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: 220, gap: 12, background: '#fff', borderRadius: 16, border: '1px solid var(--theme-border-tint)' }}>
+          <AotmsSpinner size={38} text="Loading leaderboard..." />
         </div>
       ) : filtered.length === 0 ? (
         <div style={{ background: '#fff', border: '1px solid var(--theme-border-tint)', borderRadius: 16, padding: '60px 24px', textAlign: 'center', maxWidth: '100%', overflow: 'hidden', boxSizing: 'border-box' }}>

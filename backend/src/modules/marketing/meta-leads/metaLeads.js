@@ -1767,6 +1767,27 @@ router.delete('/clear-all', protect, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// DELETE /api/meta-leads/:id/call-notes/:noteId (Delete call note - Admin Only)
+// ─────────────────────────────────────────────────────────────────────────────
+router.delete('/:id/call-notes/:noteId', protect, async (req, res) => {
+  try {
+    if (!isExecutiveOrAdminUser(req.user)) {
+      return res.status(403).json({ success: false, message: 'Forbidden. Admin access required.' });
+    }
+    const { id, noteId } = req.params;
+    const metaLead = await MetaLead.findById(id);
+    if (!metaLead) {
+      return res.status(404).json({ success: false, message: 'Meta Lead not found' });
+    }
+    metaLead.callNotes = (metaLead.callNotes || []).filter(cn => String(cn._id) !== String(noteId));
+    await metaLead.save();
+    res.json({ success: true, message: 'Call note deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to delete call note', error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // DELETE /api/meta-leads/:id (Delete lead - Admin Only)
 // ─────────────────────────────────────────────────────────────────────────────
 router.delete('/:id', protect, async (req, res) => {

@@ -2,10 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Phone, PhoneOff, Mail, MapPin, Award, IndianRupee, Globe, User, Calendar, Tag, Star, Edit3, Save, X, Plus, Clock, MessageCircle, Copy, Check, Trash2, BookOpen, Zap, Sparkles, ShieldAlert, CheckCircle2, ChevronRight, Volume2, Download, Mic, Maximize2, FileText, ChevronDown, ChevronUp } from 'lucide-react';
-import api, { leadsAPI, campaignsAPI, usersAPI, coursesAPI, followupsAPI, blocklistAPI, leadStagesAPI, messageTemplatesAPI, metaLeadsAPI } from '../../services/api';
+import api, { leadsAPI, campaignsAPI, usersAPI, coursesAPI, followupsAPI, blocklistAPI, leadStagesAPI, messageTemplatesAPI, metaLeadsAPI, recordingsAPI } from '../../services/api';
 import leadNoteReminderService, { isStatusRequiringNote, leadHasNote } from '../../services/leadNoteReminderService';
 import { useAuth } from '../../context/AuthContext';
-import { canDelete } from '../../utils/permissions';
+import { canDelete, isCEO } from '../../utils/permissions';
 import StatusBadge from '../common/StatusBadge';
 import AutoScrollText from '../common/AutoScrollText';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -1401,7 +1401,7 @@ function AIStateBanner({ lead }) {
 }
 
 // ── Call Summary Detail Modal ("Create Todo Item" Style) ─────────────────────
-function CallSummaryDetailModal({ activity, lead, onClose, onInitiateCall, onScheduleCallback }) {
+function CallSummaryDetailModal({ activity, lead, onClose, onInitiateCall, onScheduleCallback, canDelete, onDelete }) {
   const [copied, setCopied] = useState(false);
   if (!activity) return null;
 
@@ -1571,6 +1571,28 @@ function CallSummaryDetailModal({ activity, lead, onClose, onInitiateCall, onSch
         {/* Footer Actions */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 20 }}>
           <div className="flex items-center gap-2">
+            {canDelete && onDelete && (
+              <button
+                type="button"
+                onClick={() => onDelete(activity)}
+                style={{
+                  padding: '8px 14px',
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  borderRadius: 8,
+                  border: '1px solid #fecdd3',
+                  background: '#fff1f2',
+                  color: '#e11d48',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6
+                }}
+                title="Delete this history record (Admin Only)"
+              >
+                <Trash2 style={{ width: 14, height: 14 }} /> Delete
+              </button>
+            )}
             <button
               type="button"
               onClick={onInitiateCall}
@@ -1644,6 +1666,8 @@ export default function LeadDetailsPage({
   const isSuperAdmin = user?.role === 'admin';
   const isAdmin = user?.role === 'manager' || user?.role === 'admin';
   const isCaller = user?.role === 'employee' || user?.role === 'caller';
+  const canDeleteHistory = Boolean(user?.role === 'admin' || user?.role === 'superadmin' || isCEO(user));
+  const [deletingActivityId, setDeletingActivityId] = useState(null);
 
   const [lead, setLead] = useState(null);
   const [recordings, setRecordings] = useState([]);
@@ -2142,6 +2166,79 @@ export default function LeadDetailsPage({
       leadNoteReminderService.resolveLead(currentId, leadName || lead?.name);
     } catch (err) { console.error(err); }
     finally { setSavingInfo(false); }
+  };
+
+  const handleDeleteActivityItem = async (item) => {
+    if (!item) return;
+    if (!canDeleteHistory) {
+      alert('Only Admin has permission to delete call and activity history.');
+      return;
+    }
+
+    const itemLabel = item._recording
+      ? 'Audio Recording'
+      : item._followup
+      ? 'Call Back reminder'
+      : (item.isMetaNote ? 'Campaign Note' : 'Lead Note');
+
+    if (!window.confirm(`Are you sure you want to delete this ${itemLabel}? This action cannot be undone.`)) {
+      return;
+    }
+
+    const itemId = item.rec?._id || item._id;
+    setDeletingActivityId(itemId);
+
+    try {
+      if (item._recording) {
+        const recordingId = item.rec?._id || item._id;
+        await recordingsAPI.delete(recordingId);
+        setRecordings(prev => (prev || []).filter(r => String(r._id) !== String(recordingId) && String(r.id) !== String(recordingId)));
+      } else if (item._followup) {
+        await followupsAPI.delete(item._id);
+        setLeadFollowups(prev => (prev || []).filter(f => String(f._id) !== String(item._id) && String(f.id) !== String(item._id)));
+      } else if (item.isMetaNote) {
+        const targetMetaId = metaLeadId || (isMeta ? id : null) || lead?._id;
+        try {
+          if (targetMetaId) {
+            await metaLeadsAPI.deleteCallNote(targetMetaId, item._id);
+          }
+        } catch (_) {
+          if (targetMetaId) {
+            await leadsAPI.deleteActivity(targetMetaId, item._id).catch(() => {});
+          }
+        }
+        setLead(prev => {
+          if (!prev) return prev;
+          const nextCallNotes = (prev.callNotes || []).filter(cn => String(cn._id) !== String(item._id));
+          const nextActivities = (prev.activities || []).filter(act => String(act._id) !== String(item._id));
+          return { ...prev, callNotes: nextCallNotes, activities: nextActivities };
+        });
+      } else {
+        const targetLeadId = lead?._id || id;
+        if (targetLeadId) {
+          await leadsAPI.deleteActivity(targetLeadId, item._id);
+        }
+        setLead(prev => {
+          if (!prev) return prev;
+          const nextActivities = (prev.activities || []).filter(act => String(act._id) !== String(item._id));
+          const nextCallNotes = (prev.callNotes || []).filter(cn => String(cn._id) !== String(item._id));
+          return { ...prev, activities: nextActivities, callNotes: nextCallNotes };
+        });
+      }
+
+      if (selectedCallSummaryActivity) {
+        const selId = String(selectedCallSummaryActivity._id || selectedCallSummaryActivity.rec?._id || '');
+        const currentItemId = String(itemId || '');
+        if (selId === currentItemId) {
+          setSelectedCallSummaryActivity(null);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to delete activity item:', err);
+      alert(err.response?.data?.message || err.response?.data?.error || 'Failed to delete activity item');
+    } finally {
+      setDeletingActivityId(null);
+    }
   };
 
 
@@ -2835,17 +2932,33 @@ export default function LeadDetailsPage({
                                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200">
                                     <Volume2 className="w-3.5 h-3.5 text-sky-600" /> Audio Record
                                   </span>
-                                  <a
-                                    href={a.rec.streamUrl || a.rec.url}
-                                    download
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    title="Download Audio Recording"
-                                    onClick={e => e.stopPropagation()}
-                                    className="p-1.5 text-slate-400 hover:text-sky-700 hover:bg-sky-50 rounded-lg transition-colors border border-transparent hover:border-sky-200"
-                                  >
-                                    <Download className="w-3.5 h-3.5" />
-                                  </a>
+                                  <div className="flex items-center gap-1">
+                                    <a
+                                      href={a.rec.streamUrl || a.rec.url}
+                                      download
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      title="Download Audio Recording"
+                                      onClick={e => e.stopPropagation()}
+                                      className="p-1.5 text-slate-400 hover:text-sky-700 hover:bg-sky-50 rounded-lg transition-colors border border-transparent hover:border-sky-200"
+                                    >
+                                      <Download className="w-3.5 h-3.5" />
+                                    </a>
+                                    {canDeleteHistory && (
+                                      <button
+                                        type="button"
+                                        title="Delete Audio Recording (Admin Only)"
+                                        disabled={deletingActivityId === (a.rec?._id || a._id)}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeleteActivityItem(a);
+                                        }}
+                                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border border-transparent hover:border-rose-200 disabled:opacity-50 cursor-pointer"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
 
                                 <h4 className="text-[13px] font-bold text-slate-800 mb-1 truncate" title={a.rec.originalName}>
@@ -2927,13 +3040,29 @@ export default function LeadDetailsPage({
                                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
                                     <Clock className="w-3.5 h-3.5 text-amber-600" /> Call Back
                                   </span>
-                                  <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
-                                    a.status === 'upcoming'
-                                      ? 'bg-amber-100 text-amber-800 border-amber-200'
-                                      : 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                                  }`}>
-                                    {a.status === 'upcoming' ? '⏳ Upcoming' : '✅ Done'}
-                                  </span>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
+                                      a.status === 'upcoming'
+                                        ? 'bg-amber-100 text-amber-800 border-amber-200'
+                                        : 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                                    }`}>
+                                      {a.status === 'upcoming' ? '⏳ Upcoming' : '✅ Done'}
+                                    </span>
+                                    {canDeleteHistory && (
+                                      <button
+                                        type="button"
+                                        title="Delete Call Back (Admin Only)"
+                                        disabled={deletingActivityId === a._id}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeleteActivityItem(a);
+                                        }}
+                                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border border-transparent hover:border-rose-200 disabled:opacity-50 cursor-pointer"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
 
                                 <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 mb-2">
@@ -2983,9 +3112,25 @@ export default function LeadDetailsPage({
                                   {a.isMetaNote ? 'Meta Campaign Note' : 'Lead Note'}
                                 </span>
                               </div>
-                              <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-100/90 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600 shrink-0">
-                                {a.isMetaNote ? 'Campaign' : 'Internal'}
-                              </span>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-100/90 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600">
+                                  {a.isMetaNote ? 'Campaign' : 'Internal'}
+                                </span>
+                                {canDeleteHistory && (
+                                  <button
+                                    type="button"
+                                    title="Delete Note (Admin Only)"
+                                    disabled={deletingActivityId === a._id}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteActivityItem(a);
+                                    }}
+                                    className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors border border-transparent hover:border-rose-200 disabled:opacity-50 cursor-pointer"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
                             </div>
 
                             {/* Description / Content */}
@@ -3089,6 +3234,8 @@ export default function LeadDetailsPage({
           <CallSummaryDetailModal
             activity={selectedCallSummaryActivity}
             lead={lead}
+            canDelete={canDeleteHistory}
+            onDelete={handleDeleteActivityItem}
             onClose={() => setSelectedCallSummaryActivity(null)}
             onInitiateCall={() => {
               setSelectedCallSummaryActivity(null);

@@ -28,6 +28,7 @@ import * as XLSX from 'xlsx';
 import { IoLogoWhatsapp as WhatsApp } from 'react-icons/io5';
 
 import ConfirmModal from '../../../components/ui/ConfirmModal';
+import AotmsSpinner from '../../../components/common/AotmsSpinner';
 
 
 export default function Contacts({ onOpenBlast }) {
@@ -624,9 +625,9 @@ export default function Contacts({ onOpenBlast }) {
           type="button"
           onClick={fetchContacts}
           disabled={refreshing}
-          className="px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-600 font-normal text-xs flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-200 shrink-0"
+          className="px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-600 font-normal text-xs flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-200 shrink-0 disabled:opacity-50"
         >
-          <RotateCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-sky-600' : ''}`} />
+          {refreshing ? <AotmsSpinner size={14} /> : <RotateCw className="w-3.5 h-3.5" />}
           <span>Refresh</span>
         </button>
       </div>
@@ -634,8 +635,7 @@ export default function Contacts({ onOpenBlast }) {
       {/* CONTACTS CARDS GRID */}
       {loading ? (
         <div className="p-8 text-center bg-white rounded-xl border border-slate-200 shadow-xs">
-          <RotateCw className="w-5 h-5 animate-spin text-sky-600 mx-auto mb-2" />
-          <p className="text-xs text-slate-500 font-normal">Loading Meta contacts from database...</p>
+          <AotmsSpinner size={38} text="Loading Meta contacts from database..." />
         </div>
       ) : filteredContacts.length === 0 ? (
         <div className="p-8 text-center bg-white rounded-xl border border-slate-200 shadow-xs space-y-2.5">

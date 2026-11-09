@@ -31,6 +31,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
+import AotmsSpinner from '../../../components/common/AotmsSpinner';
 import { performanceAPI } from '../../../services/api';
 
 const PRIMARY_COLOR = '#1677C8';
@@ -580,7 +581,7 @@ export default function PerformanceDashboard() {
               className="inline-flex items-center gap-2 px-4 py-2 text-white rounded-xl text-xs font-bold transition-all shadow-sm hover:opacity-95 active:scale-95 disabled:opacity-50"
               style={{ backgroundColor: PRIMARY_COLOR }}
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${sweepLoading ? 'animate-spin' : ''}`} />
+              {sweepLoading ? <AotmsSpinner size={14} /> : <RefreshCw className="w-3.5 h-3.5" />}
               <span>{sweepLoading ? 'Evaluating...' : 'Run 10:00 AM Sweep'}</span>
             </button>
           )}
@@ -597,10 +598,11 @@ export default function PerformanceDashboard() {
 
           <button
             onClick={() => { fetchMetrics(); fetchRoster(); }}
-            className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-all"
+            disabled={rosterLoading}
+            className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-all disabled:opacity-50 cursor-pointer"
             title="Refresh current data"
           >
-            <RefreshCcw className="w-4 h-4" />
+            {rosterLoading ? <AotmsSpinner size={16} /> : <RefreshCcw className="w-4 h-4" />}
           </button>
         </div>
       </div>
@@ -864,8 +866,7 @@ export default function PerformanceDashboard() {
               {rosterLoading ? (
                 <tr>
                   <td colSpan={6} className="py-16 text-center text-slate-400">
-                    <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-[#1677C8]" />
-                    <span>Loading workforce records...</span>
+                    <AotmsSpinner size={38} text="Loading workforce records..." />
                   </td>
                 </tr>
               ) : filteredRoster.length === 0 ? (
@@ -1582,8 +1583,7 @@ export default function PerformanceDashboard() {
             {/* Calendar Grid */}
             {historyLoading ? (
               <div className="py-16 text-center text-slate-400">
-                <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-[#1677C8]" />
-                <span>Loading calendar...</span>
+                <AotmsSpinner size={38} text="Loading compliance calendar..." />
               </div>
             ) : !employeeHistoryData?.calendar ? (
               <div className="py-16 text-center text-slate-400">

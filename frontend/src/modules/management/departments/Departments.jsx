@@ -11,6 +11,7 @@ import {
 } from 'react-icons/fa6';
 import { useAuth } from '../../../context/AuthContext';
 import API from '../../../services/api';
+import AotmsSpinner from '../../../components/common/AotmsSpinner';
 
 const THEME = {
   bg: '#f8fafc',
@@ -356,10 +357,11 @@ export default function Departments() {
         <div className="flex items-center gap-3 relative z-10">
           <button
             onClick={fetchDepartments}
-            className="p-3.5 rounded-2xl border border-slate-200 text-slate-700 hover:text-sky-600 hover:border-sky-400 hover:bg-sky-50 transition-all shadow-sm bg-slate-50 cursor-pointer"
+            disabled={loading}
+            className="p-3.5 rounded-2xl border border-slate-200 text-slate-700 hover:text-sky-600 hover:border-sky-400 hover:bg-sky-50 transition-all shadow-sm bg-slate-50 cursor-pointer disabled:opacity-50"
             title="Sync with MongoDB"
           >
-            <FaRotate className={`w-5 h-5 ${loading ? 'animate-spin text-orange-500' : ''}`} />
+            {loading ? <AotmsSpinner size={18} /> : <FaRotate className="w-5 h-5 text-orange-500" />}
           </button>
 
           <button

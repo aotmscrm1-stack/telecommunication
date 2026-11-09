@@ -3,6 +3,13 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { canViewDashboard, isLimitedStaff, canAccessEmailBlast, canViewCallRecordings, isCEO, isHR, isCounsellor, isTelecaller, canAccessDigitalCalendar, canAccessMarketingLeads, canAccessDailyActivity, isDigitalMarketing } from '../utils/permissions';
 import { ProtectedRoute } from './guards';
+import AotmsSpinner from '../components/common/AotmsSpinner';
+
+const RouteSpinner = () => (
+  <div className="min-h-screen flex items-center justify-center bg-slate-50">
+    <AotmsSpinner size={38} text="Loading CRM Workspace..." />
+  </div>
+);
 
 // Layouts
 import PublicLayout from '../layouts/PublicLayout/PublicLayout';
@@ -94,7 +101,7 @@ const getDefaultHomeRoute = (user) => {
 // Guard Wrappers
 const TodoRoute = ({ children }) => {
   const { user, loading } = useAuth();
-  if (loading) return null;
+  if (loading) return <RouteSpinner />;
   if (!user) return <Navigate to="/login" replace />;
   const isMarketingStaff = isDigitalMarketing(user) || String(user?.department || '').trim().toLowerCase() === 'marketing';
   if (isMarketingStaff) {
@@ -106,35 +113,35 @@ const TodoRoute = ({ children }) => {
 // Guard Wrappers
 const PublicRoute = ({ children }) => {
   const { user, loading } = useAuth();
-  if (loading) return null;
+  if (loading) return <RouteSpinner />;
   if (!user) return children;
   return <Navigate to={getDefaultHomeRoute(user)} replace />;
 };
 
 const DashboardRoute = ({ children }) => {
   const { user, loading } = useAuth();
-  if (loading) return null;
+  if (loading) return <RouteSpinner />;
   if (!user) return <Navigate to="/login" replace />;
   return canViewDashboard(user) ? children : <Navigate to={getDefaultHomeRoute(user)} replace />;
 };
 
 const AdminRoute = ({ children }) => {
   const { user, loading } = useAuth();
-  if (loading) return null;
+  if (loading) return <RouteSpinner />;
   const isAdmin = user?.role === 'admin' || user?.role === 'manager' || isCEO(user) || isHR(user);
   return isAdmin ? children : <Navigate to={getDefaultHomeRoute(user)} replace />;
 };
 
 const AdminOnlyRoute = ({ children }) => {
   const { user, loading } = useAuth();
-  if (loading) return null;
+  if (loading) return <RouteSpinner />;
   const isStrictAdmin = user?.role === 'admin' || isCEO(user) || isHR(user);
   return isStrictAdmin ? children : <Navigate to={getDefaultHomeRoute(user)} replace />;
 };
 
 const StaffRestrictedRoute = ({ children }) => {
   const { user, loading } = useAuth();
-  if (loading) return null;
+  if (loading) return <RouteSpinner />;
   if (!user) return <Navigate to="/login" replace />;
   if (isLimitedStaff(user) && !user?.isHead) {
     return <Navigate to={getDefaultHomeRoute(user)} replace />;
@@ -144,7 +151,7 @@ const StaffRestrictedRoute = ({ children }) => {
 
 const MetaLeadsRoute = ({ children }) => {
   const { user, loading, metaLeadAssignment } = useAuth();
-  if (loading) return null;
+  if (loading) return <RouteSpinner />;
   const isAllowed = isCEO(user) || isHR(user) || isCounsellor(user) || isTelecaller(user) || canAccessMarketingLeads(user, metaLeadAssignment) || user?.role === 'admin' || user?.role === 'manager' || metaLeadAssignment?.hasAccess || Boolean(user?.isHead);
   if (isAllowed) {
     return children;
@@ -154,42 +161,42 @@ const MetaLeadsRoute = ({ children }) => {
 
 const BlastRoute = ({ children }) => {
   const { user, loading } = useAuth();
-  if (loading) return null;
+  if (loading) return <RouteSpinner />;
   if (!user) return <Navigate to="/login" replace />;
   return canAccessEmailBlast(user) ? children : <Navigate to={getDefaultHomeRoute(user)} replace />;
 };
 
 const CallRecordingsRoute = ({ children }) => {
   const { user, loading } = useAuth();
-  if (loading) return null;
+  if (loading) return <RouteSpinner />;
   if (!user) return <Navigate to="/login" replace />;
   return canViewCallRecordings(user) ? children : <Navigate to={getDefaultHomeRoute(user)} replace />;
 };
 
 const DigitalCalendarRoute = ({ children }) => {
   const { user, loading } = useAuth();
-  if (loading) return null;
+  if (loading) return <RouteSpinner />;
   if (!user) return <Navigate to="/login" replace />;
   return canAccessDigitalCalendar(user) ? children : <Navigate to={getDefaultHomeRoute(user)} replace />;
 };
 
 const DailyActivityRoute = ({ children }) => {
   const { user, loading } = useAuth();
-  if (loading) return null;
+  if (loading) return <RouteSpinner />;
   if (!user) return <Navigate to="/login" replace />;
   return canAccessDailyActivity(user) ? children : <Navigate to={getDefaultHomeRoute(user)} replace />;
 };
 
 const DailyActivityScheduleRoute = ({ children }) => {
   const { user, loading } = useAuth();
-  if (loading) return null;
+  if (loading) return <RouteSpinner />;
   if (!user) return <Navigate to="/login" replace />;
   return children;
 };
 
 const RootRedirect = () => {
   const { user, loading } = useAuth();
-  if (loading) return null;
+  if (loading) return <RouteSpinner />;
   if (!user) return <Navigate to="/login" replace />;
   return <Navigate to={getDefaultHomeRoute(user)} replace />;
 };

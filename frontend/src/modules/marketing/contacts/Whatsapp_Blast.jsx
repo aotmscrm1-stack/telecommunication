@@ -15,6 +15,7 @@ import {
 import { IoLogoWhatsapp as WhatsApp } from 'react-icons/io5';
 
 import ConfirmModal from '../../../components/ui/ConfirmModal';
+import AotmsSpinner from '../../../components/common/AotmsSpinner';
 
 const DEFAULT_FALLBACK_TEMPLATES = [
   {
@@ -530,8 +531,7 @@ export default function WhatsappBlast() {
 
       {loading ? (
         <div className="p-12 text-center bg-white rounded-xl border border-slate-200 shadow-xs">
-          <RotateCw className="w-6 h-6 animate-spin text-emerald-600 mx-auto mb-2" />
-          <p className="text-xs text-slate-500 font-normal">Loading templates, contacts, and leads...</p>
+          <AotmsSpinner size={38} text="Loading templates, contacts, and leads..." />
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">

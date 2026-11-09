@@ -15,6 +15,7 @@ import AnalyticsBento from '../ui/analytics-bento';
 import TeamLanyardRail from '../ui/team-lanyard-rail';
 import GradientWaves from './GradientWaves';
 import EmployeeProfileModal from './EmployeeProfileModal';
+import AotmsSpinner from '../common/AotmsSpinner';
 import {
   FaUsers, FaMoneyBillWave, FaChartLine, FaCalendarCheck, FaPhone,
   FaTrophy, FaLocationDot, FaBuilding, FaMagnifyingGlass, FaRotate, FaFilter,
@@ -1773,9 +1774,7 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen" style={{ background: T.bg }}>
-        <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.9, repeat: Infinity, ease: 'linear' }}
-          className="w-11 h-11 rounded-full"
-          style={{ border: '4px solid rgba(249, 115, 22, 0.18)', borderTopColor: T.orange }} />
+        <AotmsSpinner size={38} text="Loading dashboard analytics..." />
       </div>
     );
   }
@@ -1800,9 +1799,10 @@ export default function Dashboard() {
             <motion.button whileHover={{ y: -2 }} whileTap={{ scale: 0.96 }}
               onClick={fetchData}
               title="Refresh real-time data"
-              className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-[13px] font-semibold cursor-pointer transition"
+              className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-[13px] font-semibold cursor-pointer transition disabled:opacity-50"
+              disabled={isSyncing}
               style={{ background: '#ffffff', border: `1px solid ${T.line}`, color: '#0284c7', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-              <FaRotate className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} style={{ color: '#0284c7' }} />
+              {isSyncing ? <AotmsSpinner size={14} /> : <FaRotate className="w-3.5 h-3.5" style={{ color: '#0284c7' }} />}
               <span>{isSyncing ? 'Syncing...' : 'Live Sync'}</span>
             </motion.button>
             <motion.button whileHover={{ y: -2 }} whileTap={{ scale: 0.96 }}

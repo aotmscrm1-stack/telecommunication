@@ -15,6 +15,7 @@ import {
 import { CheckCircle2, CircleDotDashed, Circle, Clock, Check, Layers, ChevronRight } from 'lucide-react';
 import { dailyActivityScheduleAPI } from '../../../services/api';
 import ActivityScheduleFormModal from './ActivityScheduleFormModal';
+import AotmsSpinner from '../../../components/common/AotmsSpinner';
 
 export default function MyActivitySchedule({ currentUser = null }) {
   const [loading, setLoading] = useState(true);
@@ -47,15 +48,8 @@ export default function MyActivitySchedule({ currentUser = null }) {
 
   if (loading) {
     return (
-      <div className="p-4 sm:p-6 space-y-4 max-w-4xl mx-auto w-full animate-pulse">
-        <div className="h-28 bg-slate-200/70 rounded-3xl" />
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="h-20 bg-slate-200/70 rounded-2xl" />
-          <div className="h-20 bg-slate-200/70 rounded-2xl" />
-          <div className="h-20 bg-slate-200/70 rounded-2xl" />
-        </div>
-        <div className="h-40 bg-slate-200/70 rounded-2xl" />
-        <div className="h-40 bg-slate-200/70 rounded-2xl" />
+      <div className="py-24 flex flex-col items-center justify-center">
+        <AotmsSpinner size={38} text="Loading daily schedule..." />
       </div>
     );
   }
