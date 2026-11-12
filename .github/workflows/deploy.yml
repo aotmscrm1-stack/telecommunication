@@ -36,5 +36,28 @@ jobs:
             sed -i '/N8N_META_LEADS_WORKFLOW_ID/d' backend/.env || true
 
             docker compose up -d --build --remove-orphans
+
+            # A recreate can fail after the old container is already gone (e.g. an
+            # invalid CPU/memory limit), which used to leave a green pipeline over
+            # a dead backend. Verify health and fail loudly instead.
+            echo "[CI/CD] Waiting for backend health..."
+            healthy=""
+            i=1
+            while [ "$i" -le 30 ]; do
+              status=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' aotms-backend 2>/dev/null || echo missing)
+              if [ "$status" = "healthy" ]; then healthy="yes"; break; fi
+              if [ "$status" = "missing" ]; then break; fi
+              sleep 4
+              i=$((i + 1))
+            done
+
+            docker compose ps
+
+            if [ -z "$healthy" ]; then
+              echo "[CI/CD] FAILED: backend did not become healthy."
+              docker compose logs --tail=120 backend || true
+              exit 1
+            fi
+
             docker image prune -f
             echo "✅ [CI/CD] Automated deployment successful! Backend is running healthy."

@@ -30,7 +30,7 @@ services:
       # for upload buffers (50MB JSON bodies, spreadsheet imports). Without a cap
       # Node grows until the container is OOM-killed and the 502s look like nginx
       # faults. Raise NODE_HEAP_MB together with BACKEND_MEMORY.
-      NODE_OPTIONS: --max-old-space-size=${NODE_HEAP_MB:-2048}
+      NODE_OPTIONS: --max-old-space-size=${NODE_HEAP_MB:-1024}
     networks:
       aotms-network:
         # NOTE: a fixed address is convenient with the static nginx upstream, but
@@ -39,11 +39,16 @@ services:
         ipv4_address: 172.28.0.10
     volumes:
       - backend-uploads:/app/uploads
+    # CPU is deliberately NOT capped. Docker hard-rejects any limit above the
+    # host's CPU count ("range of CPUs is from 0.01 to 2.00, as there are only
+    # 2 CPUs available"), which takes the whole deploy down on a smaller VPS.
+    # cpu_shares is a host-independent relative weight instead: the API keeps
+    # priority over the worker (1024 vs 512) with no formatting risk.
+    cpu_shares: 1024
     deploy:
       resources:
         limits:
-          cpus: '${BACKEND_CPUS:-3.0}'
-          memory: ${BACKEND_MEMORY:-6G}
+          memory: ${BACKEND_MEMORY:-2G}
     # Long enough for in-flight uploads/transcription calls to finish on redeploy.
     stop_grace_period: 30s
     healthcheck:
@@ -77,16 +82,16 @@ services:
       PROCESS_ROLE: worker
       RECORDINGS_DIR: /app/uploads/recordings
       TEMP_RECORDINGS_DIR: /app/uploads/tmp
-      NODE_OPTIONS: --max-old-space-size=${WORKER_HEAP_MB:-512}
+      NODE_OPTIONS: --max-old-space-size=${WORKER_HEAP_MB:-384}
     # Same volume as the API: the retention sweeper deletes locally cached audio
     # once it is safe in Cloudinary, and the API serves first plays from here.
     volumes:
       - backend-uploads:/app/uploads
+    cpu_shares: 512
     deploy:
       resources:
         limits:
-          cpus: '${WORKER_CPUS:-1.0}'
-          memory: ${WORKER_MEMORY:-1G}
+          memory: ${WORKER_MEMORY:-768M}
     stop_grace_period: 30s
     depends_on:
       backend:
