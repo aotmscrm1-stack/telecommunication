@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { campaignsAPI, messageTemplatesAPI, emailCampaignsAPI } from '../../../services/api';
 import EmailRichEditor from './EmailRichEditor';
 import { extractSubjectAndBody, plainTextToEditableHtml, applyTemplateVariables } from '../../../utils/emailTemplateUtils';
+import { sanitizeHtml } from '../../../utils/sanitizeHtml';
 
 const STEPS = [
   { key: 'campaigns', label: 'Campaigns' },
@@ -161,9 +162,9 @@ export default function EmailCampaignWizard({ onClose, initialData }) {
   const previewSubject = applyTemplateVariables(subject, {
     student_name: sampleStudent.name, student_email: sampleStudent.email, campaign_name: sampleStudent.campaignName,
   });
-  const previewBodyHtml = applyTemplateVariables(body, {
+  const previewBodyHtml = sanitizeHtml(applyTemplateVariables(body, {
     student_name: sampleStudent.name, student_email: sampleStudent.email, campaign_name: sampleStudent.campaignName,
-  });
+  }));
 
   const handleSend = async () => {
     setSendError('');

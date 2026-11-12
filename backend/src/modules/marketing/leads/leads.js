@@ -1,5 +1,13 @@
 const express = require('express');
 const mongoose = require('mongoose');
+const { blastLimiter } = require('../../../core/middleware/rateLimiter');
+
+// Escape user supplied text before it reaches a RegExp. Without this a search
+// string such as `(a+)+$` can pin the CPU (ReDoS) and `^`/`.*` can be used to
+// probe records the caller is not allowed to see.
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 const Lead = require('../../../database/models/Lead');
 const User = require('../../../database/models/User');
 const Course = require('../../../database/models/Course');
@@ -116,10 +124,11 @@ router.get('/', protect, async (req, res) => {
     if (source) query.leadSource = source;
     if (campaign) query.campaign = campaign;
     if (search) {
+      const safeSearch = escapeRegex(String(search).trim().slice(0, 100));
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { phone: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } }
+        { name: { $regex: safeSearch, $options: 'i' } },
+        { phone: { $regex: safeSearch, $options: 'i' } },
+        { email: { $regex: safeSearch, $options: 'i' } }
       ];
     }
 
@@ -1444,7 +1453,7 @@ router.get('/by-caller/:callerId', protect, authorize('manager', 'admin'), async
 });
 
 // POST /api/leads/whatsapp-blast - execute WhatsApp Blast to leads or contacts
-router.post('/whatsapp-blast', async (req, res) => {
+router.post('/whatsapp-blast', protect, blastLimiter, async (req, res) => {
   try {
     const { template_name, language, lead_ids, contact_ids, sample_values, recipient_type } = req.body;
     const ids = Array.isArray(lead_ids) && lead_ids.length > 0 ? lead_ids : (Array.isArray(contact_ids) ? contact_ids : []);
@@ -1630,7 +1639,7 @@ router.post('/whatsapp-blast', async (req, res) => {
 });
 
 // POST /api/leads/send-single-whatsapp
-router.post('/send-single-whatsapp', async (req, res) => {
+router.post('/send-single-whatsapp', protect, blastLimiter, async (req, res) => {
   try {
     const { phone, template_name, message } = req.body;
     if (!phone) {

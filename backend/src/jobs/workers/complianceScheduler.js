@@ -42,12 +42,15 @@ async function recoverMissedMorningSweepOnBoot() {
 /**
  * Starts the precision compliance scheduler
  */
+let complianceInterval = null;
+
 function startComplianceScheduler() {
   // 1. Check for boot recovery immediately
   recoverMissedMorningSweepOnBoot();
 
   // 2. Evaluates every 60 seconds
-  setInterval(async () => {
+  if (complianceInterval) clearInterval(complianceInterval);
+  complianceInterval = setInterval(async () => {
     try {
       const now = new Date();
       const istTimeStr = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata', hour12: false });
@@ -72,10 +75,24 @@ function startComplianceScheduler() {
       console.error('[Compliance Scheduler Error]', schedErr.message);
     }
   }, 60 * 1000);
+
+  return complianceInterval;
+}
+
+/**
+ * Halt the sweep loop. Used when leadership of the worker pool moves to another
+ * process, so two containers never evaluate the same 10:00 AM window.
+ */
+function stopComplianceScheduler() {
+  if (complianceInterval) {
+    clearInterval(complianceInterval);
+    complianceInterval = null;
+  }
 }
 
 module.exports = {
   startComplianceScheduler,
+  stopComplianceScheduler,
   recoverMissedMorningSweepOnBoot
 };
 

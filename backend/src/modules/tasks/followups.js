@@ -13,7 +13,12 @@ const { notifyAdminsTaskCreated, notifyAdminsTaskEdited } = require('../../modul
 const { broadcastWebSocketEvent } = require('../../app/websocket');
 
 const router = express.Router();
-const upload = multer({ storage: multer.memoryStorage() });
+// Import files are parsed in memory — cap the size so a single upload cannot
+// exhaust the server's RAM.
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024, files: 1 },
+});
 
 const MAX_RECURRING_OCCURRENCES = 366;
 

@@ -107,23 +107,17 @@ const sendRegistrationOtp = async (req, res) => {
     console.error('[OTP DB Error]', dbErr.message);
   }
 
-  // 3. Prominently display OTP in backend console
-  console.log('\n╔══════════════════════════════════════════════════════════════════╗');
-  console.log('║               🔑 REGISTRATION OTP VERIFICATION CODE             ║');
-  console.log('╠══════════════════════════════════════════════════════════════════╣');
-  console.log(`║  Recipient : ${email.padEnd(51)} ║`);
-  console.log(`║  Name      : ${(firstName || 'User').padEnd(51)} ║`);
-  console.log(`║  >>> OTP   : [ ${otp} ] (6-Digit Code)                          ║`);
-  console.log(`║  Valid For : 10 minutes                                          ║`);
-  console.log(`║  Timestamp : ${new Date().toLocaleTimeString().padEnd(51)} ║`);
-  console.log('╚══════════════════════════════════════════════════════════════════╝\n');
+  // 3. Never log the OTP itself — server logs are shipped, rotated and read by
+  // more people than the recipient's inbox. Only a masked reference is recorded.
+  const maskedEmail = String(email).replace(/^(.{2}).*@/, '$1***@');
+  console.log(`[OTP] Issued for ${maskedEmail} (expires in 10 minutes)`);
 
   // 4. Asynchronously notify via external service
   sendOtpNotification(email, otp, firstName).then(sent => {
     if (sent) {
-      console.log(`[OTP Delivery] ✓ Notification sent to ${email}`);
+      console.log(`[OTP Delivery] ✓ Notification sent to ${maskedEmail}`);
     } else {
-      console.log(`[OTP Delivery] ℹ️ Webhook/SMTP not configured. Use backend console OTP [${otp}]`);
+      console.warn('[OTP Delivery] ✗ Webhook/SMTP not configured — OTP was not delivered');
     }
   }).catch(err => {
     console.warn(`[OTP Delivery Warning] ${err.message}`);

@@ -39,6 +39,9 @@ router.use('/whatsapp-campaigns', apiLimiter, require('../modules/marketing/camp
 router.use('/contacts', apiLimiter, require('../modules/marketing/contacts/contacts'));
 router.use('/blocklist', apiLimiter, require('../modules/marketing/contacts/blocklist'));
 
+// Book Free Demo (public intake + admin review)
+router.use('/demo-bookings', apiLimiter, require('../modules/marketing/demo-bookings/demoBookings'));
+
 // WhatsApp Blast
 router.use('/whatsapp-lists', apiLimiter, require('../modules/marketing/whatsapp-blast/whatsappLists'));
 

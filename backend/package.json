@@ -5,6 +5,7 @@
   "main": "src/app/server.js",
   "scripts": {
     "start": "node src/app/server.js",
+    "worker": "node src/jobs/worker.js",
     "dev": "npx nodemon src/app/server.js",
     "lint": "eslint ."
   },
@@ -23,6 +24,7 @@
     "express-validator": "^7.0.1",
     "firebase-admin": "^14.5.0",
     "form-data": "^4.0.0",
+    "helmet": "^8.3.0",
     "imapflow": "^2.0.6",
     "jsonwebtoken": "^9.0.2",
     "mailparser": "^3.9.28",

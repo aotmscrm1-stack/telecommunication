@@ -15,6 +15,7 @@ import AnalyticsBento from '../ui/analytics-bento';
 import TeamLanyardRail from '../ui/team-lanyard-rail';
 import GradientWaves from './GradientWaves';
 import EmployeeProfileModal from './EmployeeProfileModal';
+import DemoBookingsPanel from './DemoBookingsPanel';
 import AotmsSpinner from '../common/AotmsSpinner';
 import {
   FaUsers, FaMoneyBillWave, FaChartLine, FaCalendarCheck, FaPhone,
@@ -30,7 +31,7 @@ import {
   FaInbox, FaPaperPlane, FaFilterCircleXmark, FaStar, FaListUl, FaTableList, FaTableCellsLarge,
   FaEnvelope, FaUser, FaCopy, FaBookmark, FaEllipsis, FaTrash, FaIdBadge,
 } from 'react-icons/fa6';
-import { canDelete, isCounsellor } from '../../utils/permissions';
+import { canDelete, isCounsellor, isCEO, isHR } from '../../utils/permissions';
 
 /* ─────────────────────────────────────────────────────────
    HELPERS
@@ -1733,10 +1734,10 @@ export default function Dashboard() {
         title: 'Client Demos Booked',
         tags: ['Appointments', demosCount > 0 ? `${demosCount} Scheduled` : '0 Scheduled'],
         value: `${demosCount}`,
-        subtitle: 'Live pipeline appointments',
-        btnLabel: 'Demos',
+        subtitle: 'Landing page demo requests',
+        btnLabel: 'Bookings',
         btnIcon: FaCalendarDays,
-        path: '/daily-activity',
+        path: '/demo-bookings',
       },
       {
         id: 'telephony',
@@ -1988,6 +1989,13 @@ export default function Dashboard() {
         <div className="mb-6">
           <LiveLeadPanel />
         </div>
+
+        {/* ── CLIENT DEMOS BOOKED — visible the moment the admin panel opens ───── */}
+        {(isAdmin || isCEO(user) || isHR(user)) && (
+          <div className="mb-6">
+            <DemoBookingsPanel />
+          </div>
+        )}
 
         {/* MODALS */}
       <AnimatePresence>

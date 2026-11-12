@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
+const helmet = require('helmet');
 const morgan = require('morgan');
 const mongoSanitize = require('express-mongo-sanitize');
 const masterRouter = require('./routes');
@@ -16,21 +17,39 @@ function normalizeOrigin(o) {
   return (o || '').trim().replace(/\/+$/, '');
 }
 
+// Only these exact origins are reflected back. Substring matching is not used:
+// `https://academyoftechmasters.com.attacker.tld` must not be trusted just
+// because it contains the brand name.
+const STATIC_ALLOWED_ORIGINS = [
+  'https://academyoftechmasters.com',
+  'https://www.academyoftechmasters.com',
+  'https://crm.academyoftechmasters.com',
+];
+const LOCAL_ORIGIN_RE = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
+const VERCEL_ORIGIN_RE = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
+
 function isAllowedOrigin(origin) {
+  // Server-to-server calls (n8n, Meta, curl) send no Origin header.
   if (!origin) return true;
   const o = normalizeOrigin(origin);
-  if (o.includes('academyoftechmasters.com') || o.includes('vercel.app') || o.includes('localhost') || o.includes('127.0.0.1')) {
-    return true;
-  }
-  if (!configuredOrigin) return true;
-  const withWww = configuredOrigin.replace(/^https?:\/\//, m => m).replace(/^(https?:\/\/)(?!www\.)/, '$1www.');
-  const withoutWww = configuredOrigin.replace(/^(https?:\/\/)www\./, '$1');
-  return o === configuredOrigin || o === withWww || o === withoutWww;
+  if (STATIC_ALLOWED_ORIGINS.includes(o)) return true;
+  if (configuredOrigin && o === configuredOrigin) return true;
+  if (LOCAL_ORIGIN_RE.test(o)) return true;
+  if (VERCEL_ORIGIN_RE.test(o)) return true;
+  return false;
 }
 
 app.use(cors({
   origin: (origin, callback) => callback(null, isAllowedOrigin(origin)),
   credentials: true,
+}));
+
+// Security headers (HSTS, X-Content-Type-Options, frameguard, referrer policy…).
+// The API also serves static assets, so cross-origin resource policy is relaxed
+// for images/audio that the dashboard loads from the API host.
+app.use(helmet({
+  contentSecurityPolicy: false, // API only; the SPA ships its own policy
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
 
 if (process.env.NODE_ENV === 'development') {
@@ -42,8 +61,15 @@ app.get('/api/integrations/whatsapp/webhook', (req, res) => {
   const q = req.query || {};
   const challenge = q['hub.challenge'] || q.hub?.challenge || q.challenge;
   const token = q['hub.verify_token'] || q.hub?.verify_token || q.verify_token;
-  console.log('[Meta Webhook Verification Request]', { query: req.query, challenge, token });
-  
+  const expected = process.env.META_WA_VERIFY_TOKEN;
+
+  // Verify the subscription token before echoing the challenge back. The token
+  // itself is never logged.
+  if (!expected || token !== expected) {
+    console.warn('[Meta Webhook Verification] rejected: verify token mismatch');
+    return res.status(403).type('text/plain').send('Forbidden');
+  }
+
   if (challenge) {
     return res.status(200).type('text/plain').send(String(challenge));
   }

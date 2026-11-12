@@ -25,6 +25,19 @@ import {
 import { MarqueeLogoScroller } from '../../components/ui/marquee-logo-scroller';
 import EnterpriseAIPipeline from '../../components/ui/ai-agent-pipeline';
 import { ShinyText } from '../../components/ui/ShinyText';
+import {
+  accent,
+  border,
+  brand,
+  cobalt,
+  fonts,
+  gradients,
+  layout,
+  radii,
+  shadows,
+  surface,
+  text,
+} from './theme';
 
 // SVG icons for enterprise carriers in ecosystem
 const TwilioIcon = () => (
@@ -155,7 +168,7 @@ const PIPELINE_MESSAGES = [
   'Idle. Listening for next inbound call or Meta lead webhook...',
 ];
 
-export function FeaturesSection() {
+export function FeaturesSection({ onBookDemo }) {
   const navigate = useNavigate();
 
   return (
@@ -163,8 +176,8 @@ export function FeaturesSection() {
       id="about"
       style={{
         position: 'relative',
-        background: '#ffffff',
-        padding: 'clamp(64px, 8vw, 110px) clamp(20px, 5vw, 64px)',
+        background: surface.page,
+        padding: `${layout.sectionY} ${layout.gutter}`,
         overflow: 'hidden',
       }}
     >
@@ -181,7 +194,7 @@ export function FeaturesSection() {
           width: '90%',
           maxWidth: 1200,
           height: 440,
-          background: 'radial-gradient(ellipse at 50% 30%, rgba(4, 102, 200, 0.06) 0%, transparent 70%)',
+          background: 'radial-gradient(ellipse at 50% 20%, rgba(37, 99, 235, 0.07) 0%, transparent 68%)',
           pointerEvents: 'none',
           zIndex: 0,
         }}
@@ -209,23 +222,23 @@ export function FeaturesSection() {
               display: 'inline-flex',
               alignItems: 'center',
               gap: 8,
-              padding: '6px 18px',
-              borderRadius: 9999,
-              background: 'rgba(4, 102, 200, 0.08)',
-              border: '1px solid rgba(4, 102, 200, 0.22)',
-              marginBottom: 16,
-              boxShadow: '0 2px 10px rgba(4, 102, 200, 0.08)',
+              padding: '6px 16px',
+              borderRadius: radii.pill,
+              background: brand.soft,
+              border: `1px solid ${cobalt[200]}`,
+              marginBottom: 18,
+              boxShadow: 'none',
             }}
           >
-            <Sparkles size={14} color="#0466c8" />
+            <Sparkles size={13} strokeWidth={2.4} color={brand.base} />
             <ShinyText
               text="AUTONOMOUS AI EXECUTION & TELECOM PIPELINE"
               speed={3.5}
               style={{
-                fontSize: 11.5,
-                fontWeight: 800,
-                letterSpacing: '0.08em',
-                color: '#0466c8',
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.10em',
+                color: cobalt[700],
               }}
             />
           </motion.div>
@@ -237,13 +250,13 @@ export function FeaturesSection() {
             viewport={{ once: true }}
             transition={{ duration: 0.7, delay: 0.1 }}
             style={{
-              fontSize: 'clamp(32px, 4.4vw, 48px)',
-              fontWeight: 900,
-              letterSpacing: '-0.03em',
+              fontSize: 'clamp(30px, 4.2vw, 46px)',
+              fontWeight: 800,
+              letterSpacing: '-0.035em',
               lineHeight: 1.15,
-              color: '#0f172a',
+              color: text.primary,
               margin: '0 0 16px 0',
-              fontFamily: '"Bricolage Grotesque", "Plus Jakarta Sans", "Inter", sans-serif',
+              fontFamily: fonts.display,
             }}
           >
             Everything your sales team needs
@@ -256,12 +269,12 @@ export function FeaturesSection() {
             viewport={{ once: true }}
             transition={{ duration: 0.7, delay: 0.2 }}
             style={{
-              color: '#64748b',
+              color: text.tertiary,
               fontSize: 'clamp(15px, 1.1vw, 17px)',
-              maxWidth: 760,
+              maxWidth: 720,
               margin: '0 auto',
-              lineHeight: 1.65,
-              fontWeight: 450,
+              lineHeight: 1.7,
+              fontWeight: 400,
             }}
           >
             Watch how our Autonomous AI Agent Pipeline instantly receives inbound triggers,
@@ -330,36 +343,36 @@ export function FeaturesSection() {
             {/* Feature Highlight 1 */}
             <div
               style={{
-                padding: '18px 22px',
-                borderRadius: 16,
-                background: '#f8fafc',
-                border: '1px solid rgba(226, 232, 240, 0.9)',
+                padding: '20px 22px',
+                borderRadius: radii.lg,
+                background: surface.page,
+                border: `1px solid ${border.hairline}`,
                 display: 'flex',
                 alignItems: 'flex-start',
                 gap: 14,
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.02)',
+                boxShadow: shadows.xs,
               }}
             >
               <div
                 style={{
                   width: 40,
                   height: 40,
-                  borderRadius: 12,
-                  background: 'rgba(124, 58, 237, 0.1)',
+                  borderRadius: radii.sm,
+                  background: accent.teal.tint,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#7c3aed',
+                  color: accent.teal.text,
                   flexShrink: 0,
                 }}
               >
                 <Bot size={20} strokeWidth={2.4} />
               </div>
               <div>
-                <h4 style={{ fontSize: 16, fontWeight: 750, color: '#0f172a', margin: '0 0 4px 0' }}>
+                <h4 style={{ fontSize: 15.5, fontWeight: 650, color: text.primary, margin: '0 0 5px 0' }}>
                   Autonomous AI Voice Telecaller
                 </h4>
-                <p style={{ fontSize: 13.5, color: '#64748b', margin: 0, lineHeight: 1.5 }}>
+                <p style={{ fontSize: 13.5, color: text.tertiary, margin: 0, lineHeight: 1.55 }}>
                   Conducts human-like voice conversations in Telugu, Hindi & English. Qualifies leads, detects voicemails, and books appointments 24/7.
                 </p>
               </div>
@@ -368,36 +381,36 @@ export function FeaturesSection() {
             {/* Feature Highlight 2 */}
             <div
               style={{
-                padding: '18px 22px',
-                borderRadius: 16,
-                background: '#f8fafc',
-                border: '1px solid rgba(226, 232, 240, 0.9)',
+                padding: '20px 22px',
+                borderRadius: radii.lg,
+                background: surface.page,
+                border: `1px solid ${border.hairline}`,
                 display: 'flex',
                 alignItems: 'flex-start',
                 gap: 14,
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.02)',
+                boxShadow: shadows.xs,
               }}
             >
               <div
                 style={{
                   width: 40,
                   height: 40,
-                  borderRadius: 12,
-                  background: 'rgba(2, 132, 199, 0.1)',
+                  borderRadius: radii.sm,
+                  background: brand.tint,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#0284c7',
+                  color: brand.base,
                   flexShrink: 0,
                 }}
               >
                 <Radio size={20} strokeWidth={2.4} />
               </div>
               <div>
-                <h4 style={{ fontSize: 16, fontWeight: 750, color: '#0f172a', margin: '0 0 4px 0' }}>
+                <h4 style={{ fontSize: 15.5, fontWeight: 650, color: text.primary, margin: '0 0 5px 0' }}>
                   Under 310ms End-to-End Latency
                 </h4>
-                <p style={{ fontSize: 13.5, color: '#64748b', margin: 0, lineHeight: 1.5 }}>
+                <p style={{ fontSize: 13.5, color: text.tertiary, margin: 0, lineHeight: 1.55 }}>
                   Instant carrier handshake with Airtel & Jio SIP trunks ensures conversational fluidity without awkward delays or lag.
                 </p>
               </div>
@@ -406,36 +419,36 @@ export function FeaturesSection() {
             {/* Feature Highlight 3 */}
             <div
               style={{
-                padding: '18px 22px',
-                borderRadius: 16,
-                background: '#f8fafc',
-                border: '1px solid rgba(226, 232, 240, 0.9)',
+                padding: '20px 22px',
+                borderRadius: radii.lg,
+                background: surface.page,
+                border: `1px solid ${border.hairline}`,
                 display: 'flex',
                 alignItems: 'flex-start',
                 gap: 14,
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.02)',
+                boxShadow: shadows.xs,
               }}
             >
               <div
                 style={{
                   width: 40,
                   height: 40,
-                  borderRadius: 12,
-                  background: 'rgba(34, 197, 94, 0.1)',
+                  borderRadius: radii.sm,
+                  background: accent.emerald.tint,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#16a34a',
+                  color: accent.emerald.text,
                   flexShrink: 0,
                 }}
               >
                 <CheckCircle2 size={20} strokeWidth={2.4} />
               </div>
               <div>
-                <h4 style={{ fontSize: 16, fontWeight: 750, color: '#0f172a', margin: '0 0 4px 0' }}>
+                <h4 style={{ fontSize: 15.5, fontWeight: 650, color: text.primary, margin: '0 0 5px 0' }}>
                   Automated Multi-Tool Dispatch
                 </h4>
-                <p style={{ fontSize: 13.5, color: '#64748b', margin: 0, lineHeight: 1.5 }}>
+                <p style={{ fontSize: 13.5, color: text.tertiary, margin: 0, lineHeight: 1.55 }}>
                   Automatically updates CRM lead stage, dispatches WhatsApp quotation PDFs, and routes live calls to available agents via round-robin.
                 </p>
               </div>
@@ -458,7 +471,7 @@ export function FeaturesSection() {
             description="Built on carrier-grade SIP trunking, low-latency VoIP routing, official Meta Cloud APIs, and real-time CRM database synchronization."
             logos={CRM_PARTNERS}
             speed="normal"
-            className="border-slate-200/90 bg-white/90 shadow-sm"
+            className="border-slate-200/90 bg-white shadow-sm"
           />
         </motion.div>
 
@@ -471,17 +484,20 @@ export function FeaturesSection() {
           viewport={{ once: true }}
           transition={{ duration: 0.6, delay: 0.3 }}
           style={{
-            padding: '30px clamp(20px, 4vw, 44px)',
-            borderRadius: 24,
-            background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-            color: '#ffffff',
+            padding: '32px clamp(20px, 4vw, 44px)',
+            borderRadius: radii.xl,
+            background: gradients.night,
+            color: '#FFFFFF',
             display: 'flex',
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'space-between',
             flexWrap: 'wrap',
-            gap: 24,
-            boxShadow: '0 20px 50px rgba(15, 23, 42, 0.25)',
+            gap: 28,
+            boxShadow: shadows.lg,
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            position: 'relative',
+            overflow: 'hidden',
           }}
         >
           <div style={{ maxWidth: 640 }}>
@@ -490,10 +506,10 @@ export function FeaturesSection() {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 8,
-                fontSize: 12,
-                fontWeight: 800,
-                color: '#38bdf8',
-                letterSpacing: '0.04em',
+                fontSize: 11.5,
+                fontWeight: 700,
+                color: cobalt[300],
+                letterSpacing: '0.10em',
                 marginBottom: 8,
               }}
             >
@@ -503,7 +519,7 @@ export function FeaturesSection() {
             <h3
               style={{
                 fontSize: 'clamp(20px, 2vw, 24px)',
-                fontWeight: 850,
+                fontWeight: 700,
                 letterSpacing: '-0.02em',
                 margin: '0 0 6px 0',
               }}
@@ -513,9 +529,9 @@ export function FeaturesSection() {
             <p
               style={{
                 fontSize: 14,
-                color: '#94a3b8',
+                color: 'rgba(255, 255, 255, 0.62)',
                 margin: 0,
-                lineHeight: 1.5,
+                lineHeight: 1.55,
               }}
             >
               Setup takes less than 3 minutes. Zero setup fees, instant carrier routing, and free onboarding assistance.
@@ -528,18 +544,18 @@ export function FeaturesSection() {
               whileTap={{ scale: 0.97 }}
               onClick={() => navigate('/login')}
               style={{
-                padding: '13px 26px',
-                borderRadius: 9999,
-                background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
-                color: '#ffffff',
-                border: 'none',
-                fontWeight: 750,
+                padding: '13px 24px',
+                borderRadius: radii.pill,
+                background: gradients.brand,
+                color: '#FFFFFF',
+                border: '1px solid rgba(255, 255, 255, 0.16)',
+                fontWeight: 650,
                 fontSize: 14,
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 8,
-                boxShadow: '0 8px 24px rgba(234, 88, 12, 0.4)',
+                boxShadow: shadows.brand,
               }}
             >
               <span>Get Started Free</span>
@@ -549,14 +565,14 @@ export function FeaturesSection() {
             <motion.button
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
-              onClick={() => navigate('/demo')}
+              onClick={() => onBookDemo?.()}
               style={{
-                padding: '13px 24px',
-                borderRadius: 9999,
-                background: 'rgba(255, 255, 255, 0.08)',
-                color: '#ffffff',
-                border: '1px solid rgba(255, 255, 255, 0.25)',
-                fontWeight: 700,
+                padding: '13px 22px',
+                borderRadius: radii.pill,
+                background: 'rgba(255, 255, 255, 0.06)',
+                color: '#FFFFFF',
+                border: '1px solid rgba(255, 255, 255, 0.18)',
+                fontWeight: 550,
                 fontSize: 14,
                 cursor: 'pointer',
               }}

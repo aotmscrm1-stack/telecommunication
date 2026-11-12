@@ -43,6 +43,7 @@ import { Leaderboard, LeadProfile } from '../modules/marketing/leaderboard';
 import { Reports } from '../modules/marketing/reports';
 import { DigitalCalendar } from '../modules/marketing/digital-calendar';
 import { MetaLeads } from '../modules/marketing/meta-leads';
+import { DemoBookings } from '../modules/marketing/demo-bookings';
 
 // Finance Modules
 import { OfferLetter } from '../modules/finance/offer-letters';
@@ -243,6 +244,10 @@ export function AppRoutes() {
         <Route path="leaderboard" element={<AdminOnlyRoute><Leaderboard /></AdminOnlyRoute>} />
         <Route path="reports" element={<AdminOnlyRoute><Reports /></AdminOnlyRoute>} />
         <Route path="contacts" element={<StaffRestrictedRoute><Contacts /></StaffRestrictedRoute>} />
+        <Route path="demo-bookings" element={<AdminOnlyRoute><DemoBookings /></AdminOnlyRoute>} />
+        <Route path="marketing/demo-bookings" element={<AdminOnlyRoute><DemoBookings /></AdminOnlyRoute>} />
+        <Route path="demos" element={<Navigate to="/demo-bookings" replace />} />
+        <Route path="client-demos" element={<Navigate to="/demo-bookings" replace />} />
         <Route path="contact" element={<Navigate to="/contacts" replace />} />
         <Route path="whatsapp-campaigns" element={<Navigate to="/contacts" replace />} />
         <Route path="whatsapp-campaign" element={<Navigate to="/contacts" replace />} />

@@ -1,23 +1,51 @@
 services:
   # ── 1. BACKEND API & SOCKETS SERVICE ─────────────────────────────────────
+  # Stateless with respect to scheduled work: PROCESS_ROLE=api means this
+  # container never starts a scheduler, so it is safe to run more than one
+  # replica behind the nginx upstream. Two things still pin it to a single
+  # instance today, both commented inline below (static IP, container_name).
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    # Shared tag so the worker service below reuses this exact build instead of
+    # compiling a second image.
+    image: aotms-backend:local
     container_name: aotms-backend
     restart: always
+    # Reaps zombies and, more importantly, makes the container PID 1 so SIGTERM
+    # reaches Node directly for the graceful shutdown path.
+    init: true
     env_file:
       - ./backend/.env
+    environment:
+      # HTTP + WebSockets only. Schedulers run in the `worker` service.
+      PROCESS_ROLE: api
+      # Audio lives on the shared volume, not on the container's writable layer.
+      # Without this the production default resolves to /var/data/recordings,
+      # which is not mounted, and recordings are lost on every rebuild.
+      RECORDINGS_DIR: /app/uploads/recordings
+      TEMP_RECORDINGS_DIR: /app/uploads/tmp
+      # Heap cap at roughly half of the container memory limit, leaving the rest
+      # for upload buffers (50MB JSON bodies, spreadsheet imports). Without a cap
+      # Node grows until the container is OOM-killed and the 502s look like nginx
+      # faults. Raise NODE_HEAP_MB together with BACKEND_MEMORY.
+      NODE_OPTIONS: --max-old-space-size=${NODE_HEAP_MB:-2048}
     networks:
       aotms-network:
+        # NOTE: a fixed address is convenient with the static nginx upstream, but
+        # it prevents `docker compose up --scale backend=N`. Replace with a DNS
+        # round-robin upstream when you move to multiple API instances.
         ipv4_address: 172.28.0.10
     volumes:
       - backend-uploads:/app/uploads
     deploy:
       resources:
         limits:
-          cpus: '1.50'
-          memory: 1536M
+          cpus: '${BACKEND_CPUS:-3.0}'
+          memory: ${BACKEND_MEMORY:-6G}
+    # Long enough for in-flight uploads/transcription calls to finish on redeploy.
+    stop_grace_period: 30s
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
       interval: 15s
@@ -30,7 +58,52 @@ services:
         max-size: "10m"
         max-file: "5"
 
-  # ── 2. NGINX GATEWAY & REVERSE PROXY ──────────────────────────────────────
+  # ── 2. BACKGROUND WORKER ─────────────────────────────────────────────────
+  # Runs every interval scheduler (task reminders, overdue checks, the 10:00 IST
+  # compliance sweep, Google Sheets auto-sync, local-audio retention) and nothing
+  # else. Splitting it out is what allows the API to be replicated: if the
+  # schedulers lived in the API, every replica would fire them again.
+  #
+  # Leader election over a Mongo lease makes extra replicas harmless — they sit
+  # on standby — but one instance is the intended shape.
+  worker:
+    image: aotms-backend:local
+    container_name: aotms-worker
+    restart: always
+    init: true
+    env_file:
+      - ./backend/.env
+    environment:
+      PROCESS_ROLE: worker
+      RECORDINGS_DIR: /app/uploads/recordings
+      TEMP_RECORDINGS_DIR: /app/uploads/tmp
+      NODE_OPTIONS: --max-old-space-size=${WORKER_HEAP_MB:-512}
+    # Same volume as the API: the retention sweeper deletes locally cached audio
+    # once it is safe in Cloudinary, and the API serves first plays from here.
+    volumes:
+      - backend-uploads:/app/uploads
+    deploy:
+      resources:
+        limits:
+          cpus: '${WORKER_CPUS:-1.0}'
+          memory: ${WORKER_MEMORY:-1G}
+    stop_grace_period: 30s
+    depends_on:
+      backend:
+        condition: service_healthy
+    # The image's HEALTHCHECK curls :5000/api/health, which does not exist here —
+    # this process has no HTTP listener, so it would report unhealthy forever.
+    # Liveness is covered by restart:always (process death) and by the scheduler
+    # lease (a wedged worker stops renewing and a peer takes over).
+    healthcheck:
+      disable: true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── 3. NGINX GATEWAY & REVERSE PROXY ──────────────────────────────────────
   nginx-gateway:
     image: nginx:alpine
     container_name: aotms-nginx

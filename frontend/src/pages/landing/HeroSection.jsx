@@ -1,10 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { animate } from 'animejs';
 import { 
   ArrowUpRight, 
-  Play, 
   Video, 
   MessageSquare, 
   Globe, 
@@ -18,9 +16,22 @@ import {
 import GradientWaves from './GradientWaves';
 import useBreakpoint from '../../hooks/useBreakpoint';
 import TextType from '../../components/TextType';
-import crmImage from '../../assets/CRM.png';
+import BookingCard from './BookingCard';
+import {
+  amber,
+  cobalt,
+  emerald,
+  fonts,
+  gradients,
+  ink,
+  radii,
+  shadows,
+  teal,
+  text,
+  transitions,
+} from './theme';
 
-const EASE = [0.22, 1, 0.36, 1];
+const EASE = transitions.ease;
 
 /* ─────────────────────────────────────────────────────────
    TWO ROTATING HERO SLIDES (5-SECOND AUTO SCROLL)
@@ -30,14 +41,12 @@ const EASE = [0.22, 1, 0.36, 1];
 const HERO_SLIDES = [
   {
     id: 'crm-dashboard',
-    badgeText: "WHAT'S NEW",
-    badgeSubtext: 'AI-Powered CRM Platform',
-    badgeIcon: <Sparkles size={14} style={{ color: '#ea580c' }} />,
-    badgeBg: '#ffffff',
-    badgeColor: '#0f172a',
-    gradient: 'linear-gradient(180deg, #f97316 0%, #ea580c 25%, #c2410c 45%, #7c3aed 70%, #4c1d95 100%)',
-    accentColor: '#fdba74',
-    glowColor: 'rgba(124, 58, 237, 0.45)',
+    badgeText: 'PLATFORM',
+    badgeSubtext: 'The unified telecom CRM workspace',
+    badgeIcon: <Sparkles size={13} strokeWidth={2.4} />,
+    gradient: gradients.heroCrm,
+    accentColor: amber[400],
+    glowColor: 'rgba(37, 99, 235, 0.40)',
     titleLine1: 'Manage Your CRM Pipeline',
     typingTexts: [
       'Track Every Lead.',
@@ -46,32 +55,23 @@ const HERO_SLIDES = [
       'Grow Revenue 3x.'
     ],
     description: 'The unified CRM for telecom & enterprise sales teams — pipeline, live leads, follow-ups, and analytics, all in one intelligent workspace.',
-    primaryBtnText: 'Get Started',
-    primaryBtnBg: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
-    primaryBtnSolidBg: '#ea580c',
-    primaryBtnHoverBg: '#c2410c',
-    primaryBtnShadow: '0 8px 24px rgba(234, 88, 12, 0.45)',
-    primaryBtnHoverShadow: '0 16px 36px rgba(234, 88, 12, 0.65)',
-    primaryBtnBorder: '1px solid rgba(255, 255, 255, 0.25)',
-    primaryBtnTextColor: '#ffffff',
-    secondaryBtnText: 'Watch Demo',
-    waveConfig: { horizonColor: '#ffa200ff', waveColor: '#d86100ff', crestColor: '#fdba74' },
+    primaryBtnText: 'Book Free Demo',
+    secondaryBtnText: 'Sign in to CRM',
+    waveConfig: { horizonColor: '#0A1330', waveColor: '#1B3499', crestColor: '#7DA6F9' },
     trustBadges: [
-      { text: 'Enterprise Grade', dot: '#34d399' },
+      { text: 'Enterprise grade', dot: emerald[400] },
       { text: 'No credit card required' },
-      { text: '99.9% Pipeline Uptime' }
+      { text: '99.9% pipeline uptime' }
     ]
   },
   {
     id: 'ai-telecaller',
     badgeText: 'AI TELECALLER V2.0',
-    badgeSubtext: '100k+ Automated Calls / Day',
-    badgeIcon: <Bot size={15} style={{ color: '#ea580c' }} />,
-    badgeBg: '#ffffff',
-    badgeColor: '#0f172a',
-    gradient: 'linear-gradient(180deg, #0284c7 0%, #0369a1 25%, #0f172a 70%, #020617 100%)',
-    accentColor: '#38bdf8',
-    glowColor: 'rgba(56, 189, 248, 0.45)',
+    badgeSubtext: '100k+ automated calls every day',
+    badgeIcon: <Bot size={14} strokeWidth={2.4} />,
+    gradient: gradients.heroAi,
+    accentColor: teal[400],
+    glowColor: 'rgba(8, 145, 178, 0.42)',
     titleLine1: 'Autonomous AI Voice Agents',
     typingTexts: [
       'Call 10,000 Leads Daily.',
@@ -80,20 +80,13 @@ const HERO_SLIDES = [
       'Zero Hold Time.'
     ],
     description: 'Deploy intelligent AI voice telecallers that speak natural Telugu, Hindi & English to qualify leads, book appointments, and close sales 24/7.',
-    primaryBtnText: 'Start Free AI Calling',
-    primaryBtnBg: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
-    primaryBtnSolidBg: '#0284c7',
-    primaryBtnHoverBg: '#0369a1',
-    primaryBtnShadow: '0 8px 24px rgba(2, 132, 199, 0.45)',
-    primaryBtnHoverShadow: '0 16px 36px rgba(2, 132, 199, 0.65)',
-    primaryBtnBorder: '1px solid rgba(255, 255, 255, 0.25)',
-    primaryBtnTextColor: '#ffffff',
-    secondaryBtnText: 'Listen AI Voice Demo',
-    waveConfig: { horizonColor: '#020617', waveColor: '#0369a1', crestColor: '#38bdf8' },
+    primaryBtnText: 'Book Free Demo',
+    secondaryBtnText: 'Sign in to CRM',
+    waveConfig: { horizonColor: '#061520', waveColor: '#0E7490', crestColor: '#67E8F9' },
     trustBadges: [
-      { text: 'Multi-Language AI Voice', dot: '#34d399' },
-      { text: 'Instant CRM Sync' },
-      { text: '99.9% Call Uptime' }
+      { text: 'Multi-language AI voice', dot: emerald[400] },
+      { text: 'Instant CRM sync' },
+      { text: '99.9% call uptime' }
     ]
   }
 ];
@@ -101,6 +94,7 @@ const HERO_SLIDES = [
 export function HeroSection({
   activeSlideIndex: propActiveSlideIndex,
   setActiveSlideIndex: propSetActiveSlideIndex,
+  onBookDemo,
 }) {
   const navigate = useNavigate();
   const bp = useBreakpoint();
@@ -142,8 +136,6 @@ export function HeroSection({
 
   const currentSlide = HERO_SLIDES[activeSlideIndex];
 
-  const dashboardRef = useRef(null);
-
   const handleSentenceComplete = (_sentence, index) => {
     const slideId = currentSlide.id;
     const nextIndex = (index + 1) % currentSlide.typingTexts.length;
@@ -152,24 +144,6 @@ export function HeroSection({
       [slideId]: nextIndex,
     }));
   };
-
-  // Anime.js smooth continuous floating tilt effect for CRM dashboard preview
-  useEffect(() => {
-    if (dashboardRef.current) {
-      try {
-        animate(dashboardRef.current, {
-          translateY: [-8, 8],
-          rotateX: [1, -1],
-          duration: 4800,
-          ease: 'easeInOutSine',
-          loop: true,
-          alternate: true,
-        });
-      } catch (e) {
-        console.warn('Anime.js animation error:', e);
-      }
-    }
-  }, []);
 
   return (
     <section
@@ -180,7 +154,7 @@ export function HeroSection({
         position: 'relative',
         width: '100%',
         minHeight: '100vh',
-        backgroundColor: '#0f172a',
+        backgroundColor: ink[950],
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
@@ -219,12 +193,12 @@ export function HeroSection({
           position: 'absolute',
           inset: 0,
           pointerEvents: 'none',
-          opacity: 0.08,
+          opacity: 0.05,
           backgroundImage: `
-            linear-gradient(rgba(255, 255, 255, 0.6) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255, 255, 255, 0.6) 1px, transparent 1px)
+            linear-gradient(rgba(255, 255, 255, 0.55) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.55) 1px, transparent 1px)
           `,
-          backgroundSize: '80px 80px',
+          backgroundSize: '96px 96px',
           zIndex: 1,
         }}
       />
@@ -382,12 +356,12 @@ export function HeroSection({
               alignItems: 'center',
               gap: 10,
               padding: '5px 16px 5px 6px',
-              borderRadius: 9999,
-              background: 'rgba(255, 255, 255, 0.16)',
-              border: '1px solid rgba(255, 255, 255, 0.35)',
-              boxShadow: `0 8px 24px rgba(0, 0, 0, 0.16), 0 0 20px ${currentSlide.glowColor}`,
-              backdropFilter: 'blur(16px)',
-              WebkitBackdropFilter: 'blur(16px)',
+              borderRadius: radii.pill,
+              background: 'rgba(255, 255, 255, 0.07)',
+              border: '1px solid rgba(255, 255, 255, 0.16)',
+              boxShadow: '0 8px 28px rgba(3, 8, 20, 0.35)',
+              backdropFilter: 'blur(18px) saturate(150%)',
+              WebkitBackdropFilter: 'blur(18px) saturate(150%)',
               marginBottom: isMobile ? 20 : 26,
             }}
           >
@@ -398,34 +372,31 @@ export function HeroSection({
                 alignItems: 'center',
                 gap: 6,
                 padding: '5px 13px',
-                borderRadius: 9999,
-                background: '#ffffff',
-                color: '#0f172a',
-                fontSize: 11,
-                fontWeight: 850,
-                letterSpacing: '0.06em',
+                borderRadius: radii.pill,
+                background: '#FFFFFF',
+                color: cobalt[600],
+                fontSize: 10.5,
+                fontWeight: 700,
+                letterSpacing: '0.08em',
                 textTransform: 'uppercase',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+                boxShadow: shadows.xs,
               }}
             >
               {currentSlide.badgeIcon}
               <span>{currentSlide.badgeText}</span>
             </span>
 
-            {/* Badge Subtext */}
+            {/* Badge subtext */}
             <span
               style={{
-                color: '#ffffff',
-                fontSize: 13,
-                fontWeight: 600,
-                letterSpacing: '-0.01em',
-                textShadow: '0 1px 4px rgba(0, 0, 0, 0.2)',
+                color: 'rgba(255, 255, 255, 0.82)',
+                fontSize: 12.5,
+                fontWeight: 500,
+                letterSpacing: '-0.005em',
               }}
             >
               {currentSlide.badgeSubtext}
             </span>
-
-            <span style={{ fontSize: 13, filter: 'drop-shadow(0 0 4px rgba(255, 255, 255, 0.6))' }}>✨</span>
           </motion.div>
         </AnimatePresence>
 
@@ -441,24 +412,22 @@ export function HeroSection({
               fontSize: isMobile
                 ? 'clamp(30px, 8vw, 42px)'
                 : 'clamp(44px, 4.8vw, 66px)',
-              fontWeight: 850,
-              lineHeight: 1.12,
-              letterSpacing: '-0.03em',
+              fontWeight: 800,
+              lineHeight: 1.1,
+              letterSpacing: '-0.035em',
               margin: 0,
               marginBottom: isMobile ? 18 : 24,
-              fontFamily:
-                '"Bricolage Grotesque", "Plus Jakarta Sans", "Inter", system-ui, sans-serif',
-              color: '#ffffff',
+              fontFamily: fonts.display,
+              color: '#FFFFFF',
               minHeight: isMobile ? '2.4em' : '2.3em',
-              textShadow: '0 4px 28px rgba(0, 0, 0, 0.28), 0 1px 3px rgba(0, 0, 0, 0.3)',
+              textShadow: '0 2px 18px rgba(3, 8, 20, 0.30)',
             }}
           >
             <span
               style={{
                 display: 'block',
-                color: '#ffffff',
+                color: '#FFFFFF',
                 whiteSpace: isMobile ? 'normal' : 'nowrap',
-                textShadow: '0 4px 30px rgba(0, 0, 0, 0.25)',
               }}
             >
               {currentSlide.titleLine1}
@@ -500,16 +469,15 @@ export function HeroSection({
             exit={{ y: -15, opacity: 0 }}
             transition={{ duration: 0.6, ease: EASE }}
             style={{
-              color: 'rgba(255, 255, 255, 0.94)',
+              color: text.inverseSoft,
               fontSize: isMobile ? 14 : 'clamp(15px, 1.1vw, 17.5px)',
               lineHeight: 1.7,
-              maxWidth: 640,
+              maxWidth: 620,
               margin: 0,
               marginBottom: isMobile ? 30 : 38,
-              fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
-              fontWeight: 450,
-              letterSpacing: '-0.01em',
-              textShadow: '0 2px 14px rgba(0, 0, 0, 0.22)',
+              fontFamily: fonts.sans,
+              fontWeight: 400,
+              letterSpacing: '-0.008em',
             }}
           >
             {currentSlide.description}
@@ -531,14 +499,13 @@ export function HeroSection({
             alignItems: 'center',
           }}
         >
-          {/* PRIMARY GET STARTED / START AI CALLING BUTTON */}
+          {/* PRIMARY — BOOK FREE DEMO */}
           <motion.button
-            onClick={() => navigate('/login')}
+            onClick={() => onBookDemo?.()}
             whileHover={{
               y: -3,
               scale: 1.02,
-              filter: 'brightness(1.08)',
-              boxShadow: currentSlide.primaryBtnHoverShadow,
+              boxShadow: shadows.brandLg,
             }}
             whileTap={{ scale: 0.97 }}
             transition={{ duration: 0.25, ease: EASE }}
@@ -546,37 +513,36 @@ export function HeroSection({
               padding: isMobile ? '12px 26px' : '14px 34px',
               height: isMobile ? 54 : 58,
               boxSizing: 'border-box',
-              borderRadius: 9999,
-              border: currentSlide.primaryBtnBorder || '1px solid rgba(255, 255, 255, 0.25)',
-              background: currentSlide.primaryBtnBg,
-              backgroundColor: currentSlide.primaryBtnSolidBg,
-              color: currentSlide.primaryBtnTextColor || '#ffffff',
-              fontWeight: 700,
+              borderRadius: radii.pill,
+              border: '1px solid rgba(255, 255, 255, 0.20)',
+              background: gradients.brand,
+              color: '#FFFFFF',
+              fontWeight: 650,
               fontSize: isMobile ? 14 : 15,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: 10,
-              letterSpacing: '-0.01em',
-              fontFamily: '"Inter", system-ui, sans-serif',
-              boxShadow: currentSlide.primaryBtnShadow,
+              letterSpacing: '-0.008em',
+              fontFamily: fonts.sans,
+              boxShadow: shadows.brand,
               flexShrink: 0,
-              transition: 'background 0.4s ease, background-color 0.4s ease, box-shadow 0.4s ease, border-color 0.4s ease',
+              transition: 'box-shadow 0.3s ease',
             }}
           >
-            <span>{currentSlide.primaryBtnText || 'Get Started'}</span>
+            <span>{currentSlide.primaryBtnText || 'Book Free Demo'}</span>
             <ArrowUpRight size={18} strokeWidth={2.4} />
           </motion.button>
 
-          {/* SECONDARY BUTTON */}
+          {/* SECONDARY — SIGN IN */}
           <motion.button
-            onClick={() => navigate('/demo')}
+            onClick={() => navigate('/login')}
             whileHover={{
               y: -3,
-              background: 'rgba(255, 255, 255, 0.22)',
-              borderColor: 'rgba(255, 255, 255, 0.75)',
-              boxShadow: '0 16px 36px rgba(0, 0, 0, 0.25)',
+              background: 'rgba(255, 255, 255, 0.12)',
+              borderColor: 'rgba(255, 255, 255, 0.40)',
+              boxShadow: '0 14px 32px rgba(3, 8, 20, 0.30)',
             }}
             whileTap={{ scale: 0.97 }}
             transition={{ duration: 0.28, ease: EASE }}
@@ -584,22 +550,22 @@ export function HeroSection({
               padding: isMobile ? '12px 20px' : '13px 26px 13px 18px',
               height: isMobile ? 54 : 58,
               boxSizing: 'border-box',
-              borderRadius: 9999,
-              border: '1.5px solid rgba(255, 255, 255, 0.45)',
-              background: 'rgba(255, 255, 255, 0.12)',
-              color: '#ffffff',
-              fontWeight: 700,
+              borderRadius: radii.pill,
+              border: '1px solid rgba(255, 255, 255, 0.24)',
+              background: 'rgba(255, 255, 255, 0.06)',
+              color: '#FFFFFF',
+              fontWeight: 550,
               fontSize: isMobile ? 14 : 15,
               cursor: 'pointer',
-              backdropFilter: 'blur(16px)',
-              WebkitBackdropFilter: 'blur(16px)',
+              backdropFilter: 'blur(18px)',
+              WebkitBackdropFilter: 'blur(18px)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: 12,
-              letterSpacing: '-0.01em',
-              fontFamily: '"Inter", system-ui, sans-serif',
-              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
+              letterSpacing: '-0.008em',
+              fontFamily: fonts.sans,
+              boxShadow: '0 6px 20px rgba(3, 8, 20, 0.22)',
               flexShrink: 0
             }}
           >
@@ -608,29 +574,28 @@ export function HeroSection({
                 width: 32,
                 height: 32,
                 borderRadius: '50%',
-                background: 'rgba(255, 255, 255, 0.22)',
-                border: '1px solid rgba(255, 255, 255, 0.4)',
+                background: 'rgba(255, 255, 255, 0.20)',
+                border: '1px solid rgba(255, 255, 255, 0.35)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#ffffff',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+                color: '#FFFFFF',
               }}
             >
-              <Play size={13} fill="#ffffff" strokeWidth={0} />
+              <ArrowUpRight size={13} strokeWidth={2.8} />
             </span>
             {currentSlide.secondaryBtnText}
           </motion.button>
         </motion.div>
 
-        {/* 5-SECOND AUTO SCROLL DOT CONTROLS */}
+        {/* SLIDE CONTROLS */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 10,
-            marginTop: 26,
+            gap: 8,
+            marginTop: 28,
             zIndex: 30,
           }}
         >
@@ -639,18 +604,19 @@ export function HeroSection({
             return (
               <button
                 key={slide.id}
-                onClick={() => setActiveSlideIndex(idx)}
+                onClick={() => updateSlideIndex(idx)}
                 style={{
-                  height: 8,
-                  width: isActive ? 34 : 8,
-                  borderRadius: 9999,
+                  height: 6,
+                  width: isActive ? 32 : 6,
+                  borderRadius: radii.pill,
                   border: 'none',
-                  background: isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.35)',
+                  background: isActive ? '#FFFFFF' : 'rgba(255, 255, 255, 0.28)',
                   boxShadow: isActive ? `0 0 12px ${slide.accentColor}` : 'none',
                   cursor: 'pointer',
                   transition: 'all 0.4s ease',
                   padding: 0,
                 }}
+                aria-label={`Go to ${slide.badgeSubtext}`}
                 title={slide.badgeSubtext}
               />
             );
@@ -664,12 +630,12 @@ export function HeroSection({
             alignItems: 'center',
             justifyContent: 'center',
             flexWrap: 'wrap',
-            gap: isMobile ? 12 : 24,
-            marginTop: 18,
-            color: 'rgba(255, 255, 255, 0.78)',
-            fontSize: isMobile ? 12 : 13,
+            gap: isMobile ? 12 : 22,
+            marginTop: 20,
+            color: text.inverseMuted,
+            fontSize: isMobile ? 12 : 12.5,
             fontWeight: 500,
-            letterSpacing: '0.01em',
+            letterSpacing: '0.005em',
           }}
         >
           {currentSlide.trustBadges.map((badge, idx) => (
@@ -684,7 +650,7 @@ export function HeroSection({
                       borderRadius: '50%',
                       background: badge.dot,
                       display: 'inline-block',
-                      boxShadow: `0 0 10px ${badge.dot}`,
+                      boxShadow: `0 0 8px ${badge.dot}`,
                     }}
                   />
                 )}
@@ -696,64 +662,38 @@ export function HeroSection({
       </motion.div>
 
       {/* ══════════════════════════════════════════════
-          FLOATING CRM DASHBOARD PREVIEW
+          BOOK A FREE DEMO — CLEAN CONTACT CARD FORM
           ══════════════════════════════════════════════ */}
       <motion.div
-        initial={{ y: 80, opacity: 0 }}
+        id="book-demo"
+        initial={{ y: 60, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.5, duration: 1.4, ease: EASE }}
+        transition={{ delay: 0.5, duration: 1.2, ease: EASE }}
         style={{
           position: 'relative',
           zIndex: 15,
           width: '100%',
           maxWidth: 1080,
-          marginTop: isMobile ? 44 : 64,
+          marginTop: isMobile ? 36 : 48,
+          scrollMarginTop: 96,
           boxSizing: 'border-box',
-          perspective: 1200,
         }}
       >
-        <motion.div
-          ref={dashboardRef}
-          initial={{ rotateX: 10, y: 20 }}
-          animate={{ rotateX: 0, y: 0 }}
-          transition={{ delay: 0.6, duration: 1.6, ease: EASE }}
-          style={{
-            borderRadius: isMobile ? 16 : 24,
-            overflow: 'hidden',
-            boxShadow: `
-              0 40px 100px rgba(0, 0, 0, 0.50),
-              0 0 0 1px rgba(255, 255, 255, 0.22)
-            `,
-            transformStyle: 'preserve-3d',
-            willChange: 'transform',
-            background: 'transparent',
-            position: 'relative',
-          }}
-        >
-          <img
-            src={crmImage}
-            alt="CRM Dashboard Preview"
-            style={{
-              display: 'block',
-              width: '100%',
-              height: 'auto',
-            }}
-          />
-        </motion.div>
+        <BookingCard />
 
-        {/* Soft glow behind dashboard */}
+        {/* Soft glow behind the booking form */}
         <div
           style={{
             position: 'absolute',
-            inset: '15% 5% -10% 5%',
+            inset: '10% 2% -14% 2%',
             background: `
               radial-gradient(
                 ellipse at 50% 100%,
                 ${currentSlide.glowColor} 0%,
-                transparent 65%
+                transparent 68%
               )
             `,
-            filter: 'blur(70px)',
+            filter: 'blur(80px)',
             zIndex: -1,
             pointerEvents: 'none',
             transition: 'background 1.2s ease',
@@ -767,25 +707,25 @@ export function HeroSection({
       <style>{`
         .hero-typing-line {
           background: linear-gradient(
-            135deg,
+            110deg,
             #ffffff 0%,
-            #fff7ed 25%,
-            #fef08a 60%,
+            ${cobalt[200]} 42%,
+            ${cobalt[300]} 62%,
             #ffffff 100%
           );
           -webkit-background-clip: text;
           background-clip: text;
           -webkit-text-fill-color: transparent;
           color: transparent;
-          font-weight: 850;
-          letter-spacing: -0.03em;
-          filter: drop-shadow(0 4px 18px rgba(0, 0, 0, 0.30));
+          font-weight: 800;
+          letter-spacing: -0.035em;
+          filter: drop-shadow(0 4px 20px rgba(3, 8, 20, 0.35));
         }
         .hero-cursor {
-          color: #fef08a !important;
+          color: ${amber[400]} !important;
           font-weight: 300;
-          -webkit-text-fill-color: #fef08a !important;
-          filter: drop-shadow(0 0 8px rgba(254, 240, 138, 0.85));
+          -webkit-text-fill-color: ${amber[400]} !important;
+          filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.75));
         }
       `}</style>
     </section>
