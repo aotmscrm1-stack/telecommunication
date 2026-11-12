@@ -37,7 +37,7 @@ The AOTMS Employee Performance Tracking & Automatic Ticket Generation system is 
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
 │                        AOTMS TWO-CHECKPOINT COMPLIANCE ARCHITECTURE                    │
 ├──────────────────────────────────────────┬─────────────────────────────────────────────┤
-│ CHECKPOINT 1: FIXED 10:00 AM IST SWEEP   │ CHECKPOINT 2: BEFORE LOGOUT / END ATTENDANCE│
+│ CHECKPOINT 1: FIXED 10:00 AM IST SWEEP   │ CHECKPOINT 2: BEFORE LOGOUT / END ATTENDANCE│    
 ├──────────────────────────────────────────┼─────────────────────────────────────────────┤
 │ • Fixed deadline for EVERY active staff  │ • Enforced dynamically when employee        │
 │ • Attendance marked by 10:00 AM          │   attempts to stop attendance or log out    │

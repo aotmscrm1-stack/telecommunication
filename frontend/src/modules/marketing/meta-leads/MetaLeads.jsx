@@ -7,7 +7,7 @@ import { canDelete } from '../../../utils/permissions';
 import AssignMembersModal from './AssignMembersModal';
 import DeleteCampaignModal from './DeleteCampaignModal';
 import LeadDetailsPage, { cleanLeadName } from '../../../components/LeadDetails/LeadDetailsPage';
-import leadNoteReminderService, { isStatusRequiringNote, leadHasNote, isAdminOrManager } from '../../../services/leadNoteReminderService';
+import leadNoteReminderService, { isStatusRequiringNote, leadHasNote, isAdminOrManager, resolveLeadReminderContext } from '../../../services/leadNoteReminderService';
 import AutoScrollText from '../../../components/common/AutoScrollText';
 import AotmsSpinner from '../../../components/common/AotmsSpinner';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
@@ -68,7 +68,12 @@ export const POSITIVE_STATUSES = [
   "Demo attended",
   "Demo not attended-Call Back",
   "time issues/Fee issues",
-  "Call back/We will Call",
+  "Call back/We will Call"
+];
+
+// The call never connected. This is NOT a positive call summary, so it gets its own
+// amber "Call Not Answering" bucket instead of being counted under Positive.
+export const CALL_NOT_ANSWERING_STATUSES = [
   "Not answering-call back/whats app text"
 ];
 
@@ -93,6 +98,12 @@ function isLeadNegative(lead) {
     return true;
   }
   return NEGATIVE_STATUSES.some(n => n.toLowerCase().trim() === st);
+}
+
+function isLeadCallNotAnswering(lead) {
+  const st = String(lead?.status || '').toLowerCase().trim();
+  if (st === 'call not answering') return true;
+  return CALL_NOT_ANSWERING_STATUSES.some(c => c.toLowerCase().trim() === st);
 }
 
 // ── UI Helpers Matching Campaigns.jsx & CampaignDetail.jsx ───────────────────
@@ -132,9 +143,10 @@ function Avatar({ name, size = 30, bg = ORANGE_LIGHT, color = ORANGE }) {
 function MiniStatus({ status }) {
   const isPos = isLeadPositive({ status });
   const isNeg = isLeadNegative({ status });
-  const color = isPos ? '#059669' : isNeg ? '#dc2626' : (STATUS_COLORS[status] || '#64748b');
-  const bg = isPos ? '#ecfdf5' : isNeg ? '#fff1f2' : `${color}18`;
-  const border = isPos ? '#a7f3d0' : isNeg ? '#fecdd3' : `${color}33`;
+  const isCna = isLeadCallNotAnswering({ status });
+  const color = isPos ? '#059669' : isNeg ? '#dc2626' : isCna ? '#b45309' : (STATUS_COLORS[status] || '#64748b');
+  const bg = isPos ? '#ecfdf5' : isNeg ? '#fff1f2' : isCna ? '#fffbeb' : `${color}18`;
+  const border = isPos ? '#a7f3d0' : isNeg ? '#fecdd3' : isCna ? '#fde68a' : `${color}33`;
 
   return (
     <span style={{
@@ -329,10 +341,11 @@ function CampaignLeadsFilterDropdown({
   totalCount = 0,
   pendingCount = 0,
   positiveCount = 0,
-  negativeCount = 0
+  negativeCount = 0,
+  callNotAnsweringCount = 0
 }) {
   const [open, setOpen] = useState(false);
-  const [expandedGroup, setExpandedGroup] = useState(null); // 'positive' | 'negative' | null
+  const [expandedGroup, setExpandedGroup] = useState(null); // 'positive' | 'callNotAnswering' | 'negative' | null
   const ref = useRef(null);
 
   useEffect(() => {
@@ -350,11 +363,14 @@ function CampaignLeadsFilterDropdown({
       setExpandedGroup('positive');
     } else if (value === 'Negative' || NEGATIVE_STATUSES.includes(value)) {
       setExpandedGroup('negative');
+    } else if (value === 'Call Not Answering' || CALL_NOT_ANSWERING_STATUSES.includes(value)) {
+      setExpandedGroup('callNotAnswering');
     }
   }, [value]);
 
   const isPos = value === 'Positive' || POSITIVE_STATUSES.includes(value);
   const isNeg = value === 'Negative' || NEGATIVE_STATUSES.includes(value);
+  const isCna = value === 'Call Not Answering' || CALL_NOT_ANSWERING_STATUSES.includes(value);
   const isPending = value === 'Pending';
   const isBlocked = value === 'Blocked';
 
@@ -364,6 +380,8 @@ function CampaignLeadsFilterDropdown({
     ? 'Positive Leads'
     : value === 'Negative'
     ? 'Negative Leads'
+    : value === 'Call Not Answering'
+    ? 'Call Not Answering'
     : value === 'Pending'
     ? 'Pending Leads'
     : value === 'Blocked'
@@ -374,6 +392,8 @@ function CampaignLeadsFilterDropdown({
     ? '#10b981'
     : isNeg
     ? '#ef4444'
+    : isCna
+    ? '#f59e0b'
     : isPending
     ? '#f59e0b'
     : isBlocked
@@ -396,9 +416,9 @@ function CampaignLeadsFilterDropdown({
           fontSize: 11.5,
           fontWeight: 600,
           cursor: 'pointer',
-          border: `1px solid ${isPos ? '#a7f3d0' : isNeg ? '#fecdd3' : isBlocked ? '#fecdd3' : isPending ? '#fde68a' : BORDER}`,
-          background: isPos ? '#ecfdf5' : isNeg ? '#fff1f2' : isBlocked ? '#fff1f2' : isPending ? '#fffbeb' : '#ffffff',
-          color: isPos ? '#059669' : isNeg ? '#dc2626' : isBlocked ? '#be123c' : isPending ? '#b45309' : TEXT,
+          border: `1px solid ${isPos ? '#a7f3d0' : isNeg ? '#fecdd3' : isBlocked ? '#fecdd3' : isCna ? '#fde68a' : isPending ? '#fde68a' : BORDER}`,
+          background: isPos ? '#ecfdf5' : isNeg ? '#fff1f2' : isBlocked ? '#fff1f2' : isCna ? '#fffbeb' : isPending ? '#fffbeb' : '#ffffff',
+          color: isPos ? '#059669' : isNeg ? '#dc2626' : isBlocked ? '#be123c' : isCna ? '#b45309' : isPending ? '#b45309' : TEXT,
           transition: 'all 0.15s ease'
         }}
       >
@@ -586,7 +606,103 @@ function CampaignLeadsFilterDropdown({
             )}
           </div>
 
-          {/* 4. Negative Section with > Arrow */}
+          {/* 4. Call Not Answering Section with > Arrow (the call never connected) */}
+          <div style={{ marginTop: 2 }}>
+            <div
+              onClick={() => {
+                const nextExpand = expandedGroup === 'callNotAnswering' ? null : 'callNotAnswering';
+                setExpandedGroup(nextExpand);
+                onChange('Call Not Answering');
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '7px 10px',
+                borderRadius: 7,
+                cursor: 'pointer',
+                fontSize: 11.5,
+                fontWeight: isCna ? 700 : 600,
+                color: isCna ? '#b45309' : TEXT,
+                background: isCna ? '#fffbeb' : 'transparent'
+              }}
+              className="hover:bg-amber-50/60"
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#f59e0b' }} />
+                <span>Call Not Answering</span>
+                <span style={{ fontSize: 10, fontWeight: 700, padding: '0 5px', borderRadius: 8, background: '#fef3c7', color: '#92400e' }}>
+                  {callNotAnsweringCount}
+                </span>
+              </div>
+              <FiChevronRight
+                size={14}
+                style={{
+                  color: '#d97706',
+                  transform: expandedGroup === 'callNotAnswering' ? 'rotate(90deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.15s ease'
+                }}
+              />
+            </div>
+
+            {expandedGroup === 'callNotAnswering' && (
+              <div style={{ marginLeft: 10, paddingLeft: 8, borderLeft: '2px solid #fde68a', marginTop: 3, marginBottom: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <div
+                  onClick={() => {
+                    onChange('Call Not Answering');
+                    setOpen(false);
+                  }}
+                  style={{
+                    padding: '5px 8px',
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: value === 'Call Not Answering' ? 700 : 600,
+                    color: value === 'Call Not Answering' ? '#92400e' : '#b45309',
+                    background: value === 'Call Not Answering' ? '#fef3c7' : 'transparent',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}
+                  className="hover:bg-amber-50"
+                >
+                  <span>All Call Not Answering</span>
+                  {value === 'Call Not Answering' && <FiCheck size={12} />}
+                </div>
+                {CALL_NOT_ANSWERING_STATUSES.map(sub => {
+                  const selected = value === sub;
+                  return (
+                    <div
+                      key={sub}
+                      onClick={() => {
+                        onChange(sub);
+                        setOpen(false);
+                      }}
+                      style={{
+                        padding: '5px 8px',
+                        borderRadius: 6,
+                        fontSize: 11,
+                        fontWeight: selected ? 700 : 500,
+                        color: selected ? '#92400e' : '#334155',
+                        background: selected ? '#fffbeb' : 'transparent',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 6
+                      }}
+                      className="hover:bg-amber-50/70"
+                    >
+                      <span style={{ lineHeight: 1.3 }}>{sub}</span>
+                      {selected && <FiCheck size={12} style={{ color: '#d97706', flexShrink: 0 }} />}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* 5. Negative Section with > Arrow */}
           <div style={{ marginTop: 2 }}>
             <div
               onClick={() => {
@@ -682,7 +798,7 @@ function CampaignLeadsFilterDropdown({
             )}
           </div>
 
-          {/* 5. Blocked Contacts */}
+          {/* 6. Blocked Contacts */}
           <div
             onClick={() => {
               onChange('Blocked');
@@ -1401,7 +1517,20 @@ export default function MetaLeads() {
     if (urlLeadId) {
       pendingTargetLeadIdRef.current = urlLeadId;
       if (urlCampaign) {
-        if (urlCampaign !== selectedCampaign) setSelectedCampaign(urlCampaign);
+        if (urlCampaign !== selectedCampaign) {
+          setSelectedCampaign(urlCampaign);
+        } else {
+          // Already on this campaign (e.g. "Add Note" from the reminder toast):
+          // open the student directly so the note lands on the right person.
+          metaLeadsAPI.getOne(urlLeadId).then(res => {
+            const l = res?.data?.lead || res?.data?.rawLead;
+            if (l) {
+              setSelectedLead(l);
+              setActiveMobileTab('profile');
+              pendingTargetLeadIdRef.current = null;
+            }
+          }).catch(() => {});
+        }
       } else {
         // Automatically discover campaign from lead ID!
         metaLeadsAPI.getOne(urlLeadId).then(res => {
@@ -1434,6 +1563,16 @@ export default function MetaLeads() {
           setSelectedLead(found);
           setActiveMobileTab('profile');
           pendingTargetLeadIdRef.current = null;
+        } else {
+          // Student is not on the loaded page - fetch it directly.
+          metaLeadsAPI.getOne(targetId).then(res => {
+            const l = res?.data?.lead || res?.data?.rawLead;
+            if (l) {
+              setSelectedLead(l);
+              setActiveMobileTab('profile');
+              pendingTargetLeadIdRef.current = null;
+            }
+          }).catch(() => {});
         }
       }
     };
@@ -1472,36 +1611,20 @@ export default function MetaLeads() {
 
       // Track 10-minute note reminder for positive call summary
       const studentName = cleanLeadName(lead.fullName || lead.rawData?.full_name || lead.rawData?.Name || lead.name || 'Student');
-      const isCurrentAdmin = user?.role === 'admin' || user?.role === 'superadmin';
-      const assignedCounsellorName = lead?.assignedTo?.name || lead?.assignedToName;
-      const assignedCounsellorId = lead?.assignedTo?._id || lead?.assignedTo;
-
-      // Identify counsellor from the exact account recording the status:
-      // If Bhavani or Rajasree records it, her name and account ID are used!
-      // If Admin records it, use the assigned counsellor (Bhavani or Rajasree).
-      const counsellorName = (!isCurrentAdmin && user?.name)
-        ? (user.displayName || user.name)
-        : (assignedCounsellorName || user?.displayName || user?.name || 'Counselor');
-
-      const counsellorId = (!isCurrentAdmin && user?._id)
-        ? (user._id || user.id)
-        : (assignedCounsellorId || user?._id || user?.id);
-
-      const campaignName = lead.campaign || lead.campaignName || activeCampaign || 'Meta Leads';
+      // The counsellor who just recorded the summary owns the reminder; an
+      // Admin/Manager recording it hands it over to the lead's assigned counsellor.
+      const reminderContext = resolveLeadReminderContext(lead, {
+        currentUser: user,
+        campaignFallback: activeCampaign,
+        preferViewer: true,
+      });
 
       if (isStatusRequiringNote(newStatus)) {
         leadNoteReminderService.trackLead({
           id: lead._id,
           name: studentName,
           status: newStatus,
-          counsellorName,
-          counsellorId,
-          counsellorEmail: (!isCurrentAdmin && user?.email) ? user?.email : undefined,
-          createdBy: counsellorName,
-          createdById: counsellorId,
-          assignedToId: assignedCounsellorId,
-          assignedToName: assignedCounsellorName,
-          campaign: campaignName,
+          ...reminderContext,
           isMeta: true,
           hasExistingNote: leadHasNote(lead),
         });
@@ -1645,9 +1768,9 @@ export default function MetaLeads() {
         csvContent += `"${name}","${phone}","${city}","${email}","${lead.campaign || selectedCampaign}","${lead.status || 'New'}","${lead.syncedAt || ''}"\n`;
       });
     } else {
-      csvContent += 'Campaign Name,Total Leads,New Leads,Positive Leads,Negative Leads,Last Synced\n';
+      csvContent += 'Campaign Name,Total Leads,New Leads,Positive Leads,Call Not Answering,Negative Leads,Last Synced\n';
       campaignStats.forEach(c => {
-        csvContent += `"${c.campaign}",${c.count || 0},${c.newCount || 0},${c.positiveCount || 0},${c.negativeCount || 0},"${c.lastSynced || ''}"\n`;
+        csvContent += `"${c.campaign}",${c.count || 0},${c.newCount || 0},${c.positiveCount || 0},${c.callNotAnsweringCount || 0},${c.negativeCount || 0},"${c.lastSynced || ''}"\n`;
       });
     }
 
@@ -1677,7 +1800,10 @@ export default function MetaLeads() {
       const assigneeMatch = !assigneeFilter || (c.assignedUsers || []).some(u => (u._id || u) === assigneeFilter);
       let statusMatch = true;
       if (statusFilter === 'active') statusMatch = (c.count || 0) > 0;
-      if (statusFilter === 'completed') statusMatch = (c.positiveCount || 0) + (c.negativeCount || 0) > 0 && (c.positiveCount || 0) + (c.negativeCount || 0) === c.count;
+      if (statusFilter === 'completed') {
+        const reviewed = (c.positiveCount || 0) + (c.callNotAnsweringCount || 0) + (c.negativeCount || 0);
+        statusMatch = reviewed > 0 && reviewed === c.count;
+      }
       if (statusFilter === 'pending') statusMatch = (c.count || 0) === 0;
 
       let dateMatch = true;
@@ -1745,19 +1871,26 @@ export default function MetaLeads() {
     return campaignLeads.filter(l => isLeadNegative(l)).length;
   }, [campaignSentiment, activeCampaignObj, campaignLeads]);
 
+  const callNotAnsweringCount = useMemo(() => {
+    if (campaignSentiment?.callNotAnswering !== undefined) return campaignSentiment.callNotAnswering;
+    if (activeCampaignObj.callNotAnsweringCount !== undefined) return activeCampaignObj.callNotAnsweringCount;
+    return campaignLeads.filter(l => isLeadCallNotAnswering(l)).length;
+  }, [campaignSentiment, activeCampaignObj, campaignLeads]);
+
   const pendingCount = useMemo(() => {
     if (campaignSentiment?.pending !== undefined) return campaignSentiment.pending;
     if (activeCampaignObj.pendingCount !== undefined) return activeCampaignObj.pendingCount;
-    return Math.max(0, totalCampaignStudents - positiveCount - negativeCount);
-  }, [campaignSentiment, activeCampaignObj, totalCampaignStudents, positiveCount, negativeCount]);
+    return Math.max(0, totalCampaignStudents - positiveCount - negativeCount - callNotAnsweringCount);
+  }, [campaignSentiment, activeCampaignObj, totalCampaignStudents, positiveCount, negativeCount, callNotAnsweringCount]);
 
   const sentimentData = useMemo(() => {
     return [
       { name: 'Positive', count: positiveCount, color: '#10b981' },
+      { name: 'Call Not Answering', count: callNotAnsweringCount, color: '#f59e0b' },
       { name: 'Negative', count: negativeCount, color: '#ef4444' },
       { name: 'Pending', count: pendingCount, color: '#f97316' }
     ];
-  }, [positiveCount, negativeCount, pendingCount]);
+  }, [positiveCount, callNotAnsweringCount, negativeCount, pendingCount]);
 
   const pieChartData = useMemo(() => {
     const active = sentimentData.filter(s => s.count > 0);
@@ -1767,7 +1900,7 @@ export default function MetaLeads() {
   // Metrics
   const totalCampaignsCount = campaignStats.length;
   const activeDrives = campaignStats.filter(c => (c.count || 0) > 0).length;
-  const totalReviewed = campaignStats.reduce((acc, c) => acc + (c.positiveCount || 0) + (c.negativeCount || 0), 0);
+  const totalReviewed = campaignStats.reduce((acc, c) => acc + (c.positiveCount || 0) + (c.callNotAnsweringCount || 0) + (c.negativeCount || 0), 0);
   const avgCompletion = totalLeadsAll > 0 ? Math.round((totalReviewed / totalLeadsAll) * 100) : 0;
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1887,6 +2020,7 @@ export default function MetaLeads() {
                   pendingCount={pendingCount}
                   positiveCount={positiveCount}
                   negativeCount={negativeCount}
+                  callNotAnsweringCount={callNotAnsweringCount}
                 />
 
                 {isAdmin && (
@@ -1915,15 +2049,15 @@ export default function MetaLeads() {
                         fontWeight: 700,
                         padding: '2px 8px',
                         borderRadius: 12,
-                        background: leadsStatusFilter === 'Positive' ? '#ecfdf5' : leadsStatusFilter === 'Negative' ? '#fff1f2' : '#fff7ed',
-                        color: leadsStatusFilter === 'Positive' ? '#059669' : leadsStatusFilter === 'Negative' ? '#dc2626' : '#ea580c',
-                        border: `1px solid ${leadsStatusFilter === 'Positive' ? '#a7f3d0' : leadsStatusFilter === 'Negative' ? '#fecdd3' : '#fed7aa'}`,
+                        background: leadsStatusFilter === 'Positive' ? '#ecfdf5' : leadsStatusFilter === 'Negative' ? '#fff1f2' : (leadsStatusFilter === 'Call Not Answering' || CALL_NOT_ANSWERING_STATUSES.includes(leadsStatusFilter)) ? '#fffbeb' : '#fff7ed',
+                        color: leadsStatusFilter === 'Positive' ? '#059669' : leadsStatusFilter === 'Negative' ? '#dc2626' : (leadsStatusFilter === 'Call Not Answering' || CALL_NOT_ANSWERING_STATUSES.includes(leadsStatusFilter)) ? '#b45309' : '#ea580c',
+                        border: `1px solid ${leadsStatusFilter === 'Positive' ? '#a7f3d0' : leadsStatusFilter === 'Negative' ? '#fecdd3' : (leadsStatusFilter === 'Call Not Answering' || CALL_NOT_ANSWERING_STATUSES.includes(leadsStatusFilter)) ? '#fde68a' : '#fed7aa'}`,
                         cursor: 'pointer',
                         transition: 'all 0.15s ease'
                       }}
                       title="Click to clear status filter and show all leads"
                     >
-                      <span>{leadsStatusFilter} Leads</span>
+                      <span>{leadsStatusFilter === 'Call Not Answering' ? 'Call Not Answering' : `${leadsStatusFilter} Leads`}</span>
                       <span style={{ fontSize: 11, fontWeight: 800 }}>✕</span>
                     </button>
                   )}
@@ -2018,6 +2152,7 @@ export default function MetaLeads() {
                   const isSelected = selectedLead?._id === lead._id;
                   const isPos = isLeadPositive(lead);
                   const isNeg = isLeadNegative(lead);
+                  const isCna = isLeadCallNotAnswering(lead);
                   const blocked = isLeadBlocked(lead);
 
                   return (
@@ -2039,7 +2174,7 @@ export default function MetaLeads() {
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                        <Avatar name={name} size={28} bg={isSelected ? '#fed7aa' : blocked ? '#ffe4e6' : (isPos ? '#ecfdf5' : isNeg ? '#fff1f2' : ORANGE_LIGHT)} color={blocked ? '#e11d48' : isPos ? '#059669' : isNeg ? '#dc2626' : ORANGE} />
+                        <Avatar name={name} size={28} bg={isSelected ? '#fed7aa' : blocked ? '#ffe4e6' : (isPos ? '#ecfdf5' : isNeg ? '#fff1f2' : isCna ? '#fffbeb' : ORANGE_LIGHT)} color={blocked ? '#e11d48' : isPos ? '#059669' : isNeg ? '#dc2626' : isCna ? '#b45309' : ORANGE} />
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
                             <div style={{ fontSize: 12, fontWeight: 600, color: TEXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -2080,7 +2215,7 @@ export default function MetaLeads() {
                               {unblockingId === lead._id ? 'Unblocking...' : '✓ Unblock'}
                             </button>
                           </div>
-                        ) : (isPos || isNeg) ? (
+                        ) : (isPos || isNeg || isCna) ? (
                           <MiniStatus status={lead.status} />
                         ) : <div />}
                         {lead.lastCallAt ? (

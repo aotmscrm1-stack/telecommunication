@@ -622,7 +622,7 @@ export const canEditOwnDailyActivitySchedule = (user) => {
 
 export const canViewCallFollowups = (user) => {
   if (!user) return false;
-  return isExecutive(user) || isManager(user) || user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'manager';
+  return isExecutive(user) || isManager(user) || user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'manager' || isCounsellor(user) || isTelecaller(user);
 };
 
 

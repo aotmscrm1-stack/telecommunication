@@ -10,6 +10,7 @@ const User = require('../../../database/models/User');
 const Department = require('../../../database/models/Department');
 const Integration = require('../../../database/models/Integration');
 const { protect } = require('../../../core/middleware/auth');
+const { personName, resolveReminderCounsellor } = require('../../../core/utils/counsellor');
 const env = require('../../../config/env');
 const { broadcastWebSocketEvent } = require('../../../app/websocket');
 const { syncAllMetaSheets, parseTabName, deriveStatusFromRow } = require('./googleSheetsSyncService');
@@ -21,7 +22,11 @@ const POSITIVE_SUB_STATUSES = [
   "Demo attended",
   "Demo not attended-Call Back",
   "time issues/Fee issues",
-  "Call back/We will Call",
+  "Call back/We will Call"
+];
+
+// The call never connected - it gets its own bucket instead of counting as Positive.
+const CALL_NOT_ANSWERING_SUB_STATUSES = [
   "Not answering-call back/whats app text"
 ];
 
@@ -41,6 +46,11 @@ const ALL_POSITIVE_STATUSES = [
   'Demo',
   'Follow-up',
   ...POSITIVE_SUB_STATUSES
+];
+
+const ALL_CALL_NOT_ANSWERING_STATUSES = [
+  'Call Not Answering',
+  ...CALL_NOT_ANSWERING_SUB_STATUSES
 ];
 
 const ALL_NEGATIVE_STATUSES = [
@@ -776,6 +786,9 @@ router.get('/campaigns', protect, async (req, res) => {
           positiveCount: {
             $sum: { $cond: [{ $in: ['$status', ALL_POSITIVE_STATUSES] }, 1, 0] }
           },
+          callNotAnsweringCount: {
+            $sum: { $cond: [{ $in: ['$status', ALL_CALL_NOT_ANSWERING_STATUSES] }, 1, 0] }
+          },
           negativeCount: {
             $sum: { $cond: [{ $in: ['$status', ALL_NEGATIVE_STATUSES] }, 1, 0] }
           }
@@ -799,14 +812,16 @@ router.get('/campaigns', protect, async (req, res) => {
 
     const campaigns = stats.map(s => {
       const pos = s.positiveCount || 0;
+      const cna = s.callNotAnsweringCount || 0;
       const neg = s.negativeCount || 0;
-      const pending = Math.max(0, s.count - pos - neg);
+      const pending = Math.max(0, s.count - pos - cna - neg);
       return {
         campaign: s._id,
         count: s.count,
         lastSynced: s.lastSynced,
         newCount: s.newCount,
         positiveCount: pos,
+        callNotAnsweringCount: cna,
         negativeCount: neg,
         pendingCount: pending,
         assignedUsers: assignmentMap[s._id] || []
@@ -827,6 +842,7 @@ router.get('/campaigns', protect, async (req, res) => {
             lastSynced: null,
             newCount: 0,
             positiveCount: 0,
+            callNotAnsweringCount: 0,
             negativeCount: 0,
             pendingCount: 0,
             assignedUsers: assignmentMap[campName] || []
@@ -845,6 +861,7 @@ router.get('/campaigns', protect, async (req, res) => {
             lastSynced: null,
             newCount: 0,
             positiveCount: 0,
+            callNotAnsweringCount: 0,
             negativeCount: 0,
             pendingCount: 0,
             assignedUsers: assignmentMap[ac] || []
@@ -1143,10 +1160,12 @@ router.get('/', protect, async (req, res) => {
     if (status && status !== 'all' && status !== 'All') {
       if (status === 'Positive') {
         query.status = { $in: ALL_POSITIVE_STATUSES };
+      } else if (status === 'Call Not Answering') {
+        query.status = { $in: ALL_CALL_NOT_ANSWERING_STATUSES };
       } else if (status === 'Negative') {
         query.status = { $in: ALL_NEGATIVE_STATUSES };
       } else if (status === 'Pending') {
-        query.status = { $nin: [...ALL_POSITIVE_STATUSES, ...ALL_NEGATIVE_STATUSES] };
+        query.status = { $nin: [...ALL_POSITIVE_STATUSES, ...ALL_CALL_NOT_ANSWERING_STATUSES, ...ALL_NEGATIVE_STATUSES] };
       } else if (status === 'Blocked') {
         const blockedEntries = await Blocklist.find({}).select('phone').lean();
         const blockedPhoneSet = new Set();
@@ -1262,16 +1281,18 @@ router.get('/', protect, async (req, res) => {
       if (allowedCampaigns) {
         baseCampaignQuery.campaign = { $in: allowedCampaigns.filter(c => c === campaign) };
       }
-      const [posCount, negCount, campTotal] = await Promise.all([
+      const [posCount, cnaCount, negCount, campTotal] = await Promise.all([
         MetaLead.countDocuments({ ...baseCampaignQuery, status: { $in: ALL_POSITIVE_STATUSES } }),
+        MetaLead.countDocuments({ ...baseCampaignQuery, status: { $in: ALL_CALL_NOT_ANSWERING_STATUSES } }),
         MetaLead.countDocuments({ ...baseCampaignQuery, status: { $in: ALL_NEGATIVE_STATUSES } }),
         MetaLead.countDocuments(baseCampaignQuery)
       ]);
       sentiment = {
         total: campTotal,
         positive: posCount,
+        callNotAnswering: cnaCount,
         negative: negCount,
-        pending: Math.max(0, campTotal - posCount - negCount)
+        pending: Math.max(0, campTotal - posCount - cnaCount - negCount)
       };
     }
 
@@ -1302,7 +1323,9 @@ router.get('/:id', protect, async (req, res) => {
     const isValidObjId = mongoose.Types.ObjectId.isValid(idStr);
     let metaLead = null;
     if (isValidObjId) {
-      metaLead = await MetaLead.findById(idStr).populate('assignedTo', 'name email avatar');
+      metaLead = await MetaLead.findById(idStr)
+        .populate('assignedTo', 'name email avatar')
+        .populate('callNotes.user', 'name email');
     }
     if (!metaLead) {
       metaLead = await MetaLead.findOne({
@@ -1311,7 +1334,9 @@ router.get('/:id', protect, async (req, res) => {
           { phone: idStr },
           { normalizedPhone: idStr },
         ]
-      }).populate('assignedTo', 'name email avatar');
+      })
+        .populate('assignedTo', 'name email avatar')
+        .populate('callNotes.user', 'name email');
     }
     if (!metaLead) {
       return res.status(404).json({ success: false, message: 'Meta lead not found' });
@@ -1349,6 +1374,7 @@ router.patch('/:id', protect, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Meta lead not found' });
     }
 
+    const prevStatus = metaLead.status;
     if (status !== undefined) metaLead.status = status;
     if (rating !== undefined) metaLead.rating = rating;
     if (assignedTo !== undefined) metaLead.assignedTo = assignedTo;
@@ -1394,7 +1420,21 @@ router.patch('/:id', protect, async (req, res) => {
         outcome: callOutcome || status || 'Note Added',
         date: new Date(),
         user: req.user._id,
-        userName: req.user.displayName || req.user.name || 'Agent'
+        userName: personName(req.user) || 'Agent'
+      });
+    }
+
+    // Record who moved the call summary into its new status. This entry is hidden
+    // from the Notes tab (outcome `status_change`) but lets the reminder popup name
+    // the counsellor who did the call, even when an Admin is watching.
+    if (status !== undefined && String(prevStatus || '') !== String(status || '')) {
+      if (!Array.isArray(metaLead.callNotes)) metaLead.callNotes = [];
+      metaLead.callNotes.push({
+        note: `Status changed from ${prevStatus || 'New'} to ${status}`,
+        outcome: 'status_change',
+        date: new Date(),
+        user: req.user._id,
+        userName: personName(req.user) || ''
       });
     }
 
@@ -1411,34 +1451,25 @@ router.patch('/:id', protect, async (req, res) => {
         ["agreed to office visit's but no luck", "interested/need time", "demo not attended", "call back/we will call", "time issues/fee issues", "not answering"].some(p => sLower.includes(p));
       if (isPos && (!note || !String(note).trim())) {
         const studentName = metaLead.fullName || metaLead.name || metaLead.rawData?.full_name || metaLead.rawData?.Name || 'Student';
-        let counsellorName = req.user.displayName || req.user.name || 'Counselor';
-        let counsellorId = req.user._id.toString();
-        let counsellorEmail = req.user.email;
-        let assignedToName = '';
-        let assignedToId = metaLead.assignedTo?.toString();
+        // Admin/Executive recordings hand the reminder over to the lead's counsellor,
+        // so the popup never shows the acting admin's role label (e.g. "Managing Director").
+        const counsellor = await resolveReminderCounsellor({
+          user: req.user,
+          lead: metaLead,
+          assignedTo: metaLead.assignedTo || null,
+        });
+        const assignedToId = String(metaLead.assignedTo?._id || metaLead.assignedTo || counsellor.counsellorId || '');
+        // The reminder goes to the Admin and to the counsellor resolved above, even
+        // when the lead has no assignee yet.
+        const assignedToName = personName(metaLead.assignedTo) || counsellor.counsellorName || '';
 
-        if (assignedToId) {
-          const User = require('../../../database/models/User');
-          const aUser = await User.findById(assignedToId).select('name email');
-          if (aUser) {
-            assignedToName = aUser.name;
-            if (req.user.role === 'admin' || req.user.role === 'superadmin') {
-              counsellorName = aUser.name;
-              counsellorId = aUser._id.toString();
-              counsellorEmail = aUser.email;
-            }
-          }
-        }
-
-        const campaignName = metaLead.campaignName || metaLead.campaign || 'Meta Campaign';
+        const campaignName = metaLead.campaignName || metaLead.campaign || '';
 
         broadcastWebSocketEvent('lead_note:reminder_needed', {
           id: metaLead._id.toString(),
           name: studentName,
           status: metaLead.status,
-          counsellorName,
-          counsellorId,
-          counsellorEmail,
+          ...counsellor,
           assignedToId,
           assignedToName,
           campaign: campaignName,
@@ -1486,7 +1517,7 @@ router.post('/:id/call-log', protect, async (req, res) => {
       duration: duration || null,
       date: new Date(),
       user: req.user._id,
-      userName: req.user.displayName || req.user.name || 'Telecaller'
+      userName: personName(req.user) || 'Telecaller'
     });
 
     await metaLead.save();
@@ -1499,34 +1530,23 @@ router.post('/:id/call-log', protect, async (req, res) => {
       const hasRealNote = Boolean(note && String(note).trim() && !String(note).startsWith('Call outcome:'));
       if (isPos && !hasRealNote) {
         const studentName = metaLead.fullName || metaLead.name || metaLead.rawData?.full_name || metaLead.rawData?.Name || 'Student';
-        let counsellorName = req.user.displayName || req.user.name || 'Counselor';
-        let counsellorId = req.user._id.toString();
-        let counsellorEmail = req.user.email;
-        let assignedToName = '';
-        let assignedToId = metaLead.assignedTo?.toString();
+        // Admin/Executive recordings hand the reminder over to the lead's counsellor,
+        // so the popup never shows the acting admin's role label (e.g. "Managing Director").
+        const counsellor = await resolveReminderCounsellor({
+          user: req.user,
+          lead: metaLead,
+          assignedTo: metaLead.assignedTo || null,
+        });
+        const assignedToId = String(metaLead.assignedTo?._id || metaLead.assignedTo || counsellor.counsellorId || '');
+        const assignedToName = personName(metaLead.assignedTo) || counsellor.counsellorName || '';
 
-        if (assignedToId) {
-          const User = require('../../../database/models/User');
-          const aUser = await User.findById(assignedToId).select('name email');
-          if (aUser) {
-            assignedToName = aUser.name;
-            if (req.user.role === 'admin' || req.user.role === 'superadmin') {
-              counsellorName = aUser.name;
-              counsellorId = aUser._id.toString();
-              counsellorEmail = aUser.email;
-            }
-          }
-        }
-
-        const campaignName = metaLead.campaignName || metaLead.campaign || 'Meta Campaign';
+        const campaignName = metaLead.campaignName || metaLead.campaign || '';
 
         broadcastWebSocketEvent('lead_note:reminder_needed', {
           id: metaLead._id.toString(),
           name: studentName,
           status: metaLead.status,
-          counsellorName,
-          counsellorId,
-          counsellorEmail,
+          ...counsellor,
           assignedToId,
           assignedToName,
           campaign: campaignName,

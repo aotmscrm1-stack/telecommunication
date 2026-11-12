@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Phone, PhoneOff, Mail, MapPin, Award, IndianRupee, Globe, User, Calendar, Tag, Star, Edit3, Save, X, Plus, Clock, MessageCircle, Copy, Check, Trash2, BookOpen, Zap, Sparkles, ShieldAlert, CheckCircle2, ChevronRight, Volume2, Download, Mic, Maximize2, FileText, ChevronDown, ChevronUp } from 'lucide-react';
 import api, { leadsAPI, campaignsAPI, usersAPI, coursesAPI, followupsAPI, blocklistAPI, leadStagesAPI, messageTemplatesAPI, metaLeadsAPI, recordingsAPI } from '../../services/api';
-import leadNoteReminderService, { isStatusRequiringNote, leadHasNote } from '../../services/leadNoteReminderService';
+import leadNoteReminderService, { isStatusRequiringNote, leadHasNote, personDisplayName, resolveLeadReminderContext } from '../../services/leadNoteReminderService';
 import { useAuth } from '../../context/AuthContext';
 import { canDelete, isCEO } from '../../utils/permissions';
 import StatusBadge from '../common/StatusBadge';
@@ -19,7 +19,12 @@ export const POSITIVE_SUB_STATUSES = [
   "Demo attended",
   "Demo not attended-Call Back",
   "time issues/Fee issues",
-  "Call back/We will Call",
+  "Call back/We will Call"
+];
+
+// The call never connected - this is NOT a positive call summary. It gets its own
+// amber "Call Not Answering" category in the Call Summary picker.
+export const CALL_NOT_ANSWERING_SUB_STATUSES = [
   "Not answering-call back/whats app text"
 ];
 
@@ -37,6 +42,11 @@ export function isLeadPositive(lead) {
 export function isLeadNegative(lead) {
   const s = String(lead?.status || lead || '').trim();
   return s === 'Negative' || NEGATIVE_SUB_STATUSES.includes(s);
+}
+
+export function isLeadCallNotAnswering(lead) {
+  const s = String(lead?.status || lead || '').trim();
+  return s === 'Call Not Answering' || CALL_NOT_ANSWERING_SUB_STATUSES.includes(s);
 }
 
 // Clean zero-width, mojibake, or unformatted lead names
@@ -79,12 +89,13 @@ export function cleanLeadName(rawName) {
   return str;
 }
 
-// Interactive Positive & Negative Status Dropdown Component
+// Interactive Positive / Call Not Answering / Negative Status Dropdown Component
 export function MetaLeadStatusPicker({ status, onStatusChange }) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState(() => {
     if (POSITIVE_SUB_STATUSES.includes(status) || status === 'Positive') return 'positive';
     if (NEGATIVE_SUB_STATUSES.includes(status) || status === 'Negative') return 'negative';
+    if (CALL_NOT_ANSWERING_SUB_STATUSES.includes(status)) return 'callNotAnswering';
     return 'positive';
   });
   const containerRef = useRef(null);
@@ -103,7 +114,28 @@ export function MetaLeadStatusPicker({ status, onStatusChange }) {
 
   const isPos = status === 'Positive' || POSITIVE_SUB_STATUSES.includes(status);
   const isNeg = status === 'Negative' || NEGATIVE_SUB_STATUSES.includes(status);
-  const displayStatus = (isPos || isNeg) ? status : 'Call Summary';
+  const isCna = CALL_NOT_ANSWERING_SUB_STATUSES.includes(status) || status === 'Call Not Answering';
+  const displayStatus = (isPos || isNeg || isCna) ? status : 'Call Summary';
+
+  const tabOptions =
+    activeTab === 'positive'
+      ? POSITIVE_SUB_STATUSES
+      : activeTab === 'negative'
+        ? NEGATIVE_SUB_STATUSES
+        : CALL_NOT_ANSWERING_SUB_STATUSES;
+
+  const optionTone =
+    activeTab === 'positive'
+      ? 'bg-emerald-50 text-emerald-900 font-semibold border border-emerald-200'
+      : activeTab === 'negative'
+        ? 'bg-red-50 text-red-900 font-semibold border border-red-200'
+        : 'bg-amber-50 text-amber-900 font-semibold border border-amber-200';
+  const checkTone =
+    activeTab === 'positive'
+      ? 'text-emerald-600'
+      : activeTab === 'negative'
+        ? 'text-red-600'
+        : 'text-amber-600';
 
   return (
     <div className="relative inline-block text-left" ref={containerRef}>
@@ -113,91 +145,64 @@ export function MetaLeadStatusPicker({ status, onStatusChange }) {
         className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border shadow-xs cursor-pointer ${
           isPos
             ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+            : isCna
+            ? 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
             : isNeg
             ? 'bg-red-50 text-red-800 border-red-300 hover:bg-red-100'
             : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
         }`}
       >
-        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isPos ? 'bg-emerald-500' : isNeg ? 'bg-red-500' : 'bg-slate-400'}`} />
+        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isPos ? 'bg-emerald-500' : isCna ? 'bg-amber-500' : isNeg ? 'bg-red-500' : 'bg-slate-400'}`} />
         <AutoScrollText text={displayStatus} maxWidth={130} />
         <ChevronDown className={`w-3.5 h-3.5 flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-1.5 w-72 sm:w-80 rounded-xl bg-white shadow-xl border border-slate-200 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-          {/* Top Tabs: ONLY Positive and Negative */}
+        <div className="absolute right-0 mt-1.5 w-80 sm:w-[22rem] rounded-xl bg-white shadow-xl border border-slate-200 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+          {/* Top Tabs: Positive / Call Not Answering / Negative */}
           <div className="flex border-b border-slate-200 bg-slate-50/80 p-1 gap-1">
             <button
               type="button"
               onClick={() => setActiveTab('positive')}
-              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                activeTab === 'positive'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-emerald-700 hover:bg-emerald-50'
-              }`}
+              className={`flex-1 py-1.5 px-1 rounded-lg text-[11px] font-bold leading-tight text-center transition-all ${activeTab === 'positive' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-emerald-700 hover:bg-emerald-50'}`}
             >
-              <span className={`w-2 h-2 rounded-full ${activeTab === 'positive' ? 'bg-white' : 'bg-emerald-500'}`} />
               Positive ({POSITIVE_SUB_STATUSES.length})
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab('negative')}
-              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                activeTab === 'negative'
-                  ? 'bg-red-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-red-700 hover:bg-red-50'
-              }`}
+              onClick={() => setActiveTab('callNotAnswering')}
+              title="Call Not Answering"
+              className={`flex-1 py-1.5 px-1 rounded-lg text-[11px] font-bold leading-tight text-center transition-all ${activeTab === 'callNotAnswering' ? 'bg-amber-500 text-white shadow-xs' : 'text-slate-600 hover:text-amber-700 hover:bg-amber-50'}`}
             >
-              <span className={`w-2 h-2 rounded-full ${activeTab === 'negative' ? 'bg-white' : 'bg-red-500'}`} />
+              Call Not Answering ({CALL_NOT_ANSWERING_SUB_STATUSES.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('negative')}
+              className={`flex-1 py-1.5 px-1 rounded-lg text-[11px] font-bold leading-tight text-center transition-all ${activeTab === 'negative' ? 'bg-red-600 text-white shadow-xs' : 'text-slate-600 hover:text-red-700 hover:bg-red-50'}`}
+            >
               Negative ({NEGATIVE_SUB_STATUSES.length})
             </button>
           </div>
 
-          {/* List of Sub-Options from Image: exact sub-statuses only */}
+          {/* Sub-options of the selected category */}
           <div className="max-h-64 overflow-y-auto p-1.5 space-y-1">
-            {activeTab === 'positive' ? (
-              <>
-                {POSITIVE_SUB_STATUSES.map(opt => {
-                  const selected = status === opt;
-                  return (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => { onStatusChange(opt); setIsOpen(false); }}
-                      className={`w-full text-left px-3 py-1.5 rounded-lg text-xs transition-colors flex items-center justify-between ${
-                        selected
-                          ? 'bg-emerald-50 text-emerald-900 font-semibold border border-emerald-200'
-                          : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
-                      }`}
-                    >
-                      <span className="leading-snug pr-2">{opt}</span>
-                      {selected && <Check className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />}
-                    </button>
-                  );
-                })}
-              </>
-            ) : (
-              <>
-                {NEGATIVE_SUB_STATUSES.map(opt => {
-                  const selected = status === opt;
-                  return (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => { onStatusChange(opt); setIsOpen(false); }}
-                      className={`w-full text-left px-3 py-1.5 rounded-lg text-xs transition-colors flex items-center justify-between ${
-                        selected
-                          ? 'bg-red-50 text-red-900 font-semibold border border-red-200'
-                          : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
-                      }`}
-                    >
-                      <span className="leading-snug pr-2">{opt}</span>
-                      {selected && <Check className="w-3.5 h-3.5 text-red-600 flex-shrink-0" />}
-                    </button>
-                  );
-                })}
-              </>
-            )}
+            {tabOptions.map(opt => {
+              const selected = status === opt;
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => { onStatusChange(opt); setIsOpen(false); }}
+                  className={`w-full text-left px-3 py-1.5 rounded-lg text-xs transition-colors flex items-center justify-between ${
+                    selected ? optionTone : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                  }`}
+                >
+                  <span className="leading-snug pr-2">{opt}</span>
+                  {selected && <Check className={`w-3.5 h-3.5 flex-shrink-0 ${checkTone}`} />}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -684,15 +689,17 @@ function CallbackTimeModal({ lead, metaLeadId, campaign, currentUser, onClose, o
         note: note || ('Callback scheduled for ' + personName),
       });
 
+      const campaignName = campaign || lead.campaign?.name || lead.campaign || '';
       const toastPayload = res.data?.callbackToastPayload || {
         followupId: res.data?.followup?._id || String(Date.now()),
         leadId: String(lead._id || metaLeadId || ''),
         metaLeadId: metaLeadId ? String(metaLeadId) : '',
         leadName: personName,
         leadPhone: lead.phone || '',
-        campaign: campaign || '',
+        campaign: campaignName,
         filledById: String(currentUser?._id || ''),
         filledByName,
+        counsellorName: currentUser?.name || filledByName || 'Counsellor',
         assignedToId: String(lead.assignedTo?._id || currentUser?._id || ''),
         assignedToName: lead.assignedTo?.name || filledByName,
         scheduledAt: scheduledAt.toISOString(),
@@ -1927,32 +1934,20 @@ export default function LeadDetailsPage({
       if (leadHasNote(lead)) {
         leadNoteReminderService.resolveLead(currentId, leadName || lead.name);
       } else {
-        const lastCallNote = Array.isArray(lead.callNotes) && lead.callNotes.length > 0 ? lead.callNotes[lead.callNotes.length - 1] : null;
-        const lastActivity = Array.isArray(lead.activities) && lead.activities.length > 0 ? lead.activities.find(a => a.type === 'call' || a.type === 'status_change') : null;
-        const isCurrentAdmin = user?.role === 'admin' || user?.role === 'superadmin';
-        const assignedCounsellorName = lead?.assignedTo?.name;
-        const assignedCounsellorId = lead?.assignedTo?._id || lead?.assignedTo;
-
-        const counsellorName = (!isCurrentAdmin && user?.name)
-          ? (user.displayName || user.name)
-          : (lastCallNote?.userName || lastActivity?.performedBy?.name || assignedCounsellorName || user?.displayName || user?.name || 'Counselor');
-        const counsellorId = (!isCurrentAdmin && user?._id)
-          ? (user._id || user.id)
-          : (lastCallNote?.user || lastActivity?.performedBy?._id || assignedCounsellorId || user?._id);
-        const campaignName = lead?.campaign?.name || lead?.campaign || metaLead?.campaign || '';
+        // Counsellor = author of the recorded call summary, else the assigned counsellor.
+        // The viewer is never used here, so an Admin/Manager opening the page does not
+        // overwrite the reminder with their own name.
+        const reminderContext = resolveLeadReminderContext(lead, {
+          currentUser: user,
+          campaignFallback: metaLeadData?.campaign,
+          allowViewerFallback: false,
+        });
 
         leadNoteReminderService.trackLead({
           id: currentId,
           name: leadName || lead.name,
           status: lead.status,
-          counsellorName,
-          counsellorId,
-          counsellorEmail: (!isCurrentAdmin && user?.email) ? user?.email : undefined,
-          createdBy: counsellorName,
-          createdById: counsellorId,
-          assignedToId: assignedCounsellorId,
-          assignedToName: assignedCounsellorName,
-          campaign: campaignName,
+          ...reminderContext,
           hasExistingNote: false,
           isRemoteBroadcast: true,
         });
@@ -2057,30 +2052,26 @@ export default function LeadDetailsPage({
       // Track 10-minute note reminder for positive call summary
       const currentId = updated?._id || targetMetaId || id;
       if (isStatusRequiringNote(newStatus)) {
-        const isCurrentAdmin = user?.role === 'admin' || user?.role === 'superadmin';
-        const assignedCounsellorName = updated?.assignedTo?.name || lead?.assignedTo?.name;
-        const assignedCounsellorId = updated?.assignedTo?._id || lead?.assignedTo?._id;
-
-        const counsellorName = (!isCurrentAdmin && user?.name)
-          ? (user.displayName || user.name)
-          : (assignedCounsellorName || user?.displayName || user?.name || 'Counselor');
-        const counsellorId = (!isCurrentAdmin && user?._id)
-          ? (user._id || user.id)
-          : (assignedCounsellorId || user?._id || user?.id);
-        const campaignName = updated?.campaign?.name || updated?.campaign || lead?.campaign?.name || lead?.campaign || metaLead?.campaign || '';
+        // The counsellor who just recorded the summary owns the reminder. An
+        // Admin/Director never does the calls, so for them the reminder is handed
+        // to whoever actually made the call-summary change on the lead.
+        const reminderLead = {
+          ...(lead || {}),
+          ...(updated || {}),
+          activities: updated?.activities?.length ? updated.activities : lead?.activities,
+          callNotes: updated?.callNotes?.length ? updated.callNotes : lead?.callNotes,
+        };
+        const reminderContext = resolveLeadReminderContext(reminderLead, {
+          currentUser: user,
+          campaignFallback: updated?.campaign?.name || updated?.campaign || metaLeadData?.campaign,
+          preferViewer: true,
+        });
 
         leadNoteReminderService.trackLead({
           id: currentId,
           name: leadName || updated.name,
           status: newStatus,
-          counsellorName,
-          counsellorId,
-          counsellorEmail: (!isCurrentAdmin && user?.email) ? user?.email : undefined,
-          createdBy: counsellorName,
-          createdById: counsellorId,
-          assignedToId: assignedCounsellorId,
-          assignedToName: assignedCounsellorName,
-          campaign: campaignName,
+          ...reminderContext,
           hasExistingNote: leadHasNote(updated),
         });
       } else {
@@ -2327,8 +2318,8 @@ export default function LeadDetailsPage({
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-sm sm:text-base font-semibold text-slate-800 truncate tracking-tight">{leadName || lead.name}</h2>
 
-                {/* Status Badge: only show for Meta leads if an actual Positive/Negative status is set (no default Fresh/New) */}
-                {(!isMeta ? Boolean(lead.status) : (isLeadPositive(lead) || isLeadNegative(lead))) && (
+                {/* Status Badge: only show for Meta leads if an actual Positive / Call Not Answering / Negative status is set (no default Fresh/New) */}
+                {(!isMeta ? Boolean(lead.status) : (isLeadPositive(lead) || isLeadNegative(lead) || isLeadCallNotAnswering(lead))) && (
                   <StatusBadge status={lead.status} />
                 )}
               </div>
@@ -2801,14 +2792,19 @@ export default function LeadDetailsPage({
 
           {(() => {
             // 1. NOTES: Combine candidate/lead remarks, agent notes, and campaign notes (deduplicated)
-            const metaCallNotes = (lead.callNotes || metaLeadData?.callNotes || []).map((cn, idx) => ({
-              _id: cn._id || `meta-note-${idx}`,
-              type: 'note',
-              description: String(cn.note || cn.outcome || 'Note recorded'),
-              createdAt: cn.date,
-              performedBy: { name: typeof cn.userName === 'string' ? cn.userName : (cn.user?.name || 'Agent') },
-              isMetaNote: true,
-            }));
+            const metaCallNotes = (lead.callNotes || metaLeadData?.callNotes || [])
+              .filter(cn => cn
+                && String(cn.outcome || '').toLowerCase() !== 'status_change'
+                && !String(cn.note || '').toLowerCase().startsWith('status changed'))
+              .map((cn, idx) => ({
+                _id: cn._id || `meta-note-${idx}`,
+                type: 'note',
+                description: String(cn.note || cn.outcome || 'Note recorded'),
+                createdAt: cn.date,
+                // Legacy rows stored a role label in `userName`; the populated user wins.
+                performedBy: { name: personDisplayName(cn.user) || personDisplayName(cn.userName) || 'Agent' },
+                isMetaNote: true,
+              }));
 
             const regularNotes = (lead.activities || [])
               .filter(a => a.type === 'note')

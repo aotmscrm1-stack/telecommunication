@@ -278,19 +278,26 @@ export default function Navbar() {
   const pollDueCallbacks = useCallback(async () => {
     if (!user || !canViewCallFollowups(user)) return;
     try {
+      const isUserAdmin = Boolean(user?.role === 'admin' || user?.role === 'superadmin' || isCEO(user) || isManager(user));
       const res = await followupsAPI.getAll({ type: 'call_followup', status: 'upcoming', forMe: 'true' });
       const all = res.data.followups || [];
       const now = new Date();
       const uid = String(user._id || user.id || '');
       const due = all.filter(f => {
         const creatorId = String(f.createdBy?._id || f.createdBy || '');
-        if (creatorId && uid && creatorId !== uid) return false;
+        const assignedId = String(f.assignedTo?._id || f.assignedTo || '');
+        if (!isUserAdmin && uid && creatorId && assignedId && creatorId !== uid && assignedId !== uid) {
+          return false;
+        }
         const t = new Date(f.scheduledAt);
         return t <= now && !alertedIds.current.has(f._id);
       });
       if (due.length > 0) {
         due.forEach(f => {
           alertedIds.current.add(f._id);
+          const creatorId = String(f.createdBy?._id || f.createdBy || '');
+          const counsellorName = f.filledByName || f.createdBy?.name || f.assignedTo?.name || (creatorId === uid ? user.name : 'Counsellor');
+          const campaignName = f.campaign || f.lead?.campaign?.name || f.lead?.campaign || '';
           leadNoteReminderService.triggerCallbackToast(
             {
               followupId: String(f._id),
@@ -298,9 +305,12 @@ export default function Navbar() {
               metaLeadId: f.metaLeadId ? String(f.metaLeadId) : '',
               leadName: f.leadName || f.lead?.name || 'Lead',
               leadPhone: f.leadPhone || f.lead?.phone || '',
-              campaign: f.campaign || '',
-              filledById: uid,
-              filledByName: user.name || 'Agent',
+              campaign: campaignName,
+              counsellorName,
+              filledById: creatorId || uid,
+              filledByName: counsellorName,
+              assignedToId: String(f.assignedTo?._id || f.assignedTo || ''),
+              assignedToName: f.assignedTo?.name || counsellorName,
               scheduledAt: f.scheduledAt,
               note: f.note || '',
             },

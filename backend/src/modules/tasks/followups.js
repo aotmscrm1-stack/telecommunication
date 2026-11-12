@@ -154,9 +154,12 @@ router.get('/', protect, async (req, res) => {
       query.$and.push({ $or: [{ lead: leadId }, { metaLeadId: leadId }] });
     }
 
-    // Strict per-creator visibility when polling own due callbacks (forMe=true & call_followup)
+    // Strict per-creator/assignee visibility when polling due callbacks (forMe=true & call_followup)
+    // Non-admins see their own created or assigned callbacks; Admins see all due callbacks
     if (forMe && type === 'call_followup') {
-      query.createdBy = req.user._id;
+      if (!isAdmin) {
+        query.$or = [{ createdBy: req.user._id }, { assignedTo: req.user._id }];
+      }
     } else if (queryUserId) {
       const targetId = queryUserId === 'me' ? req.user._id : queryUserId;
       if (!isValidId(targetId)) {
@@ -580,9 +583,10 @@ router.post('/', protect, async (req, res) => {
         metaLeadId: resolvedMetaLeadId ? String(resolvedMetaLeadId) : '',
         leadName: resolvedLeadName || followup.lead?.name || 'Lead',
         leadPhone: resolvedLeadPhone || followup.lead?.phone || '',
-        campaign: resolvedCampaign || '',
+        campaign: resolvedCampaign || followup.campaign || '',
         filledById: String(req.user._id),
         filledByName: req.user.name || baseDoc.filledByName || 'Agent',
+        counsellorName: req.user.name || baseDoc.filledByName || followup.assignedTo?.name || 'Counsellor',
         assignedToId: String(assignedToVal),
         assignedToName: followup.assignedTo?.name || req.user.name || 'Agent',
         campaignAssignedUserIds,

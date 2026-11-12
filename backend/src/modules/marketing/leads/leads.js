@@ -7,6 +7,7 @@ const Campaign = require('../../../database/models/Campaign');
 const FollowUp = require('../../../database/models/FollowUp');
 const Attendance = require('../../../database/models/Attendance');
 const { protect, authorize } = require('../../../core/middleware/auth');
+const { personName, resolveReminderCounsellor } = require('../../../core/utils/counsellor');
 const {
   notifyLeadAssigned,
   notifyLeadStatusChanged,
@@ -623,7 +624,14 @@ async function formatMetaLeadAsLead(metaLead) {
         _id: cn._id || new mongoose.Types.ObjectId(),
         type: cn.outcome === 'call' || cn.outcome === 'connected' ? 'call' : 'note',
         description: cn.note || cn.outcome || 'Note recorded',
-        performedBy: cn.user ? { _id: cn.user, name: cn.userName } : null,
+        // `userName` on legacy notes often holds a role label ("Telecaller Councellor");
+        // the populated user's real name always wins.
+        performedBy: (cn.user || cn.userName)
+          ? {
+              _id: cn.user?._id || cn.user || null,
+              name: personName(cn.user) || personName(cn.userName) || '',
+            }
+          : null,
         createdAt: cn.date || new Date()
       });
     });
@@ -687,6 +695,60 @@ async function formatMetaLeadAsLead(metaLead) {
   };
 }
 
+// GET /api/leads/:id/reminder-context
+// Authoritative answer to "whose call-summary reminder is this?" - used by the
+// reminder toast so it never displays a stale or guessed name (org admins,
+// including the Managing Director, only watch the pipeline and never do calls).
+router.get('/:id/reminder-context', protect, async (req, res) => {
+  try {
+    const idStr = String(req.params.id || '').trim();
+    if (!mongoose.Types.ObjectId.isValid(idStr)) {
+      return res.status(400).json({ success: false, message: 'Invalid lead id' });
+    }
+
+    let lead = await Lead.findById(idStr)
+      .populate('assignedTo', 'name email _id')
+      .populate('campaign', 'name')
+      .populate('activities.performedBy', 'name email');
+    let assignedTo = lead?.assignedTo || null;
+    let campaignName = lead?.campaign?.name || '';
+    let leadName = lead?.name || '';
+    let isMetaLead = false;
+
+    if (!lead) {
+      const MetaLead = require('../../../database/models/MetaLead');
+      const metaLead = await MetaLead.findById(idStr)
+        .populate('assignedTo', 'name email _id')
+        .populate('callNotes.user', 'name email');
+      if (!metaLead) {
+        return res.status(404).json({ success: false, message: 'Lead not found' });
+      }
+      lead = metaLead;
+      assignedTo = metaLead.assignedTo || null;
+      campaignName = metaLead.campaignName || metaLead.campaign || '';
+      leadName = metaLead.fullName || metaLead.rawData?.full_name || '';
+      isMetaLead = true;
+    }
+
+    // `user: null` => resolve the real owner of the call summary, not the caller
+    // of this read-only endpoint.
+    const counsellor = await resolveReminderCounsellor({ user: null, lead, assignedTo });
+
+    res.json({
+      success: true,
+      id: idStr,
+      name: leadName,
+      isMeta: isMetaLead,
+      ...counsellor,
+      assignedToId: String(assignedTo?._id || assignedTo || ''),
+      assignedToName: personName(assignedTo) || '',
+      campaignName,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 router.get('/:id', protect, async (req, res) => {
   try {
     const CallRecording = require('../../../database/models/CallRecording');
@@ -708,7 +770,9 @@ router.get('/:id', protect, async (req, res) => {
     if (!lead) {
       let metaLead = null;
       if (isValidObjId) {
-        metaLead = await MetaLead.findById(idStr).populate('assignedTo', 'name email avatar');
+        metaLead = await MetaLead.findById(idStr)
+          .populate('assignedTo', 'name email avatar')
+          .populate('callNotes.user', 'name email');
       }
       if (!metaLead) {
         metaLead = await MetaLead.findOne({
@@ -717,7 +781,9 @@ router.get('/:id', protect, async (req, res) => {
             { phone: idStr },
             { normalizedPhone: idStr },
           ]
-        }).populate('assignedTo', 'name email avatar');
+        })
+          .populate('assignedTo', 'name email avatar')
+          .populate('callNotes.user', 'name email');
       }
 
       if (metaLead) {
@@ -901,7 +967,7 @@ router.post('/:id/call', protect, async (req, res) => {
           note: note || 'Call logged',
           outcome: callStatus || 'call',
           user: req.user?._id,
-          userName: req.user?.name,
+          userName: personName(req.user) || 'Agent',
           date: new Date()
         });
         await metaLead.save();
@@ -959,7 +1025,9 @@ router.post('/:id/note', protect, async (req, res) => {
       const MetaLead = require('../../../database/models/MetaLead');
       let metaLead = null;
       if (isValidObjId) {
-        metaLead = await MetaLead.findById(idStr).populate('assignedTo', 'name email avatar');
+        metaLead = await MetaLead.findById(idStr)
+          .populate('assignedTo', 'name email avatar')
+          .populate('callNotes.user', 'name email');
       }
       if (!metaLead) {
         metaLead = await MetaLead.findOne({
@@ -968,7 +1036,9 @@ router.post('/:id/note', protect, async (req, res) => {
             { phone: idStr },
             { normalizedPhone: idStr },
           ]
-        }).populate('assignedTo', 'name email avatar');
+        })
+          .populate('assignedTo', 'name email avatar')
+          .populate('callNotes.user', 'name email');
       }
 
       if (metaLead) {
@@ -977,7 +1047,7 @@ router.post('/:id/note', protect, async (req, res) => {
           note,
           outcome: type || 'note',
           user: req.user?._id,
-          userName: req.user?.displayName || req.user?.name || 'Agent',
+          userName: personName(req.user) || 'Agent',
           date: new Date()
         });
         await metaLead.save();
@@ -1026,14 +1096,29 @@ router.put('/:id/status', protect, async (req, res) => {
     const { status, demoScheduledDate } = req.body;
     let lead = null;
     if (mongoose.Types.ObjectId.isValid(req.params.id)) {
-      lead = await Lead.findById(req.params.id).populate('assignedTo', 'name _id');
+      lead = await Lead.findById(req.params.id)
+        .populate('assignedTo', 'name email _id')
+        .populate('campaign', 'name');
     }
 
     if (!lead && mongoose.Types.ObjectId.isValid(req.params.id)) {
       const MetaLead = require('../../../database/models/MetaLead');
       const metaLead = await MetaLead.findById(req.params.id).populate('assignedTo', 'name email avatar');
       if (metaLead) {
+        const prevStatus = metaLead.status;
         metaLead.status = status;
+        // Hidden audit entry (skipped by the Notes tab) that records who made the
+        // call-summary change, so the reminder popup can always name the counsellor.
+        if (String(prevStatus || '') !== String(status || '')) {
+          if (!Array.isArray(metaLead.callNotes)) metaLead.callNotes = [];
+          metaLead.callNotes.push({
+            note: `Status changed from ${prevStatus || 'New'} to ${status}`,
+            outcome: 'status_change',
+            date: new Date(),
+            user: req.user._id,
+            userName: personName(req.user) || '',
+          });
+        }
         await metaLead.save();
         const updated = await formatMetaLeadAsLead(metaLead);
         return res.json({ lead: updated });
@@ -1053,8 +1138,12 @@ router.put('/:id/status', protect, async (req, res) => {
       type: 'status_change',
       description: `Status changed from ${prevStatus} to ${status}`,
       performedBy: req.user._id,
+      performedByName: personName(req.user) || '',
     });
     await lead.save();
+    // Keep the real name of whoever recorded the summary available to the client,
+    // so the reminder popup can name the counsellor without another round-trip.
+    await lead.populate('activities.performedBy', 'name avatar');
 
     if (lead.assignedTo) {
       notifyLeadStatusChanged({ lead, prevStatus, newStatus: status, assignedToId: lead.assignedTo._id, performedByUser: req.user }).catch(() => {});
@@ -1066,27 +1155,21 @@ router.put('/:id/status', protect, async (req, res) => {
       const isPos = sLower.includes('office visit') || sLower.includes('demo attended') || sLower === 'positive' ||
         ["agreed to office visit's but no luck", "interested/need time", "demo not attended", "call back/we will call", "time issues/fee issues", "not answering"].some(p => sLower.includes(p));
       if (isPos) {
-        let counsellorName = req.user.displayName || req.user.name || 'Counselor';
-        let counsellorId = req.user._id.toString();
-        let counsellorEmail = req.user.email;
-        let assignedToName = '';
-        let assignedToId = lead.assignedTo?._id?.toString() || lead.assignedTo?.toString();
-
-        if (assignedToId) {
-          const User = require('../../../database/models/User');
-          const aUser = await User.findById(assignedToId).select('name email');
-          if (aUser) {
-            assignedToName = aUser.name;
-            if (req.user.role === 'admin' || req.user.role === 'superadmin') {
-              counsellorName = aUser.name;
-              counsellorId = aUser._id.toString();
-              counsellorEmail = aUser.email;
-            }
-          }
-        }
+        // Admins/Executives never do the calls, so the reminder must belong to the
+        // counsellor who actually recorded the summary (latest status change / call
+        // / note author), never to the acting admin.
+        const counsellor = await resolveReminderCounsellor({
+          user: req.user,
+          lead,
+          assignedTo: lead.assignedTo || null,
+        });
+        const assignedToName = personName(lead.assignedTo) || '';
+        const assignedToId = lead.assignedTo?._id?.toString() || lead.assignedTo?.toString();
 
         let campaignName = '';
-        if (lead.campaign) {
+        if (lead.campaign && typeof lead.campaign === 'object') {
+          campaignName = lead.campaign.name || '';
+        } else if (lead.campaign) {
           const Campaign = require('../../../database/models/Campaign');
           const camp = await Campaign.findById(lead.campaign).select('name');
           if (camp) campaignName = camp.name;
@@ -1096,9 +1179,7 @@ router.put('/:id/status', protect, async (req, res) => {
           id: lead._id.toString(),
           name: lead.name || 'Student',
           status: lead.status,
-          counsellorName,
-          counsellorId,
-          counsellorEmail,
+          ...counsellor,
           assignedToId,
           assignedToName,
           campaign: campaignName

@@ -44,14 +44,23 @@ function CallbackToastRedirectHandler() {
         qs.set('openNote', 'true');
         navigate(`/meta-leads?${qs.toString()}`);
         setTimeout(() => {
+          // Land on that exact student inside the campaign list ...
           window.dispatchEvent(
             new CustomEvent('select-meta-campaign-lead', {
               detail: { campaign, leadId, openNote: true },
             })
           );
+          // ... and open the note box right there, for this lead only.
           window.dispatchEvent(
-            new CustomEvent('open-lead-note-modal', {
-              detail: { leadId, openNote: true },
+            new CustomEvent('open-global-lead-note-modal', {
+              detail: {
+                leadId,
+                leadName: detail.leadName || '',
+                status: detail.status || '',
+                counsellorName: detail.counsellorName || '',
+                campaign,
+                isMeta: true,
+              },
             })
           );
         }, 150);

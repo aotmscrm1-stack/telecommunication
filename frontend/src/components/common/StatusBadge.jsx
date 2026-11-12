@@ -23,7 +23,9 @@ const statusConfig = {
   'Demo not attended-Call Back': { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
   'time issues/Fee issues': { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
   'Call back/We will Call': { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
-  'Not answering-call back/whats app text': { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+  // Call never connected: its own amber theme, never the green positive one.
+  'Call Not Answering': { bg: 'bg-amber-50', text: 'text-amber-800', dot: 'bg-amber-500' },
+  'Not answering-call back/whats app text': { bg: 'bg-amber-50', text: 'text-amber-800', dot: 'bg-amber-500' },
   'Not interested/Time pass': { bg: 'bg-red-50', text: 'text-red-700', dot: 'bg-red-500' },
   'WN-SO-ON': { bg: 'bg-red-50', text: 'text-red-700', dot: 'bg-red-500' },
   'joined another institute/jobs': { bg: 'bg-red-50', text: 'text-red-700', dot: 'bg-red-500' },

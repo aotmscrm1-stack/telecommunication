@@ -49,23 +49,26 @@ export default function GlobalLeadNoteModal() {
     const status = leadData.status || 'Positive';
 
     try {
-      // 1. Save note via API (supports both MetaLeads and CRM Leads)
-      let saved = false;
-      try {
-        await metaLeadsAPI.update(leadId, {
-          note: note.trim(),
-          callOutcome: status || 'Note Added',
-        });
-        saved = true;
-      } catch (_) {}
+      // 1. Save the note once on the matching record. A MetaLead and a CRM Lead are
+      // looked up by the same id fallback, so calling both would duplicate the note.
+      const isMeta = Boolean(leadData?.isMeta) || Boolean(leadData?.campaign);
+      const metaPayload = { note: note.trim(), callOutcome: status || 'Note Added' };
+      const crmPayload = { note: note.trim(), type: 'note' };
 
       try {
-        await leadsAPI.addNote(leadId, {
-          note: note.trim(),
-          type: 'note',
-        });
-        saved = true;
-      } catch (_) {}
+        if (isMeta) {
+          await metaLeadsAPI.update(leadId, metaPayload);
+        } else {
+          await leadsAPI.addNote(leadId, crmPayload);
+        }
+      } catch (_) {
+        // Fallback: the id may belong to the other collection.
+        if (isMeta) {
+          await leadsAPI.addNote(leadId, crmPayload);
+        } else {
+          await metaLeadsAPI.update(leadId, metaPayload);
+        }
+      }
 
       // 2. Permanently resolve lead in reminder service so popup NEVER comes again
       leadNoteReminderService.resolveLead(leadId, leadName);
