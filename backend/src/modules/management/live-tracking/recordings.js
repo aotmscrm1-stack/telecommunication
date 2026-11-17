@@ -134,13 +134,56 @@ router.post('/', protect, upload.single('audio'), async (req, res) => {
       validPhone = extractedPhone;
     }
 
-    // Resolve lead: prefer explicit leadId, then auto-match by phone
+    // Resolve lead: prefer explicit leadId, then auto-match by phone (or create new Lead)
     let resolvedLead = null;
+    let resolvedMetaLead = null;
+    let resolvedMetaLeadName = null;
+    let resolvedMetaLeadPhone = null;
+    let resolvedLinkType = null;
+
     if (leadId) {
       resolvedLead = leadId;
+      resolvedLinkType = 'lead';
     } else if (validPhone) {
       const matched = await findLeadByPhone(validPhone, req.user.workspace);
-      if (matched) resolvedLead = matched._id;
+      if (matched) {
+        resolvedLead = matched._id;
+        resolvedLinkType = 'lead';
+      } else {
+        const matchedMeta = await findMetaLeadByPhone(validPhone);
+        if (matchedMeta) {
+          resolvedMetaLead = matchedMeta._id;
+          resolvedMetaLeadName = matchedMeta.fullName || matchedMeta.rawData?.full_name || matchedMeta.rawData?.name || 'Meta Lead';
+          resolvedMetaLeadPhone = matchedMeta.phone || matchedMeta.normalizedPhone || validPhone;
+          resolvedLinkType = 'meta_lead';
+        } else {
+          // Auto-create a new Lead for this new call recording phone number
+          try {
+            const rawBase = path.basename(req.file.originalname || '', path.extname(req.file.originalname || ''));
+            const cleanedLabel = rawBase
+              .replace(/(?:call\s*recording|recording|call|audio)/gi, '')
+              .replace(/[\d_+\-()]+/g, ' ')
+              .trim();
+            const newLeadName = cleanedLabel.length >= 2 ? cleanedLabel : `Call Lead ${validPhone}`;
+            const createdLead = await Lead.create({
+              name: newLeadName,
+              phone: validPhone,
+              leadSource: 'Call Recording',
+              status: 'Fresh',
+              assignedTo: req.user._id || req.user.id,
+            });
+            resolvedLead = createdLead._id;
+            resolvedLinkType = 'lead';
+          } catch (createLeadErr) {
+            // If lead already exists via race condition, look it up again
+            const fallbackLead = await findLeadByPhone(validPhone, req.user.workspace);
+            if (fallbackLead) {
+              resolvedLead = fallbackLead._id;
+              resolvedLinkType = 'lead';
+            }
+          }
+        }
+      }
     }
 
     const dateObj = recordedAt ? new Date(recordedAt) : new Date();
@@ -148,11 +191,10 @@ router.post('/', protect, upload.single('audio'), async (req, res) => {
     const callTimeStr = dateObj.toTimeString().slice(0, 8);
 
     // ─── Deduplication Check ─────────────────────────────────────────────
-    // Prevent duplicate uploads on repeat folder scans (matching user + originalName + size)
+    // Prevent duplicate uploads on repeat folder scans (matching user + originalName)
     const existingRec = await CallRecording.findOne({
       user: req.user.id,
       originalName: req.file.originalname,
-      size: req.file.size,
     }).populate('lead', 'name phone').lean();
 
     if (existingRec) {
@@ -228,6 +270,10 @@ router.post('/', protect, upload.single('audio'), async (req, res) => {
     const doc = await CallRecording.create({
       user: req.user.id,
       lead: resolvedLead || null,
+      metaLead: resolvedMetaLead || null,
+      metaLeadName: resolvedMetaLeadName || null,
+      metaLeadPhone: resolvedMetaLeadPhone || null,
+      linkType: resolvedLinkType || null,
       phone: validPhone,
       originalName: req.file.originalname,
       storedName: req.file.filename,
@@ -741,6 +787,23 @@ router.post('/rematch', protect, async (req, res) => {
   }
 });
 
+// ─── GET /api/recordings/synced-names ─────────────────────────────────────
+// Fast lightweight lookup of all already-synced recording originalName values in CRM
+router.get('/synced-names', protect, async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const names = await CallRecording.distinct('originalName', { user: userId });
+    return res.json({
+      success: true,
+      total: names.length,
+      names: names.filter(Boolean),
+    });
+  } catch (err) {
+    console.error('getSyncedNames error:', err);
+    return res.status(500).json({ error: 'Failed to fetch synced recording names' });
+  }
+});
+
 // ─── GET /api/recordings/my ───────────────────────────────────────────────
 router.get('/my', protect, async (req, res) => {
   try {
@@ -749,11 +812,11 @@ router.get('/my', protect, async (req, res) => {
 
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limit = req.query.limit === 'all'
-      ? 1000
-      : Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 25));
+      ? 5000
+      : Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 100));
     const skip = (page - 1) * limit;
 
-    const [total, recordings] = await Promise.all([
+    const [total, recordings, allSyncedNames] = await Promise.all([
       CallRecording.countDocuments(filter),
       CallRecording.find(filter)
         .sort({ recordedAt: -1 })
@@ -763,12 +826,14 @@ router.get('/my', protect, async (req, res) => {
         .populate('lead', 'name phone')
         .populate('metaLead', 'fullName phone normalizedPhone email campaign rawData')
         .populate('campaignRef', 'name description status')
-        .lean()
+        .lean(),
+      CallRecording.distinct('originalName', { user: req.user._id || req.user.id }),
     ]);
 
     return res.json({
       success: true,
       recordings: recordings.map(formatRecording),
+      allSyncedNames: (allSyncedNames || []).filter(Boolean),
       pagination: {
         page,
         limit,

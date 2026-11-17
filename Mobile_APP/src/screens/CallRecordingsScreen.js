@@ -45,6 +45,33 @@ function getAudioMimeType(filename) {
 
 const SAVED_DIRECTORY_URI_KEY = '@aotms_call_recordings_dir_uri';
 const SAVED_DIRECTORY_NAME_KEY = '@aotms_call_recordings_dir_name';
+const SAVED_SYNCED_NAMES_KEY = '@aotms_synced_recording_names_v1';
+
+function normalizeRecName(raw) {
+  if (!raw) return '';
+  try {
+    const dec = decodeURIComponent(String(raw));
+    const base = dec.split('/').pop().split(':').pop() || dec;
+    return base.trim().toLowerCase();
+  } catch (_) {
+    return String(raw).trim().toLowerCase();
+  }
+}
+
+function extractPhonePreview(filename) {
+  if (!filename) return '';
+  const direct = String(filename).match(/(?:\+?91[\s\-_]*)?([6-9]\d{9})\b/);
+  if (direct && direct[1]) return direct[1];
+  const seqs = String(filename).match(/\d{10,13}/g);
+  if (seqs) {
+    for (const s of seqs) {
+      if (s.length === 13 && Number(s) > 1000000000000) continue;
+      const last10 = s.slice(-10);
+      if (/^[6-9]\d{9}$/.test(last10)) return last10;
+    }
+  }
+  return '';
+}
 
 /**
  * Extracts a user-friendly folder label from a SAF directory URI or path.
@@ -81,16 +108,87 @@ export default function CallRecordingsScreen({ onNavigate }) {
   const [selectedFolderUri, setSelectedFolderUri] = useState('');
   const [selectedFolderName, setSelectedFolderName] = useState('');
   const [stagedFiles, setStagedFiles] = useState([]);
+  const [folderStats, setFolderStats] = useState({
+    totalInFolder: 0,
+    alreadyInCrm: 0,
+    newCount: 0,
+  });
+  const [showNewRecordsModal, setShowNewRecordsModal] = useState(false);
   const [scanningFolder, setScanningFolder] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState(null);
   const [syncSummary, setSyncSummary] = useState(null);
+  const [crmSyncedNamesSet, setCrmSyncedNamesSet] = useState(() => new Set());
 
   // Metadata Edit Modal State
   const [editingRecording, setEditingRecording] = useState(null);
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
+
+  // Helper: Load and merge all known synced recording names from CRM + local cache
+  const loadLatestSyncedNamesSet = useCallback(async (currentRecordings = []) => {
+    const mergedSet = new Set();
+
+    // 1. From local AsyncStorage cache
+    try {
+      const cachedJson = await AsyncStorage.getItem(SAVED_SYNCED_NAMES_KEY);
+      if (cachedJson) {
+        const parsed = JSON.parse(cachedJson);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((n) => {
+            const norm = normalizeRecName(n);
+            if (norm) mergedSet.add(norm);
+          });
+        }
+      }
+    } catch (_) {}
+
+    // 2. From passed recordings array
+    (currentRecordings || []).forEach((r) => {
+      const n1 = normalizeRecName(r?.originalName);
+      const n2 = normalizeRecName(r?.storedName);
+      if (n1) mergedSet.add(n1);
+      if (n2) mergedSet.add(n2);
+    });
+
+    // 3. From backend /recordings/my?limit=all and /recordings/synced-names
+    try {
+      const [myData, syncedData] = await Promise.all([
+        recordingsApi.getMy({ limit: 'all' }).catch(() => null),
+        recordingsApi.getSyncedNames().catch(() => null),
+      ]);
+
+      const list = Array.isArray(myData) ? myData : myData?.recordings || [];
+      list.forEach((r) => {
+        const n1 = normalizeRecName(r?.originalName);
+        const n2 = normalizeRecName(r?.storedName);
+        if (n1) mergedSet.add(n1);
+        if (n2) mergedSet.add(n2);
+      });
+
+      const extraNames = [
+        ...(Array.isArray(myData?.allSyncedNames) ? myData.allSyncedNames : []),
+        ...(Array.isArray(syncedData?.names) ? syncedData.names : []),
+      ];
+      extraNames.forEach((n) => {
+        const norm = normalizeRecName(n);
+        if (norm) mergedSet.add(norm);
+      });
+
+      if (list.length > 0) {
+        setRecordings(list);
+      }
+    } catch (_) {}
+
+    // Save updated set back to AsyncStorage
+    try {
+      await AsyncStorage.setItem(SAVED_SYNCED_NAMES_KEY, JSON.stringify([...mergedSet]));
+    } catch (_) {}
+
+    setCrmSyncedNamesSet(new Set(mergedSet));
+    return mergedSet;
+  }, []);
 
   // Load persisted directory URI if saved previously
   useEffect(() => {
@@ -110,16 +208,17 @@ export default function CallRecordingsScreen({ onNavigate }) {
 
   const fetchRecordings = useCallback(async () => {
     try {
-      const data = await recordingsApi.getMy();
+      const data = await recordingsApi.getMy({ limit: 'all' });
       const list = Array.isArray(data) ? data : data.recordings || [];
       setRecordings(list);
+      await loadLatestSyncedNamesSet(list);
     } catch (err) {
       console.warn('[Recordings] Fetch error:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [loadLatestSyncedNamesSet]);
 
   useEffect(() => {
     fetchRecordings();
@@ -199,9 +298,89 @@ export default function CallRecordingsScreen({ onNavigate }) {
   };
 
   /**
+   * Filters discovered folder audio files against all recordings already in CRM.
+   * Removes existing CRM recordings so ONLY brand-new call records are staged and shown.
+   */
+  const filterNewRecordingsOnly = useCallback(
+    async (discoveredAudioFiles) => {
+      const knownSet = await loadLatestSyncedNamesSet(recordings);
+      const seenInBatch = new Set();
+      const newFiles = [];
+      let alreadyInCrmCount = 0;
+
+      for (const file of discoveredAudioFiles) {
+        const normName = normalizeRecName(file.name || file.uri);
+        if (!normName) continue;
+        if (knownSet.has(normName) || seenInBatch.has(normName)) {
+          alreadyInCrmCount++;
+        } else {
+          seenInBatch.add(normName);
+          newFiles.push({
+            ...file,
+            phonePreview: extractPhonePreview(file.name),
+          });
+        }
+      }
+
+      const stats = {
+        totalInFolder: discoveredAudioFiles.length,
+        alreadyInCrm: alreadyInCrmCount,
+        newCount: newFiles.length,
+      };
+      setFolderStats(stats);
+      setStagedFiles(newFiles);
+      return { newFiles, stats };
+    },
+    [loadLatestSyncedNamesSet, recordings]
+  );
+
+  /**
+   * Re-scans a previously saved directory URI without opening the picker again
+   */
+  const scanSavedDirectoryUri = useCallback(
+    async (dirUri) => {
+      if (!dirUri) return [];
+      const discoveredAudioFiles = [];
+      try {
+        if (dirUri.startsWith('content://') && Platform.OS === 'android' && StorageAccessFramework?.readDirectoryAsync) {
+          await scanSafRecursively(dirUri, discoveredAudioFiles, 0);
+        }
+        if (discoveredAudioFiles.length === 0 && FileSystem.Directory) {
+          try {
+            const dirInst = new FileSystem.Directory(dirUri);
+            await scanDirectoryRecursively(dirInst, discoveredAudioFiles, 0);
+          } catch (_) {}
+        }
+      } catch (err) {
+        console.warn('[Saved folder scan notice]:', err.message);
+      }
+      return discoveredAudioFiles;
+    },
+    []
+  );
+
+  // Auto-scan saved folder on initial load so new call count is ready immediately
+  useEffect(() => {
+    if (selectedFolderUri && !loading && folderStats.totalInFolder === 0 && !scanningFolder) {
+      (async () => {
+        try {
+          setScanningFolder(true);
+          const files = await scanSavedDirectoryUri(selectedFolderUri);
+          if (files.length > 0) {
+            await filterNewRecordingsOnly(files);
+          }
+        } catch (_) {
+        } finally {
+          setScanningFolder(false);
+        }
+      })();
+    }
+  }, [selectedFolderUri, loading]);
+
+  /**
    * Native Android Directory Picker (ACTION_OPEN_DOCUMENT_TREE)
    * Obtains parent folder reference, displays readable folder label (e.g. Audio),
-   * and recursively scans folder + subfolders for all supported audio files.
+   * recursively scans folder + subfolders, and automatically filters out existing CRM records.
    */
   const handleSelectFolder = async () => {
     if (syncing || scanningFolder) return;
@@ -222,7 +401,6 @@ export default function CallRecordingsScreen({ onNavigate }) {
             await scanDirectoryRecursively(pickedDir, discoveredAudioFiles, 0);
           }
         } catch (pickErr) {
-          // If user cancelled, simply return cleanly without alert
           const errMsg = String(pickErr.message || '').toLowerCase();
           if (errMsg.includes('cancel') || errMsg.includes('user cancelled')) {
             setScanningFolder(false);
@@ -245,7 +423,6 @@ export default function CallRecordingsScreen({ onNavigate }) {
         await scanSafRecursively(directoryUri, discoveredAudioFiles, 0);
       }
 
-      // If user did not pick a directory or unsupported platform
       if (!directoryUri) {
         setScanningFolder(false);
         return;
@@ -259,21 +436,31 @@ export default function CallRecordingsScreen({ onNavigate }) {
         await AsyncStorage.setItem(SAVED_DIRECTORY_NAME_KEY, folderLabel);
       } catch (_) {}
 
-      setStagedFiles(discoveredAudioFiles);
-      setScanningFolder(false);
-
       if (discoveredAudioFiles.length === 0) {
+        setFolderStats({ totalInFolder: 0, alreadyInCrm: 0, newCount: 0 });
+        setStagedFiles([]);
+        setScanningFolder(false);
         Alert.alert(
           'No Audio Files Found',
-          `Folder "${folderLabel}" and its subdirectories contain no supported audio files (.m4a, .mp3, .wav, .amr, .aac, .3gp).\n\nPath:\n${directoryUri}`
+          `Folder "${folderLabel}" and its subdirectories contain no supported audio files (.m4a, .mp3, .wav, .amr, .aac, .3gp).`
         );
         return;
       }
 
-      Alert.alert(
-        'Folder Selected',
-        `Folder: "${folderLabel}"\n\nDiscovered ${discoveredAudioFiles.length} audio file(s) across this folder and its subdirectories.\n\nClick "Sync Data" to sync with CRM.`
-      );
+      // Filter out all recordings already existing in CRM
+      const { newFiles, stats } = await filterNewRecordingsOnly(discoveredAudioFiles);
+      setScanningFolder(false);
+
+      if (newFiles.length === 0) {
+        Alert.alert(
+          'All Call Records Already Synced',
+          `Folder: "${folderLabel}"\n\n• Total Call Records: ${stats.totalInFolder}\n• Already in CRM: ${stats.alreadyInCrm}\n• New Call Records: 0\n\nAll recordings in this folder are already in the CRM!`
+        );
+        return;
+      }
+
+      // Automatically show the New Call Records preview modal so user can review & click Continue
+      setShowNewRecordsModal(true);
     } catch (err) {
       setScanningFolder(false);
       console.error('[Folder Selection Error]:', err);
@@ -282,11 +469,61 @@ export default function CallRecordingsScreen({ onNavigate }) {
   };
 
   /**
-   * Process and sync discovered audio files.
+   * Triggered when user clicks "Sync Data":
+   * Scans/refreshes folder, filters out already-existing CRM records,
+   * and shows ONLY the New Call Records on display with a "Continue" button to sync them.
+   */
+  const handleSyncDataClick = async () => {
+    if (syncing || scanningFolder) return;
+
+    if (!selectedFolderUri) {
+      Alert.alert('Select Folder First', 'Please click "Select Folder" and choose your call recordings folder.');
+      return;
+    }
+
+    try {
+      setScanningFolder(true);
+      const discovered = await scanSavedDirectoryUri(selectedFolderUri);
+      if (discovered.length > 0) {
+        const { newFiles, stats } = await filterNewRecordingsOnly(discovered);
+        setScanningFolder(false);
+
+        if (newFiles.length === 0) {
+          Alert.alert(
+            'Up to Date',
+            `• Total Call Records: ${stats.totalInFolder}\n• Already Existing in CRM: ${stats.alreadyInCrm}\n• New Call Records: 0\n\nNo new call recordings to sync!`
+          );
+          return;
+        }
+        setShowNewRecordsModal(true);
+        return;
+      }
+      setScanningFolder(false);
+
+      // Fallback if stagedFiles already populated from handleSelectFolder
+      if (stagedFiles.length > 0) {
+        setShowNewRecordsModal(true);
+      } else {
+        Alert.alert(
+          'Up to Date',
+          `• Total Call Records: ${folderStats.totalInFolder}\n• Already Existing in CRM: ${folderStats.alreadyInCrm}\n• New Call Records: 0\n\nNo new call recordings found to sync.`
+        );
+      }
+    } catch (err) {
+      setScanningFolder(false);
+      if (stagedFiles.length > 0) {
+        setShowNewRecordsModal(true);
+      }
+    }
+  };
+
+  /**
+   * Process and sync ONLY the filtered new audio files.
    * Handles SAF content:// URIs safely by copying to app cache when needed.
    */
   const processSyncFiles = async (files) => {
     if (!files || files.length === 0) return;
+    setShowNewRecordsModal(false);
     setSyncing(true);
     setSyncSummary(null);
 
@@ -294,6 +531,7 @@ export default function CallRecordingsScreen({ onNavigate }) {
     let alreadySyncedCount = 0;
     let failedCount = 0;
     const total = files.length;
+    const newlySyncedNames = [];
 
     for (let i = 0; i < total; i++) {
       const file = files[i];
@@ -307,8 +545,6 @@ export default function CallRecordingsScreen({ onNavigate }) {
       let tempCacheFile = null;
 
       try {
-        // If it's an Android content:// URI, copy to local cache directory to ensure
-        // standard multipart/form-data upload via Axios/Fetch works seamlessly
         if (file.uri && file.uri.startsWith('content://')) {
           const ext = file.name?.includes('.') ? file.name.split('.').pop() : 'm4a';
           const baseName = file.name ? file.name.substring(0, file.name.lastIndexOf('.')) || file.name : `audio_${Date.now()}`;
@@ -317,7 +553,6 @@ export default function CallRecordingsScreen({ onNavigate }) {
           const destinationUri = `${cacheDir.replace(/\/+$/, '')}/${Date.now()}_${cleanName}`;
 
           try {
-            // Check if legacy copyAsync or new File copy works
             if (typeof FileSystem.copyAsync === 'function') {
               await FileSystem.copyAsync({ from: file.uri, to: destinationUri });
               tempCacheFile = destinationUri;
@@ -334,7 +569,11 @@ export default function CallRecordingsScreen({ onNavigate }) {
 
         const res = await recordingsApi.uploadRecording(uploadableFile, {
           recordedAt: new Date().toISOString(),
+          phone: file.phonePreview || undefined,
         });
+
+        const norm = normalizeRecName(file.name);
+        if (norm) newlySyncedNames.push(norm);
 
         if (res.alreadySynced) {
           alreadySyncedCount++;
@@ -345,7 +584,6 @@ export default function CallRecordingsScreen({ onNavigate }) {
         console.error('[Sync Error on file]:', file.name, uploadErr.message, uploadErr.response?.data || '');
         failedCount++;
       } finally {
-        // Clean up temporary cache copy if created
         if (tempCacheFile) {
           try {
             if (typeof FileSystem.deleteAsync === 'function') {
@@ -356,10 +594,30 @@ export default function CallRecordingsScreen({ onNavigate }) {
       }
     }
 
+    // Persist newly synced names so they are never shown as New again
+    if (newlySyncedNames.length > 0) {
+      const updatedSet = new Set(crmSyncedNamesSet);
+      newlySyncedNames.forEach((n) => updatedSet.add(n));
+      setCrmSyncedNamesSet(updatedSet);
+      try {
+        await AsyncStorage.setItem(SAVED_SYNCED_NAMES_KEY, JSON.stringify([...updatedSet]));
+      } catch (_) {}
+    }
+
+    // Clear staged new files so they only appear once
+    setStagedFiles([]);
+    setFolderStats((prev) => ({
+      totalInFolder: prev.totalInFolder,
+      alreadyInCrm: prev.alreadyInCrm + syncedCount + alreadySyncedCount,
+      newCount: 0,
+    }));
+
     setSyncing(false);
     setSyncProgress(null);
 
     const summary = {
+      totalInFolder: folderStats.totalInFolder,
+      alreadyInCrm: folderStats.alreadyInCrm,
       discovered: total,
       synced: syncedCount,
       alreadySynced: alreadySyncedCount,
@@ -368,8 +626,8 @@ export default function CallRecordingsScreen({ onNavigate }) {
     setSyncSummary(summary);
 
     Alert.alert(
-      'Sync Complete',
-      `• Discovered: ${total}\n• Newly Synced: ${syncedCount}\n• Already in CRM: ${alreadySyncedCount}\n• Failed: ${failedCount}`,
+      'New Call Records Synced',
+      `• Total in Folder: ${folderStats.totalInFolder}\n• Existing in CRM: ${folderStats.alreadyInCrm}\n• New Leads / Records Synced: ${syncedCount}${failedCount > 0 ? `\n• Failed: ${failedCount}` : ''}`,
       [{ text: 'OK', onPress: () => onRefresh() }]
     );
   };
@@ -424,6 +682,16 @@ export default function CallRecordingsScreen({ onNavigate }) {
           onPress: async () => {
             try {
               await recordingsApi.deleteRecording(rec._id);
+              const delNorm = normalizeRecName(rec.originalName);
+              if (delNorm) {
+                try {
+                  const cachedJson = await AsyncStorage.getItem(SAVED_SYNCED_NAMES_KEY);
+                  if (cachedJson) {
+                    const arr = JSON.parse(cachedJson).filter((n) => normalizeRecName(n) !== delNorm);
+                    await AsyncStorage.setItem(SAVED_SYNCED_NAMES_KEY, JSON.stringify(arr));
+                  }
+                } catch (_) {}
+              }
               Alert.alert('Deleted', 'Recording was removed successfully.');
               onRefresh();
             } catch (err) {
@@ -464,11 +732,11 @@ export default function CallRecordingsScreen({ onNavigate }) {
           </Text>
           {scanningFolder ? (
             <Text style={[styles.stagedCountText, { color: colors.primary }]}>
-              ⏳ Scanning directory & subfolders...
+              ⏳ Scanning & filtering existing CRM records...
             </Text>
-          ) : stagedFiles.length > 0 ? (
+          ) : folderStats.totalInFolder > 0 ? (
             <Text style={styles.stagedCountText}>
-              ✓ {stagedFiles.length} audio file(s) ready to sync
+              Total: {folderStats.totalInFolder} | Existing: {folderStats.alreadyInCrm} | New: {stagedFiles.length}
             </Text>
           ) : null}
         </View>
@@ -481,9 +749,9 @@ export default function CallRecordingsScreen({ onNavigate }) {
             activeOpacity={0.8}
           >
             {scanningFolder ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
+              <ActivityIndicator size="small" color={colors.primary} />
             ) : (
-              <Ionicons name="folder-open" size={15} color="#FFFFFF" />
+              <Ionicons name="folder-open" size={15} color={colors.text} />
             )}
             <Text style={styles.selectFolderBtnText}>
               {scanningFolder ? 'Scanning...' : 'Select Folder'}
@@ -493,10 +761,10 @@ export default function CallRecordingsScreen({ onNavigate }) {
           <TouchableOpacity
             style={[
               styles.syncDataBtn,
-              (syncing || stagedFiles.length === 0) && styles.syncDataBtnDisabled,
+              (syncing || scanningFolder || !selectedFolderUri) && styles.syncDataBtnDisabled,
             ]}
-            onPress={() => processSyncFiles(stagedFiles)}
-            disabled={syncing || stagedFiles.length === 0}
+            onPress={handleSyncDataClick}
+            disabled={syncing || scanningFolder || !selectedFolderUri}
             activeOpacity={0.8}
           >
             {syncing ? (
@@ -505,7 +773,11 @@ export default function CallRecordingsScreen({ onNavigate }) {
               <Ionicons name="cloud-upload" size={15} color="#FFFFFF" />
             )}
             <Text style={styles.syncDataBtnText}>
-              {syncing ? 'Syncing...' : 'Sync Data'}
+              {syncing
+                ? 'Syncing...'
+                : stagedFiles.length > 0
+                ? `Sync Data (${stagedFiles.length} New)`
+                : 'Sync Data'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -516,7 +788,7 @@ export default function CallRecordingsScreen({ onNavigate }) {
         <View style={styles.progressContainer}>
           <ActivityIndicator size="small" color={colors.primary} />
           <Text style={styles.progressText}>
-            Syncing ({syncProgress.current}/{syncProgress.total}): {syncProgress.filename}
+            Syncing New Lead ({syncProgress.current}/{syncProgress.total}): {syncProgress.filename}
           </Text>
         </View>
       ) : null}
@@ -526,7 +798,7 @@ export default function CallRecordingsScreen({ onNavigate }) {
         <View style={styles.summaryBar}>
           <Ionicons name="checkmark-circle" size={16} color={colors.accent} />
           <Text style={styles.summaryText}>
-            Synced: {syncSummary.synced} | Already in CRM: {syncSummary.alreadySynced} | Failed: {syncSummary.failed}
+            Total: {syncSummary.totalInFolder || syncSummary.discovered} | Existing Filtered: {syncSummary.alreadyInCrm || 0} | New Leads Synced: {syncSummary.synced}
           </Text>
         </View>
       ) : null}
@@ -617,6 +889,103 @@ export default function CallRecordingsScreen({ onNavigate }) {
           }}
         />
       )}
+
+      {/* New Call Records Only Preview Modal (Shown Once before Syncing) */}
+      <Modal
+        visible={showNewRecordsModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowNewRecordsModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { maxHeight: '82%' }]}>
+            <View style={styles.newSyncHeaderRow}>
+              <View style={styles.newSyncIconBadge}>
+                <Ionicons name="sparkles" size={18} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.modalTitle, { marginBottom: 2 }]}>
+                  New Call Records Ready
+                </Text>
+                <Text style={styles.newSyncSubText}>
+                  Already existing CRM records have been automatically filtered out.
+                </Text>
+              </View>
+            </View>
+
+            {/* Stats Summary Breakdown (Total vs Existing vs New) */}
+            <View style={styles.statsBreakdownRow}>
+              <View style={styles.statBox}>
+                <Text style={styles.statBoxNumber}>{folderStats.totalInFolder}</Text>
+                <Text style={styles.statBoxLabel}>Total Records</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={[styles.statBoxNumber, { color: colors.textSecondary }]}>
+                  {folderStats.alreadyInCrm}
+                </Text>
+                <Text style={styles.statBoxLabel}>In CRM (Filtered)</Text>
+              </View>
+              <View style={[styles.statBox, styles.statBoxHighlight]}>
+                <Text style={[styles.statBoxNumber, { color: colors.accent }]}>
+                  {stagedFiles.length}
+                </Text>
+                <Text style={[styles.statBoxLabel, { color: colors.accent, fontWeight: '700' }]}>
+                  New Leads Only
+                </Text>
+              </View>
+            </View>
+
+            <Text style={styles.modalLabel}>
+              Showing {stagedFiles.length} New Call Record(s) to Sync:
+            </Text>
+
+            <FlatList
+              data={stagedFiles}
+              keyExtractor={(item, idx) => `${item.name}_${idx}`}
+              style={styles.newFilesList}
+              renderItem={({ item, index }) => (
+                <View style={styles.newFileItem}>
+                  <View style={styles.newFileIndexBadge}>
+                    <Text style={styles.newFileIndexText}>{index + 1}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.newFileName} numberOfLines={1}>
+                      {item.name}
+                    </Text>
+                    <Text style={styles.newFilePhone}>
+                      {item.phonePreview ? `📞 New Lead: ${item.phonePreview}` : 'Audio Call Record'}
+                    </Text>
+                  </View>
+                  <View style={styles.newLeadTag}>
+                    <Text style={styles.newLeadTagText}>NEW</Text>
+                  </View>
+                </View>
+              )}
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setShowNewRecordsModal(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.modalSaveBtn}
+                onPress={() => processSyncFiles(stagedFiles)}
+                disabled={syncing || stagedFiles.length === 0}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalSaveText}>
+                  Continue (Sync {stagedFiles.length} Only)
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Metadata Edit Modal */}
       <Modal
@@ -986,5 +1355,103 @@ const styles = StyleSheet.create({
   modalSaveText: {
     color: '#FFFFFF',
     fontWeight: '700',
+  },
+  newSyncHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 14,
+  },
+  newSyncIconBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: 'rgba(2, 132, 199, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  newSyncSubText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+  },
+  statsBreakdownRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 14,
+  },
+  statBox: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+  },
+  statBoxHighlight: {
+    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    borderColor: colors.accent,
+  },
+  statBoxNumber: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  statBoxLabel: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  newFilesList: {
+    maxHeight: 240,
+    marginBottom: 12,
+  },
+  newFileItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    marginBottom: 6,
+    gap: 8,
+  },
+  newFileIndexBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(2, 132, 199, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  newFileIndexText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  newFileName: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  newFilePhone: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: 1,
+  },
+  newLeadTag: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  newLeadTagText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.accent,
   },
 });

@@ -1,8 +1,13 @@
 import client, { API_BASE_URL } from './client';
 
 export const recordingsApi = {
-  getMy: async () => {
-    const res = await client.get('/recordings/my');
+  getMy: async (params = { limit: 'all' }) => {
+    const res = await client.get('/recordings/my', { params });
+    return res.data;
+  },
+
+  getSyncedNames: async () => {
+    const res = await client.get('/recordings/synced-names');
     return res.data;
   },
 

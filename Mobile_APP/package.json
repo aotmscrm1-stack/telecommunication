@@ -34,7 +34,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "build:apk": "node -e \"const {execSync}=require('child_process'); execSync('eas build -p android --profile preview', {stdio:'inherit', env:{...process.env, EAS_NO_VCS:'1', EAS_PROJECT_ROOT:process.cwd()}})\"",
-    "ota:update": "node -e \"const {execSync}=require('child_process'); execSync('eas update --branch preview --message Auto-OTA-Update', {stdio:'inherit', env:{...process.env, EAS_NO_VCS:'1', EAS_PROJECT_ROOT:process.cwd()}})\""
+    "ota:update": "node -e \"const {execSync}=require('child_process'); execSync('eas update --branch preview --environment preview --message Auto-OTA-Update', {stdio:'inherit', env:{...process.env, EAS_NO_VCS:'1', EAS_PROJECT_ROOT:process.cwd()}})\""
   },
   "private": true,
   "devDependencies": {
