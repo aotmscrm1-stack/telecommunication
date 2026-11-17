@@ -263,6 +263,26 @@ export function isExecutiveOnly(user) {
 }
 
 /**
+ * Only Admin / Executive accounts (plus anyone in the Admin department) may see
+ * every reminder. Counsellors only ever see the reminders they own - even when
+ * their designation says "Manager" (Bhavani, Raja Sri and Deenaz are counsellors
+ * on the Management team, so a generic "manager" role must not grant them
+ * visibility of each other's reminders).
+ */
+export function isGlobalReminderViewer(user) {
+  if (!user) return false;
+  if (isExecutiveOnly(user)) return true;
+  return String(user.department || '').trim().toUpperCase() === 'ADMIN';
+}
+
+/**
+ * No reminder popup may ever be produced without a logged-in session.
+ */
+export function hasActiveSession() {
+  return Boolean(getCurrentStoredUser());
+}
+
+/**
  * Resolves the counsellor who actually kept the call summary / note for a lead,
  * plus the lead's real campaign name. Used by every place that tracks a reminder
  * so the popup always shows (and notifies) the correct counsellor.
@@ -371,10 +391,10 @@ export function canUserSeeNoteReminder(entry, currentUser = null) {
   if (!user) return false;
 
   // 1. Admin always has full visibility
-  if (isAdminOrManager(user)) return true;
+  if (isGlobalReminderViewer(user)) return true;
 
   const uid = String(user._id || user.id || '').trim();
-  const uname = String(user.name || user.displayName || user.fullName || '').trim().toLowerCase();
+  const uname = personDisplayName(user).toLowerCase();
   const uemail = String(user.email || '').trim().toLowerCase();
 
   // 2. Respective counsellor
@@ -398,7 +418,7 @@ export function canUserSeeCallbackToast(payload, currentUser = null) {
   if (!user) return false;
 
   // 1. Admin always has full visibility
-  if (isAdminOrManager(user)) return true;
+  if (isGlobalReminderViewer(user)) return true;
 
   const uid = String(user._id || user.id || '').trim();
   if (!uid) return false;
@@ -418,7 +438,7 @@ export function canUserSeeCallbackToast(payload, currentUser = null) {
   }
 
   // Name fallback if IDs are missing
-  const uname = String(user.name || user.displayName || user.fullName || '').trim().toLowerCase();
+  const uname = personDisplayName(user).toLowerCase();
   const cName = String(payload.counsellorName || payload.filledByName || payload.assignedToName || '').trim().toLowerCase();
   if (uname && cName && (uname === cName || uname.includes(cName) || cName.includes(uname))) {
     return true;
@@ -443,6 +463,9 @@ class LeadNoteReminderService {
    */
   init() {
     if (this.initialized) return;
+    // Reminder popups must never appear before login: the engine only starts
+    // once a real user session exists (see AppProviders).
+    if (!hasActiveSession()) return;
     this.initialized = true;
 
     // Sanitize any existing reminders in localStorage from previous versions
@@ -464,7 +487,7 @@ class LeadNoteReminderService {
         const entryId = String(stored[k].counsellorId || stored[k].createdById || '').trim();
         if (curUserIsExec && curUserId && entryId === curUserId) {
           const assigneeName = personDisplayName(stored[k].assignedToName);
-          stored[k].counsellorName = assigneeName || 'Counsellor';
+          stored[k].counsellorName = assigneeName || '';
           stored[k].createdBy = stored[k].counsellorName;
           stored[k].counsellorId = String(stored[k].assignedToId || '');
           hasChanges = true;
@@ -477,7 +500,7 @@ class LeadNoteReminderService {
         ).toLowerCase();
         if (ownName && storedName && ownName === storedName) {
           const assigneeName = personDisplayName(stored[k].assignedToName);
-          stored[k].counsellorName = assigneeName || 'Counsellor';
+          stored[k].counsellorName = assigneeName || '';
           stored[k].createdBy = stored[k].counsellorName;
           stored[k].counsellorId = String(stored[k].assignedToId || '');
           hasChanges = true;
@@ -490,7 +513,7 @@ class LeadNoteReminderService {
         const safeCampaign = normalizeCampaignName(stored[k].campaign);
         if (safeName !== String(stored[k].counsellorName || '') || safeCampaign !== String(stored[k].campaign || '')) {
           stored[k].counsellorName =
-            safeName || (isAdminOrManager(curUser) ? 'Counsellor' : personDisplayName(curUser) || 'Counsellor');
+            safeName || (!isGlobalReminderViewer(curUser) ? personDisplayName(curUser) : '');
           stored[k].createdBy = stored[k].counsellorName;
           if (!stored[k].counsellorId && stored[k].assignedToId) stored[k].counsellorId = stored[k].assignedToId;
           stored[k].campaign = safeCampaign;
@@ -511,6 +534,8 @@ class LeadNoteReminderService {
 
   connectWebSocket() {
     try {
+      // A socket may only exist for a logged-in session.
+      if (!hasActiveSession()) return;
       if (this.wsReconnectTimer) {
         clearTimeout(this.wsReconnectTimer);
         this.wsReconnectTimer = null;
@@ -581,27 +606,107 @@ class LeadNoteReminderService {
         socket.onclose = () => {};
       }
     }
+    if (this.wsReconnectTimer) {
+      clearTimeout(this.wsReconnectTimer);
+      this.wsReconnectTimer = null;
+    }
     if (this.activeToastTimer) {
       clearTimeout(this.activeToastTimer);
       this.activeToastTimer = null;
     }
     this.toastQueue = [];
     this.activeToastId = null;
+    this.recentToastIds.clear();
     this.initialized = false;
+    // Nothing may remain on screen after the session ends.
+    try { toast.dismiss(); } catch (_) {}
+  }
+
+  /**
+   * A call-back popup may only name the counsellor who will actually make the
+   * call. The Admin / Managing Director never does the calls, so a name that
+   * belongs to the watching admin (older call-backs were stamped with it) is
+   * discarded and the server is asked who really owns the call-back.
+   */
+  async resolveCallbackCounsellor(payload) {
+    const viewer = getCurrentStoredUser();
+    const viewerName = personDisplayName(viewer).toLowerCase();
+    const viewerSeesAll = isGlobalReminderViewer(viewer);
+    const isViewerName = (name) =>
+      Boolean(name) && Boolean(viewerName) && viewerSeesAll && name.toLowerCase() === viewerName;
+
+    let name = '';
+    let id = '';
+
+    // Authoritative: the call-back record knows whose call it is. Older call-backs
+    // were stamped with whoever scheduled them (often the Admin / MD), so the
+    // payload name is only a last resort.
+    const followupId = String(payload.followupId || '').trim();
+    if (followupId) {
+      try {
+        const res = await api.get(`/followups/${followupId}/reminder-context`);
+        const data = res?.data || {};
+        if (data.success !== false) {
+          name = personDisplayName(data.counsellorName);
+          id = String(data.counsellorId || '').trim();
+        }
+      } catch (_) {}
+    }
+
+    // Fallback: resolve from the lead itself.
+    if (!name) {
+      const leadId = String(payload.metaLeadId || payload.leadId || '').trim();
+      if (leadId) {
+        try {
+          const res = await api.get(`/leads/${leadId}/reminder-context`);
+          const data = res?.data || {};
+          if (data.success !== false) {
+            name = personDisplayName(data.counsellorName) || personDisplayName(data.assignedToName);
+            id = String(data.counsellorId || data.assignedToId || '').trim();
+          }
+        } catch (_) {}
+      }
+    }
+
+    // Offline / no trace: keep the name the call-back was created with.
+    if (!name) {
+      const payloadName = personDisplayName(payload.counsellorName);
+      if (payloadName) {
+        name = payloadName;
+        id = String(payload.counsellorId || '').trim();
+      }
+    }
+
+    // A watching admin never names himself as the counsellor.
+    if (isViewerName(name)) {
+      name = '';
+      id = '';
+    }
+
+    // Finally: a counsellor's own call-back belongs to that counsellor.
+    if (!name && !viewerSeesAll) name = personDisplayName(viewer);
+
+    return { ...payload, counsellorName: name || '', counsellorId: id || '' };
   }
 
   /**
    * Triggers a "Call Back Later" Small Down-Corner Toast Message
    * Visible ONLY to the exact account that created/requested the Call Back Later (even for Admin)
    */
-  triggerCallbackToast(payload, { isImmediate = true, isDueAlert = false } = {}) {
+  async triggerCallbackToast(payload, { isImmediate = true, isDueAlert = false } = {}) {
     if (!payload) return;
+    if (!hasActiveSession()) return;
     if (!canUserSeeCallbackToast(payload)) return;
 
     const dedupeKey = `${payload.followupId || payload.leadId}-${isDueAlert ? 'due' : 'sched'}`;
     if (this.recentToastIds.has(dedupeKey)) return;
     this.recentToastIds.add(dedupeKey);
     setTimeout(() => this.recentToastIds.delete(dedupeKey), 6000);
+
+    // Never name the admin / MD on a call-back: re-confirm the counsellor first.
+    payload = await this.resolveCallbackCounsellor(payload);
+    if (!hasActiveSession()) return;
+    if (!canUserSeeCallbackToast(payload)) return;
 
     if (isImmediate && payload.scheduledAt) {
       const schedTime = new Date(payload.scheduledAt).getTime();
@@ -624,8 +729,9 @@ class LeadNoteReminderService {
           minute: '2-digit',
         })
       : '';
-    const counsellorName = payload.counsellorName || payload.filledByName || payload.assignedToName || 'Counsellor';
-    const campaignName = payload.campaign && payload.campaign !== 'undefined' ? String(payload.campaign).trim() : '';
+    // Already re-confirmed above (server first, never the Admin / MD).
+    const counsellorName = personDisplayName(payload.counsellorName);
+    const campaignName = normalizeCampaignName(payload.campaign);
 
     const toastId = `callback-toast-${dedupeKey}`;
     const handleClose = () => toast.dismiss(toastId);
@@ -675,13 +781,15 @@ class LeadNoteReminderService {
                     `🕒 ${schedStr}`
                   )
                 : null,
-              React.createElement(
-                'div',
-                { className: 'text-[10px] text-slate-600 truncate flex items-center gap-1', title: `Counsellor: ${counsellorName}` },
-                React.createElement('span', null, '🎯'),
-                React.createElement('span', { className: 'text-slate-500 font-medium' }, 'Counsellor:'),
-                React.createElement('span', { className: 'font-semibold text-slate-800 truncate' }, counsellorName)
-              ),
+              counsellorName
+                ? React.createElement(
+                    'div',
+                    { className: 'text-[10px] text-slate-600 truncate flex items-center gap-1', title: `Counsellor: ${counsellorName}` },
+                    React.createElement('span', null, '🎯'),
+                    React.createElement('span', { className: 'text-slate-500 font-medium' }, 'Counsellor:'),
+                    React.createElement('span', { className: 'font-semibold text-slate-800 truncate' }, counsellorName)
+                  )
+                : null,
               React.createElement(
                 'div',
                 { className: 'text-[10px] text-slate-600 truncate flex items-center gap-1', title: `Campaign: ${campaignName || 'Direct'}` },
@@ -729,6 +837,8 @@ class LeadNoteReminderService {
   }
 
   checkAndTriggerDueCallbacks() {
+    // No session => nothing must pop up, and pending entries must not be purged.
+    if (!hasActiveSession()) return;
     const callbacks = getStoredCallbacks();
     const keys = Object.keys(callbacks);
     if (keys.length === 0) return;
@@ -822,6 +932,7 @@ class LeadNoteReminderService {
     isRemoteBroadcast = false,
   }) {
     if (!id) return;
+    if (!hasActiveSession()) return;
     const strId = String(id);
 
     // If note is already added or marked resolved, DO NOT track and DO NOT popup again
@@ -872,7 +983,7 @@ class LeadNoteReminderService {
       personDisplayName(assignedToName) ||
       personDisplayName(existing?.assignedToName) ||
       viewerName ||
-      'Counsellor';
+      '';
 
     const finalCounsellorId =
       String(createdById || counsellorId || '').trim() ||
@@ -924,6 +1035,7 @@ class LeadNoteReminderService {
    */
   resolveLead(id, name) {
     if (!id) return;
+    if (!hasActiveSession()) return;
     const strId = String(id);
 
     // Persistently mark lead as resolved so popup NEVER appears again
@@ -980,14 +1092,14 @@ class LeadNoteReminderService {
       const serverHasOwner = Boolean(String(data.counsellorId || data.assignedToId || '').trim());
       if (!serverHasOwner) {
         const viewer = getCurrentStoredUser();
-        if (viewer && !isAdminOrManager(viewer)) return entry;
+        if (viewer && !isGlobalReminderViewer(viewer)) return entry;
       }
 
       const serverName = personDisplayName(data.counsellorName);
       const assignedToName = personDisplayName(data.assignedToName);
       const campaignName = normalizeCampaignName(data.campaignName);
 
-      entry.counsellorName = serverName || assignedToName || 'Counsellor';
+      entry.counsellorName = serverName || assignedToName || '';
       entry.createdBy = entry.counsellorName;
       entry.counsellorId = String(data.counsellorId || data.assignedToId || entry.counsellorId || '').trim();
       entry.createdById = entry.counsellorId;
@@ -1019,6 +1131,10 @@ class LeadNoteReminderService {
    */
   async showToast(entry) {
     if (!entry || !entry.id) return;
+    if (!hasActiveSession()) {
+      this.onToastClosed(entry.id);
+      return;
+    }
     if (!canUserSeeNoteReminder(entry)) {
       this.onToastClosed(entry.id);
       return;
@@ -1047,7 +1163,7 @@ class LeadNoteReminderService {
       personDisplayName(entry.counsellorName) ||
       personDisplayName(entry.createdBy) ||
       personDisplayName(entry.assignedToName) ||
-      'Counsellor';
+      '';
     const campaignName = normalizeCampaignName(entry.campaign);
 
     const handleClose = () => {
@@ -1104,13 +1220,15 @@ class LeadNoteReminderService {
                 { className: 'text-[10px] text-slate-500 truncate', title: summaryStatus },
                 `📞 ${summaryStatus}`
               ),
-              React.createElement(
-                'div',
-                { className: 'text-[10px] text-slate-600 truncate flex items-center gap-1', title: `Counsellor: ${counsellorName}` },
-                React.createElement('span', null, '🎯'),
-                React.createElement('span', { className: 'text-slate-500 font-medium' }, 'Counsellor:'),
-                React.createElement('span', { className: 'font-semibold text-slate-800 truncate' }, counsellorName)
-              ),
+              counsellorName
+                ? React.createElement(
+                    'div',
+                    { className: 'text-[10px] text-slate-600 truncate flex items-center gap-1', title: `Counsellor: ${counsellorName}` },
+                    React.createElement('span', null, '🎯'),
+                    React.createElement('span', { className: 'text-slate-500 font-medium' }, 'Counsellor:'),
+                    React.createElement('span', { className: 'font-semibold text-slate-800 truncate' }, counsellorName)
+                  )
+                : null,
               React.createElement(
                 'div',
                 { className: 'text-[10px] text-slate-600 truncate flex items-center gap-1', title: `Campaign: ${campaignName || 'Direct'}` },
@@ -1166,6 +1284,8 @@ class LeadNoteReminderService {
    * Reminders show one after one without overlap.
    */
   checkAndTriggerPendingReminders() {
+    // No session => no popups at all.
+    if (!hasActiveSession()) return;
     const reminders = getStoredReminders();
     const keys = Object.keys(reminders);
     if (keys.length === 0) return;

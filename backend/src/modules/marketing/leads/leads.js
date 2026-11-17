@@ -741,7 +741,7 @@ router.get('/:id/reminder-context', protect, async (req, res) => {
 
     // `user: null` => resolve the real owner of the call summary, not the caller
     // of this read-only endpoint.
-    const counsellor = await resolveReminderCounsellor({ user: null, lead, assignedTo });
+    const counsellor = await resolveReminderCounsellor({ user: null, lead, assignedTo, campaignName });
 
     res.json({
       success: true,
@@ -1167,14 +1167,6 @@ router.put('/:id/status', protect, async (req, res) => {
         // Admins/Executives never do the calls, so the reminder must belong to the
         // counsellor who actually recorded the summary (latest status change / call
         // / note author), never to the acting admin.
-        const counsellor = await resolveReminderCounsellor({
-          user: req.user,
-          lead,
-          assignedTo: lead.assignedTo || null,
-        });
-        const assignedToName = personName(lead.assignedTo) || '';
-        const assignedToId = lead.assignedTo?._id?.toString() || lead.assignedTo?.toString();
-
         let campaignName = '';
         if (lead.campaign && typeof lead.campaign === 'object') {
           campaignName = lead.campaign.name || '';
@@ -1183,6 +1175,15 @@ router.put('/:id/status', protect, async (req, res) => {
           const camp = await Campaign.findById(lead.campaign).select('name');
           if (camp) campaignName = camp.name;
         }
+
+        const counsellor = await resolveReminderCounsellor({
+          user: req.user,
+          lead,
+          assignedTo: lead.assignedTo || null,
+          campaignName,
+        });
+        const assignedToName = personName(lead.assignedTo) || '';
+        const assignedToId = lead.assignedTo?._id?.toString() || lead.assignedTo?.toString();
 
         broadcastWebSocketEvent('lead_note:reminder_needed', {
           id: lead._id.toString(),

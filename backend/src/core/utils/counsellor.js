@@ -170,24 +170,58 @@ async function resolveCallSummaryCounsellor(lead, { excludeIds = [] } = {}) {
 }
 
 /**
+ * Counsellors assigned to a campaign (MetaCampaignAssignment). Several campaigns
+ * are worked by exactly one counsellor, so when nothing on the lead records who
+ * made the call that counsellor is the only possible owner of the reminder.
+ */
+function escapeRegExp(str) {
+  return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+async function loadCampaignCounsellors(campaignName) {
+  const name = String(campaignName || '').trim();
+  if (!name) return [];
+  try {
+    const MetaCampaignAssignment = require('../../database/models/MetaCampaignAssignment');
+    const assignment = await MetaCampaignAssignment.findOne({
+      campaign: new RegExp(`^${escapeRegExp(name)}$`, 'i'),
+    }).lean();
+    const ids = Array.isArray(assignment?.assignedUsers) ? assignment.assignedUsers : [];
+    if (!ids.length) return [];
+    const User = require('../../database/models/User');
+    const users = await User.find({ _id: { $in: ids } })
+      .select('name displayName email role designation')
+      .lean();
+    return users.filter(u => u && !isAdminOrExecutive(u) && personName(u));
+  } catch (_) {
+    return [];
+  }
+}
+
+/**
  * Resolves the counsellor for a note reminder broadcast.
  *   - a counsellor recording the summary is the owner
  *   - an Admin / Executive recording it hands the reminder to the counsellor
  *     who did the call (latest status change / call / note, else assignee)
+ *   - when nothing on the lead records the caller, the campaign's assigned
+ *     counsellor is used (only when that campaign has a single counsellor)
  *   - an admin's own name is never used as the counsellor name
  *
  * `assignedTo` may be a populated user document or an ObjectId.
  */
-async function resolveReminderCounsellor({ user, lead, assignedTo = null }) {
+async function resolveReminderCounsellor({ user, lead, assignedTo = null, campaignName = '' }) {
+  const actingId = String(user?._id || '').trim();
   if (user && !isAdminOrExecutive(user)) {
-    return {
-      counsellorName: personName(user) || 'Counsellor',
-      counsellorId: String(user._id || '').trim(),
-      counsellorEmail: user.email || '',
-    };
+    const actingName = personName(user);
+    if (actingName) {
+      return {
+        counsellorName: actingName,
+        counsellorId: actingId,
+        counsellorEmail: user.email || '',
+      };
+    }
   }
 
-  const actingId = String(user?._id || '').trim();
   const author = await resolveCallSummaryCounsellor(lead, { excludeIds: actingId ? [actingId] : [] });
   if (author && (author.counsellorName || author.counsellorId)) return author;
 
@@ -204,6 +238,29 @@ async function resolveReminderCounsellor({ user, lead, assignedTo = null }) {
     const name = personName(assignedTo);
     if (!assignedUser && (name || id)) {
       return { counsellorName: name, counsellorId: id, counsellorEmail: assignedTo.email || '' };
+    }
+  }
+
+  // Campaign fallback: campaigns worked by a single counsellor always resolve.
+  const leadCampaign = String(
+    campaignName ||
+    lead?.campaignName ||
+    lead?.campaign?.name ||
+    (typeof lead?.campaign === 'string' ? lead.campaign : '') ||
+    ''
+  ).trim();
+  const campaignCounsellors = await loadCampaignCounsellors(leadCampaign);
+  if (campaignCounsellors.length) {
+    const actingMatch = actingId
+      ? campaignCounsellors.find(u => String(u._id) === actingId)
+      : null;
+    const picked = actingMatch || (campaignCounsellors.length === 1 ? campaignCounsellors[0] : null);
+    if (picked) {
+      return {
+        counsellorId: String(picked._id),
+        counsellorName: personName(picked),
+        counsellorEmail: picked.email || '',
+      };
     }
   }
 

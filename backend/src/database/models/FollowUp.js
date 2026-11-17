@@ -11,6 +11,13 @@ const followUpSchema = new mongoose.Schema({
   leadPhone: { type: String, default: '' },
   campaign: { type: String, default: '' },
   filledByName: { type: String, default: '' },
+  // The counsellor this call-back belongs to. Recorded at creation time: an
+  // Admin / Managing Director only oversees the pipeline and never keeps a call
+  // summary, so his own name is never stored here - the lead's real counsellor
+  // is recorded instead. Every popup reads these fields.
+  counsellor: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  counsellorName: { type: String, default: '' },
+  counsellorEmail: { type: String, default: '' },
   assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   // Who created / delegated this task (defaults to the creator, but can be overridden by admins)

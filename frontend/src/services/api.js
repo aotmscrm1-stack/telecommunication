@@ -637,6 +637,7 @@ export const performanceAPI = {
   getRoster: (params) => api.get('/performance/roster', { params }),
   overrideScore: (id, data) => api.post(`/performance/override/${id}`, data),
   getTickets: (params) => api.get('/performance/tickets', { params }),
+  getTicketInsights: (params) => api.get('/performance/tickets/insights', { params }),
   getTicketSummary: (params) => api.get('/performance/tickets/summary', { params }),
   getTicketManagers: () => api.get('/performance/tickets/managers'),
   getEmployeeHistory: (empId, params) => api.get(`/performance/tickets/employee-history/${empId}`, { params }),

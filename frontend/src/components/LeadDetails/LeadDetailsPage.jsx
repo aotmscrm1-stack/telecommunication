@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Phone, PhoneOff, Mail, MapPin, Award, IndianRupee, Globe, User, Calendar, Tag, Star, Edit3, Save, X, Plus, Clock, MessageCircle, Copy, Check, Trash2, BookOpen, Zap, Sparkles, ShieldAlert, CheckCircle2, ChevronRight, Volume2, Download, Mic, Maximize2, FileText, ChevronDown, ChevronUp } from 'lucide-react';
 import api, { leadsAPI, campaignsAPI, usersAPI, coursesAPI, followupsAPI, blocklistAPI, leadStagesAPI, messageTemplatesAPI, metaLeadsAPI, recordingsAPI } from '../../services/api';
-import leadNoteReminderService, { isStatusRequiringNote, leadHasNote, personDisplayName, resolveLeadReminderContext } from '../../services/leadNoteReminderService';
+import leadNoteReminderService, { isStatusRequiringNote, leadHasNote, personDisplayName, resolveLeadReminderContext, isExecutiveOnly } from '../../services/leadNoteReminderService';
 import { useAuth } from '../../context/AuthContext';
 import { canDelete, isCEO } from '../../utils/permissions';
 import StatusBadge from '../common/StatusBadge';
@@ -690,6 +690,11 @@ function CallbackTimeModal({ lead, metaLeadId, campaign, currentUser, onClose, o
       });
 
       const campaignName = campaign || lead.campaign?.name || lead.campaign || '';
+      // An Admin / MD never owns a call-back - the popup resolves the lead's real
+      // counsellor from the server for those accounts.
+      const fallbackCounsellorName = isExecutiveOnly(currentUser)
+        ? ''
+        : (personDisplayName(currentUser) || filledByName || '');
       const toastPayload = res.data?.callbackToastPayload || {
         followupId: res.data?.followup?._id || String(Date.now()),
         leadId: String(lead._id || metaLeadId || ''),
@@ -699,7 +704,7 @@ function CallbackTimeModal({ lead, metaLeadId, campaign, currentUser, onClose, o
         campaign: campaignName,
         filledById: String(currentUser?._id || ''),
         filledByName,
-        counsellorName: currentUser?.name || filledByName || 'Counsellor',
+        counsellorName: fallbackCounsellorName,
         assignedToId: String(lead.assignedTo?._id || currentUser?._id || ''),
         assignedToName: lead.assignedTo?.name || filledByName,
         scheduledAt: scheduledAt.toISOString(),

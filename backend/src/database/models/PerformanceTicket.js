@@ -24,6 +24,8 @@ const performanceTicketSchema = new mongoose.Schema({
   morningComplianceKey: { type: String, unique: true, sparse: true, index: true },
   // Formatted: "<employeeId>_<attendanceSessionId>"
   shiftComplianceKey: { type: String, unique: true, sparse: true, index: true },
+  // Formatted: "<employeeId>_WEEK_<weekStart>" or "<employeeId>_MONTH_<monthStart>"
+  overallPeriodKey: { type: String, unique: true, sparse: true, index: true },
   shiftIdentifier: { type: String, default: '' },
 
   employee: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
@@ -46,6 +48,8 @@ const performanceTicketSchema = new mongoose.Schema({
       'MORNING_COMPLIANCE_DUAL_VIOLATION',   // Morning Checkpoint: Both missing
       'SHIFT_TASK_UPDATE_MISSING',          // Logout Checkpoint: Tasks not updated
       'MORNING_COMPLIANCE_PASSED',          // Morning Checkpoint: 100% Compliant Green Pass
+      'WEEK_OVERALL_VIOLATION',             // Overall review: one ticket per employee per week
+      'MONTH_OVERALL_VIOLATION',            // Overall review: one ticket per employee per month
       'TASK_OVERDUE', 
       'POOR_PERFORMANCE_DAILY', 
       'REPEATED_LATE_LOGIN', 

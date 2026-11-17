@@ -6,6 +6,11 @@ const PerformanceAuditLog = require('../../../database/models/PerformanceAuditLo
 const Attendance = require('../../../database/models/Attendance');
 const Todo = require('../../../database/models/Todo');
 const User = require('../../../database/models/User');
+const {
+  isDigitalCalendarUser,
+  findCalendarTasksForRange,
+  bucketCalendarTasksByDay
+} = require('../../../core/utils/digitalCalendarTasks');
 
 /**
  * Natural employee ID comparator (AOTMS-01, AOTMS-02, ..., AOTMS-10)
@@ -72,6 +77,120 @@ router.get('/summary', protect, async (req, res) => {
     });
   } catch (err) {
     console.error('[GET /performance/tickets/summary]', err);
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+const TICKET_TYPE_BUCKETS = {
+  ATTENDANCE_NON_COMPLIANCE: 'attendance',
+  DAILY_TASK_SUBMISSION_MISSING: 'tasks',
+  MORNING_COMPLIANCE_DUAL_VIOLATION: 'both'
+};
+
+// One overall ticket per week / month summarises the daily ones, so it never
+// counts as a day in the roster, the calendar or the insights.
+const OVERALL_TRIGGERS = ['WEEK_OVERALL_VIOLATION', 'MONTH_OVERALL_VIOLATION'];
+
+const TICKET_CLOSED_STATUSES = ['resolved', 'closed', 'overridden', 'cleared', 'verified'];
+
+function shiftDate(dateStr, deltaDays) {
+  const d = new Date(`${dateStr}T00:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() + deltaDays);
+  return d.toISOString().slice(0, 10);
+}
+
+function emptyTicketBucket() {
+  return { total: 0, attendance: 0, tasks: 0, both: 0, other: 0, open: 0, resolved: 0 };
+}
+
+function addTicketToBucket(bucket, ticket) {
+  bucket.total += 1;
+  const typeKey = TICKET_TYPE_BUCKETS[ticket.triggerType] || 'other';
+  bucket[typeKey] += 1;
+  if (TICKET_CLOSED_STATUSES.includes(ticket.status)) bucket.resolved += 1;
+  else bucket.open += 1;
+}
+
+/**
+ * GET /api/performance/tickets/insights
+ * Day / week / month ticket totals plus a per-day breakdown for the selected month.
+ * Green clearance passes are excluded: they are rewards, not tickets.
+ */
+router.get('/insights', protect, async (req, res) => {
+  try {
+    const dateStr = req.query.date || new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+    const monthStart = `${dateStr.slice(0, 7)}-01`;
+    const monthEnd = shiftDate(shiftDate(monthStart, 32).slice(0, 7) + '-01', -1);
+
+    const weekdayIndex = new Date(`${dateStr}T00:00:00.000Z`).getUTCDay(); // 0 = Sunday
+    const weekStart = shiftDate(dateStr, -((weekdayIndex + 6) % 7));
+    const weekEnd = shiftDate(weekStart, 6);
+
+    const query = {
+      incidentDate: { $gte: weekStart < monthStart ? weekStart : monthStart, $lte: weekEnd > monthEnd ? weekEnd : monthEnd },
+      triggerType: { $nin: ['MORNING_COMPLIANCE_PASSED', ...OVERALL_TRIGGERS] },
+      priority: { $ne: 'green' }
+    };
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'manager';
+    if (!isAdmin) query.employee = req.user._id;
+
+    const rangeTickets = await PerformanceTicket.find(query)
+      .select('ticketNumber employee employeeName employeeCode department triggerType priority status incidentDate consecutiveCount missingRequirement title description createdAt')
+      .sort({ incidentDate: -1, createdAt: -1 })
+      .lean();
+
+    // One bucket per calendar day of the selected month
+    const days = [];
+    for (let cursor = monthStart; cursor <= monthEnd; cursor = shiftDate(cursor, 1)) {
+      days.push({ date: cursor, dayOfMonth: Number(cursor.slice(8, 10)), ...emptyTicketBucket() });
+    }
+
+    const dayIndex = new Map(days.map((day) => [day.date, day]));
+    const week = emptyTicketBucket();
+    // Exact per-employee counts for the roster column (the list below is capped)
+    const byEmployee = {};
+    const bumpEmployee = (employeeKey, field) => {
+      const entry = byEmployee[employeeKey] || (byEmployee[employeeKey] = { today: 0, week: 0, month: 0 });
+      entry[field] += 1;
+    };
+
+    rangeTickets.forEach((ticket) => {
+      const bucket = dayIndex.get(ticket.incidentDate);
+      if (bucket) addTicketToBucket(bucket, ticket);
+      if (ticket.incidentDate >= weekStart && ticket.incidentDate <= weekEnd) {
+        addTicketToBucket(week, ticket);
+      }
+      const employeeKey = String(ticket.employee || '');
+      if (!employeeKey) return;
+      if (ticket.incidentDate === dateStr) bumpEmployee(employeeKey, 'today');
+      if (ticket.incidentDate >= weekStart && ticket.incidentDate <= weekEnd) bumpEmployee(employeeKey, 'week');
+      if (ticket.incidentDate >= monthStart && ticket.incidentDate <= monthEnd) bumpEmployee(employeeKey, 'month');
+    });
+
+    const month = emptyTicketBucket();
+    days.forEach((day) => {
+      Object.keys(month).forEach((key) => { month[key] += day[key]; });
+    });
+
+    const todayBucket = dayIndex.get(dateStr);
+    const today = todayBucket ? { ...todayBucket } : { date: dateStr, dayOfMonth: Number(dateStr.slice(8, 10)), ...emptyTicketBucket() };
+
+    res.json({
+      ok: true,
+      date: dateStr,
+      monthStart,
+      monthEnd,
+      weekStart,
+      weekEnd,
+      today,
+      week: { startDate: weekStart, endDate: weekEnd, ...week },
+      month: { startDate: monthStart, endDate: monthEnd, ...month },
+      days,
+      byEmployee,
+      tickets: rangeTickets.slice(0, 200)
+    });
+  } catch (err) {
+    console.error('[GET /performance/tickets/insights]', err);
     res.status(500).json({ ok: false, message: err.message });
   }
 });
@@ -174,50 +293,152 @@ router.get('/', protect, async (req, res) => {
 router.get('/employee-history/:employeeId', protect, async (req, res) => {
   try {
     const { employeeId } = req.params;
-    const yearMonth = req.query.month || new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }).slice(0, 7); // "YYYY-MM"
+    const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+    const monthParam = req.query.month || todayStr.slice(0, 7); // "YYYY-MM"
 
     const isAdmin = req.user.role === 'admin' || req.user.role === 'manager';
     if (!isAdmin && String(req.user._id) !== String(employeeId)) {
       return res.status(403).json({ ok: false, message: 'Unauthorized to view this employee history' });
     }
 
-    const employee = await User.findById(employeeId).select('name employeeId department email avatar');
+    const employee = await User.findById(employeeId).select('name employeeId department designation email avatar');
     if (!employee) {
       return res.status(404).json({ ok: false, message: 'Employee not found' });
     }
 
-    // Fetch all tickets for this employee
-    const allTickets = await PerformanceTicket.find({ employee: employeeId }).sort({ incidentDate: 1 });
-    const monthTickets = allTickets.filter(t => t.incidentDate.startsWith(yearMonth));
+    // An explicit start/end wins (week, today or any custom window),
+    // otherwise the whole calendar month is used for the month grid.
+    let rangeStart = req.query.start;
+    let rangeEnd = req.query.end;
+    if (!rangeStart || !rangeEnd) {
+      const [year, month] = monthParam.split('-').map(Number);
+      const daysInMonth = new Date(year, month, 0).getDate();
+      rangeStart = `${monthParam}-01`;
+      rangeEnd = `${monthParam}-${String(daysInMonth).padStart(2, '0')}`;
+    }
+    if (rangeStart > rangeEnd) [rangeStart, rangeEnd] = [rangeEnd, rangeStart];
 
-    const orangeCount = monthTickets.filter(t => t.priority === 'orange' || t.priority === 'medium' || t.priority === 'low').length;
-    const redCount = monthTickets.filter(t => t.priority === 'red' || t.priority === 'high').length;
-    const criticalCount = monthTickets.filter(t => t.priority === 'critical').length;
-    const resolvedCount = monthTickets.filter(t => t.status === 'resolved' || t.status === 'closed').length;
-    const pendingCount = monthTickets.length - resolvedCount;
+    const rangeStartAt = new Date(`${rangeStart}T00:00:00.000+05:30`);
+    const rangeEndAt = new Date(`${rangeEnd}T23:59:59.999+05:30`);
 
-    // Calculate Longest Streak & Current Streak
-    let longestStreak = 0;
+    // Four bulk queries instead of two per day, so the person view opens fast
+    // Digital Marketing staff are read from their Digital Calendar instead of Todo.
+    const usesDigitalCalendar = isDigitalCalendarUser(employee);
+    const weekStartOf = (dateStr) => shiftDate(dateStr, -((new Date(`${dateStr}T00:00:00.000Z`).getUTCDay() + 6) % 7));
+    const overallKeys = [
+      `${employeeId}_WEEK_${weekStartOf(todayStr)}`,
+      `${employeeId}_WEEK_${weekStartOf(rangeStart)}`,
+      `${employeeId}_MONTH_${todayStr.slice(0, 7)}-01`,
+      `${employeeId}_MONTH_${rangeStart.slice(0, 7)}-01`
+    ];
+    const [rangeTickets, streakTickets, attendanceRecords, taskRecords, calendarRecords, overallTickets] = await Promise.all([
+      PerformanceTicket.find({
+        employee: employeeId,
+        incidentDate: { $gte: rangeStart, $lte: rangeEnd },
+        triggerType: { $nin: ['MORNING_COMPLIANCE_PASSED', ...OVERALL_TRIGGERS] },
+        priority: { $ne: 'green' }
+      }).sort({ incidentDate: -1 }).lean(),
+      PerformanceTicket.find({ employee: employeeId, triggerType: { $nin: OVERALL_TRIGGERS } })
+        .select('incidentDate consecutiveCount').sort({ incidentDate: 1 }).lean(),
+      Attendance.find({ employeeId, date: { $gte: rangeStart, $lte: rangeEnd } })
+        .select('date startTime endTime actualWorkSeconds durationSeconds status').lean(),
+      Todo.find({
+        $and: [
+          { $or: [{ assignedTo: employeeId }, { createdBy: employeeId }] },
+          { createdAt: { $lte: rangeEndAt } },
+          {
+            $or: [
+              { scheduledAt: { $gte: rangeStartAt, $lte: rangeEndAt } },
+              { dueDate: { $gte: rangeStartAt, $lte: rangeEndAt } },
+              { createdAt: { $gte: rangeStartAt, $lte: rangeEndAt } }
+            ]
+          }
+        ]
+      }).select('_id title createdAt scheduledAt dueDate').lean(),
+      usesDigitalCalendar
+        ? findCalendarTasksForRange(employeeId, rangeStart, rangeEnd)
+        : Promise.resolve([]),
+      PerformanceTicket.find({ employee: employeeId, overallPeriodKey: { $in: overallKeys } })
+        .select('ticketNumber triggerType priority status incidentDate title description missingRequirement consecutiveCount evidenceSnapshot createdAt')
+        .lean()
+    ]);
+
+    // Latest check-in wins when the device leaves more than one row for a day
+    const attendanceByDate = new Map();
+    attendanceRecords.forEach((record) => {
+      const existing = attendanceByDate.get(record.date);
+      const recordStart = record.startTime ? new Date(record.startTime).getTime() : 0;
+      const existingStart = existing?.startTime ? new Date(existing.startTime).getTime() : -1;
+      if (!existing || recordStart > existingStart) attendanceByDate.set(record.date, record);
+    });
+
+    // One ticket per day: the most severe one wins the day colour
+    const priorityRank = { critical: 4, red: 3, high: 3, orange: 2, medium: 2, low: 1 };
+    const ticketsByDate = new Map();
+    rangeTickets.forEach((ticket) => {
+      const list = ticketsByDate.get(ticket.incidentDate) || [];
+      list.push(ticket);
+      ticketsByDate.set(ticket.incidentDate, list);
+    });
+    const ticketByDate = new Map();
+    ticketsByDate.forEach((list, date) => {
+      const worst = [...list].sort((a, b) => (priorityRank[b.priority] || 0) - (priorityRank[a.priority] || 0))[0];
+      ticketByDate.set(date, worst);
+    });
+
+    const orangeCount = rangeTickets.filter(t => t.priority === 'orange' || t.priority === 'medium' || t.priority === 'low').length;
+    const redCount = rangeTickets.filter(t => t.priority === 'red' || t.priority === 'high').length;
+    const criticalCount = rangeTickets.filter(t => t.priority === 'critical').length;
+    const closedStatuses = ['resolved', 'closed', 'overridden', 'cleared', 'verified'];
+    const resolvedCount = rangeTickets.filter(t => closedStatuses.includes(t.status)).length;
+    const pendingCount = rangeTickets.length - resolvedCount;
+
+    // Streak numbers come from the whole history, not just this range
     let currentStreak = 0;
-    if (allTickets.length > 0) {
-      const lastTicket = allTickets[allTickets.length - 1];
-      currentStreak = lastTicket.consecutiveCount || 1;
-      longestStreak = Math.max(...allTickets.map(t => t.consecutiveCount || 1));
+    let longestStreak = 0;
+    if (streakTickets.length > 0) {
+      currentStreak = streakTickets[streakTickets.length - 1].consecutiveCount || 1;
+      longestStreak = Math.max(...streakTickets.map(t => t.consecutiveCount || 1));
     }
 
-    // Build day-by-day calendar data for the requested month
-    const [year, month] = yearMonth.split('-').map(Number);
-    const daysInMonth = new Date(year, month, 0).getDate();
+    // Same "work in place before 10:00 AM IST" rule as the morning sweep
+    const calendarByDate = bucketCalendarTasksByDay(calendarRecords);
+    const tasksOnDay = (dateStr) => {
+      const dayStart = new Date(`${dateStr}T00:00:00.000+05:30`).getTime();
+      const dayEnd = new Date(`${dateStr}T23:59:59.999+05:30`).getTime();
+      const cutoff = new Date(`${dateStr}T10:00:00.000+05:30`).getTime();
 
+      if (usesDigitalCalendar) {
+        // A content item dated that day is the day's work for the marketing team
+        return (calendarByDate.get(dateStr) || [])
+          .map((item) => ({ _id: item._id, title: item.content_title, status: item.overall_status }));
+      }
+
+      return taskRecords.filter((task) => {
+        if (!task.createdAt) return false;
+        const created = new Date(task.createdAt).getTime();
+        if (created > cutoff) return false;
+        const scheduled = task.scheduledAt ? new Date(task.scheduledAt).getTime() : null;
+        const due = task.dueDate ? new Date(task.dueDate).getTime() : null;
+        if (scheduled !== null && scheduled >= dayStart && scheduled <= dayEnd) return true;
+        if (due !== null && due >= dayStart && due <= dayEnd) return true;
+        return created >= dayStart && created <= cutoff;
+      });
+    };
+
+    // Day by day: attendance, tasks and the ticket reason for every date in range
     const calendarDays = [];
-    for (let day = 1; day <= daysInMonth; day++) {
-      const dayStr = String(day).padStart(2, '0');
-      const dateStr = `${yearMonth}-${dayStr}`;
-      const d = new Date(`${dateStr}T12:00:00.000+05:30`);
-      const isSunday = d.getDay() === 0;
+    for (let cursor = rangeStart; cursor <= rangeEnd; cursor = shiftDate(cursor, 1)) {
+      const dayOfWeek = new Date(`${cursor}T00:00:00.000Z`).getUTCDay();
+      const isSunday = dayOfWeek === 0;
+      const cutoff10Am = new Date(`${cursor}T10:00:00.000+05:30`);
+      const attendance = attendanceByDate.get(cursor) || null;
+      const ticket = ticketByDate.get(cursor) || null;
+      const dayTickets = ticketsByDate.get(cursor) || [];
+      const dayTasks = tasksOnDay(cursor);
 
-      const ticket = monthTickets.find(t => t.incidentDate === dateStr);
-      const attendance = await Attendance.findOne({ employeeId, date: dateStr }).select('startTime endTime actualWorkSeconds durationSeconds status');
+      const attendanceOnTime = Boolean(attendance?.startTime) && new Date(attendance.startTime) <= cutoff10Am;
+      const hasTasks = dayTasks.length > 0;
 
       let status = 'neutral';
       if (attendance?.status === 'ON_LEAVE') {
@@ -226,16 +447,21 @@ router.get('/employee-history/:employeeId', protect, async (req, res) => {
         if (ticket.priority === 'critical') status = 'critical';
         else if (ticket.priority === 'red' || ticket.priority === 'high') status = 'red';
         else status = 'orange';
-      } else if (attendance && !isSunday) {
-        status = 'compliant';
       } else if (isSunday) {
         status = 'weekend';
+      } else if (attendanceOnTime && hasTasks) {
+        status = 'compliant';
+      } else if (attendance || hasTasks) {
+        status = 'partial';
       }
 
       calendarDays.push({
-        date: dateStr,
-        dayNumber: day,
-        dayOfWeek: d.getDay(),
+        date: cursor,
+        dayNumber: Number(cursor.slice(8, 10)),
+        dayOfMonth: Number(cursor.slice(8, 10)),
+        dayOfWeek,
+        isSunday,
+        isFuture: cursor > todayStr,
         status,
         ticket: ticket ? {
           _id: ticket._id,
@@ -244,22 +470,50 @@ router.get('/employee-history/:employeeId', protect, async (req, res) => {
           priority: ticket.priority,
           status: ticket.status,
           title: ticket.title,
+          missingRequirement: ticket.missingRequirement || '',
+          description: ticket.description || '',
           consecutiveCount: ticket.consecutiveCount || 1
         } : null,
-        attendance: attendance ? {
-          checkIn: attendance.startTime,
-          checkOut: attendance.endTime,
-          workSeconds: attendance.actualWorkSeconds || attendance.durationSeconds || 0
-        } : null
+        ticketCount: dayTickets.length,
+        tickets: dayTickets.map((t) => ({
+          _id: t._id,
+          ticketNumber: t.ticketNumber,
+          triggerType: t.triggerType,
+          priority: t.priority,
+          status: t.status,
+          title: t.title,
+          missingRequirement: t.missingRequirement || '',
+          description: t.description || '',
+          consecutiveCount: t.consecutiveCount || 1
+        })),
+        attendance: {
+          marked: Boolean(attendance),
+          onTime: attendanceOnTime,
+          time: attendance?.startTime
+            ? new Date(attendance.startTime).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })
+            : null,
+          checkIn: attendance?.startTime || null,
+          checkOut: attendance?.endTime || null,
+          workSeconds: attendance?.actualWorkSeconds || attendance?.durationSeconds || 0,
+          attendanceStatus: attendance?.status || ''
+        },
+        todo: {
+          created: hasTasks,
+          count: dayTasks.length,
+          source: usesDigitalCalendar ? 'digital-calendar' : 'todo',
+          titles: dayTasks.slice(0, 3).map(t => t.title).filter(Boolean)
+        }
       });
     }
 
     res.json({
       ok: true,
       employee,
-      month: yearMonth,
+      month: rangeStart.slice(0, 7),
+      range: { start: rangeStart, end: rangeEnd },
       summary: {
-        totalTicketsThisMonth: monthTickets.length,
+        totalMonthTickets: rangeTickets.length,
+        totalTicketsThisMonth: rangeTickets.length,
         orangeCount,
         redCount,
         criticalCount,
@@ -268,7 +522,21 @@ router.get('/employee-history/:employeeId', protect, async (req, res) => {
         currentStreak,
         longestStreak
       },
-      calendarDays
+      calendarDays,
+      calendar: calendarDays,
+      overallTickets: overallTickets.map((ticket) => ({
+        _id: ticket._id,
+        ticketNumber: ticket.ticketNumber,
+        triggerType: ticket.triggerType,
+        priority: ticket.priority,
+        status: ticket.status,
+        incidentDate: ticket.incidentDate,
+        title: ticket.title,
+        description: ticket.description || '',
+        missingRequirement: ticket.missingRequirement || '',
+        consecutiveCount: ticket.consecutiveCount || 1,
+        period: ticket.evidenceSnapshot?.overall || null
+      }))
     });
   } catch (err) {
     console.error('[GET /performance/tickets/employee-history]', err);

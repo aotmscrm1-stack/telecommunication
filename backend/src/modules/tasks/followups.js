@@ -11,6 +11,7 @@ const User = require('../../database/models/User');
 const { protect, authorize } = require('../../core/middleware/auth');
 const { notifyAdminsTaskCreated, notifyAdminsTaskEdited } = require('../../modules/notifications/notificationService');
 const { broadcastWebSocketEvent } = require('../../app/websocket');
+const { resolveReminderCounsellor, isAdminOrExecutive, isRoleLabel, personName } = require('../../core/utils/counsellor');
 
 const router = express.Router();
 // Import files are parsed in memory — cap the size so a single upload cannot
@@ -56,6 +57,74 @@ function fireAndForget(fn) {
 function getTargetModel(type) {
   if (type === 'todo') return Todo;
   return FollowUp;
+}
+
+function escapeRegExp(str) {
+  return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * A counsellor is a real, non-executive person. Admins / Directors / MD only
+ * oversee the pipeline, so they can never own a call-back reminder.
+ */
+function isCounsellorUser(user) {
+  return Boolean(user) && !isAdminOrExecutive(user) && Boolean(personName(user));
+}
+
+/**
+ * Resolves (and later stores) who a call-back belongs to. Priority:
+ *   1. the counsellor the call-back is assigned to
+ *   2. the counsellor who created it
+ *   3. the lead's own counsellor - latest call-summary author, then the lead's
+ *      assignee, then the single counsellor of the lead's campaign
+ * An Admin / MD acting on the CRM falls through to step 3 automatically.
+ */
+async function resolveCallbackOwner({ actor, assignedToId, leadId, campaignName }) {
+  if (isValidId(assignedToId)) {
+    const assignee = await User.findById(assignedToId)
+      .select('name displayName email role designation')
+      .lean()
+      .catch(() => null);
+    if (isCounsellorUser(assignee)) {
+      return {
+        counsellorId: String(assignee._id),
+        counsellorName: personName(assignee),
+        counsellorEmail: assignee.email || '',
+      };
+    }
+  }
+
+  if (isCounsellorUser(actor)) {
+    return {
+      counsellorId: String(actor._id),
+      counsellorName: personName(actor),
+      counsellorEmail: actor.email || '',
+    };
+  }
+
+  let leadDoc = null;
+  if (isValidId(leadId)) {
+    leadDoc = await Lead.findById(leadId)
+      .select('activities callNotes assignedTo campaign')
+      .populate('assignedTo', 'name displayName email role designation')
+      .lean()
+      .catch(() => null);
+    if (!leadDoc) {
+      leadDoc = await MetaLead.findById(leadId)
+        .select('callNotes assignedTo campaign campaignName')
+        .populate('assignedTo', 'name displayName email role designation')
+        .populate('callNotes.user', 'name displayName email role designation')
+        .lean()
+        .catch(() => null);
+    }
+  }
+
+  return resolveReminderCounsellor({
+    user: null,
+    lead: leadDoc,
+    assignedTo: leadDoc?.assignedTo || null,
+    campaignName,
+  });
 }
 
 // Helper to check strict Admin / Executive Director privileges (MD, CEO, CTO, Admin)
@@ -307,10 +376,11 @@ router.get('/', protect, async (req, res) => {
     const ModelClass = getTargetModel(type);
     let reqQueryFind = ModelClass.find(query)
       .populate('lead', 'name phone status')
-      .populate('assignedTo', 'name avatar department designation')
-      .populate('assignedBy', 'name avatar department designation')
+      .populate('assignedTo', 'name avatar department designation role')
+      .populate('assignedBy', 'name avatar department designation role')
       .populate('completedBy', 'name avatar')
-      .populate('createdBy', 'name avatar department designation');
+      .populate('counsellor', 'name email avatar designation role')
+      .populate('createdBy', 'name avatar department designation role');
     const results = await reqQueryFind.sort({ scheduledAt: 1, createdAt: -1 });
 
     let allDocs = [...results];
@@ -336,6 +406,18 @@ router.get('/', protect, async (req, res) => {
         }
       } else if (doc.assignedBy === 'all' || doc.assignedBy === 'All') {
         doc.assignedBy = { _id: 'all', name: 'All' };
+      }
+
+      // The popup names the counsellor recorded on the call-back. Legacy rows
+      // (created before this was recorded) keep the field empty so the client
+      // asks the server for the lead's real counsellor instead of showing the
+      // Admin / MD who happened to schedule them.
+      const ownerUser = doc.counsellor && typeof doc.counsellor === 'object' ? doc.counsellor : null;
+      if (isCounsellorUser(ownerUser)) {
+        doc.counsellorName = personName(ownerUser);
+        doc.counsellorId = String(ownerUser._id);
+      } else if (!doc.counsellorName) {
+        doc.counsellorId = '';
       }
       return doc;
     });
@@ -378,8 +460,9 @@ router.get('/user/:userId', protect, async (req, res) => {
 
     let reqQueryFind = ModelClass.find(query)
       .populate('lead', 'name phone status')
-      .populate('assignedTo', 'name email avatar designation department')
-      .populate('assignedBy', 'name email avatar')
+      .populate('assignedTo', 'name email avatar designation department role')
+      .populate('assignedBy', 'name email avatar role')
+      .populate('counsellor', 'name email avatar designation role')
       .populate('completedBy', 'name email avatar');
     const results = await reqQueryFind.sort({ scheduledAt: 1, createdAt: -1 });
 
@@ -544,7 +627,7 @@ router.post('/', protect, async (req, res) => {
       leadName: resolvedLeadName,
       leadPhone: resolvedLeadPhone,
       campaign: resolvedCampaign,
-      filledByName: req.user.name || req.body.filledByName || 'Agent',
+      filledByName: req.user.name || req.body.filledByName || '',
       assignedTo: assignedToVal,
       assignedBy: assignedByVal,
       createdBy: req.user._id,
@@ -556,11 +639,31 @@ router.post('/', protect, async (req, res) => {
       } : undefined
     };
 
+    // Record WHO this call-back belongs to, so every popup shows a real
+    // counsellor instead of the Admin / MD who happened to schedule it.
+    let callbackCounsellor = { counsellorId: '', counsellorName: '', counsellorEmail: '' };
+    if (itemType === 'call_followup') {
+      callbackCounsellor = await resolveCallbackOwner({
+        actor: req.user,
+        assignedToId: assignedToVal,
+        leadId: body.lead || resolvedMetaLeadId,
+        campaignName: resolvedCampaign,
+      });
+      if (isValidId(callbackCounsellor.counsellorId)) {
+        baseDoc.counsellor = new mongoose.Types.ObjectId(callbackCounsellor.counsellorId);
+      }
+      baseDoc.counsellorName = callbackCounsellor.counsellorName || '';
+      baseDoc.counsellorEmail = callbackCounsellor.counsellorEmail || '';
+    }
+
     const followup = await ModelClass.create(baseDoc);
 
     await followup.populate('lead', 'name phone status');
     await followup.populate('assignedTo', 'name email');
     await followup.populate('createdBy', 'name email');
+    if (baseDoc.counsellor) {
+      await followup.populate('counsellor', 'name email');
+    }
     if (baseDoc.assignedBy && mongoose.Types.ObjectId.isValid(baseDoc.assignedBy)) {
       await followup.populate('assignedBy', 'name email');
     } else if (baseDoc.assignedBy === 'all' || baseDoc.assignedBy === 'All') {
@@ -577,11 +680,16 @@ router.post('/', protect, async (req, res) => {
     if (itemType === 'call_followup') {
       let campaignAssignedUserIds = [];
       if (resolvedCampaign) {
-        const campAssign = await MetaCampaignAssignment.findOne({ campaign: resolvedCampaign }).select('assignedUsers').lean().catch(() => null);
+        const campAssign = await MetaCampaignAssignment.findOne({
+          campaign: new RegExp(`^${escapeRegExp(resolvedCampaign)}$`, 'i'),
+        }).select('assignedUsers').lean().catch(() => null);
         if (campAssign && Array.isArray(campAssign.assignedUsers)) {
           campaignAssignedUserIds = campAssign.assignedUsers.map(id => String(id));
         }
       }
+      const assignedCounsellorName = isCounsellorUser(followup.assignedTo)
+        ? personName(followup.assignedTo)
+        : '';
       callbackToastPayload = {
         followupId: String(followup._id),
         leadId: String(followup.lead?._id || followup.lead || resolvedMetaLeadId || ''),
@@ -590,10 +698,13 @@ router.post('/', protect, async (req, res) => {
         leadPhone: resolvedLeadPhone || followup.lead?.phone || '',
         campaign: resolvedCampaign || followup.campaign || '',
         filledById: String(req.user._id),
-        filledByName: req.user.name || baseDoc.filledByName || 'Agent',
-        counsellorName: req.user.name || baseDoc.filledByName || followup.assignedTo?.name || 'Counsellor',
+        filledByName: req.user.name || baseDoc.filledByName || '',
+        // The popup names the real counsellor, never the Admin / MD.
+        counsellorId: callbackCounsellor.counsellorId || '',
+        counsellorName: callbackCounsellor.counsellorName || '',
+        counsellorEmail: callbackCounsellor.counsellorEmail || '',
         assignedToId: String(assignedToVal),
-        assignedToName: followup.assignedTo?.name || req.user.name || 'Agent',
+        assignedToName: assignedCounsellorName,
         campaignAssignedUserIds,
         scheduledAt: followup.scheduledAt,
         note: followup.note || ''
@@ -611,6 +722,64 @@ router.post('/', protect, async (req, res) => {
   } catch (err) {
     console.error('[POST /followups]', err);
     res.status(500).json({ message: err.message });
+  }
+});
+
+// GET /api/followups/:id/reminder-context
+// Authoritative owner of a call-back, used by the "Call Back Due Now" popup so it
+// never names the Admin / MD. Legacy call-backs (created before the counsellor was
+// recorded) are resolved here on the fly.
+router.get('/:id/reminder-context', protect, async (req, res) => {
+  try {
+    const idStr = String(req.params.id || '').trim();
+    if (!isValidId(idStr)) {
+      return res.status(400).json({ success: false, message: 'Invalid call-back id' });
+    }
+
+    const followup = await FollowUp.findById(idStr)
+      .populate('assignedTo', 'name displayName email role designation')
+      .populate('createdBy', 'name displayName email role designation')
+      .populate('counsellor', 'name displayName email role designation')
+      .lean();
+    if (!followup) {
+      return res.status(404).json({ success: false, message: 'Call-back not found' });
+    }
+
+    let owner = { counsellorId: '', counsellorName: '', counsellorEmail: '' };
+    if (isCounsellorUser(followup.counsellor)) {
+      owner = {
+        counsellorId: String(followup.counsellor._id),
+        counsellorName: personName(followup.counsellor),
+        counsellorEmail: followup.counsellor.email || '',
+      };
+    } else if (followup.counsellorName && !isRoleLabel(followup.counsellorName)) {
+      owner = {
+        counsellorId: followup.counsellor ? String(followup.counsellor._id || followup.counsellor) : '',
+        counsellorName: followup.counsellorName,
+        counsellorEmail: followup.counsellorEmail || '',
+      };
+    }
+
+    if (!owner.counsellorName) {
+      owner = await resolveCallbackOwner({
+        actor: null,
+        assignedToId: followup.assignedTo?._id || null,
+        leadId: followup.lead || followup.metaLeadId || null,
+        campaignName: followup.campaign || '',
+      });
+    }
+
+    res.json({
+      success: true,
+      ...owner,
+      leadId: String(followup.lead || followup.metaLeadId || ''),
+      leadName: followup.leadName || '',
+      campaignName: followup.campaign || '',
+      scheduledAt: followup.scheduledAt,
+      status: followup.status,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 

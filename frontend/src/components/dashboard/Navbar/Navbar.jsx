@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { followupsAPI, notificationsAPI } from '../../../services/api';
-import leadNoteReminderService from '../../../services/leadNoteReminderService';
+import leadNoteReminderService, { personDisplayName, isGlobalReminderViewer, isExecutiveOnly } from '../../../services/leadNoteReminderService';
 import logoImg from '../../../assets/aotms-global-logo.png';
 import useBreakpoint from '../../../hooks/useBreakpoint';
 import {
@@ -278,7 +278,10 @@ export default function Navbar() {
   const pollDueCallbacks = useCallback(async () => {
     if (!user || !canViewCallFollowups(user)) return;
     try {
-      const isUserAdmin = Boolean(user?.role === 'admin' || user?.role === 'superadmin' || isCEO(user) || isManager(user));
+      // Only Admin / Executive accounts watch every counsellor's callbacks. The three
+      // counsellors (Bhavani, Raja Sri, Deenaz) all carry role "manager", so a plain
+      // manager check would hand each of them the other counsellors' callbacks.
+      const isUserAdmin = isGlobalReminderViewer(user);
       const res = await followupsAPI.getAll({ type: 'call_followup', status: 'upcoming', forMe: 'true' });
       const all = res.data.followups || [];
       const now = new Date();
@@ -296,7 +299,19 @@ export default function Navbar() {
         due.forEach(f => {
           alertedIds.current.add(f._id);
           const creatorId = String(f.createdBy?._id || f.createdBy || '');
-          const counsellorName = f.filledByName || f.createdBy?.name || f.assignedTo?.name || (creatorId === uid ? user.name : 'Counsellor');
+          // The call-back records its own counsellor. Only fall back to the
+          // assignee / creator when that person really is a counsellor - the
+          // Admin / MD never owns a call-back, so his name is never sent.
+          const recordedCounsellor = f.counsellor && typeof f.counsellor === 'object' ? f.counsellor : null;
+          const candidateUser = [recordedCounsellor, f.assignedTo, f.createdBy]
+            .find(u => u && typeof u === 'object' && personDisplayName(u) && !isExecutiveOnly(u)) || null;
+          const counsellorName =
+            personDisplayName(recordedCounsellor) ||
+            personDisplayName(f.counsellorName) ||
+            personDisplayName(candidateUser);
+          const counsellorId = String(
+            recordedCounsellor?._id || f.counsellor || f.counsellorId || candidateUser?._id || ''
+          );
           const campaignName = f.campaign || f.lead?.campaign?.name || f.lead?.campaign || '';
           leadNoteReminderService.triggerCallbackToast(
             {
@@ -306,11 +321,10 @@ export default function Navbar() {
               leadName: f.leadName || f.lead?.name || 'Lead',
               leadPhone: f.leadPhone || f.lead?.phone || '',
               campaign: campaignName,
+              counsellorId,
               counsellorName,
               filledById: creatorId || uid,
-              filledByName: counsellorName,
               assignedToId: String(f.assignedTo?._id || f.assignedTo || ''),
-              assignedToName: f.assignedTo?.name || counsellorName,
               scheduledAt: f.scheduledAt,
               note: f.note || '',
             },

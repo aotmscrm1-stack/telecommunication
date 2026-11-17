@@ -6,6 +6,11 @@ const PerformanceTicket = require('../../database/models/PerformanceTicket');
 const EmployeePerformanceDaily = require('../../database/models/EmployeePerformanceDaily');
 const { getNextTicketNumber } = require('../../database/models/PerformanceTicketSequence');
 const { createNotification } = require('../../modules/notifications/notificationService');
+const {
+  isDigitalCalendarUser,
+  findCalendarTasksForDay
+} = require('../../core/utils/digitalCalendarTasks');
+const { syncOverallTickets } = require('./overallTicketSync');
 
 /**
  * Calculates consecutive working-day violations looking backward from dateStr.
@@ -56,8 +61,10 @@ async function calculateConsecutiveViolations(employeeId, dateStr) {
  * Executes the universal 10:00 AM IST morning compliance sweep with Progressive 3-Level Escalation
  * @param {string} dateStr Format: "YYYY-MM-DD"
  * @param {string} workerId Unique token from workerLockManager
+ * @param {object} options { notify: false } runs the sweep without sending notifications
  */
-async function runMorning10AmCheck(dateStr, workerId = 'system') {
+async function runMorning10AmCheck(dateStr, workerId = 'system', options = {}) {
+  const { notify = true } = options;
   const cutoff10Am = new Date(`${dateStr}T10:00:00.000+05:30`);
   const startOfDay = new Date(`${dateStr}T00:00:00.000+05:30`);
   const endOfDay = new Date(`${dateStr}T23:59:59.999+05:30`);
@@ -69,7 +76,7 @@ async function runMorning10AmCheck(dateStr, workerId = 'system') {
     return { total: 0, compliant: 0, tickets: 0, message: 'Sunday Weekend' };
   }
 
-  const activeEmployees = await User.find({ isActive: { $ne: false } }).select('_id name employeeId department role email');
+  const activeEmployees = await User.find({ isActive: { $ne: false } }).select('_id name employeeId department designation role email');
   
   let compliantCount = 0;
   let ticketsGeneratedCount = 0;
@@ -94,30 +101,38 @@ async function runMorning10AmCheck(dateStr, workerId = 'system') {
       });
       const hasAttendance = !!attendance;
 
-      // 3. Condition B: Daily tasks uploaded/assigned on or before 10:00:00.000 AM IST
-      // Handles tasks created on current day as well as tasks created in advance on prior days
-      const tasks = await Todo.find({
-        $and: [
-          {
-            $or: [
-              { assignedTo: emp._id },
-              { createdBy: emp._id }
-            ]
-          },
-          {
-            createdAt: { $lte: cutoff10Am }
-          },
-          {
-            $or: [
-              { scheduledAt: { $gte: startOfDay, $lte: endOfDay } },
-              { dueDate: { $gte: startOfDay, $lte: endOfDay } },
-              { createdAt: { $gte: startOfDay, $lte: cutoff10Am } },
-              { completedAt: { $gte: startOfDay, $lte: cutoff10Am } },
-              { status: { $in: ['upcoming', 'pending', 'in_progress'] } }
-            ]
-          }
-        ]
-      }).select('_id title status createdAt scheduledAt dueDate completedAt');
+      // 3. Condition B: Daily tasks in place for today
+      // Digital Marketing staff plan their day in the Digital Calendar: a content item
+      // dated today counts as the day's work, everybody else needs Todo activity by 10:00 AM.
+      const usesDigitalCalendar = isDigitalCalendarUser(emp);
+      let tasks;
+      if (usesDigitalCalendar) {
+        tasks = await findCalendarTasksForDay(emp._id, dateStr);
+      } else {
+        tasks = await Todo.find({
+          $and: [
+            {
+              $or: [
+                { assignedTo: emp._id },
+                { createdBy: emp._id }
+              ]
+            },
+            {
+              createdAt: { $lte: cutoff10Am }
+            },
+            {
+              $or: [
+                { scheduledAt: { $gte: startOfDay, $lte: endOfDay } },
+                { dueDate: { $gte: startOfDay, $lte: endOfDay } },
+                { createdAt: { $gte: startOfDay, $lte: cutoff10Am } },
+                { completedAt: { $gte: startOfDay, $lte: cutoff10Am } },
+                { status: { $in: ['upcoming', 'pending', 'in_progress'] } }
+              ]
+            }
+          ]
+        }).select('_id title status createdAt scheduledAt dueDate completedAt');
+      }
+      const taskSource = usesDigitalCalendar ? 'digital-calendar' : 'todo';
       const hasTasks = tasks.length > 0;
 
       // Fully Compliant State: Issue/Maintain Official Green Ticket
@@ -167,13 +182,14 @@ async function runMorning10AmCheck(dateStr, workerId = 'system') {
               consecutiveCount: 0,
               incidentDate: dateStr,
               title: `[GREEN TICKET] 100% Morning Compliant: ${emp.name}`,
-              description: `Employee ${emp.name} (${emp.employeeId || 'ID Pending'}) passed both morning compliance requirements on ${dateStr}: Check-in recorded at ${attendance?.startTime ? new Date(attendance.startTime).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' }) : '10:00 AM'} and ${tasks.length} active/advance daily tasks in place before 10:00 AM IST.`,
+              description: `Employee ${emp.name} (${emp.employeeId || 'ID Pending'}) passed both morning compliance requirements on ${dateStr}: Check-in recorded at ${attendance?.startTime ? new Date(attendance.startTime).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' }) : '10:00 AM'} and ${tasks.length} ${usesDigitalCalendar ? 'Digital Calendar content item(s)' : 'active/advance daily task(s)'} in place before 10:00 AM IST.`,
               relatedAttendance: attendance ? attendance._id : null,
               relatedTasks: tasks.map(t => t._id),
               evidenceSnapshot: {
                 checkInRecorded: true,
                 checkInTime: attendance?.startTime ? new Date(attendance.startTime).toISOString() : null,
                 taskCount: tasks.length,
+                taskSource,
                 consecutiveCount: 0,
                 evaluatedAt: new Date().toISOString()
               },
@@ -211,13 +227,17 @@ async function runMorning10AmCheck(dateStr, workerId = 'system') {
         missingRequirement = 'Attendance check-in missing on or before 10:00:00 AM IST.';
       } else if (hasAttendance && !hasTasks) {
         triggerType = 'DAILY_TASK_SUBMISSION_MISSING';
-        violationLabel = 'Daily Tasks Missing';
-        missingRequirement = 'Fresh daily work tasks not uploaded in Todo before 10:00:00 AM IST.';
+        violationLabel = usesDigitalCalendar ? 'Daily Calendar Work Missing' : 'Daily Tasks Missing';
+        missingRequirement = usesDigitalCalendar
+          ? 'No work was added in the Digital Calendar for this date.'
+          : 'Fresh daily work tasks not uploaded in Todo before 10:00:00 AM IST.';
       } else {
         // Dual Violation: Both Missing -> STRICTLY ONE COMBINED TICKET
         triggerType = 'MORNING_COMPLIANCE_DUAL_VIOLATION';
         violationLabel = 'Dual Non-Compliance (Attendance & Tasks)';
-        missingRequirement = 'Both attendance check-in and fresh daily tasks were missing before 10:00:00 AM IST.';
+        missingRequirement = usesDigitalCalendar
+          ? 'Both attendance check-in and Digital Calendar work for the date were missing.'
+          : 'Both attendance check-in and fresh daily tasks were missing before 10:00:00 AM IST.';
       }
 
       // Determine Progressive Priority Level & Correction Deadline
@@ -248,6 +268,7 @@ async function runMorning10AmCheck(dateStr, workerId = 'system') {
 
       // Atomic Ticket Generation (Guaranteed Deduplication)
       let ticket;
+      let ticketCreated = false;
       try {
         const ticketNumber = await getNextTicketNumber(dateStr);
         ticket = await PerformanceTicket.create({
@@ -275,6 +296,7 @@ async function runMorning10AmCheck(dateStr, workerId = 'system') {
             checkInRecorded: hasAttendance,
             checkInTime: attendance?.startTime ? new Date(attendance.startTime).toISOString() : null,
             taskCount: tasks.length,
+            taskSource,
             consecutiveCount,
             evaluatedAt: new Date().toISOString()
           },
@@ -285,17 +307,52 @@ async function runMorning10AmCheck(dateStr, workerId = 'system') {
           }]
         });
         ticketsGeneratedCount++;
+        ticketCreated = true;
       } catch (insertErr) {
         if (insertErr.code === 11000) {
-          // Unique key constraint prevented duplicate ticket
-          ticket = await PerformanceTicket.findOne({ morningComplianceKey });
+          // A ticket already exists for this day. The reason can change later in the day
+          // (e.g. Digital Marketing added their calendar work but attendance is still missing),
+          // so an open ticket is refreshed instead of keeping a stale reason.
+          ticket = await PerformanceTicket.findOneAndUpdate(
+            { morningComplianceKey, status: 'open' },
+            {
+              $set: {
+                triggerType,
+                title,
+                description,
+                missingRequirement,
+                priority,
+                escalationLevel,
+                consecutiveCount,
+                correctionDeadline,
+                relatedAttendance: attendance ? attendance._id : null,
+                relatedTasks: tasks.map(t => t._id),
+                evidenceSnapshot: {
+                  checkInRecorded: hasAttendance,
+                  checkInTime: attendance?.startTime ? new Date(attendance.startTime).toISOString() : null,
+                  taskCount: tasks.length,
+                  taskSource,
+                  consecutiveCount,
+                  evaluatedAt: new Date().toISOString()
+                }
+              },
+              $push: {
+                timeline: {
+                  action: 're_evaluated',
+                  notes: `Re-evaluated by ${workerId}: reason now ${triggerType} (${priority.toUpperCase()}), consecutive day #${consecutiveCount}`,
+                  timestamp: new Date()
+                }
+              }
+            },
+            { new: true }
+          );
         } else {
           console.error(`[Morning Sweep Error for ${emp.name}]`, insertErr.message);
         }
       }
 
-      // Idempotent Notification Dispatch
-      if (ticket) {
+      // Idempotent Notification Dispatch (new tickets only, a refreshed reason stays silent)
+      if (notify && ticket && ticketCreated) {
         const notifIdempotency = crypto.createHash('sha256').update(`NOTIF_${emp._id}_${dateStr}_${triggerType}_${escalationLevel}`).digest('hex');
         
         // Notify employee
@@ -349,10 +406,19 @@ async function runMorning10AmCheck(dateStr, workerId = 'system') {
     }
   }
 
+  // Keep the single week and month overall tickets in step with today's daily tickets
+  let overall = null;
+  try {
+    overall = await syncOverallTickets(dateStr, { employees: activeEmployees });
+  } catch (overallErr) {
+    console.error('[Overall ticket sync]', overallErr.message);
+  }
+
   return {
     total: activeEmployees.length,
     compliant: compliantCount,
-    tickets: ticketsGeneratedCount
+    tickets: ticketsGeneratedCount,
+    overall
   };
 }
 

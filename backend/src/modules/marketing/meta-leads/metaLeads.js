@@ -1457,6 +1457,7 @@ router.patch('/:id', protect, async (req, res) => {
           user: req.user,
           lead: metaLead,
           assignedTo: metaLead.assignedTo || null,
+          campaignName: metaLead.campaignName || metaLead.campaign || '',
         });
         const assignedToId = String(metaLead.assignedTo?._id || metaLead.assignedTo || counsellor.counsellorId || '');
         // The reminder goes to the Admin and to the counsellor resolved above, even
@@ -1536,6 +1537,7 @@ router.post('/:id/call-log', protect, async (req, res) => {
           user: req.user,
           lead: metaLead,
           assignedTo: metaLead.assignedTo || null,
+          campaignName: metaLead.campaignName || metaLead.campaign || '',
         });
         const assignedToId = String(metaLead.assignedTo?._id || metaLead.assignedTo || counsellor.counsellorId || '');
         const assignedToName = personName(metaLead.assignedTo) || counsellor.counsellorName || '';

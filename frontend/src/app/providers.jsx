@@ -1,9 +1,29 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter, useNavigate } from 'react-router-dom';
-import { AuthProvider } from '../context/AuthContext';
+import { AuthProvider, useAuth } from '../context/AuthContext';
 import { Toaster } from '../components/ui/sonner';
 import leadNoteReminderService from '../services/leadNoteReminderService';
 import GlobalLeadNoteModal from '../components/common/GlobalLeadNoteModal';
+
+/**
+ * Starts the reminder engine only while a user is logged in. Before login (and
+ * right after logout) no timer, WebSocket or popup may exist.
+ */
+function ReminderServiceGate() {
+  const { user, token } = useAuth();
+  const userId = user?._id || user?.id || '';
+
+  useEffect(() => {
+    if (!userId || !token) {
+      leadNoteReminderService.stop();
+      return undefined;
+    }
+    leadNoteReminderService.init();
+    return () => leadNoteReminderService.stop();
+  }, [userId, token]);
+
+  return null;
+}
 
 function CallbackToastRedirectHandler() {
   const navigate = useNavigate();
@@ -88,13 +108,9 @@ function CallbackToastRedirectHandler() {
 }
 
 export function AppProviders({ children }) {
-  useEffect(() => {
-    leadNoteReminderService.init();
-    return () => leadNoteReminderService.stop();
-  }, []);
-
   return (
     <AuthProvider>
+      <ReminderServiceGate />
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <CallbackToastRedirectHandler />
         <GlobalLeadNoteModal />

@@ -7,6 +7,11 @@ const Todo = require('../../../database/models/Todo');
 const PerformanceTicket = require('../../../database/models/PerformanceTicket');
 const ComplianceJobState = require('../../../database/models/ComplianceJobState');
 const { runMorning10AmCheck } = require('../../../jobs/workers/morningComplianceChecker');
+const {
+  isDigitalCalendarUser,
+  findCalendarTasksForDay,
+  getLatestCalendarActivity
+} = require('../../../core/utils/digitalCalendarTasks');
 
 /**
  * GET /api/performance/compliance/today
@@ -23,7 +28,15 @@ router.get('/today', protect, async (req, res) => {
     // If viewing today and past 10:00 AM IST, ensure the morning sweep has been evaluated
     if (isToday && istTimeStr >= '10:00:00') {
       const state = await ComplianceJobState.findOne({ jobName: 'MORNING_10AM_COMPLIANCE', date: todayStr });
-      if (!state || state.status !== 'completed') {
+      let needsSweep = !state || state.status !== 'completed';
+      if (!needsSweep) {
+        // A late Digital Calendar entry for today changes the marketing team's verdict
+        const latestCalendarWrite = await getLatestCalendarActivity(todayStr);
+        needsSweep = Boolean(latestCalendarWrite) && (
+          !state.lastRunCompletedAt || new Date(latestCalendarWrite) > new Date(state.lastRunCompletedAt)
+        );
+      }
+      if (needsSweep) {
         try {
           await runMorning10AmCheck(todayStr, 'auto_today_query');
           await ComplianceJobState.findOneAndUpdate(
@@ -42,8 +55,11 @@ router.get('/today', protect, async (req, res) => {
 
     const totalActive = activeEmployees.length;
 
-    // Tickets generated for today
-    const tickets = await PerformanceTicket.find({ incidentDate: todayStr });
+    // Tickets generated for today (week/month overall summaries are not day incidents)
+    const tickets = await PerformanceTicket.find({
+      incidentDate: todayStr,
+      triggerType: { $nin: ['WEEK_OVERALL_VIOLATION', 'MONTH_OVERALL_VIOLATION'] }
+    });
     const dualViolations = tickets.filter(t => t.triggerType === 'MORNING_COMPLIANCE_DUAL_VIOLATION').length;
     const attendanceMissingTickets = tickets.filter(t => t.triggerType === 'ATTENDANCE_NON_COMPLIANCE').length;
     const taskMissingTickets = tickets.filter(t => t.triggerType === 'DAILY_TASK_SUBMISSION_MISSING').length;
@@ -104,16 +120,24 @@ router.get('/my-status', protect, async (req, res) => {
     const attendanceMarked = !!attendance;
     const attendanceOnTime = attendance && new Date(attendance.startTime) <= cutoff10Am;
 
-    // Checkpoint 1: Tasks
-    const tasks = await Todo.find({
-      assignedTo: userId,
-      $or: [
-        { scheduledAt: { $gte: startOfDay, $lte: endOfDay } },
-        { scheduledAt: null, createdAt: { $gte: startOfDay, $lte: endOfDay } }
-      ]
-    }).select('_id title status note comments activityHistory createdAt');
+    // Checkpoint 1: Tasks (Digital Marketing staff work from the Digital Calendar)
+    const usesDigitalCalendar = isDigitalCalendarUser(req.user);
+    const tasks = usesDigitalCalendar
+      ? []
+      : await Todo.find({
+          assignedTo: userId,
+          $or: [
+            { scheduledAt: { $gte: startOfDay, $lte: endOfDay } },
+            { scheduledAt: null, createdAt: { $gte: startOfDay, $lte: endOfDay } }
+          ]
+        }).select('_id title status note comments activityHistory createdAt');
+    const calendarTasks = usesDigitalCalendar
+      ? await findCalendarTasksForDay(userId, todayStr)
+      : [];
 
-    const tasksUploadedOnTime = tasks.some(t => new Date(t.createdAt) <= cutoff10Am);
+    const tasksUploadedOnTime = usesDigitalCalendar
+      ? calendarTasks.length > 0
+      : tasks.some(t => new Date(t.createdAt) <= cutoff10Am);
 
     // Checkpoint 2: Tasks un-updated for logout
     const unupdatedTasks = [];
@@ -137,7 +161,8 @@ router.get('/my-status', protect, async (req, res) => {
     // Tickets for today
     const myTickets = await PerformanceTicket.find({
       employee: userId,
-      incidentDate: todayStr
+      incidentDate: todayStr,
+      triggerType: { $nin: ['WEEK_OVERALL_VIOLATION', 'MONTH_OVERALL_VIOLATION'] }
     });
 
     res.json({
@@ -148,7 +173,9 @@ router.get('/my-status', protect, async (req, res) => {
         attendanceOnTime,
         checkInTime: attendance?.startTime || null,
         tasksUploadedOnTime,
-        taskCount: tasks.length
+        taskCount: usesDigitalCalendar ? calendarTasks.length : tasks.length,
+        taskSource: usesDigitalCalendar ? 'digital-calendar' : 'todo',
+        taskTitles: (usesDigitalCalendar ? calendarTasks : tasks).slice(0, 5).map(t => t.content_title || t.title).filter(Boolean)
       },
       checkpoint2: {
         canLogoutSafely: unupdatedTasks.length === 0,

@@ -10,6 +10,13 @@ const PerformanceTicket = require('../../../database/models/PerformanceTicket');
 const PerformanceAuditLog = require('../../../database/models/PerformanceAuditLog');
 const ComplianceJobState = require('../../../database/models/ComplianceJobState');
 const { runMorning10AmCheck } = require('../../../jobs/workers/morningComplianceChecker');
+const {
+  isDigitalCalendarUser,
+  findCalendarTasksForDay,
+  findCalendarTasksForRange,
+  getLatestCalendarActivity,
+  calendarCompletionWeight
+} = require('../../../core/utils/digitalCalendarTasks');
 
 /**
  * Natural employee ID comparator (AOTMS-01, AOTMS-02, ..., AOTMS-10)
@@ -31,28 +38,38 @@ async function computeDailyEmployeeScore(employee, dateStr) {
   const endOfDay = new Date(`${dateStr}T23:59:59.999+05:30`);
 
   // Pillar 1: Task Completion (30%) - Includes tasks created today or in advance
-  const dailyTasks = await Todo.find({
-    $and: [
-      {
-        $or: [
-          { assignedTo: employee._id },
-          { createdBy: employee._id }
+  // Digital Marketing staff are scored from their Digital Calendar content, everybody else from Todo.
+  const usesDigitalCalendar = isDigitalCalendarUser(employee);
+  const dailyTasks = usesDigitalCalendar
+    ? []
+    : await Todo.find({
+        $and: [
+          {
+            $or: [
+              { assignedTo: employee._id },
+              { createdBy: employee._id }
+            ]
+          },
+          {
+            $or: [
+              { scheduledAt: { $gte: startOfDay, $lte: endOfDay } },
+              { dueDate: { $gte: startOfDay, $lte: endOfDay } },
+              { createdAt: { $gte: startOfDay, $lte: endOfDay } },
+              { completedAt: { $gte: startOfDay, $lte: endOfDay } },
+              { status: { $in: ['upcoming', 'pending', 'in_progress', 'done', 'completed'] } }
+            ]
+          }
         ]
-      },
-      {
-        $or: [
-          { scheduledAt: { $gte: startOfDay, $lte: endOfDay } },
-          { dueDate: { $gte: startOfDay, $lte: endOfDay } },
-          { createdAt: { $gte: startOfDay, $lte: endOfDay } },
-          { completedAt: { $gte: startOfDay, $lte: endOfDay } },
-          { status: { $in: ['upcoming', 'pending', 'in_progress', 'done', 'completed'] } }
-        ]
-      }
-    ]
-  }).select('status note comments');
+      }).select('status note comments');
+  const calendarItems = usesDigitalCalendar
+    ? await findCalendarTasksForRange(employee._id, dateStr, dateStr)
+    : [];
 
   let taskScore = 85.00; // Baseline when zero tasks assigned
-  if (dailyTasks.length > 0) {
+  if (usesDigitalCalendar && calendarItems.length > 0) {
+    const completedPoints = calendarItems.reduce((sum, item) => sum + calendarCompletionWeight(item), 0);
+    taskScore = Number(((completedPoints / calendarItems.length) * 100).toFixed(2));
+  } else if (dailyTasks.length > 0) {
     let completedPoints = 0;
     dailyTasks.forEach(t => {
       const isDone = t.status === 'completed' || t.status === 'done';
@@ -183,7 +200,16 @@ router.get('/roster', protect, async (req, res) => {
     // If past 10:00 AM on today, ensure morning compliance sweep has run
     if (isToday && istTimeStr >= '10:00:00') {
       const state = await ComplianceJobState.findOne({ jobName: 'MORNING_10AM_COMPLIANCE', date: dateStr });
-      if (!state || state.status !== 'completed') {
+      let needsSweep = !state || state.status !== 'completed';
+      if (!needsSweep) {
+        // A Digital Calendar entry added after the sweep changes the marketing team's verdict,
+        // so the sweep is re-run once the calendar was touched again.
+        const latestCalendarWrite = await getLatestCalendarActivity(dateStr);
+        needsSweep = Boolean(latestCalendarWrite) && (
+          !state.lastRunCompletedAt || new Date(latestCalendarWrite) > new Date(state.lastRunCompletedAt)
+        );
+      }
+      if (needsSweep) {
         try {
           await runMorning10AmCheck(dateStr, 'roster_auto_sweep');
           await ComplianceJobState.findOneAndUpdate(
@@ -202,8 +228,11 @@ router.get('/roster', protect, async (req, res) => {
     }
     const allEmployees = await User.find(userQuery).select('_id name email employeeId department avatar designation role');
 
-    // Fetch all tickets for today
-    const ticketsToday = await PerformanceTicket.find({ incidentDate: dateStr })
+    // Fetch all tickets for today (overall week/month tickets are period summaries, not day incidents)
+    const ticketsToday = await PerformanceTicket.find({
+      incidentDate: dateStr,
+      triggerType: { $nin: ['WEEK_OVERALL_VIOLATION', 'MONTH_OVERALL_VIOLATION'] }
+    })
       .select('ticketNumber employee employeeName employeeCode department triggerType priority status missingRequirement title description employeeExplanation isDisputed resolutionNotes correctiveActionPlan createdAt consecutiveCount correctionDeadline isAcknowledged acknowledgedAt hrRemarks isOverridden overrideReason assignedManager assignedTo');
 
     // Build map of tickets per employee
@@ -262,28 +291,33 @@ router.get('/roster', protect, async (req, res) => {
         startTime: { $lte: cutoff10Am }
       }).select('startTime status');
 
-      const morningTasks = await Todo.find({
-        $and: [
-          {
-            $or: [
-              { assignedTo: emp._id },
-              { createdBy: emp._id }
+      // Digital Marketing staff plan their day in the Digital Calendar, not in Todo
+      const usesDigitalCalendarForEmp = isDigitalCalendarUser(emp);
+
+      const morningTasks = usesDigitalCalendarForEmp
+        ? await findCalendarTasksForDay(emp._id, dateStr)
+        : await Todo.find({
+            $and: [
+              {
+                $or: [
+                  { assignedTo: emp._id },
+                  { createdBy: emp._id }
+                ]
+              },
+              {
+                createdAt: { $lte: cutoff10Am }
+              },
+              {
+                $or: [
+                  { scheduledAt: { $gte: startOfDay, $lte: endOfDay } },
+                  { dueDate: { $gte: startOfDay, $lte: endOfDay } },
+                  { createdAt: { $gte: startOfDay, $lte: cutoff10Am } },
+                  { completedAt: { $gte: startOfDay, $lte: cutoff10Am } },
+                  { status: { $in: ['upcoming', 'pending', 'in_progress'] } }
+                ]
+              }
             ]
-          },
-          {
-            createdAt: { $lte: cutoff10Am }
-          },
-          {
-            $or: [
-              { scheduledAt: { $gte: startOfDay, $lte: endOfDay } },
-              { dueDate: { $gte: startOfDay, $lte: endOfDay } },
-              { createdAt: { $gte: startOfDay, $lte: cutoff10Am } },
-              { completedAt: { $gte: startOfDay, $lte: cutoff10Am } },
-              { status: { $in: ['upcoming', 'pending', 'in_progress'] } }
-            ]
-          }
-        ]
-      }).select('_id title status');
+          }).select('_id title status');
 
       const hasAtt = !!attRecord;
       const hasTask = morningTasks.length > 0;
@@ -294,6 +328,8 @@ router.get('/roster', protect, async (req, res) => {
         checkInTime: attRecord?.startTime ? new Date(attRecord.startTime).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' }) : null,
         hasTasks: hasTask,
         taskCount: morningTasks.length,
+        taskSource: usesDigitalCalendarForEmp ? 'digital-calendar' : 'todo',
+        taskTitles: morningTasks.slice(0, 3).map((t) => t.title || t.content_title).filter(Boolean),
         isCompliant
       };
 
