@@ -39,12 +39,25 @@ jobs:
             sed -i '/N8N_META_LEADS_WEBHOOK_URL/d' backend/.env || true
             sed -i '/N8N_META_LEADS_WORKFLOW_ID/d' backend/.env || true
 
-            # `--wait` blocks until every service resolves its health condition, so a
-            # recreate that comes up dead fails this step instead of turning the
-            # pipeline green over a 502. Its exit code is captured rather than
-            # raised, so the diagnostics below always run.
-            docker compose up -d --build --remove-orphans --wait --wait-timeout 180
+            # `--wait` cannot be used here: the worker deliberately ships with its
+            # healthcheck disabled (it has no HTTP listener), and compose aborts the
+            # whole run with "container aotms-worker has no healthcheck configured"
+            # even when every container is fine. Wait on the API container instead.
+            # Its exit code is captured rather than raised, so the diagnostics below
+            # always run.
+            docker compose up -d --build --remove-orphans
             compose_rc=$?
+
+            echo "[CI/CD] Waiting for backend health (max 180s)..."
+            healthy="no"
+            i=1
+            while [ "$i" -le 45 ]; do
+              status=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' aotms-backend 2>/dev/null || echo missing)
+              if [ "$status" = "healthy" ]; then healthy="yes"; break; fi
+              if [ "$status" = "missing" ]; then break; fi
+              sleep 4
+              i=$((i + 1))
+            done
 
             # Always dump state, resources and logs: the previous version printed
             # only "container is unhealthy" and nothing else, which told us nothing
@@ -61,8 +74,8 @@ jobs:
             echo "[CI/CD] Worker logs (last 80 lines):"
             docker compose logs --tail=80 worker || true
 
-            if [ "$compose_rc" -ne 0 ]; then
-              echo "[CI/CD] FAILED: stack did not come up healthy (compose exit ${compose_rc})."
+            if [ "$compose_rc" -ne 0 ] || [ "$healthy" != "yes" ]; then
+              echo "[CI/CD] FAILED: backend did not become healthy (compose exit ${compose_rc}, health ${status})."
               exit 1
             fi
 
