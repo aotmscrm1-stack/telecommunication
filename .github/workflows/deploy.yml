@@ -24,7 +24,11 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           password: ${{ secrets.VPS_PASSWORD }}
           port: ${{ secrets.VPS_PORT || 22 }}
-          script_stop: true
+          # Must stay false: with script_stop the shell dies at the first failing
+          # command, which is docker compose up — before any diagnostics run. That
+          # is why three failed deploys printed no backend logs at all. Errors are
+          # handled explicitly below instead.
+          script_stop: false
           script: |
             echo "🚀 [CI/CD] Starting automated deployment on Bluehost VPS..."
             cd /var/www/aotms/telecommunication
@@ -35,27 +39,30 @@ jobs:
             sed -i '/N8N_META_LEADS_WEBHOOK_URL/d' backend/.env || true
             sed -i '/N8N_META_LEADS_WORKFLOW_ID/d' backend/.env || true
 
-            docker compose up -d --build --remove-orphans
+            # `--wait` blocks until every service resolves its health condition, so a
+            # recreate that comes up dead fails this step instead of turning the
+            # pipeline green over a 502. Its exit code is captured rather than
+            # raised, so the diagnostics below always run.
+            docker compose up -d --build --remove-orphans --wait --wait-timeout 180
+            compose_rc=$?
 
-            # A recreate can fail after the old container is already gone (e.g. an
-            # invalid CPU/memory limit), which used to leave a green pipeline over
-            # a dead backend. Verify health and fail loudly instead.
-            echo "[CI/CD] Waiting for backend health..."
-            healthy=""
-            i=1
-            while [ "$i" -le 30 ]; do
-              status=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' aotms-backend 2>/dev/null || echo missing)
-              if [ "$status" = "healthy" ]; then healthy="yes"; break; fi
-              if [ "$status" = "missing" ]; then break; fi
-              sleep 4
-              i=$((i + 1))
-            done
+            # Always dump state, resources and logs: the previous version printed
+            # only "container is unhealthy" and nothing else, which told us nothing
+            # about why the process died.
+            echo "[CI/CD] Container state:"
+            docker compose ps -a || true
+            echo "[CI/CD] Backend state:"
+            docker inspect --format 'status={{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}} restarts={{.RestartCount}}' aotms-backend || true
+            echo "[CI/CD] Host resources:"
+            free -h || true
+            df -h / || true
+            echo "[CI/CD] Backend logs (last 200 lines):"
+            docker compose logs --tail=200 backend || true
+            echo "[CI/CD] Worker logs (last 80 lines):"
+            docker compose logs --tail=80 worker || true
 
-            docker compose ps
-
-            if [ -z "$healthy" ]; then
-              echo "[CI/CD] FAILED: backend did not become healthy."
-              docker compose logs --tail=120 backend || true
+            if [ "$compose_rc" -ne 0 ]; then
+              echo "[CI/CD] FAILED: stack did not come up healthy (compose exit ${compose_rc})."
               exit 1
             fi
 
