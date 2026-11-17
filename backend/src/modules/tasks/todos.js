@@ -288,6 +288,9 @@ router.post('/', protect, async (req, res) => {
       createdBy: req.user._id,
       assignedTo: assignedToVal,
       assignedBy: assignedByVal,
+      // Anchor the date the todo was created FOR. Completed History groups a
+      // todo under this date, not under the date it was later marked complete.
+      initialScheduledAt: req.body.initialScheduledAt || req.body.scheduledAt || req.body.dueDate || undefined,
     };
     const todo = await Todo.create(baseDoc);
     await todo.populate('assignedTo', 'name email');

@@ -34,22 +34,35 @@ function getLocalDateKey(dateStr) {
   return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 }
 
-// Authoritative date key for completed todos (strictly completion date first)
+// Authoritative date key for todos in Completed History.
+// A completed todo is grouped under the date it was CREATED FOR, never the date
+// an admin happened to confirm it. completedAt is only a last-resort fallback
+// for legacy records that carry no scheduling information at all.
 export function getCompletedTodoDateKey(t) {
   if (!t) return '';
-  if (t.completedAt) {
-    const k = getLocalDateKey(t.completedAt);
-    if (k) return k;
-  }
-  if (t.initialScheduledAt) {
-    const k = getLocalDateKey(t.initialScheduledAt);
-    if (k) return k;
-  }
-  if (t.createdAt) {
-    const k = getLocalDateKey(t.createdAt);
-    if (k) return k;
-  }
-  return getLocalDateKey(t.scheduledAt || t.dueDate);
+  const todoDate = t.initialScheduledAt || t.scheduledAt || t.dueDate || t.createdAt;
+  const k = getLocalDateKey(todoDate);
+  if (k) return k;
+  return getLocalDateKey(t.completedAt);
+}
+
+// Convert a YYYY-MM-DD key back into a local Date (avoids any UTC shift)
+function dateFromDateKey(key) {
+  if (!key) return null;
+  const [y, m, d] = String(key).split('-').map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d);
+}
+
+// The date a todo belongs to on the calendar: its own scheduled date in active
+// mode, its history (created-for) date key in history mode
+function getTodoCalendarDate(t, historyMode) {
+  if (!t) return null;
+  if (historyMode) return dateFromDateKey(getCompletedTodoDateKey(t));
+  const raw = t.scheduledAt || t.dueDate || t.createdAt;
+  if (!raw) return null;
+  const d = new Date(raw);
+  return isNaN(d.getTime()) ? null : d;
 }
 
 // Helper for IST Date formatting
@@ -347,10 +360,10 @@ function RealWorldCalendar({
       if (!isNaN(d.getTime())) return d;
     }
     if (tasks && tasks.length > 0) {
-      const tWithDate = tasks.find(t => t.scheduledAt || t.dueDate || t.createdAt);
+      const tWithDate = tasks.find(t => getTodoCalendarDate(t, historyMode));
       if (tWithDate) {
-        const d = new Date(tWithDate.scheduledAt || tWithDate.dueDate || tWithDate.createdAt);
-        if (!isNaN(d.getTime())) return d;
+        const d = getTodoCalendarDate(tWithDate, historyMode);
+        if (d) return d;
       }
     }
     return new Date();
@@ -362,13 +375,13 @@ function RealWorldCalendar({
       const d = new Date(selectedDate);
       if (!isNaN(d.getTime())) setViewDate(d);
     } else if (tasks && tasks.length > 0) {
-      const tWithDate = tasks.find(t => t.scheduledAt || t.dueDate || t.createdAt);
+      const tWithDate = tasks.find(t => getTodoCalendarDate(t, historyMode));
       if (tWithDate) {
-        const d = new Date(tWithDate.scheduledAt || tWithDate.dueDate || tWithDate.createdAt);
-        if (!isNaN(d.getTime())) setViewDate(d);
+        const d = getTodoCalendarDate(tWithDate, historyMode);
+        if (d) setViewDate(d);
       }
     }
-  }, [selectedDate, tasks.length]);
+  }, [selectedDate, tasks.length, historyMode]);
 
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
@@ -925,9 +938,13 @@ export default function TodoList({
     return true;
   });
 
-  // Sort filtered todos: in history mode, newest completed first; in active mode, earliest due first
+  // Sort filtered todos: in history mode, newest todo date first (with most recently
+  // completed first inside the same date); in active mode, earliest due first
   filteredTodos.sort((a, b) => {
     if (historyMode) {
+      const keyA = getCompletedTodoDateKey(a);
+      const keyB = getCompletedTodoDateKey(b);
+      if (keyA !== keyB) return keyB.localeCompare(keyA);
       const timeA = new Date(a.completedAt || a.updatedAt || a.createdAt || 0).getTime();
       const timeB = new Date(b.completedAt || b.updatedAt || b.createdAt || 0).getTime();
       return timeB - timeA;
@@ -1122,7 +1139,9 @@ export default function TodoList({
                   <div className="flex items-center justify-between text-xs text-slate-500">
                     <span className="flex items-center gap-1.5 font-medium">
                       <Calendar size={13} className="text-indigo-500" />
-                      {t.scheduledAt ? formatIST(t.scheduledAt) : 'No due date'}
+                      {historyMode
+                        ? (formatISTDate(getCompletedTodoDateKey(t)) || 'No due date')
+                        : (t.scheduledAt ? formatIST(t.scheduledAt) : 'No due date')}
                     </span>
 
                     {isLate && (
