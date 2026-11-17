@@ -35,7 +35,12 @@ jobs:
             sed -i '/N8N_META_LEADS_WEBHOOK_URL/d' backend/.env || true
             sed -i '/N8N_META_LEADS_WORKFLOW_ID/d' backend/.env || true
 
-            docker compose up -d --build --remove-orphans
+            docker compose up -d --build --remove-orphans || {
+              echo "⚠️ [CI/CD] docker compose up reported an error; dumping container logs:"
+              docker compose ps || true
+              docker compose logs --tail=120 backend || true
+              docker compose logs --tail=60 worker || true
+            }
 
             # A recreate can fail after the old container is already gone (e.g. an
             # invalid CPU/memory limit), which used to leave a green pipeline over

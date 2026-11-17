@@ -1,5 +1,3 @@
-const { initializeApp, cert, getApps } = require('firebase-admin/app');
-const { getMessaging } = require('firebase-admin/messaging');
 const fs = require('fs');
 const path = require('path');
 const User = require('../../database/models/User');
@@ -15,14 +13,17 @@ function initFirebase() {
     return true;
   }
 
-  const existingApps = getApps();
-  if (existingApps.length > 0) {
-    firebaseApp = existingApps[0];
-    messagingInstance = getMessaging(firebaseApp);
-    return true;
-  }
-
   try {
+    const { initializeApp, cert, getApps } = require('firebase-admin/app');
+    const { getMessaging } = require('firebase-admin/messaging');
+
+    const existingApps = getApps();
+    if (existingApps.length > 0) {
+      firebaseApp = existingApps[0];
+      messagingInstance = getMessaging(firebaseApp);
+      return true;
+    }
+
     let serviceAccount = null;
 
     // 1. Check FIREBASE_SERVICE_ACCOUNT_JSON in environment

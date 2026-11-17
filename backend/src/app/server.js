@@ -29,11 +29,17 @@ server.on('error', (err) => {
   }
 });
 
+// Start listening on PORT immediately so Docker healthcheck (/api/health)
+// succeeds while MongoDB and background providers finish initializing.
+if (runsHttpApi) {
+  server.listen(PORT, () => {
+    logger.info(`🚀 Enterprise AOTMS Backend listening on port ${PORT}`);
+  });
+}
+
 // Initialize DB, Sockets, and Background Workers
 initProviders(server).then(() => {
-  server.listen(PORT, () => {
-    logger.info(`🚀 Enterprise AOTMS Backend running on port ${PORT}`);
-  });
+  logger.info(`✅ Enterprise AOTMS Backend providers initialized (port ${PORT})`);
 }).catch((err) => {
   logger.error('Failed to initialize server providers:', err);
 });

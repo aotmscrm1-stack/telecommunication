@@ -1,12 +1,12 @@
 # Stage 1: Dependencies installation
-FROM node:20-alpine AS dependencies
+FROM node:22-alpine AS dependencies
 WORKDIR /app
 RUN apk add --no-cache python3 make g++
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci --omit=dev --no-audit --no-fund || npm install --omit=dev --no-audit --no-fund
 
 # Stage 2: Production runtime
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=5000

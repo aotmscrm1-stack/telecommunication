@@ -74,16 +74,16 @@ async function stopBackgroundServices() {
 const isStopping = () => isShuttingDown;
 
 const initProviders = async (server) => {
-  // 1. Database. Required by both roles; the worker has no HTTP listener but
-  // needs Mongo for the lease, the schedulers and the model queries.
-  await connectDB();
-
-  // 2. WebSockets belong to the process that also serves HTTP requests.
+  // 1. WebSockets belong to the process that also serves HTTP requests.
   if (runsHttpApi && server) {
     initWebSocketServer(server);
     initTrackingSocketServer(server);
     logger.info('WebSocket and Tracking Socket servers initialized');
   }
+
+  // 2. Database. Required by both roles; the worker has no HTTP listener but
+  // needs Mongo for the lease, the schedulers and the model queries.
+  await connectDB();
 
   // 3. Background schedulers (worker role, or `all`).
   await startBackgroundServices();

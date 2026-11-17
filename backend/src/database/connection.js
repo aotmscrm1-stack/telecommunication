@@ -1,10 +1,13 @@
 const mongoose = require('mongoose');
 const dns = require('dns');
 
-// Fix for "querySrv ECONNREFUSED" on Windows — use reliable multi-DNS servers
-try {
-  dns.setServers(['1.1.1.1', '8.8.8.8', '1.0.0.1', '8.8.4.4']);
-} catch (_) {}
+// Fix for "querySrv ECONNREFUSED" on Windows only — do not override Docker's
+// embedded DNS (127.0.0.11) inside Linux containers on the VPS.
+if (process.platform === 'win32') {
+  try {
+    dns.setServers(['1.1.1.1', '8.8.8.8', '1.0.0.1', '8.8.4.4']);
+  } catch (_) {}
+}
 
 let memoryServer;
 
