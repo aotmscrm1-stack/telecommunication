@@ -125,8 +125,8 @@ export const RelievingLetterDocument = forwardRef(({ invoiceData = {}, isPreview
     backgroundColor: '#ffffff',
     color: '#000000',
     fontFamily: "'Inter', sans-serif",
-    fontSize: '12.5px',
-    lineHeight: '1.6',
+    fontSize: '18.5px',
+    lineHeight: '1.68',
     width: '794px',
     minHeight: '1123px',
     boxSizing: 'border-box',
@@ -141,7 +141,7 @@ export const RelievingLetterDocument = forwardRef(({ invoiceData = {}, isPreview
     border: '1px solid #000000',
     minHeight: '1091px',
     boxSizing: 'border-box',
-    padding: '26px 32px',
+    padding: '32px 42px',
     display: 'flex',
     flexDirection: 'column',
     position: 'relative',
@@ -159,19 +159,19 @@ export const RelievingLetterDocument = forwardRef(({ invoiceData = {}, isPreview
               flexDirection: 'column',
               alignItems: 'center',
               borderBottom: '1px solid #000000',
-              paddingBottom: 8,
-              marginBottom: 12,
+              paddingBottom: 6,
+              marginBottom: 10,
             }}
           >
             <img
               src={logoImg}
               alt={`${company} logo`}
-              style={{ height: 42, objectFit: 'contain', marginBottom: 3, display: 'block' }}
+              style={{ height: 116, objectFit: 'contain', marginBottom: 7, display: 'block' }}
               onError={(e) => {
                 e.target.src = atmLogoImg;
               }}
             />
-            <div style={{ textAlign: 'center', fontSize: 11.5, color: '#111827' }}>
+            <div style={{ textAlign: 'center', fontSize: 14.5, color: '#111827' }}>
               <span>Phone: {d.phone || '8019942233'}</span>
               <span style={{ margin: '0 8px', color: '#9ca3af' }}>|</span>
               <span>
@@ -184,10 +184,10 @@ export const RelievingLetterDocument = forwardRef(({ invoiceData = {}, isPreview
           </div>
 
           {/* Title */}
-          <div style={{ textAlign: 'center', marginBottom: 10 }}>
+          <div style={{ textAlign: 'center', marginBottom: 12 }}>
             <span
               style={{
-                fontSize: '17px',
+                fontSize: '30px',
                 fontWeight: 700,
                 textDecoration: 'underline',
                 color: '#000000',
@@ -199,53 +199,53 @@ export const RelievingLetterDocument = forwardRef(({ invoiceData = {}, isPreview
           </div>
 
           {/* Date */}
-          <div style={{ textAlign: 'right', fontSize: 12, color: '#111827', marginBottom: 10 }}>
+          <div style={{ textAlign: 'right', fontSize: 17, color: '#111827', marginBottom: 16 }}>
             Date: {d.letter_date || todayLong()}
           </div>
 
           {/* Addressee */}
-          <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 12 }}>{d.addressee || 'To Whom It May Concern'}</div>
+          <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 18 }}>{d.addressee || 'To Whom It May Concern'}</div>
 
           {/* Body */}
           <div style={{ textAlign: 'justify', color: '#111827' }}>
-            <p style={{ margin: '0 0 10px 0' }}>
+            <p style={{ margin: '0 0 16px 0' }}>
               This is to certify that {honorific} {employeeName} was employed with {company} as {articleFor(designation)}{' '}
               {designation} from {joiningDate} to {relievingDate}.
             </p>
 
-            <p style={{ margin: '0 0 10px 0' }}>
+            <p style={{ margin: '0 0 16px 0' }}>
               We hereby confirm that {honorific} {shortName} has been formally relieved from {p.poss} duties and
               responsibilities with {company}, effective {relievingDate}.
             </p>
 
-            <p style={{ margin: '0 0 10px 0' }}>
+            <p style={{ margin: '0 0 16px 0' }}>
               During {p.poss} tenure with the organization, {p.subj} performed {p.poss} assigned responsibilities with
               dedication and contributed to the best of {p.poss} abilities. We appreciate {p.poss} efforts and
               contributions during {p.poss} association with us.
             </p>
 
-            {d.remarks && <p style={{ margin: '0 0 10px 0' }}>{d.remarks}</p>}
+            {d.remarks && <p style={{ margin: '0 0 16px 0' }}>{d.remarks}</p>}
 
-            <p style={{ margin: '0 0 10px 0' }}>
+            <p style={{ margin: '0 0 16px 0' }}>
               We wish {p.obj} continued success and all the very best in {p.poss} future professional endeavors.
             </p>
           </div>
 
           {/* Sign-off */}
-          <div style={{ marginTop: 24 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 600 }}>For {company}</div>
+          <div style={{ marginTop: 34 }}>
+            <div style={{ fontSize: 17, fontWeight: 600 }}>For {company}</div>
 
             <div
               style={{
                 position: 'relative',
-                margin: '6px 0 2px',
-                width: 140,
-                height: 76,
+                margin: '10px 0 2px',
+                width: 184,
+                height: 108,
                 display: 'flex',
                 alignItems: 'center',
               }}
             >
-              <img src={aotmsStampImg} alt="AOTMS Stamp" style={{ width: 74, height: 74, objectFit: 'contain' }} />
+              <img src={aotmsStampImg} alt="AOTMS Stamp" style={{ width: 104, height: 104, objectFit: 'contain' }} />
               <img
                 src={signatureImg}
                 alt="Authorised signature"
@@ -254,7 +254,7 @@ export const RelievingLetterDocument = forwardRef(({ invoiceData = {}, isPreview
                   top: '50%',
                   left: '50%',
                   transform: 'translate(-50%, -50%)',
-                  width: 130,
+                  width: 176,
                   height: 'auto',
                   objectFit: 'contain',
                   mixBlendMode: 'multiply',
@@ -264,13 +264,13 @@ export const RelievingLetterDocument = forwardRef(({ invoiceData = {}, isPreview
             </div>
 
             {d.signatory_name && (
-              <div style={{ fontSize: 12.5, fontWeight: 600, color: '#1e293b' }}>{d.signatory_name}</div>
+              <div style={{ fontSize: 17, fontWeight: 600, color: '#1e293b' }}>{d.signatory_name}</div>
             )}
             {d.signatory_designation && (
-              <div style={{ fontSize: 11.5, color: '#475569' }}>{d.signatory_designation}</div>
+              <div style={{ fontSize: 14.5, color: '#475569' }}>{d.signatory_designation}</div>
             )}
-            {d.signatory_contact && <div style={{ fontSize: 11.5, color: '#475569' }}>{d.signatory_contact}</div>}
-            {d.phone && <div style={{ fontSize: 11.5, color: '#475569' }}>{d.phone}</div>}
+            {d.signatory_contact && <div style={{ fontSize: 14.5, color: '#475569' }}>{d.signatory_contact}</div>}
+            {d.phone && <div style={{ fontSize: 14.5, color: '#475569' }}>{d.phone}</div>}
           </div>
 
           {/* Footer */}
@@ -281,7 +281,7 @@ export const RelievingLetterDocument = forwardRef(({ invoiceData = {}, isPreview
               borderTop: '1px solid #94a3b8',
               display: 'flex',
               justifyContent: 'space-between',
-              fontSize: 11,
+              fontSize: 13,
               color: '#64748b',
             }}
           >

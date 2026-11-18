@@ -139,8 +139,8 @@ export const ExperienceLetterDocument = forwardRef(({ invoiceData = {}, isPrevie
     backgroundColor: '#ffffff',
     color: '#000000',
     fontFamily: "'Inter', sans-serif",
-    fontSize: '12.5px',
-    lineHeight: '1.5',
+    fontSize: '15px',
+    lineHeight: '1.44',
     width: '794px',
     minHeight: '1123px',
     boxSizing: 'border-box',
@@ -155,14 +155,12 @@ export const ExperienceLetterDocument = forwardRef(({ invoiceData = {}, isPrevie
     border: '1px solid #000000',
     minHeight: '1091px',
     boxSizing: 'border-box',
-    padding: '26px 32px',
+    padding: '24px 28px',
     display: 'flex',
     flexDirection: 'column',
     position: 'relative',
     background: '#ffffff',
   };
-
-  const sectionTitle = { fontSize: 12.5, fontWeight: 700, textDecoration: 'underline', marginBottom: 4 };
 
   return (
     <div ref={ref} style={{ width: '100%', maxWidth: '810px', margin: '0 auto', boxSizing: 'border-box' }}>
@@ -175,19 +173,19 @@ export const ExperienceLetterDocument = forwardRef(({ invoiceData = {}, isPrevie
               flexDirection: 'column',
               alignItems: 'center',
               borderBottom: '1px solid #000000',
-              paddingBottom: 8,
-              marginBottom: 12,
+              paddingBottom: 6,
+              marginBottom: 9,
             }}
           >
             <img
               src={logoImg}
               alt={`${company} logo`}
-              style={{ height: 42, objectFit: 'contain', marginBottom: 3, display: 'block' }}
+              style={{ height: 74, objectFit: 'contain', marginBottom: 5, display: 'block' }}
               onError={(e) => {
                 e.target.src = atmLogoImg;
               }}
             />
-            <div style={{ textAlign: 'center', fontSize: 11.5, color: '#111827' }}>
+            <div style={{ textAlign: 'center', fontSize: 13.5, color: '#111827' }}>
               <span>Phone: {d.phone || '+91 80199-42233'}</span>
               <span style={{ margin: '0 8px', color: '#9ca3af' }}>|</span>
               <span>
@@ -200,10 +198,10 @@ export const ExperienceLetterDocument = forwardRef(({ invoiceData = {}, isPrevie
           </div>
 
           {/* Title */}
-          <div style={{ textAlign: 'center', marginBottom: 10 }}>
+          <div style={{ textAlign: 'center', marginBottom: 11 }}>
             <span
               style={{
-                fontSize: '17px',
+                fontSize: '23px',
                 fontWeight: 700,
                 textDecoration: 'underline',
                 color: '#000000',
@@ -215,36 +213,36 @@ export const ExperienceLetterDocument = forwardRef(({ invoiceData = {}, isPrevie
           </div>
 
           {/* Date */}
-          <div style={{ textAlign: 'right', fontSize: 12, color: '#111827', marginBottom: 10 }}>
+          <div style={{ textAlign: 'right', fontSize: 14.5, color: '#111827', marginBottom: 10 }}>
             Date: {d.letter_date || todayLong()}
           </div>
 
           {/* Recipient */}
           <div style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 12.5, color: '#111' }}>To</div>
-            <div style={{ fontSize: 14, color: '#000', fontWeight: 600 }}>{salutationName}</div>
+            <div style={{ fontSize: 15, color: '#111' }}>To</div>
+            <div style={{ fontSize: 17, color: '#000', fontWeight: 600 }}>{salutationName}</div>
           </div>
 
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Dear {`${honorific} ${firstName}`.trim()},</div>
+          <div style={{ fontSize: 15.5, fontWeight: 600, marginBottom: 9 }}>Dear {`${honorific} ${firstName}`.trim()},</div>
 
           {/* Body */}
           <div style={{ textAlign: 'justify', color: '#111827' }}>
-            <p style={{ margin: '0 0 8px 0' }}>
+            <p style={{ margin: '0 0 9px 0' }}>
               This letter serves as formal confirmation of your engagement with {company} as{' '}
               {articleFor(designation)} {designation} for the development of {projectName} for our academic training
               programs.
             </p>
 
             {deliverableCount > 0 && (
-              <p style={{ margin: '0 0 8px 0' }}>
+              <p style={{ margin: '0 0 9px 0' }}>
                 As discussed and mutually agreed, you have been assigned the responsibility of developing and
                 delivering a total of {deliverableCount} {deliverableUnit} covering the {projectName} Modules.
               </p>
             )}
 
-            <p style={{ margin: '0 0 6px 0' }}>The key terms of the assignment are as follows:</p>
+            <p style={{ margin: '0 0 8px 0' }}>The key terms of the assignment are as follows:</p>
 
-            <div style={{ border: '1px solid #000000', padding: '8px 12px', marginBottom: 10, fontSize: 12 }}>
+            <div style={{ border: '1px solid #000000', padding: '10px 16px', marginBottom: 10, fontSize: 14 }}>
               <div style={{ marginBottom: 3 }}>
                 <span style={{ fontWeight: 700 }}>Project: </span>
                 <span>{projectTitle}</span>
@@ -268,7 +266,7 @@ export const ExperienceLetterDocument = forwardRef(({ invoiceData = {}, isPrevie
             </div>
 
             {feeAmount > 0 && (
-              <p style={{ margin: '0 0 8px 0' }}>
+              <p style={{ margin: '0 0 9px 0' }}>
                 <span style={{ fontWeight: 700 }}>Payment Terms: </span>
                 The agreed professional fee of ₹{feeFmt}/- will be payable upon the successful completion and
                 submission of all {deliverableCount || 0} {deliverableUnit}, subject to fulfillment of the agreed
@@ -277,7 +275,7 @@ export const ExperienceLetterDocument = forwardRef(({ invoiceData = {}, isPrevie
             )}
 
             {deliverableCount > 0 && (
-              <p style={{ margin: '0 0 8px 0' }}>
+              <p style={{ margin: '0 0 9px 0' }}>
                 The assigned work is currently in progress and shall be considered completed only after all{' '}
                 {deliverableCount} {deliverableUnit} have been successfully uploaded
                 {deadline ? ` before ${deadline}` : ''} and the deliverables have been reviewed and accepted by{' '}
@@ -290,21 +288,21 @@ export const ExperienceLetterDocument = forwardRef(({ invoiceData = {}, isPrevie
           </div>
 
           {/* Sign-off */}
-          <div style={{ marginTop: 18 }}>
-            <div style={{ fontSize: 12.5, marginBottom: 2 }}>Sincerely,</div>
-            <div style={{ fontSize: 12.5, fontWeight: 600 }}>For {company}</div>
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 15, marginBottom: 2 }}>Sincerely,</div>
+            <div style={{ fontSize: 15, fontWeight: 600 }}>For {company}</div>
 
             <div
               style={{
                 position: 'relative',
                 margin: '4px 0 2px',
-                width: 140,
-                height: 76,
+                width: 168,
+                height: 94,
                 display: 'flex',
                 alignItems: 'center',
               }}
             >
-              <img src={aotmsStampImg} alt="AOTMS Stamp" style={{ width: 74, height: 74, objectFit: 'contain' }} />
+              <img src={aotmsStampImg} alt="AOTMS Stamp" style={{ width: 92, height: 92, objectFit: 'contain' }} />
               <img
                 src={signatureImg}
                 alt="Authorised signature"
@@ -313,7 +311,7 @@ export const ExperienceLetterDocument = forwardRef(({ invoiceData = {}, isPrevie
                   top: '50%',
                   left: '50%',
                   transform: 'translate(-50%, -50%)',
-                  width: 130,
+                  width: 160,
                   height: 'auto',
                   objectFit: 'contain',
                   mixBlendMode: 'multiply',
@@ -323,12 +321,12 @@ export const ExperienceLetterDocument = forwardRef(({ invoiceData = {}, isPrevie
             </div>
 
             {d.signatory_name && (
-              <div style={{ fontSize: 12.5, fontWeight: 600, color: '#1e293b' }}>{d.signatory_name}</div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: '#1e293b' }}>{d.signatory_name}</div>
             )}
             {d.signatory_designation && (
-              <div style={{ fontSize: 11.5, color: '#475569' }}>{d.signatory_designation}</div>
+              <div style={{ fontSize: 13.5, color: '#475569' }}>{d.signatory_designation}</div>
             )}
-            <div style={{ fontSize: 11.5, color: '#475569' }}>
+            <div style={{ fontSize: 13.5, color: '#475569' }}>
               {company} {d.phone ? `· ${d.phone}` : ''}
             </div>
           </div>
@@ -337,11 +335,11 @@ export const ExperienceLetterDocument = forwardRef(({ invoiceData = {}, isPrevie
           <div
             style={{
               marginTop: 'auto',
-              paddingTop: 6,
+              paddingTop: 4,
               borderTop: '1px solid #94a3b8',
               display: 'flex',
               justifyContent: 'space-between',
-              fontSize: 11,
+              fontSize: 12.5,
               color: '#64748b',
             }}
           >
