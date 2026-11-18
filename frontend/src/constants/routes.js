@@ -32,6 +32,8 @@ export const ROUTES = {
       PAYSLIPS: '/finance/payslips',
       QUOTATIONS: '/finance/quotations',
       OFFER_LETTERS: '/finance/offer-letters',
+      EXPERIENCE_LETTERS: '/finance/experience-letters',
+      RELIEVING_LETTERS: '/finance/relieving-letters',
       FEE_RECEIPTS: '/finance/fee-receipts',
     },
     MANAGEMENT: {
