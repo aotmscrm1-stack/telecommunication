@@ -22,7 +22,7 @@ import { canDelete } from '../../../utils/permissions';
 import atmLogoImg from '../../../assets/atm-logo.jpeg';
 import logoImg from '../../../assets/aotms-global-logo.png';
 import aotmsStampImg from '../../../assets/image-removebg-preview.png';
-import signatureImg from '../../../assets/deenaz-signature.png';
+import signatureImg from '../../../assets/sir sign.png';
 
 const DOC_TYPE = 'relieving';
 
@@ -42,8 +42,8 @@ const DEFAULT_RELIEVING_LETTER = {
   relieving_date: '',
   company_name: 'Academy of Tech Masters',
   remarks: '',
-  signatory_name: 'Deenaz Shaik',
-  signatory_designation: 'HR Manager',
+  signatory_name: 'S.D. Ameenuddin',
+  signatory_designation: 'Managing Director',
   signatory_contact: 'AOTMS',
   phone: '8019942233',
   email: 'hr@aotms.com',
@@ -64,8 +64,8 @@ const SAMPLE_RELIEVING_LETTER = {
   relieving_date: '05 September 2026',
   company_name: 'Academy of Tech Masters',
   remarks: '',
-  signatory_name: 'Deenaz Shaik',
-  signatory_designation: 'HR Manager',
+  signatory_name: 'S.D. Ameenuddin',
+  signatory_designation: 'Managing Director',
   signatory_contact: 'AOTMS',
   phone: '8019942233',
   email: 'hr@aotms.com',
@@ -237,28 +237,26 @@ export const RelievingLetterDocument = forwardRef(({ invoiceData = {}, isPreview
 
             <div
               style={{
-                position: 'relative',
                 margin: '10px 0 2px',
-                width: 184,
-                height: 108,
                 display: 'flex',
                 alignItems: 'center',
               }}
             >
-              <img src={aotmsStampImg} alt="AOTMS Stamp" style={{ width: 104, height: 104, objectFit: 'contain' }} />
+              <img
+                src={aotmsStampImg}
+                alt="AOTMS Stamp"
+                style={{ width: 104, height: 104, objectFit: 'contain', flexShrink: 0 }}
+              />
               <img
                 src={signatureImg}
                 alt="Authorised signature"
                 style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  width: 176,
+                  width: 210,
                   height: 'auto',
                   objectFit: 'contain',
                   mixBlendMode: 'multiply',
                   pointerEvents: 'none',
+                  marginLeft: -24,
                 }}
               />
             </div>

@@ -23,7 +23,7 @@ import { numberToWords } from '../../../utils/numberToWords';
 import atmLogoImg from '../../../assets/atm-logo.jpeg';
 import logoImg from '../../../assets/aotms-global-logo.png';
 import aotmsStampImg from '../../../assets/image-removebg-preview.png';
-import signatureImg from '../../../assets/deenaz-signature.png';
+import signatureImg from '../../../assets/sir sign.png';
 
 const DOC_TYPE = 'experience';
 
@@ -51,8 +51,8 @@ const DEFAULT_EXPERIENCE_LETTER = {
   closing_note: 'We look forward to your continued association with Academy of Tech Masters.',
   declaration_note:
     'This letter is issued as an official confirmation of the project assignment and the mutually agreed payment terms.',
-  signatory_name: 'Deenaz Shaik',
-  signatory_designation: 'HR Manager',
+  signatory_name: 'S.D. Ameenuddin',
+  signatory_designation: 'Managing Director',
   phone: '+91 80199-42233',
   email: 'hr@aotms.com',
   notes: '',
@@ -79,8 +79,8 @@ const SAMPLE_EXPERIENCE_LETTER = {
     'We look forward to your timely delivery of the assigned content and continued association with Academy of Tech Masters.',
   declaration_note:
     'This letter is issued as an official confirmation of the project assignment and the mutually agreed payment terms.',
-  signatory_name: 'Deenaz Shaik',
-  signatory_designation: 'HR Manager',
+  signatory_name: 'S.D. Ameenuddin',
+  signatory_designation: 'Managing Director',
   phone: '+91 80199-42233',
   email: 'hr@aotms.com',
   notes: 'Sample project assignment confirmation generated for the associate.',
@@ -294,28 +294,26 @@ export const ExperienceLetterDocument = forwardRef(({ invoiceData = {}, isPrevie
 
             <div
               style={{
-                position: 'relative',
                 margin: '4px 0 2px',
-                width: 168,
-                height: 94,
                 display: 'flex',
                 alignItems: 'center',
               }}
             >
-              <img src={aotmsStampImg} alt="AOTMS Stamp" style={{ width: 92, height: 92, objectFit: 'contain' }} />
+              <img
+                src={aotmsStampImg}
+                alt="AOTMS Stamp"
+                style={{ width: 92, height: 92, objectFit: 'contain', flexShrink: 0 }}
+              />
               <img
                 src={signatureImg}
                 alt="Authorised signature"
                 style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  width: 160,
+                  width: 200,
                   height: 'auto',
                   objectFit: 'contain',
                   mixBlendMode: 'multiply',
                   pointerEvents: 'none',
+                  marginLeft: -20,
                 }}
               />
             </div>
