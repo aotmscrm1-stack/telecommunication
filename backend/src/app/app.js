@@ -21,9 +21,9 @@ function normalizeOrigin(o) {
 // `https://academyoftechmasters.com.attacker.tld` must not be trusted just
 // because it contains the brand name.
 const STATIC_ALLOWED_ORIGINS = [
-  'https://academyoftechmasters.com',
-  'https://www.academyoftechmasters.com',
-  'https://crm.academyoftechmasters.com',
+  'https://aotms.com',
+  'https://www.aotms.com',
+  'https://crm.aotms.com',
 ];
 const LOCAL_ORIGIN_RE = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
 const VERCEL_ORIGIN_RE = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;

@@ -487,6 +487,8 @@ export default function Navbar() {
       icon: FaCoins,
       items: [
         { label: 'Offer letter', path: '/offer-letter', icon: FaFileInvoiceDollar },
+        { label: 'Experience letter', path: '/experience-letter', icon: FaAward },
+        { label: 'Relieving letter', path: '/relieving-letter', icon: FaUserCheck },
         { label: 'Payslip', path: '/payslips', icon: FaReceipt },
         { label: 'Quotation', path: '/quotation', icon: FaFileInvoiceDollar },
         { label: 'Invoice', path: '/invoice', icon: FaReceipt },
@@ -740,6 +742,8 @@ export default function Navbar() {
     {
       title: 'Finance', icon: FaCoins, items: [
         { label: 'Offer letter', path: '/offer-letter', icon: FaFileInvoiceDollar },
+        { label: 'Experience letter', path: '/experience-letter', icon: FaAward },
+        { label: 'Relieving letter', path: '/relieving-letter', icon: FaUserCheck },
         { label: 'Payslip', path: '/payslips', icon: FaReceipt },
         { label: 'Quotation', path: '/quotation', icon: FaFileInvoiceDollar },
         { label: 'Invoice', path: '/invoice', icon: FaReceipt },

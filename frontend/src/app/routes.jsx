@@ -51,6 +51,8 @@ import { Payslip } from '../modules/finance/payslips';
 import { Quotation } from '../modules/finance/quotations';
 import { Invoice } from '../modules/finance/invoices';
 import { FeeReceipt } from '../modules/finance/fee-receipts';
+import { ExperienceLetter } from '../modules/finance/experience-letters';
+import { RelievingLetter } from '../modules/finance/relieving-letters';
 
 // Management Modules
 import { Departments } from '../modules/management/departments';
@@ -284,6 +286,10 @@ export function AppRoutes() {
         <Route path="fee-receipt" element={<AdminRoute><FeeReceipt /></AdminRoute>} />
         <Route path="fee-receipts" element={<Navigate to="/fee-receipt" replace />} />
         <Route path="feereceipt" element={<Navigate to="/fee-receipt" replace />} />
+        <Route path="experience-letter" element={<AdminRoute><ExperienceLetter /></AdminRoute>} />
+        <Route path="experience-letters" element={<Navigate to="/experience-letter" replace />} />
+        <Route path="relieving-letter" element={<AdminRoute><RelievingLetter /></AdminRoute>} />
+        <Route path="relieving-letters" element={<Navigate to="/relieving-letter" replace />} />
 
         {/* Management Module Routes */}
         <Route path="performance" element={<AdminOnlyRoute><PerformanceDashboard /></AdminOnlyRoute>} />

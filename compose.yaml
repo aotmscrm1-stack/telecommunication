@@ -21,6 +21,12 @@ services:
     environment:
       # HTTP + WebSockets only. Schedulers run in the `worker` service.
       PROCESS_ROLE: api
+      # Pin the port. `env_file` is layered over the image's ENV, and the VPS
+      # backend/.env carried PORT=5001 — so the app listened on 5001 while the
+      # healthcheck, the Dockerfile EXPOSE and the nginx upstream all use 5000.
+      # The container was therefore never healthy and nginx answered 502.
+      # `environment` wins over `env_file`, so this cannot drift again.
+      PORT: 5000
       # Audio lives on the shared volume, not on the container's writable layer.
       # Without this the production default resolves to /var/data/recordings,
       # which is not mounted, and recordings are lost on every rebuild.
@@ -52,11 +58,17 @@ services:
     # Long enough for in-flight uploads/transcription calls to finish on redeploy.
     stop_grace_period: 30s
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
-      interval: 15s
+      # 127.0.0.1 rather than localhost: inside the container `localhost` can
+      # resolve to ::1 first, and the listener is IPv4-only, so the probe would
+      # fail on a perfectly healthy API.
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:5000/api/health"]
+      interval: 10s
       timeout: 5s
-      retries: 3
-      start_period: 20s
+      retries: 5
+      # Boot can legitimately take ~90s: connectDB retries Mongo 3x30s before it
+      # gives up. A shorter start_period marks the container unhealthy while the
+      # API is still legitimately starting, which aborts the whole stack.
+      start_period: 90s
     logging:
       driver: "json-file"
       options:

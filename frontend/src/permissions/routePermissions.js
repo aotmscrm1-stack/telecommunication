@@ -28,6 +28,8 @@ export const ROUTE_PERMISSIONS = {
   '/finance/payslips': [ROLES.ADMIN, ROLES.MANAGER],
   '/finance/quotations': [ROLES.ADMIN, ROLES.MANAGER],
   '/finance/offer-letters': [ROLES.ADMIN, ROLES.MANAGER],
+  '/finance/experience-letters': [ROLES.ADMIN, ROLES.MANAGER],
+  '/finance/relieving-letters': [ROLES.ADMIN, ROLES.MANAGER],
   '/finance/fee-receipts': [ROLES.ADMIN, ROLES.MANAGER],
 
   // Management Routes
