@@ -277,9 +277,17 @@ export function isGlobalReminderViewer(user) {
 
 /**
  * No reminder popup may ever be produced without a logged-in session.
+ * A leftover profile alone (for example after the token expired) is not a
+ * session: the auth token must be present as well.
  */
 export function hasActiveSession() {
-  return Boolean(getCurrentStoredUser());
+  let token = '';
+  try {
+    token = localStorage.getItem('aotms_token') || localStorage.getItem('token') || '';
+  } catch (e) {
+    token = '';
+  }
+  return Boolean(String(token).trim() && getCurrentStoredUser());
 }
 
 /**
@@ -705,7 +713,8 @@ class LeadNoteReminderService {
 
     // Never name the admin / MD on a call-back: re-confirm the counsellor first.
     payload = await this.resolveCallbackCounsellor(payload);
-    if (!hasActiveSession()) return;
+    // The session (or the CRM workspace) may have been left while resolving.
+    if (!this.initialized || !hasActiveSession()) return;
     if (!canUserSeeCallbackToast(payload)) return;
 
     if (isImmediate && payload.scheduledAt) {

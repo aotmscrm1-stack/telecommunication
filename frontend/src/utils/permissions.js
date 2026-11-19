@@ -395,78 +395,132 @@ export const getTaskAssigneeOptions = (currentUser, users = [], selectedDepartme
   return formattedList;
 };
 
+// ── Reporting hierarchy helpers (Todo / Task "Reporting To") ─────────────────
+const roleOfUser = (u) => String(u?.role || '').trim().toLowerCase();
+
+// Admin accounts: role admin/superadmin, the Admin department, or an executive designation.
+const isAdminAccount = (u) => Boolean(u) && (roleOfUser(u) === 'admin' || roleOfUser(u) === 'superadmin' || isExecutive(u));
+
+// Only the "manager" role counts as a manager; department names are ignored here
+// because the Management department also holds junior managers.
+const isManagerAccount = (u) => Boolean(u) && roleOfUser(u) === 'manager';
+
+const isManagerHeadAccount = (u) => isManagerAccount(u) && Boolean(u?.isHead);
+
+// Department heads (isHead) that are neither admin nor manager, e.g. Ashok (Marketing) and Jayaveer (Development).
+const isDepartmentHeadAccount = (u) => Boolean(u) && Boolean(u.isHead) && !isAdminAccount(u) && !isManagerAccount(u);
+
+const departmentKey = (u) => {
+  const dept = String(u?.department || '').trim().toLowerCase();
+  const desig = String(u?.designation || '').trim().toLowerCase();
+  if (dept.includes('market') || dept.includes('digital') || desig.includes('marketing')) return 'marketing';
+  if (dept.includes('dev') || desig.includes('developer') || desig.includes('engineer')) return 'development';
+  if (dept.includes('train') || desig.includes('trainer')) return 'trainer';
+  if (dept.includes('admin')) return 'admin';
+  if (dept.includes('management')) return 'management';
+  if (dept.includes('hr') || dept.includes('telecall') || dept.includes('caller')) return 'hr';
+  return dept;
+};
+
+/**
+ * Todo / Task "Reporting To" options.
+ *
+ * This dropdown is NOT an employee list - it only contains the people a user is
+ * allowed to report to (admins, the manager head and the department head):
+ *
+ * | Account                                   | Reporting To options                                  |
+ * | ----------------------------------------- | ----------------------------------------------------- |
+ * | Admin (role admin / Admin dept)           | Admin only                                            |
+ * | Manager head (manager + isHead)           | Admin only                                            |
+ * | Junior manager (manager, not head)        | Manager head + Admin                                  |
+ * | Marketing team                            | Marketing department head + Admin + Manager head      |
+ * | Development team                          | Development department head + Admin + Manager head    |
+ * | Trainers                                  | Manager head + Admin                                  |
+ * | Any other department (HR, telecalling...) | Department head + Manager head + Admin                |
+ *
+ * Heads never report to themselves: a department head only gets Admin + Manager
+ * head, and the admin only gets himself.
+ */
 export const getTaskAssignorOptions = (currentUser, users = []) => {
-  const userList = Array.isArray(users) ? users : [];
+  const userList = (Array.isArray(users) ? users : []).filter(u => u && u.isActive !== false);
   if (!currentUser) return [];
 
-  const isSameUser = (u1, u2) => {
-    if (!u1 || !u2) return false;
-    const id1 = String(u1._id || u1.id || '');
-    const id2 = String(u2._id || u2.id || '');
-    if (id1 && id2 && id1 === id2) return true;
-    const email1 = String(u1.email || '').trim().toLowerCase();
-    const email2 = String(u2.email || '').trim().toLowerCase();
-    if (email1 && email2 && email1 === email2) return true;
-    const name1 = String(u1.name || '').trim().toLowerCase();
-    const name2 = String(u2.name || '').trim().toLowerCase();
-    if (name1 && name2 && name1 === name2) return true;
-    return false;
+  const sameUser = (a, b) => {
+    if (!a || !b) return false;
+    const idA = String(a._id || a.id || '');
+    const idB = String(b._id || b.id || '');
+    if (idA && idB && idA === idB) return true;
+    const emailA = String(a.email || '').trim().toLowerCase();
+    const emailB = String(b.email || '').trim().toLowerCase();
+    if (emailA && emailB && emailA === emailB) return true;
+    const nameA = String(a.name || '').trim().toLowerCase();
+    const nameB = String(b.name || '').trim().toLowerCase();
+    return Boolean(nameA && nameB && nameA === nameB);
   };
 
-  // Find logged-in user (Account Holder)
-  const existingMe = userList.find(u => isSameUser(u, currentUser));
-  const meName = existingMe?.name || currentUser.name || 'Account Holder';
-  const meDesig = existingMe?.designation || currentUser.designation || 'Account Holder';
-  const meUser = {
-    ...(existingMe || {}),
+  // The logged-in user may arrive as { id } right after login and as { _id } on reload.
+  const viewer = {
+    ...currentUser,
     _id: currentUser._id || currentUser.id,
-    name: meName,
-    designation: meDesig,
-    isMe: true,
-    dropdownLabel: `${meName}${meDesig ? ` — ${meDesig}` : ''} (You)`
+    name: currentUser.name || 'Account Holder'
   };
 
-  // 1. Current user is ALWAYS index 0 (default selected for Assigned By)
-  const result = [meUser];
-  const addedIds = new Set([String(meUser._id)]);
-
-  // 2. Always include Admin / Executive / CEO / MD / CTO users in Assigned By options
-  userList.forEach(u => {
-    if (!u || addedIds.has(String(u._id))) return;
-    if (isExecutive(u) || u.role === 'admin' || u.role === 'superadmin' || u.name?.toLowerCase().includes('admin')) {
-      addedIds.add(String(u._id));
-      const desig = u.designation || (u.role === 'admin' ? 'Admin' : 'Executive');
-      result.push({
-        ...u,
-        dropdownLabel: `${u.name}${desig ? ` — ${desig}` : ''}`
-      });
-    }
-  });
-
-  // Fallback Admin option if no admin in DB userList
-  if (!result.some(u => isExecutive(u) || u.role === 'admin' || u.name?.toLowerCase().includes('admin'))) {
+  const result = [];
+  const seenKeys = new Set();
+  const push = (u, { you = false } = {}) => {
+    if (!u) return;
+    const key = String(u._id || u.id || u.email || u.name || '').trim();
+    if (!key || seenKeys.has(key)) return;
+    seenKeys.add(key);
+    const name = u.name || 'User';
+    const desig = u.designation || u.department || '';
     result.push({
-      _id: 'admin_fallback',
-      name: 'Admin',
-      designation: 'Managing Director',
-      dropdownLabel: 'Admin — Managing Director'
+      ...u,
+      _id: u._id || u.id,
+      isMe: sameUser(u, viewer),
+      dropdownLabel: `${name}${desig ? ` — ${desig}` : ''}${you ? ' (You)' : ''}`
     });
+  };
+
+  const admins = userList.filter(isAdminAccount);
+  const managerHeadPool = userList.filter(isManagerHeadAccount);
+  // Fall back to every manager only when no manager head exists in the database.
+  const managerHeads = (managerHeadPool.length ? managerHeadPool : userList.filter(isManagerAccount))
+    .filter(u => !sameUser(u, viewer));
+
+  const viewerDept = departmentKey(viewer);
+  const departmentHeads = userList.filter(u =>
+    isDepartmentHeadAccount(u) && departmentKey(u) === viewerDept && !sameUser(u, viewer)
+  );
+
+  if (isAdminAccount(viewer)) {
+    // Admin reports to the admin account only.
+    push(viewer, { you: true });
+    admins.forEach(u => push(u));
+  } else if (isManagerAccount(viewer)) {
+    // Manager head -> Admin only; junior managers -> Manager head + Admin.
+    if (!isManagerHeadAccount(viewer)) managerHeads.forEach(u => push(u));
+    admins.forEach(u => push(u));
+  } else if (viewerDept === 'marketing' || viewerDept === 'development') {
+    // Department head + Admin + Manager head.
+    departmentHeads.forEach(u => push(u));
+    admins.forEach(u => push(u));
+    managerHeads.forEach(u => push(u));
+  } else if (viewerDept === 'trainer') {
+    // Trainers report to the Manager head and the Admin only.
+    managerHeads.forEach(u => push(u));
+    admins.forEach(u => push(u));
+  } else {
+    // HR / telecalling / anything else: department head (if any) + Manager head + Admin.
+    departmentHeads.forEach(u => push(u));
+    managerHeads.forEach(u => push(u));
+    admins.forEach(u => push(u));
   }
 
-  // 3. Include HR, Managers, and Department peers
-  userList.forEach(u => {
-    if (!u || addedIds.has(String(u._id))) return;
-    const uDept = String(u.department || '').toLowerCase().trim();
-    const myDept = String(currentUser.department || '').toLowerCase().trim();
-    if (isHR(u) || isManager(u) || (uDept && myDept && uDept === myDept)) {
-      addedIds.add(String(u._id));
-      const desig = u.designation || u.department || 'Team Member';
-      result.push({
-        ...u,
-        dropdownLabel: `${u.name}${desig ? ` — ${desig}` : ''}`
-      });
-    }
-  });
+  // Never leave the dropdown empty (for example on a database without an admin).
+  if (!result.length) {
+    push({ _id: 'admin_fallback', name: 'Admin', designation: 'Administrator', role: 'admin' });
+  }
 
   return result;
 };

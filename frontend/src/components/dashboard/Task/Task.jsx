@@ -2181,18 +2181,18 @@ function AddTaskModal({ type = 'todo', onClose, onCreated }) {
         : [currentUser._id];
       const finalAssignedBy = assignedBy || currentUser._id;
 
+      // Placeholder options (no admin row in the fetched list) must resolve to a real account id.
+      const resolvePlaceholderId = (id) => {
+        if (id !== 'ameen_fallback' && id !== 'admin_fallback') return id;
+        const admin = users.find(u => isExecutive(u) || u.role === 'admin' || u.role === 'superadmin')
+          || users.find(u => u.name?.toLowerCase().trim().startsWith('ameen'));
+        return admin?._id || admin?.id || currentUser._id || currentUser.id;
+      };
+
       const results = await Promise.all(
         targetAssignees.map(async (targetId) => {
-          let resolvedTargetId = targetId;
-          if (resolvedTargetId === 'ameen_fallback') {
-            const realAmeen = users.find(u => u.name?.toLowerCase().trim() === 'ameen');
-            resolvedTargetId = realAmeen ? realAmeen._id : currentUser._id;
-          }
-          let resolvedAssignedBy = finalAssignedBy;
-          if (resolvedAssignedBy === 'ameen_fallback') {
-            const realAmeen = users.find(u => u.name?.toLowerCase().trim() === 'ameen');
-            resolvedAssignedBy = realAmeen ? realAmeen._id : currentUser._id;
-          }
+          const resolvedTargetId = resolvePlaceholderId(targetId);
+          const resolvedAssignedBy = resolvePlaceholderId(finalAssignedBy);
 
           const matchedDeptObj = departments.find(d => (typeof d !== 'string' && d.name?.toLowerCase() === selectedDepartment.toLowerCase()));
           const payload = {

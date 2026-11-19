@@ -1,26 +1,52 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter, useNavigate } from 'react-router-dom';
+import { BrowserRouter, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { Toaster } from '../components/ui/sonner';
 import leadNoteReminderService from '../services/leadNoteReminderService';
 import GlobalLeadNoteModal from '../components/common/GlobalLeadNoteModal';
 
+// Public pages (landing, auth screens, error pages) are not the CRM workspace:
+// no call-back / note reminder popup may ever appear there.
+const PUBLIC_ROUTES = new Set([
+  '/',
+  '/landing',
+  '/logo',
+  '/login',
+  '/signup',
+  '/sign-up',
+  '/forgot-password',
+  '/reset-password',
+  '/verify-account',
+  '/403',
+  '/404',
+  '/500',
+]);
+
+function isPublicRoute(pathname) {
+  const path = String(pathname || '/').split('#')[0].split('?')[0].toLowerCase();
+  const normalized = path.replace(/\/+$/, '') || '/';
+  return PUBLIC_ROUTES.has(normalized);
+}
+
 /**
- * Starts the reminder engine only while a user is logged in. Before login (and
- * right after logout) no timer, WebSocket or popup may exist.
+ * Starts the reminder engine only while a user is logged in AND is browsing the
+ * CRM workspace. Before login, on the public landing / auth pages and right
+ * after logout no timer, WebSocket or popup may exist.
  */
 function ReminderServiceGate() {
   const { user, token } = useAuth();
+  const location = useLocation();
   const userId = user?._id || user?.id || '';
+  const inCrmWorkspace = Boolean(userId && token) && !isPublicRoute(location.pathname);
 
   useEffect(() => {
-    if (!userId || !token) {
+    if (!inCrmWorkspace) {
       leadNoteReminderService.stop();
       return undefined;
     }
     leadNoteReminderService.init();
     return () => leadNoteReminderService.stop();
-  }, [userId, token]);
+  }, [inCrmWorkspace, userId]);
 
   return null;
 }
@@ -110,8 +136,8 @@ function CallbackToastRedirectHandler() {
 export function AppProviders({ children }) {
   return (
     <AuthProvider>
-      <ReminderServiceGate />
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <ReminderServiceGate />
         <CallbackToastRedirectHandler />
         <GlobalLeadNoteModal />
         {children}
