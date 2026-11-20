@@ -57,15 +57,28 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // ── Meta WhatsApp Webhook Verification Handshake ─────────────────────────────
+// Every other consumer of this token (config/env.js, config/services.js,
+// integrations/whatsapp/*) already falls back to this documented default. This
+// route used to require the env var to exist, so a deploy where
+// META_WA_VERIFY_TOKEN was never written into backend/.env answered 403 and
+// Meta's "Verify and save" failed with "callback URL or verify token couldn't be
+// validated". Accept the configured value or the documented default.
+const DEFAULT_WA_VERIFY_TOKEN = 'zest_eat_meta_verify_8f9q2a';
+
 app.get('/api/integrations/whatsapp/webhook', (req, res) => {
   const q = req.query || {};
   const challenge = q['hub.challenge'] || q.hub?.challenge || q.challenge;
-  const token = q['hub.verify_token'] || q.hub?.verify_token || q.verify_token;
-  const expected = process.env.META_WA_VERIFY_TOKEN;
+  const token = String(q['hub.verify_token'] || q.hub?.verify_token || q.verify_token || '').trim();
+
+  const accepted = new Set(
+    [process.env.META_WA_VERIFY_TOKEN, process.env.WHATSAPP_VERIFY_TOKEN, DEFAULT_WA_VERIFY_TOKEN]
+      .map((value) => String(value || '').trim())
+      .filter(Boolean)
+  );
 
   // Verify the subscription token before echoing the challenge back. The token
   // itself is never logged.
-  if (!expected || token !== expected) {
+  if (!token || !accepted.has(token)) {
     console.warn('[Meta Webhook Verification] rejected: verify token mismatch');
     return res.status(403).type('text/plain').send('Forbidden');
   }
