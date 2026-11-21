@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import axios from 'axios';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -421,6 +421,9 @@ function InboxTab({ onSendTemplate }) {
   const [replyText, setReplyText] = useState('');
   const [sending, setSending] = useState(false);
   const scrollRef = useRef(null);
+  const bottomRef = useRef(null);
+  const selectedIdRef = useRef(null);
+  const fetchLeadsRef = useRef(null);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
   const [templates, setTemplates] = useState([]);
   const [showSendTemplateModal, setShowSendTemplateModal] = useState(false);
@@ -437,21 +440,31 @@ function InboxTab({ onSendTemplate }) {
   };
 
   const scrollToBottom = useCallback(() => {
+    // The message box usually scrolls, but on some layouts the page itself does —
+    // the sentinel at the end of the thread covers both cases.
     if (scrollRef.current) {
       scrollRef.current.scrollTo({
         top: scrollRef.current.scrollHeight,
         behavior: 'smooth',
       });
     }
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, []);
 
-  // Opening a conversation must land on the NEWEST message. The jump is done
-  // twice (next frame + after the bubble animation settles) because the scroll
-  // height is still growing while the thread renders.
+  // Opening a conversation must land on the NEWEST message. Scrolling the inner
+  // box alone was not enough when the page is the real scroller, so the sentinel
+  // at the end of the thread is scrolled into view as well.
   const scrollToLatest = useCallback(() => {
     const el = scrollRef.current;
-    if (!el) return;
-    el.scrollTop = el.scrollHeight;
+    if (el) {
+      // "scroll-smooth" on the container would animate (and can be interrupted),
+      // so the jump is forced to be instant.
+      const previousBehavior = el.style.scrollBehavior;
+      el.style.scrollBehavior = 'auto';
+      el.scrollTop = el.scrollHeight;
+      el.style.scrollBehavior = previousBehavior;
+    }
+    bottomRef.current?.scrollIntoView({ block: 'end', behavior: 'instant' });
   }, []);
 
   // Fetch Unified Templates
@@ -482,21 +495,44 @@ function InboxTab({ onSendTemplate }) {
     } catch {}
   };
 
-  const fetchLeads = async () => {
-    setLoadingList(true);
+  // Per-tab cache: switching All ⇄ Pending repaints the rows we already have and
+  // refreshes in the background, instead of blanking the list behind a spinner.
+  const listCacheRef = useRef({});
+  const activeKeyRef = useRef(`${tab}|${search}`);
+  const listSigRef = useRef('');
+
+  const applyListPayload = (data) => {
+    const rows = data?.leads || [];
+    const identities = Array.isArray(data?.existingIdentities) ? data.existingIdentities : null;
+    // The background poller runs every 12 s: repainting identical rows wasted work
+    // and could nudge the list while it was being scrolled.
+    const signature = [
+      rows.map((row) => `${row._id}:${row.waStatus}:${row.lastWaMessageAt || ''}`).join('|'),
+      JSON.stringify(data?.counts || {}),
+      (identities || []).join(','),
+    ].join('#');
+    if (signature === listSigRef.current) return;
+    listSigRef.current = signature;
+
+    setLeads(rows);
+    setCounts(data?.counts || { all: 0, pending: 0 });
+    if (identities) setBackendIdentities(identities);
+  };
+
+  const fetchLeads = async ({ silent = false } = {}) => {
+    const key = `${tab}|${search}`;
+    if (!silent) setLoadingList(true);
     try {
       const res = await api.get('/whatsapp-inbox', { params: { tab, search } });
-      const fetchedLeads = res.data.leads || [];
-      setLeads(fetchedLeads);
-      setCounts(res.data.counts || { all: 0, pending: 0 });
-      if (Array.isArray(res.data.existingIdentities)) {
-        setBackendIdentities(res.data.existingIdentities);
-      }
+      const data = res.data || {};
+      listCacheRef.current[key] = data;
+      // A response for a tab the agent already left must not repaint the list.
+      if (key === activeKeyRef.current) applyListPayload(data);
       // NOTE: never auto-open a conversation here. Opening a thread marks it as
       // read, so auto-selecting silently cleared the Pending badge for messages
       // nobody had looked at. The agent opens a chat by clicking it.
     } catch {} finally {
-      setLoadingList(false);
+      if (!silent) setLoadingList(false);
     }
   };
 
@@ -505,14 +541,70 @@ function InboxTab({ onSendTemplate }) {
   }, []);
 
   useEffect(() => {
-    fetchLeads();
-    const handleSync = () => {
+    const key = `${tab}|${search}`;
+    activeKeyRef.current = key;
+    // Force the next payload to paint, even if it looks like the previous ones.
+    listSigRef.current = '';
+    const cached = listCacheRef.current[key];
+    if (cached) {
+      // Instant paint from cache, then confirm with the server quietly.
+      applyListPayload(cached);
+      setLoadingList(false);
+      fetchLeads({ silent: true });
+    } else {
+      setLoadingList(true);
       fetchLeads();
+    }
+    const handleSync = () => {
+      fetchLeads({ silent: true });
       fetchContacts();
     };
     window.addEventListener('wa_data_synced', handleSync);
     return () => window.removeEventListener('wa_data_synced', handleSync);
   }, [tab, search]);
+
+  // Warm the other tab so even the FIRST switch is instant.
+  useEffect(() => {
+    const other = tab === 'pending' ? 'all' : 'pending';
+    const key = `${other}|${search}`;
+    if (listCacheRef.current[key]) return undefined;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await api.get('/whatsapp-inbox', { params: { tab: other, search } });
+        listCacheRef.current[key] = res.data || {};
+      } catch {}
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [tab, search]);
+
+  // Long-lived handlers (WebSocket, polling) must read the latest tab / search /
+  // selection through refs, otherwise they keep the values from the render that
+  // created them.
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+    fetchLeadsRef.current = fetchLeads;
+  });
+
+  // Safety net so Pending / All stay accurate even when the socket drops (a
+  // backend restart closes it): refresh the list and the open thread on a timer.
+  useEffect(() => {
+    const timer = setInterval(async () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      fetchLeadsRef.current?.({ silent: true });
+      const openId = selectedIdRef.current;
+      if (!openId) return;
+      try {
+        const res = await api.get(`/whatsapp-inbox/${openId}`);
+        setThread((prev) => {
+          if (!prev) return prev;
+          const prevLen = (prev.thread || []).length;
+          const nextLen = (res.data?.thread || []).length;
+          return nextLen === prevLen ? prev : res.data;
+        });
+      } catch {}
+    }, 12000);
+    return () => clearInterval(timer);
+  }, []);
 
   const existingIdentities = (() => {
     const seen = new Set();
@@ -582,98 +674,146 @@ function InboxTab({ onSendTemplate }) {
     }
   };
 
-  useEffect(() => {
-    if (!thread?.thread) return undefined;
+  // The chat panel (and with it the scroll box) is unmounted while
+  // `loadingThread` is true, so a jump triggered only by `thread` ran while the
+  // refs were still null and never repeated. Reacting to the mount as well —
+  // plus a callback ref on the sentinel — guarantees the newest message wins.
+  useLayoutEffect(() => {
+    if (loadingThread || !thread?.thread) return undefined;
+    scrollToLatest();
     const frame = requestAnimationFrame(scrollToLatest);
-    const timer = setTimeout(scrollToLatest, 200);
+    const timers = [
+      setTimeout(scrollToLatest, 80),
+      setTimeout(scrollToLatest, 300),
+      setTimeout(scrollToLatest, 800),
+    ];
     return () => {
       cancelAnimationFrame(frame);
-      clearTimeout(timer);
+      timers.forEach(clearTimeout);
     };
-  }, [thread, scrollToLatest]);
+  }, [thread, loadingThread, scrollToLatest]);
 
-  // Real-time WebSockets
+  // Fires the moment the sentinel is mounted (i.e. when the messages appear).
+  const setBottomNode = useCallback(
+    (node) => {
+      bottomRef.current = node;
+      if (node) scrollToLatest();
+    },
+    [scrollToLatest]
+  );
+
+  // Real-time WebSockets — one connection for the page lifetime with automatic
+  // reconnect. The socket used to be recreated on every selection change and was
+  // never revived after a backend restart, which froze the list (new messages
+  // stopped showing up as Pending).
   useEffect(() => {
     const wsUrl = getWebSocketUrl();
+    let socket = null;
+    let closedByUs = false;
+    let retry = 0;
+    let reconnectTimer = null;
 
-    let socket;
-    try {
-      socket = new WebSocket(wsUrl);
-      socket.onmessage = (event) => {
-        try {
-          const raw = JSON.parse(event.data);
-          const eventName = raw.event || raw.type;
-          const payloadData = raw.payload || raw.data || {};
+    const handleSocketMessage = (event) => {
+      try {
+        const raw = JSON.parse(event.data);
+        const eventName = raw.event || raw.type;
+        const payloadData = raw.payload || raw.data || {};
+        const activeSelectedId = selectedIdRef.current;
 
-          if (eventName === 'whatsapp:status_update') {
-            const { leadId, messageId, status } = payloadData;
-            setThread((prev) => {
-              if (!prev || !prev.thread) return prev;
-              if (leadId && String(prev.lead?.id || prev.lead?._id || selectedId) !== String(leadId)) {
-                return prev;
-              }
-              const updatedThread = prev.thread.map((m) => {
-                if (m.metaMessageId === messageId || m._id === messageId) {
-                  return { ...m, deliveryStatus: status, status };
-                }
-                return m;
-              });
-              return { ...prev, thread: updatedThread };
-            });
-          }
-
-          if (eventName === 'whatsapp:thread_read') {
-            // The bot answered this thread, so the lead left Pending — refresh
-            // the badge/counts without touching the open conversation.
-            fetchLeads();
-          }
-
-          if (eventName === 'whatsapp:incoming_message') {
-            const { leadId, name, phone, text, messageId, timestamp, direction, performedByName } = payloadData;
-            const isInbound = !direction || direction === 'inbound';
-            if (isInbound) {
-              playWhatsAppRingtone();
-              if ('Notification' in window && Notification.permission === 'granted') {
-                new Notification(`WhatsApp from ${name || phone}`, { body: text });
-              }
+        if (eventName === 'whatsapp:status_update') {
+          const { leadId, messageId, status } = payloadData;
+          setThread((prev) => {
+            if (!prev || !prev.thread) return prev;
+            if (leadId && String(prev.lead?.id || prev.lead?._id || activeSelectedId) !== String(leadId)) {
+              return prev;
             }
-
-            // Read state is NOT cleared here: an inbound message stays Pending
-            // until the bot answers it or the agent opens the chat. Opening the
-            // chat (list click / Pending badge) is the only human action that
-            // marks it read, so a live conversation never clears itself.
-            fetchLeads();
-
-            setThread((prev) => {
-              if (!prev) return prev;
-              const activeId = String(prev.lead?.id || prev.lead?._id || selectedId);
-              if (activeId !== String(leadId)) return prev;
-
-              const newMsg = {
-                _id: messageId || String(Date.now()),
-                type: 'whatsapp',
-                direction: direction || 'inbound',
-                performedByName: performedByName || '',
-                userName: performedByName || '',
-                description: text,
-                metaMessageId: messageId,
-                createdAt: timestamp || new Date().toISOString(),
-              };
-              return {
-                ...prev,
-                withinWindow: true,
-                thread: [...(prev.thread || []), newMsg],
-              };
+            const updatedThread = prev.thread.map((m) => {
+              if (m.metaMessageId === messageId || m._id === messageId) {
+                return { ...m, deliveryStatus: status, status };
+              }
+              return m;
             });
+            return { ...prev, thread: updatedThread };
+          });
+        }
+
+        if (eventName === 'whatsapp:thread_read') {
+          // An agent opened the thread — refresh the badge/counts without
+          // touching the open conversation.
+          fetchLeadsRef.current?.({ silent: true });
+        }
+
+        if (eventName === 'whatsapp:incoming_message') {
+          const { leadId, name, phone, text, messageId, timestamp, direction, performedByName } = payloadData;
+          const isInbound = !direction || direction === 'inbound';
+          if (isInbound) {
+            playWhatsAppRingtone();
+            if ('Notification' in window && Notification.permission === 'granted') {
+              new Notification(`WhatsApp from ${name || phone}`, { body: text });
+            }
           }
+
+          // Read state is NOT cleared here: an inbound message stays Pending
+          // until an agent opens the chat. Only the list is refreshed so the row
+          // (and the Pending counter) updates immediately.
+          fetchLeadsRef.current?.({ silent: true });
+
+          setThread((prev) => {
+            if (!prev) return prev;
+            const activeId = String(prev.lead?.id || prev.lead?._id || activeSelectedId);
+            if (activeId !== String(leadId)) return prev;
+
+            const newMsg = {
+              _id: messageId || String(Date.now()),
+              type: 'whatsapp',
+              direction: direction || 'inbound',
+              performedByName: performedByName || '',
+              userName: performedByName || '',
+              description: text,
+              metaMessageId: messageId,
+              createdAt: timestamp || new Date().toISOString(),
+            };
+            return {
+              ...prev,
+              withinWindow: true,
+              thread: [...(prev.thread || []), newMsg],
+            };
+          });
+        }
+      } catch (err) {}
+    };
+
+    const connect = () => {
+      try {
+        socket = new WebSocket(wsUrl);
+      } catch (err) {
+        reconnectTimer = setTimeout(connect, 5000);
+        return;
+      }
+      socket.onopen = () => {
+        retry = 0;
+      };
+      socket.onmessage = handleSocketMessage;
+      socket.onerror = () => {
+        try {
+          socket.close();
         } catch (err) {}
       };
-    } catch (err) {}
+      socket.onclose = () => {
+        if (closedByUs) return;
+        retry += 1;
+        reconnectTimer = setTimeout(connect, Math.min(15000, 1000 * retry));
+      };
+    };
+
+    connect();
 
     return () => {
+      closedByUs = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
       if (socket) socket.close();
     };
-  }, [selectedId]);
+  }, []);
 
   const sendReply = async () => {
     if (!replyText.trim() || !selectedId || sending) return;
@@ -727,7 +867,15 @@ function InboxTab({ onSendTemplate }) {
   };
 
   return (
-    <div className="flex flex-1 min-h-0 w-full bg-white relative">
+    // The app shell renders pages inside a scrolling <main> with an auto height, so
+    // "flex-1 / h-full" collapsed to the content height and the WHOLE DOCUMENT
+    // scrolled — opening a chat left the view at the oldest message. Pinning the
+    // inbox to the viewport (navbar is 80px) gives the list and the thread their
+    // own scroll areas.
+    <div
+      className="flex flex-1 min-h-0 w-full bg-white relative"
+      style={{ height: 'calc(100dvh - 80px)', maxHeight: 'calc(100dvh - 80px)' }}
+    >
       {/* ── Left Sidebar: Leads List ────────────────────────────────────────── */}
       <div className="w-80 md:w-84 flex-shrink-0 border-r border-slate-200 bg-white flex flex-col h-full">
         {/* Tabs */}
@@ -804,7 +952,7 @@ function InboxTab({ onSendTemplate }) {
 
         {/* Leads Scroll Area */}
         <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
-          {loadingList && (
+          {loadingList && displayedLeads.length === 0 && (
             <div className="p-8 text-center text-xs text-slate-400">Loading leads...</div>
           )}
           {!loadingList && displayedLeads.length === 0 && (
@@ -814,8 +962,7 @@ function InboxTab({ onSendTemplate }) {
                 : 'No conversations found.'}
             </div>
           )}
-          {!loadingList &&
-            displayedLeads.map((lead) => {
+          {displayedLeads.map((lead) => {
               const isSelected = selectedId === lead._id;
               const identity = getLeadIdentity(lead);
               const initials = (lead.name || lead.phone || 'L').charAt(0).toUpperCase();
@@ -1090,6 +1237,8 @@ function InboxTab({ onSendTemplate }) {
                     );
                   });
                 })()}
+                {/* Sentinel: scrolling this into view always lands on the newest message */}
+                <div ref={setBottomNode} className="h-px w-full shrink-0" aria-hidden="true" />
               </div>
             </div>
 

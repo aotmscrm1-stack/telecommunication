@@ -128,7 +128,9 @@ router.post('/:id/send', protect, async (req, res) => {
       metaMessageId: sendResult?.messages?.[0]?.id || '',
       performedBy: req.user._id,
     });
-    lead.waStatus = 'intervened';
+    // Sending a list is not the same as answering the customer: a thread that is
+    // still waiting for a human stays Pending.
+    if (lead.waStatus !== 'pending') lead.waStatus = 'intervened';
     lead.lastWaMessageAt = new Date();
     lead.lastWaMessagePreview = description;
     await lead.save();

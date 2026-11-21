@@ -130,6 +130,13 @@ const leadSchema = new mongoose.Schema({
   waStatus: { type: String, default: 'none' },
   lastWaMessageAt: { type: Date },
   lastWaMessagePreview: { type: String, default: '' },
+  // Moment an agent last opened this chat. Pending is derived from this: a thread
+  // is pending whenever an inbound message is newer than this timestamp, so no
+  // other write to waStatus can hide an unanswered customer message.
+  waLastReadAt: { type: Date, default: null },
+  // Timestamp of the newest customer message. Kept on the lead so the inbox list
+  // never has to load the (large) activities array to decide what is Pending.
+  lastWaInboundAt: { type: Date, default: null },
   // =================================================================================
 }, { timestamps: true });
 
@@ -141,5 +148,7 @@ leadSchema.index({ importId: 1 });
 leadSchema.index({ 'aiLock.expiresAt': 1 }); // NEW — fast lookup of unlocked/expired leads
 leadSchema.index({ campaign: 1, aiCallState: 1 }); // NEW — campaignEngine eligibility query
 leadSchema.index({ waStatus: 1, lastWaMessageAt: -1 }); // NEW — WhatsApp inbox tab queries
+leadSchema.index({ lastWaMessageAt: -1 }); // NEW — inbox list ordering
+leadSchema.index({ lastWaInboundAt: -1 }); // NEW — derived Pending lookups
 
 module.exports = mongoose.model('Lead', leadSchema);

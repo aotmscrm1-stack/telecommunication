@@ -20,14 +20,47 @@ function baseWhatsappQuery() {
   };
 }
 
+// Timestamp of the newest customer (inbound) message on this lead.
+function lastInboundActivityAt(lead) {
+  const activities = Array.isArray(lead?.activities) ? lead.activities : [];
+  for (let i = activities.length - 1; i >= 0; i -= 1) {
+    const activity = activities[i];
+    if (
+      (activity.type === 'whatsapp' || activity.type === 'whatsapp_reply') &&
+      activity.direction === 'inbound'
+    ) {
+      return new Date(activity.createdAt || 0).getTime();
+    }
+  }
+  return 0;
+}
+
+// A thread is Pending when it is flagged 'pending' OR when an inbound message is
+// newer than the moment an agent last opened it. Deriving it from timestamps keeps
+// "customer wrote → Pending" and "agent opened → not Pending" true even when other
+// send paths (list blasts, template sends) rewrite waStatus.
+// Legacy rows without waLastReadAt keep their stored waStatus.
+function isThreadPending(lead) {
+  if (!lead) return false;
+  if (lead.waStatus === 'pending') return true;
+  const readAt = lead.waLastReadAt ? new Date(lead.waLastReadAt).getTime() : 0;
+  if (!readAt) return false;
+  const inboundAt = lead.lastWaInboundAt
+    ? new Date(lead.lastWaInboundAt).getTime()
+    : lastInboundActivityAt(lead);
+  return inboundAt > readAt;
+}
+
 // ── HELPER: Mark a pending thread as read (agent actually opened it) ─────────
-// This is the ONLY place a customer's ticks turn blue and the ONLY place waStatus
-// leaves 'pending'. Inbound messages never clear themselves.
+// This is the ONLY place a customer's ticks turn blue and the ONLY place the read
+// marker moves forward. Inbound messages never clear themselves.
 async function markThreadRead(lead) {
   if (!lead) return false;
 
-  const wasPending = lead.waStatus === 'pending';
+  const wasPending = isThreadPending(lead);
   lead.waStatus = 'active';
+  // The read marker is what actually drives Pending — see isThreadPending().
+  lead.waLastReadAt = new Date();
   await lead.save();
 
   // Read receipt for the newest customer message — sent once a human opened the
@@ -142,13 +175,31 @@ async function findOrCreateLeadForIdOrPhone(idOrPhone) {
   return lead;
 }
 
+// ── HELPER: Contact phone → identity map (cached) ─────────────────────────────────
+// Identities change rarely, but looking them up per request cost two extra queries
+// (one `distinct`, one `$in` on phones). Caching the map keeps a tab switch to a
+// single query batch.
+let contactCache = { at: 0, map: {}, identities: [] };
+async function getContactIdentityCache() {
+  if (Date.now() - contactCache.at < 60000) return contactCache;
+  const rows = await Contact.find({}).select('phone identity').limit(20000).lean();
+  const map = {};
+  const identities = new Set();
+  rows.forEach((row) => {
+    const p10 = String(row.phone || '').slice(-10);
+    if (p10 && row.identity && !map[p10]) map[p10] = row.identity;
+    if (row.identity) identities.add(row.identity);
+  });
+  contactCache = { at: Date.now(), map, identities: [...identities] };
+  return contactCache;
+}
+
 // ── GET /api/whatsapp-inbox?tab=all|pending|intervened&search=&identity= ─────────────────
 router.get('/', protect, async (req, res) => {
   try {
     const { tab = 'all', search = '', identity = '', page = 1, limit = 50 } = req.query;
 
     const query = baseWhatsappQuery();
-    if (tab === 'pending') query.waStatus = 'pending';
 
     if (search) {
       query.$and = [{ $or: [
@@ -157,70 +208,135 @@ router.get('/', protect, async (req, res) => {
       ] }];
     }
 
+    const contactQuery = {};
+    if (search) {
+      contactQuery.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { phone: { $regex: search, $options: 'i' } },
+        { identity: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    const LIST_SELECT =
+      'name phone status waStatus waLastReadAt lastWaInboundAt lastWaMessageAt lastWaMessagePreview rating customFields';
+    const LIST_SORT = { lastWaMessageAt: -1, updatedAt: -1 };
     const skip = (Number(page) - 1) * Number(limit);
-    const [rawLeads, total, allCount, pendingCount] = await Promise.all([
-      Lead.find(query)
-        .select('name phone status waStatus lastWaMessageAt lastWaMessagePreview rating customFields activities')
-        .sort({ lastWaMessageAt: -1, updatedAt: -1 })
+    const pageSize = Number(limit);
+
+    // Pending is DERIVED (see isThreadPending): flagged 'pending' rows plus rows
+    // whose newest inbound is newer than the last time an agent opened the chat.
+    // The comparison runs inside MongoDB and the activity history is NOT loaded —
+    // that is what used to make every tab switch slow.
+    const derivedPendingQuery = {
+      ...query,
+      waStatus: { $ne: 'pending' },
+      waLastReadAt: { $ne: null },
+      lastWaInboundAt: { $ne: null },
+      $expr: { $gt: ['$lastWaInboundAt', '$waLastReadAt'] },
+    };
+
+    // ONE round trip for everything a tab needs. Only the Pending tab loads the
+    // pending rows; the All tab just needs the two counts.
+    const isPendingTab = tab === 'pending';
+    const [pendingList, derivedList, allPage, allCount, pendingCount, contactIdentity, extraContacts] = await Promise.all([
+      isPendingTab
+        ? Lead.find({ ...query, waStatus: 'pending' }).select(LIST_SELECT).sort(LIST_SORT).limit(300).lean()
+        : null,
+      isPendingTab
+        ? Lead.find(derivedPendingQuery).select(LIST_SELECT).sort(LIST_SORT).limit(300).lean()
+        : null,
+      isPendingTab ? null : Lead.find(query)
+        .select(LIST_SELECT)
+        .sort(LIST_SORT)
         .skip(skip)
-        .limit(Number(limit)),
-      Lead.countDocuments(query),
+        .limit(pageSize)
+        .lean(),
       Lead.countDocuments(baseWhatsappQuery()),
-      Lead.countDocuments({ ...baseWhatsappQuery(), waStatus: 'pending' }),
+      isPendingTab
+        ? null
+        : Promise.all([
+          Lead.countDocuments({ ...query, waStatus: 'pending' }),
+          Lead.countDocuments(derivedPendingQuery),
+        ]).then(([flagged, derived]) => flagged + derived),
+      getContactIdentityCache(),
+      isPendingTab ? [] : Contact.find(contactQuery)
+        .sort({ createdAt: -1 })
+        .limit(100)
+        .select('name phone identity createdAt updatedAt')
+        .lean(),
     ]);
 
-    // Enrich leads with identity from Contact collection by matching phone number
-    const leadPhones = rawLeads.map(l => String(l.phone || '').slice(-10)).filter(Boolean);
-    const matchedContacts = await Contact.find({
-      $or: [
-        { phone: { $in: leadPhones } },
-        { phone: { $in: rawLeads.map(l => l.phone).filter(Boolean) } }
-      ]
-    }).select('name phone identity').lean();
+    let rawLeads;
+    let pendingTotal;
+    if (isPendingTab) {
+      rawLeads = [...derivedList, ...pendingList]
+        .sort((a, b) => lastWhatsappActivityAt(b) - lastWhatsappActivityAt(a))
+        .slice(skip, skip + pageSize);
+      pendingTotal = pendingList.length + derivedList.length;
+    } else {
+      rawLeads = allPage || [];
+      pendingTotal = pendingCount || 0;
+    }
 
-    const contactMap = {};
-    matchedContacts.forEach(c => {
-      const p10 = String(c.phone || '').slice(-10);
-      if (p10 && c.identity) contactMap[p10] = c.identity;
-    });
+    // Identity from the cached Contact map; the canonical Lead behind every
+    // saved Contact is resolved in ONE batch (the old code fired a find-or-create
+    // per contact, which was the real bottleneck).
+    const contactMap = contactIdentity.map;
+    const leadPhones = rawLeads.map(l => String(l.phone || '').slice(-10)).filter(Boolean);
+    const existingPhones = new Set(leadPhones);
+    const wanted = (extraContacts || [])
+      .map(c => ({ contact: c, p10: String(c.phone || '').slice(-10) }))
+      .filter(({ p10 }) => p10 && !existingPhones.has(p10));
+
+    const phoneVariants = [];
+    wanted.forEach(({ p10 }) => phoneVariants.push(p10, `91${p10}`, `+91${p10}`));
+
+    const matchedLeads = !phoneVariants.length
+      ? []
+      : await Lead.find({ phone: { $in: phoneVariants } })
+        .select('name phone status waStatus waLastReadAt lastWaInboundAt lastWaMessageAt lastWaMessagePreview customFields')
+        .lean();
+
+    const pendingIds = new Set(
+      [...(derivedList || []), ...(pendingList || [])].map(l => String(l._id))
+    );
 
     let leads = rawLeads.map(l => {
-      const obj = l.toObject ? l.toObject() : { ...l };
+      const obj = { ...l };
       const p10 = String(obj.phone || '').slice(-10);
       obj.identity = obj.identity || contactMap[p10] || obj.customFields?.identity || obj.customFields?.Identity || '';
+      // Surface the derived state to the UI (amber dot / Pending styling).
+      if (pendingIds.has(String(obj._id)) || isThreadPending(obj)) obj.waStatus = 'pending';
       return obj;
     });
 
     // On 'all' tab, also include saved Contacts from Contact model so they are reachable
-    if (tab === 'all') {
-      const contactQuery = {};
-      if (search) {
-        contactQuery.$or = [
-          { name: { $regex: search, $options: 'i' } },
-          { phone: { $regex: search, $options: 'i' } },
-          { identity: { $regex: search, $options: 'i' } }
-        ];
-      }
-      const existingPhones = new Set(leads.map(l => String(l.phone || '').slice(-10)));
-      const extraContacts = await Contact.find(contactQuery).sort({ createdAt: -1 }).limit(100).lean();
+    let extraAdded = 0;
+    if (tab === 'all' && matchedLeads.length) {
+      const leadByPhone = {};
+      matchedLeads.forEach(l => {
+        const key = String(l.phone || '').slice(-10);
+        if (key && !leadByPhone[key]) leadByPhone[key] = l;
+      });
 
-      for (const c of extraContacts) {
-        const p10 = String(c.phone || '').slice(-10);
-        if (p10 && !existingPhones.has(p10)) {
-          existingPhones.add(p10);
-          // Find or create canonical Lead so _id is ALWAYS a valid Lead._id
-          const canonicalLead = await findOrCreateLeadForIdOrPhone(c._id);
-          leads.push({
-            _id: canonicalLead._id,
-            name: canonicalLead.name || c.name,
-            phone: canonicalLead.phone || c.phone,
-            status: canonicalLead.status || 'Contact',
-            waStatus: canonicalLead.waStatus || 'none',
-            identity: c.identity || canonicalLead.customFields?.identity || 'General',
-            lastWaMessageAt: canonicalLead.lastWaMessageAt || c.updatedAt || c.createdAt,
-            lastWaMessagePreview: canonicalLead.lastWaMessagePreview || 'Saved Contact'
-          });
-        }
+      for (const { contact: c, p10 } of wanted) {
+        const canonicalLead = leadByPhone[p10];
+        // No conversation on this number → nothing to open in the inbox.
+        if (!canonicalLead || existingPhones.has(p10)) continue;
+        existingPhones.add(p10);
+        leads.push({
+          _id: canonicalLead._id,
+          name: canonicalLead.name || c.name,
+          phone: canonicalLead.phone || c.phone,
+          status: canonicalLead.status || 'Contact',
+          waStatus: pendingIds.has(String(canonicalLead._id)) || isThreadPending(canonicalLead)
+            ? 'pending'
+            : (canonicalLead.waStatus || 'none'),
+          identity: c.identity || canonicalLead.customFields?.identity || 'General',
+          lastWaMessageAt: canonicalLead.lastWaMessageAt || c.updatedAt || c.createdAt,
+          lastWaMessagePreview: canonicalLead.lastWaMessagePreview || 'Saved Contact'
+        });
+        extraAdded += 1;
       }
     }
 
@@ -232,10 +348,8 @@ router.get('/', protect, async (req, res) => {
     // Both tabs read newest → oldest, whatever mix of Lead / Contact rows.
     leads.sort((a, b) => lastWhatsappActivityAt(b) - lastWhatsappActivityAt(a));
 
-    // Extract all existing identities
-    const distinctIdentities = await Contact.distinct('identity');
     const existingIdentities = [...new Set(
-      distinctIdentities.concat(leads.map(l => l.identity)).filter(Boolean)
+      contactIdentity.identities.concat(leads.map(l => l.identity)).filter(Boolean)
     )];
 
     res.json({
@@ -243,7 +357,7 @@ router.get('/', protect, async (req, res) => {
       total: leads.length,
       page: Number(page),
       limit: Number(limit),
-      counts: { all: allCount + (leads.length - rawLeads.length), pending: pendingCount },
+      counts: { all: allCount + extraAdded, pending: pendingTotal || 0 },
       existingIdentities,
     });
   } catch (err) {
