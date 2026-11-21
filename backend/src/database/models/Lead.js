@@ -130,13 +130,19 @@ const leadSchema = new mongoose.Schema({
   waStatus: { type: String, default: 'none' },
   lastWaMessageAt: { type: Date },
   lastWaMessagePreview: { type: String, default: '' },
-  // Moment an agent last opened this chat. Pending is derived from this: a thread
-  // is pending whenever an inbound message is newer than this timestamp, so no
-  // other write to waStatus can hide an unanswered customer message.
+  // Moment an agent last opened this chat. Only drives the blue ticks / the
+  // "new" badge in the inbox — it never moves a thread out of Pending.
   waLastReadAt: { type: Date, default: null },
-  // Timestamp of the newest customer message. Kept on the lead so the inbox list
-  // never has to load the (large) activities array to decide what is Pending.
+  // Timestamp + text of the newest customer message. Kept on the lead so the inbox
+  // list never has to load the (large) activities array, and so the customer's own
+  // words stay visible even after the team answers (Replies tab).
   lastWaInboundAt: { type: Date, default: null },
+  lastWaInboundPreview: { type: String, default: '' },
+  // Newest broadcast / agent reply, also denormalised so the inbox can bucket a
+  // thread as All (blasted, never wrote back), Replies (answered) or Pending
+  // (customer message still waiting for a human answer) without reading activities.
+  lastWaBroadcastAt: { type: Date, default: null },
+  lastWaAgentReplyAt: { type: Date, default: null },
   // =================================================================================
 }, { timestamps: true });
 
@@ -150,5 +156,7 @@ leadSchema.index({ campaign: 1, aiCallState: 1 }); // NEW — campaignEngine eli
 leadSchema.index({ waStatus: 1, lastWaMessageAt: -1 }); // NEW — WhatsApp inbox tab queries
 leadSchema.index({ lastWaMessageAt: -1 }); // NEW — inbox list ordering
 leadSchema.index({ lastWaInboundAt: -1 }); // NEW — derived Pending lookups
+leadSchema.index({ lastWaBroadcastAt: -1 }); // NEW — inbox All tab bucket
+leadSchema.index({ lastWaAgentReplyAt: -1 }); // NEW — inbox Replies tab bucket
 
 module.exports = mongoose.model('Lead', leadSchema);

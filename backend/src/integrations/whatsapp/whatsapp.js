@@ -866,6 +866,8 @@ async function sendAutomatedActionConfirmation({ lead, phone, name, actionType, 
     }
     lead.waStatus = 'pending'; // Keep in pending so human counsellor follows up
     lead.lastWaInboundAt = new Date(); // button press is an inbound customer action
+    // What the agent sees on the list row: the customer's own last action.
+    lead.lastWaInboundPreview = `Button: ${actionType === 'demo' ? 'Book Free Demo' : 'Talk to Expert'} – ${selectedCourseName}`;
     lead.customFields = {
       ...(lead.customFields || {}),
       interested: selectedCourseName,
@@ -1244,9 +1246,12 @@ async function handleWhatsAppWebhookEvent(body, integration) {
         // "Pending" so an agent knows there's an unanswered message waiting.
         lead.waStatus = 'pending';
         lead.lastWaMessageAt = new Date();
-        // Kept on the lead so the inbox can compare "inbound vs last opened"
-        // without loading the activity history.
+        // Kept on the lead so the inbox can bucket the thread (inbound vs last
+        // human reply) without loading the activity history.
         lead.lastWaInboundAt = lead.lastWaMessageAt;
+        // The customer's own words stay on the row in every tab, including
+        // Replies after the team has answered.
+        lead.lastWaInboundPreview = label;
         lead.lastWaMessagePreview = label;
         await lead.save();
 

@@ -401,15 +401,21 @@ function RichTemplateMessageCard({ message, templates = [], leadName = '' }) {
 function InboxTab({ onSendTemplate }) {
   const { user } = useAuth();
 
+  // Three buckets, one thread each: blasted contacts (All), threads the team has
+  // answered (Replies) and unanswered customer messages (Pending).
   const TABS = [
     { key: 'all', label: 'All' },
+    { key: 'replies', label: 'Replies' },
     { key: 'pending', label: 'Pending' },
   ];
+
+  // Each badge shows the real bucket size, so the list loads the whole bucket.
+  const LIST_LIMIT = 1000;
 
   const [tab, setTab] = useState('all');
   const [search, setSearch] = useState('');
   const [leads, setLeads] = useState([]);
-  const [counts, setCounts] = useState({ all: 0, pending: 0 });
+  const [counts, setCounts] = useState({ all: 0, replies: 0, pending: 0 });
   const [loadingList, setLoadingList] = useState(false);
   const [contacts, setContacts] = useState([]);
   const [selectedIdentity, setSelectedIdentity] = useState('ALL');
@@ -504,18 +510,19 @@ function InboxTab({ onSendTemplate }) {
   const applyListPayload = (data) => {
     const rows = data?.leads || [];
     const identities = Array.isArray(data?.existingIdentities) ? data.existingIdentities : null;
+    const nextCounts = data?.counts || { all: 0, replies: 0, pending: 0 };
     // The background poller runs every 12 s: repainting identical rows wasted work
     // and could nudge the list while it was being scrolled.
     const signature = [
       rows.map((row) => `${row._id}:${row.waStatus}:${row.lastWaMessageAt || ''}`).join('|'),
-      JSON.stringify(data?.counts || {}),
+      JSON.stringify(nextCounts),
       (identities || []).join(','),
     ].join('#');
     if (signature === listSigRef.current) return;
     listSigRef.current = signature;
 
     setLeads(rows);
-    setCounts(data?.counts || { all: 0, pending: 0 });
+    setCounts(nextCounts);
     if (identities) setBackendIdentities(identities);
   };
 
@@ -523,7 +530,7 @@ function InboxTab({ onSendTemplate }) {
     const key = `${tab}|${search}`;
     if (!silent) setLoadingList(true);
     try {
-      const res = await api.get('/whatsapp-inbox', { params: { tab, search } });
+      const res = await api.get('/whatsapp-inbox', { params: { tab, search, limit: LIST_LIMIT } });
       const data = res.data || {};
       listCacheRef.current[key] = data;
       // A response for a tab the agent already left must not repaint the list.
@@ -563,16 +570,20 @@ function InboxTab({ onSendTemplate }) {
     return () => window.removeEventListener('wa_data_synced', handleSync);
   }, [tab, search]);
 
-  // Warm the other tab so even the FIRST switch is instant.
+  // Warm the other two buckets so even the FIRST switch is instant.
   useEffect(() => {
-    const other = tab === 'pending' ? 'all' : 'pending';
-    const key = `${other}|${search}`;
-    if (listCacheRef.current[key]) return undefined;
+    const others = ['all', 'replies', 'pending'].filter((key) => key !== tab);
     const timer = setTimeout(async () => {
-      try {
-        const res = await api.get('/whatsapp-inbox', { params: { tab: other, search } });
-        listCacheRef.current[key] = res.data || {};
-      } catch {}
+      for (const other of others) {
+        const key = `${other}|${search}`;
+        if (listCacheRef.current[key]) continue;
+        try {
+          const res = await api.get('/whatsapp-inbox', { params: { tab: other, search, limit: LIST_LIMIT } });
+          listCacheRef.current[key] = res.data || {};
+        } catch {}
+        // The tab may have changed while this was in flight.
+        if (activeKeyRef.current !== `${tab}|${search}`) return;
+      }
     }, 250);
     return () => clearTimeout(timer);
   }, [tab, search]);
@@ -959,13 +970,28 @@ function InboxTab({ onSendTemplate }) {
             <div className="p-8 text-center text-xs text-slate-400">
               {selectedIdentity !== 'ALL'
                 ? `No leads found for "${selectedIdentity}".`
-                : 'No conversations found.'}
+                : tab === 'pending'
+                  ? 'No new messages waiting.'
+                  : tab === 'replies'
+                    ? 'No replies yet.'
+                    : 'No blasted contacts.'}
             </div>
           )}
           {displayedLeads.map((lead) => {
               const isSelected = selectedId === lead._id;
               const identity = getLeadIdentity(lead);
               const initials = (lead.name || lead.phone || 'L').charAt(0).toUpperCase();
+
+              // A thread is "new" until somebody opens it, but it stays in Pending
+              // until somebody actually replies — so the customer's message is never
+              // lost just because the chat was read.
+              const isPending = lead.waStatus === 'pending';
+              const inboundAt = lead.lastWaInboundAt ? new Date(lead.lastWaInboundAt).getTime() : 0;
+              const readAt = lead.waLastReadAt ? new Date(lead.waLastReadAt).getTime() : 0;
+              const isUnread = isPending && inboundAt > readAt;
+              const isReplied = !isPending && Boolean(lead.lastWaAgentReplyAt);
+              // What the CUSTOMER wrote is always on the row, even in Replies.
+              const preview = lead.lastWaInboundPreview || lead.lastWaMessagePreview || 'No messages yet';
 
               return (
                 <div
@@ -988,11 +1014,16 @@ function InboxTab({ onSendTemplate }) {
                         {lead.name || lead.phone}
                       </span>
                       <span
+                        title={isPending ? (isUnread ? 'New message' : 'Awaiting reply') : isReplied ? 'Replied' : 'Blasted'}
                         className={cn(
                           'w-2 h-2 rounded-full shrink-0',
-                          lead.waStatus === 'pending'
+                          isUnread
                             ? 'bg-amber-500'
-                            : 'bg-emerald-500'
+                            : isPending
+                              ? 'bg-amber-300'
+                              : isReplied
+                                ? 'bg-emerald-500'
+                                : 'bg-slate-300'
                         )}
                       />
                     </div>
@@ -1006,11 +1037,28 @@ function InboxTab({ onSendTemplate }) {
                       <span className="text-[11px] text-slate-400 font-mono truncate">
                         {lead.phone}
                       </span>
+                      {isPending && (
+                        <span
+                          className={cn(
+                            'text-[10px] font-semibold rounded px-1.5 py-0.2 shrink-0 border',
+                            isUnread
+                              ? 'bg-amber-50 text-amber-700 border-amber-200'
+                              : 'bg-slate-50 text-slate-500 border-slate-200'
+                          )}
+                        >
+                          {isUnread ? 'New' : 'Awaiting reply'}
+                        </span>
+                      )}
+                      {isReplied && (
+                        <span className="text-[10px] font-semibold rounded px-1.5 py-0.2 shrink-0 border bg-emerald-50 text-emerald-700 border-emerald-200">
+                          Replied
+                        </span>
+                      )}
                       {lead.lastWaMessageAt && (
                         <span
                           className={cn(
                             'ml-auto text-[10px] shrink-0 tabular-nums',
-                            lead.waStatus === 'pending' ? 'text-amber-600 font-semibold' : 'text-slate-400'
+                            isUnread ? 'text-amber-600 font-semibold' : isReplied ? 'text-emerald-600' : 'text-slate-400'
                           )}
                         >
                           {getListTimeLabel(lead.lastWaMessageAt)}
@@ -1021,10 +1069,11 @@ function InboxTab({ onSendTemplate }) {
                     <div
                       className={cn(
                         'text-[11px] truncate',
-                        lead.waStatus === 'pending' ? 'text-slate-800 font-semibold' : 'text-slate-500'
+                        isUnread ? 'text-slate-900 font-semibold' : 'text-slate-500'
                       )}
+                      title={preview}
                     >
-                      {lead.lastWaMessagePreview || 'No messages yet'}
+                      {preview}
                     </div>
                   </div>
                 </div>
@@ -1080,6 +1129,12 @@ function InboxTab({ onSendTemplate }) {
 
               {/* Action Buttons */}
               <div className="flex items-center gap-2">
+                {thread.awaitingReply && (
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-full border bg-amber-50 text-amber-700 border-amber-200 hidden sm:inline-flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                    Awaiting reply
+                  </span>
+                )}
                 <span
                   className={cn(
                     'text-[11px] font-medium px-2 py-0.5 rounded-full border hidden sm:inline-flex items-center gap-1',

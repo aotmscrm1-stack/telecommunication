@@ -533,6 +533,9 @@ router.post('/whatsapp/send-template-direct', protect, async (req, res) => {
         $set: {
           lastWaMessageAt: new Date(),
           lastWaMessagePreview: messageText || `Sent template: ${templateName}`,
+          // A human sent this from the CRM → the thread counts as answered and
+          // leaves the inbox All/Pending buckets for Replies.
+          lastWaAgentReplyAt: new Date(),
           waStatus: (!leadObj.waStatus || leadObj.waStatus === 'none') ? 'active' : leadObj.waStatus,
         },
       });

@@ -35,31 +35,93 @@ function lastInboundActivityAt(lead) {
   return 0;
 }
 
-// A thread is Pending when it is flagged 'pending' OR when an inbound message is
-// newer than the moment an agent last opened it. Deriving it from timestamps keeps
-// "customer wrote → Pending" and "agent opened → not Pending" true even when other
-// send paths (list blasts, template sends) rewrite waStatus.
-// Legacy rows without waLastReadAt keep their stored waStatus.
+// Timestamp of the newest human reply from the team (the bot does not count).
+function lastAgentReplyActivityAt(lead) {
+  const activities = Array.isArray(lead?.activities) ? lead.activities : [];
+  for (let i = activities.length - 1; i >= 0; i -= 1) {
+    const activity = activities[i];
+    if (
+      (activity.type === 'whatsapp' || activity.type === 'whatsapp_reply') &&
+      activity.direction === 'outbound_agent'
+    ) {
+      return new Date(activity.createdAt || 0).getTime();
+    }
+  }
+  return 0;
+}
+
+// A thread stays Pending until a HUMAN answers the customer's newest message.
+// Opening the chat only turns the ticks blue (waLastReadAt) — it never clears
+// Pending, so the customer's message keeps showing until somebody replies.
+// Legacy rows without the timestamps fall back to the stored flag.
 function isThreadPending(lead) {
   if (!lead) return false;
-  if (lead.waStatus === 'pending') return true;
-  const readAt = lead.waLastReadAt ? new Date(lead.waLastReadAt).getTime() : 0;
-  if (!readAt) return false;
   const inboundAt = lead.lastWaInboundAt
     ? new Date(lead.lastWaInboundAt).getTime()
     : lastInboundActivityAt(lead);
-  return inboundAt > readAt;
+  const answeredAt = lead.lastWaAgentReplyAt
+    ? new Date(lead.lastWaAgentReplyAt).getTime()
+    : lastAgentReplyActivityAt(lead);
+  if (inboundAt) return inboundAt > answeredAt;
+  return lead.waStatus === 'pending' && !answeredAt;
 }
+
+// A thread belongs to Replies once the team answered it.
+function isThreadReplied(lead) {
+  if (!lead || isThreadPending(lead)) return false;
+  return Boolean(lead.lastWaAgentReplyAt || lastAgentReplyActivityAt(lead));
+}
+
+// A thread belongs to All while it was blasted and has not been answered yet.
+function isThreadBlasted(lead) {
+  if (!lead || isThreadPending(lead) || isThreadReplied(lead)) return false;
+  return Boolean(lead.lastWaBroadcastAt);
+}
+// Mongo mirror of isThreadPending() — the comparison runs in the database so the
+// inbox never loads activity histories.
+const EPOCH = new Date(0);
+const orEpoch = (field) => ({ $ifNull: [`$${field}`, EPOCH] });
+const PENDING_EXPR = {
+  $or: [
+    // Legacy rows flagged pending that never carried an inbound timestamp.
+    {
+      $and: [
+        { $eq: ['$waStatus', 'pending'] },
+        { $eq: [{ $ifNull: ['$lastWaInboundAt', null] }, null] },
+        { $eq: [{ $ifNull: ['$lastWaAgentReplyAt', null] }, null] },
+      ],
+    },
+    // A customer message no human has answered yet. Reading the chat does NOT
+    // clear it — only an actual reply moves the thread to Replies.
+    {
+      $and: [
+        { $ne: [{ $ifNull: ['$lastWaInboundAt', null] }, null] },
+        { $gt: ['$lastWaInboundAt', orEpoch('lastWaAgentReplyAt')] },
+      ],
+    },
+  ],
+};
+
+// Inbox buckets. Every thread lives in exactly one of them:
+//   pending → the customer's newest message has no human answer yet (read or not)
+//   replies → the team answered the customer's newest message
+//   all     → blasted contacts that never wrote back
+const BUCKET_CLAUSE = {
+  pending: { $expr: PENDING_EXPR },
+  replies: { lastWaAgentReplyAt: { $ne: null }, $expr: { $not: [PENDING_EXPR] } },
+  all: { lastWaBroadcastAt: { $ne: null }, lastWaAgentReplyAt: null, $expr: { $not: [PENDING_EXPR] } },
+};
 
 // ── HELPER: Mark a pending thread as read (agent actually opened it) ─────────
 // This is the ONLY place a customer's ticks turn blue and the ONLY place the read
-// marker moves forward. Inbound messages never clear themselves.
+// marker moves forward. It does not clear Pending: the thread leaves Pending only
+// when a human replies (lastWaAgentReplyAt).
 async function markThreadRead(lead) {
   if (!lead) return false;
 
   const wasPending = isThreadPending(lead);
   lead.waStatus = 'active';
-  // The read marker is what actually drives Pending — see isThreadPending().
+  // Read receipt marker only — bucket membership is decided by the reply time.
   lead.waLastReadAt = new Date();
   await lead.save();
 
@@ -194,7 +256,7 @@ async function getContactIdentityCache() {
   return contactCache;
 }
 
-// ── GET /api/whatsapp-inbox?tab=all|pending|intervened&search=&identity= ─────────────────
+// ── GET /api/whatsapp-inbox?tab=all|replies|pending&search=&identity= ─────────────────
 router.get('/', protect, async (req, res) => {
   try {
     const { tab = 'all', search = '', identity = '', page = 1, limit = 50 } = req.query;
@@ -208,156 +270,62 @@ router.get('/', protect, async (req, res) => {
       ] }];
     }
 
-    const contactQuery = {};
-    if (search) {
-      contactQuery.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { phone: { $regex: search, $options: 'i' } },
-        { identity: { $regex: search, $options: 'i' } }
-      ];
-    }
-
     const LIST_SELECT =
-      'name phone status waStatus waLastReadAt lastWaInboundAt lastWaMessageAt lastWaMessagePreview rating customFields';
+      'name phone status waStatus waLastReadAt lastWaInboundAt lastWaInboundPreview ' +
+      'lastWaAgentReplyAt lastWaBroadcastAt lastWaMessageAt lastWaMessagePreview rating customFields';
     const LIST_SORT = { lastWaMessageAt: -1, updatedAt: -1 };
     const skip = (Number(page) - 1) * Number(limit);
     const pageSize = Number(limit);
 
-    // Pending is DERIVED (see isThreadPending): flagged 'pending' rows plus rows
-    // whose newest inbound is newer than the last time an agent opened the chat.
-    // The comparison runs inside MongoDB and the activity history is NOT loaded —
-    // that is what used to make every tab switch slow.
-    const derivedPendingQuery = {
-      ...query,
-      waStatus: { $ne: 'pending' },
-      waLastReadAt: { $ne: null },
-      lastWaInboundAt: { $ne: null },
-      $expr: { $gt: ['$lastWaInboundAt', '$waLastReadAt'] },
-    };
+    // Every thread sits in exactly one bucket (see BUCKET_CLAUSE): All, Replies or
+    // Pending. All three filters run inside MongoDB, so no activity history is
+    // loaded and the three badges are exact.
+    const bucket = BUCKET_CLAUSE[tab] ? tab : 'all';
 
-    // ONE round trip for everything a tab needs. Only the Pending tab loads the
-    // pending rows; the All tab just needs the two counts.
-    const isPendingTab = tab === 'pending';
-    const [pendingList, derivedList, allPage, allCount, pendingCount, contactIdentity, extraContacts] = await Promise.all([
-      isPendingTab
-        ? Lead.find({ ...query, waStatus: 'pending' }).select(LIST_SELECT).sort(LIST_SORT).limit(300).lean()
-        : null,
-      isPendingTab
-        ? Lead.find(derivedPendingQuery).select(LIST_SELECT).sort(LIST_SORT).limit(300).lean()
-        : null,
-      isPendingTab ? null : Lead.find(query)
+    // ONE round trip for the rows, the three badges and the identity map.
+    const [rows, allCount, repliesCount, pendingCount, contactIdentity] = await Promise.all([
+      Lead.find({ ...query, ...BUCKET_CLAUSE[bucket] })
         .select(LIST_SELECT)
         .sort(LIST_SORT)
         .skip(skip)
         .limit(pageSize)
         .lean(),
-      Lead.countDocuments(baseWhatsappQuery()),
-      isPendingTab
-        ? null
-        : Promise.all([
-          Lead.countDocuments({ ...query, waStatus: 'pending' }),
-          Lead.countDocuments(derivedPendingQuery),
-        ]).then(([flagged, derived]) => flagged + derived),
+      Lead.countDocuments({ ...query, ...BUCKET_CLAUSE.all }),
+      Lead.countDocuments({ ...query, ...BUCKET_CLAUSE.replies }),
+      Lead.countDocuments({ ...query, ...BUCKET_CLAUSE.pending }),
       getContactIdentityCache(),
-      isPendingTab ? [] : Contact.find(contactQuery)
-        .sort({ createdAt: -1 })
-        .limit(100)
-        .select('name phone identity createdAt updatedAt')
-        .lean(),
     ]);
 
-    let rawLeads;
-    let pendingTotal;
-    if (isPendingTab) {
-      rawLeads = [...derivedList, ...pendingList]
-        .sort((a, b) => lastWhatsappActivityAt(b) - lastWhatsappActivityAt(a))
-        .slice(skip, skip + pageSize);
-      pendingTotal = pendingList.length + derivedList.length;
-    } else {
-      rawLeads = allPage || [];
-      pendingTotal = pendingCount || 0;
-    }
-
-    // Identity from the cached Contact map; the canonical Lead behind every
-    // saved Contact is resolved in ONE batch (the old code fired a find-or-create
-    // per contact, which was the real bottleneck).
     const contactMap = contactIdentity.map;
-    const leadPhones = rawLeads.map(l => String(l.phone || '').slice(-10)).filter(Boolean);
-    const existingPhones = new Set(leadPhones);
-    const wanted = (extraContacts || [])
-      .map(c => ({ contact: c, p10: String(c.phone || '').slice(-10) }))
-      .filter(({ p10 }) => p10 && !existingPhones.has(p10));
-
-    const phoneVariants = [];
-    wanted.forEach(({ p10 }) => phoneVariants.push(p10, `91${p10}`, `+91${p10}`));
-
-    const matchedLeads = !phoneVariants.length
-      ? []
-      : await Lead.find({ phone: { $in: phoneVariants } })
-        .select('name phone status waStatus waLastReadAt lastWaInboundAt lastWaMessageAt lastWaMessagePreview customFields')
-        .lean();
-
-    const pendingIds = new Set(
-      [...(derivedList || []), ...(pendingList || [])].map(l => String(l._id))
-    );
-
-    let leads = rawLeads.map(l => {
+    let leads = rows.map(l => {
       const obj = { ...l };
       const p10 = String(obj.phone || '').slice(-10);
       obj.identity = obj.identity || contactMap[p10] || obj.customFields?.identity || obj.customFields?.Identity || '';
-      // Surface the derived state to the UI (amber dot / Pending styling).
-      if (pendingIds.has(String(obj._id)) || isThreadPending(obj)) obj.waStatus = 'pending';
+      // Pending rows always carry the flag so the amber dot shows.
+      if (bucket === 'pending' || isThreadPending(obj)) obj.waStatus = 'pending';
       return obj;
     });
-
-    // On 'all' tab, also include saved Contacts from Contact model so they are reachable
-    let extraAdded = 0;
-    if (tab === 'all' && matchedLeads.length) {
-      const leadByPhone = {};
-      matchedLeads.forEach(l => {
-        const key = String(l.phone || '').slice(-10);
-        if (key && !leadByPhone[key]) leadByPhone[key] = l;
-      });
-
-      for (const { contact: c, p10 } of wanted) {
-        const canonicalLead = leadByPhone[p10];
-        // No conversation on this number → nothing to open in the inbox.
-        if (!canonicalLead || existingPhones.has(p10)) continue;
-        existingPhones.add(p10);
-        leads.push({
-          _id: canonicalLead._id,
-          name: canonicalLead.name || c.name,
-          phone: canonicalLead.phone || c.phone,
-          status: canonicalLead.status || 'Contact',
-          waStatus: pendingIds.has(String(canonicalLead._id)) || isThreadPending(canonicalLead)
-            ? 'pending'
-            : (canonicalLead.waStatus || 'none'),
-          identity: c.identity || canonicalLead.customFields?.identity || 'General',
-          lastWaMessageAt: canonicalLead.lastWaMessageAt || c.updatedAt || c.createdAt,
-          lastWaMessagePreview: canonicalLead.lastWaMessagePreview || 'Saved Contact'
-        });
-        extraAdded += 1;
-      }
-    }
 
     // Filter by identity if provided
     if (identity && identity.toUpperCase() !== 'ALL') {
       leads = leads.filter(l => (l.identity || '').toLowerCase() === identity.toLowerCase());
     }
 
-    // Both tabs read newest → oldest, whatever mix of Lead / Contact rows.
+    // Newest conversation first in every tab.
     leads.sort((a, b) => lastWhatsappActivityAt(b) - lastWhatsappActivityAt(a));
 
     const existingIdentities = [...new Set(
       contactIdentity.identities.concat(leads.map(l => l.identity)).filter(Boolean)
     )];
 
+    const counts = { all: allCount, replies: repliesCount, pending: pendingCount };
+
     res.json({
       leads,
-      total: leads.length,
+      total: counts[bucket],
       page: Number(page),
       limit: Number(limit),
-      counts: { all: allCount + extraAdded, pending: pendingTotal || 0 },
+      counts,
       existingIdentities,
     });
   } catch (err) {
@@ -461,6 +429,9 @@ router.get('/:leadId', protect, async (req, res) => {
       lead: { id: lead._id, name: lead.name, phone: lead.phone, status: lead.status, waStatus: lead.waStatus, identity: lead.customFields?.identity || '' },
       thread,
       withinWindow,
+      // The customer's newest message still has no human answer (reading the chat
+      // does not clear this — only a reply does).
+      awaitingReply: isThreadPending(lead),
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -533,6 +504,8 @@ router.post('/:leadId/reply', protect, async (req, res) => {
     });
     lead.waStatus = 'active';
     lead.lastWaMessageAt = new Date();
+    // A human answered → the thread leaves Pending and shows up in Replies.
+    lead.lastWaAgentReplyAt = lead.lastWaMessageAt;
     lead.lastWaMessagePreview = description;
     await lead.save();
 

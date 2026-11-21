@@ -132,6 +132,9 @@ router.post('/:id/send', protect, async (req, res) => {
     // still waiting for a human stays Pending.
     if (lead.waStatus !== 'pending') lead.waStatus = 'intervened';
     lead.lastWaMessageAt = new Date();
+    // An agent sent this list from the inbox → the thread counts as answered and
+    // moves to the Replies bucket in the inbox.
+    lead.lastWaAgentReplyAt = lead.lastWaMessageAt;
     lead.lastWaMessagePreview = description;
     await lead.save();
 

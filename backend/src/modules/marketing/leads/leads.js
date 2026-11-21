@@ -1580,6 +1580,8 @@ router.post('/whatsapp-blast', protect, blastLimiter, async (req, res) => {
         // broadcast does not answer the customer's waiting message.
         if (targetLead.waStatus !== 'pending') targetLead.waStatus = 'active';
         targetLead.lastWaMessageAt = new Date();
+        // Inbox bucket marker: this contact received a blast (All tab).
+        targetLead.lastWaBroadcastAt = targetLead.lastWaMessageAt;
         targetLead.lastWaMessagePreview = descriptionText;
         await targetLead.save();
 
@@ -1616,6 +1618,8 @@ router.post('/whatsapp-blast', protect, blastLimiter, async (req, res) => {
             // broadcast does not answer the customer's waiting message.
             if (targetLead.waStatus !== 'pending') targetLead.waStatus = 'active';
             targetLead.lastWaMessageAt = new Date();
+            // Inbox bucket marker: this contact received a blast (All tab).
+            targetLead.lastWaBroadcastAt = targetLead.lastWaMessageAt;
             targetLead.lastWaMessagePreview = fallbackText;
             await targetLead.save();
 

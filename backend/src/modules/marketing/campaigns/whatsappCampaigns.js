@@ -585,6 +585,8 @@ router.post('/:id/send', protect, async (req, res) => {
               // does not answer the customer's waiting message.
               if (lead.waStatus !== 'pending') lead.waStatus = 'active';
               lead.lastWaMessageAt = new Date();
+              // Inbox bucket marker: this contact received a blast (All tab).
+              lead.lastWaBroadcastAt = lead.lastWaMessageAt;
               lead.lastWaMessagePreview = messageText;
               await lead.save();
             }
