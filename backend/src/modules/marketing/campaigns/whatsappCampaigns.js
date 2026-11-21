@@ -518,24 +518,41 @@ router.post('/:id/send', protect, async (req, res) => {
 
           let sendResult;
           let messageText = '';
-          // If template exists, send template message, otherwise send text
+          let isTemplate = false;
+          // If template exists, send template message, otherwise send text.
+          // NOTE: the WhatsApp service signature is (phoneNumberId, accessToken, to, ...)
           if (campaign.templateRef?.shortcut) {
-            sendResult = await whatsappService.sendTemplateMessage(
-              toPhone,
+            const template = await whatsappService.findOrFetchTemplate(
               campaign.templateRef.shortcut,
-              'en',
-              [{ name: contact.name }],
+              integration.config?.wabaId,
+              token
+            );
+            const metaTemplateName = template?.metaTemplateName || campaign.templateRef.shortcut;
+            const components = await whatsappService.buildTemplateComponents(
+              template,
+              { name: contact.name, phone: toPhone, email: contact.email, identity: contact.identity },
+              null,
+              null,
               phoneId,
               token
             );
-            messageText = `[Template: ${campaign.templateRef.shortcut}] ${campaign.templateRef.message || ''}`;
+            sendResult = await whatsappService.sendTemplateMessage(
+              phoneId,
+              token,
+              toPhone,
+              metaTemplateName,
+              template?.language || 'en_US',
+              components
+            );
+            messageText = `[Template: ${metaTemplateName}] ${campaign.templateRef.message || ''}`;
+            isTemplate = true;
           } else {
             const personalized = messageBody
               .replace(/\{\{name\}\}/gi, contact.name || 'Valued Customer')
               .replace(/\{\{identity\}\}/gi, contact.identity || '')
               .replace(/\{\{email\}\}/gi, contact.email || '');
 
-            sendResult = await whatsappService.sendTextMessage(toPhone, personalized, phoneId, token);
+            sendResult = await whatsappService.sendTextMessage(phoneId, token, toPhone, personalized);
             messageText = personalized;
           }
 
@@ -557,10 +574,16 @@ router.post('/:id/send', protect, async (req, res) => {
               lead.activities.push({
                 type: 'whatsapp',
                 description: messageText,
-                direction: 'outbound',
+                direction: 'outbound_broadcast',
                 metaMessageId: sendResult?.messages?.[0]?.id || '',
+                deliveryStatus: 'sent',
+                isTemplate,
+                templateName: isTemplate ? (campaign.templateRef?.shortcut || '') : '',
+                createdAt: new Date(),
               });
-              lead.waStatus = 'active';
+              // Pending is only cleared when an agent opens the chat — a broadcast
+              // does not answer the customer's waiting message.
+              if (lead.waStatus !== 'pending') lead.waStatus = 'active';
               lead.lastWaMessageAt = new Date();
               lead.lastWaMessagePreview = messageText;
               await lead.save();

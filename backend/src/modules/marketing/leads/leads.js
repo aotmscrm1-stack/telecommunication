@@ -1576,7 +1576,9 @@ router.post('/whatsapp-blast', protect, blastLimiter, async (req, res) => {
           performedBy: req.user?._id,
           createdAt: new Date(),
         });
-        targetLead.waStatus = 'active';
+        // Pending is only cleared when an agent opens the chat — an outbound
+        // broadcast does not answer the customer's waiting message.
+        if (targetLead.waStatus !== 'pending') targetLead.waStatus = 'active';
         targetLead.lastWaMessageAt = new Date();
         targetLead.lastWaMessagePreview = descriptionText;
         await targetLead.save();
@@ -1610,7 +1612,9 @@ router.post('/whatsapp-blast', protect, blastLimiter, async (req, res) => {
               deliveryStatus: 'sent',
               createdAt: new Date(),
             });
-            targetLead.waStatus = 'active';
+            // Pending is only cleared when an agent opens the chat — an outbound
+            // broadcast does not answer the customer's waiting message.
+            if (targetLead.waStatus !== 'pending') targetLead.waStatus = 'active';
             targetLead.lastWaMessageAt = new Date();
             targetLead.lastWaMessagePreview = fallbackText;
             await targetLead.save();

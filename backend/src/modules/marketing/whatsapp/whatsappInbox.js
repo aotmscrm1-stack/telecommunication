@@ -20,6 +20,57 @@ function baseWhatsappQuery() {
   };
 }
 
+// ── HELPER: Mark a pending thread as read (agent actually opened it) ─────────
+// This is the ONLY place a customer's ticks turn blue and the ONLY place waStatus
+// leaves 'pending'. Inbound messages never clear themselves.
+async function markThreadRead(lead) {
+  if (!lead) return false;
+
+  const wasPending = lead.waStatus === 'pending';
+  lead.waStatus = 'active';
+  await lead.save();
+
+  // Read receipt for the newest customer message — sent once a human opened the
+  // thread, never from the bot and never on message arrival.
+  const lastInbound = [...(lead.activities || [])]
+    .reverse()
+    .find(a => a.type === 'whatsapp' && a.direction === 'inbound' && a.metaMessageId);
+
+  if (lastInbound?.metaMessageId) {
+    try {
+      const integration = await Integration.findOne({ type: 'whatsapp_cloud', status: 'active' });
+      const phoneId = integration?.config?.phoneNumberId || process.env.META_WA_PHONE_NUMBER_ID;
+      const token = integration?.config?.accessToken || process.env.META_WA_ACCESS_TOKEN;
+      whatsappService.markAsRead(phoneId, token, lastInbound.metaMessageId).catch(() => {});
+    } catch (err) {
+      // Read receipt failure must never block opening the conversation.
+    }
+  }
+
+  // Let every open tab drop the lead from Pending without a manual refresh.
+  try {
+    const { broadcastWebSocketEvent } = require('../../../app/websocket');
+    broadcastWebSocketEvent('whatsapp:thread_read', {
+      leadId: lead._id,
+      waStatus: lead.waStatus,
+      readBy: 'agent',
+    });
+  } catch (err) {
+    // best-effort
+  }
+
+  return wasPending;
+}
+
+// Newest activity first in both tabs. Leads without lastWaMessageAt fall back to
+// their last WhatsApp activity so a fresh reply can never sink to the bottom.
+function lastWhatsappActivityAt(lead) {
+  if (lead?.lastWaMessageAt) return new Date(lead.lastWaMessageAt).getTime();
+  const activities = Array.isArray(lead?.activities) ? lead.activities : [];
+  const last = [...activities].reverse().find(a => a.type === 'whatsapp' || a.type === 'whatsapp_reply');
+  return new Date(last?.createdAt || lead?.updatedAt || lead?.createdAt || 0).getTime();
+}
+
 // ── HELPER: Find or Create Unified Lead for Contact / MetaLead / ID / Phone ──
 async function findOrCreateLeadForIdOrPhone(idOrPhone) {
   if (!idOrPhone) return null;
@@ -178,6 +229,9 @@ router.get('/', protect, async (req, res) => {
       leads = leads.filter(l => (l.identity || '').toLowerCase() === identity.toLowerCase());
     }
 
+    // Both tabs read newest → oldest, whatever mix of Lead / Contact rows.
+    leads.sort((a, b) => lastWhatsappActivityAt(b) - lastWhatsappActivityAt(a));
+
     // Extract all existing identities
     const distinctIdentities = await Contact.distinct('identity');
     const existingIdentities = [...new Set(
@@ -264,15 +318,16 @@ router.post('/automation/send-greeting', protect, async (req, res) => {
 });
 
 // ── GET /api/whatsapp-inbox/:leadId — full whatsapp thread for the chat panel ──
+// Pass the `markRead` flag to clear Pending; plain reads (background refreshes)
+// must never mark the conversation as read on their own.
 router.get('/:leadId', protect, async (req, res) => {
   try {
     const lead = await findOrCreateLeadForIdOrPhone(req.params.leadId);
     if (!lead) return res.status(404).json({ message: 'Lead or Contact not found' });
 
-    // Mark as read when agent opens thread
-    if (lead.waStatus === 'pending') {
-      lead.waStatus = 'active';
-      await lead.save();
+    const shouldMarkRead = ['1', 'true', 'yes'].includes(String(req.query.markRead || '').toLowerCase());
+    if (shouldMarkRead) {
+      await markThreadRead(lead);
     }
 
     if (lead.populate) {
@@ -293,6 +348,19 @@ router.get('/:leadId', protect, async (req, res) => {
       thread,
       withinWindow,
     });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ── POST /api/whatsapp-inbox/:leadId/read — mark an opened thread as read ──────
+router.post('/:leadId/read', protect, async (req, res) => {
+  try {
+    const lead = await findOrCreateLeadForIdOrPhone(req.params.leadId);
+    if (!lead) return res.status(404).json({ message: 'Lead or Contact not found' });
+
+    const changed = await markThreadRead(lead);
+    res.json({ waStatus: lead.waStatus, changed });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

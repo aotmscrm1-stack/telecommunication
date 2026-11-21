@@ -2,6 +2,11 @@ const axios = require('axios');
 const Lead = require('../../database/models/Lead');
 const Integration = require('../../database/models/Integration');
 const MessageTemplate = require('../../database/models/MessageTemplate');
+const {
+  buildGreetingSummary,
+  buildCourseDetailText,
+  planBotReply,
+} = require('./automationReplies');
 
 const WA_API = 'https://graph.facebook.com/v22.0';
 
@@ -594,7 +599,10 @@ const DEFAULT_BOT_COURSES = [
 ];
 
 const DEFAULT_AUTOMATION_CONFIG = {
-  enabled: true,
+  // The auto-reply bot is OFF by default: inbound customer messages go straight
+  // to the Pending inbox for a counsellor instead of being answered by the bot.
+  // An admin can re-enable it in WhatsApp -> Automation (config.enabled).
+  enabled: false,
   replyToAllFirstMessages: true,
   instituteName: 'Academy of Tech Masters (AOTMS)',
   greetingHeader: '👋 Welcome to AOTMS!',
@@ -711,7 +719,11 @@ async function recordBotActivityAndBroadcast(lead, description, metaMessageId = 
   };
   lead.activities.push(activity);
   lead.lastWaMessageAt = new Date();
-  lead.lastWaMessagePreview = description;
+  // While the thread is still Pending the list must keep showing what the
+  // CUSTOMER wrote — the bot's answer is already in the thread.
+  if (lead.waStatus !== 'pending') {
+    lead.lastWaMessagePreview = description;
+  }
   await lead.save();
 
   broadcastWebSocketEvent('whatsapp:incoming_message', {
@@ -741,6 +753,10 @@ async function sendAutomatedGreetingMenu({ lead, phone, name, integration, confi
 
   const courses = Array.isArray(cfg.courses) && cfg.courses.length > 0 ? cfg.courses : DEFAULT_BOT_COURSES;
 
+  // One canonical summary is used for the lead activity AND for duplicate
+  // detection, so the same menu is never pushed twice in a row.
+  const summary = buildGreetingSummary(cfg, studentName, courses);
+
   const rows = courses.slice(0, 10).map((c, idx) => ({
     id: c.id || `course_${idx}`,
     title: String(c.shortTitle || c.name || `Course ${idx + 1}`).slice(0, 24),
@@ -748,7 +764,6 @@ async function sendAutomatedGreetingMenu({ lead, phone, name, integration, confi
   }));
 
   let sendRes = null;
-  let logSummary = '';
 
   try {
     sendRes = await sendListMessage(pId, token, targetPhone, {
@@ -763,12 +778,6 @@ async function sendAutomatedGreetingMenu({ lead, phone, name, integration, confi
         },
       ],
     });
-
-    const courseListPreview = courses
-      .slice(0, 10)
-      .map((c, idx) => `${idx + 1}. *${c.name}* (${c.duration} • ${c.fee})`)
-      .join('\n');
-    logSummary = `${cfg.greetingHeader || '👋 Welcome to AOTMS!'}\n\n${bodyText}\n\n📚 *Courses Menu Sent:*\n${courseListPreview}`;
   } catch (listErr) {
     console.warn('[WhatsApp Bot] Interactive List fallback to text:', listErr.response?.data || listErr.message);
     const numberedCourses = courses
@@ -777,11 +786,10 @@ async function sendAutomatedGreetingMenu({ lead, phone, name, integration, confi
       .join('\n');
     const fallbackText = `${cfg.greetingHeader || '👋 Welcome to AOTMS!'}\n\n${bodyText}\n\n${numberedCourses}\n\n👉 *Reply with a course number (1-${courses.length}) or course name* to get full details!`;
     sendRes = await sendTextMessage(pId, token, targetPhone, fallbackText);
-    logSummary = fallbackText;
   }
 
   if (lead) {
-    await recordBotActivityAndBroadcast(lead, logSummary, sendRes?.messages?.[0]?.id || '');
+    await recordBotActivityAndBroadcast(lead, summary, sendRes?.messages?.[0]?.id || '');
   }
 
   return sendRes;
@@ -807,14 +815,7 @@ async function sendAutomatedCourseDetails({ lead, phone, name, course, integrati
     lead.markModified('customFields');
   }
 
-  const detailText =
-    `📘 *Course:* ${course.name}\n` +
-    `⏳ *Duration:* ${course.duration || '4 Months'}\n` +
-    `💰 *Course Fee:* ${course.fee || 'Contact Counsellor'}\n` +
-    `💻 *Mode:* ${course.mode || 'Online & Offline (Classroom)'}\n\n` +
-    `✨ *Key Syllabus & Highlights:*\n${course.highlights || '100% Practical Training with Live Projects & Placement Support.'}\n\n` +
-    `🎯 *Includes:* Real-Time Projects, Course Completion Certificate & 100% Placement Assistance!\n\n` +
-    `👇 *Choose an option below:*`;
+  const { detailText, logText } = buildCourseDetailText(course);
 
   const buttons = [
     { id: `book_demo|${course.id}`, title: '📅 Book Free Demo' },
@@ -844,11 +845,7 @@ async function sendAutomatedCourseDetails({ lead, phone, name, course, integrati
   }
 
   if (lead) {
-    await recordBotActivityAndBroadcast(
-      lead,
-      `🎓 *${course.name}*\n\n${detailText}\n\n[Buttons: 📅 Book Free Demo | 📞 Talk to Expert | 📚 All Courses]`,
-      sendRes?.messages?.[0]?.id || ''
-    );
+    await recordBotActivityAndBroadcast(lead, logText, sendRes?.messages?.[0]?.id || '');
   }
 
   return sendRes;
@@ -903,9 +900,67 @@ async function sendAutomatedActionConfirmation({ lead, phone, name, actionType, 
   return sendRes;
 }
 
+// ── Recent Broadcast Context ───────────────────────────────────────────────────
+// A customer answering a WhatsApp blast is usually sending the FIRST inbound
+// message of the session. Without this context the bot treats them as a brand-new
+// contact and pushes the full course menu — the very template they complained
+// about. Knowing the last broadcast lets the planner answer according to the
+// message and, when the reply is a short "yes" / "details", resolve it against
+// the course that was actually broadcast.
+const BLAST_CONTEXT_WINDOW_MS = 72 * 60 * 60 * 1000; // 3 days
+
+function getRecentBlastContext(lead, windowMs = BLAST_CONTEXT_WINDOW_MS) {
+  const activities = Array.isArray(lead?.activities) ? lead.activities : [];
+  if (!activities.length) return null;
+
+  const since = Date.now() - windowMs;
+  let latest = null;
+
+  for (const activity of activities) {
+    if (activity.type !== 'whatsapp') continue;
+    const isBroadcast =
+      activity.direction === 'outbound_broadcast' ||
+      (activity.direction === 'outbound' && activity.isTemplate);
+    if (!isBroadcast) continue;
+    const at = new Date(activity.createdAt || 0).getTime();
+    if (Number.isFinite(at) && at < since) continue;
+    if (!latest || at > latest.at) latest = { at, activity };
+  }
+
+  if (!latest) return null;
+  const { activity } = latest;
+  return {
+    templateName: activity.templateName || '',
+    description: activity.description || '',
+    label: activity.templateName || activity.description || '',
+    courseHint: lead?.customFields?.lastSelectedCourse || lead?.customFields?.interested || '',
+    sentAt: new Date(latest.at || Date.now()),
+  };
+}
+
+// ── Bot Reply De-duplication ────────────────────────────────────────────────────
+// Only guards against the same reply being pushed twice from a single inbound
+// (webhook retry / double dispatch). A customer repeating a question minutes
+// later must still get the answer, so the window is deliberately short.
+const BOT_REPEAT_WINDOW_MS = 2 * 60 * 1000; // 2 minutes
+
+function normalizeBotReply(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
+function wasBotReplySentRecently(lead, replyText, windowMs = BOT_REPEAT_WINDOW_MS) {
+  const needle = normalizeBotReply(replyText);
+  if (!needle || !lead) return false;
+  const since = Date.now() - windowMs;
+  return (lead.activities || []).some((activity) => {
+    if (activity.type !== 'whatsapp' || activity.direction !== 'outbound_bot') return false;
+    if (new Date(activity.createdAt || 0).getTime() < since) return false;
+    return normalizeBotReply(activity.description) === needle;
+  });
+}
+
 // ── Main Inbound Bot Decision Engine ────────────────────────────────────────────
 async function processWhatsAppBotAutomation({
-  msg,
   text,
   interactiveId,
   phone,
@@ -914,6 +969,7 @@ async function processWhatsAppBotAutomation({
   integration,
   isNewLead,
   priorInboundCount,
+  blastContext,
 }) {
   try {
     const config = await getWhatsAppAutomationConfig(integration);
@@ -921,17 +977,20 @@ async function processWhatsAppBotAutomation({
       return { handled: false, reason: 'automation_disabled' };
     }
 
+    // IMPORTANT: the bot NEVER marks the thread read. An automated answer does
+    // not mean a human has seen the message — the lead stays in Pending with the
+    // customer's ticks still grey until an agent opens the chat.
+
     const pId = integration?.config?.phoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID || process.env.META_WA_PHONE_NUMBER_ID;
     const token = integration?.config?.accessToken || process.env.WHATSAPP_ACCESS_TOKEN || process.env.META_WA_ACCESS_TOKEN;
-
-    if (msg?.id) {
-      markAsRead(pId, token, msg.id).catch(() => {});
-    }
-
     const courses = Array.isArray(config.courses) && config.courses.length > 0 ? config.courses : DEFAULT_BOT_COURSES;
-    const cleanText = String(text || '').trim();
-    const lowerText = cleanText.toLowerCase();
     const cleanId = String(interactiveId || '').trim();
+    // Did this message come in as an answer to a recent broadcast?
+    const blast = blastContext === undefined ? getRecentBlastContext(lead) : blastContext;
+    // "First message of the session" — the only case that may push the full menu.
+    // A reply to a blast is never a first contact: the customer already received
+    // the broadcast, so the reply is answered on its own topic.
+    const isFirstMessageInSession = !blast && (!!isNewLead || Number(priorInboundCount || 0) === 0);
 
     // 1. Check Interactive Button / List Reply IDs first
     if (cleanId === 'show_courses_menu') {
@@ -967,98 +1026,123 @@ async function processWhatsAppBotAutomation({
       return { handled: true, action: 'course_details', course: interactiveCourse.name };
     }
 
-    // 2. Check if user typed a number (e.g., "1", "2", ... up to courses.length)
-    if (/^\d+$/.test(cleanText)) {
-      const idx = parseInt(cleanText, 10) - 1;
-      if (idx >= 0 && idx < courses.length) {
-        await sendAutomatedCourseDetails({
-          lead,
-          phone,
-          name,
-          course: courses[idx],
-          integration,
-          config,
-        });
-        return { handled: true, action: 'course_details_by_number', course: courses[idx].name };
-      }
-    }
-
-    // 3. Check if user typed a Demo / Callback keyword
-    if (
-      /\b(book\s*demo|free\s*demo|demo\s*class|demo)\b/i.test(lowerText) &&
-      (lead?.customFields?.lastSelectedCourse || lead?.customFields?.interested)
-    ) {
-      await sendAutomatedActionConfirmation({
-        lead,
-        phone,
-        name,
-        actionType: 'demo',
-        course: { name: lead.customFields.lastSelectedCourse || lead.customFields.interested },
-        integration,
-        config,
-      });
-      return { handled: true, action: 'demo_by_text' };
-    }
-
-    if (/\b(call\s*me|callback|talk\s*to|counsellor|counselor|expert|contact\s*me)\b/i.test(lowerText)) {
-      await sendAutomatedActionConfirmation({
-        lead,
-        phone,
-        name,
-        actionType: 'call',
-        course: { name: lead?.customFields?.lastSelectedCourse || lead?.customFields?.interested || 'AOTMS Courses' },
-        integration,
-        config,
-      });
-      return { handled: true, action: 'call_by_text' };
-    }
-
-    // 4. Check if user typed a specific course name or keyword
-    const matchedCourseByText = courses.find(c => {
-      const cName = String(c.name || '').toLowerCase();
-      const cShort = String(c.shortTitle || '').toLowerCase();
-      if (lowerText === cName || lowerText === cShort) return true;
-      if (lowerText.length >= 3 && (cName.includes(lowerText) || lowerText.includes(cShort))) return true;
-      // Specific course keyword aliases
-      if (cName.includes('data analytics') && /\b(data\s*analytics|data\s*science|power\s*bi|tableau)\b/i.test(lowerText)) return true;
-      if (cName.includes('mern') && /\b(mern|web\s*dev|react|node|full\s*stack\s*web)\b/i.test(lowerText)) return true;
-      if (cName.includes('python') && /\b(python|django)\b/i.test(lowerText)) return true;
-      if (cName.includes('digital marketing') && /\b(digital\s*marketing|seo|google\s*ads|meta\s*ads)\b/i.test(lowerText)) return true;
-      if (cName.includes('java') && /\b(java|spring\s*boot)\b/i.test(lowerText)) return true;
-      if (cName.includes('cyber') && /\b(cyber|hacking|ethical|vapt|soc)\b/i.test(lowerText)) return true;
-      if (cName.includes('testing') && /\b(testing|selenium|qa|manual\s*testing|automation\s*testing)\b/i.test(lowerText)) return true;
-      if (cName.includes('aws') && /\b(aws|devops|cloud|docker|kubernetes)\b/i.test(lowerText)) return true;
-      return false;
+    // 2. Free text → answer the topic the customer actually asked about.
+    const plan = planBotReply({
+      text,
+      courses,
+      config,
+      lead,
+      isFirstMessageInSession,
+      blastContext: blast,
     });
 
-    if (matchedCourseByText) {
+    // 3. Duplicate guard: never push the same reply twice in a row.
+    if (plan.kind === 'greeting_menu') {
+      if (plan.intent === 'first_contact' && config.replyToAllFirstMessages === false) {
+        return { handled: false, reason: 'first_contact_menu_disabled' };
+      }
+      const studentName = (name || lead?.name || 'Student').replace(/^WhatsApp (Lead|Contact)$/i, 'Student');
+      const summary = buildGreetingSummary(config, studentName, courses);
+      if (wasBotReplySentRecently(lead, summary)) {
+        return { handled: true, action: 'duplicate_suppressed', intent: plan.intent };
+      }
+      await sendAutomatedGreetingMenu({ lead, phone, name, integration, config });
+      return { handled: true, action: 'greeting_menu', intent: plan.intent };
+    }
+
+    if (plan.kind === 'course_details') {
+      const { logText } = buildCourseDetailText(plan.course);
+      if (wasBotReplySentRecently(lead, logText)) {
+        return { handled: true, action: 'duplicate_suppressed', intent: plan.intent };
+      }
       await sendAutomatedCourseDetails({
         lead,
         phone,
         name,
-        course: matchedCourseByText,
+        course: plan.course,
         integration,
         config,
       });
-      return { handled: true, action: 'course_details_by_keyword', course: matchedCourseByText.name };
+      return { handled: true, action: 'course_details', course: plan.course?.name, intent: plan.intent };
     }
 
-    // 5. Check Greeting / Menu / General Enquiry Keywords OR First-Time Inbound Message
-    const isGreetingOrMenuKeyword =
-      /\b(hi+|hello+|hey+|hlo|namaste|hai|vanakkam|good\s*morning|good\s*afternoon|good\s*evening|start|menu|courses?|details|info|information|fees?|price|cost|batch|batches|training|coaching|institute|aotms|admission|join|help|brochure|syllabus|curriculum)\b/i.test(
-        lowerText
-      ) || cleanText === '?';
-
-    if (isGreetingOrMenuKeyword || (config.replyToAllFirstMessages !== false && (isNewLead || priorInboundCount === 0))) {
-      await sendAutomatedGreetingMenu({ lead, phone, name, integration, config });
-      return { handled: true, action: 'greeting_menu' };
+    if (plan.kind === 'demo_confirm' || plan.kind === 'callback_confirm') {
+      await sendAutomatedActionConfirmation({
+        lead,
+        phone,
+        name,
+        actionType: plan.kind === 'demo_confirm' ? 'demo' : 'call',
+        course: plan.course || {
+          name: lead?.customFields?.lastSelectedCourse || lead?.customFields?.interested || 'AOTMS Courses',
+        },
+        integration,
+        config,
+      });
+      // A demo / callback request is NOT "handled" by the bot — a counsellor has
+      // to call the student, so the thread deliberately stays Pending.
+      return { handled: true, action: plan.kind, intent: plan.intent };
     }
 
-    return { handled: false, reason: 'no_trigger_matched' };
+    if (plan.kind === 'text' && plan.text) {
+      if (wasBotReplySentRecently(lead, plan.text)) {
+        return { handled: true, action: 'duplicate_suppressed', intent: plan.intent };
+      }
+      const sendRes = await sendTextMessage(pId, token, phone || lead?.phone, plan.text);
+      if (lead) {
+        await recordBotActivityAndBroadcast(lead, plan.text, sendRes?.messages?.[0]?.id || '');
+      }
+      return { handled: true, action: 'text_reply', intent: plan.intent };
+    }
+
+    return { handled: false, reason: plan.reason || 'no_reply_planned' };
   } catch (err) {
     console.error('[WhatsApp Bot Automation Error]:', err.response?.data || err.message);
     return { handled: false, error: err.message };
   }
+}
+
+// ── Describe an inbound message ───────────────────────────────────────────────
+// Returns the text the BOT should reason about and the label the counsellor sees
+// in the thread. A shared location pin carries no text at all, so it is mapped to
+// "Location" — the bot then answers with the campus address instead of staying
+// silent, and the activity keeps the coordinates for the agent.
+const INBOUND_MEDIA_LABELS = {
+  image: '🖼️ Photo',
+  video: '🎬 Video',
+  audio: '🎤 Voice message',
+  document: '📄 Document',
+  sticker: '💟 Sticker',
+  contacts: '👤 Contact card',
+};
+
+function describeInboundMessage(msg = {}) {
+  if (msg.text?.body) return { text: msg.text.body, label: msg.text.body };
+  if (msg.button?.text) return { text: msg.button.text, label: msg.button.text };
+  if (msg.interactive?.button_reply?.title) {
+    return { text: msg.interactive.button_reply.title, label: msg.interactive.button_reply.title };
+  }
+  if (msg.interactive?.list_reply?.title) {
+    return { text: msg.interactive.list_reply.title, label: msg.interactive.list_reply.title };
+  }
+
+  if (msg.location) {
+    const { latitude, longitude, name, address } = msg.location;
+    const where = [name, address].filter(Boolean).join(', ');
+    const coords =
+      latitude !== undefined && latitude !== null && longitude !== undefined && longitude !== null
+        ? `${Number(latitude).toFixed(5)}, ${Number(longitude).toFixed(5)}`
+        : '';
+    const label = `📍 Location shared${where ? ` — ${where}` : ''}${coords ? ` (${coords})` : ''}`;
+    return { text: 'Location', label };
+  }
+
+  const caption = msg.image?.caption || msg.video?.caption || msg.document?.caption;
+  if (caption) return { text: caption, label: caption };
+
+  const mediaLabel = INBOUND_MEDIA_LABELS[msg.type];
+  if (mediaLabel) return { text: mediaLabel, label: mediaLabel };
+
+  return { text: '[non-text message]', label: '[non-text message]' };
 }
 
 // ── Handle incoming WhatsApp Cloud webhook events ───────────────────────────────
@@ -1083,15 +1167,13 @@ async function handleWhatsAppWebhookEvent(body, integration) {
         const phone = msg.from;
         if (!phone) continue;
 
+        // A reaction is not a message — it must not create Pending work or a reply.
+        if (msg.type === 'reaction') continue;
+
         const clean10 = normalizePhone10(phone) || String(phone).slice(-10);
         const contact = contacts.find(c => c.wa_id === phone);
         const name = contact?.profile?.name || 'WhatsApp Lead';
-        const text =
-          msg.text?.body ||
-          msg.button?.text ||
-          msg.interactive?.button_reply?.title ||
-          msg.interactive?.list_reply?.title ||
-          '[non-text message]';
+        const { text, label } = describeInboundMessage(msg);
         const interactiveId =
           msg.interactive?.button_reply?.id ||
           msg.interactive?.list_reply?.id ||
@@ -1134,16 +1216,26 @@ async function handleWhatsAppWebhookEvent(body, integration) {
           lead.name = name;
         }
 
+        // Meta retries a webhook when the previous delivery was slow — never store
+        // or answer the same message twice.
+        if (msg.id && (lead.activities || []).some(a => a.metaMessageId && a.metaMessageId === msg.id)) {
+          continue;
+        }
+
         // Count prior inbound messages in last 12 hours to know if this is a fresh session
         const twelveHoursAgo = Date.now() - 12 * 60 * 60 * 1000;
         const priorInboundCount = (lead.activities || []).filter(
           a => a.type === 'whatsapp' && a.direction === 'inbound' && new Date(a.createdAt).getTime() > twelveHoursAgo
         ).length;
 
+        // Was this customer broadcast to recently? If so the bot answers the
+        // message itself instead of restarting with the welcome template.
+        const blastContext = getRecentBlastContext(lead);
+
         lead.activities = lead.activities || [];
         lead.activities.push({
           type: 'whatsapp',
-          description: text,
+          description: label,
           direction: 'inbound',
           metaMessageId: msg.id || '',
         });
@@ -1151,14 +1243,14 @@ async function handleWhatsAppWebhookEvent(body, integration) {
         // "Pending" so an agent knows there's an unanswered message waiting.
         lead.waStatus = 'pending';
         lead.lastWaMessageAt = new Date();
-        lead.lastWaMessagePreview = text;
+        lead.lastWaMessagePreview = label;
         await lead.save();
 
         broadcastWebSocketEvent('whatsapp:incoming_message', {
           leadId: lead._id,
           phone: lead.phone,
           name: lead.name,
-          text,
+          text: label,
           direction: 'inbound',
           messageId: msg.id || '',
           waStatus: 'pending',
@@ -1167,7 +1259,6 @@ async function handleWhatsAppWebhookEvent(body, integration) {
 
         // Trigger Automated WhatsApp Greeting & Courses Bot
         await processWhatsAppBotAutomation({
-          msg,
           text,
           interactiveId,
           phone,
@@ -1176,6 +1267,7 @@ async function handleWhatsAppWebhookEvent(body, integration) {
           integration,
           isNewLead,
           priorInboundCount,
+          blastContext,
         });
 
         processed++;
@@ -1272,10 +1364,12 @@ module.exports = {
   deleteTemplate,
   uploadMediaToMeta,
   handleWhatsAppWebhookEvent,
+  describeInboundMessage,
   getWhatsAppAutomationConfig,
   saveWhatsAppAutomationConfig,
   sendAutomatedGreetingMenu,
   sendAutomatedCourseDetails,
   processWhatsAppBotAutomation,
+  getRecentBlastContext,
   DEFAULT_BOT_COURSES,
 };

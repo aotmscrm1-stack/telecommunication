@@ -171,6 +171,22 @@ function getDateLabel(dateInput) {
   });
 }
 
+// Compact timestamp for the conversation list: time for today, otherwise a date.
+function getListTimeLabel(dateInput) {
+  if (!dateInput) return '';
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return '';
+  const now = new Date();
+  const sameDay =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+  if (sameDay) {
+    return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+  }
+  return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+}
+
 function playWhatsAppRingtone() {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -384,7 +400,6 @@ function RichTemplateMessageCard({ message, templates = [], leadName = '' }) {
 // ── Inbox Tab ──────────────────────────────────────────────────────────────────
 function InboxTab({ onSendTemplate }) {
   const { user } = useAuth();
-  const activeThreadStorageKey = user?._id ? `wa_${user._id}_active_lead_id` : 'wa_active_lead_id';
 
   const TABS = [
     { key: 'all', label: 'All' },
@@ -430,6 +445,15 @@ function InboxTab({ onSendTemplate }) {
     }
   }, []);
 
+  // Opening a conversation must land on the NEWEST message. The jump is done
+  // twice (next frame + after the bubble animation settles) because the scroll
+  // height is still growing while the thread renders.
+  const scrollToLatest = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, []);
+
   // Fetch Unified Templates
   useEffect(() => {
     api.get('/integrations/whatsapp/templates')
@@ -468,14 +492,9 @@ function InboxTab({ onSendTemplate }) {
       if (Array.isArray(res.data.existingIdentities)) {
         setBackendIdentities(res.data.existingIdentities);
       }
-
-      const savedLeadId = localStorage.getItem(activeThreadStorageKey);
-      const activeMatch = savedLeadId && fetchedLeads.find((l) => String(l._id) === String(savedLeadId));
-      const targetId = activeMatch ? activeMatch._id : fetchedLeads[0] ? fetchedLeads[0]._id : null;
-
-      if (targetId && !selectedId) {
-        openThread(targetId, false);
-      }
+      // NOTE: never auto-open a conversation here. Opening a thread marks it as
+      // read, so auto-selecting silently cleared the Pending badge for messages
+      // nobody had looked at. The agent opens a chat by clicking it.
     } catch {} finally {
       setLoadingList(false);
     }
@@ -542,18 +561,19 @@ function InboxTab({ onSendTemplate }) {
     return idTag.toLowerCase() === selectedIdentity.toLowerCase();
   });
 
-  const openThread = async (leadId, refreshList = true) => {
+  // markRead is only passed when the agent deliberately opens a conversation —
+  // that is the single action that clears the Pending state.
+  const openThread = async (leadId, { refreshList = true, markRead = false } = {}) => {
     if (!leadId) return;
     setSelectedId(leadId);
-    try {
-      localStorage.setItem(activeThreadStorageKey, String(leadId));
-    } catch {}
     setLoadingThread(true);
     try {
-      const res = await api.get(`/whatsapp-inbox/${leadId}`);
+      const res = await api.get(`/whatsapp-inbox/${leadId}`, {
+        params: markRead ? { markRead: 1 } : undefined,
+      });
       setThread(res.data);
       if (refreshList) {
-        fetchLeads();
+        await fetchLeads();
       }
     } catch {
       setThread(null);
@@ -563,8 +583,14 @@ function InboxTab({ onSendTemplate }) {
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [thread, scrollToBottom]);
+    if (!thread?.thread) return undefined;
+    const frame = requestAnimationFrame(scrollToLatest);
+    const timer = setTimeout(scrollToLatest, 200);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(timer);
+    };
+  }, [thread, scrollToLatest]);
 
   // Real-time WebSockets
   useEffect(() => {
@@ -596,15 +622,28 @@ function InboxTab({ onSendTemplate }) {
             });
           }
 
+          if (eventName === 'whatsapp:thread_read') {
+            // The bot answered this thread, so the lead left Pending — refresh
+            // the badge/counts without touching the open conversation.
+            fetchLeads();
+          }
+
           if (eventName === 'whatsapp:incoming_message') {
             const { leadId, name, phone, text, messageId, timestamp, direction, performedByName } = payloadData;
-            if (!direction || direction === 'inbound') {
+            const isInbound = !direction || direction === 'inbound';
+            if (isInbound) {
               playWhatsAppRingtone();
               if ('Notification' in window && Notification.permission === 'granted') {
                 new Notification(`WhatsApp from ${name || phone}`, { body: text });
               }
             }
+
+            // Read state is NOT cleared here: an inbound message stays Pending
+            // until the bot answers it or the agent opens the chat. Opening the
+            // chat (list click / Pending badge) is the only human action that
+            // marks it read, so a live conversation never clears itself.
             fetchLeads();
+
             setThread((prev) => {
               if (!prev) return prev;
               const activeId = String(prev.lead?.id || prev.lead?._id || selectedId);
@@ -784,7 +823,7 @@ function InboxTab({ onSendTemplate }) {
               return (
                 <div
                   key={lead._id}
-                  onClick={() => openThread(lead._id)}
+                  onClick={() => openThread(lead._id, { markRead: true })}
                   className={cn(
                     'p-3 cursor-pointer transition-all flex items-start gap-3 border-l-4',
                     isSelected
@@ -820,9 +859,24 @@ function InboxTab({ onSendTemplate }) {
                       <span className="text-[11px] text-slate-400 font-mono truncate">
                         {lead.phone}
                       </span>
+                      {lead.lastWaMessageAt && (
+                        <span
+                          className={cn(
+                            'ml-auto text-[10px] shrink-0 tabular-nums',
+                            lead.waStatus === 'pending' ? 'text-amber-600 font-semibold' : 'text-slate-400'
+                          )}
+                        >
+                          {getListTimeLabel(lead.lastWaMessageAt)}
+                        </span>
+                      )}
                     </div>
 
-                    <div className="text-[11px] text-slate-500 truncate">
+                    <div
+                      className={cn(
+                        'text-[11px] truncate',
+                        lead.waStatus === 'pending' ? 'text-slate-800 font-semibold' : 'text-slate-500'
+                      )}
+                    >
                       {lead.lastWaMessagePreview || 'No messages yet'}
                     </div>
                   </div>
@@ -853,7 +907,7 @@ function InboxTab({ onSendTemplate }) {
         )}
 
         {selectedId && !loadingThread && thread && (
-          <div className="flex-1 flex flex-col h-full min-w-0 bg-white">
+          <div className="flex-1 flex flex-col h-full min-h-0 min-w-0 bg-white">
             {/* Header */}
             <div className="px-5 py-3 border-b border-slate-200/90 flex items-center justify-between bg-white z-10 shrink-0">
               <div className="flex items-center gap-3">
@@ -935,7 +989,7 @@ function InboxTab({ onSendTemplate }) {
             <div
               ref={scrollRef}
               onScroll={handleChatScroll}
-              className="flex-1 overflow-y-auto bg-white p-4 scroll-smooth"
+              className="flex-1 min-h-0 overflow-y-auto bg-white p-4 scroll-smooth"
             >
               <div className="w-full max-w-2xl mx-auto flex flex-col gap-3">
                 {thread.thread.length === 0 && (
