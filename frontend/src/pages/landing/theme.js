@@ -232,6 +232,8 @@ export const fonts = {
    */
   display:
     '"Inter", "Plus Jakarta Sans", system-ui, sans-serif',
+  /** Editorial serif used by the marketing shell headlines. */
+  serif: '"Source Serif 4", "Iowan Old Style", "Palatino Linotype", Georgia, serif',
   mono: '"JetBrains Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace',
 };
 
@@ -241,6 +243,36 @@ export const transitions = {
   fast: '0.2s ease',
   base: '0.28s ease',
   slow: '0.4s ease',
+};
+
+/* ─────────────────────────────────────────────────────────
+   Marketing shell palette (mini navbar / navbar / hero)
+   Warm orange action, deep navy type, cool grey canvas and a
+   forest-green profile card — exposed as CSS variables on the
+   landing root so the High-Contrast toggle can override them
+   without every component knowing about it.
+   ───────────────────────────────────────────────────────── */
+
+export const hub = {
+  navy: '#213343',
+  navySoft: '#33475B',
+  muted: '#516F90',
+  line: '#E3E8EE',
+  lineStrong: '#CBD6E2',
+  canvas: '#F5F8FA',
+  heroTint: '#F4FAFB',
+  white: '#FFFFFF',
+  orange: '#FF5C35',
+  orangeHover: '#FF7A59',
+  orangeActive: '#E24B22',
+  orangeSoft: '#FFF3EF',
+  pinkSoft: '#FDEDF3',
+  pinkText: '#B4306A',
+  forest: '#1E3D36',
+  forestSoft: '#2A4E45',
+  forestText: '#CFE8DF',
+  craftYellow: '#FFD84D',
+  craftRed: '#F2545B',
 };
 
 export const theme = {
@@ -261,6 +293,7 @@ export const theme = {
   layout,
   fonts,
   transitions,
+  hub,
 };
 
 export default theme;

@@ -1,383 +1,436 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { animate } from 'animejs';
-import { Menu, X, ArrowUpRight } from 'lucide-react';
-import aotmsLogo from '../../assets/aotms-global-logo.png';
+import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
-  border,
-  brand,
-  fonts,
-  gradients,
-  layout,
-  radii,
-  shadows,
-  surface,
-  text,
-  transitions,
-} from './theme';
+  ArrowRight,
+  BookOpen,
+  CalendarCheck,
+  ChevronDown,
+  LayoutDashboard,
+  Menu,
+  MessageCircle,
+  Mic,
+  PhoneCall,
+  Sparkles,
+  Users,
+  X,
+} from 'lucide-react';
+import aotmsLogo from '../../assets/aotms-global-logo.png';
 
-const EASE = transitions.ease;
+/**
+ * Primary navigation bar — white surface, bold navy labels, warm orange action.
+ * Sticks to the top edge once the utility strip has scrolled away.
+ */
 
-/* ═══════════════════════════════════════════════════════════
-   NAVIGATION ITEMS (single-page smooth scroll)
-   ═══════════════════════════════════════════════════════════ */
-const NAV_ITEMS = [
-  { label: 'Home', id: 'home' },
-  { label: 'About', id: 'about' },
-  { label: 'Services', id: 'services' },
-  { label: 'Pricing', id: 'pricing' },
-  { label: 'Contact', id: 'contact' },
+const MENUS = [
+  {
+    key: 'products',
+    label: 'Products',
+    items: [
+      { label: 'Lead pipeline', desc: 'Every enquiry, owner and next action', target: '#about', Icon: LayoutDashboard },
+      { label: 'WhatsApp inbox & blast', desc: 'All, Replies and Pending in one place', target: '#services', Icon: MessageCircle },
+      { label: 'AI telecaller', desc: 'Telugu, Hindi & English voice calls', target: '#services', Icon: Mic },
+      { label: 'Attendance & activity', desc: 'Counsellor productivity, tracked daily', target: '#about', Icon: CalendarCheck },
+      { label: 'Call recordings', desc: 'Review every conversation instantly', target: '#services', Icon: PhoneCall },
+    ],
+  },
+  {
+    key: 'solutions',
+    label: 'Solutions',
+    items: [
+      { label: 'Telecalling teams', desc: 'Dial, follow up and close from one screen', target: '#about', Icon: PhoneCall },
+      { label: 'Training institutes', desc: 'Admissions, batches, fees and reminders', target: '#about', Icon: BookOpen },
+      { label: 'Sales & counselling', desc: 'Qualify walk-ins and website leads', target: '#services', Icon: Users },
+      { label: 'Enterprise sales', desc: 'Multi-team pipeline with role-based access', target: '#services', Icon: Sparkles },
+    ],
+  },
+  {
+    key: 'pricing',
+    label: 'Pricing',
+    target: '#pricing',
+  },
+  {
+    key: 'resources',
+    label: 'Resources',
+    items: [
+      { label: 'Book a free demo', desc: '20-minute walkthrough with our team', target: '#book-demo', Icon: CalendarCheck },
+      { label: 'Customer support', desc: 'Talk to the team that built it', target: '#contact', Icon: MessageCircle },
+      { label: 'Sign in to the CRM', desc: 'Admin, manager and counsellor logins', target: '/login', Icon: LayoutDashboard },
+    ],
+  },
 ];
 
 export function Navbar({ onBookDemo }) {
-  const logoRef = useRef(null);
+  const navigate = useNavigate();
+  const [scrolled, setScrolled] = useState(false);
+  const [openMenu, setOpenMenu] = useState(null);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [hoveredId, setHoveredId] = useState(null);
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [activeSection, setActiveSection] = useState('home');
+  const navRef = useRef(null);
 
-  // Over the dark hero the bar is glass-on-ink; once scrolled it becomes a light surface.
-  const onDark = !isScrolled;
-
-  // Track scroll position to update navbar style & highlight active section
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 24);
-
-      const scrollPosition = window.scrollY + 220;
-      const sectionIds = NAV_ITEMS.map((item) => item.id);
-
-      for (let i = sectionIds.length - 1; i >= 0; i--) {
-        const el = document.getElementById(sectionIds[i]);
-        if (el) {
-          if (scrollPosition >= el.offsetTop) {
-            setActiveSection(sectionIds[i]);
-            break;
-          }
-        }
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll();
-
-    return () => window.removeEventListener('scroll', handleScroll);
+    const onScroll = () => setScrolled(window.scrollY > 40);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const handleNavClick = (sectionId) => {
-    setActiveSection(sectionId);
-    const element = document.getElementById(sectionId);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-    }
+  useEffect(() => {
+    const onPointerDown = (event) => {
+      if (navRef.current && !navRef.current.contains(event.target)) setOpenMenu(null);
+    };
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setOpenMenu(null);
+        setMobileOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, []);
+
+  const goTo = (target) => {
+    setOpenMenu(null);
     setMobileOpen(false);
+    if (!target) return;
+    if (target.startsWith('#')) {
+      document.querySelector(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    navigate(target);
   };
 
-  /* ── Derived surface tokens ─────────────────────────── */
-  const pillBg = onDark ? 'rgba(255, 255, 255, 0.07)' : surface.subtle;
-  const pillBorder = onDark ? 'rgba(255, 255, 255, 0.16)' : border.base;
-  const pillShadow = onDark ? 'none' : shadows.xs;
-
-  const itemIdle = onDark ? 'rgba(255, 255, 255, 0.74)' : text.tertiary;
-  const itemActive = onDark ? '#FFFFFF' : brand.hover;
-  const itemHoverBg = onDark ? 'rgba(255, 255, 255, 0.10)' : brand.tint;
-  const itemHoverBorder = onDark ? 'rgba(255, 255, 255, 0.26)' : brand.line;
-
-  const activeBg = onDark ? 'rgba(255, 255, 255, 0.14)' : brand.tintStrong;
-  const activeBorder = onDark ? 'rgba(255, 255, 255, 0.30)' : brand.line;
+  const handleCta = () => {
+    setOpenMenu(null);
+    setMobileOpen(false);
+    onBookDemo?.();
+  };
 
   return (
-    <motion.nav
-      initial={{ y: -20, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.9, ease: EASE }}
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 50,
-        background: isScrolled ? 'rgba(255, 255, 255, 0.92)' : 'transparent',
-        backdropFilter: isScrolled ? 'blur(18px) saturate(160%)' : 'none',
-        WebkitBackdropFilter: isScrolled ? 'blur(18px) saturate(160%)' : 'none',
-        borderBottom: isScrolled
-          ? `1px solid ${border.hairline}`
-          : '1px solid transparent',
-        boxShadow: isScrolled ? shadows.sm : 'none',
-        padding: isScrolled
-          ? `12px ${layout.gutter}`
-          : `20px ${layout.gutter}`,
-        display: 'flex',
-        justifyContent: 'center',
-        transition:
-          'background-color 0.35s ease, padding 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease',
-      }}
-    >
-      <div
-        style={{
-          width: '100%',
-          maxWidth: layout.maxWidth,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 24,
-        }}
-      >
-        {/* BRAND LOGO — always on a light chip so the mark stays legible on both surfaces */}
-        <motion.div
-          ref={logoRef}
-          onClick={() => handleNavClick('home')}
-          whileTap={{ scale: 0.96 }}
-          transition={{ duration: 0.28, ease: EASE }}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            flexShrink: 0,
-            background: '#FFFFFF',
-            borderRadius: radii.md,
-            padding: isScrolled ? '6px 10px' : '7px 12px',
-            border: `1px solid ${isScrolled ? 'transparent' : 'rgba(255, 255, 255, 0.9)'}`,
-            boxShadow: isScrolled ? 'none' : shadows.sm,
-            transition: 'box-shadow .3s ease, padding .3s ease, border-color .3s ease',
-          }}
-          onMouseEnter={(e) => {
-            if (logoRef.current) {
-              try {
-                animate(logoRef.current, {
-                  scale: [1, 1.05, 1.02],
-                  duration: 600,
-                  ease: 'easeOutElastic(1, .5)',
-                });
-              } catch (err) {
-                /* no-op: animation is decorative */
-              }
-            }
-            e.currentTarget.style.boxShadow = shadows.brand;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.boxShadow = isScrolled ? 'none' : shadows.sm;
-          }}
-        >
-          <img
-            src={aotmsLogo}
-            alt="AOTMS"
-            style={{
-              height: 33,
-              width: 'auto',
-              objectFit: 'contain',
-              display: 'block',
-            }}
-          />
-        </motion.div>
+    <div className="hs-navbar" data-scrolled={scrolled} ref={navRef}>
+      <div className="hs-navbar__inner">
+        {/* BRAND */}
+        <button type="button" className="hs-navbar__brand" onClick={() => goTo('#home')} aria-label="AOTMS CRM home">
+          <img src={aotmsLogo} alt="AOTMS CRM" />
+        </button>
 
-        {/* CENTER NAV PILL */}
-        <div
-          className="hidden lg:flex"
-          style={{
-            alignItems: 'center',
-            background: pillBg,
-            border: `1px solid ${pillBorder}`,
-            borderRadius: radii.pill,
-            padding: 5,
-            boxShadow: pillShadow,
-            backdropFilter: onDark ? 'blur(18px) saturate(150%)' : 'none',
-            WebkitBackdropFilter: onDark ? 'blur(18px) saturate(150%)' : 'none',
-            gap: 2,
-            transition: 'background .3s ease, border-color .3s ease, box-shadow .3s ease',
-            position: 'relative',
-          }}
-        >
-          {NAV_ITEMS.map((item) => {
-            const isActive = activeSection === item.id;
-            const isHovered = hoveredId === item.id;
+        {/* DESKTOP LINKS */}
+        <nav className="hs-navbar__links" aria-label="Main">
+          {MENUS.map((menu) => {
+            const hasPanel = Array.isArray(menu.items);
+            const isOpen = openMenu === menu.key;
 
             return (
-              <motion.button
-                key={item.id}
-                onClick={() => handleNavClick(item.id)}
-                onMouseEnter={() => setHoveredId(item.id)}
-                onMouseLeave={() => setHoveredId(null)}
-                whileHover={{ y: -1 }}
-                whileTap={{ scale: 0.96 }}
-                transition={{ duration: 0.22, ease: EASE }}
-                style={{
-                  position: 'relative',
-                  border: `1.5px solid ${isHovered && !isActive ? itemHoverBorder : 'transparent'}`,
-                  background: isHovered && !isActive ? itemHoverBg : 'transparent',
-                  cursor: 'pointer',
-                  padding: '8px 20px',
-                  fontSize: 13.5,
-                  fontWeight: isActive || isHovered ? 650 : 500,
-                  letterSpacing: '-0.005em',
-                  color: isHovered || isActive ? itemActive : itemIdle,
-                  borderRadius: radii.pill,
-                  transition: 'all .25s ease',
-                  fontFamily: fonts.sans,
-                  zIndex: 1,
-                }}
-              >
-                {isActive && (
-                  <motion.span
-                    layoutId="nav-pill-active"
-                    transition={{ duration: 0.35, ease: EASE }}
-                    style={{
-                      position: 'absolute',
-                      inset: 0,
-                      borderRadius: radii.pill,
-                      background: activeBg,
-                      border: `1px solid ${activeBorder}`,
-                      zIndex: -1,
-                    }}
-                  />
+              <div key={menu.key} className="hs-navitem">
+                <button
+                  type="button"
+                  className="hs-navlink"
+                  aria-haspopup={hasPanel ? 'menu' : undefined}
+                  aria-expanded={hasPanel ? isOpen : undefined}
+                  onClick={() => (hasPanel ? setOpenMenu(isOpen ? null : menu.key) : goTo(menu.target))}
+                  onMouseEnter={() => hasPanel && setOpenMenu(menu.key)}
+                >
+                  {menu.label}
+                  {hasPanel && <ChevronDown size={16} strokeWidth={2.4} />}
+                </button>
+
+                {hasPanel && isOpen && (
+                  <div className="hs-menu" role="menu" onMouseLeave={() => setOpenMenu(null)}>
+                    {menu.items.map((item) => (
+                      <button
+                        key={item.label}
+                        type="button"
+                        role="menuitem"
+                        className="hs-menu__row"
+                        onClick={() => goTo(item.target)}
+                      >
+                        <span className="hs-menu__icon">
+                          <item.Icon size={16} strokeWidth={2} />
+                        </span>
+                        <span className="hs-menu__copy">
+                          <span className="hs-menu__label">{item.label}</span>
+                          <span className="hs-menu__desc">{item.desc}</span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 )}
-                {item.label}
-              </motion.button>
+              </div>
             );
           })}
-        </div>
+        </nav>
 
-        {/* RIGHT: CTA + mobile toggle */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-          <motion.button
-            whileHover={{ scale: 1.03, y: -2, boxShadow: shadows.brandLg }}
-            whileTap={{ scale: 0.96 }}
-            transition={{ duration: 0.28, ease: EASE }}
-            onClick={() => onBookDemo?.()}
-            className="hidden sm:inline-flex"
-            style={{
-              alignItems: 'center',
-              gap: 7,
-              padding: '10px 20px',
-              borderRadius: radii.pill,
-              border: '1px solid rgba(255, 255, 255, 0.18)',
-              background: gradients.brand,
-              color: '#FFFFFF',
-              fontSize: 13.5,
-              fontWeight: 650,
-              letterSpacing: '-0.005em',
-              cursor: 'pointer',
-              boxShadow: shadows.brand,
-              fontFamily: fonts.sans,
-            }}
-          >
-            Book Free Demo
-            <ArrowUpRight size={15} strokeWidth={2.6} />
-          </motion.button>
+        {/* ACTIONS */}
+        <div className="hs-navbar__actions">
+          <button type="button" className="hs-btn hs-btn--primary hs-navbar__cta" onClick={handleCta}>
+            Get AOTMS CRM
+            <ArrowRight size={16} strokeWidth={2.4} />
+          </button>
 
-          <motion.button
-            onClick={() => setMobileOpen((o) => !o)}
-            whileHover={{ scale: 1.06 }}
-            whileTap={{ scale: 0.94 }}
-            transition={{ duration: 0.25, ease: EASE }}
-            className="lg:hidden"
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: radii.pill,
-              border: `1px solid ${pillBorder}`,
-              background: pillBg,
-              backdropFilter: onDark ? 'blur(18px)' : 'none',
-              WebkitBackdropFilter: onDark ? 'blur(18px)' : 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: itemActive,
-              boxShadow: pillShadow,
-              transition: 'background .3s ease, border-color .3s ease',
-            }}
-            aria-label="Toggle menu"
+          <button
+            type="button"
+            className="hs-navbar__burger"
+            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={mobileOpen}
+            onClick={() => setMobileOpen((open) => !open)}
           >
-            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-          </motion.button>
+            {mobileOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
         </div>
       </div>
 
       {/* MOBILE DRAWER */}
-      <AnimatePresence>
-        {mobileOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0, y: -8 }}
-            animate={{ height: 'auto', opacity: 1, y: 0 }}
-            exit={{ height: 0, opacity: 0, y: -8 }}
-            transition={{ duration: 0.32, ease: EASE }}
-            className="lg:hidden"
-            style={{
-              position: 'absolute',
-              top: '100%',
-              left: layout.gutter,
-              right: layout.gutter,
-              overflow: 'hidden',
-              background: '#FFFFFF',
-              border: `1px solid ${border.hairline}`,
-              borderRadius: radii.lg,
-              marginTop: 8,
-              boxShadow: shadows.lg,
-              maxHeight: '80vh',
-              overflowY: 'auto',
-            }}
-          >
-            <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {NAV_ITEMS.map((item) => {
-                const isActive = activeSection === item.id;
-
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => handleNavClick(item.id)}
-                    style={{
-                      padding: '13px 16px',
-                      borderRadius: radii.sm,
-                      background: isActive ? brand.tint : 'transparent',
-                      border: `1px solid ${isActive ? brand.line : 'transparent'}`,
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      fontSize: 14.5,
-                      fontWeight: isActive ? 650 : 500,
-                      color: isActive ? brand.hover : text.secondary,
-                      transition: 'all .25s ease',
-                      fontFamily: fonts.sans,
-                    }}
-                  >
-                    {item.label}
-                  </button>
-                );
-              })}
-
-              <motion.button
-                onClick={() => {
-                  setMobileOpen(false);
-                  onBookDemo?.();
-                }}
-                whileTap={{ scale: 0.97 }}
-                style={{
-                  marginTop: 8,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                  padding: '14px 20px',
-                  borderRadius: radii.sm,
-                  border: 'none',
-                  background: gradients.brand,
-                  color: '#FFFFFF',
-                  fontSize: 14.5,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  boxShadow: shadows.brand,
-                  fontFamily: fonts.sans,
-                }}
-              >
-                Book Free Demo
-                <ArrowUpRight size={16} strokeWidth={2.6} />
-              </motion.button>
+      {mobileOpen && (
+        <div className="hs-drawer">
+          {MENUS.map((menu) => (
+            <div key={menu.key} className="hs-drawer__group">
+              {Array.isArray(menu.items) ? (
+                <>
+                  <p className="hs-drawer__title">{menu.label}</p>
+                  {menu.items.map((item) => (
+                    <button
+                      key={item.label}
+                      type="button"
+                      className="hs-drawer__row"
+                      onClick={() => goTo(item.target)}
+                    >
+                      <item.Icon size={16} strokeWidth={2} />
+                      <span>
+                        <span className="hs-drawer__label">{item.label}</span>
+                        <span className="hs-drawer__desc">{item.desc}</span>
+                      </span>
+                    </button>
+                  ))}
+                </>
+              ) : (
+                <button type="button" className="hs-drawer__row" onClick={() => goTo(menu.target)}>
+                  <LayoutDashboard size={16} strokeWidth={2} />
+                  <span className="hs-drawer__label">{menu.label}</span>
+                </button>
+              )}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.nav>
+          ))}
+
+          <div className="hs-drawer__actions">
+            <button type="button" className="hs-btn hs-btn--primary" onClick={handleCta}>
+              Get AOTMS CRM
+            </button>
+            <button type="button" className="hs-btn hs-btn--ghost" onClick={() => goTo('/login')}>
+              Log in
+            </button>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        .hs-navbar {
+          position: fixed;
+          top: 48px;
+          left: 0;
+          right: 0;
+          z-index: 55;
+          background: #fff;
+          border-bottom: 1px solid var(--hs-line);
+          font-family: var(--hs-ui);
+          transition: top .32s ease, box-shadow .25s ease;
+        }
+        .hs-navbar[data-scrolled='true'] {
+          top: 0;
+          box-shadow: 0 2px 12px rgba(33, 51, 67, .08);
+        }
+
+        .hs-navbar__inner {
+          max-width: 1300px;
+          margin: 0 auto;
+          padding: 0 clamp(16px, 3vw, 40px);
+          height: 78px;
+          display: flex;
+          align-items: center;
+          gap: clamp(12px, 2.2vw, 32px);
+        }
+
+        .hs-navbar__brand {
+          display: flex;
+          align-items: center;
+          padding: 0;
+          border: none;
+          background: transparent;
+          cursor: pointer;
+          flex: 0 0 auto;
+        }
+        .hs-navbar__brand img { height: 34px; width: auto; display: block; }
+
+        .hs-navbar__links {
+          display: flex;
+          align-items: center;
+          gap: 2px;
+          flex: 1 1 auto;
+          min-width: 0;
+        }
+
+        .hs-navitem { position: relative; }
+
+        .hs-navlink {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 10px 14px;
+          border: none;
+          border-radius: 4px;
+          background: transparent;
+          color: var(--hs-navy);
+          font-family: inherit;
+          font-size: 15.5px;
+          font-weight: 700;
+          letter-spacing: -0.005em;
+          line-height: 1.2;
+          cursor: pointer;
+          transition: background .18s ease, color .18s ease;
+        }
+        .hs-navlink:hover { background: rgba(33, 51, 67, .055); }
+        .hs-navlink svg { color: var(--hs-navy-soft); transition: transform .2s ease; }
+        .hs-navlink[aria-expanded='true'] svg { transform: rotate(180deg); }
+
+        .hs-menu {
+          position: absolute;
+          top: calc(100% + 14px);
+          left: -6px;
+          width: 372px;
+          padding: 8px;
+          background: #fff;
+          border: 1px solid var(--hs-line-strong);
+          border-radius: 10px;
+          box-shadow: 0 28px 56px -22px rgba(33, 51, 67, .42);
+          z-index: 65;
+        }
+        .hs-menu__row {
+          display: flex;
+          align-items: flex-start;
+          gap: 12px;
+          width: 100%;
+          padding: 11px 12px;
+          border: none;
+          border-radius: 7px;
+          background: transparent;
+          text-align: left;
+          font-family: inherit;
+          cursor: pointer;
+          transition: background .16s ease;
+        }
+        .hs-menu__row:hover { background: var(--hs-canvas); }
+        .hs-menu__icon {
+          width: 32px;
+          height: 32px;
+          flex: 0 0 auto;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 7px;
+          background: var(--hs-orange-soft);
+          color: var(--hs-orange-active);
+        }
+        .hs-menu__copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .hs-menu__label { font-size: 13.5px; font-weight: 700; color: var(--hs-navy); }
+        .hs-menu__desc { font-size: 12px; line-height: 1.45; color: var(--hs-muted); }
+
+        .hs-navbar__actions { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+
+        .hs-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          border: none;
+          border-radius: 5px;
+          font-family: inherit;
+          font-weight: 700;
+          line-height: 1;
+          cursor: pointer;
+          transition: background .18s ease, box-shadow .18s ease, transform .18s ease;
+        }
+        .hs-btn--primary {
+          background: var(--hs-orange);
+          color: #fff;
+          padding: 14px 22px;
+          font-size: 15px;
+          box-shadow: 0 1px 0 rgba(33, 51, 67, .04);
+        }
+        .hs-btn--primary:hover { background: var(--hs-orange-hover); box-shadow: 0 6px 16px -6px rgba(255, 92, 53, .6); }
+        .hs-btn--primary:active { background: var(--hs-orange-active); }
+        .hs-btn--ghost {
+          background: #fff;
+          color: var(--hs-navy);
+          border: 1px solid var(--hs-line-strong);
+          padding: 13px 20px;
+          font-size: 14.5px;
+        }
+
+        .hs-navbar__burger {
+          display: none;
+          width: 42px;
+          height: 42px;
+          align-items: center;
+          justify-content: center;
+          border: 1px solid var(--hs-line-strong);
+          border-radius: 5px;
+          background: #fff;
+          color: var(--hs-navy);
+          cursor: pointer;
+        }
+
+        .hs-drawer {
+          display: none;
+          max-height: calc(100dvh - 78px);
+          overflow-y: auto;
+          padding: 12px clamp(16px, 3vw, 40px) 24px;
+          border-top: 1px solid var(--hs-line);
+          background: #fff;
+        }
+        .hs-drawer__group { padding: 10px 0; border-bottom: 1px solid var(--hs-line); }
+        .hs-drawer__title {
+          margin: 4px 0 6px;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: .08em;
+          text-transform: uppercase;
+          color: var(--hs-muted);
+        }
+        .hs-drawer__row {
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
+          width: 100%;
+          padding: 10px 8px;
+          border: none;
+          border-radius: 6px;
+          background: transparent;
+          color: var(--hs-navy);
+          font-family: inherit;
+          font-size: 14px;
+          font-weight: 600;
+          text-align: left;
+          cursor: pointer;
+        }
+        .hs-drawer__row svg { color: var(--hs-orange-active); margin-top: 2px; flex: 0 0 auto; }
+        .hs-drawer__row:hover { background: var(--hs-canvas); }
+        .hs-drawer__label { display: block; }
+        .hs-drawer__desc { display: block; margin-top: 2px; font-size: 12px; font-weight: 400; color: var(--hs-muted); }
+        .hs-drawer__actions { display: flex; gap: 10px; margin-top: 16px; }
+        .hs-drawer__actions .hs-btn { flex: 1; padding: 14px 16px; }
+
+        @media (max-width: 1120px) {
+          .hs-navbar__links { display: none; }
+          .hs-navbar__burger { display: inline-flex; }
+          .hs-drawer { display: block; }
+          .hs-navbar__inner { justify-content: space-between; }
+        }
+        @media (max-width: 620px) {
+          .hs-navbar__cta { display: none; }
+        }
+      `}</style>
+    </div>
   );
 }
 

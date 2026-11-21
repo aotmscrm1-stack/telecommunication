@@ -1,734 +1,453 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  ArrowUpRight, 
-  Video, 
-  MessageSquare, 
-  Globe, 
-  Coffee, 
-  PhoneCall, 
-  Bot, 
-  Mic, 
-  Radio,
-  Sparkles
-} from 'lucide-react';
-import GradientWaves from './GradientWaves';
-import useBreakpoint from '../../hooks/useBreakpoint';
-import TextType from '../../components/TextType';
-import BookingCard from './BookingCard';
 import {
-  amber,
-  cobalt,
-  emerald,
-  fonts,
-  gradients,
-  ink,
-  radii,
-  shadows,
-  teal,
-  text,
-  transitions,
-} from './theme';
+  ArrowRight,
+  ChevronRight,
+  ExternalLink,
+  ListChecks,
+  Mail,
+  MessageCircle,
+  Phone,
+  Sparkles,
+  StickyNote,
+} from 'lucide-react';
+import BookingCard from './BookingCard';
+import { gradients } from './theme';
 
-const EASE = transitions.ease;
+/**
+ * Hero — editorial serif headline on a cool tinted canvas, with a lead record
+ * mockup (forest card + floating action menu + award sticker) on the right.
+ * The demo form keeps its own dark band directly below so every CTA on the page
+ * (#book-demo) still lands on a working form.
+ */
 
-/* ─────────────────────────────────────────────────────────
-   TWO ROTATING HERO SLIDES (5-SECOND AUTO SCROLL)
-   SLIDE 0 (DEFAULT): Old CRM Dashboard Pipeline
-   SLIDE 1: AI Telecaller v2.0 Autonomous Voice Agents
-   ───────────────────────────────────────────────────────── */
-const HERO_SLIDES = [
-  {
-    id: 'crm-dashboard',
-    badgeText: 'PLATFORM',
-    badgeSubtext: 'The unified telecom CRM workspace',
-    badgeIcon: <Sparkles size={13} strokeWidth={2.4} />,
-    gradient: gradients.heroCrm,
-    accentColor: amber[400],
-    glowColor: 'rgba(37, 99, 235, 0.40)',
-    titleLine1: 'Manage Your CRM Pipeline',
-    typingTexts: [
-      'Track Every Lead.',
-      'Close Deals Faster.',
-      'Automate Follow-ups.',
-      'Grow Revenue 3x.'
-    ],
-    description: 'The unified CRM for telecom & enterprise sales teams — pipeline, live leads, follow-ups, and analytics, all in one intelligent workspace.',
-    primaryBtnText: 'Book Free Demo',
-    secondaryBtnText: 'Sign in to CRM',
-    waveConfig: { horizonColor: '#0A1330', waveColor: '#1B3499', crestColor: '#7DA6F9' },
-    trustBadges: [
-      { text: 'Enterprise grade', dot: emerald[400] },
-      { text: 'No credit card required' },
-      { text: '99.9% pipeline uptime' }
-    ]
-  },
-  {
-    id: 'ai-telecaller',
-    badgeText: 'AI TELECALLER V2.0',
-    badgeSubtext: '100k+ automated calls every day',
-    badgeIcon: <Bot size={14} strokeWidth={2.4} />,
-    gradient: gradients.heroAi,
-    accentColor: teal[400],
-    glowColor: 'rgba(8, 145, 178, 0.42)',
-    titleLine1: 'Autonomous AI Voice Agents',
-    typingTexts: [
-      'Call 10,000 Leads Daily.',
-      'Human-Like Voice AI.',
-      'Instant Qualification.',
-      'Zero Hold Time.'
-    ],
-    description: 'Deploy intelligent AI voice telecallers that speak natural Telugu, Hindi & English to qualify leads, book appointments, and close sales 24/7.',
-    primaryBtnText: 'Book Free Demo',
-    secondaryBtnText: 'Sign in to CRM',
-    waveConfig: { horizonColor: '#061520', waveColor: '#0E7490', crestColor: '#67E8F9' },
-    trustBadges: [
-      { text: 'Multi-language AI voice', dot: emerald[400] },
-      { text: 'Instant CRM sync' },
-      { text: '99.9% call uptime' }
-    ]
-  }
+const RECORD_ACTIONS = [
+  { label: 'Note', Icon: StickyNote },
+  { label: 'WhatsApp', Icon: MessageCircle },
+  { label: 'Call', Icon: Phone },
+  { label: 'Task', Icon: ListChecks },
+  { label: 'Email', Icon: Mail },
 ];
 
-export function HeroSection({
-  activeSlideIndex: propActiveSlideIndex,
-  setActiveSlideIndex: propSetActiveSlideIndex,
-  onBookDemo,
-}) {
+const RECORD_MENU = [
+  'Follow up tomorrow',
+  'Assign to counsellor',
+  'View lead activity',
+  'View WhatsApp history',
+];
+
+export function HeroSection({ onBookDemo }) {
   const navigate = useNavigate();
-  const bp = useBreakpoint();
-  const isMobile = bp === 'mobile';
-
-  const [internalSlideIndex, setInternalSlideIndex] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
-
-  // Maintain persistent typing index per slide so it doesn't restart from 0!
-  const [typingIndices, setTypingIndices] = useState({
-    'crm-dashboard': 0,
-    'ai-telecaller': 0,
-  });
-
-  const activeSlideIndex = propActiveSlideIndex !== undefined ? propActiveSlideIndex : internalSlideIndex;
-
-  const updateSlideIndex = (val) => {
-    if (propSetActiveSlideIndex) {
-      if (typeof val === 'function') {
-        propSetActiveSlideIndex((prev) => val(prev));
-      } else {
-        propSetActiveSlideIndex(val);
-      }
-    } else {
-      setInternalSlideIndex(val);
-    }
-  };
-
-  // 7.5-Second Auto Scroll loop between Slide 0 (Old CRM) & Slide 1 (AI Telecaller v2.0)
-  useEffect(() => {
-    if (isPaused) return;
-
-    const timer = setInterval(() => {
-      updateSlideIndex((prev) => (prev + 1) % HERO_SLIDES.length);
-    }, 7500);
-
-    return () => clearInterval(timer);
-  }, [isPaused, propActiveSlideIndex]);
-
-  const currentSlide = HERO_SLIDES[activeSlideIndex];
-
-  const handleSentenceComplete = (_sentence, index) => {
-    const slideId = currentSlide.id;
-    const nextIndex = (index + 1) % currentSlide.typingTexts.length;
-    setTypingIndices((prev) => ({
-      ...prev,
-      [slideId]: nextIndex,
-    }));
-  };
 
   return (
-    <section
-      id="home"
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
-      style={{
-        position: 'relative',
-        width: '100%',
-        minHeight: '100vh',
-        backgroundColor: ink[950],
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        paddingTop: isMobile ? 90 : 110,
-        paddingBottom: isMobile ? 60 : 80,
-        paddingLeft: isMobile ? 16 : 32,
-        paddingRight: isMobile ? 16 : 32,
-        boxSizing: 'border-box',
-      }}
-    >
-      {/* ══════════════════════════════════════════════
-          DYNAMIC SEAMLESS GRADIENT CROSS-FADE (NO WHITE FLASH)
-          ══════════════════════════════════════════════ */}
-      {HERO_SLIDES.map((slide, idx) => (
-        <motion.div
-          key={slide.id + '-bg'}
-          initial={false}
-          animate={{ opacity: idx === activeSlideIndex ? 1 : 0 }}
-          transition={{ duration: 1.2, ease: EASE }}
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background: slide.gradient,
-            zIndex: 0,
-            pointerEvents: 'none',
-          }}
-        />
-      ))}
+    <>
+      <section id="home" className="hs-hero">
+        <div className="hs-hero__inner">
+          <nav className="hs-breadcrumb" aria-label="Breadcrumb">
+            <a href="#home">Home</a>
+            <ChevronRight size={14} strokeWidth={2.4} />
+            <span>AOTMS CRM</span>
+          </nav>
 
-      {/* ══════════════════════════════════════════════
-          SUBTLE GRID OVERLAY
-          ══════════════════════════════════════════════ */}
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          pointerEvents: 'none',
-          opacity: 0.05,
-          backgroundImage: `
-            linear-gradient(rgba(255, 255, 255, 0.55) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255, 255, 255, 0.55) 1px, transparent 1px)
-          `,
-          backgroundSize: '96px 96px',
-          zIndex: 1,
-        }}
-      />
+          <div className="hs-hero__grid">
+            {/* ── COPY ───────────────────────────────────────────────── */}
+            <div className="hs-hero__copy">
+              <span className="hs-hero__eyebrow">AOTMS CRM</span>
 
-      {/* ══════════════════════════════════════════════
-          FLOATING DYNAMIC DECORATIVE ICONS
-          ══════════════════════════════════════════════ */}
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          pointerEvents: 'none',
-          opacity: 0.18,
-          zIndex: 2,
-        }}
-      >
-        {currentSlide.id === 'crm-dashboard' ? (
-          <>
-            <motion.div
-              animate={{ y: [0, -8, 0] }}
-              transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-              style={{ position: 'absolute', top: '26%', right: '18%', color: '#ffffff' }}
-            >
-              <Video size={isMobile ? 40 : 64} strokeWidth={1.2} />
-            </motion.div>
+              <h1 className="hs-hero__title">
+                CRM Software for Telecalling Teams &amp; Training Institutes
+              </h1>
 
-            <motion.div
-              animate={{ y: [0, 6, 0] }}
-              transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-              style={{ position: 'absolute', top: '42%', right: '26%', color: '#ffffff' }}
-            >
-              <MessageSquare size={isMobile ? 36 : 58} strokeWidth={1.2} />
-            </motion.div>
+              <p className="hs-hero__lede">
+                Your leads deserve better than spreadsheets and lost WhatsApp chats. AOTMS CRM puts
+                every enquiry, call, blast and follow-up on one screen — with an AI telecaller that
+                keeps qualifying students after office hours.
+              </p>
 
-            <motion.div
-              animate={{ y: [0, -6, 0] }}
-              transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
-              style={{ position: 'absolute', top: '58%', right: '20%', color: '#ffffff' }}
-            >
-              <Globe size={isMobile ? 42 : 68} strokeWidth={1.2} />
-            </motion.div>
+              <div className="hs-hero__actions">
+                <button type="button" className="hs-btn hs-btn--primary hs-hero__cta" onClick={() => onBookDemo?.()}>
+                  Get AOTMS CRM
+                  <ArrowRight size={17} strokeWidth={2.6} />
+                </button>
+              </div>
 
-            <motion.div
-              animate={{ y: [0, 6, 0] }}
-              transition={{ duration: 7.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
-              style={{ position: 'absolute', top: '62%', right: '32%', color: '#ffffff' }}
-            >
-              <Coffee size={isMobile ? 34 : 54} strokeWidth={1.2} />
-            </motion.div>
-          </>
-        ) : (
-          <>
-            <motion.div
-              animate={{ y: [0, -10, 0] }}
-              transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
-              style={{ position: 'absolute', top: '24%', right: '16%', color: '#ffffff' }}
-            >
-              <PhoneCall size={isMobile ? 38 : 64} strokeWidth={1.3} />
-            </motion.div>
+              <p className="hs-hero__note">
+                No credit card required. We import your leads and set up your pipeline for you.
+              </p>
 
-            <motion.div
-              animate={{ y: [0, 8, 0] }}
-              transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-              style={{ position: 'absolute', top: '44%', right: '24%', color: '#ffffff' }}
-            >
-              <Bot size={isMobile ? 34 : 58} strokeWidth={1.3} />
-            </motion.div>
+              <p className="hs-hero__login">
+                Already a counsellor?{' '}
+                <button type="button" onClick={() => navigate('/login')}>
+                  Sign in to the CRM
+                </button>
+              </p>
+            </div>
 
-            <motion.div
-              animate={{ y: [0, -8, 0] }}
-              transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
-              style={{ position: 'absolute', top: '60%', right: '18%', color: '#ffffff' }}
-            >
-              <Mic size={isMobile ? 40 : 66} strokeWidth={1.3} />
-            </motion.div>
+            {/* ── RECORD MOCKUP ──────────────────────────────────────── */}
+            <div className="hs-hero__visual" aria-hidden="true">
+              <div className="hs-leadcard">
+                <div className="hs-leadcard__head">
+                  <span className="hs-leadcard__avatar">RK</span>
+                  <div className="hs-leadcard__who">
+                    <p className="hs-leadcard__name">Ravindra Kumar</p>
+                    <p className="hs-leadcard__role">Full Stack Java · Batch 2026</p>
+                    <p className="hs-leadcard__meta">
+                      <Mail size={13} strokeWidth={2} />
+                      ravindra.kumar@gmail.com
+                    </p>
+                    <p className="hs-leadcard__meta">
+                      <Phone size={13} strokeWidth={2} />
+                      +91 90000 12345
+                    </p>
+                  </div>
+                </div>
 
-            <motion.div
-              animate={{ y: [0, 6, 0] }}
-              transition={{ duration: 6.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
-              style={{ position: 'absolute', top: '64%', right: '30%', color: '#ffffff' }}
-            >
-              <Radio size={isMobile ? 32 : 52} strokeWidth={1.3} />
-            </motion.div>
-          </>
-        )}
-      </div>
+                <div className="hs-leadcard__actions">
+                  {RECORD_ACTIONS.map(({ label, Icon }) => (
+                    <span key={label} className="hs-leadcard__action">
+                      <Icon size={16} strokeWidth={1.9} />
+                      <span>{label}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
 
-      {/* ══════════════════════════════════════════════
-          ANIMATED WAVES ACCENT
-          ══════════════════════════════════════════════ */}
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          width: '100%',
-          height: '100%',
-          zIndex: 1,
-          opacity: 0.32,
-          mixBlendMode: 'overlay',
-        }}
-      >
-        <GradientWaves
-          horizonColor={currentSlide.waveConfig.horizonColor}
-          waveColor={currentSlide.waveConfig.waveColor}
-          crestColor={currentSlide.waveConfig.crestColor}
-          speed={0.3}
-          amplitude={2.4}
-          waveScale={0.6}
-          waveRatio={0.9}
-          swell={32}
-          turbulence={18}
-          tilt={1.11}
-          zoom={1}
-          height={5.5}
-          fogDepth={14}
-          detail="medium"
-          brightness={1.0}
-          opacity={1}
-          mouseInteraction
-          parallaxStrength={0.5}
-          grain
-          grainIntensity={0.03}
-        />
-      </div>
+              <div className="hs-leadmenu">
+                {RECORD_MENU.map((row) => (
+                  <span key={row} className="hs-leadmenu__row">
+                    {row}
+                  </span>
+                ))}
+                <span className="hs-leadmenu__row hs-leadmenu__row--ai">
+                  <Sparkles size={14} strokeWidth={2.2} />
+                  Summarise with AI
+                </span>
+                <span className="hs-leadmenu__row hs-leadmenu__row--inline">
+                  Search in Google
+                  <ExternalLink size={13} strokeWidth={2.2} />
+                </span>
+                <span className="hs-leadmenu__row">Opt out of blast</span>
+                <span className="hs-leadmenu__row hs-leadmenu__row--last">Export contact</span>
+              </div>
 
-      {/* ══════════════════════════════════════════════
-          HERO CONTENT (SMOOTH 5-SECOND SHIFT)
-          ══════════════════════════════════════════════ */}
-      <motion.div
-        initial={{ y: 30, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.2, duration: 1.0, ease: EASE }}
-        style={{
-          position: 'relative',
-          zIndex: 20,
-          width: '100%',
-          maxWidth: 1000,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          textAlign: 'center',
-          boxSizing: 'border-box',
-        }}
-      >
-        {/* EXECUTIVE GLASS BADGE WITH WHITE LEFT PILL & REACT BITS ICON */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentSlide.id + '-badge'}
-            initial={{ y: 10, opacity: 0, scale: 0.95 }}
-            animate={{ y: 0, opacity: 1, scale: 1 }}
-            exit={{ y: -10, opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.6, ease: EASE }}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 10,
-              padding: '5px 16px 5px 6px',
-              borderRadius: radii.pill,
-              background: 'rgba(255, 255, 255, 0.07)',
-              border: '1px solid rgba(255, 255, 255, 0.16)',
-              boxShadow: '0 8px 28px rgba(3, 8, 20, 0.35)',
-              backdropFilter: 'blur(18px) saturate(150%)',
-              WebkitBackdropFilter: 'blur(18px) saturate(150%)',
-              marginBottom: isMobile ? 20 : 26,
-            }}
-          >
-            {/* Left Pill — WHITE BACKGROUND */}
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '5px 13px',
-                borderRadius: radii.pill,
-                background: '#FFFFFF',
-                color: cobalt[600],
-                fontSize: 10.5,
-                fontWeight: 700,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                boxShadow: shadows.xs,
-              }}
-            >
-              {currentSlide.badgeIcon}
-              <span>{currentSlide.badgeText}</span>
-            </span>
-
-            {/* Badge subtext */}
-            <span
-              style={{
-                color: 'rgba(255, 255, 255, 0.82)',
-                fontSize: 12.5,
-                fontWeight: 500,
-                letterSpacing: '-0.005em',
-              }}
-            >
-              {currentSlide.badgeSubtext}
-            </span>
-          </motion.div>
-        </AnimatePresence>
-
-        {/* HEADING & DYNAMIC TYPING LINE */}
-        <AnimatePresence mode="wait">
-          <motion.h1
-            key={currentSlide.id + '-title'}
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -20, opacity: 0 }}
-            transition={{ duration: 0.7, ease: EASE }}
-            style={{
-              fontSize: isMobile
-                ? 'clamp(30px, 8vw, 42px)'
-                : 'clamp(44px, 4.8vw, 66px)',
-              fontWeight: 800,
-              lineHeight: 1.1,
-              letterSpacing: '-0.035em',
-              margin: 0,
-              marginBottom: isMobile ? 18 : 24,
-              fontFamily: fonts.display,
-              color: '#FFFFFF',
-              minHeight: isMobile ? '2.4em' : '2.3em',
-              textShadow: '0 2px 18px rgba(3, 8, 20, 0.30)',
-            }}
-          >
-            <span
-              style={{
-                display: 'block',
-                color: '#FFFFFF',
-                whiteSpace: isMobile ? 'normal' : 'nowrap',
-              }}
-            >
-              {currentSlide.titleLine1}
-            </span>
-
-            <span
-              style={{
-                display: 'block',
-                minHeight: '1.15em',
-                whiteSpace: isMobile ? 'normal' : 'nowrap',
-                marginTop: 4,
-              }}
-            >
-              <TextType
-                as="span"
-                text={currentSlide.typingTexts}
-                initialTextIndex={typingIndices[currentSlide.id] || 0}
-                onSentenceComplete={handleSentenceComplete}
-                typingSpeed={40}
-                deletingSpeed={25}
-                pauseDuration={1400}
-                initialDelay={200}
-                loop
-                showCursor
-                cursorCharacter="|"
-                cursorClassName="hero-cursor"
-                className="hero-typing-line"
-              />
-            </span>
-          </motion.h1>
-        </AnimatePresence>
-
-        {/* DESCRIPTION */}
-        <AnimatePresence mode="wait">
-          <motion.p
-            key={currentSlide.id + '-desc'}
-            initial={{ y: 15, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -15, opacity: 0 }}
-            transition={{ duration: 0.6, ease: EASE }}
-            style={{
-              color: text.inverseSoft,
-              fontSize: isMobile ? 14 : 'clamp(15px, 1.1vw, 17.5px)',
-              lineHeight: 1.7,
-              maxWidth: 620,
-              margin: 0,
-              marginBottom: isMobile ? 30 : 38,
-              fontFamily: fonts.sans,
-              fontWeight: 400,
-              letterSpacing: '-0.008em',
-            }}
-          >
-            {currentSlide.description}
-          </motion.p>
-        </AnimatePresence>
-
-        {/* BUTTONS */}
-        <motion.div
-          initial={{ y: 18, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.3, duration: 0.8, ease: EASE }}
-          style={{
-            display: 'flex',
-            flexDirection: isMobile ? 'column' : 'row',
-            gap: 14,
-            width: '100%',
-            maxWidth: isMobile ? 320 : 'none',
-            justifyContent: 'center',
-            alignItems: 'center',
-          }}
-        >
-          {/* PRIMARY — BOOK FREE DEMO */}
-          <motion.button
-            onClick={() => onBookDemo?.()}
-            whileHover={{
-              y: -3,
-              scale: 1.02,
-              boxShadow: shadows.brandLg,
-            }}
-            whileTap={{ scale: 0.97 }}
-            transition={{ duration: 0.25, ease: EASE }}
-            style={{
-              padding: isMobile ? '12px 26px' : '14px 34px',
-              height: isMobile ? 54 : 58,
-              boxSizing: 'border-box',
-              borderRadius: radii.pill,
-              border: '1px solid rgba(255, 255, 255, 0.20)',
-              background: gradients.brand,
-              color: '#FFFFFF',
-              fontWeight: 650,
-              fontSize: isMobile ? 14 : 15,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 10,
-              letterSpacing: '-0.008em',
-              fontFamily: fonts.sans,
-              boxShadow: shadows.brand,
-              flexShrink: 0,
-              transition: 'box-shadow 0.3s ease',
-            }}
-          >
-            <span>{currentSlide.primaryBtnText || 'Book Free Demo'}</span>
-            <ArrowUpRight size={18} strokeWidth={2.4} />
-          </motion.button>
-
-          {/* SECONDARY — SIGN IN */}
-          <motion.button
-            onClick={() => navigate('/login')}
-            whileHover={{
-              y: -3,
-              background: 'rgba(255, 255, 255, 0.12)',
-              borderColor: 'rgba(255, 255, 255, 0.40)',
-              boxShadow: '0 14px 32px rgba(3, 8, 20, 0.30)',
-            }}
-            whileTap={{ scale: 0.97 }}
-            transition={{ duration: 0.28, ease: EASE }}
-            style={{
-              padding: isMobile ? '12px 20px' : '13px 26px 13px 18px',
-              height: isMobile ? 54 : 58,
-              boxSizing: 'border-box',
-              borderRadius: radii.pill,
-              border: '1px solid rgba(255, 255, 255, 0.24)',
-              background: 'rgba(255, 255, 255, 0.06)',
-              color: '#FFFFFF',
-              fontWeight: 550,
-              fontSize: isMobile ? 14 : 15,
-              cursor: 'pointer',
-              backdropFilter: 'blur(18px)',
-              WebkitBackdropFilter: 'blur(18px)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 12,
-              letterSpacing: '-0.008em',
-              fontFamily: fonts.sans,
-              boxShadow: '0 6px 20px rgba(3, 8, 20, 0.22)',
-              flexShrink: 0
-            }}
-          >
-            <span
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: '50%',
-                background: 'rgba(255, 255, 255, 0.20)',
-                border: '1px solid rgba(255, 255, 255, 0.35)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#FFFFFF',
-              }}
-            >
-              <ArrowUpRight size={13} strokeWidth={2.8} />
-            </span>
-            {currentSlide.secondaryBtnText}
-          </motion.button>
-        </motion.div>
-
-        {/* SLIDE CONTROLS */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            marginTop: 28,
-            zIndex: 30,
-          }}
-        >
-          {HERO_SLIDES.map((slide, idx) => {
-            const isActive = idx === activeSlideIndex;
-            return (
-              <button
-                key={slide.id}
-                onClick={() => updateSlideIndex(idx)}
-                style={{
-                  height: 6,
-                  width: isActive ? 32 : 6,
-                  borderRadius: radii.pill,
-                  border: 'none',
-                  background: isActive ? '#FFFFFF' : 'rgba(255, 255, 255, 0.28)',
-                  boxShadow: isActive ? `0 0 12px ${slide.accentColor}` : 'none',
-                  cursor: 'pointer',
-                  transition: 'all 0.4s ease',
-                  padding: 0,
-                }}
-                aria-label={`Go to ${slide.badgeSubtext}`}
-                title={slide.badgeSubtext}
-              />
-            );
-          })}
+              <div className="hs-sticker">
+                <span className="hs-sticker__top">EDITION 2026</span>
+                <span className="hs-sticker__body">
+                  <span className="hs-sticker__title">Leader</span>
+                  <span className="hs-sticker__sub">TELECALLING CRM</span>
+                </span>
+                <span className="hs-sticker__zig" />
+              </div>
+            </div>
+          </div>
         </div>
+      </section>
 
-        {/* TRUST MICRO-BAR */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexWrap: 'wrap',
-            gap: isMobile ? 12 : 22,
-            marginTop: 20,
-            color: text.inverseMuted,
-            fontSize: isMobile ? 12 : 12.5,
-            fontWeight: 500,
-            letterSpacing: '0.005em',
-          }}
-        >
-          {currentSlide.trustBadges.map((badge, idx) => (
-            <React.Fragment key={idx}>
-              {idx > 0 && <span style={{ opacity: 0.4 }}>•</span>}
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-                {badge.dot && (
-                  <span
-                    style={{
-                      width: 7,
-                      height: 7,
-                      borderRadius: '50%',
-                      background: badge.dot,
-                      display: 'inline-block',
-                      boxShadow: `0 0 8px ${badge.dot}`,
-                    }}
-                  />
-                )}
-                {badge.text}
-              </span>
-            </React.Fragment>
-          ))}
+      {/* ── DEMO FORM (anchor for every CTA) ───────────────────────── */}
+      <section id="book-demo" className="hs-book">
+        <div className="hs-book__inner">
+          <div className="hs-book__panel">
+            <div className="hs-book__head">
+              <h2>Book a 30-minute walkthrough</h2>
+              <p>See the WhatsApp inbox, the AI telecaller and the lead pipeline running on your own data.</p>
+            </div>
+            <BookingCard />
+          </div>
         </div>
-      </motion.div>
+      </section>
 
-      {/* ══════════════════════════════════════════════
-          BOOK A FREE DEMO — CLEAN CONTACT CARD FORM
-          ══════════════════════════════════════════════ */}
-      <motion.div
-        id="book-demo"
-        initial={{ y: 60, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.5, duration: 1.2, ease: EASE }}
-        style={{
-          position: 'relative',
-          zIndex: 15,
-          width: '100%',
-          maxWidth: 1080,
-          marginTop: isMobile ? 36 : 48,
-          scrollMarginTop: 96,
-          boxSizing: 'border-box',
-        }}
-      >
-        <BookingCard />
-
-        {/* Soft glow behind the booking form */}
-        <div
-          style={{
-            position: 'absolute',
-            inset: '10% 2% -14% 2%',
-            background: `
-              radial-gradient(
-                ellipse at 50% 100%,
-                ${currentSlide.glowColor} 0%,
-                transparent 68%
-              )
-            `,
-            filter: 'blur(80px)',
-            zIndex: -1,
-            pointerEvents: 'none',
-            transition: 'background 1.2s ease',
-          }}
-        />
-      </motion.div>
-
-      {/* ══════════════════════════════════════════════
-          TYPING CURSOR & TEXT GRADIENT STYLES
-          ══════════════════════════════════════════════ */}
       <style>{`
-        .hero-typing-line {
-          background: linear-gradient(
-            110deg,
-            #ffffff 0%,
-            ${cobalt[200]} 42%,
-            ${cobalt[300]} 62%,
-            #ffffff 100%
-          );
-          -webkit-background-clip: text;
-          background-clip: text;
-          -webkit-text-fill-color: transparent;
-          color: transparent;
-          font-weight: 800;
-          letter-spacing: -0.035em;
-          filter: drop-shadow(0 4px 20px rgba(3, 8, 20, 0.35));
+        .hs-hero {
+          position: relative;
+          background: var(--hs-hero-tint);
+          padding: 152px 0 clamp(40px, 6vw, 78px);
+          font-family: var(--hs-ui);
+          overflow: hidden;
         }
-        .hero-cursor {
-          color: ${amber[400]} !important;
-          font-weight: 300;
-          -webkit-text-fill-color: ${amber[400]} !important;
-          filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.75));
+
+        .hs-hero__inner {
+          max-width: 1300px;
+          margin: 0 auto;
+          padding: 0 clamp(16px, 3vw, 40px);
+        }
+
+        .hs-breadcrumb {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: clamp(28px, 4vw, 48px);
+          font-size: 13.5px;
+          color: var(--hs-muted);
+        }
+        .hs-breadcrumb a { color: var(--hs-navy-soft); font-weight: 600; text-decoration: none; }
+        .hs-breadcrumb a:hover { color: var(--hs-orange-active); }
+        .hs-breadcrumb svg { color: var(--hs-line-strong); }
+
+        .hs-hero__grid {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1.02fr);
+          gap: clamp(32px, 5vw, 80px);
+          align-items: center;
+        }
+
+        .hs-hero__eyebrow {
+          display: inline-block;
+          padding: 7px 11px;
+          background: #fff;
+          border: 1px solid var(--hs-line-strong);
+          border-radius: 4px;
+          color: var(--hs-navy);
+          font-size: 12.5px;
+          font-weight: 600;
+          letter-spacing: .01em;
+        }
+
+        .hs-hero__title {
+          margin: 22px 0 22px;
+          font-family: var(--hs-serif);
+          font-weight: 400;
+          font-size: clamp(34px, 4.3vw, 58px);
+          line-height: 1.08;
+          letter-spacing: -0.015em;
+          color: var(--hs-navy);
+        }
+
+        .hs-hero__lede {
+          max-width: 560px;
+          margin: 0 0 30px;
+          font-size: 16.5px;
+          line-height: 1.75;
+          color: var(--hs-muted);
+        }
+
+        .hs-hero__actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+
+        .hs-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 9px;
+          border: none;
+          border-radius: 5px;
+          font-family: inherit;
+          font-weight: 700;
+          line-height: 1;
+          cursor: pointer;
+          transition: background .18s ease, box-shadow .18s ease, transform .18s ease;
+        }
+        .hs-btn--primary {
+          background: var(--hs-orange);
+          color: #fff;
+          padding: 16px 26px;
+          font-size: 15.5px;
+          box-shadow: 0 1px 0 rgba(33, 51, 67, .05);
+        }
+        .hs-btn--primary:hover {
+          background: var(--hs-orange-hover);
+          box-shadow: 0 10px 24px -10px rgba(255, 92, 53, .7);
+          transform: translateY(-1px);
+        }
+        .hs-btn--primary:active { background: var(--hs-orange-active); transform: none; }
+
+        .hs-hero__note { margin: 20px 0 0; font-size: 13.5px; color: var(--hs-navy-soft); }
+
+        .hs-hero__login { margin: 26px 0 0; font-size: 13.5px; color: var(--hs-muted); }
+        .hs-hero__login button {
+          padding: 0;
+          border: none;
+          background: none;
+          color: var(--hs-orange-active);
+          font-family: inherit;
+          font-size: 13.5px;
+          font-weight: 700;
+          text-decoration: underline;
+          text-underline-offset: 3px;
+          cursor: pointer;
+        }
+        .hs-hero__login button:hover { color: var(--hs-navy); }
+
+        /* ── record mockup ────────────────────────────────────────── */
+        .hs-hero__visual {
+          position: relative;
+          min-height: 452px;
+          max-width: 640px;
+          width: 100%;
+          margin-left: auto;
+        }
+
+        .hs-leadcard {
+          position: absolute;
+          left: 0;
+          top: 52px;
+          width: 344px;
+          padding: 30px 26px 22px;
+          border-radius: 8px;
+          background: var(--hs-forest);
+          color: #fff;
+          box-shadow: 0 26px 60px -32px rgba(11, 27, 38, .75);
+        }
+        .hs-leadcard__head { display: flex; align-items: flex-start; gap: 14px; }
+        .hs-leadcard__avatar {
+          width: 48px;
+          height: 48px;
+          flex: 0 0 auto;
+          border-radius: 50%;
+          background: rgba(255, 255, 255, .14);
+          border: 1px solid rgba(255, 255, 255, .28);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 15px;
+          font-weight: 700;
+          letter-spacing: .02em;
+        }
+        .hs-leadcard__who { min-width: 0; }
+        .hs-leadcard__name {
+          margin: 4px 0 6px;
+          font-size: 21px;
+          font-weight: 600;
+          letter-spacing: -0.01em;
+          line-height: 1.15;
+        }
+        .hs-leadcard__role { margin: 0 0 10px; font-size: 13px; color: var(--hs-forest-text); }
+        .hs-leadcard__meta {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          margin: 0 0 4px;
+          font-size: 13px;
+          color: var(--hs-forest-text);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .hs-leadcard__meta svg { flex: 0 0 auto; opacity: .85; }
+
+        .hs-leadcard__actions {
+          display: flex;
+          gap: 8px;
+          margin-top: 40px;
+        }
+        .hs-leadcard__action {
+          flex: 1 1 0;
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 6px;
+          padding: 10px 4px 8px;
+          border: 1px solid rgba(255, 255, 255, .24);
+          border-radius: 3px;
+          color: var(--hs-forest-text);
+          font-size: 9.5px;
+          letter-spacing: .01em;
+          white-space: nowrap;
+        }
+        .hs-leadcard__action svg { color: #fff; }
+
+        .hs-leadmenu {
+          position: absolute;
+          right: -4px;
+          top: 24px;
+          width: 236px;
+          display: flex;
+          flex-direction: column;
+          background: #fff;
+          border: 1px solid var(--hs-line-strong);
+          border-radius: 6px;
+          box-shadow: 0 30px 60px -26px rgba(33, 51, 67, .5);
+          overflow: hidden;
+        }
+        .hs-leadmenu__row {
+          padding: 13px 18px;
+          border-bottom: 1px solid var(--hs-line);
+          font-size: 13.5px;
+          color: var(--hs-navy);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .hs-leadmenu__row--inline { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .hs-leadmenu__row--ai {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          background: var(--hs-pink-soft);
+          color: var(--hs-pink-text);
+          font-weight: 600;
+          border-bottom-color: #F6DCE7;
+        }
+        .hs-leadmenu__row--last { border-bottom: none; }
+
+        .hs-sticker {
+          position: absolute;
+          top: 0;
+          right: 42px;
+          width: 118px;
+          display: flex;
+          flex-direction: column;
+          background: #fff;
+          border: 1px solid var(--hs-navy);
+          box-shadow: 0 18px 34px -20px rgba(33, 51, 67, .55);
+          z-index: 2;
+        }
+        .hs-sticker__top {
+          background: var(--hs-craft-red);
+          color: #fff;
+          padding: 4px 0;
+          font-size: 9px;
+          font-weight: 700;
+          letter-spacing: .07em;
+          text-align: center;
+        }
+        .hs-sticker__body { display: flex; flex-direction: column; align-items: center; padding: 8px 6px 7px; }
+        .hs-sticker__title { font-size: 18px; font-weight: 800; letter-spacing: -0.01em; color: var(--hs-navy); }
+        .hs-sticker__sub { margin-top: 2px; font-size: 7.5px; font-weight: 700; letter-spacing: .09em; color: var(--hs-muted); }
+        .hs-sticker__zig {
+          height: 11px;
+          background: var(--hs-craft-yellow);
+          clip-path: polygon(0 0, 100% 0, 100% 38%, 50% 100%, 0 38%);
+        }
+
+        /* ── demo form band ───────────────────────────────────────── */
+        .hs-book { background: #fff; padding: clamp(34px, 5vw, 64px) 0 clamp(44px, 6vw, 76px); font-family: var(--hs-ui); }
+        .hs-book__inner { max-width: 1100px; margin: 0 auto; padding: 0 clamp(16px, 3vw, 40px); }
+        .hs-book__panel {
+          position: relative;
+          padding: clamp(22px, 3vw, 40px);
+          border-radius: 22px;
+          background: ${gradients.night};
+          box-shadow: 0 40px 90px -50px rgba(11, 17, 32, .65);
+        }
+        .hs-book__head { text-align: center; margin-bottom: clamp(18px, 2vw, 26px); color: #fff; }
+        .hs-book__head h2 {
+          margin: 0 0 8px;
+          font-family: var(--hs-serif);
+          font-size: clamp(24px, 2.6vw, 32px);
+          font-weight: 400;
+          letter-spacing: -0.01em;
+        }
+        .hs-book__head p { margin: 0; font-size: 14px; color: rgba(255, 255, 255, .68); }
+
+        @media (max-width: 1080px) {
+          .hs-hero__grid { grid-template-columns: 1fr; gap: 44px; }
+          .hs-hero__visual { min-height: 0; max-width: 560px; margin: 0 auto; padding-top: 10px; }
+          .hs-leadcard { position: relative; top: 0; width: 100%; }
+          .hs-leadmenu { position: relative; right: auto; top: -18px; width: min(300px, 100%); margin-left: auto; }
+          .hs-sticker { top: -10px; right: 16px; width: 104px; }
+        }
+        @media (max-width: 640px) {
+          .hs-hero { padding-top: 138px; }
+          .hs-leadcard__actions { flex-wrap: wrap; }
+          .hs-leadcard__action { flex: 1 1 28%; }
+          .hs-sticker { display: none; }
+          .hs-hero__cta { width: 100%; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .hs-btn { transition: none; }
         }
       `}</style>
-    </section>
+    </>
   );
 }
 
