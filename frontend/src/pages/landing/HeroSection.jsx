@@ -55,7 +55,8 @@ export function HeroSection({ onBookDemo }) {
               <span className="hs-hero__eyebrow">AOTMS · SALES + OPERATIONS PLATFORM</span>
 
               <h1 className="hs-hero__title">
-                Run sales, WhatsApp and your back office from one login
+                Run sales, WhatsApp and your back office from{" "}
+                <span className="hs-hero__title-mark">one login</span>
               </h1>
 
               <p className="hs-hero__lede">
@@ -196,32 +197,43 @@ export function HeroSection({ onBookDemo }) {
 
         .hs-hero__eyebrow {
           display: inline-block;
-          padding: 7px 12px;
+          padding: 8px 13px;
           background: #fff;
           border: 1px solid var(--hs-line-strong);
           border-radius: 4px;
           color: var(--hs-navy);
-          font-size: 13px;
-          font-weight: 600;
-          letter-spacing: .01em;
+          font-size: 13.5px;
+          font-weight: 700;
+          letter-spacing: .08em;
         }
 
         .hs-hero__title {
-          margin: 14px 0 16px;
+          margin: 16px 0 18px;
           font-family: var(--hs-serif);
           font-weight: 400;
-          font-size: clamp(34px, min(4vw, 6vh), 56px);
-          line-height: 1.1;
-          letter-spacing: -0.015em;
+          font-size: clamp(38px, min(4.6vw, 6.9vh), 62px);
+          line-height: 1.07;
+          letter-spacing: -0.02em;
           text-wrap: balance;
           color: var(--hs-navy);
         }
 
+        /* Soft orange marker behind the closing phrase — the one flourish in the
+           headline; it fades to transparent under High Contrast. */
+        .hs-hero__title-mark {
+          white-space: nowrap;
+          padding: 0 .05em;
+          background-image: linear-gradient(var(--hs-orange-mark), var(--hs-orange-mark));
+          background-repeat: no-repeat;
+          background-size: 100% .22em;
+          background-position: 0 90%;
+        }
+
         .hs-hero__lede {
-          max-width: 560px;
-          margin: 0 0 22px;
-          font-size: 17.5px;
-          line-height: 1.65;
+          max-width: 610px;
+          margin: 0 0 24px;
+          font-size: 19px;
+          line-height: 1.6;
           color: var(--hs-muted);
         }
 
@@ -244,7 +256,7 @@ export function HeroSection({ onBookDemo }) {
           background: var(--hs-orange);
           color: #fff;
           padding: 16px 26px;
-          font-size: 15.5px;
+          font-size: 16px;
           box-shadow: 0 1px 0 rgba(33, 51, 67, .05);
         }
         .hs-btn--primary:hover {
@@ -256,18 +268,18 @@ export function HeroSection({ onBookDemo }) {
 
         /* Hero CTA runs a step larger than the shared navbar button (declared after
            .hs-btn--primary so it wins the cascade). */
-        .hs-hero__cta { padding: 17px 28px; font-size: 16.5px; }
+        .hs-hero__cta { padding: 18px 30px; font-size: 17px; }
 
-        .hs-hero__note { margin: 14px 0 0; font-size: 14px; color: var(--hs-navy-soft); }
+        .hs-hero__note { margin: 16px 0 0; font-size: 15px; color: var(--hs-navy-soft); }
 
-        .hs-hero__login { margin: 14px 0 0; font-size: 14px; color: var(--hs-muted); }
+        .hs-hero__login { margin: 14px 0 0; font-size: 15px; color: var(--hs-muted); }
         .hs-hero__login button {
           padding: 0;
           border: none;
           background: none;
           color: var(--hs-orange-active);
           font-family: inherit;
-          font-size: 14px;
+          font-size: 15px;
           font-weight: 700;
           text-decoration: underline;
           text-underline-offset: 3px;
@@ -460,6 +472,10 @@ export function HeroSection({ onBookDemo }) {
         }
         @media (max-width: 640px) {
           .hs-hero { padding-top: 138px; }
+          /* Phone screens can't carry the desktop type scale — step it back down. */
+          .hs-hero__eyebrow { font-size: 12px; letter-spacing: .06em; }
+          .hs-hero__title { font-size: 33px; line-height: 1.1; }
+          .hs-hero__lede { font-size: 17px; }
           .hs-leadcard__actions { flex-wrap: wrap; }
           .hs-leadcard__action { flex: 1 1 28%; }
           .hs-sticker { display: none; }

@@ -44,6 +44,7 @@ export default function Landing() {
           --hs-orange-soft: ${hub.orangeSoft};
           --hs-orange-tint: ${hub.orangeTint};
           --hs-orange-line: ${hub.orangeLine};
+          --hs-orange-mark: ${hub.orangeMark};
           --hs-pink-soft: ${hub.pinkSoft};
           --hs-pink-text: ${hub.pinkText};
           --hs-forest: ${hub.forest};
@@ -87,6 +88,8 @@ export default function Landing() {
           --hs-orange-soft: #FFFFFF;
           --hs-orange-tint: transparent;
           --hs-orange-line: #33475B;
+          /* Marker strokes must vanish, never become a dark band behind dark type. */
+          --hs-orange-mark: transparent;
           --hs-pink-soft: #FFFFFF;
           --hs-forest: #000000;
           --hs-forest-soft: #000000;

@@ -32,6 +32,8 @@ export const hub = {
   orangeSoft: '#FFF3EF',
   orangeTint: 'rgba(255, 92, 53, 0.10)',
   orangeLine: '#FFD9CD',
+  /** Marker stroke behind the emphasised words of a headline. */
+  orangeMark: '#FFDFD4',
   pinkSoft: '#FDEDF3',
   pinkText: '#B4306A',
   forest: '#1E3D36',
