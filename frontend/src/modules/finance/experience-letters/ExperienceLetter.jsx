@@ -18,7 +18,6 @@ import html2canvas from 'html2canvas';
 import { invoicesAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import { canDelete } from '../../../utils/permissions';
-import { numberToWords } from '../../../utils/numberToWords';
 
 import atmLogoImg from '../../../assets/atm-logo.jpeg';
 import logoImg from '../../../assets/aotms-global-logo.png';
@@ -33,57 +32,108 @@ const todayLong = () =>
 // "an AI Associate" / "an HR Manager" but "a Trainer"
 const articleFor = (word = '') => (/^(?:[aeiou]|hr\b)/i.test(String(word).trim()) ? 'an' : 'a');
 
+const PRONOUNS = {
+  male: { subj: 'he', Subj: 'He', obj: 'him', poss: 'his' },
+  female: { subj: 'she', Subj: 'She', obj: 'her', poss: 'her' },
+};
+
+const MONTHS = [
+  'january',
+  'february',
+  'march',
+  'april',
+  'may',
+  'june',
+  'july',
+  'august',
+  'september',
+  'october',
+  'november',
+  'december',
+];
+
+// Accepts "19 June 2026", "2026-06-19" and "19/06/2026"
+const parseDate = (value = '') => {
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  const long = /^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/.exec(raw);
+  if (long) {
+    const month = MONTHS.findIndex((m) => m.startsWith(long[2].toLowerCase().slice(0, 3)));
+    if (month >= 0) return new Date(Number(long[3]), month, Number(long[1]));
+  }
+
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(raw);
+  if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+
+  const dmy = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/.exec(raw);
+  if (dmy) return new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]));
+
+  const fallback = new Date(raw);
+  return Number.isNaN(fallback.getTime()) ? null : fallback;
+};
+
+// "2 months and 17 days" between the joining and relieving dates
+const computeTenure = (start, end) => {
+  const from = parseDate(start);
+  const to = parseDate(end);
+  if (!from || !to || to < from) return '';
+
+  let months = (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth());
+  let days = to.getDate() - from.getDate();
+  if (days < 0) {
+    months -= 1;
+    days += new Date(to.getFullYear(), to.getMonth(), 0).getDate();
+  }
+  if (months < 0) return '';
+
+  const parts = [];
+  if (months > 0) parts.push(`${months} ${months === 1 ? 'month' : 'months'}`);
+  if (days > 0) parts.push(`${days} ${days === 1 ? 'day' : 'days'}`);
+  return parts.length ? parts.join(' and ') : 'less than a day';
+};
+
 const DEFAULT_EXPERIENCE_LETTER = {
   doc_type: DOC_TYPE,
   letter_title: 'EXPERIENCE LETTER',
   letter_date: todayLong(),
-  recipient_name: '',
-  recipient_honorific: 'Mr.',
+  addressee: 'To Whom It May Concern',
+  employee_name: '',
+  honorific: 'Mr.',
+  gender: 'male',
   designation: '',
-  project_name: '',
-  project_title: '',
-  deliverable_count: 0,
-  deliverable_unit: 'instructional videos',
-  responsibility: '',
-  fee_amount: 0,
-  completion_deadline: '',
+  joining_date: '',
+  relieving_date: '',
+  tenure: '',
   company_name: 'Academy of Tech Masters',
-  closing_note: 'We look forward to your continued association with Academy of Tech Masters.',
-  declaration_note:
-    'This letter is issued as an official confirmation of the project assignment and the mutually agreed payment terms.',
-  signatory_name: 'S.D. Ameenuddin',
-  signatory_designation: 'Managing Director',
+  conduct_note: '',
+  closing_note: '',
+  signatory_designation: 'HR Manager',
   phone: '+91 80199-42233',
   email: 'hr@aotms.com',
   notes: '',
 };
 
-// Sample mirrors "Experience letter Format.docx" (Project Assignment Confirmation)
+// Sample mirrors "Experience letter Varun.pdf" (To Whom It May Concern certificate)
 const SAMPLE_EXPERIENCE_LETTER = {
   doc_type: DOC_TYPE,
-  letter_title: 'PROJECT ASSIGNMENT CONFIRMATION',
+  letter_title: 'EXPERIENCE LETTER',
   letter_date: '08 September 2026',
-  recipient_name: 'Poojitha Thota',
-  recipient_honorific: 'Ms.',
-  designation: 'Trainer',
-  project_name: 'Data Science',
-  project_title: 'Data Science – Video Content Development',
-  deliverable_count: 90,
-  deliverable_unit: 'instructional videos',
-  responsibility:
-    'Preparation, recording, and uploading of the assigned video content in accordance with the requirements and guidelines provided by Academy of Tech Masters.',
-  fee_amount: 7000,
-  completion_deadline: '15/Oct',
+  addressee: 'To Whom It May Concern',
+  employee_name: 'Prabhu Varun',
+  honorific: 'Mr.',
+  gender: 'male',
+  designation: 'AI Associate',
+  joining_date: '19 June 2026',
+  relieving_date: '05 September 2026',
+  tenure: '',
   company_name: 'Academy of Tech Masters',
-  closing_note:
-    'We look forward to your timely delivery of the assigned content and continued association with Academy of Tech Masters.',
-  declaration_note:
-    'This letter is issued as an official confirmation of the project assignment and the mutually agreed payment terms.',
-  signatory_name: 'S.D. Ameenuddin',
-  signatory_designation: 'Managing Director',
+  conduct_note: '',
+  closing_note: '',
+  signatory_designation: 'HR Manager',
   phone: '+91 80199-42233',
   email: 'hr@aotms.com',
-  notes: 'Sample project assignment confirmation generated for the associate.',
+  notes: 'Sample experience letter generated for the associate.',
 };
 
 const Field = ({ label, value, onChange, type = 'text', placeholder, required, help }) => (
@@ -114,95 +164,109 @@ const TextArea = ({ label, value, onChange, rows = 3, placeholder }) => (
   </div>
 );
 
+const Select = ({ label, value, onChange, options, help }) => (
+  <div>
+    <label className="text-xs font-semibold text-slate-600 mb-1 block">{label}</label>
+    <select
+      value={value ?? ''}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+    >
+      {options.map((opt) => (
+        <option key={opt.value} value={opt.value}>
+          {opt.label}
+        </option>
+      ))}
+    </select>
+    {help && <p className="text-[11px] text-slate-400 mt-1">{help}</p>}
+  </div>
+);
+
 // ── Experience Letter Document (single A4 page) ──────────────────────────────
 export const ExperienceLetterDocument = forwardRef(({ invoiceData = {}, isPreview = false }, ref) => {
   const d = invoiceData || {};
   const company = d.company_name || 'Academy of Tech Masters';
-  const recipientName = (d.recipient_name || '').trim() || 'Recipient Name';
-  const honorific = (d.recipient_honorific || '').trim();
-  const salutationName = `${honorific} ${recipientName}`.replace(/\s+/g, ' ').trim();
-  const firstName = recipientName.split(/\s+/)[0];
-  const designation = d.designation || 'Trainer';
-  const projectName = d.project_name || 'the assigned project';
-  const projectTitle = d.project_title || `${projectName} – Video Content Development`;
-  const deliverableCount = Number(d.deliverable_count) || 0;
-  const deliverableUnit = d.deliverable_unit || 'instructional videos';
-  const feeAmount = Number(d.fee_amount) || 0;
-  const feeFmt = feeAmount.toLocaleString('en-IN');
-  const feeWords = numberToWords(feeAmount);
-  const deadline = (d.completion_deadline || '').trim();
-  const responsibility =
-    d.responsibility ||
-    `Preparation, recording, and uploading of the assigned content in accordance with the requirements and guidelines provided by ${company}.`;
+  const employeeName = (d.employee_name || d.recipient_name || '').trim() || 'Employee Name';
+  const honorific = (d.honorific || d.recipient_honorific || '').trim();
+  const designation = d.designation || 'Associate';
+  const joiningDate = (d.joining_date || '').trim() || '—';
+  const relievingDate = (d.relieving_date || '').trim() || '—';
+  const p = PRONOUNS[d.gender === 'female' ? 'female' : 'male'];
+  const tenure = (d.tenure || '').trim() || computeTenure(d.joining_date, d.relieving_date);
+  const conductNote =
+    (d.conduct_note || '').trim() ||
+    `During ${p.poss} tenure with the organization, ${p.subj} carried out ${p.poss} assigned responsibilities with dedication. ${p.Subj} demonstrated willingness to learn, and commitment toward ${p.poss} work and responsibilities.`;
+  const closingNote =
+    (d.closing_note || '').trim() ||
+    `We appreciate ${p.poss} contributions during ${p.poss} association with ${company} and wish ${p.obj} every success in ${p.poss} future professional endeavors.`;
 
   const outerPageStyle = {
     backgroundColor: '#ffffff',
     color: '#000000',
     fontFamily: "'Inter', sans-serif",
-    fontSize: '15px',
-    lineHeight: '1.44',
+    fontSize: '16px',
+    lineHeight: '1.5',
     width: '794px',
     minHeight: '1123px',
     boxSizing: 'border-box',
-    padding: '16px',
+    padding: '20px',
     marginBottom: isPreview ? '20px' : '0px',
     position: 'relative',
     boxShadow: isPreview ? '0 4px 14px rgba(0,0,0,0.08)' : 'none',
     margin: '0 auto',
   };
 
-  const innerFrameStyle = {
-    border: '1px solid #000000',
-    minHeight: '1091px',
-    boxSizing: 'border-box',
-    padding: '24px 28px',
-    display: 'flex',
-    flexDirection: 'column',
-    position: 'relative',
-    background: '#ffffff',
-  };
+  // The letterhead bleeds wider than the body copy, mirroring the issued letter
+  const headerStyle = { padding: '0 15px' };
+  const bodyStyle = { padding: '0 73px', boxSizing: 'border-box' };
 
   return (
     <div ref={ref} style={{ width: '100%', maxWidth: '810px', margin: '0 auto', boxSizing: 'border-box' }}>
       <div className="letter-page" style={outerPageStyle}>
-        <div style={innerFrameStyle}>
-          {/* Letterhead */}
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              borderBottom: '1px solid #000000',
-              paddingBottom: 6,
-              marginBottom: 9,
-            }}
-          >
+        {/* Letterhead */}
+        <div style={headerStyle}>
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '0 58px' }}>
             <img
               src={logoImg}
               alt={`${company} logo`}
-              style={{ height: 74, objectFit: 'contain', marginBottom: 5, display: 'block' }}
+              style={{ width: '100%', maxWidth: 608, height: 'auto', objectFit: 'contain', display: 'block' }}
               onError={(e) => {
                 e.target.src = atmLogoImg;
               }}
             />
-            <div style={{ textAlign: 'center', fontSize: 13.5, color: '#111827' }}>
-              <span>Phone: {d.phone || '+91 80199-42233'}</span>
-              <span style={{ margin: '0 8px', color: '#9ca3af' }}>|</span>
-              <span>
-                Email:{' '}
-                <a href={`mailto:${d.email || 'hr@aotms.com'}`} style={{ color: '#2563eb', textDecoration: 'none' }}>
-                  {d.email || 'hr@aotms.com'}
-                </a>
-              </span>
-            </div>
           </div>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'baseline',
+              marginTop: 4,
+              fontSize: 16,
+              fontWeight: 700,
+            }}
+          >
+            <span>Phone: {d.phone || '+91 80199-42233'}</span>
+            <span>
+              Email:{' '}
+              <a
+                href={`mailto:${d.email || 'hr@aotms.com'}`}
+                style={{ color: '#2563eb', textDecoration: 'underline' }}
+              >
+                {d.email || 'hr@aotms.com'}
+              </a>
+            </span>
+          </div>
+          <div style={{ borderTop: '1px solid #9ca3af', marginTop: 10 }} />
+        </div>
 
+        {/* Body */}
+        <div style={bodyStyle}>
           {/* Title */}
-          <div style={{ textAlign: 'center', marginBottom: 11 }}>
+          <div style={{ textAlign: 'center', marginTop: 58 }}>
             <span
               style={{
-                fontSize: '23px',
-                fontWeight: 700,
+                fontSize: '27px',
+                fontWeight: 400,
                 textDecoration: 'underline',
                 color: '#000000',
                 letterSpacing: '0.5px',
@@ -213,136 +277,74 @@ export const ExperienceLetterDocument = forwardRef(({ invoiceData = {}, isPrevie
           </div>
 
           {/* Date */}
-          <div style={{ textAlign: 'right', fontSize: 14.5, color: '#111827', marginBottom: 10 }}>
-            Date: {d.letter_date || todayLong()}
+          <div style={{ textAlign: 'right', fontSize: 16, color: '#000000', marginTop: 54 }}>
+            <span style={{ fontWeight: 700 }}>Date:</span> {d.letter_date || todayLong()}
           </div>
 
-          {/* Recipient */}
-          <div style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 15, color: '#111' }}>To</div>
-            <div style={{ fontSize: 17, color: '#000', fontWeight: 600 }}>{salutationName}</div>
+          {/* Addressee */}
+          <div style={{ fontSize: 16, fontWeight: 700, marginTop: 86 }}>
+            {d.addressee || 'To Whom It May Concern'}
           </div>
 
-          <div style={{ fontSize: 15.5, fontWeight: 600, marginBottom: 9 }}>Dear {`${honorific} ${firstName}`.trim()},</div>
-
-          {/* Body */}
-          <div style={{ textAlign: 'justify', color: '#111827' }}>
-            <p style={{ margin: '0 0 9px 0' }}>
-              This letter serves as formal confirmation of your engagement with {company} as{' '}
-              {articleFor(designation)} {designation} for the development of {projectName} for our academic training
-              programs.
+          {/* Body copy */}
+          <div style={{ textAlign: 'justify', marginTop: 22 }}>
+            <p style={{ margin: '0 0 16px 0' }}>
+              This is to certify that{' '}
+              <span style={{ fontWeight: 700 }}>{`${honorific} ${employeeName}`.replace(/\s+/g, ' ').trim()}</span> was
+              associated with <span style={{ fontWeight: 700 }}>{company}</span> as {articleFor(designation)}{' '}
+              <span style={{ fontWeight: 700 }}>{designation}</span> from{' '}
+              <span style={{ fontWeight: 700 }}>{`${joiningDate} to ${relievingDate}`}</span>
+              {tenure ? `, completing a total tenure of ` : ''}
+              {tenure ? <span style={{ fontWeight: 700 }}>{tenure}</span> : null}.
             </p>
 
-            {deliverableCount > 0 && (
-              <p style={{ margin: '0 0 9px 0' }}>
-                As discussed and mutually agreed, you have been assigned the responsibility of developing and
-                delivering a total of {deliverableCount} {deliverableUnit} covering the {projectName} Modules.
-              </p>
-            )}
-
-            <p style={{ margin: '0 0 8px 0' }}>The key terms of the assignment are as follows:</p>
-
-            <div style={{ border: '1px solid #000000', padding: '10px 16px', marginBottom: 10, fontSize: 14 }}>
-              <div style={{ marginBottom: 3 }}>
-                <span style={{ fontWeight: 700 }}>Project: </span>
-                <span>{projectTitle}</span>
-              </div>
-              <div style={{ marginBottom: 3 }}>
-                <span style={{ fontWeight: 700 }}>Total: </span>
-                <span>
-                  {deliverableCount > 0 ? `${deliverableCount} ${deliverableUnit}` : '—'}
-                </span>
-              </div>
-              <div style={{ marginBottom: 3 }}>
-                <span style={{ fontWeight: 700 }}>Responsibility: </span>
-                <span>{responsibility}</span>
-              </div>
-              <div>
-                <span style={{ fontWeight: 700 }}>Agreed Professional Fee: </span>
-                <span>
-                  ₹{feeFmt}/- ({feeWords})
-                </span>
-              </div>
-            </div>
-
-            {feeAmount > 0 && (
-              <p style={{ margin: '0 0 9px 0' }}>
-                <span style={{ fontWeight: 700 }}>Payment Terms: </span>
-                The agreed professional fee of ₹{feeFmt}/- will be payable upon the successful completion and
-                submission of all {deliverableCount || 0} {deliverableUnit}, subject to fulfillment of the agreed
-                project requirements.
-              </p>
-            )}
-
-            {deliverableCount > 0 && (
-              <p style={{ margin: '0 0 9px 0' }}>
-                The assigned work is currently in progress and shall be considered completed only after all{' '}
-                {deliverableCount} {deliverableUnit} have been successfully uploaded
-                {deadline ? ` before ${deadline}` : ''} and the deliverables have been reviewed and accepted by{' '}
-                {company}.
-              </p>
-            )}
-
-            {d.closing_note && <p style={{ margin: '0 0 8px 0' }}>{d.closing_note}</p>}
-            {d.declaration_note && <p style={{ margin: 0 }}>{d.declaration_note}</p>}
+            <p style={{ margin: '0 0 16px 0' }}>{conductNote}</p>
+            <p style={{ margin: 0 }}>{closingNote}</p>
           </div>
 
           {/* Sign-off */}
-          <div style={{ marginTop: 16 }}>
-            <div style={{ fontSize: 15, marginBottom: 2 }}>Sincerely,</div>
-            <div style={{ fontSize: 15, fontWeight: 600 }}>For {company}</div>
+          <div style={{ marginTop: 30 }}>
+            <div style={{ fontSize: 16 }}>Sincerely,</div>
 
-            <div
-              style={{
-                margin: '4px 0 2px',
-                display: 'flex',
-                alignItems: 'center',
-              }}
-            >
+            <div style={{ position: 'relative', width: 84, height: 84, margin: '6px 0 4px' }}>
               <img
                 src={aotmsStampImg}
                 alt="AOTMS Stamp"
-                style={{ width: 92, height: 92, objectFit: 'contain', flexShrink: 0 }}
-              />
-              <img
-                src={signatureImg}
-                alt="Authorised signature"
                 style={{
-                  width: 200,
-                  height: 'auto',
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                  width: 84,
+                  height: 84,
+                  maxWidth: 'none',
                   objectFit: 'contain',
-                  mixBlendMode: 'multiply',
-                  pointerEvents: 'none',
-                  marginLeft: -20,
+                  opacity: 0.85,
                 }}
               />
+              {/* Layered twice so the pen strokes stay readable where they cross the seal */}
+              {[0, 1].map((layer) => (
+                <img
+                  key={layer}
+                  src={signatureImg}
+                  alt={layer === 0 ? 'Authorised signature' : ''}
+                  aria-hidden={layer === 1}
+                  style={{
+                    position: 'absolute',
+                    left: -53,
+                    top: 8,
+                    width: 230,
+                    height: 'auto',
+                    maxWidth: 'none',
+                    objectFit: 'contain',
+                    mixBlendMode: 'multiply',
+                    pointerEvents: 'none',
+                  }}
+                />
+              ))}
             </div>
 
-            {d.signatory_name && (
-              <div style={{ fontSize: 15, fontWeight: 600, color: '#1e293b' }}>{d.signatory_name}</div>
-            )}
-            {d.signatory_designation && (
-              <div style={{ fontSize: 13.5, color: '#475569' }}>{d.signatory_designation}</div>
-            )}
-            <div style={{ fontSize: 13.5, color: '#475569' }}>
-              {company} {d.phone ? `· ${d.phone}` : ''}
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div
-            style={{
-              marginTop: 'auto',
-              paddingTop: 4,
-              borderTop: '1px solid #94a3b8',
-              display: 'flex',
-              justifyContent: 'space-between',
-              fontSize: 12.5,
-              color: '#64748b',
-            }}
-          >
-            <span>{company} — Confidential</span>
-            <span>{d.letter_title || 'Experience Letter'}</span>
+            <div style={{ fontSize: 16, fontWeight: 700 }}>{d.signatory_designation || 'HR Manager'}</div>
+            <div style={{ fontSize: 16, fontWeight: 700 }}>{company}</div>
           </div>
         </div>
       </div>
@@ -368,6 +370,8 @@ export default function ExperienceLetter() {
   const modalPrintRef = useRef(null);
 
   const set = (key) => (value) => setForm((prev) => ({ ...prev, [key]: value }));
+
+  const computedTenure = computeTenure(form.joining_date, form.relieving_date);
 
   const flash = (setter, message) => {
     setter(message);
@@ -432,14 +436,14 @@ export default function ExperienceLetter() {
     }
   };
 
-  const handleDownloadPDF = async (targetRef = printRef, label = form.recipient_name) => {
+  const handleDownloadPDF = async (targetRef = printRef, label = form.employee_name) => {
     if (!targetRef.current) return;
     setDownloadingPdf(true);
     try {
       const pages = targetRef.current.querySelectorAll('.letter-page');
       if (!pages || pages.length === 0) return;
 
-      const cleanName = (label || 'Recipient').replace(/[^a-zA-Z0-9]+/g, '_');
+      const cleanName = (label || 'Employee').replace(/[^a-zA-Z0-9]+/g, '_');
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
 
       const originalShadows = [];
@@ -493,7 +497,7 @@ export default function ExperienceLetter() {
             <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Experience Letter</h1>
           </div>
           <p className="text-sm text-slate-500 mt-1">
-            Generate engagement / project assignment confirmation letters and download A4 PDF documents.
+            Issue experience certificates and download A4 PDF documents.
           </p>
         </div>
 
@@ -522,7 +526,7 @@ export default function ExperienceLetter() {
               type="button"
               onClick={() => setForm(SAMPLE_EXPERIENCE_LETTER)}
               className="px-3 py-2 text-xs font-semibold bg-sky-50 text-sky-800 hover:bg-sky-100 border border-sky-200 rounded-xl flex items-center gap-1.5 transition-all"
-              title="Fill the sample project assignment confirmation details"
+              title="Fill the sample experience letter details"
             >
               <Sparkles size={15} /> Sample Letter
             </button>
@@ -561,94 +565,94 @@ export default function ExperienceLetter() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Document Title" value={form.letter_title} onChange={set('letter_title')} required />
                 <Field label="Letter Date" value={form.letter_date} onChange={set('letter_date')} />
+                <Field
+                  label="Addressee"
+                  value={form.addressee}
+                  onChange={set('addressee')}
+                  placeholder="To Whom It May Concern"
+                />
                 <Field label="Issuing Organisation" value={form.company_name} onChange={set('company_name')} />
-                <Field label="Designation / Role" value={form.designation} onChange={set('designation')} />
                 <Field label="Contact Phone" value={form.phone} onChange={set('phone')} />
                 <Field label="Contact Email" value={form.email} onChange={set('email')} />
               </div>
             </div>
 
-            {/* Recipient */}
+            {/* Employee */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
               <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider pb-3 border-b border-slate-100">
-                Recipient
+                Employee
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <Field
-                  label="Recipient Name"
-                  value={form.recipient_name}
-                  onChange={set('recipient_name')}
-                  placeholder="e.g. Poojitha Thota"
+                  label="Employee Name"
+                  value={form.employee_name}
+                  onChange={set('employee_name')}
+                  placeholder="e.g. Prabhu Varun"
                   required
                 />
                 <Field
                   label="Honorific"
-                  value={form.recipient_honorific}
-                  onChange={set('recipient_honorific')}
+                  value={form.honorific}
+                  onChange={set('honorific')}
                   placeholder="Mr. / Ms. / Mrs."
+                />
+                <Select
+                  label="Gender"
+                  value={form.gender}
+                  onChange={set('gender')}
+                  options={[
+                    { value: 'male', label: 'Male (he / him)' },
+                    { value: 'female', label: 'Female (she / her)' },
+                  ]}
+                />
+                <Field
+                  label="Designation / Role"
+                  value={form.designation}
+                  onChange={set('designation')}
+                  placeholder="e.g. AI Associate"
                 />
               </div>
             </div>
 
-            {/* Assignment & terms */}
+            {/* Association & content */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
               <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider pb-3 border-b border-slate-100">
-                Assignment &amp; Terms
+                Association &amp; Content
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <Field
-                  label="Project / Domain"
-                  value={form.project_name}
-                  onChange={set('project_name')}
-                  placeholder="e.g. Data Science"
+                  label="Date of Joining"
+                  value={form.joining_date}
+                  onChange={set('joining_date')}
+                  placeholder="e.g. 19 June 2026"
                 />
                 <Field
-                  label="Project Title (key terms)"
-                  value={form.project_title}
-                  onChange={set('project_title')}
-                  placeholder="e.g. Data Science – Video Content Development"
+                  label="Last Working Day"
+                  value={form.relieving_date}
+                  onChange={set('relieving_date')}
+                  placeholder="e.g. 05 September 2026"
                 />
                 <Field
-                  label="Deliverable Count"
-                  type="number"
-                  value={form.deliverable_count}
-                  onChange={set('deliverable_count')}
-                  placeholder="90"
-                />
-                <Field
-                  label="Deliverable Unit"
-                  value={form.deliverable_unit}
-                  onChange={set('deliverable_unit')}
-                  placeholder="instructional videos"
-                />
-                <Field
-                  label="Agreed Professional Fee (₹)"
-                  type="number"
-                  value={form.fee_amount}
-                  onChange={set('fee_amount')}
-                  placeholder="7000"
-                  help={`In words: ${numberToWords(Number(form.fee_amount) || 0)}`}
-                />
-                <Field
-                  label="Completion Deadline"
-                  value={form.completion_deadline}
-                  onChange={set('completion_deadline')}
-                  placeholder="e.g. 15/Oct"
+                  label="Total Tenure"
+                  value={form.tenure}
+                  onChange={set('tenure')}
+                  placeholder={computedTenure || 'e.g. 2 months and 17 days'}
+                  help={computedTenure ? `Auto-calculated: ${computedTenure}` : 'Auto-calculated from the dates above'}
                 />
               </div>
               <TextArea
-                label="Responsibility"
-                value={form.responsibility}
-                onChange={set('responsibility')}
+                label="Tenure & Conduct Paragraph"
+                value={form.conduct_note}
+                onChange={set('conduct_note')}
                 rows={3}
-                placeholder="Preparation, recording, and uploading of the assigned content..."
+                placeholder="Leave blank for the standard wording built from the employee's pronouns."
               />
-              <TextArea label="Closing Note" value={form.closing_note} onChange={set('closing_note')} rows={2} />
               <TextArea
-                label="Declaration Line"
-                value={form.declaration_note}
-                onChange={set('declaration_note')}
+                label="Appreciation Paragraph"
+                value={form.closing_note}
+                onChange={set('closing_note')}
                 rows={2}
+                placeholder="Leave blank for the standard wording built from the employee's pronouns."
               />
             </div>
 
@@ -658,11 +662,11 @@ export default function ExperienceLetter() {
                 Signatory
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Field label="Signatory Name" value={form.signatory_name} onChange={set('signatory_name')} />
                 <Field
                   label="Signatory Designation"
                   value={form.signatory_designation}
                   onChange={set('signatory_designation')}
+                  placeholder="e.g. HR Manager"
                 />
               </div>
             </div>
@@ -722,7 +726,7 @@ export default function ExperienceLetter() {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by recipient, role..."
+                placeholder="Search by employee, role..."
                 className="pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-sky-500 w-full sm:w-64"
               />
             </div>
@@ -746,7 +750,7 @@ export default function ExperienceLetter() {
                 <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
                   <tr>
                     <th className="text-left px-4 py-3 font-semibold">Reference</th>
-                    <th className="text-left px-4 py-3 font-semibold">Recipient</th>
+                    <th className="text-left px-4 py-3 font-semibold">Employee</th>
                     <th className="text-left px-4 py-3 font-semibold">Designation</th>
                     <th className="text-left px-4 py-3 font-semibold">Letter Date</th>
                     <th className="text-right px-4 py-3 font-semibold">Actions</th>
@@ -756,7 +760,7 @@ export default function ExperienceLetter() {
                   {history.map((rec) => (
                     <tr key={rec._id} className="hover:bg-slate-50/70">
                       <td className="px-4 py-3 font-semibold text-slate-800">{rec.invoice_number || '—'}</td>
-                      <td className="px-4 py-3 text-slate-700">{rec.recipient_name || '—'}</td>
+                      <td className="px-4 py-3 text-slate-700">{rec.employee_name || rec.recipient_name || '—'}</td>
                       <td className="px-4 py-3 text-slate-600">{rec.designation || '—'}</td>
                       <td className="px-4 py-3 text-slate-600">{rec.letter_date || '—'}</td>
                       <td className="px-4 py-3">
@@ -797,12 +801,12 @@ export default function ExperienceLetter() {
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50">
               <div className="font-bold text-slate-800 text-sm">
                 Experience Letter: <span className="text-sky-700">{selectedRecord.invoice_number || 'Draft'}</span> —{' '}
-                {selectedRecord.recipient_name}
+                {selectedRecord.employee_name || selectedRecord.recipient_name}
               </div>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => handleDownloadPDF(modalPrintRef, selectedRecord.recipient_name)}
+                  onClick={() => handleDownloadPDF(modalPrintRef, selectedRecord.employee_name || selectedRecord.recipient_name)}
                   disabled={downloadingPdf}
                   className="px-3 py-1.5 text-xs font-semibold bg-slate-900 text-white rounded-lg flex items-center gap-1.5 disabled:opacity-50"
                 >
