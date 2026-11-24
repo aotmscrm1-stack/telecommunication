@@ -5,8 +5,9 @@ import HeroSection from './HeroSection';
 import FeaturesSection from './FeaturesSection';
 import IntegrationsSection from './IntegrationsSection';
 import PricingSection from './PricingSection';
+import FaqSection from './FaqSection';
 import Footer from './Footer';
-import { brand, fonts, hub, ink, surface, text } from './theme';
+import { fonts, hub } from './theme';
 
 export default function Landing() {
   // The marketing shell (mini bar, navbar, hero) runs on its own token set that
@@ -29,7 +30,7 @@ export default function Landing() {
         html { scroll-behavior: smooth; }
 
         .nk-landing-root {
-          /* Marketing shell tokens (mini navbar / navbar / hero) */
+          /* Landing-page tokens — one palette for every section. */
           --hs-navy: ${hub.navy};
           --hs-navy-soft: ${hub.navySoft};
           --hs-muted: ${hub.muted};
@@ -41,10 +42,16 @@ export default function Landing() {
           --hs-orange-hover: ${hub.orangeHover};
           --hs-orange-active: ${hub.orangeActive};
           --hs-orange-soft: ${hub.orangeSoft};
+          --hs-orange-tint: ${hub.orangeTint};
+          --hs-orange-line: ${hub.orangeLine};
           --hs-pink-soft: ${hub.pinkSoft};
           --hs-pink-text: ${hub.pinkText};
           --hs-forest: ${hub.forest};
+          --hs-forest-soft: ${hub.forestSoft};
           --hs-forest-text: ${hub.forestText};
+          --hs-forest-deep: ${hub.forestDeep};
+          --hs-forest-band: ${hub.forestGradient};
+          --hs-white: ${hub.white};
           --hs-craft-yellow: ${hub.craftYellow};
           --hs-craft-red: ${hub.craftRed};
           --hs-ui: ${fonts.sans};
@@ -54,8 +61,8 @@ export default function Landing() {
           width: 100%;
           margin: 0;
           padding: 0;
-          background-color: ${surface.page};
-          color: ${text.primary};
+          background-color: ${hub.white};
+          color: ${hub.navy};
           font-family: ${fonts.sans};
           font-feature-settings: 'cv02', 'cv03', 'cv04', 'ss01';
           display: flex;
@@ -76,8 +83,16 @@ export default function Landing() {
           --hs-line-strong: #213343;
           --hs-canvas: #FFFFFF;
           --hs-hero-tint: #FFFFFF;
+          --hs-white: #FFFFFF;
+          --hs-orange-soft: #FFFFFF;
+          --hs-orange-tint: transparent;
+          --hs-orange-line: #33475B;
+          --hs-pink-soft: #FFFFFF;
           --hs-forest: #000000;
+          --hs-forest-soft: #000000;
           --hs-forest-text: #FFFFFF;
+          --hs-forest-deep: #000000;
+          --hs-forest-band: #000000;
           --hs-pink-text: #7A0033;
         }
 
@@ -88,8 +103,8 @@ export default function Landing() {
         }
 
         .nk-landing-root ::selection {
-          background: ${brand.tintStrong};
-          color: ${ink[950]};
+          background: ${hub.orangeSoft};
+          color: ${hub.navy};
         }
 
         .nk-landing-root :focus-visible {
@@ -102,10 +117,31 @@ export default function Landing() {
           font-family: ${fonts.sans};
         }
 
-        /* Keep anchored sections clear of the fixed navbar */
+        /* Section eyebrow chip — same treatment as the hero label. */
+        .nk-landing-root .hs-eyebrow {
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          padding: 7px 11px;
+          background: var(--hs-white);
+          border: 1px solid var(--hs-line-strong);
+          border-radius: 4px;
+          color: var(--hs-navy);
+          font-size: 11.5px;
+          font-weight: 700;
+          letter-spacing: .07em;
+        }
+
+        .nk-landing-root .hs-eyebrow svg {
+          color: var(--hs-orange-active);
+        }
+
+        /* Keep anchored sections clear of the fixed mini bar (48px) + navbar (78px) */
         .nk-landing-root section[id],
+        .nk-landing-root #features,
+        .nk-landing-root #integrations,
         .nk-landing-root #contact {
-          scroll-margin-top: 96px;
+          scroll-margin-top: 126px;
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -127,7 +163,8 @@ export default function Landing() {
       <FeaturesSection onBookDemo={openBooking} />
       <IntegrationsSection />
       <PricingSection />
-      <Footer />
+      <FaqSection />
+      <Footer onBookDemo={openBooking} />
     </div>
   );
 }

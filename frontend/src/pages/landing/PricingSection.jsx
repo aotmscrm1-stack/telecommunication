@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   Check,
   CheckCircle2,
@@ -9,108 +9,81 @@ import {
   ShieldCheck,
   Headphones,
   ArrowRight,
-  HelpCircle,
 } from 'lucide-react';
 import { SpotlightCard } from '../../components/ui/SpotlightCard';
-import { ShinyText } from '../../components/ui/ShinyText';
-import {
-  accent,
-  amber,
-  border,
-  brand,
-  cobalt,
-  fonts,
-  gradients,
-  ink,
-  layout,
-  radii,
-  shadows,
-  surface,
-  text,
-} from './theme';
 
 const PRICING_TIERS = [
   {
     id: 'starter',
     name: 'Growth Starter',
     badge: 'For Small Teams',
-    description: 'Perfect for fast-growing sales reps and emerging telecommunication startups.',
+    description: 'A small sales or counselling team moving off spreadsheets and WhatsApp Web.',
     monthlyPrice: 999,
     yearlyPrice: 699,
     savingsText: 'Save ₹3,600/yr',
     popular: false,
     buttonText: 'Start Free Trial',
-    buttonStyle: 'secondary',
     features: [
-      'Up to 5,000 Active Leads',
-      '1-Click Browser VoIP Dialer',
-      'Standard WhatsApp Templates',
-      'Automated Task Reminders',
-      'Facebook & JustDial Ingest',
-      'Basic Performance Reports',
-      'Email & Community Support',
+      'Up to 5,000 Active Leads · 5 Logins',
+      'Lead Pipeline with Custom Stages',
+      'WhatsApp Inbox, Blasts & Templates',
+      'Meta, JustDial & Excel Lead Import',
+      'Todos, Follow-ups & Reminders',
+      'Call Recording Upload & Playback',
+      'Punch-in, Breaks & Daily Activity',
+      'Basic Team Reports',
     ],
   },
   {
     id: 'pro',
     name: 'Professional Team',
     badge: 'MOST POPULAR',
-    description: 'The complete enterprise powerpack for high-velocity sales & automated calling teams.',
+    description: 'The full marketing and performance stack for a working sales floor.',
     monthlyPrice: 1899,
     yearlyPrice: 1299,
     savingsText: 'Save ₹7,200/yr · 32% Off',
     popular: true,
     buttonText: 'Start 14-Day Pro Trial',
-    buttonStyle: 'primary',
     features: [
       'Unlimited Leads & Custom Pipelines',
-      'Auto Call Recording & CallIQ Analysis',
-      'Official WhatsApp Cloud 2-Way Bot',
-      'Full n8n Workflow Automation Engine',
-      'Realtime Team Leaderboard & KPIs',
-      'Role-Based Granular Permissions',
-      'Director Audit Trail & Email History',
-      'Priority 24/7 Chat & Phone Support',
+      'Meta Leads Hub with Campaign Assignment',
+      'Email CRM + Email Blast Campaigns',
+      'AI Transcripts of Call Recordings',
+      'Leaderboard, Reports & Compliance Tickets',
+      'Quotations, Invoices & Fee Receipts',
+      'Role-Based Permissions & Audit Trail',
+      'Priority Chat & Phone Support',
     ],
   },
   {
     id: 'enterprise',
     name: 'Enterprise Scale',
-    badge: 'For 25+ Agents & BPOs',
-    description: 'Custom infrastructure, dedicated SIP trunks, and bespoke security for large telecom ops.',
+    badge: 'For Multi-Team Operations',
+    description: 'For departments that also run HR, payroll and their own internal systems.',
     monthlyPrice: 3499,
     yearlyPrice: 2499,
     savingsText: 'Save ₹12,000/yr',
     popular: false,
     buttonText: 'Talk to Enterprise',
-    buttonStyle: 'secondary',
     features: [
-      'Unlimited Agents & Teams',
+      'Unlimited Users & Departments',
+      'Live Employee Tracking & Maps',
+      'ZKTeco Biometric Attendance Sync',
+      'Payslips & Offer, Experience, Relieving Letters',
+      'REST API Tokens, Webhooks & API Logs',
+      'Custom Fields, Actions & Permission Templates',
       'Dedicated Private Cloud Instance',
-      'Live Employee Geo-Radar & Attendance',
-      'Custom IVR & Telecom PBX Trunking',
-      'Custom REST API Tokens & Unlimited Webhooks',
-      'Full Audit Governance & ISO Compliance',
-      'Dedicated Customer Success Manager',
-      '99.99% Uptime SLA Guarantee',
+      'Dedicated Success Manager & SLA',
     ],
   },
 ];
 
-const FAQS = [
-  {
-    q: 'Can I switch between monthly and annual billing anytime?',
-    a: 'Yes, you can upgrade, downgrade, or switch billing cycles anytime from your Billing dashboard. Unused time is prorated automatically.',
-  },
-  {
-    q: 'Do you offer GST tax invoices for business accounting?',
-    a: 'Yes! Instant downloadable GST tax invoices are automatically generated for every payment under your Finance & Invoicing portal.',
-  },
-  {
-    q: 'Is there any long-term contract or setup fee?',
-    a: 'No setup fees and no lock-in contracts. You can cancel your subscription with a single click at any time without penalty.',
-  },
-];
+const fadeUp = (delay = 0) => ({
+  initial: { opacity: 0, y: 16 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true },
+  transition: { duration: 0.7, delay },
+});
 
 export const PricingSection = () => {
   const navigate = useNavigate();
@@ -118,186 +91,56 @@ export const PricingSection = () => {
   const isYearly = billingCycle === 'yearly';
 
   return (
-    <section
-      id="pricing"
-      style={{
-        padding: `${layout.sectionY} ${layout.gutter}`,
-        background: surface.page,
-        position: 'relative',
-        overflow: 'hidden',
-      }}
-    >
-      {/* Background Decorative Ambient Radial Glows */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '25%',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: 900,
-          height: 600,
-          background: 'radial-gradient(circle, rgba(37, 99, 235, 0.06) 0%, rgba(6, 182, 212, 0.04) 52%, transparent 78%)',
-          filter: 'blur(90px)',
-          pointerEvents: 'none',
-          zIndex: 0,
-        }}
-      />
-
-      <div style={{ maxWidth: 1240, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+    <section id="pricing" className="hs-price">
+      <div className="hs-price__inner">
         {/* ══════════════════════════════════════════════
             HEADER & TITLE
             ══════════════════════════════════════════════ */}
-        <div style={{ textAlign: 'center', marginBottom: 44 }}>
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '6px 16px',
-              borderRadius: radii.pill,
-              background: brand.soft,
-              border: `1px solid ${cobalt[200]}`,
-              marginBottom: 18,
-              boxShadow: 'none',
-            }}
-          >
-            <Sparkles size={13} strokeWidth={2.4} color={brand.base} />
-            <ShinyText
-              text="TRANSPARENT VALUE PRICING"
-              speed={3.5}
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: '0.10em',
-                color: cobalt[700],
-              }}
-            />
-          </motion.div>
+        <div className="hs-price__head">
+          <motion.span className="hs-eyebrow" {...fadeUp(0)}>
+            <Sparkles size={13} strokeWidth={2.4} />
+            PRICING FOR THE WHOLE STACK
+          </motion.span>
 
-          <motion.h2
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.7, delay: 0.1 }}
-            style={{
-              fontSize: 'clamp(30px, 4.2vw, 46px)',
-              fontWeight: 800,
-              letterSpacing: '-0.035em',
-              lineHeight: 1.15,
-              color: text.primary,
-              margin: '0 0 14px 0',
-              fontFamily: fonts.display,
-            }}
-          >
+          <motion.h2 className="hs-price__title" {...fadeUp(0.1)}>
             Simple, Transparent Pricing
           </motion.h2>
 
-          <motion.p
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.7, delay: 0.2 }}
-            style={{
-              color: text.tertiary,
-              fontSize: 'clamp(15px, 1.1vw, 17px)',
-              maxWidth: 640,
-              margin: '0 auto',
-              lineHeight: 1.7,
-              fontWeight: 400,
-            }}
-          >
-            Invest in revenue growth, not overhead. Choose the plan tailored for your telecommunication team with zero hidden charges.
+          <motion.p className="hs-price__lede" {...fadeUp(0.2)}>
+            Every plan includes the CRM core — leads, WhatsApp, calls and reports. Higher tiers add
+            marketing automation, finance documents, HR tools and the open API. No setup fee, no
+            hidden charges.
           </motion.p>
         </div>
 
         {/* ══════════════════════════════════════════════
             MONTHLY / YEARLY TOGGLE SWITCHER
             ══════════════════════════════════════════════ */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: 48,
-          }}
-        >
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              padding: 5,
-              borderRadius: radii.pill,
-              background: surface.subtle,
-              border: `1px solid ${border.base}`,
-              boxShadow: 'none',
-              gap: 4,
-            }}
-          >
+        <div className="hs-price__toggle-wrap">
+          <div className="hs-price__toggle">
             <button
+              type="button"
+              className="hs-price__toggle-btn"
+              data-active={!isYearly}
               onClick={() => setBillingCycle('monthly')}
-              style={{
-                border: 'none',
-                background: !isYearly ? surface.page : 'transparent',
-                color: !isYearly ? text.primary : text.tertiary,
-                padding: '9px 22px',
-                borderRadius: radii.pill,
-                fontSize: 13.5,
-                fontWeight: !isYearly ? 650 : 500,
-                cursor: 'pointer',
-                boxShadow: !isYearly ? shadows.xs : 'none',
-                transition: 'all 0.25s ease',
-                fontFamily: fonts.sans,
-              }}
             >
               Monthly Billing
             </button>
 
             <button
+              type="button"
+              className="hs-price__toggle-btn"
+              data-active={isYearly}
               onClick={() => setBillingCycle('yearly')}
-              style={{
-                border: 'none',
-                background: isYearly ? surface.page : 'transparent',
-                color: isYearly ? text.primary : text.tertiary,
-                padding: '9px 22px',
-                borderRadius: radii.pill,
-                fontSize: 13.5,
-                fontWeight: isYearly ? 650 : 500,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                boxShadow: isYearly ? shadows.xs : 'none',
-                transition: 'all 0.25s ease',
-                fontFamily: fonts.sans,
-              }}
             >
               Yearly Billing
-              <span
-                style={{
-                  fontSize: 10.5,
-                  fontWeight: 700,
-                  letterSpacing: '0.04em',
-                  background: isYearly
-                    ? `linear-gradient(135deg, ${amber[500]}, ${amber[600]})`
-                    : amber[100],
-                  color: isYearly ? '#FFFFFF' : amber[700],
-                  padding: '3px 9px',
-                  borderRadius: radii.pill,
-                  boxShadow: isYearly ? '0 2px 8px rgba(245, 158, 11, 0.35)' : 'none',
-                }}
-              >
-                SAVE 32%
-              </span>
+              <span className="hs-price__save">SAVE 32%</span>
             </button>
           </div>
         </div>
 
         {/* ══════════════════════════════════════════════
-            3-TIER PRODUCTION PRICING CARDS
+            3-TIER PRICING CARDS
             ══════════════════════════════════════════════ */}
         <div className="pricing-grid">
           {PRICING_TIERS.map((tier, idx) => {
@@ -313,181 +156,38 @@ export const PricingSection = () => {
                 style={{ height: '100%' }}
               >
                 <SpotlightCard
-                  spotlightColor="rgba(37, 99, 235, 0.10)"
-                  style={{
-                    height: '100%',
-                    borderRadius: radii.xl,
-                    background: tier.popular ? gradients.brandSoft : surface.page,
-                    border: tier.popular
-                      ? `1.5px solid ${cobalt[500]}`
-                      : `1px solid ${border.base}`,
-                    boxShadow: tier.popular
-                      ? '0 28px 64px -28px rgba(37, 99, 235, 0.45), 0 2px 10px rgba(11, 17, 32, 0.04)'
-                      : shadows.sm,
-                    padding: '28px 26px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    position: 'relative',
-                    transition: 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease, border-color 0.3s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-6px)';
-                    e.currentTarget.style.boxShadow = tier.popular
-                      ? '0 34px 72px -26px rgba(37, 99, 235, 0.52), 0 4px 16px rgba(11, 17, 32, 0.06)'
-                      : shadows.lg;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = tier.popular
-                      ? '0 28px 64px -28px rgba(37, 99, 235, 0.45), 0 2px 10px rgba(11, 17, 32, 0.04)'
-                      : shadows.sm;
-                  }}
+                  spotlightColor="rgba(255, 92, 53, 0.10)"
+                  className={`hs-price__card ${tier.popular ? 'hs-price__card--popular' : ''}`}
                 >
                   <div>
-                    {/* ── CARD TOP BADGE BANNER (100% Visible & Never Clipped) ── */}
-                    <div style={{ marginBottom: 18 }}>
-                      {tier.popular ? (
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: 7,
-                            width: '100%',
-                            padding: '9px 16px',
-                            borderRadius: radii.sm,
-                            background: gradients.brand,
-                            color: '#FFFFFF',
-                            fontSize: 11,
-                            fontWeight: 700,
-                            letterSpacing: '0.10em',
-                            boxShadow: '0 6px 18px rgba(37, 99, 235, 0.32)',
-                            textTransform: 'uppercase',
-                          }}
-                        >
-                          <Sparkles size={13} fill="#FFFFFF" strokeWidth={0} />
-                          MOST POPULAR
-                        </div>
-                      ) : (
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: '100%',
-                            padding: '9px 16px',
-                            borderRadius: radii.sm,
-                            background: surface.subtle,
-                            color: text.secondary,
-                            border: `1px solid ${border.base}`,
-                            fontSize: 11,
-                            fontWeight: 650,
-                            letterSpacing: '0.08em',
-                            textTransform: 'uppercase',
-                          }}
-                        >
-                          {tier.badge}
-                        </div>
-                      )}
+                    {/* Top badge banner */}
+                    <div className={`hs-price__badge ${tier.popular ? 'hs-price__badge--popular' : ''}`}>
+                      {tier.popular && <Sparkles size={13} fill="#FFFFFF" strokeWidth={0} />}
+                      {tier.popular ? 'MOST POPULAR' : tier.badge}
                     </div>
 
-                    {/* Tier Name */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        marginBottom: 8,
-                      }}
-                    >
-                      <h3
-                        style={{
-                          fontSize: 21,
-                          fontWeight: 700,
-                          color: text.primary,
-                          margin: 0,
-                          letterSpacing: '-0.025em',
-                        }}
-                      >
-                        {tier.name}
-                      </h3>
-
-                      <span
-                        style={{
-                          fontSize: 10.5,
-                          fontWeight: 650,
-                          padding: '3px 8px',
-                          borderRadius: 6,
-                          letterSpacing: '0.02em',
-                          background: tier.popular ? brand.soft : surface.subtle,
-                          color: tier.popular ? cobalt[700] : text.tertiary,
-                          border: `1px solid ${
-                            tier.popular ? cobalt[200] : border.base
-                          }`,
-                        }}
-                      >
+                    {/* Tier name */}
+                    <div className="hs-price__name-row">
+                      <h3 className="hs-price__name">{tier.name}</h3>
+                      <span className={`hs-price__tag ${tier.popular ? 'hs-price__tag--popular' : ''}`}>
                         {tier.popular ? 'Best Value' : 'Standard'}
                       </span>
                     </div>
 
-                    {/* Short Description */}
-                    <p
-                      style={{
-                        fontSize: 13,
-                        color: text.tertiary,
-                        lineHeight: 1.6,
-                        margin: '0 0 24px 0',
-                        minHeight: 40,
-                      }}
-                    >
-                      {tier.description}
-                    </p>
+                    <p className="hs-price__desc">{tier.description}</p>
 
-                    {/* Price Figures */}
-                    <div
-                      style={{
-                        padding: '18px 0',
-                        borderTop: `1px solid ${border.hairline}`,
-                        borderBottom: `1px solid ${border.hairline}`,
-                        marginBottom: 24,
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                        <span style={{ fontSize: 22, fontWeight: 600, color: text.tertiary }}>
-                          ₹
-                        </span>
-                        <span
-                          style={{
-                            fontSize: 'clamp(36px, 3.6vw, 46px)',
-                            fontWeight: 800,
-                            letterSpacing: '-0.04em',
-                            color: text.primary,
-                            lineHeight: 1,
-                            fontFamily: fonts.display,
-                          }}
-                        >
-                          {price.toLocaleString('en-IN')}
-                        </span>
-                        <span style={{ fontSize: 13, color: text.tertiary, fontWeight: 500 }}>
-                          / user / mo
-                        </span>
+                    {/* Price figures */}
+                    <div className="hs-price__figures">
+                      <div className="hs-price__amount-row">
+                        <span className="hs-price__currency">₹</span>
+                        <span className="hs-price__amount">{price.toLocaleString('en-IN')}</span>
+                        <span className="hs-price__unit">/ user / mo</span>
                       </div>
 
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: isYearly ? accent.emerald.strong : text.tertiary,
-                          fontWeight: 600,
-                          marginTop: 6,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 5,
-                        }}
-                      >
+                      <div className={`hs-price__billing ${isYearly ? '' : 'hs-price__billing--muted'}`}>
                         {isYearly ? (
                           <>
-                            <CheckCircle2 size={13} color={accent.emerald.strong} />
+                            <CheckCircle2 size={13} />
                             <span>Billed annually ({tier.savingsText})</span>
                           </>
                         ) : (
@@ -496,48 +196,13 @@ export const PricingSection = () => {
                       </div>
                     </div>
 
-                    {/* Feature Bullets */}
-                    <div style={{ marginBottom: 30 }}>
-                      <div
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 650,
-                          letterSpacing: '0.10em',
-                          textTransform: 'uppercase',
-                          color: text.muted,
-                          marginBottom: 14,
-                        }}
-                      >
-                        Everything included:
-                      </div>
-
-                      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 11 }}>
+                    {/* Feature bullets */}
+                    <div className="hs-price__features">
+                      <div className="hs-price__features-label">Everything included:</div>
+                      <ul>
                         {tier.features.map((feat) => (
-                          <li
-                            key={feat}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'flex-start',
-                              gap: 10,
-                              fontSize: 13.5,
-                              color: text.secondary,
-                              lineHeight: 1.5,
-                            }}
-                          >
-                            <span
-                              style={{
-                                width: 18,
-                                height: 18,
-                                borderRadius: '50%',
-                                background: tier.popular ? brand.soft : accent.emerald.soft,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: tier.popular ? brand.base : accent.emerald.text,
-                                flexShrink: 0,
-                                marginTop: 1,
-                              }}
-                            >
+                          <li key={feat}>
+                            <span className={`hs-price__tick ${tier.popular ? 'hs-price__tick--popular' : ''}`}>
                               <Check size={12} strokeWidth={2.8} />
                             </span>
                             <span>{feat}</span>
@@ -547,47 +212,11 @@ export const PricingSection = () => {
                     </div>
                   </div>
 
-                  {/* Action CTA Button */}
+                  {/* Action CTA */}
                   <button
+                    type="button"
+                    className={`hs-price__cta ${tier.popular ? 'hs-price__cta--primary' : ''}`}
                     onClick={() => navigate('/login')}
-                    style={{
-                      width: '100%',
-                      padding: '14px 20px',
-                      borderRadius: radii.md,
-                      border: tier.popular ? 'none' : `1.5px solid ${border.strong}`,
-                      background: tier.popular ? gradients.brand : surface.page,
-                      color: tier.popular ? '#FFFFFF' : text.primary,
-                      fontSize: 14,
-                      fontWeight: 650,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 8,
-                      boxShadow: tier.popular ? shadows.brand : shadows.xs,
-                      transition: 'all 0.25s ease',
-                      fontFamily: fonts.sans,
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.boxShadow = tier.popular
-                        ? shadows.brandLg
-                        : shadows.sm;
-                      if (!tier.popular) {
-                        e.currentTarget.style.background = ink[900];
-                        e.currentTarget.style.color = '#FFFFFF';
-                        e.currentTarget.style.borderColor = ink[900];
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.boxShadow = tier.popular
-                        ? shadows.brand
-                        : shadows.xs;
-                      if (!tier.popular) {
-                        e.currentTarget.style.background = surface.page;
-                        e.currentTarget.style.color = text.primary;
-                        e.currentTarget.style.borderColor = border.strong;
-                      }
-                    }}
                   >
                     <span>{tier.buttonText}</span>
                     <ArrowRight size={16} />
@@ -601,88 +230,324 @@ export const PricingSection = () => {
         {/* ══════════════════════════════════════════════
             TRUST FOOTER & ASSURANCE
             ══════════════════════════════════════════════ */}
-        <div
-          style={{
-            marginTop: 48,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexWrap: 'wrap',
-            gap: 28,
-            padding: '16px 24px',
-            borderRadius: radii.lg,
-            background: surface.page,
-            border: `1px solid ${border.hairline}`,
-            fontSize: 12.5,
-            fontWeight: 550,
-            color: text.secondary,
-          }}
-        >
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-            <Zap size={15} color={accent.amber.base} />
+        <div className="hs-price__trust">
+          <span>
+            <Zap size={15} />
             14-Day Full Access Trial
           </span>
-          <span style={{ opacity: 0.3 }}>•</span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-            <ShieldCheck size={15} color={accent.emerald.strong} />
+          <span className="hs-price__dot">•</span>
+          <span>
+            <ShieldCheck size={15} />
             No Credit Card Required
           </span>
-          <span style={{ opacity: 0.3 }}>•</span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-            <Headphones size={15} color={brand.base} />
-            Free Onboarding & Migration
+          <span className="hs-price__dot">•</span>
+          <span>
+            <Headphones size={15} />
+            Free Onboarding &amp; Migration
           </span>
-        </div>
-
-        {/* ══════════════════════════════════════════════
-            MINI FAQ ACCORDION STRIP
-            ══════════════════════════════════════════════ */}
-        <div style={{ marginTop: 44, maxWidth: 840, margin: '44px auto 0' }}>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-              gap: 18,
-            }}
-          >
-            {FAQS.map((faq) => (
-              <div
-                key={faq.q}
-                style={{
-                  padding: '18px 20px',
-                  borderRadius: radii.lg,
-                  background: surface.page,
-                  border: `1px solid ${border.hairline}`,
-                  boxShadow: shadows.xs,
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    fontSize: 13,
-                    fontWeight: 650,
-                    color: text.primary,
-                    marginBottom: 6,
-                  }}
-                >
-                  <HelpCircle size={14} color={brand.base} />
-                  {faq.q}
-                </div>
-                <div style={{ fontSize: 12.5, color: text.tertiary, lineHeight: 1.6 }}>
-                  {faq.a}
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
 
-      {/* ══════════════════════════════════════════════
-          CSS GRID
-          ══════════════════════════════════════════════ */}
       <style>{`
+        .hs-price {
+          position: relative;
+          background: var(--hs-white);
+          padding: clamp(56px, 7vw, 96px) 0;
+          font-family: var(--hs-ui);
+          overflow: hidden;
+        }
+        .hs-price__inner {
+          position: relative;
+          z-index: 1;
+          max-width: 1300px;
+          margin: 0 auto;
+          padding: 0 clamp(16px, 3vw, 40px);
+        }
+
+        /* ── header ─────────────────────────────────────────────── */
+        .hs-price__head {
+          text-align: center;
+          max-width: 720px;
+          margin: 0 auto clamp(28px, 3.4vw, 44px);
+        }
+        .hs-price__title {
+          margin: 22px 0 14px;
+          font-family: var(--hs-serif);
+          font-weight: 400;
+          font-size: clamp(30px, 4vw, 46px);
+          line-height: 1.1;
+          letter-spacing: -0.015em;
+          color: var(--hs-navy);
+        }
+        .hs-price__lede {
+          margin: 0 auto;
+          max-width: 640px;
+          font-size: 16px;
+          line-height: 1.75;
+          color: var(--hs-muted);
+        }
+
+        /* ── billing toggle ────────────────────────────────────── */
+        .hs-price__toggle-wrap {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: clamp(32px, 4vw, 48px);
+        }
+        .hs-price__toggle {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding: 5px;
+          background: var(--hs-canvas);
+          border: 1px solid var(--hs-line);
+          border-radius: 8px;
+        }
+        .hs-price__toggle-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 9px 20px;
+          border: 1px solid transparent;
+          border-radius: 5px;
+          background: transparent;
+          color: var(--hs-muted);
+          font-family: inherit;
+          font-size: 13.5px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: background .2s ease, color .2s ease, border-color .2s ease;
+        }
+        .hs-price__toggle-btn[data-active='true'] {
+          background: var(--hs-white);
+          border-color: var(--hs-line);
+          color: var(--hs-navy);
+          box-shadow: 0 1px 2px rgba(33, 51, 67, .06);
+        }
+        .hs-price__save {
+          padding: 3px 9px;
+          border-radius: 999px;
+          background: var(--hs-orange-soft);
+          color: var(--hs-orange-active);
+          font-size: 10.5px;
+          font-weight: 700;
+          letter-spacing: .04em;
+        }
+        .hs-price__toggle-btn[data-active='true'] .hs-price__save {
+          background: var(--hs-orange);
+          color: #fff;
+        }
+
+        /* ── cards ─────────────────────────────────────────────── */
+        .hs-price__card {
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          padding: 28px 26px;
+          background: var(--hs-white);
+          border: 1px solid var(--hs-line);
+          border-radius: 12px;
+          box-shadow: 0 1px 2px rgba(33, 51, 67, .05);
+          transition: transform .3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow .3s ease, border-color .3s ease;
+        }
+        .hs-price__card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 18px 44px -24px rgba(33, 51, 67, .35);
+        }
+        .hs-price__card--popular {
+          background: linear-gradient(180deg, var(--hs-orange-soft) 0%, var(--hs-white) 42%);
+          border: 1.5px solid var(--hs-orange);
+          box-shadow: 0 22px 54px -30px rgba(255, 92, 53, .55), 0 2px 10px rgba(33, 51, 67, .04);
+        }
+        .hs-price__card--popular:hover {
+          box-shadow: 0 28px 62px -28px rgba(255, 92, 53, .6), 0 4px 16px rgba(33, 51, 67, .06);
+        }
+
+        .hs-price__badge {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 7px;
+          margin-bottom: 18px;
+          padding: 9px 16px;
+          border-radius: 5px;
+          background: var(--hs-canvas);
+          border: 1px solid var(--hs-line);
+          color: var(--hs-muted);
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: .08em;
+          text-transform: uppercase;
+        }
+        .hs-price__badge--popular {
+          background: var(--hs-orange);
+          border-color: var(--hs-orange);
+          color: #fff;
+          letter-spacing: .10em;
+          box-shadow: 0 6px 18px -8px rgba(255, 92, 53, .7);
+        }
+
+        .hs-price__name-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          margin-bottom: 8px;
+        }
+        .hs-price__name {
+          margin: 0;
+          font-size: 21px;
+          font-weight: 700;
+          letter-spacing: -0.02em;
+          color: var(--hs-navy);
+        }
+        .hs-price__tag {
+          padding: 3px 8px;
+          border-radius: 4px;
+          background: var(--hs-canvas);
+          border: 1px solid var(--hs-line);
+          color: var(--hs-muted);
+          font-size: 10.5px;
+          font-weight: 650;
+        }
+        .hs-price__tag--popular {
+          background: var(--hs-orange-soft);
+          border-color: var(--hs-orange-line);
+          color: var(--hs-orange-active);
+        }
+        .hs-price__desc {
+          margin: 0 0 24px;
+          min-height: 40px;
+          font-size: 13px;
+          line-height: 1.6;
+          color: var(--hs-muted);
+        }
+
+        .hs-price__figures {
+          padding: 18px 0;
+          margin-bottom: 24px;
+          border-top: 1px solid var(--hs-line);
+          border-bottom: 1px solid var(--hs-line);
+        }
+        .hs-price__amount-row { display: flex; align-items: baseline; gap: 6px; }
+        .hs-price__currency { font-size: 22px; font-weight: 500; color: var(--hs-muted); }
+        .hs-price__amount {
+          font-family: var(--hs-serif);
+          font-size: clamp(36px, 3.6vw, 46px);
+          font-weight: 600;
+          line-height: 1;
+          letter-spacing: -0.02em;
+          color: var(--hs-navy);
+        }
+        .hs-price__unit { font-size: 13px; font-weight: 500; color: var(--hs-muted); }
+        .hs-price__billing {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          margin-top: 8px;
+          font-size: 12px;
+          font-weight: 600;
+          color: var(--hs-forest);
+        }
+        .hs-price__billing--muted { color: var(--hs-muted); font-weight: 500; }
+
+        .hs-price__features { margin-bottom: 30px; }
+        .hs-price__features-label {
+          margin-bottom: 14px;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: .10em;
+          text-transform: uppercase;
+          color: var(--hs-muted);
+        }
+        .hs-price__features ul {
+          display: flex;
+          flex-direction: column;
+          gap: 11px;
+          margin: 0;
+          padding: 0;
+          list-style: none;
+        }
+        .hs-price__features li {
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
+          font-size: 13.5px;
+          line-height: 1.5;
+          color: var(--hs-navy-soft);
+        }
+        .hs-price__tick {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 18px;
+          height: 18px;
+          flex: 0 0 auto;
+          margin-top: 1px;
+          border-radius: 50%;
+          background: var(--hs-canvas);
+          color: var(--hs-navy);
+        }
+        .hs-price__tick--popular { background: var(--hs-orange-soft); color: var(--hs-orange-active); }
+
+        /* ── CTA ───────────────────────────────────────────────── */
+        .hs-price__cta {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          width: 100%;
+          padding: 14px 20px;
+          border-radius: 5px;
+          border: 1.5px solid var(--hs-line-strong);
+          background: var(--hs-white);
+          color: var(--hs-navy);
+          font-family: inherit;
+          font-size: 14px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: background .18s ease, color .18s ease, border-color .18s ease, box-shadow .18s ease;
+        }
+        .hs-price__cta:hover {
+          background: var(--hs-forest);
+          border-color: var(--hs-forest);
+          color: #fff;
+        }
+        .hs-price__cta--primary {
+          background: var(--hs-orange);
+          border-color: var(--hs-orange);
+          color: #fff;
+          box-shadow: 0 10px 26px -14px rgba(255, 92, 53, .8);
+        }
+        .hs-price__cta--primary:hover {
+          background: var(--hs-orange-hover);
+          border-color: var(--hs-orange-hover);
+          color: #fff;
+          box-shadow: 0 14px 32px -12px rgba(255, 92, 53, .8);
+        }
+
+        /* ── trust strip + FAQ ─────────────────────────────────── */
+        .hs-price__trust {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-wrap: wrap;
+          gap: 24px;
+          margin-top: clamp(28px, 3.4vw, 44px);
+          padding: 16px 24px;
+          border: 1px solid var(--hs-line);
+          border-radius: 10px;
+          background: var(--hs-canvas);
+          font-size: 12.5px;
+          font-weight: 600;
+          color: var(--hs-navy-soft);
+        }
+        .hs-price__trust span { display: inline-flex; align-items: center; gap: 7px; }
+        .hs-price__trust svg { color: var(--hs-orange-active); }
+        .hs-price__dot { color: var(--hs-line-strong); }
+
+        /* ── grid ──────────────────────────────────────────────── */
         .pricing-grid {
           display: grid;
           grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -690,22 +555,11 @@ export const PricingSection = () => {
           align-items: stretch;
           width: 100%;
         }
-
         @media (max-width: 1140px) {
-          .pricing-grid {
-            grid-template-columns: 1fr;
-            max-width: 520px;
-            margin: 0 auto;
-            gap: 28px;
-          }
+          .pricing-grid { grid-template-columns: 1fr; max-width: 520px; margin: 0 auto; gap: 28px; }
         }
-
         @media (max-width: 680px) {
-          .pricing-grid {
-            grid-template-columns: 1fr;
-            max-width: 100%;
-            gap: 20px;
-          }
+          .pricing-grid { grid-template-columns: 1fr; max-width: 100%; gap: 20px; }
         }
       `}</style>
     </section>

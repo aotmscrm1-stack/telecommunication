@@ -2,94 +2,60 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  Sparkles,
   ArrowRight,
-  Zap,
-  Bot,
-  Radio,
-  ShieldCheck,
-  CheckCircle2,
+  Building2,
+  CalendarCheck,
+  Code2,
+  FileSpreadsheet,
+  MessageCircle,
   PhoneCall,
-  Activity,
-  Layers,
+  Receipt,
+  Smartphone,
+  Sparkles,
+  Users,
+  Zap,
 } from 'lucide-react';
 import {
   SiAirtel,
+  SiGmail,
+  SiGoogledrive,
+  SiGooglesheets,
   SiJio,
+  SiMeta,
+  SiRazorpay,
   SiVodafone,
   SiWhatsapp,
-  SiMeta,
-  SiGooglecloud,
-  SiRazorpay,
+  SiZapier,
 } from 'react-icons/si';
 import { MarqueeLogoScroller } from '../../components/ui/marquee-logo-scroller';
 import EnterpriseAIPipeline from '../../components/ui/ai-agent-pipeline';
-import { ShinyText } from '../../components/ui/ShinyText';
-import {
-  accent,
-  border,
-  brand,
-  cobalt,
-  fonts,
-  gradients,
-  layout,
-  radii,
-  shadows,
-  surface,
-  text,
-} from './theme';
 
-// SVG icons for enterprise carriers in ecosystem
-const TwilioIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-    <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2" />
-    <circle cx="9" cy="9" r="2" />
-    <circle cx="15" cy="9" r="2" />
-    <circle cx="9" cy="15" r="2" />
-    <circle cx="15" cy="15" r="2" />
-  </svg>
-);
-
-const AwsIcon = () => (
-  <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M18.77 15.6c-.24-.18-.72-.37-1.42-.37-.87 0-1.74.34-2.38.86-.31.25-.45.54-.45.86 0 .58.46 1.05 1.15 1.05.6 0 1.25-.33 1.76-.84.21-.21.34-.38.34-.56v-1zm-3.8-2.61c.85-.31 1.94-.48 2.92-.48 1.16 0 2.22.25 2.87.75.58.45.87 1.12.87 2.02v3.91c0 .48.06.94.18 1.34.1.34.02.66-.23.86-.23.18-.58.18-.84 0-.17-.12-.32-.38-.41-.75-.48.56-1.32.96-2.31.96-1.52 0-2.66-.9-2.66-2.35 0-1.12.72-2.02 1.83-2.38.9-.29 2.19-.34 3.32-.34v-.32c0-.52-.16-.92-.47-1.18-.36-.31-1.01-.43-1.73-.43-.89 0-1.85.22-2.52.56-.25.13-.53.07-.71-.12l-.28-.31c-.13-.15-.1-.43.1-.64zM6.9 14.36c-.45-.48-.75-1.16-.75-1.99 0-1.54 1.03-2.73 2.5-2.73 1.33 0 2.23.95 2.23 2.37 0 .28-.03.54-.08.77H6.9zm-2.05-2.1c0 2.45 1.7 4.3 4.26 4.3 1.48 0 2.68-.61 3.44-1.72.18-.26.15-.57-.07-.76l-.42-.36c-.19-.16-.48-.12-.7.09-.54.54-1.29.9-2.22.9-1.39 0-2.39-.93-2.49-2.29h6.14c.26 0 .47-.2.5-.46.04-.3.06-.61.06-.94 0-2.41-1.61-4.22-3.95-4.22-2.7 0-4.55 2.1-4.55 4.5zm16.57 6.43c-3.1 2.29-7.39 3.51-11.83 3.51-5.63 0-10.74-2.04-14.59-5.46-.3-.27-.08-.63.26-.45 3.99 2.16 8.87 3.47 13.99 3.47 4.14 0 8.35-1.01 11.84-3.04.53-.31.97.24.33.97z" />
-  </svg>
-);
-
-const SalesforceIcon = () => (
-  <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M10.15 6.44a5.16 5.16 0 0 1 4.54-2.44 5.2 5.2 0 0 1 5.09 4.11 4.67 4.67 0 0 1 3.22 4.45 4.7 4.7 0 0 1-4.7 4.69h-14a4.25 4.25 0 0 1-4.3-4.25 4.25 4.25 0 0 1 2.92-4.04 4.5 4.5 0 0 1 4.1-3.6 4.7 4.7 0 0 1 3.13 1.08z" />
-  </svg>
-);
-
-const TruecallerIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56a.977.977 0 0 0-1.01.24l-1.57 1.97c-2.83-1.35-5.43-3.9-6.8-6.72l1.97-1.61a.99.99 0 0 0 .26-1.02 18.28 18.28 0 0 1-.58-3.55c-.06-.54-.51-.95-1.06-.95H4.21c-.61 0-1.12.51-1.1 1.12.19 5.86 2.65 11.23 6.64 15.22 3.99 3.99 9.36 6.45 15.22 6.64.61.02 1.12-.49 1.12-1.1v-3.48c0-.55-.41-1-.95-1.06-.73-.09-1.46-.22-2.13-.42zM19 8h2a9.01 9.01 0 0 0-9-9v2a7 7 0 0 1 7 7zm-4 0h2a5.006 5.006 0 0 0-5-5v2a3 3 0 0 1 3 3z" />
-  </svg>
-);
-
-const TataIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M4 6h16v3H13.5v9h-3V9H4V6zm2 6h4v2H6v-2zm8 0h4v2h-4v-2z" />
-  </svg>
+/* Monogram badge for partners that do not ship a public vector icon. */
+const TextMark = ({ text, color }) => (
+  <span
+    style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      height: 30,
+      minWidth: 30,
+      padding: '0 7px',
+      borderRadius: 6,
+      background: color,
+      color: '#FFFFFF',
+      fontSize: 11,
+      fontWeight: 800,
+      letterSpacing: '0.02em',
+    }}
+  >
+    {text}
+  </span>
 );
 
 /* ─────────────────────────────────────────────────────────
-   CRM TELECOM & ENTERPRISE MARQUEE PARTNERS
+   CONNECTORS THE PLATFORM ACTUALLY TALKS TO
    ───────────────────────────────────────────────────────── */
-const CRM_PARTNERS = [
-  {
-    alt: 'Airtel Business',
-    label: 'Airtel Telecom',
-    icon: <SiAirtel size={30} color="#EF4444" />,
-    gradient: { from: '#EF4444', via: '#DC2626', to: '#991B1B' },
-  },
-  {
-    alt: 'Jio 5G Enterprise',
-    label: 'Jio Enterprise',
-    icon: <SiJio size={32} color="#2563EB" />,
-    gradient: { from: '#3B82F6', via: '#1D4ED8', to: '#1E3A8A' },
-  },
+const PLATFORM_PARTNERS = [
   {
     alt: 'WhatsApp Cloud API',
     label: 'WhatsApp Cloud',
@@ -97,491 +63,552 @@ const CRM_PARTNERS = [
     gradient: { from: '#22C55E', via: '#16A34A', to: '#14532D' },
   },
   {
-    alt: 'Google Cloud Platform',
-    label: 'Google Cloud',
-    icon: <SiGooglecloud size={28} color="#3B82F6" />,
-    gradient: { from: '#60A5FA', via: '#3B82F6', to: '#1D4ED8' },
+    alt: 'Meta Lead Ads',
+    label: 'Meta Lead Ads',
+    icon: <SiMeta size={28} color="#0284C7" />,
+    gradient: { from: '#38BDF8', via: '#0284C7', to: '#0369A1' },
   },
   {
-    alt: 'Vodafone Idea Vi',
+    alt: 'Google Sheets',
+    label: 'Google Sheets',
+    icon: <SiGooglesheets size={26} color="#0F9D58" />,
+    gradient: { from: '#34A853', via: '#0F9D58', to: '#0B6B3A' },
+  },
+  {
+    alt: 'Google Drive',
+    label: 'Google Drive',
+    icon: <SiGoogledrive size={26} color="#EA4335" />,
+    gradient: { from: '#FBBC05', via: '#EA4335', to: '#B31412' },
+  },
+  {
+    alt: 'JustDial',
+    label: 'JustDial',
+    icon: <TextMark text="JD" color="#2F6FED" />,
+    gradient: { from: '#60A5FA', via: '#2F6FED', to: '#1E3A8A' },
+  },
+  {
+    alt: 'IndiaMart',
+    label: 'IndiaMart',
+    icon: <TextMark text="IM" color="#1E6FBF" />,
+    gradient: { from: '#38BDF8', via: '#1E6FBF', to: '#0C4A6E' },
+  },
+  {
+    alt: '99acres',
+    label: '99acres',
+    icon: <TextMark text="99" color="#F24E1E" />,
+    gradient: { from: '#FB923C', via: '#F24E1E', to: '#9A3412' },
+  },
+  {
+    alt: 'MagicBricks',
+    label: 'MagicBricks',
+    icon: <TextMark text="MB" color="#B91C1C" />,
+    gradient: { from: '#F87171', via: '#DC2626', to: '#7F1D1D' },
+  },
+  {
+    alt: 'ZKTeco biometric devices',
+    label: 'ZKTeco Devices',
+    icon: <TextMark text="ZK" color="#0F766E" />,
+    gradient: { from: '#2DD4BF', via: '#0F766E', to: '#134E4A' },
+  },
+  {
+    alt: 'Airtel SIP Trunk',
+    label: 'Airtel SIP',
+    icon: <SiAirtel size={30} color="#EF4444" />,
+    gradient: { from: '#EF4444', via: '#DC2626', to: '#991B1B' },
+  },
+  {
+    alt: 'Jio Enterprise',
+    label: 'Jio Enterprise',
+    icon: <SiJio size={32} color="#2563EB" />,
+    gradient: { from: '#3B82F6', via: '#1D4ED8', to: '#1E3A8A' },
+  },
+  {
+    alt: 'Vi Business',
     label: 'Vi Business',
     icon: <SiVodafone size={28} color="#DC2626" />,
     gradient: { from: '#F87171', via: '#DC2626', to: '#991B1B' },
   },
   {
-    alt: 'Twilio Cloud SIP',
-    label: 'Twilio Voice',
-    icon: <TwilioIcon />,
-    gradient: { from: '#F43F5E', via: '#E11D48', to: '#9F1239' },
+    alt: 'Gmail and SMTP',
+    label: 'Gmail & SMTP',
+    icon: <SiGmail size={26} color="#EA4335" />,
+    gradient: { from: '#EA4335', via: '#C5221F', to: '#8B1A1A' },
   },
   {
-    alt: 'AWS Connect',
-    label: 'AWS Telecom',
-    icon: <AwsIcon />,
-    gradient: { from: '#F59E0B', via: '#D97706', to: '#B45309' },
-  },
-  {
-    alt: 'Tata Tele Business',
-    label: 'Tata SIP Trunk',
-    icon: <TataIcon />,
-    gradient: { from: '#6366F1', via: '#4F46E5', to: '#3730A3' },
-  },
-  {
-    alt: 'Meta Official API',
-    label: 'Meta Verified',
-    icon: <SiMeta size={28} color="#0284C7" />,
-    gradient: { from: '#38BDF8', via: '#0284C7', to: '#0369A1' },
-  },
-  {
-    alt: 'Truecaller Verified',
-    label: 'Truecaller ID',
-    icon: <TruecallerIcon />,
-    gradient: { from: '#0284C7', via: '#0369A1', to: '#075985' },
-  },
-  {
-    alt: 'Salesforce CRM',
-    label: 'Salesforce Sync',
-    icon: <SalesforceIcon />,
-    gradient: { from: '#38BDF8', via: '#0284C7', to: '#075985' },
-  },
-  {
-    alt: 'Razorpay UPI',
-    label: 'Razorpay Pay',
+    alt: 'Razorpay',
+    label: 'Razorpay',
     icon: <SiRazorpay size={28} color="#2563EB" />,
     gradient: { from: '#2563EB', via: '#1D4ED8', to: '#1E40AF' },
+  },
+  {
+    alt: 'n8n and Zapier',
+    label: 'n8n & Zapier',
+    icon: <SiZapier size={26} color="#FF4F00" />,
+    gradient: { from: '#FF4F00', via: '#EA580C', to: '#9A3412' },
   },
 ];
 
 /* ─────────────────────────────────────────────────────────
-   AI PIPELINE LOGS (REAL-TIME TELECOM CRM SCENARIOS)
+   LIVE AUTOMATION LOG — EVENTS THE PLATFORM REALLY EMITS
    ───────────────────────────────────────────────────────── */
 const PIPELINE_MESSAGES = [
-  'Inbound call triggered: +91 98480... routed to Autonomous Voice AI',
-  'Carrier Handshake: Airtel Enterprise SIP Trunk verified (latency 38ms)',
-  'Real-time Speech ASR: Telugu transcribed → 412 token context stream',
-  'Semantic Qualification: High intent buyer detected (score: 0.94)',
-  'LLM Inference: 3 actions dispatched in parallel across CRM nodes',
-  'Tool: update_crm → Lead stage updated to "Hot Lead - Site Visit Scheduled"',
-  'Tool: send_whatsapp → Quotation PDF & Location Pin dispatched via Meta Cloud API',
-  'Tool: notify_agent → Telecaller assigned via weighted round-robin queue',
-  'Workflow complete: 3 actions dispatched in 310ms. Zero lead leakage.',
-  'Idle. Listening for next inbound call or Meta lead webhook...',
+  'New lead received: Meta lead ad "Java Batch 2026" → campaign matched',
+  'Owner assigned: next counsellor in the round-robin queue',
+  'WhatsApp template queued: course brochure + fee structure via Cloud API',
+  'Stage updated to "Contacted" · follow-up task created for 10:00 AM tomorrow',
+  'Inbound reply detected → keyword auto-reply sent in 3 seconds',
+  'Call recording uploaded from the Android app · transcript generated',
+  'Transcript converted to English chatting script for quick review',
+  'Daily activity updated: 42 calls, 18 connected, 6 follow-ups closed',
+  'Attendance punch-in synced from the biometric device',
+  'Logged on one record: lead, WhatsApp thread, call and task',
+  'Idle. Listening for the next Meta lead or JustDial webhook…',
 ];
+
+const HIGHLIGHTS = [
+  {
+    tone: 'orange',
+    Icon: FileSpreadsheet,
+    title: 'Leads from every channel',
+    body:
+      'Meta and Instagram lead ads, Google Sheets tabs, JustDial and other portal webhooks, Excel imports and manual entries all land in one pipeline with campaign-wise ownership.',
+  },
+  {
+    tone: 'forest',
+    Icon: MessageCircle,
+    title: 'WhatsApp that follows up for you',
+    body:
+      'A two-way inbox your team replies from, template blasts outside the 24-hour window, keyword auto-replies and a shared blocklist so opt-outs are respected.',
+  },
+  {
+    tone: 'pink',
+    Icon: Receipt,
+    title: 'The back office rides along',
+    body:
+      'Attendance with biometric sync, daily activity, quotations, invoices, fee receipts, payslips and HR letters — generated from the same lead and employee records.',
+  },
+];
+
+/* ─────────────────────────────────────────────────────────
+   MODULE GRID — THE WHOLE PRODUCT IN ONE SCAN
+   ───────────────────────────────────────────────────────── */
+const MODULES = [
+  {
+    tone: 'orange',
+    Icon: Users,
+    title: 'Lead pipeline',
+    body: 'Stages, custom fields, owners, idle-lead alerts and one timeline of every call, message and note.',
+  },
+  {
+    tone: 'forest',
+    Icon: FileSpreadsheet,
+    title: 'Meta Leads hub',
+    body: 'Campaign-wise Google Sheet tabs and ad leads with per-employee access and one-click conversion.',
+  },
+  {
+    tone: 'pink',
+    Icon: MessageCircle,
+    title: 'WhatsApp & email',
+    body: 'Two-way inbox, template blasts, email campaigns and message templates shared across the team.',
+  },
+  {
+    tone: 'orange',
+    Icon: PhoneCall,
+    title: 'Calls & recordings',
+    body: 'Click-to-call from the record, recording playback and AI transcripts that turn Telugu-English calls into readable text.',
+  },
+  {
+    tone: 'forest',
+    Icon: CalendarCheck,
+    title: 'Attendance & activity',
+    body: 'Punch in and out, breaks, biometric device sync and daily activity schedules per department.',
+  },
+  {
+    tone: 'pink',
+    Icon: Zap,
+    title: 'Performance & compliance',
+    body: 'Leaderboards, team reports, checkpoint tickets and an audit trail of every action.',
+  },
+  {
+    tone: 'orange',
+    Icon: Receipt,
+    title: 'Finance documents',
+    body: 'Quotations, invoices, fee receipts, payslips and offer, experience and relieving letters.',
+  },
+  {
+    tone: 'forest',
+    Icon: Building2,
+    title: 'Teams & permissions',
+    body: 'Departments, roles, permission templates and visibility that changes with each designation.',
+  },
+  {
+    tone: 'pink',
+    Icon: Code2,
+    title: 'Open API & webhooks',
+    body: 'Access tokens, REST endpoints, inbound webhooks and API logs to plug AOTMS into your stack.',
+  },
+  {
+    tone: 'forest',
+    Icon: Smartphone,
+    title: 'Android app',
+    body: 'Dial, chat, record and punch in from the field — recordings upload in the background.',
+  },
+];
+
+const fadeUp = (delay = 0) => ({
+  initial: { opacity: 0, y: 16 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true },
+  transition: { duration: 0.7, delay },
+});
 
 export function FeaturesSection({ onBookDemo }) {
   const navigate = useNavigate();
 
   return (
-    <section
-      id="about"
-      style={{
-        position: 'relative',
-        background: surface.page,
-        padding: `${layout.sectionY} ${layout.gutter}`,
-        overflow: 'hidden',
-      }}
-    >
+    <section id="about" className="hs-feat">
       {/* Anchor for Navbar link */}
-      <div id="features" style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }} />
+      <div id="features" className="hs-feat__anchor" />
 
-      {/* Subtle background ambient radial glow */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '5%',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: '90%',
-          maxWidth: 1200,
-          height: 440,
-          background: 'radial-gradient(ellipse at 50% 20%, rgba(37, 99, 235, 0.07) 0%, transparent 68%)',
-          pointerEvents: 'none',
-          zIndex: 0,
-        }}
-      />
-
-      <div
-        style={{
-          maxWidth: 1240,
-          margin: '0 auto',
-          position: 'relative',
-          zIndex: 1,
-        }}
-      >
+      <div className="hs-feat__inner">
         {/* ══════════════════════════════════════════════
             SECTION HEADER
             ══════════════════════════════════════════════ */}
-        <div style={{ textAlign: 'center', marginBottom: 44 }}>
-          {/* Tag Pill */}
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '6px 16px',
-              borderRadius: radii.pill,
-              background: brand.soft,
-              border: `1px solid ${cobalt[200]}`,
-              marginBottom: 18,
-              boxShadow: 'none',
-            }}
-          >
-            <Sparkles size={13} strokeWidth={2.4} color={brand.base} />
-            <ShinyText
-              text="AUTONOMOUS AI EXECUTION & TELECOM PIPELINE"
-              speed={3.5}
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: '0.10em',
-                color: cobalt[700],
-              }}
-            />
-          </motion.div>
+        <div className="hs-feat__head">
+          <motion.span className="hs-eyebrow" {...fadeUp(0)}>
+            <Sparkles size={13} strokeWidth={2.4} />
+            ONE LOGIN · SALES, MARKETING &amp; BACK OFFICE
+          </motion.span>
 
-          {/* Main Heading */}
-          <motion.h2
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.7, delay: 0.1 }}
-            style={{
-              fontSize: 'clamp(30px, 4.2vw, 46px)',
-              fontWeight: 800,
-              letterSpacing: '-0.035em',
-              lineHeight: 1.15,
-              color: text.primary,
-              margin: '0 0 16px 0',
-              fontFamily: fonts.display,
-            }}
-          >
-            Everything your sales team needs
+          <motion.h2 className="hs-feat__title" {...fadeUp(0.1)}>
+            Everything after the lead, in one system
           </motion.h2>
 
-          {/* Subtitle */}
-          <motion.p
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.7, delay: 0.2 }}
-            style={{
-              color: text.tertiary,
-              fontSize: 'clamp(15px, 1.1vw, 17px)',
-              maxWidth: 720,
-              margin: '0 auto',
-              lineHeight: 1.7,
-              fontWeight: 400,
-            }}
-          >
-            Watch how our Autonomous AI Agent Pipeline instantly receives inbound triggers,
-            scores lead intent in real-time, powers conversational voice calls, and synchronizes
-            CRM stages with WhatsApp quotes in under 350ms.
+          <motion.p className="hs-feat__lede" {...fadeUp(0.2)}>
+            AOTMS is more than a lead tracker. The pipeline, WhatsApp and email campaigns, call
+            recordings, attendance, finance documents and an open API share the same records — so
+            counsellors, HR and accounts stop re-typing the same data into different tools.
           </motion.p>
         </div>
 
         {/* ══════════════════════════════════════════════
-            LIVE AI AGENT PIPELINE SHOWCASE (REPLACES CARDS)
+            LIVE AUTOMATION PIPELINE SHOWCASE
             ══════════════════════════════════════════════ */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-            gap: 28,
-            alignItems: 'center',
-            marginBottom: 56,
-          }}
-        >
-          {/* Left Column: AI Pipeline Execution Engine */}
+        <div className="hs-feat__grid">
           <motion.div
-            initial={{ opacity: 0, scale: 0.96 }}
+            className="hs-feat__pipeline"
+            initial={{ opacity: 0, scale: 0.97 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
-            style={{ width: '100%', display: 'flex', justifyContent: 'center' }}
           >
             <EnterpriseAIPipeline
               messages={PIPELINE_MESSAGES}
-              liveTag="AOTMS TELECOM PIPELINE · LIVE"
-              statsTag="10k+ dials/day · 0 errors"
+              liveTag="AOTMS AUTOMATION · LIVE"
+              statsTag="leads · calls · WhatsApp · tasks"
               nodeLabels={{
-                triggerCategory: "TRIGGER",
-                triggerTitle: "Inbound Lead",
-                triggerSub: "airtel-sip-trunk",
-                vectorCategory: "SEMANTIC AI",
-                vectorTitle: "Intent Scoring",
-                vectorSub: "pinecone-v2",
-                llmCategory: "AI TELECALLER",
-                llmTitle: "Voice Agent",
-                llmSub: "gemini-2.0-flash",
-                out1Title: "WhatsApp Quote",
-                out2Title: "CRM Stage Update",
-                out3Title: "Agent Dispatch",
+                triggerCategory: 'TRIGGER',
+                triggerTitle: 'New Lead',
+                triggerSub: 'meta · justdial',
+                vectorCategory: 'ROUTING',
+                vectorTitle: 'Campaign Match',
+                vectorSub: 'sheets + ads',
+                llmCategory: 'AUTOMATION',
+                llmTitle: 'WhatsApp',
+                llmSub: 'template + todo',
+                out1Title: 'WhatsApp Sent',
+                out2Title: 'Stage Updated',
+                out3Title: 'Owner Assigned',
               }}
-              stackInfo="AOTMS AI · Telecom SIP"
+              stackInfo="AOTMS CORE"
             />
           </motion.div>
 
-          {/* Right Column: Execution Capabilities & Live Metrics */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 16,
-              maxWidth: 520,
-              margin: '0 auto',
-              width: '100%',
-            }}
-          >
-            {/* Feature Highlight 1 */}
-            <div
-              style={{
-                padding: '20px 22px',
-                borderRadius: radii.lg,
-                background: surface.page,
-                border: `1px solid ${border.hairline}`,
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 14,
-                boxShadow: shadows.xs,
-              }}
-            >
-              <div
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: radii.sm,
-                  background: accent.teal.tint,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: accent.teal.text,
-                  flexShrink: 0,
-                }}
+          <div className="hs-feat__cards">
+            {HIGHLIGHTS.map(({ tone, Icon, title, body }, index) => (
+              <motion.div
+                key={title}
+                className="hs-feat__card"
+                {...fadeUp(0.15 + index * 0.12)}
               >
-                <Bot size={20} strokeWidth={2.4} />
-              </div>
-              <div>
-                <h4 style={{ fontSize: 15.5, fontWeight: 650, color: text.primary, margin: '0 0 5px 0' }}>
-                  Autonomous AI Voice Telecaller
-                </h4>
-                <p style={{ fontSize: 13.5, color: text.tertiary, margin: 0, lineHeight: 1.55 }}>
-                  Conducts human-like voice conversations in Telugu, Hindi & English. Qualifies leads, detects voicemails, and books appointments 24/7.
-                </p>
-              </div>
-            </div>
-
-            {/* Feature Highlight 2 */}
-            <div
-              style={{
-                padding: '20px 22px',
-                borderRadius: radii.lg,
-                background: surface.page,
-                border: `1px solid ${border.hairline}`,
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 14,
-                boxShadow: shadows.xs,
-              }}
-            >
-              <div
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: radii.sm,
-                  background: brand.tint,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: brand.base,
-                  flexShrink: 0,
-                }}
-              >
-                <Radio size={20} strokeWidth={2.4} />
-              </div>
-              <div>
-                <h4 style={{ fontSize: 15.5, fontWeight: 650, color: text.primary, margin: '0 0 5px 0' }}>
-                  Under 310ms End-to-End Latency
-                </h4>
-                <p style={{ fontSize: 13.5, color: text.tertiary, margin: 0, lineHeight: 1.55 }}>
-                  Instant carrier handshake with Airtel & Jio SIP trunks ensures conversational fluidity without awkward delays or lag.
-                </p>
-              </div>
-            </div>
-
-            {/* Feature Highlight 3 */}
-            <div
-              style={{
-                padding: '20px 22px',
-                borderRadius: radii.lg,
-                background: surface.page,
-                border: `1px solid ${border.hairline}`,
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 14,
-                boxShadow: shadows.xs,
-              }}
-            >
-              <div
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: radii.sm,
-                  background: accent.emerald.tint,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: accent.emerald.text,
-                  flexShrink: 0,
-                }}
-              >
-                <CheckCircle2 size={20} strokeWidth={2.4} />
-              </div>
-              <div>
-                <h4 style={{ fontSize: 15.5, fontWeight: 650, color: text.primary, margin: '0 0 5px 0' }}>
-                  Automated Multi-Tool Dispatch
-                </h4>
-                <p style={{ fontSize: 13.5, color: text.tertiary, margin: 0, lineHeight: 1.55 }}>
-                  Automatically updates CRM lead stage, dispatches WhatsApp quotation PDFs, and routes live calls to available agents via round-robin.
-                </p>
-              </div>
-            </div>
-          </motion.div>
+                <span className={`hs-feat__icon hs-feat__icon--${tone}`}>
+                  <Icon size={20} strokeWidth={2.2} />
+                </span>
+                <div>
+                  <h4 className="hs-feat__card-title">{title}</h4>
+                  <p className="hs-feat__card-body">{body}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
         </div>
 
         {/* ══════════════════════════════════════════════
-            INTEGRATED MARQUEE LOGO SCROLLER (SHADCN UI)
+            MODULE GRID
             ══════════════════════════════════════════════ */}
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8, delay: 0.25 }}
-          style={{ marginBottom: 54 }}
-        >
+        <motion.div className="hs-feat__modules" {...fadeUp(0.15)}>
+          {MODULES.map(({ tone, Icon, title, body }) => (
+            <div key={title} className="hs-feat__module">
+              <span className={`hs-feat__icon hs-feat__icon--${tone}`}>
+                <Icon size={19} strokeWidth={2.2} />
+              </span>
+              <h4 className="hs-feat__card-title">{title}</h4>
+              <p className="hs-feat__card-body">{body}</p>
+            </div>
+          ))}
+        </motion.div>
+
+        {/* ══════════════════════════════════════════════
+            INTEGRATED MARQUEE LOGO SCROLLER
+            ══════════════════════════════════════════════ */}
+        <motion.div className="hs-feat__marquee" {...fadeUp(0.2)}>
           <MarqueeLogoScroller
-            title="Connected to India's Leading Telecom & Enterprise Networks"
-            description="Built on carrier-grade SIP trunking, low-latency VoIP routing, official Meta Cloud APIs, and real-time CRM database synchronization."
-            logos={CRM_PARTNERS}
+            title="Connected to the channels Indian teams already run on"
+            description="Official WhatsApp Cloud and Meta lead APIs, Google Sheets tab sync, classified-portal webhooks, carrier telephony and biometric attendance devices."
+            logos={PLATFORM_PARTNERS}
             speed="normal"
-            className="border-slate-200/90 bg-white shadow-sm"
+            className="hs-marquee"
           />
         </motion.div>
 
         {/* ══════════════════════════════════════════════
             BOTTOM CONVERSION BANNER
             ══════════════════════════════════════════════ */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.3 }}
-          style={{
-            padding: '32px clamp(20px, 4vw, 44px)',
-            borderRadius: radii.xl,
-            background: gradients.night,
-            color: '#FFFFFF',
-            display: 'flex',
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 28,
-            boxShadow: shadows.lg,
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            position: 'relative',
-            overflow: 'hidden',
-          }}
-        >
-          <div style={{ maxWidth: 640 }}>
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                fontSize: 11.5,
-                fontWeight: 700,
-                color: cobalt[300],
-                letterSpacing: '0.10em',
-                marginBottom: 8,
-              }}
-            >
-              <Zap size={15} />
-              RAPID DEPLOYMENT GUARANTEED
-            </div>
-            <h3
-              style={{
-                fontSize: 'clamp(20px, 2vw, 24px)',
-                fontWeight: 700,
-                letterSpacing: '-0.02em',
-                margin: '0 0 6px 0',
-              }}
-            >
-              Ready to automate your telecalling operations?
-            </h3>
-            <p
-              style={{
-                fontSize: 14,
-                color: 'rgba(255, 255, 255, 0.62)',
-                margin: 0,
-                lineHeight: 1.55,
-              }}
-            >
-              Setup takes less than 3 minutes. Zero setup fees, instant carrier routing, and free onboarding assistance.
+        <motion.div className="hs-feat__band" {...fadeUp(0.25)}>
+          <div className="hs-feat__band-copy">
+            <span className="hs-feat__band-label">
+              <Zap size={15} strokeWidth={2.4} />
+              ONBOARDING IN DAYS, NOT MONTHS
+            </span>
+            <h3 className="hs-feat__band-title">Bring your team, leads and back office onto one system</h3>
+            <p className="hs-feat__band-body">
+              We import your lead sheets, set up pipelines and WhatsApp templates, and train each
+              team — with no setup fee and no lock-in.
             </p>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => navigate('/login')}
-              style={{
-                padding: '13px 24px',
-                borderRadius: radii.pill,
-                background: gradients.brand,
-                color: '#FFFFFF',
-                border: '1px solid rgba(255, 255, 255, 0.16)',
-                fontWeight: 650,
-                fontSize: 14,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                boxShadow: shadows.brand,
-              }}
-            >
-              <span>Get Started Free</span>
+          <div className="hs-feat__band-actions">
+            <button type="button" className="hs-feat__btn hs-feat__btn--primary" onClick={() => onBookDemo?.()}>
+              Book a free demo
               <ArrowRight size={16} strokeWidth={2.4} />
-            </motion.button>
-
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => onBookDemo?.()}
-              style={{
-                padding: '13px 22px',
-                borderRadius: radii.pill,
-                background: 'rgba(255, 255, 255, 0.06)',
-                color: '#FFFFFF',
-                border: '1px solid rgba(255, 255, 255, 0.18)',
-                fontWeight: 550,
-                fontSize: 14,
-                cursor: 'pointer',
-              }}
-            >
-              Book 1:1 Live Demo
-            </motion.button>
+            </button>
+            <button type="button" className="hs-feat__btn hs-feat__btn--ghost" onClick={() => navigate('/login')}>
+              Sign in to the CRM
+            </button>
           </div>
         </motion.div>
       </div>
+
+      <style>{`
+        .hs-feat {
+          position: relative;
+          background: var(--hs-white);
+          padding: clamp(56px, 7vw, 96px) 0;
+          font-family: var(--hs-ui);
+          overflow: hidden;
+        }
+        .hs-feat__anchor { position: absolute; top: 0; left: 0; pointer-events: none; }
+        .hs-feat__inner {
+          position: relative;
+          z-index: 1;
+          max-width: 1300px;
+          margin: 0 auto;
+          padding: 0 clamp(16px, 3vw, 40px);
+        }
+
+        /* ── section header ─────────────────────────────────────── */
+        .hs-feat__head {
+          text-align: center;
+          max-width: 780px;
+          margin: 0 auto clamp(36px, 4vw, 56px);
+        }
+        .hs-feat__title {
+          margin: 22px 0 16px;
+          font-family: var(--hs-serif);
+          font-weight: 400;
+          font-size: clamp(30px, 4vw, 46px);
+          line-height: 1.1;
+          letter-spacing: -0.015em;
+          color: var(--hs-navy);
+        }
+        .hs-feat__lede {
+          margin: 0 auto;
+          max-width: 720px;
+          font-size: 16px;
+          line-height: 1.75;
+          color: var(--hs-muted);
+        }
+
+        /* ── pipeline + highlights ──────────────────────────────── */
+        .hs-feat__grid {
+          display: grid;
+          grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+          gap: clamp(24px, 4vw, 48px);
+          align-items: center;
+          margin-bottom: clamp(32px, 4vw, 52px);
+        }
+        .hs-feat__pipeline { display: flex; justify-content: center; width: 100%; }
+        .hs-feat__cards { display: flex; flex-direction: column; gap: 16px; width: 100%; }
+        .hs-feat__card {
+          display: flex;
+          align-items: flex-start;
+          gap: 14px;
+          padding: 20px 22px;
+          background: var(--hs-white);
+          border: 1px solid var(--hs-line);
+          border-radius: 10px;
+        }
+        .hs-feat__icon {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 40px;
+          height: 40px;
+          flex: 0 0 auto;
+          border-radius: 6px;
+        }
+        .hs-feat__icon--orange { background: var(--hs-orange-soft); color: var(--hs-orange-active); }
+        .hs-feat__icon--forest { background: var(--hs-forest); color: var(--hs-forest-text); }
+        .hs-feat__icon--pink { background: var(--hs-pink-soft); color: var(--hs-pink-text); }
+        .hs-feat__card-title {
+          margin: 0 0 5px;
+          font-size: 15.5px;
+          font-weight: 700;
+          letter-spacing: -0.005em;
+          color: var(--hs-navy);
+        }
+        .hs-feat__card-body { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--hs-muted); }
+
+        /* ── module grid ────────────────────────────────────────── */
+        .hs-feat__modules {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(224px, 1fr));
+          gap: 16px;
+          margin-bottom: clamp(32px, 4vw, 52px);
+        }
+        .hs-feat__module {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          padding: 22px;
+          background: var(--hs-white);
+          border: 1px solid var(--hs-line);
+          border-radius: 10px;
+          transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+        }
+        .hs-feat__module:hover {
+          border-color: var(--hs-line-strong);
+          box-shadow: 0 16px 34px -26px rgba(33, 51, 67, .5);
+          transform: translateY(-2px);
+        }
+        .hs-feat__module .hs-feat__icon { margin-bottom: 14px; }
+        .hs-feat__module .hs-feat__card-title { margin-bottom: 6px; }
+
+        /* ── marquee (re-skinned to the section palette) ────────── */
+        .hs-feat__marquee { margin-bottom: clamp(32px, 4vw, 52px); }
+        .hs-marquee {
+          background: var(--hs-canvas) !important;
+          border: 1px solid var(--hs-line) !important;
+          border-radius: 10px !important;
+          box-shadow: none !important;
+        }
+        .hs-marquee h2 {
+          font-family: var(--hs-serif);
+          font-weight: 400;
+          letter-spacing: -0.015em;
+          color: var(--hs-navy);
+        }
+        .hs-marquee p { color: var(--hs-muted); }
+        .hs-marquee .border-slate-200\\/80 { border-color: var(--hs-line); }
+        .hs-marquee .bg-slate-100\\/80 { background: var(--hs-white); }
+        .hs-marquee .text-slate-800 { color: var(--hs-navy); }
+
+        /* ── conversion band ───────────────────────────────────── */
+        .hs-feat__band {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 28px;
+          padding: clamp(24px, 3.4vw, 40px) clamp(20px, 4vw, 44px);
+          border-radius: 14px;
+          background: var(--hs-forest-band);
+          color: #fff;
+          box-shadow: 0 26px 60px -40px rgba(11, 27, 38, .8);
+        }
+        .hs-feat__band-copy { max-width: 620px; }
+        .hs-feat__band-label {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 8px;
+          font-size: 11.5px;
+          font-weight: 700;
+          letter-spacing: .09em;
+          color: var(--hs-craft-yellow);
+        }
+        .hs-feat__band-title {
+          margin: 0 0 6px;
+          font-family: var(--hs-serif);
+          font-weight: 400;
+          font-size: clamp(21px, 2.2vw, 28px);
+          letter-spacing: -0.01em;
+          color: #fff;
+        }
+        .hs-feat__band-body {
+          margin: 0;
+          font-size: 14px;
+          line-height: 1.6;
+          color: rgba(255, 255, 255, .72);
+        }
+        .hs-feat__band-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .hs-feat__btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 9px;
+          border: none;
+          border-radius: 5px;
+          font-family: inherit;
+          font-weight: 700;
+          font-size: 14.5px;
+          line-height: 1;
+          padding: 15px 24px;
+          cursor: pointer;
+          transition: background .18s ease, box-shadow .18s ease, transform .18s ease;
+        }
+        .hs-feat__btn--primary {
+          background: var(--hs-orange);
+          color: #fff;
+          box-shadow: 0 1px 0 rgba(33, 51, 67, .05);
+        }
+        .hs-feat__btn--primary:hover {
+          background: var(--hs-orange-hover);
+          box-shadow: 0 10px 24px -10px rgba(255, 92, 53, .7);
+          transform: translateY(-1px);
+        }
+        .hs-feat__btn--primary:active { background: var(--hs-orange-active); transform: none; }
+        .hs-feat__btn--ghost {
+          background: transparent;
+          color: #fff;
+          border: 1px solid rgba(255, 255, 255, .3);
+          font-weight: 600;
+        }
+        .hs-feat__btn--ghost:hover { background: rgba(255, 255, 255, .1); }
+
+        @media (max-width: 1024px) {
+          .hs-feat__grid { grid-template-columns: 1fr; }
+          .hs-feat__cards { max-width: 560px; margin: 0 auto; }
+        }
+        @media (max-width: 640px) {
+          .hs-feat__band-actions { width: 100%; }
+          .hs-feat__band-actions .hs-feat__btn { flex: 1 1 100%; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .hs-feat__btn,
+          .hs-feat__module { transition: none; }
+        }
+      `}</style>
     </section>
   );
 }

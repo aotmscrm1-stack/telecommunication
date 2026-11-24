@@ -22,18 +22,23 @@ import {
 const LANGUAGES = ['English', 'తెలుగు', 'हिन्दी'];
 
 const QUICK_LINKS = [
-  { label: 'WhatsApp inbox & blasts', target: '#services' },
   { label: 'Lead pipeline & follow-ups', target: '#about' },
-  { label: 'AI telecaller', target: '#services' },
+  { label: 'Meta, JustDial & portal leads', target: '#services' },
+  { label: 'WhatsApp inbox & blasts', target: '#services' },
+  { label: 'Calls, recordings & transcripts', target: '#services' },
+  { label: 'Attendance & daily activity', target: '#about' },
+  { label: 'Quotations, invoices & fee receipts', target: '#about' },
   { label: 'Pricing', target: '#pricing' },
   { label: 'Book a free demo', target: '#book-demo' },
   { label: 'Contact support', target: '#contact' },
 ];
 
 const ABOUT_LINKS = [
-  { label: 'About AOTMS CRM', target: '#about' },
-  { label: 'Solutions', target: '#services' },
+  { label: 'About AOTMS', target: '#about' },
+  { label: 'Platform overview', target: '#features' },
+  { label: 'Integrations & API', target: '#services' },
   { label: 'Pricing', target: '#pricing' },
+  { label: 'FAQ', target: '#faq' },
   { label: 'Contact us', target: '#contact' },
 ];
 
@@ -142,7 +147,7 @@ export function MiniNavbar({ highContrast = false, onToggleContrast, onContactSa
             High Contrast
           </button>
 
-          <a className="hs-mini__item hs-mini__item--support" href="tel:+918019942233">
+          <a className="hs-mini__item hs-mini__item--support" href="tel:+918019952233">
             <LifeBuoy size={14} strokeWidth={2.2} />
             Customer Support
           </a>

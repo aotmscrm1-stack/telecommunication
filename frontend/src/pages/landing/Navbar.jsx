@@ -5,11 +5,13 @@ import {
   BookOpen,
   CalendarCheck,
   ChevronDown,
+  Globe,
   LayoutDashboard,
   Menu,
   MessageCircle,
-  Mic,
   PhoneCall,
+  Receipt,
+  Smartphone,
   Sparkles,
   Users,
   X,
@@ -26,21 +28,23 @@ const MENUS = [
     key: 'products',
     label: 'Products',
     items: [
-      { label: 'Lead pipeline', desc: 'Every enquiry, owner and next action', target: '#about', Icon: LayoutDashboard },
-      { label: 'WhatsApp inbox & blast', desc: 'All, Replies and Pending in one place', target: '#services', Icon: MessageCircle },
-      { label: 'AI telecaller', desc: 'Telugu, Hindi & English voice calls', target: '#services', Icon: Mic },
-      { label: 'Attendance & activity', desc: 'Counsellor productivity, tracked daily', target: '#about', Icon: CalendarCheck },
-      { label: 'Call recordings', desc: 'Review every conversation instantly', target: '#services', Icon: PhoneCall },
+      { label: 'Lead pipeline', desc: 'Stages, custom fields, owners and history', target: '#about', Icon: LayoutDashboard },
+      { label: 'Meta & portal leads', desc: 'Meta ads, Sheets, JustDial and Excel', target: '#services', Icon: Globe },
+      { label: 'WhatsApp & email', desc: 'Two-way inbox, blasts and templates', target: '#services', Icon: MessageCircle },
+      { label: 'Calls & transcripts', desc: 'Recordings, playback and AI transcripts', target: '#services', Icon: PhoneCall },
+      { label: 'Attendance & activity', desc: 'Punch-in, daily activity, live tracking', target: '#about', Icon: CalendarCheck },
+      { label: 'Finance documents', desc: 'Quotes, invoices, fee receipts and letters', target: '#about', Icon: Receipt },
     ],
   },
   {
     key: 'solutions',
     label: 'Solutions',
     items: [
-      { label: 'Telecalling teams', desc: 'Dial, follow up and close from one screen', target: '#about', Icon: PhoneCall },
+      { label: 'Telecalling & sales teams', desc: 'Dial, follow up and close from one screen', target: '#about', Icon: PhoneCall },
       { label: 'Training institutes', desc: 'Admissions, batches, fees and reminders', target: '#about', Icon: BookOpen },
-      { label: 'Sales & counselling', desc: 'Qualify walk-ins and website leads', target: '#services', Icon: Users },
-      { label: 'Enterprise sales', desc: 'Multi-team pipeline with role-based access', target: '#services', Icon: Sparkles },
+      { label: 'Real estate & portal leads', desc: 'JustDial, 99acres and MagicBricks intake', target: '#services', Icon: Globe },
+      { label: 'HR, admin & accounts', desc: 'Attendance, payroll docs and billing', target: '#about', Icon: Users },
+      { label: 'Android app & open API', desc: 'Field work on mobile, your stack via API', target: '#services', Icon: Smartphone },
     ],
   },
   {
@@ -52,9 +56,10 @@ const MENUS = [
     key: 'resources',
     label: 'Resources',
     items: [
-      { label: 'Book a free demo', desc: '20-minute walkthrough with our team', target: '#book-demo', Icon: CalendarCheck },
+      { label: 'Book a free demo', desc: '30-minute walkthrough with our team', target: '#book-demo', Icon: CalendarCheck },
       { label: 'Customer support', desc: 'Talk to the team that built it', target: '#contact', Icon: MessageCircle },
       { label: 'Sign in to the CRM', desc: 'Admin, manager and counsellor logins', target: '/login', Icon: LayoutDashboard },
+      { label: 'Platform FAQ', desc: 'Modules, billing and integrations', target: '#faq', Icon: Sparkles },
     ],
   },
 ];
@@ -165,7 +170,7 @@ export function Navbar({ onBookDemo }) {
         {/* ACTIONS */}
         <div className="hs-navbar__actions">
           <button type="button" className="hs-btn hs-btn--primary hs-navbar__cta" onClick={handleCta}>
-            Get AOTMS CRM
+            Book a free demo
             <ArrowRight size={16} strokeWidth={2.4} />
           </button>
 
@@ -215,7 +220,7 @@ export function Navbar({ onBookDemo }) {
 
           <div className="hs-drawer__actions">
             <button type="button" className="hs-btn hs-btn--primary" onClick={handleCta}>
-              Get AOTMS CRM
+              Book a free demo
             </button>
             <button type="button" className="hs-btn hs-btn--ghost" onClick={() => goTo('/login')}>
               Log in

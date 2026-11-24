@@ -12,7 +12,6 @@ import {
   StickyNote,
 } from 'lucide-react';
 import BookingCard from './BookingCard';
-import { gradients } from './theme';
 
 /**
  * Hero — editorial serif headline on a cool tinted canvas, with a lead record
@@ -32,8 +31,9 @@ const RECORD_ACTIONS = [
 const RECORD_MENU = [
   'Follow up tomorrow',
   'Assign to counsellor',
-  'View lead activity',
-  'View WhatsApp history',
+  'View call transcript',
+  'Send WhatsApp template',
+  'Create quotation',
 ];
 
 export function HeroSection({ onBookDemo }) {
@@ -52,21 +52,20 @@ export function HeroSection({ onBookDemo }) {
           <div className="hs-hero__grid">
             {/* ── COPY ───────────────────────────────────────────────── */}
             <div className="hs-hero__copy">
-              <span className="hs-hero__eyebrow">AOTMS CRM</span>
+              <span className="hs-hero__eyebrow">AOTMS · SALES + OPERATIONS PLATFORM</span>
 
               <h1 className="hs-hero__title">
-                CRM Software for Telecalling Teams &amp; Training Institutes
+                Run sales, WhatsApp and your back office from one login
               </h1>
 
               <p className="hs-hero__lede">
-                Your leads deserve better than spreadsheets and lost WhatsApp chats. AOTMS CRM puts
-                every enquiry, call, blast and follow-up on one screen — with an AI telecaller that
-                keeps qualifying students after office hours.
+                AOTMS does more than track leads: Meta, JustDial and spreadsheet leads, recorded
+                calls, WhatsApp replies, attendance and quotations — all in one place.
               </p>
 
               <div className="hs-hero__actions">
                 <button type="button" className="hs-btn hs-btn--primary hs-hero__cta" onClick={() => onBookDemo?.()}>
-                  Get AOTMS CRM
+                  Book a free demo
                   <ArrowRight size={17} strokeWidth={2.6} />
                 </button>
               </div>
@@ -76,7 +75,7 @@ export function HeroSection({ onBookDemo }) {
               </p>
 
               <p className="hs-hero__login">
-                Already a counsellor?{' '}
+                Already on AOTMS?{' '}
                 <button type="button" onClick={() => navigate('/login')}>
                   Sign in to the CRM
                 </button>
@@ -120,10 +119,13 @@ export function HeroSection({ onBookDemo }) {
                 ))}
                 <span className="hs-leadmenu__row hs-leadmenu__row--ai">
                   <Sparkles size={14} strokeWidth={2.2} />
-                  Summarise with AI
+                  <span className="hs-leadmenu__ai">
+                    <span className="hs-leadmenu__ai-title">Transcript ready</span>
+                    <span className="hs-leadmenu__ai-sub">Telugu → English</span>
+                  </span>
                 </span>
                 <span className="hs-leadmenu__row hs-leadmenu__row--inline">
-                  Search in Google
+                  Open Android app
                   <ExternalLink size={13} strokeWidth={2.2} />
                 </span>
                 <span className="hs-leadmenu__row">Opt out of blast</span>
@@ -134,7 +136,7 @@ export function HeroSection({ onBookDemo }) {
                 <span className="hs-sticker__top">EDITION 2026</span>
                 <span className="hs-sticker__body">
                   <span className="hs-sticker__title">Leader</span>
-                  <span className="hs-sticker__sub">TELECALLING CRM</span>
+                  <span className="hs-sticker__sub">ALL-IN-ONE CRM</span>
                 </span>
                 <span className="hs-sticker__zig" />
               </div>
@@ -149,7 +151,7 @@ export function HeroSection({ onBookDemo }) {
           <div className="hs-book__panel">
             <div className="hs-book__head">
               <h2>Book a 30-minute walkthrough</h2>
-              <p>See the WhatsApp inbox, the AI telecaller and the lead pipeline running on your own data.</p>
+              <p>See the pipeline, WhatsApp inbox, attendance and reports running on your own data.</p>
             </div>
             <BookingCard />
           </div>
@@ -160,7 +162,9 @@ export function HeroSection({ onBookDemo }) {
         .hs-hero {
           position: relative;
           background: var(--hs-hero-tint);
-          padding: 152px 0 clamp(40px, 6vw, 78px);
+          /* Clears the 126px fixed header, then scales with viewport height so the
+             whole copy column (down to the sign-in line) stays above the fold. */
+          padding: clamp(132px, min(10.5vw, 15vh), 152px) 0 clamp(32px, 4vw, 64px);
           font-family: var(--hs-ui);
           overflow: hidden;
         }
@@ -175,8 +179,8 @@ export function HeroSection({ onBookDemo }) {
           display: flex;
           align-items: center;
           gap: 8px;
-          margin-bottom: clamp(28px, 4vw, 48px);
-          font-size: 13.5px;
+          margin-bottom: clamp(18px, min(2.2vw, 3.2vh), 30px);
+          font-size: 15px;
           color: var(--hs-muted);
         }
         .hs-breadcrumb a { color: var(--hs-navy-soft); font-weight: 600; text-decoration: none; }
@@ -192,31 +196,32 @@ export function HeroSection({ onBookDemo }) {
 
         .hs-hero__eyebrow {
           display: inline-block;
-          padding: 7px 11px;
+          padding: 7px 12px;
           background: #fff;
           border: 1px solid var(--hs-line-strong);
           border-radius: 4px;
           color: var(--hs-navy);
-          font-size: 12.5px;
+          font-size: 13px;
           font-weight: 600;
           letter-spacing: .01em;
         }
 
         .hs-hero__title {
-          margin: 22px 0 22px;
+          margin: 14px 0 16px;
           font-family: var(--hs-serif);
           font-weight: 400;
-          font-size: clamp(34px, 4.3vw, 58px);
-          line-height: 1.08;
+          font-size: clamp(34px, min(4vw, 6vh), 56px);
+          line-height: 1.1;
           letter-spacing: -0.015em;
+          text-wrap: balance;
           color: var(--hs-navy);
         }
 
         .hs-hero__lede {
           max-width: 560px;
-          margin: 0 0 30px;
-          font-size: 16.5px;
-          line-height: 1.75;
+          margin: 0 0 22px;
+          font-size: 17.5px;
+          line-height: 1.65;
           color: var(--hs-muted);
         }
 
@@ -249,16 +254,20 @@ export function HeroSection({ onBookDemo }) {
         }
         .hs-btn--primary:active { background: var(--hs-orange-active); transform: none; }
 
-        .hs-hero__note { margin: 20px 0 0; font-size: 13.5px; color: var(--hs-navy-soft); }
+        /* Hero CTA runs a step larger than the shared navbar button (declared after
+           .hs-btn--primary so it wins the cascade). */
+        .hs-hero__cta { padding: 17px 28px; font-size: 16.5px; }
 
-        .hs-hero__login { margin: 26px 0 0; font-size: 13.5px; color: var(--hs-muted); }
+        .hs-hero__note { margin: 14px 0 0; font-size: 14px; color: var(--hs-navy-soft); }
+
+        .hs-hero__login { margin: 14px 0 0; font-size: 14px; color: var(--hs-muted); }
         .hs-hero__login button {
           padding: 0;
           border: none;
           background: none;
           color: var(--hs-orange-active);
           font-family: inherit;
-          font-size: 13.5px;
+          font-size: 14px;
           font-weight: 700;
           text-decoration: underline;
           text-underline-offset: 3px;
@@ -269,8 +278,9 @@ export function HeroSection({ onBookDemo }) {
         /* ── record mockup ────────────────────────────────────────── */
         .hs-hero__visual {
           position: relative;
-          min-height: 452px;
-          max-width: 640px;
+          min-height: 455px;
+          /* Fixed stage: card (352) + 4px overlap + menu (208). */
+          max-width: 556px;
           width: 100%;
           margin-left: auto;
         }
@@ -279,7 +289,7 @@ export function HeroSection({ onBookDemo }) {
           position: absolute;
           left: 0;
           top: 52px;
-          width: 344px;
+          width: 352px;
           padding: 30px 26px 22px;
           border-radius: 8px;
           background: var(--hs-forest);
@@ -325,7 +335,7 @@ export function HeroSection({ onBookDemo }) {
 
         .hs-leadcard__actions {
           display: flex;
-          gap: 8px;
+          gap: 7px;
           margin-top: 40px;
         }
         .hs-leadcard__action {
@@ -335,21 +345,27 @@ export function HeroSection({ onBookDemo }) {
           flex-direction: column;
           align-items: center;
           gap: 6px;
-          padding: 10px 4px 8px;
+          padding: 10px 2px 8px;
           border: 1px solid rgba(255, 255, 255, .24);
           border-radius: 3px;
           color: var(--hs-forest-text);
-          font-size: 9.5px;
-          letter-spacing: .01em;
+          font-size: 9px;
+          letter-spacing: 0;
           white-space: nowrap;
         }
-        .hs-leadcard__action svg { color: #fff; }
+        .hs-leadcard__action > span {
+          display: block;
+          max-width: 100%;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .hs-leadcard__action svg { color: #fff; flex: 0 0 auto; }
 
         .hs-leadmenu {
           position: absolute;
-          right: -4px;
+          left: 348px;
           top: 24px;
-          width: 236px;
+          width: 208px;
           display: flex;
           flex-direction: column;
           background: #fff;
@@ -371,18 +387,24 @@ export function HeroSection({ onBookDemo }) {
         .hs-leadmenu__row--ai {
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 9px;
+          padding-top: 11px;
+          padding-bottom: 11px;
           background: var(--hs-pink-soft);
           color: var(--hs-pink-text);
           font-weight: 600;
           border-bottom-color: #F6DCE7;
         }
+        .hs-leadmenu__row--ai > svg { flex: 0 0 auto; }
+        .hs-leadmenu__ai { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+        .hs-leadmenu__ai-title { font-size: 13px; line-height: 1.25; }
+        .hs-leadmenu__ai-sub { font-size: 11px; font-weight: 600; line-height: 1.25; opacity: .78; }
         .hs-leadmenu__row--last { border-bottom: none; }
 
         .hs-sticker {
           position: absolute;
-          top: 0;
-          right: 42px;
+          top: -14px;
+          left: -16px;
           width: 118px;
           display: flex;
           flex-direction: column;
@@ -416,7 +438,7 @@ export function HeroSection({ onBookDemo }) {
           position: relative;
           padding: clamp(22px, 3vw, 40px);
           border-radius: 22px;
-          background: ${gradients.night};
+          background: var(--hs-forest-band);
           box-shadow: 0 40px 90px -50px rgba(11, 17, 32, .65);
         }
         .hs-book__head { text-align: center; margin-bottom: clamp(18px, 2vw, 26px); color: #fff; }
@@ -429,12 +451,12 @@ export function HeroSection({ onBookDemo }) {
         }
         .hs-book__head p { margin: 0; font-size: 14px; color: rgba(255, 255, 255, .68); }
 
-        @media (max-width: 1080px) {
+        @media (max-width: 1260px) {
           .hs-hero__grid { grid-template-columns: 1fr; gap: 44px; }
           .hs-hero__visual { min-height: 0; max-width: 560px; margin: 0 auto; padding-top: 10px; }
           .hs-leadcard { position: relative; top: 0; width: 100%; }
-          .hs-leadmenu { position: relative; right: auto; top: -18px; width: min(300px, 100%); margin-left: auto; }
-          .hs-sticker { top: -10px; right: 16px; width: 104px; }
+          .hs-leadmenu { position: relative; left: auto; right: auto; top: -18px; width: min(300px, 100%); margin-left: auto; }
+          .hs-sticker { top: -12px; right: 14px; left: auto; width: 104px; }
         }
         @media (max-width: 640px) {
           .hs-hero { padding-top: 138px; }

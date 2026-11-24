@@ -1,15 +1,6 @@
 import React, { useRef } from 'react';
 import { motion } from 'framer-motion';
-import {
-  Sparkles,
-  Zap,
-  ShieldCheck,
-  CheckCircle2,
-  ArrowRight,
-  Radio,
-  Layers,
-  Cpu,
-} from 'lucide-react';
+import { Sparkles, Zap, ShieldCheck, CheckCircle2, Layers } from 'lucide-react';
 import {
   SiGooglesheets,
   SiWhatsapp,
@@ -21,20 +12,21 @@ import {
   SiRazorpay,
 } from 'react-icons/si';
 import { AnimatedBeam } from '../../components/ui/animated-beam';
-import { ShinyText } from '../../components/ui/ShinyText';
 import aotmsLogo from '../../assets/Logo.png';
-import {
-  accent,
-  border,
-  brand,
-  cobalt,
-  fonts,
-  layout,
-  radii,
-  shadows,
-  surface,
-  text,
-} from './theme';
+
+const METRICS = [
+  { tone: 'orange', Icon: Zap, value: '7 Portals', label: 'JustDial, IndiaMart, 99acres & more' },
+  { tone: 'forest', Icon: Layers, value: '2-Way WhatsApp', label: 'Official Meta Cloud API inbox' },
+  { tone: 'pink', Icon: ShieldCheck, value: '10+ Connectors', label: 'Sheets, Drive, mail, payments, BI' },
+  { tone: 'canvas', Icon: CheckCircle2, value: 'Open API', label: 'Tokens, webhooks & request logs' },
+];
+
+const fadeUp = (delay = 0) => ({
+  initial: { opacity: 0, y: 16 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true },
+  transition: { duration: 0.7, delay },
+});
 
 export function IntegrationsSection() {
   const containerRef = useRef(null);
@@ -53,127 +45,43 @@ export function IntegrationsSection() {
   const razorpayRef = useRef(null);
 
   return (
-    <section
-      id="services"
-      style={{
-        position: 'relative',
-        background: surface.subtle,
-        padding: `${layout.sectionY} ${layout.gutter}`,
-        overflow: 'hidden',
-      }}
-    >
+    <section id="services" className="hs-int">
       {/* Anchor for Navbar link */}
-      <div id="integrations" style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }} />
+      <div id="integrations" className="hs-int__anchor" />
 
-      {/* Ambient background glow */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '15%',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: '90%',
-          maxWidth: 1100,
-          height: 480,
-          background: 'radial-gradient(ellipse at 50% 25%, rgba(37, 99, 235, 0.07) 0%, transparent 68%)',
-          pointerEvents: 'none',
-          zIndex: 0,
-        }}
-      />
-
-      <div
-        style={{
-          maxWidth: 1240,
-          margin: '0 auto',
-          position: 'relative',
-          zIndex: 1,
-        }}
-      >
+      <div className="hs-int__inner">
         {/* ══════════════════════════════════════════════
             SECTION HEADER
             ══════════════════════════════════════════════ */}
-        <div style={{ textAlign: 'center', marginBottom: 44 }}>
-          {/* Tag Pill */}
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '6px 16px',
-              borderRadius: radii.pill,
-              background: surface.page,
-              border: `1px solid ${cobalt[200]}`,
-              marginBottom: 18,
-              boxShadow: 'none',
-            }}
-          >
-            <Sparkles size={13} strokeWidth={2.4} color={brand.base} />
-            <ShinyText
-              text="LIVE NATIVE CONNECTORS & API PIPELINE"
-              speed={3.5}
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: '0.10em',
-                color: cobalt[700],
-              }}
-            />
-          </motion.div>
+        <div className="hs-int__head">
+          <motion.span className="hs-eyebrow" {...fadeUp(0)}>
+            <Sparkles size={13} strokeWidth={2.4} />
+            LEAD SOURCES, CHANNELS &amp; OPEN API
+          </motion.span>
 
-          {/* Main Heading */}
-          <motion.h2
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.7, delay: 0.1 }}
-            style={{
-              fontSize: 'clamp(30px, 4.2vw, 46px)',
-              fontWeight: 800,
-              letterSpacing: '-0.035em',
-              lineHeight: 1.15,
-              color: text.primary,
-              margin: '0 0 16px 0',
-              fontFamily: fonts.display,
-            }}
-          >
-            Connects with the platforms you already use
+          <motion.h2 className="hs-int__title" {...fadeUp(0.1)}>
+            Connects with the tools you already work in
           </motion.h2>
 
-          {/* Subtitle */}
-          <motion.p
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.7, delay: 0.2 }}
-            style={{
-              color: text.tertiary,
-              fontSize: 'clamp(15px, 1.1vw, 17px)',
-              maxWidth: 720,
-              margin: '0 auto',
-              lineHeight: 1.7,
-              fontWeight: 400,
-            }}
-          >
-            Real, native API integrations — not just webhook stubs. Route telephony calls, capture social ads, sync Google Sheets, and trigger WhatsApp dispatches in under 120ms.
+          <motion.p className="hs-int__lede" {...fadeUp(0.2)}>
+            Real integrations, not just webhook stubs. Pull leads from ad platforms, sheets and
+            classified portals, send on WhatsApp and email, dial over your SIP line, take payments
+            and sync biometric attendance — while your own systems use the AOTMS API.
           </motion.p>
         </div>
 
         {/* ══════════════════════════════════════════════
-            ANIMATED BEAM INTERACTIVE CANVAS (MIDDLE LOGO - WHITE THEME)
+            ANIMATED BEAM INTERACTIVE CANVAS
             ══════════════════════════════════════════════ */}
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8 }}
-          className="relative flex min-h-[480px] md:min-h-[520px] w-full items-center justify-center overflow-hidden rounded-[28px] border border-[#E1E7F1] bg-white p-6 md:p-12 shadow-[0_28px_70px_-30px_rgba(11,17,32,0.22)]"
+          className="relative flex min-h-[480px] md:min-h-[520px] w-full items-center justify-center overflow-hidden rounded-[12px] border border-[#E3E8EE] bg-white p-6 md:p-12"
           ref={containerRef}
           style={{
-            backgroundImage: `radial-gradient(rgba(17, 24, 41, 0.07) 1.2px, transparent 1.2px)`,
+            backgroundImage: `radial-gradient(rgba(33, 51, 67, 0.07) 1.2px, transparent 1.2px)`,
             backgroundSize: '26px 26px',
           }}
         >
@@ -187,7 +95,7 @@ export function IntegrationsSection() {
               width: 380,
               height: 380,
               borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(37, 99, 235, 0.12) 0%, transparent 70%)',
+              background: 'radial-gradient(circle, rgba(255, 92, 53, 0.12) 0%, transparent 70%)',
               filter: 'blur(45px)',
               pointerEvents: 'none',
               zIndex: 1,
@@ -200,14 +108,14 @@ export function IntegrationsSection() {
             <div className="flex items-center gap-3">
               <div
                 ref={sheetsRef}
-                className="z-20 flex size-12 md:size-14 items-center justify-center rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_4px_14px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_20px_rgba(16,185,129,0.18)] hover:border-emerald-400 hover:scale-105 transition-all cursor-pointer group"
+                className="z-20 flex size-12 md:size-14 items-center justify-center rounded-lg border border-[#E3E8EE] bg-white p-3 shadow-[0_2px_8px_rgba(33,51,67,0.06)] hover:shadow-[0_10px_22px_rgba(33,51,67,0.14)] hover:border-[#CBD6E2] hover:scale-105 transition-all cursor-pointer group"
                 title="Google Sheets 2-Way Sync"
               >
                 <SiGooglesheets size={24} className="text-emerald-500 group-hover:scale-110 transition-transform" />
               </div>
               <div className="hidden sm:block">
-                <div className="text-xs font-semibold text-[#111829]">Google Sheets</div>
-                <div className="text-[10px] text-[#5F6E8C] font-medium">2-Way Live Sync</div>
+                <div className="text-xs font-semibold text-[#213343]">Google Sheets</div>
+                <div className="text-[10px] text-[#516F90] font-medium">2-Way Live Sync</div>
               </div>
             </div>
 
@@ -215,14 +123,14 @@ export function IntegrationsSection() {
             <div className="flex items-center gap-3">
               <div
                 ref={whatsappRef}
-                className="z-20 flex size-12 md:size-14 items-center justify-center rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_4px_14px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_20px_rgba(34,197,94,0.18)] hover:border-green-400 hover:scale-105 transition-all cursor-pointer group"
+                className="z-20 flex size-12 md:size-14 items-center justify-center rounded-lg border border-[#E3E8EE] bg-white p-3 shadow-[0_2px_8px_rgba(33,51,67,0.06)] hover:shadow-[0_10px_22px_rgba(33,51,67,0.14)] hover:border-[#CBD6E2] hover:scale-105 transition-all cursor-pointer group"
                 title="WhatsApp Cloud API"
               >
                 <SiWhatsapp size={24} className="text-green-500 group-hover:scale-110 transition-transform" />
               </div>
               <div className="hidden sm:block">
-                <div className="text-xs font-semibold text-[#111829]">WhatsApp</div>
-                <div className="text-[10px] text-[#5F6E8C] font-medium">Meta Cloud API</div>
+                <div className="text-xs font-semibold text-[#213343]">WhatsApp</div>
+                <div className="text-[10px] text-[#516F90] font-medium">Meta Cloud API</div>
               </div>
             </div>
 
@@ -230,14 +138,14 @@ export function IntegrationsSection() {
             <div className="flex items-center gap-3">
               <div
                 ref={metaRef}
-                className="z-20 flex size-12 md:size-14 items-center justify-center rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_4px_14px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_20px_rgba(37,99,235,0.18)] hover:border-blue-400 hover:scale-105 transition-all cursor-pointer group"
+                className="z-20 flex size-12 md:size-14 items-center justify-center rounded-lg border border-[#E3E8EE] bg-white p-3 shadow-[0_2px_8px_rgba(33,51,67,0.06)] hover:shadow-[0_10px_22px_rgba(33,51,67,0.14)] hover:border-[#CBD6E2] hover:scale-105 transition-all cursor-pointer group"
                 title="Facebook Lead Ads Webhook"
               >
                 <SiFacebook size={24} className="text-blue-600 group-hover:scale-110 transition-transform" />
               </div>
               <div className="hidden sm:block">
-                <div className="text-xs font-semibold text-[#111829]">Meta Ads</div>
-                <div className="text-[10px] text-[#5F6E8C] font-medium">&lt; 80ms Ingest</div>
+                <div className="text-xs font-semibold text-[#213343]">Meta Lead Ads</div>
+                <div className="text-[10px] text-[#516F90] font-medium">Facebook · Instagram</div>
               </div>
             </div>
 
@@ -245,14 +153,14 @@ export function IntegrationsSection() {
             <div className="flex items-center gap-3">
               <div
                 ref={driveRef}
-                className="z-20 flex size-12 md:size-14 items-center justify-center rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_4px_14px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_20px_rgba(245,158,11,0.18)] hover:border-amber-400 hover:scale-105 transition-all cursor-pointer group"
+                className="z-20 flex size-12 md:size-14 items-center justify-center rounded-lg border border-[#E3E8EE] bg-white p-3 shadow-[0_2px_8px_rgba(33,51,67,0.06)] hover:shadow-[0_10px_22px_rgba(33,51,67,0.14)] hover:border-[#CBD6E2] hover:scale-105 transition-all cursor-pointer group"
                 title="Google Drive Document Storage"
               >
                 <SiGoogledrive size={24} className="text-amber-500 group-hover:scale-110 transition-transform" />
               </div>
               <div className="hidden sm:block">
-                <div className="text-xs font-semibold text-[#111829]">Google Drive</div>
-                <div className="text-[10px] text-[#5F6E8C] font-medium">Cloud Attachments</div>
+                <div className="text-xs font-semibold text-[#213343]">Google Drive</div>
+                <div className="text-[10px] text-[#516F90] font-medium">Cloud Attachments</div>
               </div>
             </div>
           </div>
@@ -264,15 +172,15 @@ export function IntegrationsSection() {
               ref={centerRef}
               whileHover={{ scale: 1.05 }}
               transition={{ duration: 0.3 }}
-              className="z-20 flex size-20 md:size-24 items-center justify-center rounded-full border-2 border-[#2563EB]/40 bg-white p-3.5 shadow-[0_12px_38px_rgba(37,99,235,0.24)] relative cursor-pointer"
+              className="z-20 flex size-20 md:size-24 items-center justify-center rounded-full border-2 border-[#FF5C35]/50 bg-white p-3.5 shadow-[0_12px_38px_rgba(255,92,53,0.24)] relative cursor-pointer"
             >
               <img
                 src={aotmsLogo}
                 alt="AOTMS CRM"
                 className="h-full w-full object-contain"
               />
-              <span className="absolute -bottom-7 whitespace-nowrap text-[10px] font-mono font-semibold tracking-[0.14em] text-[#1D4ED8] bg-[#EFF4FF] px-3 py-1 rounded-full border border-[#BFD2FD] shadow-sm">
-                AOTMS CORE CRM
+              <span className="absolute -bottom-7 whitespace-nowrap text-[10px] font-mono font-semibold tracking-[0.14em] text-[#E24B22] bg-[#FFF3EF] px-3 py-1 rounded-full border border-[#FFD9CD] shadow-sm">
+                AOTMS CORE
               </span>
             </motion.div>
           </div>
@@ -282,12 +190,12 @@ export function IntegrationsSection() {
             {/* 1. Airtel Telephony */}
             <div className="flex items-center justify-end gap-3">
               <div className="hidden sm:block text-right">
-                <div className="text-xs font-semibold text-[#111829]">Airtel Telecom</div>
-                <div className="text-[10px] text-[#5F6E8C] font-medium">SIP Trunk & VoIP</div>
+                <div className="text-xs font-semibold text-[#213343]">Airtel &amp; Cloud SIP</div>
+                <div className="text-[10px] text-[#516F90] font-medium">Telephony Lines</div>
               </div>
               <div
                 ref={airtelRef}
-                className="z-20 flex size-12 md:size-14 items-center justify-center rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_4px_14px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_20px_rgba(239,68,68,0.18)] hover:border-red-400 hover:scale-105 transition-all cursor-pointer group"
+                className="z-20 flex size-12 md:size-14 items-center justify-center rounded-lg border border-[#E3E8EE] bg-white p-3 shadow-[0_2px_8px_rgba(33,51,67,0.06)] hover:shadow-[0_10px_22px_rgba(33,51,67,0.14)] hover:border-[#CBD6E2] hover:scale-105 transition-all cursor-pointer group"
                 title="Airtel Enterprise SIP Trunk"
               >
                 <SiAirtel size={24} className="text-red-500 group-hover:scale-110 transition-transform" />
@@ -297,12 +205,12 @@ export function IntegrationsSection() {
             {/* 2. Gmail */}
             <div className="flex items-center justify-end gap-3">
               <div className="hidden sm:block text-right">
-                <div className="text-xs font-semibold text-[#111829]">Gmail & SMTP</div>
-                <div className="text-[10px] text-[#5F6E8C] font-medium">Transactional Mail</div>
+                <div className="text-xs font-semibold text-[#213343]">Gmail &amp; SMTP</div>
+                <div className="text-[10px] text-[#516F90] font-medium">Email CRM &amp; Blasts</div>
               </div>
               <div
                 ref={gmailRef}
-                className="z-20 flex size-12 md:size-14 items-center justify-center rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_4px_14px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_20px_rgba(244,63,94,0.18)] hover:border-rose-400 hover:scale-105 transition-all cursor-pointer group"
+                className="z-20 flex size-12 md:size-14 items-center justify-center rounded-lg border border-[#E3E8EE] bg-white p-3 shadow-[0_2px_8px_rgba(33,51,67,0.06)] hover:shadow-[0_10px_22px_rgba(33,51,67,0.14)] hover:border-[#CBD6E2] hover:scale-105 transition-all cursor-pointer group"
                 title="Gmail & Enterprise SMTP"
               >
                 <SiGmail size={24} className="text-rose-500 group-hover:scale-110 transition-transform" />
@@ -312,12 +220,12 @@ export function IntegrationsSection() {
             {/* 3. Zapier Automation */}
             <div className="flex items-center justify-end gap-3">
               <div className="hidden sm:block text-right">
-                <div className="text-xs font-semibold text-[#111829]">Zapier</div>
-                <div className="text-[10px] text-[#5F6E8C] font-medium">5,000+ App Triggers</div>
+                <div className="text-xs font-semibold text-[#213343]">n8n &amp; Zapier</div>
+                <div className="text-[10px] text-[#516F90] font-medium">Automation &amp; Webhooks</div>
               </div>
               <div
                 ref={zapierRef}
-                className="z-20 flex size-12 md:size-14 items-center justify-center rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_4px_14px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_20px_rgba(249,115,22,0.18)] hover:border-orange-400 hover:scale-105 transition-all cursor-pointer group"
+                className="z-20 flex size-12 md:size-14 items-center justify-center rounded-lg border border-[#E3E8EE] bg-white p-3 shadow-[0_2px_8px_rgba(33,51,67,0.06)] hover:shadow-[0_10px_22px_rgba(33,51,67,0.14)] hover:border-[#CBD6E2] hover:scale-105 transition-all cursor-pointer group"
                 title="Zapier & Webhooks Automation"
               >
                 <SiZapier size={24} className="text-orange-500 group-hover:scale-110 transition-transform" />
@@ -327,12 +235,12 @@ export function IntegrationsSection() {
             {/* 4. Razorpay Payments */}
             <div className="flex items-center justify-end gap-3">
               <div className="hidden sm:block text-right">
-                <div className="text-xs font-semibold text-[#111829]">Razorpay</div>
-                <div className="text-[10px] text-[#5F6E8C] font-medium">Instant UPI Links</div>
+                <div className="text-xs font-semibold text-[#213343]">Razorpay</div>
+                <div className="text-[10px] text-[#516F90] font-medium">Instant UPI Links</div>
               </div>
               <div
                 ref={razorpayRef}
-                className="z-20 flex size-12 md:size-14 items-center justify-center rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_4px_14px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_20px_rgba(37,99,235,0.18)] hover:border-blue-400 hover:scale-105 transition-all cursor-pointer group"
+                className="z-20 flex size-12 md:size-14 items-center justify-center rounded-lg border border-[#E3E8EE] bg-white p-3 shadow-[0_2px_8px_rgba(33,51,67,0.06)] hover:shadow-[0_10px_22px_rgba(33,51,67,0.14)] hover:border-[#CBD6E2] hover:scale-105 transition-all cursor-pointer group"
                 title="Razorpay Payment Links"
               >
                 <SiRazorpay size={24} className="text-blue-600 group-hover:scale-110 transition-transform" />
@@ -352,7 +260,7 @@ export function IntegrationsSection() {
             gradientStartColor="#0F9D58"
             gradientStopColor="#10B981"
             duration={3.2}
-            pathColor="#C9D2E1"
+            pathColor="#CBD6E2"
             pathWidth={2}
             pathOpacity={0.65}
           />
@@ -366,7 +274,7 @@ export function IntegrationsSection() {
             gradientStopColor="#059669"
             duration={2.8}
             delay={0.4}
-            pathColor="#C9D2E1"
+            pathColor="#CBD6E2"
             pathWidth={2}
             pathOpacity={0.65}
           />
@@ -380,7 +288,7 @@ export function IntegrationsSection() {
             gradientStopColor="#2563EB"
             duration={3.0}
             delay={0.8}
-            pathColor="#C9D2E1"
+            pathColor="#CBD6E2"
             pathWidth={2}
             pathOpacity={0.65}
           />
@@ -394,7 +302,7 @@ export function IntegrationsSection() {
             gradientStopColor="#EA4335"
             duration={3.4}
             delay={1.2}
-            pathColor="#C9D2E1"
+            pathColor="#CBD6E2"
             pathWidth={2}
             pathOpacity={0.65}
           />
@@ -412,7 +320,7 @@ export function IntegrationsSection() {
             gradientStopColor="#DC2626"
             duration={3.0}
             delay={0.2}
-            pathColor="#C9D2E1"
+            pathColor="#CBD6E2"
             pathWidth={2}
             pathOpacity={0.65}
           />
@@ -426,7 +334,7 @@ export function IntegrationsSection() {
             gradientStopColor="#DC2626"
             duration={2.9}
             delay={0.6}
-            pathColor="#C9D2E1"
+            pathColor="#CBD6E2"
             pathWidth={2}
             pathOpacity={0.65}
           />
@@ -440,7 +348,7 @@ export function IntegrationsSection() {
             gradientStopColor="#EA580C"
             duration={3.1}
             delay={1.0}
-            pathColor="#C9D2E1"
+            pathColor="#CBD6E2"
             pathWidth={2}
             pathOpacity={0.65}
           />
@@ -454,7 +362,7 @@ export function IntegrationsSection() {
             gradientStopColor="#0284C7"
             duration={3.3}
             delay={1.4}
-            pathColor="#C9D2E1"
+            pathColor="#CBD6E2"
             pathWidth={2}
             pathOpacity={0.65}
           />
@@ -463,147 +371,101 @@ export function IntegrationsSection() {
         {/* ══════════════════════════════════════════════
             INTEGRATION METRICS CARDS (BOTTOM STRIP)
             ══════════════════════════════════════════════ */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-            gap: 20,
-            marginTop: 36,
-          }}
-        >
-          <div
-            style={{
-              padding: '20px 24px',
-              borderRadius: radii.lg,
-              background: surface.page,
-              border: `1px solid ${border.hairline}`,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 14,
-              boxShadow: shadows.xs,
-            }}
-          >
-            <div
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: radii.sm,
-                background: brand.tint,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: brand.base,
-                flexShrink: 0,
-              }}
-            >
-              <Zap size={22} strokeWidth={2.4} />
+        <div className="hs-int__metrics">
+          {METRICS.map(({ tone, Icon, value, label }) => (
+            <div key={label} className="hs-int__metric">
+              <span className={`hs-int__metric-icon hs-int__metric-icon--${tone}`}>
+                <Icon size={22} strokeWidth={2.2} />
+              </span>
+              <div>
+                <div className="hs-int__metric-value">{value}</div>
+                <div className="hs-int__metric-label">{label}</div>
+              </div>
             </div>
-            <div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: text.primary, letterSpacing: '-0.015em' }}>&lt; 80ms</div>
-              <div style={{ fontSize: 12.5, color: text.tertiary, fontWeight: 500 }}>Webhook Sync Latency</div>
-            </div>
-          </div>
-
-          <div
-            style={{
-              padding: '20px 24px',
-              borderRadius: radii.lg,
-              background: surface.page,
-              border: `1px solid ${border.hairline}`,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 14,
-              boxShadow: shadows.xs,
-            }}
-          >
-            <div
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: radii.sm,
-                background: accent.emerald.tint,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: accent.emerald.text,
-                flexShrink: 0,
-              }}
-            >
-              <ShieldCheck size={22} strokeWidth={2.4} />
-            </div>
-            <div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: text.primary, letterSpacing: '-0.015em' }}>99.9% Uptime</div>
-              <div style={{ fontSize: 12.5, color: text.tertiary, fontWeight: 500 }}>Carrier SIP & WebRTC</div>
-            </div>
-          </div>
-
-          <div
-            style={{
-              padding: '20px 24px',
-              borderRadius: radii.lg,
-              background: surface.page,
-              border: `1px solid ${border.hairline}`,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 14,
-              boxShadow: shadows.xs,
-            }}
-          >
-            <div
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: radii.sm,
-                background: accent.teal.tint,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: accent.teal.text,
-                flexShrink: 0,
-              }}
-            >
-              <Layers size={22} strokeWidth={2.4} />
-            </div>
-            <div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: text.primary, letterSpacing: '-0.015em' }}>100+ Connectors</div>
-              <div style={{ fontSize: 12.5, color: text.tertiary, fontWeight: 500 }}>Native CRM & Ad APIs</div>
-            </div>
-          </div>
-
-          <div
-            style={{
-              padding: '20px 24px',
-              borderRadius: radii.lg,
-              background: surface.page,
-              border: `1px solid ${border.hairline}`,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 14,
-              boxShadow: shadows.xs,
-            }}
-          >
-            <div
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: radii.sm,
-                background: accent.amber.tint,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: accent.amber.text,
-                flexShrink: 0,
-              }}
-            >
-              <CheckCircle2 size={22} strokeWidth={2.4} />
-            </div>
-            <div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: text.primary, letterSpacing: '-0.015em' }}>0% Leakage</div>
-              <div style={{ fontSize: 12.5, color: text.tertiary, fontWeight: 500 }}>Automated Round-Robin</div>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
+
+      <style>{`
+        .hs-int {
+          position: relative;
+          background: var(--hs-canvas);
+          padding: clamp(56px, 7vw, 96px) 0;
+          font-family: var(--hs-ui);
+          overflow: hidden;
+        }
+        .hs-int__anchor { position: absolute; top: 0; left: 0; pointer-events: none; }
+        .hs-int__inner {
+          position: relative;
+          z-index: 1;
+          max-width: 1300px;
+          margin: 0 auto;
+          padding: 0 clamp(16px, 3vw, 40px);
+        }
+
+        .hs-int__head {
+          text-align: center;
+          max-width: 760px;
+          margin: 0 auto clamp(36px, 4vw, 56px);
+        }
+        .hs-int__title {
+          margin: 22px 0 16px;
+          font-family: var(--hs-serif);
+          font-weight: 400;
+          font-size: clamp(30px, 4vw, 46px);
+          line-height: 1.1;
+          letter-spacing: -0.015em;
+          color: var(--hs-navy);
+        }
+        .hs-int__lede {
+          margin: 0 auto;
+          max-width: 700px;
+          font-size: 16px;
+          line-height: 1.75;
+          color: var(--hs-muted);
+        }
+
+        .hs-int__metrics {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+          gap: 20px;
+          margin-top: clamp(24px, 3vw, 36px);
+        }
+        .hs-int__metric {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          padding: 20px 24px;
+          background: var(--hs-white);
+          border: 1px solid var(--hs-line);
+          border-radius: 10px;
+        }
+        .hs-int__metric-icon {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 44px;
+          height: 44px;
+          flex: 0 0 auto;
+          border-radius: 6px;
+        }
+        .hs-int__metric-icon--orange { background: var(--hs-orange-soft); color: var(--hs-orange-active); }
+        .hs-int__metric-icon--forest { background: var(--hs-forest); color: var(--hs-forest-text); }
+        .hs-int__metric-icon--pink { background: var(--hs-pink-soft); color: var(--hs-pink-text); }
+        .hs-int__metric-icon--canvas {
+          background: var(--hs-canvas);
+          color: var(--hs-navy);
+          border: 1px solid var(--hs-line);
+        }
+        .hs-int__metric-value {
+          font-family: var(--hs-serif);
+          font-size: 21px;
+          line-height: 1.2;
+          letter-spacing: -0.01em;
+          color: var(--hs-navy);
+        }
+        .hs-int__metric-label { margin-top: 2px; font-size: 12.5px; font-weight: 500; color: var(--hs-muted); }
+      `}</style>
     </section>
   );
 }

@@ -118,7 +118,7 @@ export function BookingCard() {
     <ContactCard
       variant="glass"
       title="Book a free demo"
-      description="Pick a slot and we will walk you through the CRM, the AI telecaller and the WhatsApp automation — on your own pipeline. Every field below is required."
+      description="Pick a slot and we will walk you through the CRM, WhatsApp automation, attendance and finance tools — on your own data. Every field below is required."
       contactInfo={[
         { icon: Clock3Icon, label: 'Duration', value: '30-minute walkthrough' },
         { icon: VideoIcon, label: 'Format', value: 'Google Meet or Zoom' },
@@ -246,7 +246,11 @@ export function BookingCard() {
                 </div>
               )}
 
-              <Button type="submit" className="w-full" disabled={submitting}>
+              <Button
+                type="submit"
+                className="w-full bg-[color:var(--hs-orange)] font-semibold text-white hover:bg-[color:var(--hs-orange-hover)]"
+                disabled={submitting}
+              >
                 {submitting ? (
                   <>
                     <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />

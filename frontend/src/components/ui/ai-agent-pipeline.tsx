@@ -30,7 +30,7 @@ function AnimatedDot({
   opacity: number
 }) {
   return (
-    <circle r={size} fill="#0052FF" opacity={opacity}>
+    <circle r={size} fill="#FF5C35" opacity={opacity}>
       <animateMotion
         dur={`${duration}s`}
         repeatCount="indefinite"
@@ -177,7 +177,7 @@ export default function EnterpriseAIPipeline({
 
   return (
     <div
-      className={`bg-[#090909] border border-white/[0.08] rounded-[16px] overflow-hidden font-sans w-full max-w-[640px] mx-auto shadow-2xl ${className}`}
+      className={`bg-[#12211D] border border-white/[0.08] rounded-[16px] overflow-hidden font-sans w-full max-w-[640px] mx-auto shadow-2xl ${className}`}
     >
       {/* Header */}
       <div className="px-[18px] py-[11px] border-b border-white/[0.06] flex items-center justify-between">
@@ -216,7 +216,7 @@ export default function EnterpriseAIPipeline({
               <path
                 d="M2 1.5L7.5 5L2 8.5"
                 fill="none"
-                stroke="rgba(0,82,255,0.55)"
+                stroke="rgba(255,92,53,0.55)"
                 strokeWidth="1.6"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -228,7 +228,7 @@ export default function EnterpriseAIPipeline({
           <path
             d={paths.p1}
             fill="none"
-            stroke="rgba(0,82,255,0.30)"
+            stroke="rgba(255,92,53,0.30)"
             strokeWidth="1.5"
             strokeDasharray="3 5"
             markerEnd="url(#ma)"
@@ -236,7 +236,7 @@ export default function EnterpriseAIPipeline({
           <path
             d={paths.p2}
             fill="none"
-            stroke="rgba(0,82,255,0.30)"
+            stroke="rgba(255,92,53,0.30)"
             strokeWidth="1.5"
             strokeDasharray="3 5"
             markerEnd="url(#ma)"
@@ -244,21 +244,21 @@ export default function EnterpriseAIPipeline({
           <path
             d={paths.p3}
             fill="none"
-            stroke="rgba(0,82,255,0.22)"
+            stroke="rgba(255,92,53,0.22)"
             strokeWidth="1.5"
             strokeDasharray="3 5"
           />
           <path
             d={paths.p4}
             fill="none"
-            stroke="rgba(0,82,255,0.22)"
+            stroke="rgba(255,92,53,0.22)"
             strokeWidth="1.5"
             strokeDasharray="3 5"
           />
           <path
             d={paths.p5}
             fill="none"
-            stroke="rgba(0,82,255,0.22)"
+            stroke="rgba(255,92,53,0.22)"
             strokeWidth="1.5"
             strokeDasharray="3 5"
           />
@@ -287,7 +287,7 @@ export default function EnterpriseAIPipeline({
             width="100"
             height="44"
             rx="8"
-            fill="#141414"
+            fill="#1E3D36"
             stroke="rgba(255,255,255,0.09)"
             strokeWidth="0.5"
           />
@@ -332,7 +332,7 @@ export default function EnterpriseAIPipeline({
             width="110"
             height="44"
             rx="8"
-            fill="#141414"
+            fill="#1E3D36"
             stroke="rgba(255,255,255,0.09)"
             strokeWidth="0.5"
           />
@@ -377,17 +377,17 @@ export default function EnterpriseAIPipeline({
             width="105"
             height="70"
             rx="10"
-            fill="#050D1C"
-            stroke="#0052FF"
+            fill="#12303A"
+            stroke="#FF5C35"
             strokeWidth="1.2"
           />
-          <rect x="318" y="53.5" width="80" height="1" rx="0.5" fill="rgba(51,117,255,0.6)" />
+          <rect x="318" y="53.5" width="80" height="1" rx="0.5" fill="rgba(255,140,95,0.6)" />
           <text
             x="358"
             y="78"
             textAnchor="middle"
             fontSize="9.5"
-            fill="rgba(51,117,255,0.85)"
+            fill="rgba(255,140,95,0.85)"
             fontFamily="system-ui"
             letterSpacing=".07em"
             fontWeight="700"
@@ -405,15 +405,15 @@ export default function EnterpriseAIPipeline({
           >
             {nodeLabels.llmTitle}
           </text>
-          <PulsingDot cx={346} cy={113} color="#0052FF" duration={1.2} delay={0} />
-          <PulsingDot cx={358} cy={113} color="#0052FF" duration={1.2} delay={0.4} />
-          <PulsingDot cx={370} cy={113} color="#0052FF" duration={1.2} delay={0.8} />
+          <PulsingDot cx={346} cy={113} color="#FF5C35" duration={1.2} delay={0} />
+          <PulsingDot cx={358} cy={113} color="#FF5C35" duration={1.2} delay={0.4} />
+          <PulsingDot cx={370} cy={113} color="#FF5C35" duration={1.2} delay={0.8} />
           <text
             x="358"
             y="139"
             textAnchor="middle"
             fontSize="8.5"
-            fill="rgba(0,82,255,0.6)"
+            fill="rgba(255,92,53,0.6)"
             fontFamily="monospace"
           >
             {nodeLabels.llmSub}
@@ -494,7 +494,7 @@ export default function EnterpriseAIPipeline({
       {/* Message Display */}
       <div className="border-t border-white/[0.06] px-[18px] py-[9px] h-[52px]">
         <div className="flex gap-2 items-start h-full">
-          <span className="text-[#0052FF] font-mono text-[13px] leading-[1.5] shrink-0 font-bold">
+          <span className="text-[#FF7A59] font-mono text-[13px] leading-[1.5] shrink-0 font-bold">
             ›
           </span>
           <div className="relative flex-1 overflow-hidden h-full">
